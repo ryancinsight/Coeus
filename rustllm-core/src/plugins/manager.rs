@@ -13,7 +13,6 @@ use crate::foundation::{
     types::{PluginName, Version},
 };
 use crate::plugins::registry::PluginRegistry;
-use core::any::Any;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},

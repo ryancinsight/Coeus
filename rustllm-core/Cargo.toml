@@ -70,12 +70,24 @@ path = "examples/config_usage.rs"
 name = "transformer_250m"
 path = "examples/transformer_250m.rs"
 
+[[example]]
+name = "training_example"
+path = "examples/training_example.rs"
+
+[[example]]
+name = "diffusion_example"
+path = "examples/diffusion_example.rs"
+
 [[bench]]
 name = "tokenizer_bench"
 harness = false
 
 [[bench]]
 name = "iterator_bench"
+harness = false
+
+[[bench]]
+name = "advanced_iterator_bench"
 harness = false
 
 [profile.release]

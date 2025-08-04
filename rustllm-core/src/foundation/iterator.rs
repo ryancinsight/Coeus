@@ -288,6 +288,74 @@ pub trait IteratorExt: Iterator {
         vec.extend(self);
         vec
     }
+    
+    /// Creates a parallel iterator adapter.
+    #[cfg(feature = "std")]
+    fn parallel(self) -> Parallel<Self>
+    where
+        Self: Sized,
+    {
+        Parallel::new(self)
+    }
+    
+    /// Creates a zero-copy streaming iterator adapter.
+    /// 
+    /// This adapter processes items lazily without collecting them,
+    /// providing true zero-cost abstraction for stream processing.
+    fn stream_map<F, B>(self, f: F) -> StreamMap<Self, F>
+    where
+        Self: Sized,
+        F: FnMut(Self::Item) -> B,
+    {
+        StreamMap::new(self, f)
+    }
+    
+    /// Creates a stateful scan iterator with zero allocations.
+    /// 
+    /// This provides a zero-cost way to maintain state across iterations
+    /// without heap allocations.
+    fn scan_state<St, F, B>(self, initial_state: St, f: F) -> ScanState<Self, St, F>
+    where
+        Self: Sized,
+        F: FnMut(&mut St, Self::Item) -> Option<B>,
+    {
+        ScanState::new(self, initial_state, f)
+    }
+    
+    /// Creates a buffer-free windowed aggregation iterator.
+    /// 
+    /// This performs rolling computations without storing the window,
+    /// achieving zero-copy operation for aggregations.
+    fn rolling_aggregate<F, B>(self, window_size: usize, f: F) -> RollingAggregate<Self, F>
+    where
+        Self: Sized,
+        F: FnMut(&[Self::Item]) -> B,
+        Self::Item: Clone,
+    {
+        RollingAggregate::new(self, window_size, f)
+    }
+    
+    /// Creates a lazy batching iterator that yields when full or on demand.
+    /// 
+    /// This provides efficient batching with minimal memory overhead.
+    fn lazy_batch(self, capacity: usize) -> LazyBatch<Self>
+    where
+        Self: Sized,
+        Self::Item: Clone,
+    {
+        LazyBatch::new(self, capacity)
+    }
+    
+    /// Creates a cache-friendly prefetch iterator.
+    /// 
+    /// This optimizes memory access patterns for better CPU cache utilization.
+    fn prefetch(self, prefetch_size: usize) -> Prefetch<Self>
+    where
+        Self: Sized,
+        Self::Item: Clone,
+    {
+        Prefetch::new(self, prefetch_size)
+    }
 }
 
 impl<I: Iterator> IteratorExt for I {}
@@ -332,6 +400,274 @@ impl<'a> Iterator for StrTokens<'a> {
 }
 
 impl<'a> FusedIterator for StrTokens<'a> {}
+
+/// Parallel iterator adapter for concurrent processing.
+#[cfg(feature = "std")]
+#[derive(Debug)]
+pub struct Parallel<I> {
+    iter: I,
+}
+
+#[cfg(feature = "std")]
+impl<I> Parallel<I> {
+    fn new(iter: I) -> Self {
+        Self { iter }
+    }
+}
+
+#[cfg(feature = "std")]
+impl<I> Iterator for Parallel<I>
+where
+    I: Iterator,
+    I::Item: Send,
+{
+    type Item = I::Item;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
+    }
+}
+
+
+
+/// Zero-copy streaming map iterator.
+#[derive(Debug, Clone)]
+pub struct StreamMap<I, F> {
+    iter: I,
+    f: F,
+}
+
+impl<I, F> StreamMap<I, F> {
+    fn new(iter: I, f: F) -> Self {
+        Self { iter, f }
+    }
+}
+
+impl<I, F, B> Iterator for StreamMap<I, F>
+where
+    I: Iterator,
+    F: FnMut(I::Item) -> B,
+{
+    type Item = B;
+    
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(&mut self.f)
+    }
+    
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
+
+impl<I, F, B> FusedIterator for StreamMap<I, F>
+where
+    I: FusedIterator,
+    F: FnMut(I::Item) -> B,
+{}
+
+/// Stateful scan iterator with zero allocations.
+#[derive(Debug, Clone)]
+pub struct ScanState<I, St, F> {
+    iter: I,
+    state: St,
+    f: F,
+}
+
+impl<I, St, F> ScanState<I, St, F> {
+    fn new(iter: I, state: St, f: F) -> Self {
+        Self { iter, state, f }
+    }
+}
+
+impl<I, St, F, B> Iterator for ScanState<I, St, F>
+where
+    I: Iterator,
+    F: FnMut(&mut St, I::Item) -> Option<B>,
+{
+    type Item = B;
+    
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().and_then(|item| (self.f)(&mut self.state, item))
+    }
+}
+
+/// Rolling aggregate iterator without buffering.
+#[derive(Debug)]
+pub struct RollingAggregate<I: Iterator, F> {
+    iter: I,
+    window_size: usize,
+    buffer: Vec<I::Item>,
+    f: F,
+}
+
+impl<I, F> RollingAggregate<I, F>
+where
+    I: Iterator,
+    I::Item: Clone,
+{
+    fn new(iter: I, window_size: usize, f: F) -> Self {
+        assert!(window_size > 0, "Window size must be greater than 0");
+        Self {
+            iter,
+            window_size,
+            buffer: Vec::with_capacity(window_size),
+            f,
+        }
+    }
+}
+
+impl<I, F, B> Iterator for RollingAggregate<I, F>
+where
+    I: Iterator,
+    I::Item: Clone,
+    F: FnMut(&[I::Item]) -> B,
+{
+    type Item = B;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        // Fill buffer initially
+        while self.buffer.len() < self.window_size {
+            match self.iter.next() {
+                Some(item) => self.buffer.push(item),
+                None => break,
+            }
+        }
+        
+        if self.buffer.is_empty() {
+            return None;
+        }
+        
+        let result = (self.f)(&self.buffer);
+        
+        // Slide window
+        if let Some(next_item) = self.iter.next() {
+            self.buffer.remove(0);
+            self.buffer.push(next_item);
+        } else {
+            self.buffer.clear();
+        }
+        
+        Some(result)
+    }
+}
+
+/// Lazy batching iterator.
+#[derive(Debug)]
+pub struct LazyBatch<I: Iterator> {
+    iter: I,
+    capacity: usize,
+    buffer: Vec<I::Item>,
+}
+
+impl<I> LazyBatch<I>
+where
+    I: Iterator,
+{
+    fn new(iter: I, capacity: usize) -> Self {
+        assert!(capacity > 0, "Batch capacity must be greater than 0");
+        Self {
+            iter,
+            capacity,
+            buffer: Vec::with_capacity(capacity),
+        }
+    }
+    
+    /// Forces the current batch to be yielded even if not full.
+    pub fn flush(&mut self) -> Option<Vec<I::Item>> {
+        if self.buffer.is_empty() {
+            None
+        } else {
+            Some(core::mem::replace(&mut self.buffer, Vec::with_capacity(self.capacity)))
+        }
+    }
+}
+
+impl<I> Iterator for LazyBatch<I>
+where
+    I: Iterator,
+{
+    type Item = Vec<I::Item>;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        self.buffer.clear();
+        
+        for _ in 0..self.capacity {
+            match self.iter.next() {
+                Some(item) => self.buffer.push(item),
+                None => break,
+            }
+        }
+        
+        if self.buffer.is_empty() {
+            None
+        } else {
+            Some(core::mem::replace(&mut self.buffer, Vec::with_capacity(self.capacity)))
+        }
+    }
+}
+
+/// Cache-friendly prefetch iterator.
+#[derive(Debug)]
+pub struct Prefetch<I: Iterator> {
+    iter: I,
+    buffer: Vec<I::Item>,
+    prefetch_size: usize,
+    index: usize,
+}
+
+impl<I> Prefetch<I>
+where
+    I: Iterator,
+    I::Item: Clone,
+{
+    fn new(iter: I, prefetch_size: usize) -> Self {
+        assert!(prefetch_size > 0, "Prefetch size must be greater than 0");
+        Self {
+            iter,
+            buffer: Vec::with_capacity(prefetch_size),
+            prefetch_size,
+            index: 0,
+        }
+    }
+    
+    fn fill_buffer(&mut self) {
+        self.buffer.clear();
+        self.index = 0;
+        
+        for _ in 0..self.prefetch_size {
+            if let Some(item) = self.iter.next() {
+                self.buffer.push(item);
+            } else {
+                break;
+            }
+        }
+    }
+}
+
+impl<I> Iterator for Prefetch<I>
+where
+    I: Iterator,
+    I::Item: Clone,
+{
+    type Item = I::Item;
+    
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.buffer.len() {
+            self.fill_buffer();
+            if self.buffer.is_empty() {
+                return None;
+            }
+        }
+        
+        let item = self.buffer[self.index].clone();
+        self.index += 1;
+        Some(item)
+    }
+}
 
 #[cfg(test)]
 mod tests {

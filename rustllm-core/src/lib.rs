@@ -1,4 +1,4 @@
-//! # RustLLM Core
+//! # `RustLLM` Core
 //!
 //! A minimal dependency, high-performance Large Language Model (LLM) building library
 //! written in pure Rust with zero external dependencies.
@@ -68,7 +68,7 @@
     unsafe_code // Allow unsafe code for memory management
 )]
 
-//! # RustLLM Core
+//! # `RustLLM` Core
 //!
 //! A minimal dependency, high-performance Large Language Model (LLM) building
 //! library written in pure Rust.
@@ -111,7 +111,12 @@ pub mod prelude {
     //! Common imports for users of the library.
     pub use crate::core::{
         config::{ConfigValue, ConfigBuilder, ConfigStore, Configurable, PluginConfigManager},
-        model::{Model, ModelBuilder, ModelConfig, Transformer250MConfig},
+        model::{
+            Model, ModelBuilder, ModelConfig, BasicModelConfig, Transformer250MConfig,
+            InferenceModel, GenerativeModel, TrainableModel, DiffusionModel,
+            OptimizerState, Loss, NoiseSchedule, DiffusionSampler,
+            GenerationConfig, BasicGenerationConfig,
+        },
         plugin::Plugin,
         serialization::{ModelSerializable, ModelHeader, ModelMetadata, ParameterSerializer, calculate_checksum},
         tokenizer::{Token, Tokenizer},
@@ -120,6 +125,7 @@ pub mod prelude {
     pub use crate::foundation::{
         error::{Error, Result},
         iterator::*,
+        memory::{Arena, CowStr, ZeroCopyStringBuilder, SliceView, LazyAlloc},
         types::*,
     };
     pub use crate::plugins::manager::PluginManager;
