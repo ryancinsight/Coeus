@@ -1196,22 +1196,19 @@ impl<'a> Iterator for ZeroCopySplit<'a> {
 
         let start = self.position;
 
-        // Find next delimiter
-        while self.position < self.text.len() {
-            if self.text.chars().nth(self.position) == Some(self.delimiter) {
-                break;
-            }
-            self.position += 1;
+        // Use char_indices to find the next delimiter efficiently
+        let remainder = &self.text[self.position..];
+        if let Some((offset, _)) = remainder.char_indices().find(|&(_, c)| c == self.delimiter) {
+            let end = self.position + offset;
+            let result = &self.text[start..end];
+            // Move position past the delimiter for next iteration
+            self.position = end + self.delimiter.len_utf8();
+            Some(result)
+        } else {
+            // No more delimiters; return the rest of the string
+            self.position = self.text.len();
+            Some(&self.text[start..])
         }
-
-        let end = self.position;
-
-        // Skip delimiter for next iteration
-        if self.position < self.text.len() {
-            self.position += 1;
-        }
-
-        Some(&self.text[start..end])
     }
 }
 
