@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let model = builder.build(ModelConfig::default())?;
     
     // Process tokens
-    let output = model.process(tokens.into_iter())?;
+let output = model.forward(tokens.into_iter())?
     
     Ok(())
 }
