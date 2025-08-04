@@ -287,7 +287,7 @@ impl PluginEntry {
     /// Executes a function with write access to the plugin.
     pub fn with_plugin_mut<F, R>(&self, f: F) -> Result<R>
     where
-        F: FnOnce(&mut dyn Plugin) -> Result<R>,
+        F: FnOnce(&mut dyn Plugin) -> R,
     {
         let mut plugin = self.plugin.write()
             .map_err(|_| Error::Plugin(PluginError::InvalidState {
