@@ -270,37 +270,7 @@ pub enum TruncationStrategy {
     OnlySecond,
 }
 
-/// A basic plugin implementation for demonstration and testing purposes.
-#[derive(Debug)]
-pub struct BasicTokenizerPlugin {
-    initialized: bool,
-}
 
-impl Default for BasicTokenizerPlugin {
-    fn default() -> Self {
-        Self { initialized: false }
-    }
-}
-
-impl crate::core::plugin::Plugin for BasicTokenizerPlugin {
-    fn name(&self) -> &str { "basic_tokenizer" }
-    fn version(&self) -> crate::foundation::types::Version { crate::foundation::types::Version::new(0,1,0) }
-    fn capabilities(&self) -> crate::core::plugin::PluginCapabilities {
-        crate::core::plugin::PluginCapabilities::standard()
-    }
-
-    fn initialize(&mut self) -> crate::foundation::error::Result<()> {
-        self.initialized = true;
-        Ok(())
-    }
-
-    fn is_initialized(&self) -> bool {
-        self.initialized
-    }
-
-    fn as_any(&self) -> &dyn core::any::Any { self }
-    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
-}
 
 #[cfg(test)]
 mod tests {
