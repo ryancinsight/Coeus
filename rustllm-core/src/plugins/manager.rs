@@ -59,12 +59,8 @@ impl PluginManager {
                 
                 // Check if plugin is in a usable state
                 if entry.state().is_usable() {
-                    // Clone the plugin reference
-                    // Note: This requires the plugin to be Arc-wrapped internally
-                    // For now, we'll return an error as we can't clone Box<dyn Plugin>
-                    return Err(Error::Processing(ProcessingError::Unsupported {
-                        operation: "Cloning loaded plugins not supported with current architecture".to_string(),
-                    }));
+                    // Return a cloned Arc to the plugin
+                    return Ok(entry.plugin_arc().clone());
                 }
             }
         }
