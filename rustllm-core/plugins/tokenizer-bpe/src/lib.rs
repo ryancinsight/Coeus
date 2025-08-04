@@ -1,0 +1,416 @@
+//! Byte Pair Encoding (BPE) tokenizer plugin.
+//!
+//! This module implements a BPE tokenizer following the algorithm used in GPT models.
+//! It's a pure Rust implementation with no external dependencies.
+
+use rustllm_core::core::plugin::{Plugin, TokenizerPlugin};
+use rustllm_core::core::tokenizer::{Token, Tokenizer, StringToken, VocabularyTokenizer};
+use rustllm_core::foundation::{
+    error::{Result, Error, TokenizerError},
+    iterator::TokenIterator,
+    types::{Version, TokenId, VocabSize},
+};
+use std::collections::HashMap;
+use std::cmp::Ordering;
+
+/// BPE tokenizer plugin.
+#[derive(Debug, Default)]
+pub struct BpeTokenizerPlugin;
+
+impl Plugin for BpeTokenizerPlugin {
+    fn name(&self) -> &str {
+        "bpe_tokenizer"
+    }
+    
+    fn version(&self) -> Version {
+        Version::new(0, 1, 0)
+    }
+    
+    fn description(&self) -> &str {
+        "Byte Pair Encoding tokenizer with learned merge rules"
+    }
+    
+    fn initialize(&mut self) -> Result<()> {
+        Ok(())
+    }
+    
+    fn shutdown(&mut self) -> Result<()> {
+        Ok(())
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+impl TokenizerPlugin for BpeTokenizerPlugin {
+    type Tokenizer = BpeTokenizer;
+    
+    fn create_tokenizer(&self) -> Result<Self::Tokenizer> {
+        Ok(BpeTokenizer::new())
+    }
+}
+
+/// A pair of tokens for BPE merging.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct TokenPair {
+    first: String,
+    second: String,
+}
+
+impl TokenPair {
+    fn new(first: String, second: String) -> Self {
+        Self { first, second }
+    }
+    
+    fn merged(&self) -> String {
+        format!("{}{}", self.first, self.second)
+    }
+}
+
+/// Priority queue entry for BPE merges.
+#[derive(Debug, Clone, Eq)]
+#[allow(dead_code)]
+struct MergeCandidate {
+    pair: TokenPair,
+    frequency: usize,
+    priority: usize,
+}
+
+impl PartialEq for MergeCandidate {
+    fn eq(&self, other: &Self) -> bool {
+        self.frequency == other.frequency && self.priority == other.priority
+    }
+}
+
+impl Ord for MergeCandidate {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Higher frequency first, then lower priority (earlier in merge order)
+        match self.frequency.cmp(&other.frequency) {
+            Ordering::Equal => other.priority.cmp(&self.priority),
+            other => other,
+        }
+    }
+}
+
+impl PartialOrd for MergeCandidate {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Byte Pair Encoding tokenizer.
+#[derive(Debug, Clone)]
+pub struct BpeTokenizer {
+    /// Vocabulary mapping from token strings to IDs
+    vocab: HashMap<String, TokenId>,
+    /// Reverse vocabulary mapping from IDs to token strings
+    reverse_vocab: HashMap<TokenId, String>,
+    /// Merge rules learned from training
+    merges: Vec<TokenPair>,
+    /// Special tokens
+    special_tokens: HashMap<String, TokenId>,
+    /// Next available token ID
+    next_id: TokenId,
+}
+
+impl BpeTokenizer {
+    /// Creates a new BPE tokenizer.
+    pub fn new() -> Self {
+        let mut tokenizer = Self {
+            vocab: HashMap::new(),
+            reverse_vocab: HashMap::new(),
+            merges: Vec::new(),
+            special_tokens: HashMap::new(),
+            next_id: 0,
+        };
+        
+        // Initialize with byte-level tokens (0-255)
+        for byte in 0u8..=255 {
+            let token = String::from_utf8(vec![byte]).unwrap_or_else(|_| {
+                // For invalid UTF-8 bytes, use a special representation
+                format!("<0x{:02X}>", byte)
+            });
+            tokenizer.add_to_vocab(token);
+        }
+        
+        // Add special tokens
+        tokenizer.add_special_token("<PAD>");
+        tokenizer.add_special_token("<UNK>");
+        tokenizer.add_special_token("<BOS>");
+        tokenizer.add_special_token("<EOS>");
+        
+        tokenizer
+    }
+    
+    /// Adds a token to the vocabulary.
+    fn add_to_vocab(&mut self, token: String) -> TokenId {
+        if let Some(&id) = self.vocab.get(&token) {
+            id
+        } else {
+            let id = self.next_id;
+            self.vocab.insert(token.clone(), id);
+            self.reverse_vocab.insert(id, token);
+            self.next_id += 1;
+            id
+        }
+    }
+    
+    /// Adds a special token.
+    fn add_special_token(&mut self, token: &str) -> TokenId {
+        let id = self.add_to_vocab(token.to_string());
+        self.special_tokens.insert(token.to_string(), id);
+        id
+    }
+    
+    /// Learns BPE merges from a corpus.
+    pub fn train(&mut self, corpus: &[&str], num_merges: usize) -> Result<()> {
+        // Tokenize corpus into bytes
+        let mut word_freqs: HashMap<Vec<String>, usize> = HashMap::new();
+        
+        for text in corpus {
+            let words = text.split_whitespace();
+            for word in words {
+                let tokens: Vec<String> = word.bytes()
+                    .map(|b| String::from_utf8(vec![b]).unwrap_or_else(|_| format!("<0x{:02X}>", b)))
+                    .collect();
+                *word_freqs.entry(tokens).or_insert(0) += 1;
+            }
+        }
+        
+        // Learn merges
+        for _merge_idx in 0..num_merges {
+            // Count pair frequencies
+            let mut pair_freqs: HashMap<TokenPair, usize> = HashMap::new();
+            
+            for (word, freq) in &word_freqs {
+                if word.len() < 2 {
+                    continue;
+                }
+                
+                for i in 0..word.len() - 1 {
+                    let pair = TokenPair::new(word[i].clone(), word[i + 1].clone());
+                    *pair_freqs.entry(pair).or_insert(0) += freq;
+                }
+            }
+            
+            // Find most frequent pair
+            let best_pair = pair_freqs.iter()
+                .max_by_key(|&(_, freq)| freq)
+                .map(|(pair, _)| pair.clone());
+            
+            if let Some(pair) = best_pair {
+                // Add merge rule
+                self.merges.push(pair.clone());
+                
+                // Add merged token to vocabulary
+                let merged = pair.merged();
+                self.add_to_vocab(merged.clone());
+                
+                // Update word frequencies with merged tokens
+                let mut new_word_freqs = HashMap::new();
+                
+                for (word, freq) in word_freqs {
+                    let mut new_word = Vec::new();
+                    let mut i = 0;
+                    
+                    while i < word.len() {
+                        if i < word.len() - 1 && word[i] == pair.first && word[i + 1] == pair.second {
+                            new_word.push(merged.clone());
+                            i += 2;
+                        } else {
+                            new_word.push(word[i].clone());
+                            i += 1;
+                        }
+                    }
+                    
+                    *new_word_freqs.entry(new_word).or_insert(0) += freq;
+                }
+                
+                word_freqs = new_word_freqs;
+            } else {
+                // No more pairs to merge
+                break;
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Applies BPE merges to a word.
+    fn bpe(&self, word: Vec<String>) -> Vec<String> {
+        if word.len() < 2 {
+            return word;
+        }
+        
+        let mut tokens = word;
+        
+        for merge in &self.merges {
+            let mut new_tokens = Vec::new();
+            let mut i = 0;
+            
+            while i < tokens.len() {
+                if i < tokens.len() - 1 && tokens[i] == merge.first && tokens[i + 1] == merge.second {
+                    new_tokens.push(merge.merged());
+                    i += 2;
+                } else {
+                    new_tokens.push(tokens[i].clone());
+                    i += 1;
+                }
+            }
+            
+            tokens = new_tokens;
+        }
+        
+        tokens
+    }
+}
+
+impl Default for BpeTokenizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Tokenizer for BpeTokenizer {
+    type Token = StringToken;
+    type Error = std::io::Error;
+    
+    fn tokenize<'a>(&self, input: &'a str) -> TokenIterator<'a, Self::Token> {
+        let mut tokens = Vec::new();
+        
+        // Split by whitespace and process each word
+        for word in input.split_whitespace() {
+            // Convert to byte tokens
+            let byte_tokens: Vec<String> = word.bytes()
+                .map(|b| String::from_utf8(vec![b]).unwrap_or_else(|_| format!("<0x{:02X}>", b)))
+                .collect();
+            
+            // Apply BPE
+            let bpe_tokens = self.bpe(byte_tokens);
+            
+            // Convert to StringToken with IDs
+            for token_str in bpe_tokens {
+                let id = self.vocab.get(&token_str).copied();
+                tokens.push(StringToken::with_id(token_str, id.unwrap_or(1))); // 1 is <UNK>
+            }
+            
+            // Add space token between words (except last)
+            tokens.push(StringToken::with_id(" ".to_string(), 32)); // 32 is space in ASCII
+        }
+        
+        // Remove last space
+        if !tokens.is_empty() {
+            tokens.pop();
+        }
+        
+        Box::new(tokens.into_iter())
+    }
+    
+    fn decode<I>(&self, tokens: I) -> Result<String>
+    where
+        I: IntoIterator<Item = Self::Token>,
+    {
+        let mut result = String::new();
+        
+        for token in tokens {
+            if let Some(s) = token.as_str() {
+                // Handle special byte representations
+                if s.starts_with("<0x") && s.ends_with('>') {
+                    // Parse hex byte
+                    if let Ok(byte) = u8::from_str_radix(&s[3..5], 16) {
+                        result.push_str(&String::from_utf8_lossy(&[byte]));
+                    } else {
+                        result.push_str(s);
+                    }
+                } else {
+                    result.push_str(s);
+                }
+            }
+        }
+        
+        Ok(result)
+    }
+    
+    fn vocab_size(&self) -> Option<VocabSize> {
+        Some(self.vocab.len() as VocabSize)
+    }
+}
+
+impl VocabularyTokenizer for BpeTokenizer {
+    fn add_token(&mut self, token: &str) -> Result<TokenId> {
+        Ok(self.add_to_vocab(token.to_string()))
+    }
+    
+    fn remove_token(&mut self, token: &str) -> Result<()> {
+        if let Some(&id) = self.vocab.get(token) {
+            self.vocab.remove(token);
+            self.reverse_vocab.remove(&id);
+            Ok(())
+        } else {
+            Err(Error::Tokenizer(TokenizerError::InvalidToken(token.to_string())))
+        }
+    }
+    
+    fn contains_token(&self, token: &str) -> bool {
+        self.vocab.contains_key(token)
+    }
+    
+    fn token_from_id(&self, id: TokenId) -> Option<String> {
+        self.reverse_vocab.get(&id).cloned()
+    }
+    
+    fn id_from_token(&self, token: &str) -> Option<TokenId> {
+        self.vocab.get(token).copied()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_bpe_tokenizer_basic() {
+        let tokenizer = BpeTokenizer::new();
+        let tokens: Vec<_> = tokenizer.tokenize("hello world").collect();
+        
+        assert!(!tokens.is_empty());
+        
+        let decoded = tokenizer.decode(tokens).unwrap();
+        assert_eq!(decoded, "hello world");
+    }
+    
+    #[test]
+    fn test_bpe_training() {
+        let mut tokenizer = BpeTokenizer::new();
+        let corpus = vec![
+            "the cat sat on the mat",
+            "the dog sat on the log",
+            "the cat and the dog",
+        ];
+        
+        tokenizer.train(&corpus, 10).unwrap();
+        
+        // Check that vocabulary has grown
+        assert!(tokenizer.vocab_size().unwrap() > 256);
+        
+        // Test tokenization after training
+        let tokens: Vec<_> = tokenizer.tokenize("the cat").collect();
+        let decoded = tokenizer.decode(tokens).unwrap();
+        assert_eq!(decoded, "the cat");
+    }
+    
+    #[test]
+    fn test_special_tokens() {
+        let tokenizer = BpeTokenizer::new();
+        
+        assert!(tokenizer.contains_token("<PAD>"));
+        assert!(tokenizer.contains_token("<UNK>"));
+        assert!(tokenizer.contains_token("<BOS>"));
+        assert!(tokenizer.contains_token("<EOS>"));
+    }
+}

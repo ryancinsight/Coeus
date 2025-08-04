@@ -84,7 +84,7 @@ pub mod foundation {
 // Core API layer modules
 pub mod core {
     //! Core API layer defining traits and abstractions.
-    
+    pub mod config;
     pub mod model;
     pub mod plugin;
     pub mod tokenizer;
@@ -102,20 +102,18 @@ pub mod plugins {
 // Re-exports for convenience
 pub mod prelude {
     //! Common imports for users of the library.
-    
     pub use crate::core::{
+        config::{ConfigValue, ConfigBuilder, ConfigStore, Configurable, PluginConfigManager},
         model::{Model, ModelBuilder, ModelConfig},
         plugin::Plugin,
         tokenizer::{Token, Tokenizer},
         traits::*,
     };
-    
     pub use crate::foundation::{
         error::{Error, Result},
         iterator::*,
         types::*,
     };
-    
     pub use crate::plugins::manager::PluginManager;
 }
 

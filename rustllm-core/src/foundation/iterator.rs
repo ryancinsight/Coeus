@@ -244,38 +244,50 @@ where
     }
 }
 
-/// Extension trait for adding custom iterator methods.
-pub trait IteratorExt: Iterator + Sized {
+/// Extension trait for iterators with advanced combinators.
+pub trait IteratorExt: Iterator {
     /// Creates a sliding window iterator.
     fn windows(self, size: usize) -> Windows<Self, Self::Item>
     where
+        Self: Sized,
         Self::Item: Clone,
     {
         Windows::new(self, size)
     }
     
     /// Creates a chunking iterator.
-    fn chunks(self, size: usize) -> Chunks<Self, Self::Item> {
+    fn chunks(self, size: usize) -> Chunks<Self, Self::Item>
+    where
+        Self: Sized,
+    {
         Chunks::new(self, size)
     }
     
     /// Creates a striding iterator.
-    fn stride(self, step: usize) -> Stride<Self> {
+    fn stride(self, step: usize) -> Stride<Self>
+    where
+        Self: Sized,
+    {
         Stride::new(self, step)
     }
     
-    /// Creates a parallel-friendly chunks iterator.
-    fn par_chunks(self, chunk_size: usize) -> ParChunks<Self, Self::Item>
+    /// Creates a parallel chunks iterator.
+    fn par_chunks(self, size: usize) -> ParChunks<Self, Self::Item>
     where
+        Self: Sized,
         Self::Item: Send,
     {
-        ParChunks::new(self, chunk_size)
+        ParChunks::new(self, size)
     }
     
-    /// Collects items into a vector with a size hint for efficiency.
-    fn collect_vec_with_capacity(self) -> Vec<Self::Item> {
-        let (lower, _) = self.size_hint();
-        let mut vec = Vec::with_capacity(lower);
+    /// Collects into a Vec with a size hint for capacity.
+    fn collect_vec_with_capacity(self) -> Vec<Self::Item>
+    where
+        Self: Sized,
+    {
+        let (lower, upper) = self.size_hint();
+        let capacity = upper.unwrap_or(lower);
+        let mut vec = Vec::with_capacity(capacity);
         vec.extend(self);
         vec
     }
