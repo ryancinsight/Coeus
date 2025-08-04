@@ -100,7 +100,7 @@ pub trait StreamProcess: Send + Sync {
     ) -> Result<Self::Output>;
     
     /// Flushes any buffered data in the state.
-    fn flush_state(&self, state: &mut Self::State) -> Result<Option<Self::Output>> {
+    fn flush_state(&self, _state: &mut Self::State) -> Result<Option<Self::Output>> {
         Ok(None)
     }
 }

@@ -34,6 +34,7 @@ license = "MIT"
 [features]
 default = ["std"]
 std = []
+alloc = []
 # Feature flags for conditional compilation
 unstable = []
 bench = []

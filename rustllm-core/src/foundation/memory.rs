@@ -13,7 +13,7 @@ use core::slice;
 use std::alloc::{alloc, dealloc, Layout};
 
 #[cfg(feature = "std")]
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 #[cfg(not(feature = "std"))]
 use alloc::alloc::{alloc, dealloc, Layout};
@@ -36,15 +36,17 @@ type ArenaStorage = RefCell<Vec<ArenaChunk>>;
 type ArenaStorage = RwLock<Vec<ArenaChunk>>;
 
 /// A simple arena allocator for temporary allocations.
-/// 
+///
 /// In `std` environments, this is thread-safe using `RwLock`.
 /// In `no_std` environments, this uses `RefCell` and is NOT thread-safe.
+#[derive(Debug)]
 pub struct Arena {
     chunks: ArenaStorage,
     current_chunk: Cell<usize>,
     chunk_size: usize,
 }
 
+#[derive(Debug)]
 struct ArenaChunk {
     data: NonNull<u8>,
     size: usize,
@@ -690,21 +692,382 @@ impl<T> LazyAlloc<T> {
         if self.value.get().is_none() {
             self.value.set(Some(Box::new((self.init)())));
         }
-        
+
         // Safe: we just initialized it above if it was None
         self.value.get().as_ref().unwrap().as_ref()
     }
-    
+
     /// Returns whether the value has been initialized.
     #[cfg(feature = "std")]
     pub fn is_initialized(&self) -> bool {
         self.value.get().is_some()
     }
-    
+
     /// Returns whether the value has been initialized (no_std version).
     #[cfg(not(feature = "std"))]
     pub fn is_initialized(&self) -> bool {
         self.value.get().is_some()
+    }
+}
+
+// ============================================================================
+// Advanced Zero-Copy Memory Management
+// ============================================================================
+
+/// SIMD-aligned memory allocator for vectorized operations.
+///
+/// This allocator ensures memory is aligned for SIMD instructions,
+/// providing optimal performance for vectorized computations.
+#[derive(Debug)]
+pub struct SimdAlignedArena {
+    arena: Arena,
+    alignment: usize,
+}
+
+impl SimdAlignedArena {
+    /// Creates a new SIMD-aligned arena.
+    ///
+    /// The alignment should be a power of 2 (typically 16, 32, or 64 bytes).
+    pub fn new(chunk_size: usize, alignment: usize) -> Self {
+        assert!(alignment.is_power_of_two(), "Alignment must be a power of 2");
+        assert!(alignment >= core::mem::align_of::<usize>(), "Alignment too small");
+
+        Self {
+            arena: Arena::new(chunk_size),
+            alignment,
+        }
+    }
+
+    /// Allocates SIMD-aligned memory for a slice.
+    pub fn alloc_simd_slice<T>(&self, len: usize) -> &mut [T]
+    where
+        T: Copy + Default,
+    {
+        let layout = Layout::from_size_align(
+            len * core::mem::size_of::<T>(),
+            self.alignment.max(core::mem::align_of::<T>())
+        ).unwrap();
+
+        let ptr = self.arena.alloc_raw(layout) as *mut T;
+
+        // Initialize with default values
+        unsafe {
+            for i in 0..len {
+                ptr.add(i).write(T::default());
+            }
+            slice::from_raw_parts_mut(ptr, len)
+        }
+    }
+
+    /// Allocates SIMD-aligned memory and copies data.
+    pub fn alloc_simd_copy<T>(&self, data: &[T]) -> &mut [T]
+    where
+        T: Copy,
+    {
+        let layout = Layout::from_size_align(
+            data.len() * core::mem::size_of::<T>(),
+            self.alignment.max(core::mem::align_of::<T>())
+        ).unwrap();
+
+        let ptr = self.arena.alloc_raw(layout) as *mut T;
+
+        unsafe {
+            ptr::copy_nonoverlapping(data.as_ptr(), ptr, data.len());
+            slice::from_raw_parts_mut(ptr, data.len())
+        }
+    }
+
+    /// Resets the arena for reuse.
+    pub fn reset(&self) {
+        self.arena.reset();
+    }
+}
+
+/// Zero-copy slice builder that avoids allocations.
+///
+/// This builder creates views over existing data without copying,
+/// implementing true zero-cost abstractions.
+#[derive(Debug)]
+pub struct ZeroCopySliceBuilder<'a, T> {
+    segments: Vec<SliceSegment<'a, T>>,
+    total_len: usize,
+}
+
+#[derive(Debug, Clone)]
+enum SliceSegment<'a, T> {
+    Borrowed(&'a [T]),
+    #[cfg(feature = "std")]
+    Shared(std::sync::Arc<Vec<T>>),
+    #[cfg(not(feature = "std"))]
+    Owned(Vec<T>),
+    Slice {
+        #[cfg(feature = "std")]
+        data: std::sync::Arc<Vec<T>>,
+        #[cfg(not(feature = "std"))]
+        data: Vec<T>,
+        start: usize,
+        end: usize,
+    },
+}
+
+impl<'a, T> ZeroCopySliceBuilder<'a, T> {
+    /// Creates a new zero-copy slice builder.
+    pub fn new() -> Self {
+        Self {
+            segments: Vec::new(),
+            total_len: 0,
+        }
+    }
+
+    /// Appends a borrowed slice.
+    pub fn append_borrowed(&mut self, slice: &'a [T]) -> &mut Self {
+        self.total_len += slice.len();
+        self.segments.push(SliceSegment::Borrowed(slice));
+        self
+    }
+
+    /// Appends a shared slice (std version).
+    #[cfg(feature = "std")]
+    pub fn append_shared(&mut self, data: std::sync::Arc<Vec<T>>) -> &mut Self {
+        self.total_len += data.len();
+        self.segments.push(SliceSegment::Shared(data));
+        self
+    }
+
+    /// Appends an owned slice (no_std version).
+    #[cfg(not(feature = "std"))]
+    pub fn append_owned(&mut self, data: Vec<T>) -> &mut Self {
+        self.total_len += data.len();
+        self.segments.push(SliceSegment::Owned(data));
+        self
+    }
+
+    /// Returns the total length of all segments.
+    pub fn len(&self) -> usize {
+        self.total_len
+    }
+
+    /// Returns whether the builder is empty.
+    pub fn is_empty(&self) -> bool {
+        self.total_len == 0
+    }
+
+    /// Materializes the builder into a vector.
+    pub fn into_vec(self) -> Vec<T>
+    where
+        T: Clone,
+    {
+        let mut result = Vec::with_capacity(self.total_len);
+
+        for segment in self.segments {
+            match segment {
+                SliceSegment::Borrowed(slice) => result.extend_from_slice(slice),
+                #[cfg(feature = "std")]
+                SliceSegment::Shared(vec) => result.extend_from_slice(&vec),
+                #[cfg(not(feature = "std"))]
+                SliceSegment::Owned(vec) => result.extend_from_slice(&vec),
+                SliceSegment::Slice { data, start, end } => {
+                    result.extend_from_slice(&data[start..end]);
+                }
+            }
+        }
+
+        result
+    }
+}
+
+impl<'a, T> Default for ZeroCopySliceBuilder<'a, T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Memory-efficient string interning system.
+///
+/// This system deduplicates strings to save memory, particularly useful
+/// for tokenization where many tokens may be repeated.
+#[cfg(feature = "std")]
+#[derive(Debug)]
+pub struct StringInterner {
+    strings: std::sync::RwLock<std::collections::HashMap<String, std::sync::Arc<String>>>,
+    stats: std::sync::RwLock<InternerStats>,
+}
+
+#[cfg(feature = "std")]
+#[derive(Debug, Default)]
+pub struct InternerStats {
+    pub total_requests: usize,
+    pub cache_hits: usize,
+    pub unique_strings: usize,
+    pub memory_saved: usize,
+}
+
+#[cfg(feature = "std")]
+impl StringInterner {
+    /// Creates a new string interner.
+    pub fn new() -> Self {
+        Self {
+            strings: std::sync::RwLock::new(std::collections::HashMap::new()),
+            stats: std::sync::RwLock::new(InternerStats::default()),
+        }
+    }
+
+    /// Interns a string, returning a shared reference.
+    pub fn intern(&self, s: &str) -> std::sync::Arc<String> {
+        // Try read lock first for common case
+        {
+            let strings = self.strings.read().unwrap();
+            if let Some(interned) = strings.get(s) {
+                let mut stats = self.stats.write().unwrap();
+                stats.total_requests += 1;
+                stats.cache_hits += 1;
+                stats.memory_saved += s.len();
+                return Arc::clone(interned);
+            }
+        }
+
+        // Need write lock to insert
+        let mut strings = self.strings.write().unwrap();
+
+        // Double-check in case another thread inserted while we waited
+        if let Some(interned) = strings.get(s) {
+            let mut stats = self.stats.write().unwrap();
+            stats.total_requests += 1;
+            stats.cache_hits += 1;
+            stats.memory_saved += s.len();
+            return Arc::clone(interned);
+        }
+
+        // Insert new string
+        let interned = std::sync::Arc::new(s.to_string());
+        strings.insert(s.to_string(), Arc::clone(&interned));
+
+        let mut stats = self.stats.write().unwrap();
+        stats.total_requests += 1;
+        stats.unique_strings += 1;
+
+        interned
+    }
+
+    /// Returns current statistics.
+    pub fn stats(&self) -> InternerStats {
+        self.stats.read().unwrap().clone()
+    }
+
+    /// Clears the interner and resets statistics.
+    pub fn clear(&self) {
+        self.strings.write().unwrap().clear();
+        *self.stats.write().unwrap() = InternerStats::default();
+    }
+
+    /// Returns the number of unique strings stored.
+    pub fn len(&self) -> usize {
+        self.strings.read().unwrap().len()
+    }
+
+    /// Returns whether the interner is empty.
+    pub fn is_empty(&self) -> bool {
+        self.strings.read().unwrap().is_empty()
+    }
+}
+
+#[cfg(feature = "std")]
+impl Default for StringInterner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "std")]
+impl Clone for InternerStats {
+    fn clone(&self) -> Self {
+        Self {
+            total_requests: self.total_requests,
+            cache_hits: self.cache_hits,
+            unique_strings: self.unique_strings,
+            memory_saved: self.memory_saved,
+        }
+    }
+}
+
+/// Memory-efficient bump allocator for temporary allocations.
+///
+/// This allocator is extremely fast for short-lived allocations
+/// but cannot free individual allocations.
+#[derive(Debug)]
+pub struct BumpAllocator {
+    buffer: Vec<u8>,
+    position: Cell<usize>,
+}
+
+impl BumpAllocator {
+    /// Creates a new bump allocator with the given capacity.
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            buffer: vec![0; capacity],
+            position: Cell::new(0),
+        }
+    }
+
+    /// Allocates memory for a value.
+    pub fn alloc<T>(&self, value: T) -> Option<&mut T> {
+        let layout = Layout::for_value(&value);
+        let ptr = self.alloc_raw(layout)?;
+
+        unsafe {
+            ptr::write(ptr as *mut T, value);
+            Some(&mut *(ptr as *mut T))
+        }
+    }
+
+    /// Allocates memory for a slice.
+    pub fn alloc_slice<T>(&self, slice: &[T]) -> Option<&mut [T]>
+    where
+        T: Copy,
+    {
+        let layout = Layout::array::<T>(slice.len()).ok()?;
+        let ptr = self.alloc_raw(layout)? as *mut T;
+
+        unsafe {
+            ptr::copy_nonoverlapping(slice.as_ptr(), ptr, slice.len());
+            Some(slice::from_raw_parts_mut(ptr, slice.len()))
+        }
+    }
+
+    /// Allocates raw memory.
+    fn alloc_raw(&self, layout: Layout) -> Option<*mut u8> {
+        let size = layout.size();
+        let align = layout.align();
+
+        let current = self.position.get();
+        let aligned = (current + align - 1) & !(align - 1);
+
+        if aligned + size > self.buffer.len() {
+            return None; // Out of memory
+        }
+
+        self.position.set(aligned + size);
+        Some(self.buffer.as_ptr().wrapping_add(aligned) as *mut u8)
+    }
+
+    /// Resets the allocator, making all memory available again.
+    pub fn reset(&self) {
+        self.position.set(0);
+    }
+
+    /// Returns the current memory usage.
+    pub fn used(&self) -> usize {
+        self.position.get()
+    }
+
+    /// Returns the total capacity.
+    pub fn capacity(&self) -> usize {
+        self.buffer.len()
+    }
+
+    /// Returns the remaining capacity.
+    pub fn remaining(&self) -> usize {
+        self.capacity() - self.used()
     }
 }
 

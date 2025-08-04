@@ -4,7 +4,7 @@
 //! of parameters, using a custom binary format optimized for speed and size.
 
 use crate::foundation::{
-    error::{Error, Result, ValidationError, ProcessingError, internal_error},
+    error::{Error, Result, ValidationError, ProcessingError},
     types::Version,
 };
 use std::io::{Read, Write, Seek};

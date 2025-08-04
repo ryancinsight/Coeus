@@ -1,7 +1,7 @@
 //! Configuration system for plugins and components.
 
 use crate::foundation::{
-    error::{Error, Result, internal_error},
+    error::{Result, internal_error},
     types::PluginName,
 };
 use std::collections::HashMap;

@@ -489,7 +489,7 @@ pub trait IteratorExt: Iterator {
     }
     
     /// Creates a cache-friendly prefetch iterator.
-    /// 
+    ///
     /// This optimizes memory access patterns for better CPU cache utilization.
     fn prefetch(self, prefetch_size: usize) -> Prefetch<Self>
     where
@@ -497,6 +497,50 @@ pub trait IteratorExt: Iterator {
         Self::Item: Clone,
     {
         Prefetch::new(self, prefetch_size)
+    }
+
+    /// Creates a zero-copy sliding window iterator with custom step size.
+    ///
+    /// This provides efficient sliding windows with configurable step size,
+    /// enabling both overlapping and non-overlapping windows.
+    fn sliding_windows(self, window_size: usize, step_size: usize) -> SlidingWindows<Self>
+    where
+        Self: Sized,
+        Self::Item: Clone,
+    {
+        SlidingWindows::new(self, window_size, step_size)
+    }
+
+    /// Creates a vectorized iterator for SIMD-friendly operations.
+    ///
+    /// This groups items into vectors of a specific size for vectorized processing.
+    fn vectorize(self, vector_size: usize) -> Vectorize<Self>
+    where
+        Self: Sized,
+    {
+        Vectorize::new(self, vector_size)
+    }
+
+    /// Creates a memory-efficient circular buffer iterator.
+    ///
+    /// This maintains a fixed-size circular buffer for streaming operations.
+    fn circular_buffer(self, capacity: usize) -> CircularBuffer<Self>
+    where
+        Self: Sized,
+        Self::Item: Clone,
+    {
+        CircularBuffer::new(self, capacity)
+    }
+
+    /// Creates an iterator that yields items in batches with backpressure.
+    ///
+    /// This provides flow control for memory-sensitive operations.
+    fn backpressure_batch(self, batch_size: usize, max_memory: usize) -> BackpressureBatch<Self>
+    where
+        Self: Sized,
+        Self::Item: Clone,
+    {
+        BackpressureBatch::new(self, batch_size, max_memory)
     }
 }
 
@@ -820,7 +864,7 @@ where
     I::Item: Clone,
 {
     type Item = I::Item;
-    
+
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.buffer.len() {
@@ -829,12 +873,349 @@ where
                 return None;
             }
         }
-        
+
         let item = self.buffer[self.index].clone();
         self.index += 1;
         Some(item)
     }
 }
+
+// ============================================================================
+// Advanced Iterator Combinators
+// ============================================================================
+
+/// Sliding windows iterator with configurable step size.
+///
+/// This provides more flexible windowing than the basic Windows iterator,
+/// allowing for both overlapping and non-overlapping windows.
+#[derive(Debug, Clone)]
+pub struct SlidingWindows<I: Iterator> {
+    iter: I,
+    window_size: usize,
+    step_size: usize,
+    buffer: Vec<I::Item>,
+    position: usize,
+}
+
+impl<I: Iterator> SlidingWindows<I> {
+    fn new(iter: I, window_size: usize, step_size: usize) -> Self {
+        assert!(window_size > 0, "Window size must be greater than 0");
+        assert!(step_size > 0, "Step size must be greater than 0");
+
+        Self {
+            iter,
+            window_size,
+            step_size,
+            buffer: Vec::new(),
+            position: 0,
+        }
+    }
+}
+
+impl<I> Iterator for SlidingWindows<I>
+where
+    I: Iterator,
+    I::Item: Clone,
+{
+    type Item = Vec<I::Item>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Fill buffer initially
+        while self.buffer.len() < self.window_size {
+            match self.iter.next() {
+                Some(item) => self.buffer.push(item),
+                None => break,
+            }
+        }
+
+        if self.buffer.len() < self.window_size {
+            return None;
+        }
+
+        // Create window from current position
+        let window = self.buffer[self.position..self.position + self.window_size].to_vec();
+
+        // Advance position by step size
+        self.position += self.step_size;
+
+        // If we've moved beyond the buffer, shift and refill
+        if self.position + self.window_size > self.buffer.len() {
+            // Remove processed items
+            self.buffer.drain(0..self.position);
+            self.position = 0;
+
+            // Refill buffer
+            while self.buffer.len() < self.window_size {
+                match self.iter.next() {
+                    Some(item) => self.buffer.push(item),
+                    None => break,
+                }
+            }
+
+            if self.buffer.len() < self.window_size {
+                return None;
+            }
+        }
+
+        Some(window)
+    }
+}
+
+/// Vectorized iterator for SIMD-friendly operations.
+///
+/// Groups items into fixed-size vectors for vectorized processing.
+#[derive(Debug)]
+pub struct Vectorize<I: Iterator> {
+    iter: I,
+    vector_size: usize,
+}
+
+impl<I: Iterator> Vectorize<I> {
+    fn new(iter: I, vector_size: usize) -> Self {
+        assert!(vector_size > 0, "Vector size must be greater than 0");
+        Self { iter, vector_size }
+    }
+}
+
+impl<I: Iterator> Iterator for Vectorize<I> {
+    type Item = Vec<I::Item>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut vector = Vec::with_capacity(self.vector_size);
+
+        for _ in 0..self.vector_size {
+            match self.iter.next() {
+                Some(item) => vector.push(item),
+                None => break,
+            }
+        }
+
+        if vector.is_empty() {
+            None
+        } else {
+            Some(vector)
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (lower, upper) = self.iter.size_hint();
+        let lower_vectors = (lower + self.vector_size - 1) / self.vector_size;
+        let upper_vectors = upper.map(|u| (u + self.vector_size - 1) / self.vector_size);
+        (lower_vectors, upper_vectors)
+    }
+}
+
+/// Circular buffer iterator for streaming operations.
+///
+/// Maintains a fixed-size circular buffer for memory-efficient streaming.
+#[derive(Debug)]
+pub struct CircularBuffer<I: Iterator> {
+    iter: I,
+    buffer: Vec<Option<I::Item>>,
+    capacity: usize,
+    head: usize,
+    tail: usize,
+    size: usize,
+}
+
+impl<I: Iterator> CircularBuffer<I> {
+    fn new(iter: I, capacity: usize) -> Self {
+        assert!(capacity > 0, "Capacity must be greater than 0");
+
+        let mut buffer = Vec::with_capacity(capacity);
+        for _ in 0..capacity {
+            buffer.push(None);
+        }
+
+        Self {
+            iter,
+            buffer,
+            capacity,
+            head: 0,
+            tail: 0,
+            size: 0,
+        }
+    }
+
+    fn is_full(&self) -> bool {
+        self.size == self.capacity
+    }
+
+    fn is_empty(&self) -> bool {
+        self.size == 0
+    }
+
+    fn push(&mut self, item: I::Item) -> bool {
+        if self.is_full() {
+            return false;
+        }
+
+        self.buffer[self.tail] = Some(item);
+        self.tail = (self.tail + 1) % self.capacity;
+        self.size += 1;
+        true
+    }
+
+    fn pop(&mut self) -> Option<I::Item> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let item = self.buffer[self.head].take();
+        self.head = (self.head + 1) % self.capacity;
+        self.size -= 1;
+        item
+    }
+}
+
+impl<I> Iterator for CircularBuffer<I>
+where
+    I: Iterator,
+    I::Item: Clone,
+{
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Try to fill buffer
+        while !self.is_full() {
+            match self.iter.next() {
+                Some(item) => {
+                    if !self.push(item) {
+                        break;
+                    }
+                }
+                None => break,
+            }
+        }
+
+        self.pop()
+    }
+}
+
+/// Backpressure batch iterator for memory-controlled processing.
+///
+/// Provides flow control by limiting memory usage and batch sizes.
+#[derive(Debug)]
+pub struct BackpressureBatch<I: Iterator> {
+    iter: I,
+    batch_size: usize,
+    max_memory: usize,
+    current_memory: usize,
+    buffer: Vec<I::Item>,
+}
+
+impl<I: Iterator> BackpressureBatch<I> {
+    fn new(iter: I, batch_size: usize, max_memory: usize) -> Self {
+        assert!(batch_size > 0, "Batch size must be greater than 0");
+        assert!(max_memory > 0, "Max memory must be greater than 0");
+
+        Self {
+            iter,
+            batch_size,
+            max_memory,
+            current_memory: 0,
+            buffer: Vec::with_capacity(batch_size),
+        }
+    }
+
+    fn estimate_item_size(&self, _item: &I::Item) -> usize {
+        // Simple estimation - in practice, this could be more sophisticated
+        core::mem::size_of::<I::Item>()
+    }
+}
+
+impl<I> Iterator for BackpressureBatch<I>
+where
+    I: Iterator,
+    I::Item: Clone,
+{
+    type Item = Vec<I::Item>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.buffer.clear();
+        self.current_memory = 0;
+
+        while self.buffer.len() < self.batch_size && self.current_memory < self.max_memory {
+            match self.iter.next() {
+                Some(item) => {
+                    let item_size = self.estimate_item_size(&item);
+
+                    // Check if adding this item would exceed memory limit
+                    if self.current_memory + item_size > self.max_memory && !self.buffer.is_empty() {
+                        // Put the item back (conceptually) and return current batch
+                        break;
+                    }
+
+                    self.current_memory += item_size;
+                    self.buffer.push(item);
+                }
+                None => break,
+            }
+        }
+
+        if self.buffer.is_empty() {
+            None
+        } else {
+            Some(core::mem::replace(&mut self.buffer, Vec::with_capacity(self.batch_size)))
+        }
+    }
+}
+
+// ============================================================================
+// Zero-Copy String Processing
+// ============================================================================
+
+/// Zero-copy string splitter that yields string slices.
+///
+/// This provides efficient string tokenization without allocations.
+#[derive(Debug, Clone)]
+pub struct ZeroCopySplit<'a> {
+    text: &'a str,
+    delimiter: char,
+    position: usize,
+}
+
+impl<'a> ZeroCopySplit<'a> {
+    /// Creates a new zero-copy string splitter.
+    pub fn new(text: &'a str, delimiter: char) -> Self {
+        Self {
+            text,
+            delimiter,
+            position: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for ZeroCopySplit<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.position >= self.text.len() {
+            return None;
+        }
+
+        let start = self.position;
+
+        // Find next delimiter
+        while self.position < self.text.len() {
+            if self.text.chars().nth(self.position) == Some(self.delimiter) {
+                break;
+            }
+            self.position += 1;
+        }
+
+        let end = self.position;
+
+        // Skip delimiter for next iteration
+        if self.position < self.text.len() {
+            self.position += 1;
+        }
+
+        Some(&self.text[start..end])
+    }
+}
+
+impl<'a> FusedIterator for ZeroCopySplit<'a> {}
 
 #[cfg(test)]
 mod tests {

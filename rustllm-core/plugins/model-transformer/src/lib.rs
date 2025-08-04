@@ -11,7 +11,7 @@ use rustllm_core::core::{
     serialization::{ModelSerializable, ModelHeader, ModelMetadata, ParameterSerializer, calculate_checksum},
 };
 use rustllm_core::foundation::{
-    error::{Result, Error, ProcessingError, ValidationError, internal_error},
+    error::{Result, Error, internal_error},
     types::Version,
 };
 use std::io::{Write, Read, Seek, SeekFrom};

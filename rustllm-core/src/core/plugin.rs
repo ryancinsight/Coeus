@@ -11,7 +11,6 @@
 //! - **Single Responsibility**: Each plugin has one clear purpose
 //! - **Liskov Substitution**: All plugins are interchangeable through traits
 
-use crate::core::traits::{Initialize, Lifecycle, Metadata, Named, Versioned, Described};
 use crate::foundation::{
     error::{Error, PluginError, Result},
     types::{PluginName, Version},
@@ -20,9 +19,6 @@ use core::fmt::Debug;
 
 #[cfg(feature = "std")]
 use std::sync::{Arc, RwLock, Weak};
-
-#[cfg(feature = "std")]
-use std::collections::HashMap;
 
 // ============================================================================
 // Core Plugin Trait
@@ -193,39 +189,41 @@ impl PluginState {
 // ============================================================================
 
 /// Container for a plugin instance with its metadata.
-/// 
+///
 /// This struct encapsulates a plugin with its state and metadata,
 /// following the principle of encapsulation.
 #[cfg(feature = "std")]
 pub struct PluginEntry {
-    /// The plugin instance.
-    plugin: Box<dyn Plugin>,
-    
+    /// The plugin instance with thread-safe mutable access.
+    plugin: Arc<RwLock<Box<dyn Plugin>>>,
+
     /// Current state of the plugin.
     state: PluginState,
-    
+
     /// Plugin metadata.
     metadata: PluginMetadata,
-    
+
     /// Dependencies on other plugins.
     dependencies: Vec<PluginName>,
-    
+
     /// Dependents of this plugin.
     dependents: Vec<Weak<RwLock<PluginEntry>>>,
 }
 
 #[cfg(feature = "std")]
 impl PluginEntry {
-    /// Creates a new plugin entry.
+    /// Creates a new plugin entry from a boxed plugin.
     pub fn new(plugin: Box<dyn Plugin>) -> Self {
         let metadata = PluginMetadata {
             name: plugin.name().into(),
             version: plugin.version(),
             capabilities: plugin.capabilities(),
         };
-        
+
+        let plugin_arc = Arc::new(RwLock::new(plugin));
+
         Self {
-            plugin,
+            plugin: plugin_arc,
             state: PluginState::Registered,
             metadata,
             dependencies: Vec::new(),
@@ -262,14 +260,42 @@ impl PluginEntry {
         Ok(())
     }
     
-    /// Returns a reference to the plugin.
-    pub fn plugin(&self) -> &dyn Plugin {
-        &*self.plugin
+    /// Returns the plugin Arc for shared ownership.
+    pub fn plugin_arc(&self) -> &Arc<RwLock<Box<dyn Plugin>>> {
+        &self.plugin
     }
-    
-    /// Returns a mutable reference to the plugin.
-    pub fn plugin_mut(&mut self) -> &mut dyn Plugin {
-        &mut *self.plugin
+
+    /// Returns a cloned Arc to the plugin.
+    pub fn plugin_arc_cloned(&self) -> Arc<RwLock<Box<dyn Plugin>>> {
+        Arc::clone(&self.plugin)
+    }
+
+    /// Executes a function with read access to the plugin.
+    pub fn with_plugin<F, R>(&self, f: F) -> Result<R>
+    where
+        F: FnOnce(&dyn Plugin) -> R,
+    {
+        let plugin = self.plugin.read()
+            .map_err(|_| Error::Plugin(PluginError::InvalidState {
+                plugin: self.name().to_string(),
+                expected: "readable",
+                actual: "lock poisoned",
+            }))?;
+        Ok(f(&**plugin))
+    }
+
+    /// Executes a function with write access to the plugin.
+    pub fn with_plugin_mut<F, R>(&self, f: F) -> Result<R>
+    where
+        F: FnOnce(&mut dyn Plugin) -> Result<R>,
+    {
+        let mut plugin = self.plugin.write()
+            .map_err(|_| Error::Plugin(PluginError::InvalidState {
+                plugin: self.name().to_string(),
+                expected: "writable",
+                actual: "lock poisoned",
+            }))?;
+        f(&mut **plugin)
     }
     
     /// Adds a dependency.
