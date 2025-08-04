@@ -106,10 +106,14 @@ impl PluginManager {
         plugins.insert(plugin_name.clone(), entry_arc.clone());
         
         // Return a reference to the plugin
-        // Note: This is a limitation - we can't return Arc<dyn Plugin> from Box<dyn Plugin>
-        Err(Error::Processing(ProcessingError::Unsupported {
-            operation: "Direct plugin access not supported. Use plugin operations through manager.".to_string(),
-        }))
+        // SAFETY: We know entry_arc contains the plugin we just loaded.
+        let plugin_arc = {
+            let entry = entry_arc.read()
+                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
+            // Clone the Arc<dyn Plugin> from the entry
+            entry.plugin_arc().clone()
+        };
+        Ok(plugin_arc)
     }
     
     /// Unloads a plugin by name.
