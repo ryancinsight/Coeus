@@ -89,6 +89,7 @@ pub mod core {
     pub mod plugin;
     pub mod tokenizer;
     pub mod traits;
+    pub mod serialization;
 }
 
 // Plugin system module
@@ -104,8 +105,9 @@ pub mod prelude {
     //! Common imports for users of the library.
     pub use crate::core::{
         config::{ConfigValue, ConfigBuilder, ConfigStore, Configurable, PluginConfigManager},
-        model::{Model, ModelBuilder, ModelConfig},
+        model::{Model, ModelBuilder, ModelConfig, Transformer250MConfig},
         plugin::Plugin,
+        serialization::{ModelSerializable, ModelHeader, ModelMetadata, ParameterSerializer, calculate_checksum},
         tokenizer::{Token, Tokenizer},
         traits::*,
     };

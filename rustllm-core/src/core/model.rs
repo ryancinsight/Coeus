@@ -8,6 +8,7 @@ use crate::foundation::{
     types::{ModelDim, HeadCount, LayerCount, Shape, ModelFloat},
 };
 use core::fmt::Debug;
+use std::any::Any;
 
 /// Trait representing a model configuration.
 pub trait ModelConfig: Debug + Clone + Send + Sync {
@@ -22,6 +23,9 @@ pub trait ModelConfig: Debug + Clone + Send + Sync {
     
     /// Validates the configuration.
     fn validate(&self) -> Result<()>;
+
+    /// Returns a reference to the underlying configuration.
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// Basic model configuration implementation.
@@ -96,6 +100,166 @@ impl ModelConfig for BasicModelConfig {
         }
         
         Ok(())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+/// Configuration for a ~250M parameter transformer model.
+/// 
+/// This configuration is optimized for rapid prototyping and experimentation:
+/// - 768 hidden dimensions (same as BERT-base)
+/// - 12 layers
+/// - 12 attention heads
+/// - ~250M total parameters
+#[derive(Debug, Clone, PartialEq)]
+pub struct Transformer250MConfig {
+    /// Hidden dimension size (768 for 250M model).
+    pub hidden_dim: usize,
+    
+    /// Number of transformer layers (12 for 250M model).
+    pub num_layers: usize,
+    
+    /// Number of attention heads (12 for 250M model).
+    pub num_heads: usize,
+    
+    /// Intermediate/feedforward dimension (typically 4x hidden_dim).
+    pub intermediate_dim: usize,
+    
+    /// Vocabulary size.
+    pub vocab_size: usize,
+    
+    /// Maximum sequence length.
+    pub max_seq_len: usize,
+    
+    /// Dropout probability.
+    pub dropout: f32,
+    
+    /// Attention dropout probability.
+    pub attention_dropout: f32,
+    
+    /// Layer normalization epsilon.
+    pub layer_norm_eps: f32,
+    
+    /// Whether to use bias in linear layers.
+    pub use_bias: bool,
+    
+    /// Activation function type.
+    pub activation: String,
+}
+
+impl Transformer250MConfig {
+    /// Creates a new 250M parameter configuration.
+    pub fn new() -> Self {
+        Self {
+            hidden_dim: 768,
+            num_layers: 12,
+            num_heads: 12,
+            intermediate_dim: 3072, // 4 * 768
+            vocab_size: 50257, // GPT-2 vocabulary size
+            max_seq_len: 1024,
+            dropout: 0.1,
+            attention_dropout: 0.1,
+            layer_norm_eps: 1e-5,
+            use_bias: true,
+            activation: "gelu".to_string(),
+        }
+    }
+    
+    /// Calculates the approximate number of parameters.
+    pub fn num_parameters(&self) -> usize {
+        let mut params = 0;
+        
+        // Embedding parameters
+        params += self.vocab_size * self.hidden_dim; // Token embeddings
+        params += self.max_seq_len * self.hidden_dim; // Position embeddings
+        
+        // Transformer layers
+        for _ in 0..self.num_layers {
+            // Self-attention
+            params += 4 * self.hidden_dim * self.hidden_dim; // Q, K, V, O projections
+            if self.use_bias {
+                params += 4 * self.hidden_dim; // Biases
+            }
+            
+            // Layer norm 1
+            params += 2 * self.hidden_dim; // Scale and bias
+            
+            // Feedforward
+            params += self.hidden_dim * self.intermediate_dim; // Up projection
+            params += self.intermediate_dim * self.hidden_dim; // Down projection
+            if self.use_bias {
+                params += self.intermediate_dim + self.hidden_dim; // Biases
+            }
+            
+            // Layer norm 2
+            params += 2 * self.hidden_dim; // Scale and bias
+        }
+        
+        // Final layer norm
+        params += 2 * self.hidden_dim;
+        
+        // Output projection
+        params += self.hidden_dim * self.vocab_size;
+        if self.use_bias {
+            params += self.vocab_size;
+        }
+        
+        params
+    }
+    
+    /// Validates the configuration.
+    pub fn validate(&self) -> Result<()> {
+        if self.hidden_dim % self.num_heads != 0 {
+            return Err(crate::foundation::error::Error::InvalidInput(format!(
+                "Hidden dimension {} must be divisible by number of heads {}",
+                self.hidden_dim, self.num_heads
+            )));
+        }
+        
+        if self.num_layers == 0 {
+            return Err(crate::foundation::error::Error::InvalidInput("Number of layers must be > 0".to_string()));
+        }
+        
+        if self.vocab_size == 0 {
+            return Err(crate::foundation::error::Error::InvalidInput("Vocabulary size must be > 0".to_string()));
+        }
+        
+        if self.max_seq_len == 0 {
+            return Err(crate::foundation::error::Error::InvalidInput("Maximum sequence length must be > 0".to_string()));
+        }
+        
+        Ok(())
+    }
+}
+
+impl Default for Transformer250MConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ModelConfig for Transformer250MConfig {
+    fn model_dim(&self) -> ModelDim {
+        self.hidden_dim as ModelDim
+    }
+    
+    fn head_count(&self) -> HeadCount {
+        self.num_heads as HeadCount
+    }
+    
+    fn layer_count(&self) -> LayerCount {
+        self.num_layers as LayerCount
+    }
+    
+    fn validate(&self) -> Result<()> {
+        self.validate()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -352,6 +516,39 @@ mod tests {
         let mut invalid_config2 = config.clone();
         invalid_config2.model_dim = 511; // Not divisible by head_count
         assert!(invalid_config2.validate().is_err());
+    }
+    
+    #[test]
+    fn test_transformer_250m_config() {
+        let config = Transformer250MConfig::default();
+        assert_eq!(config.hidden_dim, 768);
+        assert_eq!(config.num_layers, 12);
+        assert_eq!(config.num_heads, 12);
+        assert_eq!(config.intermediate_dim, 3072);
+        assert_eq!(config.vocab_size, 50257);
+        assert_eq!(config.max_seq_len, 1024);
+        assert_eq!(config.dropout, 0.1);
+        assert_eq!(config.attention_dropout, 0.1);
+        assert_eq!(config.layer_norm_eps, 1e-5);
+        assert!(config.use_bias);
+        assert_eq!(config.activation, "gelu");
+        assert!(config.validate().is_ok());
+
+        let mut invalid_config = config.clone();
+        invalid_config.hidden_dim = 767; // Not divisible by num_heads
+        assert!(invalid_config.validate().is_err());
+
+        let mut invalid_config2 = config.clone();
+        invalid_config2.num_layers = 0;
+        assert!(invalid_config2.validate().is_err());
+
+        let mut invalid_config3 = config.clone();
+        invalid_config3.vocab_size = 0;
+        assert!(invalid_config3.validate().is_err());
+
+        let mut invalid_config4 = config.clone();
+        invalid_config4.max_seq_len = 0;
+        assert!(invalid_config4.validate().is_err());
     }
     
     #[test]
