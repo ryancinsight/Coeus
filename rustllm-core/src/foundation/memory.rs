@@ -87,6 +87,11 @@ impl Arena {
         let layout = Layout::array::<T>(slice.len()).unwrap();
         let ptr = self.alloc_raw(layout) as *mut T;
         
+        // Ensure the pointer is properly aligned for T
+        assert!(
+            (ptr as usize) % core::mem::align_of::<T>() == 0,
+            "Allocated memory is not properly aligned for type T"
+        );
         unsafe {
             ptr::copy_nonoverlapping(slice.as_ptr(), ptr, slice.len());
             slice::from_raw_parts_mut(ptr, slice.len())
