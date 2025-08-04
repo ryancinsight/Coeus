@@ -155,15 +155,18 @@ impl ParameterSerializer {
         // Read in chunks
         let chunk_size = self.buffer_size / mem::size_of::<f32>();
         for chunk in params.chunks_mut(chunk_size) {
-            let bytes = unsafe {
-                std::slice::from_raw_parts_mut(
-                    chunk.as_mut_ptr() as *mut u8,
-                    chunk.len() * mem::size_of::<f32>(),
-                )
-            };
+            let mut bytes = vec![0u8; chunk.len() * mem::size_of::<f32>()];
             
-            reader.read_exact(bytes)
+            reader.read_exact(&mut bytes)
                 .map_err(|e| Error::Other(format!("Failed to read parameters: {}", e)))?;
+            
+            // Convert bytes to f32 using little-endian
+            for (i, val) in chunk.iter_mut().enumerate() {
+                let start = i * mem::size_of::<f32>();
+                let end = start + mem::size_of::<f32>();
+                let arr: [u8; 4] = bytes[start..end].try_into().unwrap();
+                *val = f32::from_le_bytes(arr);
+            }
             
             read += bytes.len();
             progress(read, total_bytes);
