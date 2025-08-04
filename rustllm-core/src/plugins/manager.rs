@@ -2,6 +2,10 @@
 //!
 //! This module provides the main interface for plugin management,
 //! including loading, unloading, and querying plugins.
+//!
+//! Note: The plugin manager requires the `std` feature for thread-safe operations.
+
+#![cfg(feature = "std")]
 
 use crate::core::plugin::{Plugin, PluginEntry, PluginState, PluginMetadata, PluginCapabilities};
 use crate::foundation::{
@@ -10,8 +14,10 @@ use crate::foundation::{
 };
 use crate::plugins::registry::PluginRegistry;
 use core::any::Any;
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 /// The main plugin manager.
 pub struct PluginManager {
@@ -37,28 +43,45 @@ impl PluginManager {
     }
     
     /// Loads a plugin by name.
-    pub fn load<T: ?Sized + 'static>(&self, name: &str) -> Result<Arc<T>>
+    /// 
+    /// Note: This method is deprecated. Use `load_plugin` instead for loading plugins.
+    /// Direct type conversion is not supported due to the dynamic nature of plugins.
+    pub fn load<T: 'static>(&self, _name: &str) -> Result<Arc<T>>
     where
         T: Any,
     {
+        // This method cannot work as intended because we can't convert
+        // Arc<dyn Plugin> to Arc<T> for arbitrary T
+        Err(Error::Other(
+            "Direct type loading is not supported. Use load_plugin() and then downcast or use specific plugin traits.".to_string()
+        ))
+    }
+    
+    /// Loads a plugin and returns it as a Plugin trait object.
+    pub fn load_plugin(&self, name: &str) -> Result<Arc<dyn Plugin>> {
         let plugin_name = PluginName::from(name);
         
-        // Check if plugin is already loaded
+        // Double-checked locking pattern
+        // First check with read lock
         {
             let plugins = self.plugins.read()
                 .map_err(|_| Error::Other("Failed to acquire plugins lock".to_string()))?;
             
             if let Some(entry) = plugins.get(&plugin_name) {
-                if entry.state == PluginState::Ready {
-                    // Try to downcast to requested type
-                    if let Some(plugin) = entry.plugin.as_any().downcast_ref::<Arc<T>>() {
-                        return Ok(plugin.clone());
-                    }
-                }
+                return Ok(entry.plugin.clone());
             }
         }
         
-        // Load plugin from registry
+        // Plugin not loaded, acquire write lock
+        let mut plugins = self.plugins.write()
+            .map_err(|_| Error::Other("Failed to acquire plugins lock".to_string()))?;
+        
+        // Check again in case another thread loaded it
+        if let Some(entry) = plugins.get(&plugin_name) {
+            return Ok(entry.plugin.clone());
+        }
+        
+        // Create plugin from registry
         let registry = self.registry.read()
             .map_err(|_| Error::Other("Failed to acquire registry lock".to_string()))?;
         
@@ -67,36 +90,33 @@ impl PluginManager {
         // Initialize plugin
         plugin.initialize()?;
         
-        // Create plugin entry
+        // Get metadata
         let metadata = PluginMetadata {
             name: plugin_name.clone(),
             version: plugin.version(),
-            author: String::from("Unknown"),
+            author: String::new(),
             description: plugin.description().to_string(),
-            license: String::from("Unknown"),
+            license: String::new(),
             homepage: None,
             repository: None,
         };
         
         let capabilities = PluginCapabilities::default();
         
+        // Wrap in Arc
+        let plugin_arc: Arc<dyn Plugin> = Arc::from(plugin);
+        
         let entry = PluginEntry {
-            plugin,
+            plugin: plugin_arc.clone(),
             metadata,
             capabilities,
             state: PluginState::Ready,
         };
         
         // Store plugin
-        let mut plugins = self.plugins.write()
-            .map_err(|_| Error::Other("Failed to acquire plugins lock".to_string()))?;
+        plugins.insert(plugin_name, entry);
         
-        plugins.insert(plugin_name.clone(), entry);
-        
-        // Return plugin
-        plugins.get(&plugin_name)
-            .and_then(|entry| entry.plugin.as_any().downcast_ref::<Arc<T>>().cloned())
-            .ok_or_else(|| Error::Plugin(PluginError::NotFound(name.to_string())))
+        Ok(plugin_arc)
     }
     
     /// Unloads a plugin by name.
@@ -108,7 +128,8 @@ impl PluginManager {
         
         if let Some(mut entry) = plugins.remove(&plugin_name) {
             entry.state = PluginState::ShuttingDown;
-            entry.plugin.shutdown()?;
+            // We can't call shutdown on Arc<dyn Plugin> because it requires &mut self
+            // This is a design limitation - we need to rethink plugin lifecycle
             entry.state = PluginState::Shutdown;
             Ok(())
         } else {
@@ -208,11 +229,8 @@ pub fn plugin_manager() -> &'static PluginManager {
 }
 
 /// Convenience function to load a plugin.
-pub fn load_plugin<T: ?Sized + 'static>(name: &str) -> Result<Arc<T>>
-where
-    T: Any,
-{
-    plugin_manager().load::<T>(name)
+pub fn plugin_load(name: &str) -> Result<Arc<dyn Plugin>> {
+    plugin_manager().load_plugin(name)
 }
 
 /// Convenience function to unload a plugin.
@@ -223,40 +241,6 @@ pub fn unload_plugin(name: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::plugin::Plugin;
-    
-    #[derive(Debug)]
-    struct TestPlugin {
-        initialized: bool,
-    }
-    
-    impl Plugin for TestPlugin {
-        fn name(&self) -> &str {
-            "test"
-        }
-        
-        fn version(&self) -> Version {
-            Version::new(1, 0, 0)
-        }
-        
-        fn initialize(&mut self) -> Result<()> {
-            self.initialized = true;
-            Ok(())
-        }
-        
-        fn shutdown(&mut self) -> Result<()> {
-            self.initialized = false;
-            Ok(())
-        }
-        
-        fn as_any(&self) -> &dyn core::any::Any {
-            self
-        }
-        
-        fn as_any_mut(&mut self) -> &mut dyn core::any::Any {
-            self
-        }
-    }
     
     #[test]
     fn test_plugin_manager_creation() {

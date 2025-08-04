@@ -2,6 +2,10 @@
 //!
 //! This module provides the registry that stores plugin factories
 //! and creates plugin instances on demand.
+//!
+//! Note: The plugin registry requires the `std` feature.
+
+#![cfg(feature = "std")]
 
 use crate::core::plugin::Plugin;
 use crate::foundation::{

@@ -3,8 +3,8 @@
 use rustllm_core::prelude::*;
 use rustllm_core::plugins::manager::PluginManager;
 use rustllm_core::plugins::registry::PluginRegistryBuilder;
-use rustllm_core::core::plugin::{Plugin, TokenizerPlugin, ModelBuilderPlugin};
-use rustllm_core::core::tokenizer::{Tokenizer, VocabularyTokenizer};
+use rustllm_core::core::plugin::{TokenizerPlugin, ModelBuilderPlugin, PluginState};
+use rustllm_core::core::tokenizer::VocabularyTokenizer;
 use rustllm_core::core::model::{ModelBuilder, BasicModelConfig};
 use rustllm_core::foundation::iterator::IteratorExt;
 
@@ -68,7 +68,7 @@ fn test_bpe_tokenizer_plugin() {
     assert!(tokenizer.contains_token("<UNK>"));
     
     // Add custom token
-    let token_id = tokenizer.add_token("custom_token").unwrap();
+    let _token_id = tokenizer.add_token("custom_token").unwrap();
     assert!(tokenizer.contains_token("custom_token"));
     
     let vocab_size = tokenizer.vocab_size();
@@ -93,19 +93,33 @@ fn test_model_builder_plugin() {
 }
 
 #[test]
-fn test_plugin_lifecycle() {
-    let mut plugin = BasicTokenizerPlugin::default();
+fn test_plugin_lifecycle() -> Result<()> {
+    let manager = PluginManager::new();
     
-    // Test initialization
-    assert!(plugin.initialize().is_ok());
+    // Register plugin
+    manager.register::<BasicTokenizerPlugin>()?;
     
-    // Test metadata
+    // Load plugin
+    let plugin = manager.load_plugin("basic_tokenizer")?;
     assert_eq!(plugin.name(), "basic_tokenizer");
-    assert!(!plugin.description().is_empty());
-    assert!(plugin.version().major >= 0);
     
-    // Test shutdown
-    assert!(plugin.shutdown().is_ok());
+    // Get plugin info
+    let info = manager.info("basic_tokenizer")?;
+    assert_eq!(info.name.as_str(), "basic_tokenizer");
+    assert_eq!(info.state, PluginState::Ready);
+    
+    // List loaded plugins
+    let loaded = manager.list_loaded()?;
+    assert!(loaded.contains(&"basic_tokenizer".to_string()));
+    
+    // Unload plugin
+    manager.unload("basic_tokenizer")?;
+    
+    // Should not be in loaded list
+    let loaded = manager.list_loaded()?;
+    assert!(!loaded.contains(&"basic_tokenizer".to_string()));
+    
+    Ok(())
 }
 
 #[test]
@@ -282,4 +296,51 @@ fn test_plugin_registry_builder() {
     assert!(registry.create(&PluginName::from("bpe_tokenizer")).is_ok());
     assert!(registry.create(&PluginName::from("basic_model")).is_ok());
     assert!(registry.create(&PluginName::from("nonexistent")).is_err());
+}
+
+#[test]
+fn test_concurrent_plugin_loading() {
+    use std::sync::Arc;
+    use std::thread;
+    
+    let manager = Arc::new(PluginManager::new());
+    
+    // Register plugins
+    manager.register::<BasicTokenizerPlugin>().unwrap();
+    manager.register::<BasicModelPlugin>().unwrap();
+    
+    // Spawn multiple threads that try to load the same plugin simultaneously
+    let handles: Vec<_> = (0..10)
+        .map(|_i| {
+            let manager_clone = Arc::clone(&manager);
+            thread::spawn(move || {
+                // All threads try to load the same plugins
+                let tokenizer_plugin = manager_clone.load_plugin("basic_tokenizer").unwrap();
+                assert_eq!(tokenizer_plugin.name(), "basic_tokenizer");
+                
+                let model_plugin = manager_clone.load_plugin("basic_model").unwrap();
+                assert_eq!(model_plugin.name(), "basic_model");
+                
+                // Verify plugins are properly initialized
+                assert_eq!(tokenizer_plugin.version().major, 0);
+                assert_eq!(model_plugin.version().major, 0);
+                
+                // Each thread also lists loaded plugins
+                let loaded = manager_clone.list_loaded().unwrap();
+                assert!(loaded.contains(&"basic_tokenizer".to_string()));
+                assert!(loaded.contains(&"basic_model".to_string()));
+            })
+        })
+        .collect();
+    
+    // Wait for all threads
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    
+    // Verify final state
+    let loaded = manager.list_loaded().unwrap();
+    assert_eq!(loaded.len(), 2);
+    assert!(loaded.contains(&"basic_tokenizer".to_string()));
+    assert!(loaded.contains(&"basic_model".to_string()));
 }

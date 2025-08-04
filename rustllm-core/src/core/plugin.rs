@@ -1,14 +1,20 @@
-//! Plugin system traits and abstractions.
+//! Plugin system traits and types.
 //!
-//! This module defines the plugin interface for extending RustLLM Core
-//! functionality following the Open/Closed Principle from SOLID.
+//! This module defines the plugin architecture for extending RustLLM Core
+//! with custom tokenizers, models, and loaders.
 
 use crate::foundation::{
     error::Result,
-    types::{Version, PluginName},
+    types::{PluginName, Version},
 };
 use core::any::Any;
 use core::fmt::Debug;
+
+#[cfg(feature = "std")]
+use std::sync::Arc;
+
+#[cfg(not(feature = "std"))]
+use alloc::sync::Arc;
 
 /// Main plugin trait that all plugins must implement.
 pub trait Plugin: Send + Sync + Any + Debug {
@@ -209,7 +215,7 @@ pub trait HotReloadablePlugin: Plugin {
 #[derive(Debug)]
 pub struct PluginEntry {
     /// The plugin instance.
-    pub plugin: Box<dyn Plugin>,
+    pub plugin: Arc<dyn Plugin>,
     
     /// Plugin metadata.
     pub metadata: PluginMetadata,
