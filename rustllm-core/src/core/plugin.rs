@@ -198,56 +198,59 @@ impl PluginState {
 /// following the principle of encapsulation.
 #[cfg(feature = "std")]
 pub struct PluginEntry {
-    /// The plugin instance.
-    plugin: Box<dyn Plugin>,
-    
+    /// The plugin instance, reference counted for shared access.
+    plugin: std::sync::Arc<dyn Plugin>,
+
     /// Current state of the plugin.
     state: PluginState,
-    
+
     /// Plugin metadata.
     metadata: PluginMetadata,
-    
+
     /// Dependencies on other plugins.
     dependencies: Vec<PluginName>,
-    
+
     /// Dependents of this plugin.
     dependents: Vec<Weak<RwLock<PluginEntry>>>,
 }
 
 #[cfg(feature = "std")]
 impl PluginEntry {
-    /// Creates a new plugin entry.
+    /// Creates a new plugin entry from a boxed plugin.
+    ///
+    /// The plugin will be wrapped in an [`Arc`] for shared ownership.
     pub fn new(plugin: Box<dyn Plugin>) -> Self {
+        let plugin_arc: std::sync::Arc<dyn Plugin> = plugin.into();
         let metadata = PluginMetadata {
-            name: plugin.name().into(),
-            version: plugin.version(),
-            capabilities: plugin.capabilities(),
+            name: plugin_arc.name().into(),
+            version: plugin_arc.version(),
+            capabilities: plugin_arc.capabilities(),
         };
-        
+
         Self {
-            plugin,
+            plugin: plugin_arc,
             state: PluginState::Registered,
             metadata,
             dependencies: Vec::new(),
             dependents: Vec::new(),
         }
     }
-    
+
     /// Returns the plugin name.
     pub fn name(&self) -> &PluginName {
         &self.metadata.name
     }
-    
+
     /// Returns the plugin version.
     pub fn version(&self) -> &Version {
         &self.metadata.version
     }
-    
+
     /// Returns the current state.
     pub fn state(&self) -> PluginState {
         self.state
     }
-    
+
     /// Transitions to a new state.
     pub fn transition_to(&mut self, new_state: PluginState) -> Result<()> {
         if !self.state.can_transition_to(new_state) {
@@ -257,38 +260,50 @@ impl PluginEntry {
                 actual: "invalid transition",
             }));
         }
-        
+
         self.state = new_state;
         Ok(())
     }
-    
+
+    /// Returns a reference to the plugin's shared [`Arc`].
+    ///
+    /// This allows cheap cloning for thread-safe plugin access.
+    pub fn plugin_arc(&self) -> &std::sync::Arc<dyn Plugin> {
+        &self.plugin
+    }
+
     /// Returns a reference to the plugin.
     pub fn plugin(&self) -> &dyn Plugin {
-        &*self.plugin
+        self.plugin.as_ref()
     }
-    
+
     /// Returns a mutable reference to the plugin.
+    ///
+    /// # Panics
+    /// Panics if multiple references to the plugin exist.
     pub fn plugin_mut(&mut self) -> &mut dyn Plugin {
-        &mut *self.plugin
+        std::sync::Arc::get_mut(&mut self.plugin)
+            .expect("multiple refs to plugin")
+            .as_mut()
     }
-    
+
     /// Adds a dependency.
     pub fn add_dependency(&mut self, dep: PluginName) {
         if !self.dependencies.contains(&dep) {
             self.dependencies.push(dep);
         }
     }
-    
+
     /// Returns the dependencies.
     pub fn dependencies(&self) -> &[PluginName] {
         &self.dependencies
     }
-    
+
     /// Adds a dependent.
     pub fn add_dependent(&mut self, dependent: Weak<RwLock<PluginEntry>>) {
         self.dependents.push(dependent);
     }
-    
+
     /// Removes stale dependents.
     pub fn clean_dependents(&mut self) {
         self.dependents.retain(|weak| weak.strong_count() > 0);

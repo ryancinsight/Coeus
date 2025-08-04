@@ -45,18 +45,22 @@ impl PluginManager {
     }
     
     /// Loads a plugin and returns it as a Plugin trait object.
+    /// Loads a plugin and returns it as a shared [`Arc<dyn Plugin>`].
+    ///
+    /// This will reuse a loaded plugin if one exists and is usable. If not,
+    /// it loads, initializes, and registers the plugin, returning a shared reference.
     pub fn load_plugin(&self, name: &str) -> Result<Arc<dyn Plugin>> {
         let plugin_name = PluginName::from(name);
-        
+
         // Double-checked locking pattern for thread safety
         {
             let plugins = self.plugins.read()
                 .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
-            
+
             if let Some(entry_arc) = plugins.get(&plugin_name) {
                 let entry = entry_arc.read()
                     .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
-                
+
                 // Check if plugin is in a usable state
                 if entry.state().is_usable() {
                     // Return a cloned Arc to the plugin
@@ -64,30 +68,30 @@ impl PluginManager {
                 }
             }
         }
-        
+
         // Plugin not loaded, acquire write lock
         let mut plugins = self.plugins.write()
             .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
-        
+
         // Check again in case another thread loaded it
         if plugins.contains_key(&plugin_name) {
-            return Err(Error::Plugin(PluginError::AlreadyLoaded { 
-                name: name.to_string() 
+            return Err(Error::Plugin(PluginError::AlreadyLoaded {
+                name: name.to_string()
             }));
         }
-        
+
         // Create plugin from registry
         let registry = self.registry.read()
             .map_err(|_| internal_error("Failed to acquire registry lock"))?;
-        
+
         let plugin = registry.create(&plugin_name)?;
-        
+
         // Create plugin entry
         let mut entry = PluginEntry::new(plugin);
-        
+
         // Transition to initializing state
         entry.transition_to(PluginState::Initializing)?;
-        
+
         // Initialize if the plugin supports it
         // Note: We need to check capabilities first
         let capabilities = entry.plugin().capabilities();
@@ -95,18 +99,17 @@ impl PluginManager {
             // We can't initialize through the trait object without the Initialize trait
             // This is a design limitation we need to address
         }
-        
+
         // Transition to ready state
         entry.transition_to(PluginState::Ready)?;
-        
+
         // Wrap in Arc<RwLock> for thread-safe access
         let entry_arc = Arc::new(RwLock::new(entry));
-        
+
         // Store plugin
         plugins.insert(plugin_name.clone(), entry_arc.clone());
-        
+
         // Return a reference to the plugin
-        // SAFETY: We know entry_arc contains the plugin we just loaded.
         let plugin_arc = {
             let entry = entry_arc.read()
                 .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
