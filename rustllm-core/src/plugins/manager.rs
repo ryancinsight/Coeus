@@ -9,7 +9,7 @@
 
 use crate::core::plugin::{Plugin, PluginEntry, PluginState, PluginMetadata, PluginCapabilities};
 use crate::foundation::{
-    error::{Error, PluginError, Result},
+    error::{Error, PluginError, Result, internal_error},
     types::{PluginName, Version},
 };
 use crate::plugins::registry::PluginRegistry;
@@ -36,7 +36,7 @@ impl PluginManager {
     /// Registers a plugin type with the manager.
     pub fn register<P: Plugin + Default + 'static>(&self) -> Result<()> {
         let mut registry = self.registry.write()
-            .map_err(|_| Error::Other("Failed to acquire registry lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire registry lock".to_string()))?;
         
         registry.register::<P>()
     }
@@ -49,7 +49,7 @@ impl PluginManager {
         // First check with read lock
         {
             let plugins = self.plugins.read()
-                .map_err(|_| Error::Other("Failed to acquire plugins lock".to_string()))?;
+                .map_err(|_| internal_error("Failed to acquire plugins lock".to_string()))?;
             
             if let Some(entry) = plugins.get(&plugin_name) {
                 return Ok(entry.plugin.clone());
@@ -58,7 +58,7 @@ impl PluginManager {
         
         // Plugin not loaded, acquire write lock
         let mut plugins = self.plugins.write()
-            .map_err(|_| Error::Other("Failed to acquire plugins lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire plugins lock".to_string()))?;
         
         // Check again in case another thread loaded it
         if let Some(entry) = plugins.get(&plugin_name) {
@@ -67,7 +67,7 @@ impl PluginManager {
         
         // Create plugin from registry
         let registry = self.registry.read()
-            .map_err(|_| Error::Other("Failed to acquire registry lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire registry lock".to_string()))?;
         
         let mut plugin = registry.create(&plugin_name)?;
         
@@ -108,7 +108,7 @@ impl PluginManager {
         let plugin_name = PluginName::from(name);
         
         let mut plugins = self.plugins.write()
-            .map_err(|_| Error::Other("Failed to acquire plugins lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire plugins lock".to_string()))?;
         
         if let Some(mut entry) = plugins.remove(&plugin_name) {
             entry.state = PluginState::ShuttingDown;
@@ -117,14 +117,14 @@ impl PluginManager {
             entry.state = PluginState::Shutdown;
             Ok(())
         } else {
-            Err(Error::Plugin(PluginError::NotFound(name.to_string())))
+            Err(Error::Plugin(PluginError::NotFound { name: name.to_string( })))
         }
     }
     
     /// Lists all loaded plugins.
     pub fn list_loaded(&self) -> Result<Vec<String>> {
         let plugins = self.plugins.read()
-            .map_err(|_| Error::Other("Failed to acquire plugins lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire plugins lock".to_string()))?;
         
         Ok(plugins.keys().map(|name| name.as_str().to_string()).collect())
     }
@@ -132,7 +132,7 @@ impl PluginManager {
     /// Lists all available plugins in the registry.
     pub fn list_available(&self) -> Result<Vec<String>> {
         let registry = self.registry.read()
-            .map_err(|_| Error::Other("Failed to acquire registry lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire registry lock".to_string()))?;
         
         Ok(registry.list())
     }
@@ -142,7 +142,7 @@ impl PluginManager {
         let plugin_name = PluginName::from(name);
         
         let plugins = self.plugins.read()
-            .map_err(|_| Error::Other("Failed to acquire plugins lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire plugins lock".to_string()))?;
         
         if let Some(entry) = plugins.get(&plugin_name) {
             Ok(PluginInfo {
@@ -154,7 +154,7 @@ impl PluginManager {
                 capabilities: entry.capabilities.clone(),
             })
         } else {
-            Err(Error::Plugin(PluginError::NotFound(name.to_string())))
+            Err(Error::Plugin(PluginError::NotFound { name: name.to_string( })))
         }
     }
     

@@ -2,11 +2,94 @@
 //!
 //! This module provides custom iterator adapters and combinators specifically
 //! designed for efficient token processing with minimal allocations.
+//!
+//! ## Design Principles
+//!
+//! - **Zero-cost abstractions**: All iterators compile to efficient code
+//! - **Composability**: Iterators can be freely combined
+//! - **Lazy evaluation**: Work is deferred until needed
+//! - **Memory efficiency**: Minimal allocations and copies
+//!
+//! ## Example
+//!
+//! ```rust,ignore
+//! use rustllm_core::prelude::*;
+//!
+//! let tokens = vec!["hello", "world", "from", "rust"];
+//! let result: Vec<_> = tokens.iter()
+//!     .windows(2)
+//!     .stream_map(|w| format!("{}-{}", w[0], w[1]))
+//!     .collect();
+//! ```
 
 use core::iter::{Iterator, FusedIterator};
 use core::marker::PhantomData;
 
-/// Iterator adapter for sliding windows over tokens.
+// ============================================================================
+// Core Iterator Traits
+// ============================================================================
+
+/// Base trait for all custom iterator adapters.
+/// 
+/// This trait provides the foundation for composable iterators,
+/// following the Interface Segregation Principle.
+pub trait IteratorAdapter: Iterator + Sized {
+    /// The source iterator type.
+    type Source: Iterator;
+    
+    /// Returns a reference to the source iterator.
+    fn source(&self) -> &Self::Source;
+    
+    /// Returns a mutable reference to the source iterator.
+    fn source_mut(&mut self) -> &mut Self::Source;
+}
+
+/// Trait for iterators that maintain internal state.
+/// 
+/// This follows the Single Responsibility Principle by separating
+/// stateful behavior from basic iteration.
+pub trait StatefulIterator: Iterator {
+    /// The state type.
+    type State;
+    
+    /// Returns the current state.
+    fn state(&self) -> &Self::State;
+    
+    /// Resets the internal state.
+    fn reset_state(&mut self);
+}
+
+/// Trait for iterators that can provide size hints.
+/// 
+/// This extends the standard size_hint with more precise information.
+pub trait PreciseSizeHint: Iterator {
+    /// Returns the exact number of remaining elements, if known.
+    fn exact_size(&self) -> Option<usize> {
+        let (lower, upper) = self.size_hint();
+        if upper == Some(lower) {
+            Some(lower)
+        } else {
+            None
+        }
+    }
+    
+    /// Returns whether the iterator is empty.
+    fn is_empty(&self) -> bool {
+        self.size_hint().1 == Some(0)
+    }
+}
+
+// Blanket implementation for all iterators
+impl<I: Iterator> PreciseSizeHint for I {}
+
+// ============================================================================
+// Window Iterator
+// ============================================================================
+
+/// Iterator adapter for sliding windows over elements.
+/// 
+/// This iterator yields overlapping windows of a fixed size,
+/// implementing efficient windowing with minimal allocations.
 #[derive(Debug, Clone)]
 pub struct Windows<I, T> {
     iter: I,
@@ -20,9 +103,14 @@ where
     T: Clone,
 {
     /// Creates a new sliding window iterator.
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if `size` is 0.
     pub fn new(mut iter: I, size: usize) -> Self {
         assert!(size > 0, "Window size must be greater than 0");
         
+        // Pre-allocate the window buffer
         let mut window = Vec::with_capacity(size);
         
         // Fill initial window
@@ -36,6 +124,11 @@ where
         
         Self { iter, window, size }
     }
+    
+    /// Returns the window size.
+    pub fn window_size(&self) -> usize {
+        self.size
+    }
 }
 
 impl<I, T> Iterator for Windows<I, T>
@@ -46,16 +139,20 @@ where
     type Item = Vec<T>;
     
     fn next(&mut self) -> Option<Self::Item> {
+        // Only yield if we have a full window
         if self.window.len() < self.size {
             return None;
         }
         
+        // Clone current window
         let result = self.window.clone();
         
+        // Slide the window
         if let Some(next_item) = self.iter.next() {
             self.window.remove(0);
             self.window.push(next_item);
         } else {
+            // No more items, clear window to stop iteration
             self.window.clear();
         }
         
@@ -63,12 +160,11 @@ where
     }
     
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (lower, upper) = self.iter.size_hint();
-        
         if self.window.len() < self.size {
             (0, Some(0))
         } else {
-            (lower, upper.map(|u| u + 1))
+            let (lower, upper) = self.iter.size_hint();
+            (lower.saturating_add(1), upper.map(|u| u.saturating_add(1)))
         }
     }
 }
@@ -79,7 +175,30 @@ where
     T: Clone,
 {}
 
-/// Iterator adapter for chunking tokens into batches.
+impl<I, T> IteratorAdapter for Windows<I, T>
+where
+    I: Iterator<Item = T>,
+    T: Clone,
+{
+    type Source = I;
+    
+    fn source(&self) -> &Self::Source {
+        &self.iter
+    }
+    
+    fn source_mut(&mut self) -> &mut Self::Source {
+        &mut self.iter
+    }
+}
+
+// ============================================================================
+// Chunk Iterator
+// ============================================================================
+
+/// Iterator adapter for chunking elements into fixed-size batches.
+/// 
+/// This iterator yields non-overlapping chunks, with the last chunk
+/// potentially being smaller than the requested size.
 #[derive(Debug)]
 pub struct Chunks<I, T> {
     iter: I,
@@ -92,6 +211,10 @@ where
     I: Iterator<Item = T>,
 {
     /// Creates a new chunking iterator.
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if `size` is 0.
     pub fn new(iter: I, size: usize) -> Self {
         assert!(size > 0, "Chunk size must be greater than 0");
         
@@ -100,6 +223,11 @@ where
             size,
             _marker: PhantomData,
         }
+    }
+    
+    /// Returns the chunk size.
+    pub fn chunk_size(&self) -> usize {
+        self.size
     }
 }
 
@@ -110,14 +238,8 @@ where
     type Item = Vec<T>;
     
     fn next(&mut self) -> Option<Self::Item> {
-        let mut chunk = Vec::with_capacity(self.size);
-        
-        for _ in 0..self.size {
-            match self.iter.next() {
-                Some(item) => chunk.push(item),
-                None => break,
-            }
-        }
+        // Collect up to `size` elements
+        let chunk: Vec<_> = self.iter.by_ref().take(self.size).collect();
         
         if chunk.is_empty() {
             None
@@ -140,6 +262,21 @@ impl<I, T> FusedIterator for Chunks<I, T>
 where
     I: Iterator<Item = T> + FusedIterator,
 {}
+
+impl<I, T> IteratorAdapter for Chunks<I, T>
+where
+    I: Iterator<Item = T>,
+{
+    type Source = I;
+    
+    fn source(&self) -> &Self::Source {
+        &self.iter
+    }
+    
+    fn source_mut(&mut self) -> &mut Self::Source {
+        &mut self.iter
+    }
+}
 
 /// Iterator adapter for striding through tokens.
 #[derive(Debug, Clone)]

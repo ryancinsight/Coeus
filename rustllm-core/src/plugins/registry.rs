@@ -80,7 +80,7 @@ impl PluginRegistry {
     pub fn create(&self, name: &PluginName) -> Result<Box<dyn Plugin>> {
         self.factories
             .get(name)
-            .ok_or_else(|| Error::Plugin(PluginError::NotFound(name.as_str().to_string())))
+            .ok_or_else(|| Error::Plugin(PluginError::NotFound { name: name.as_str().to_string() }))
             .and_then(|factory| factory())
     }
     
@@ -110,7 +110,7 @@ impl PluginRegistry {
             self.type_map.retain(|_, v| v != name);
             Ok(())
         } else {
-            Err(Error::Plugin(PluginError::NotFound(name.as_str().to_string())))
+            Err(Error::Plugin(PluginError::NotFound { name: name.as_str().to_string() }))
         }
     }
     
