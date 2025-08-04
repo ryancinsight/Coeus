@@ -691,10 +691,8 @@ impl<T> LazyAlloc<T> {
             self.value.set(Some(Box::new((self.init)())));
         }
         
-        unsafe { 
-            // This is safe because we just initialized it above
-            &**self.value.as_ptr().as_ref().unwrap_unchecked()
-        }
+        // Safe: we just initialized it above if it was None
+        self.value.get().as_ref().unwrap().as_ref()
     }
     
     /// Returns whether the value has been initialized.
