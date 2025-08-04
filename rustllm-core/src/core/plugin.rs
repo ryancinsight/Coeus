@@ -16,7 +16,7 @@ use crate::foundation::{
     error::{Error, PluginError, Result},
     types::{PluginName, Version},
 };
-use core::fmt::Debug;
+use core::{fmt::Debug, any::Any};
 use core::any::Any;
 
 #[cfg(feature = "std")]
@@ -37,15 +37,34 @@ use std::collections::HashMap;
 pub trait Plugin: Send + Sync + Debug {
     /// Returns the unique name of this plugin.
     fn name(&self) -> &str;
-    
+
     /// Returns the plugin version.
     fn version(&self) -> Version;
-    
+
     /// Returns the plugin's capabilities.
     fn capabilities(&self) -> PluginCapabilities;
-    
+
+    /// Optional initialization hook. Default does nothing.
+    fn initialize(&mut self) -> crate::foundation::error::Result<()> {
+        Ok(())
+    }
+
+    /// Indicates whether the plugin has been initialized.
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    /// Type-erased access helpers for runtime downcasting.
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     /// Called when the plugin is being unloaded.
-    /// 
+    ///
     /// This gives the plugin a chance to clean up resources.
     fn on_unload(&mut self) -> Result<()> {
         Ok(())

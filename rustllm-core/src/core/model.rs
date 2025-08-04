@@ -703,6 +703,38 @@ pub trait Attention: Layer {
     ) -> Result<Tensor>;
 }
 
+/// A basic model plugin implementation for demonstration and testing purposes.
+#[derive(Debug)]
+pub struct BasicModelPlugin {
+    initialized: bool,
+}
+
+impl Default for BasicModelPlugin {
+    fn default() -> Self {
+        Self { initialized: false }
+    }
+}
+
+impl crate::core::plugin::Plugin for BasicModelPlugin {
+    fn name(&self) -> &str { "basic_model" }
+    fn version(&self) -> crate::foundation::types::Version { crate::foundation::types::Version::new(0,1,0) }
+    fn capabilities(&self) -> crate::core::plugin::PluginCapabilities {
+        crate::core::plugin::PluginCapabilities::standard()
+    }
+
+    fn initialize(&mut self) -> crate::foundation::error::Result<()> {
+        self.initialized = true;
+        Ok(())
+    }
+
+    fn is_initialized(&self) -> bool {
+        self.initialized
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
