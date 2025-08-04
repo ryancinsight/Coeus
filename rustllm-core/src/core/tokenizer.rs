@@ -5,35 +5,28 @@
 
 use crate::foundation::{
     error::Result,
-    iterator::TokenIterator,
     types::{TokenId, VocabSize},
 };
 use core::fmt::Debug;
+use std::borrow::Cow;
 
-/// Trait representing a token in the tokenization process.
+/// Type alias for token iterators.
+pub type TokenIterator<'a, T> = Box<dyn Iterator<Item = T> + 'a>;
+
+/// Trait representing a token.
 pub trait Token: Debug + Clone + Send + Sync {
-    /// Returns the token as a string slice if possible.
+    /// Returns the token ID.
+    fn id(&self) -> TokenId;
+    
+    /// Returns the token as a string reference if available.
     fn as_str(&self) -> Option<&str>;
     
-    /// Returns the token ID if available.
-    fn id(&self) -> Option<TokenId>;
-    
-    /// Returns the byte representation of the token.
-    fn as_bytes(&self) -> &[u8];
-    
-    /// Returns the length of the token in bytes.
-    fn len(&self) -> usize {
-        self.as_bytes().len()
-    }
-    
-    /// Checks if the token is empty.
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
+    /// Returns the token's byte representation if available.
+    fn as_bytes(&self) -> Option<&[u8]>;
 }
 
 /// Basic string token implementation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StringToken {
     value: String,
     id: Option<TokenId>,
@@ -47,24 +40,31 @@ impl StringToken {
     
     /// Creates a new string token with an ID.
     pub fn with_id(value: String, id: TokenId) -> Self {
-        Self {
-            value,
-            id: Some(id),
-        }
+        Self { value, id: Some(id) }
+    }
+    
+    /// Returns the length of the token in bytes.
+    pub fn len(&self) -> usize {
+        self.value.len()
+    }
+    
+    /// Checks if the token is empty.
+    pub fn is_empty(&self) -> bool {
+        self.value.is_empty()
     }
 }
 
 impl Token for StringToken {
+    fn id(&self) -> TokenId {
+        self.id.unwrap_or(0) // Return 0 as default ID instead of panicking
+    }
+    
     fn as_str(&self) -> Option<&str> {
         Some(&self.value)
     }
     
-    fn id(&self) -> Option<TokenId> {
-        self.id
-    }
-    
-    fn as_bytes(&self) -> &[u8] {
-        self.value.as_bytes()
+    fn as_bytes(&self) -> Option<&[u8]> {
+        Some(self.value.as_bytes())
     }
 }
 
@@ -99,15 +99,15 @@ impl<T: Token> PositionedToken<T> {
 }
 
 impl<T: Token> Token for PositionedToken<T> {
+    fn id(&self) -> TokenId {
+        self.token.id()
+    }
+    
     fn as_str(&self) -> Option<&str> {
         self.token.as_str()
     }
     
-    fn id(&self) -> Option<TokenId> {
-        self.token.id()
-    }
-    
-    fn as_bytes(&self) -> &[u8] {
+    fn as_bytes(&self) -> Option<&[u8]> {
         self.token.as_bytes()
     }
 }
@@ -118,24 +118,28 @@ pub trait Tokenizer: Send + Sync {
     type Token: Token;
     
     /// The error type for this tokenizer.
-    #[cfg(feature = "std")]
-    type Error: std::error::Error + Send + Sync + 'static;
+    type Error: Debug + Send + Sync + 'static;
     
-    #[cfg(not(feature = "std"))]
-    type Error: core::fmt::Debug + core::fmt::Display + Send + Sync + 'static;
+    /// Tokenizes the input text.
+    /// 
+    /// Accepts a `Cow<'_, str>` to handle both borrowed and owned strings efficiently.
+    fn tokenize<'a>(&self, input: Cow<'a, str>) -> TokenIterator<'a, Self::Token>;
     
-    /// Tokenizes the input text into an iterator of tokens.
-    fn tokenize<'a>(&self, input: &'a str) -> TokenIterator<'a, Self::Token>;
+    /// Tokenizes the input text (convenience method for borrowed strings).
+    fn tokenize_str<'a>(&self, input: &'a str) -> TokenIterator<'a, Self::Token> {
+        self.tokenize(Cow::Borrowed(input))
+    }
     
     /// Decodes tokens back into text.
     fn decode<I>(&self, tokens: I) -> Result<String>
     where
         I: IntoIterator<Item = Self::Token>;
     
-    /// Returns the vocabulary size if known.
-    fn vocab_size(&self) -> Option<VocabSize> {
-        None
-    }
+    /// Returns the vocabulary size.
+    fn vocab_size(&self) -> VocabSize;
+    
+    /// Returns the tokenizer name.
+    fn name(&self) -> &str;
 }
 
 /// Trait for tokenizers that support vocabulary management.
@@ -182,10 +186,8 @@ pub trait NormalizingTokenizer: Tokenizer {
     /// Tokenizes with normalization.
     fn tokenize_normalized<'a>(&self, input: &'a str) -> TokenIterator<'a, Self::Token> {
         let normalized = self.normalize(input);
-        // Note: This leaks the normalized string, but it's a simplified example
-        // In production, you'd need a better solution
-        let leaked = Box::leak(normalized.into_boxed_str());
-        self.tokenize(leaked)
+        // Use Cow::Owned to pass the normalized string without leaking
+        self.tokenize(Cow::Owned(normalized))
     }
 }
 
@@ -276,23 +278,25 @@ mod tests {
     fn test_string_token() {
         let token = StringToken::new("hello".to_string());
         assert_eq!(token.as_str(), Some("hello"));
-        assert_eq!(token.id(), None);
-        assert_eq!(token.as_bytes(), b"hello");
+        assert_eq!(token.id(), 0); // Default ID
+        assert_eq!(token.as_bytes(), Some(b"hello".as_ref()));
         assert_eq!(token.len(), 5);
         assert!(!token.is_empty());
         
         let token_with_id = StringToken::with_id("world".to_string(), 42);
-        assert_eq!(token_with_id.id(), Some(42));
+        assert_eq!(token_with_id.id(), 42);
     }
     
     #[test]
     fn test_positioned_token() {
-        let inner = StringToken::new("test".to_string());
-        let positioned = PositionedToken::new(inner, 10, 14);
+        let inner = StringToken::with_id("test".to_string(), 10);
+        let positioned = PositionedToken::new(inner.clone(), 5, 9);
         
-        assert_eq!(positioned.start(), 10);
-        assert_eq!(positioned.end(), 14);
         assert_eq!(positioned.as_str(), Some("test"));
+        assert_eq!(positioned.id(), 10);
+        assert_eq!(positioned.start(), 5);
+        assert_eq!(positioned.end(), 9);
+        assert_eq!(positioned.token.len(), 4);
     }
     
     #[test]
@@ -301,6 +305,8 @@ mod tests {
         assert_eq!(config.max_length, None);
         assert!(config.add_special_tokens);
         assert!(!config.lowercase);
+        assert!(!config.strip_accents);
         assert_eq!(config.padding, PaddingStrategy::None);
+        assert_eq!(config.truncation, TruncationStrategy::None);
     }
 }

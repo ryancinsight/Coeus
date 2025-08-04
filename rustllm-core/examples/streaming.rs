@@ -37,7 +37,7 @@ fn stream_process_file(path: &str) -> Result<()> {
         total_chars += line.len();
         
         // Tokenize the line
-        let tokens: Vec<_> = tokenizer.tokenize(&line).collect();
+        let tokens: Vec<_> = tokenizer.tokenize_str(&line).collect();
         total_tokens += tokens.len();
         
         // Process every 1000 lines
@@ -67,7 +67,7 @@ fn sliding_window_analysis() -> Result<()> {
                 The dog was really lazy. The fox was very quick and clever.";
     
     let tokenizer = BasicTokenizer::new();
-    let tokens: Vec<_> = tokenizer.tokenize(text).collect();
+    let tokens: Vec<_> = tokenizer.tokenize_str(text).collect();
     
     println!("Original text: {}", text);
     println!("Total tokens: {}\n", tokens.len());
@@ -117,7 +117,7 @@ fn parallel_chunk_processing() -> Result<()> {
     for (chunk_idx, chunk) in corpus.chunks(chunk_size).enumerate() {
         // Process each chunk
         let chunk_tokens: Vec<Vec<_>> = chunk.iter()
-            .map(|text| tokenizer.tokenize(text).collect::<Vec<_>>())
+            .map(|text| tokenizer.tokenize_str(text).collect::<Vec<_>>())
             .collect();
         
         let chunk_token_count: usize = chunk_tokens.iter()
@@ -148,7 +148,7 @@ fn token_frequency_analysis() -> Result<()> {
                 The fat cat sat on the flat mat.";
     
     let tokenizer = BasicTokenizer::new();
-    let tokens: Vec<_> = tokenizer.tokenize(text).collect();
+    let tokens: Vec<_> = tokenizer.tokenize_str(text).collect();
     
     // Count token frequencies
     use std::collections::HashMap;

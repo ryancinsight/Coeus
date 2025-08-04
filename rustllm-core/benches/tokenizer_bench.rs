@@ -32,7 +32,7 @@ fn benchmark_tokenization(c: &mut Criterion) {
             text,
             |b, text| {
                 b.iter(|| {
-                    let tokens: Vec<_> = basic_tokenizer.tokenize(black_box(text)).collect();
+                    let tokens: Vec<_> = basic_tokenizer.tokenize_str(black_box(text)).collect();
                     tokens
                 });
             },
@@ -48,7 +48,7 @@ fn benchmark_tokenization(c: &mut Criterion) {
             text,
             |b, text| {
                 b.iter(|| {
-                    let tokens: Vec<_> = bpe_tokenizer.tokenize(black_box(text)).collect();
+                    let tokens: Vec<_> = bpe_tokenizer.tokenize_str(black_box(text)).collect();
                     tokens
                 });
             },
@@ -58,14 +58,14 @@ fn benchmark_tokenization(c: &mut Criterion) {
     // Long text benchmark
     group.bench_function("basic_long", |b| {
         b.iter(|| {
-            let tokens: Vec<_> = basic_tokenizer.tokenize(black_box(LONG_TEXT)).collect();
+            let tokens: Vec<_> = basic_tokenizer.tokenize_str(black_box(LONG_TEXT)).collect();
             tokens
         });
     });
     
     group.bench_function("bpe_long", |b| {
         b.iter(|| {
-            let tokens: Vec<_> = bpe_tokenizer.tokenize(black_box(LONG_TEXT)).collect();
+            let tokens: Vec<_> = bpe_tokenizer.tokenize_str(black_box(LONG_TEXT)).collect();
             tokens
         });
     });
@@ -80,8 +80,9 @@ fn benchmark_decoding(c: &mut Criterion) {
     let basic_tokenizer = BasicTokenizer::new();
     let bpe_tokenizer = BpeTokenizer::new();
     
-    let basic_tokens: Vec<_> = basic_tokenizer.tokenize(LONG_TEXT).collect();
-    let bpe_tokens: Vec<_> = bpe_tokenizer.tokenize(LONG_TEXT).collect();
+    // Pre-tokenize for decoding benchmarks
+    let basic_tokens: Vec<_> = basic_tokenizer.tokenize_str(LONG_TEXT).collect();
+    let bpe_tokens: Vec<_> = bpe_tokenizer.tokenize_str(LONG_TEXT).collect();
     
     group.bench_function("basic_decode", |b| {
         b.iter(|| {

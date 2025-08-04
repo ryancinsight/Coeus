@@ -1,12 +1,14 @@
 //! Basic tokenizer plugin implementation.
 
-use rustllm_core::core::plugin::{Plugin, TokenizerPlugin};
-use rustllm_core::core::tokenizer::{Token, Tokenizer, StringToken};
+use rustllm_core::core::{
+    plugin::{Plugin, TokenizerPlugin},
+    tokenizer::{Tokenizer, Token, StringToken, TokenIterator},
+};
 use rustllm_core::foundation::{
     error::Result,
-    iterator::TokenIterator,
-    types::Version,
+    types::{Version, VocabSize},
 };
+use std::borrow::Cow;
 
 /// Basic whitespace tokenizer plugin.
 #[derive(Debug, Default)]
@@ -71,11 +73,15 @@ impl Tokenizer for BasicTokenizer {
     type Token = StringToken;
     type Error = std::io::Error;
     
-    fn tokenize<'a>(&self, input: &'a str) -> TokenIterator<'a, Self::Token> {
+    fn tokenize<'a>(&self, input: Cow<'a, str>) -> TokenIterator<'a, Self::Token> {
+        // Convert to owned string to ensure lifetime independence
+        let owned_input = input.into_owned();
         Box::new(
-            input
+            owned_input
                 .split_whitespace()
                 .map(|s| StringToken::new(s.to_string()))
+                .collect::<Vec<_>>()
+                .into_iter()
         )
     }
     
@@ -89,6 +95,14 @@ impl Tokenizer for BasicTokenizer {
             .collect::<Vec<_>>()
             .join(" "))
     }
+    
+    fn vocab_size(&self) -> VocabSize {
+        0 // Basic tokenizer has no fixed vocabulary
+    }
+    
+    fn name(&self) -> &str {
+        "basic_tokenizer"
+    }
 }
 
 #[cfg(test)]
@@ -98,7 +112,7 @@ mod tests {
     #[test]
     fn test_basic_tokenizer() {
         let tokenizer = BasicTokenizer::new();
-        let tokens: Vec<_> = tokenizer.tokenize("hello world rust").collect();
+        let tokens: Vec<_> = tokenizer.tokenize_str("hello world rust").collect();
         
         assert_eq!(tokens.len(), 3);
         assert_eq!(tokens[0].as_str(), Some("hello"));

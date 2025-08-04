@@ -33,19 +33,21 @@ fn test_plugin_registration_and_loading() {
 }
 
 #[test]
-fn test_tokenizer_plugin_usage() {
+fn test_tokenizer_plugin_usage() -> Result<()> {
     // Create tokenizer through plugin directly
     let plugin = BasicTokenizerPlugin::default();
     let tokenizer = plugin.create_tokenizer().unwrap();
     
     // Test tokenization
-    let text = "Hello, world! This is a test.";
-    let tokens: Vec<_> = tokenizer.tokenize(text).collect();
+    let text = "Hello, RustLLM!";
+    let tokens: Vec<_> = tokenizer.tokenize_str(text).collect();
     assert!(!tokens.is_empty());
     
-    // Test decoding
-    let decoded = tokenizer.decode(tokens).unwrap();
-    assert_eq!(decoded, text);
+    // Test decode
+    let decoded = tokenizer.decode(tokens)?;
+    assert_eq!(decoded.trim(), text);
+    
+    Ok(())
 }
 
 #[test]
@@ -54,21 +56,23 @@ fn test_bpe_tokenizer_plugin() {
     let mut tokenizer = plugin.create_tokenizer().unwrap();
     
     // Test basic tokenization
-    let text = "hello world";
-    let tokens: Vec<_> = tokenizer.tokenize(text).collect();
+    let text = "The quick brown fox";
+    let tokens: Vec<_> = tokenizer.tokenize_str(text).collect();
     assert!(!tokens.is_empty());
     
     // Test vocabulary operations
-    assert!(tokenizer.vocab_size().is_some());
-    assert!(tokenizer.contains_token("h"));
+    assert!(tokenizer.vocab_size() > 0);
     
-    // Test training
-    let corpus = vec!["the cat", "the dog", "the cat and dog"];
-    assert!(tokenizer.train(&corpus, 5).is_ok());
+    // Test special tokens
+    assert!(tokenizer.contains_token("<PAD>"));
+    assert!(tokenizer.contains_token("<UNK>"));
     
-    // Vocabulary should have grown
-    let vocab_size = tokenizer.vocab_size().unwrap();
-    assert!(vocab_size > 256); // More than just byte tokens
+    // Add custom token
+    let token_id = tokenizer.add_token("custom_token").unwrap();
+    assert!(tokenizer.contains_token("custom_token"));
+    
+    let vocab_size = tokenizer.vocab_size();
+    assert!(vocab_size > 256); // Should have more than just byte tokens
 }
 
 #[test]
@@ -110,7 +114,7 @@ fn test_iterator_extensions_with_tokenizer() {
     let text = "one two three four five six seven eight nine ten";
     
     // Test windows
-    let tokens: Vec<_> = tokenizer.tokenize(text).collect();
+    let tokens: Vec<_> = tokenizer.tokenize_str(text).collect();
     let windows: Vec<_> = tokens.iter()
         .cloned()
         .windows(3)

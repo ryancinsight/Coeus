@@ -3,14 +3,25 @@
 //! This module provides abstractions for efficient memory management,
 //! including arena allocators, memory pools, and copy-on-write wrappers.
 
-use core::alloc::{GlobalAlloc, Layout};
 use core::cell::{Cell, RefCell};
 use core::marker::PhantomData;
 use core::ptr::{self, NonNull};
 use core::slice;
 
 #[cfg(feature = "std")]
-use std::alloc::System;
+use std::alloc::{alloc, dealloc, Layout};
+
+#[cfg(not(feature = "std"))]
+use alloc::alloc::{alloc, dealloc, Layout};
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
 
 /// A simple arena allocator for temporary allocations.
 pub struct Arena {
@@ -107,14 +118,10 @@ impl ArenaChunk {
     fn new(size: usize) -> Self {
         let layout = Layout::array::<u8>(size).unwrap();
         
-        #[cfg(feature = "std")]
         let data = unsafe {
-            let ptr = System.alloc(layout);
+            let ptr = alloc(layout);
             NonNull::new(ptr).expect("Allocation failed")
         };
-        
-        #[cfg(not(feature = "std"))]
-        let data = panic!("Arena allocation requires std feature");
         
         Self {
             data,
@@ -126,10 +133,9 @@ impl ArenaChunk {
 
 impl Drop for ArenaChunk {
     fn drop(&mut self) {
-        #[cfg(feature = "std")]
         unsafe {
             let layout = Layout::array::<u8>(self.size).unwrap();
-            System.dealloc(self.data.as_ptr(), layout);
+            dealloc(self.data.as_ptr(), layout);
         }
     }
 }

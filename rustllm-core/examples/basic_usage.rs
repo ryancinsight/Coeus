@@ -1,8 +1,7 @@
 //! Basic usage example for RustLLM Core.
 
 use rustllm_core::prelude::*;
-use rustllm_core::plugins::manager::{PluginManager, plugin_manager};
-use rustllm_core::plugins::registry::PluginRegistryBuilder;
+use rustllm_core::plugins::manager::PluginManager;
 
 // Import the basic plugins
 use rustllm_tokenizer_basic::BasicTokenizerPlugin;
@@ -36,7 +35,7 @@ fn main() -> Result<()> {
     let text = "Hello, world! This is RustLLM Core.";
     println!("Input text: {}", text);
     
-    let tokens: Vec<_> = tokenizer.tokenize(text).collect();
+    let tokens: Vec<_> = tokenizer.tokenize_str(text).collect();
     println!("Tokens: {:?}", tokens);
     
     let decoded = tokenizer.decode(tokens)?;
@@ -47,7 +46,7 @@ fn main() -> Result<()> {
     println!("-------------------------------");
     
     let long_tokens: Vec<_> = tokenizer
-        .tokenize(text)
+        .tokenize_str(text)
         .filter(|token| token.as_str().map(|s| s.len() > 4).unwrap_or(false))
         .collect();
     
@@ -58,7 +57,7 @@ fn main() -> Result<()> {
     println!("--------------------------");
     
     let window_tokens: Vec<_> = tokenizer
-        .tokenize("one two three four five")
+        .tokenize_str("one two three four five")
         .collect::<Vec<_>>()
         .windows(3)
         .map(|w| w.to_vec())

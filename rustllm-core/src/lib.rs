@@ -33,25 +33,22 @@
 //!
 //! ```rust,ignore
 //! use rustllm_core::prelude::*;
-//! use rustllm_core::plugins::manager::plugin_manager;
-//!
-//! # fn main() -> rustllm_core::foundation::error::Result<()> {
-//! // Register a tokenizer plugin
-//! let manager = plugin_manager();
 //! 
-//! // In a real application, you would load a plugin that implements
-//! // the Tokenizer trait. This is a simplified example.
-//! 
-//! // Create a basic tokenizer (would come from a plugin)
+//! // Create a tokenizer
 //! let tokenizer = BasicTokenizer::new();
 //! 
-//! // Tokenize text using iterator chains
+//! // Tokenize text
 //! let tokens: Vec<_> = tokenizer
-//!     .tokenize("Hello, world!")
-//!     .filter(|token| token.as_str().map(|s| s.len() > 2).unwrap_or(false))
+//!     .tokenize_str("Hello, world!")
+//!     .filter(|token| token.as_str().map(|s| s.len() > 3).unwrap_or(false))
 //!     .collect();
-//! # Ok(())
-//! # }
+//! 
+//! // Build a model
+//! let config = BasicModelConfig::default();
+//! let model = builder.build(config)?;
+//! 
+//! // Process tokens through the model
+//! let output = model.forward(tokens)?;
 //! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -70,6 +67,15 @@
     clippy::missing_panics_doc,
     unsafe_code // Allow unsafe code for memory management
 )]
+
+//! # RustLLM Core
+//!
+//! A minimal dependency, high-performance Large Language Model (LLM) building
+//! library written in pure Rust.
+
+// Required for no_std builds
+#[cfg(not(feature = "std"))]
+extern crate alloc;
 
 // Foundation layer modules
 pub mod foundation {

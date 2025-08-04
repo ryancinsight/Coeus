@@ -6,9 +6,6 @@
 use core::iter::{Iterator, FusedIterator};
 use core::marker::PhantomData;
 
-/// Type alias for boxed token iterators.
-pub type TokenIterator<'a, T> = Box<dyn Iterator<Item = T> + Send + 'a>;
-
 /// Iterator adapter for sliding windows over tokens.
 #[derive(Debug, Clone)]
 pub struct Windows<I, T> {
