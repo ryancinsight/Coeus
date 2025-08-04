@@ -25,6 +25,11 @@
 use core::iter::{Iterator, FusedIterator};
 use core::marker::PhantomData;
 
+#[cfg(feature = "std")]
+use std::collections::VecDeque;
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+use alloc::collections::VecDeque;
+
 // ============================================================================
 // Core Iterator Traits
 // ============================================================================
@@ -631,11 +636,16 @@ where
     }
 }
 
-/// Rolling aggregate iterator without buffering.
+/// Rolling aggregate iterator with efficient windowing.
+/// 
+/// Uses VecDeque for O(1) push/pop operations at both ends.
 #[derive(Debug)]
 pub struct RollingAggregate<I: Iterator, F> {
     iter: I,
     window_size: usize,
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    buffer: VecDeque<I::Item>,
+    #[cfg(not(any(feature = "std", feature = "alloc")))]
     buffer: Vec<I::Item>,
     f: F,
 }
@@ -650,6 +660,9 @@ where
         Self {
             iter,
             window_size,
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            buffer: VecDeque::with_capacity(window_size),
+            #[cfg(not(any(feature = "std", feature = "alloc")))]
             buffer: Vec::with_capacity(window_size),
             f,
         }
@@ -668,6 +681,9 @@ where
         // Fill buffer initially
         while self.buffer.len() < self.window_size {
             match self.iter.next() {
+                #[cfg(any(feature = "std", feature = "alloc"))]
+                Some(item) => self.buffer.push_back(item),
+                #[cfg(not(any(feature = "std", feature = "alloc")))]
                 Some(item) => self.buffer.push(item),
                 None => break,
             }
@@ -677,12 +693,26 @@ where
             return None;
         }
         
-        let result = (self.f)(&self.buffer);
+        // Get slice for the closure
+        #[cfg(any(feature = "std", feature = "alloc"))]
+        let slice = self.buffer.make_contiguous();
+        #[cfg(not(any(feature = "std", feature = "alloc")))]
+        let slice = &self.buffer[..];
         
-        // Slide window
+        let result = (self.f)(slice);
+        
+        // Slide window efficiently
         if let Some(next_item) = self.iter.next() {
-            self.buffer.remove(0);
-            self.buffer.push(next_item);
+            #[cfg(any(feature = "std", feature = "alloc"))]
+            {
+                self.buffer.pop_front();
+                self.buffer.push_back(next_item);
+            }
+            #[cfg(not(any(feature = "std", feature = "alloc")))]
+            {
+                self.buffer.remove(0);
+                self.buffer.push(next_item);
+            }
         } else {
             self.buffer.clear();
         }

@@ -63,7 +63,10 @@ struct MSELoss;
 impl Loss for MSELoss {
     fn compute(&self, predictions: &[ModelFloat], targets: &[ModelFloat]) -> Result<ModelFloat> {
         if predictions.len() != targets.len() {
-            return Err(Error::Config("Predictions and targets must have same length".to_string()));
+            return Err(Error::Validation(rustllm_core::foundation::error::ValidationError::InvalidState {
+                current: format!("predictions length: {}", predictions.len()),
+                expected: format!("targets length: {}", targets.len()),
+            }));
         }
         
         let mse = predictions.iter()
@@ -76,7 +79,10 @@ impl Loss for MSELoss {
     
     fn gradient(&self, predictions: &[ModelFloat], targets: &[ModelFloat]) -> Result<Vec<ModelFloat>> {
         if predictions.len() != targets.len() {
-            return Err(Error::Config("Predictions and targets must have same length".to_string()));
+            return Err(Error::Validation(rustllm_core::foundation::error::ValidationError::InvalidState {
+                current: format!("predictions length: {}", predictions.len()),
+                expected: format!("targets length: {}", targets.len()),
+            }));
         }
         
         let gradients = predictions.iter()
@@ -188,21 +194,25 @@ impl TrainableModel for SinePredictor {
         
         // Adam optimizer update (simplified)
         for (i, grad) in gradients.iter().enumerate() {
+            // Update momentum
+            optimizer_state.momentum[i] = optimizer_state.beta1 * optimizer_state.momentum[i]
+                + (1.0 - optimizer_state.beta1) * grad;
+            
+            // Update variance
+            optimizer_state.variance[i] = optimizer_state.beta2 * optimizer_state.variance[i]
+                + (1.0 - optimizer_state.beta2) * grad * grad;
+            
+            // Bias correction
+            let m_hat = optimizer_state.momentum[i] / (1.0 - optimizer_state.beta1.powf(t));
+            let v_hat = optimizer_state.variance[i] / (1.0 - optimizer_state.beta2.powf(t));
+            
+            // Update parameters
             if i < self.weights.len() {
-                // Update momentum
-                optimizer_state.momentum[i] = optimizer_state.beta1 * optimizer_state.momentum[i]
-                    + (1.0 - optimizer_state.beta1) * grad;
-                
-                // Update variance
-                optimizer_state.variance[i] = optimizer_state.beta2 * optimizer_state.variance[i]
-                    + (1.0 - optimizer_state.beta2) * grad * grad;
-                
-                // Bias correction
-                let m_hat = optimizer_state.momentum[i] / (1.0 - optimizer_state.beta1.powf(t));
-                let v_hat = optimizer_state.variance[i] / (1.0 - optimizer_state.beta2.powf(t));
-                
                 // Update weight
                 self.weights[i] -= optimizer_state.learning_rate * m_hat / (v_hat.sqrt() + optimizer_state.epsilon);
+            } else if i == self.weights.len() {
+                // Update bias
+                self.bias -= optimizer_state.learning_rate * m_hat / (v_hat.sqrt() + optimizer_state.epsilon);
             }
         }
         

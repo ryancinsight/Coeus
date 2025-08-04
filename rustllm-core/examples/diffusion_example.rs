@@ -18,19 +18,33 @@ struct LinearNoiseSchedule {
 
 impl LinearNoiseSchedule {
     fn new(num_steps: usize, beta_start: f32, beta_end: f32) -> Self {
+        if num_steps == 0 {
+            return Self {
+                num_steps: 0,
+                beta_start,
+                beta_end,
+                betas: Vec::new(),
+                alphas: Vec::new(),
+                alpha_bars: Vec::new(),
+            };
+        }
+        
         let betas: Vec<f32> = (0..num_steps)
             .map(|i| {
-                beta_start + (beta_end - beta_start) * (i as f32) / (num_steps as f32 - 1.0)
+                let divisor = if num_steps > 1 { num_steps as f32 - 1.0 } else { 1.0 };
+                beta_start + (beta_end - beta_start) * (i as f32) / divisor
             })
             .collect();
         
         let alphas: Vec<f32> = betas.iter().map(|&beta| 1.0 - beta).collect();
         
-        let mut alpha_bars = vec![1.0; num_steps];
-        alpha_bars[0] = alphas[0];
-        for i in 1..num_steps {
-            alpha_bars[i] = alpha_bars[i - 1] * alphas[i];
-        }
+        // Use scan to compute cumulative product more idiomatically
+        let alpha_bars: Vec<f32> = alphas.iter()
+            .scan(1.0_f32, |acc, &alpha| {
+                *acc *= alpha;
+                Some(*acc)
+            })
+            .collect();
         
         Self {
             num_steps,
@@ -297,7 +311,7 @@ fn main() -> Result<()> {
     println!("\nMemory-efficient diffusion with SliceView:");
     let data = vec![0.5; 100];
     let view = SliceView::new(&data)
-        .map(|&x| x * 2.0);
+        .map(|x| x * 2.0);
     
     println!("Original data[0]: {}, Transformed view[0]: {:?}", 
              data[0], view.get(0));

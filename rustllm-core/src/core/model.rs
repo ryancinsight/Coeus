@@ -485,9 +485,18 @@ pub trait NoiseSchedule: Send + Sync {
     fn alpha_bar(&self, timestep: usize) -> ModelFloat;
     
     /// Returns the signal-to-noise ratio at a given timestep.
+    /// 
+    /// Returns infinity when there is no noise (alpha_bar = 1.0).
     fn snr(&self, timestep: usize) -> ModelFloat {
         let alpha_bar = self.alpha_bar(timestep);
-        alpha_bar / (1.0 - alpha_bar)
+        let noise_var = 1.0 - alpha_bar;
+        
+        if noise_var <= f32::EPSILON {
+            // No noise, SNR is effectively infinite
+            f32::INFINITY
+        } else {
+            alpha_bar / noise_var
+        }
     }
 }
 
