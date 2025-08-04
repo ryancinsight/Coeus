@@ -1,6 +1,7 @@
 //! Example demonstrating a 250M parameter transformer model.
 
 use rustllm_core::prelude::*;
+use rustllm_core::foundation::error::internal_error;
 use rustllm_model_transformer::{TransformerModelPlugin, TransformerModelBuilder};
 use std::time::Instant;
 
@@ -118,7 +119,7 @@ fn main() -> Result<()> {
     let plugin = TransformerModelPlugin::default();
     println!("Plugin name: {}", plugin.name());
     println!("Plugin version: {}", plugin.version());
-    println!("Plugin description: {}", plugin.description());
+    println!("Plugin capabilities: {:?}", plugin.capabilities());
     
     // Register with plugin manager
     let manager = PluginManager::new();

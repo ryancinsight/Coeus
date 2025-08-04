@@ -101,7 +101,8 @@ fn test_plugin_lifecycle() -> Result<()> {
     
     // Load plugin
     let plugin = manager.load_plugin("basic_tokenizer")?;
-    assert_eq!(plugin.name(), "basic_tokenizer");
+    let plugin_guard = plugin.read().unwrap();
+    assert_eq!(plugin_guard.name(), "basic_tokenizer");
     
     // Get plugin info
     let info = manager.info("basic_tokenizer")?;
@@ -189,7 +190,7 @@ fn test_memory_management() {
 
 #[test]
 fn test_error_handling() {
-    use rustllm_core::foundation::error::{Error, ErrorExt, internal_error};
+    use rustllm_core::foundation::error::{ErrorExt, internal_error};
     
     // Test error creation
     let _base_error = internal_error("base error");
@@ -313,14 +314,26 @@ fn test_concurrent_plugin_loading() {
             thread::spawn(move || {
                 // All threads try to load the same plugins
                 let tokenizer_plugin = manager_clone.load_plugin("basic_tokenizer").unwrap();
-                assert_eq!(tokenizer_plugin.name(), "basic_tokenizer");
+                {
+                    let tokenizer_guard = tokenizer_plugin.read().unwrap();
+                    assert_eq!(tokenizer_guard.name(), "basic_tokenizer");
+                }
                 
                 let model_plugin = manager_clone.load_plugin("basic_model").unwrap();
-                assert_eq!(model_plugin.name(), "basic_model");
+                {
+                    let model_guard = model_plugin.read().unwrap();
+                    assert_eq!(model_guard.name(), "basic_model");
+                }
                 
                 // Verify plugins are properly initialized
-                assert_eq!(tokenizer_plugin.version().major, 0);
-                assert_eq!(model_plugin.version().major, 0);
+                {
+                    let tokenizer_guard = tokenizer_plugin.read().unwrap();
+                    assert_eq!(tokenizer_guard.version().major, 0);
+                }
+                {
+                    let model_guard = model_plugin.read().unwrap();
+                    assert_eq!(model_guard.version().major, 0);
+                }
                 
                 // Each thread also lists loaded plugins
                 let loaded = manager_clone.list_loaded().unwrap();

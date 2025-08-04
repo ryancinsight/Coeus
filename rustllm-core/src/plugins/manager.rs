@@ -9,7 +9,7 @@
 
 use crate::core::plugin::{Plugin, PluginEntry, PluginState, PluginCapabilities};
 use crate::foundation::{
-    error::{Error, PluginError, Result, internal_error, ProcessingError},
+    error::{Error, PluginError, Result, internal_error},
     types::{PluginName, Version},
 };
 use crate::plugins::registry::PluginRegistry;
@@ -45,7 +45,7 @@ impl PluginManager {
     }
     
     /// Loads a plugin and returns it as a Plugin trait object.
-    pub fn load_plugin(&self, name: &str) -> Result<Arc<dyn Plugin>> {
+    pub fn load_plugin(&self, name: &str) -> Result<Arc<RwLock<Box<dyn Plugin>>>> {
         let plugin_name = PluginName::from(name);
         
         // Double-checked locking pattern for thread safety
@@ -60,7 +60,7 @@ impl PluginManager {
                 // Check if plugin is in a usable state
                 if entry.state().is_usable() {
                     // Return a cloned Arc to the plugin
-                    return Ok(entry.plugin_arc().clone());
+                    return Ok(entry.plugin_arc_cloned());
                 }
             }
         }
@@ -90,7 +90,7 @@ impl PluginManager {
         
         // Initialize if the plugin supports it
         // Note: We need to check capabilities first
-        let capabilities = entry.plugin().capabilities();
+        let capabilities = entry.with_plugin(|plugin| plugin.capabilities())?;
         if capabilities.initializable {
             // We can't initialize through the trait object without the Initialize trait
             // This is a design limitation we need to address
@@ -111,7 +111,7 @@ impl PluginManager {
             let entry = entry_arc.read()
                 .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
             // Clone the Arc<dyn Plugin> from the entry
-            entry.plugin_arc().clone()
+            entry.plugin_arc_cloned()
         };
         Ok(plugin_arc)
     }
@@ -132,7 +132,7 @@ impl PluginManager {
                 entry.transition_to(PluginState::Stopping)?;
                 
                 // Call on_unload if available
-                entry.plugin_mut().on_unload()?;
+                entry.with_plugin_mut(|plugin| plugin.on_unload())?;
                 
                 entry.transition_to(PluginState::Stopped)?;
             }
@@ -172,13 +172,11 @@ impl PluginManager {
             let entry = entry_arc.read()
                 .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
             
-            let plugin = entry.plugin();
-            
             Ok(PluginInfo {
                 name: plugin_name,
-                version: plugin.version(),
+                version: entry.version().clone(),
                 state: entry.state(),
-                capabilities: plugin.capabilities(),
+                capabilities: entry.with_plugin(|plugin| plugin.capabilities())?,
             })
         } else {
             Err(Error::Plugin(PluginError::NotFound { 
@@ -222,7 +220,7 @@ impl PluginManager {
                 }));
             }
             
-            f(entry.plugin())
+            entry.with_plugin(f)?
         } else {
             Err(Error::Plugin(PluginError::NotFound { 
                 name: name.to_string() 
@@ -241,7 +239,7 @@ impl PluginManager {
             .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
         
         if let Some(entry_arc) = plugins.get(&plugin_name) {
-            let mut entry = entry_arc.write()
+            let entry = entry_arc.write()
                 .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
             
             // Check if plugin is usable
@@ -253,7 +251,7 @@ impl PluginManager {
                 }));
             }
             
-            f(entry.plugin_mut())
+            entry.with_plugin_mut(f)
         } else {
             Err(Error::Plugin(PluginError::NotFound { 
                 name: name.to_string() 
