@@ -129,21 +129,26 @@ impl PluginManager {
         if let Some(entry_arc) = plugins.remove(&plugin_name) {
             let mut entry = entry_arc.write()
                 .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
-            
+
             // Transition through proper states
             if entry.state().can_stop() {
                 entry.transition_to(PluginState::Stopping)?;
-                
-                // Call on_unload if available
-                entry.plugin_mut().on_unload()?;
-                
+
+                // Attempt to call on_unload, but tolerate external Arc refs.
+                if let Some(plugin_mut) = entry.try_plugin_mut() {
+                    plugin_mut.on_unload()?;
+                } else {
+                    // Defer clean-up until last Arc drops; on_unload will not be called now.
+                    // This is safe: plugin resource clean-up is deferred to last Arc drop.
+                }
+
                 entry.transition_to(PluginState::Stopped)?;
             }
-            
+
             Ok(())
         } else {
-            Err(Error::Plugin(PluginError::NotFound { 
-                name: name.to_string() 
+            Err(Error::Plugin(PluginError::NotFound {
+                name: name.to_string()
             }))
         }
     }

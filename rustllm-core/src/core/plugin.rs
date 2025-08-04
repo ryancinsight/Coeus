@@ -277,11 +277,20 @@ impl PluginEntry {
         self.plugin.as_ref()
     }
 
+    /// Attempts to get a mutable reference to the plugin.
+    ///
+    /// Returns `Some(&mut dyn Plugin)` only if this is the sole strong reference to the plugin.
+    /// Otherwise returns `None`, allowing safe deferral of mutation or drop actions.
+    pub fn try_plugin_mut(&mut self) -> Option<&mut dyn Plugin> {
+        std::sync::Arc::get_mut(&mut self.plugin)
+    }
+
     /// Returns a mutable reference to the plugin.
     ///
-    /// # Panics
+    /// # Internal
     /// Panics if multiple references to the plugin exist.
-    pub fn plugin_mut(&mut self) -> &mut dyn Plugin {
+    /// Prefer [`try_plugin_mut`](Self::try_plugin_mut) for safe operations.
+    pub(crate) fn plugin_mut(&mut self) -> &mut dyn Plugin {
         std::sync::Arc::get_mut(&mut self.plugin)
             .expect("multiple refs to plugin")
     }
