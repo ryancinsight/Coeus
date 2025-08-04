@@ -121,14 +121,13 @@ impl ParameterSerializer {
         
         // Write in chunks for better performance
         for chunk in params.chunks(self.buffer_size / mem::size_of::<f32>()) {
-            let bytes = unsafe {
-                std::slice::from_raw_parts(
-                    chunk.as_ptr() as *const u8,
-                    chunk.len() * mem::size_of::<f32>(),
-                )
-            };
+            // Serialize each f32 in little-endian order
+            let mut bytes = Vec::with_capacity(chunk.len() * mem::size_of::<f32>());
+            for &val in chunk {
+                bytes.extend_from_slice(&val.to_le_bytes());
+            }
             
-            writer.write_all(bytes)
+            writer.write_all(&bytes)
                 .map_err(|e| Error::Other(format!("Failed to write parameters: {}", e)))?;
             
             written += bytes.len();
