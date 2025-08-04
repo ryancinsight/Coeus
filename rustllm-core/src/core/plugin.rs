@@ -284,7 +284,6 @@ impl PluginEntry {
     pub fn plugin_mut(&mut self) -> &mut dyn Plugin {
         std::sync::Arc::get_mut(&mut self.plugin)
             .expect("multiple refs to plugin")
-            .as_mut()
     }
 
     /// Adds a dependency.
