@@ -71,6 +71,9 @@ impl Arena {
         let ptr = self.alloc_raw(layout);
         
         unsafe {
+            if (ptr as usize) % core::mem::align_of::<T>() != 0 {
+                panic!("Allocated pointer is not properly aligned for type T");
+            }
             ptr::write(ptr as *mut T, value);
             &mut *(ptr as *mut T)
         }
