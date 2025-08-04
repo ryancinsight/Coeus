@@ -21,8 +21,6 @@ use core::any::Any;
 
 #[cfg(feature = "std")]
 use std::sync::{Arc, RwLock, Weak};
-#[cfg(feature = "std")]
-use core::any::Any;
 
 #[cfg(feature = "std")]
 use std::collections::HashMap;
