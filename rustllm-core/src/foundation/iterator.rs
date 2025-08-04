@@ -1156,7 +1156,7 @@ where
         if self.buffer.is_empty() {
             None
         } else {
-            Some(core::mem::replace(&mut self.buffer, Vec::with_capacity(self.batch_size)))
+            Some(core::mem::take(&mut self.buffer))
         }
     }
 }
