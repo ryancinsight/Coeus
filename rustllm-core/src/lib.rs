@@ -110,7 +110,7 @@ pub mod plugins {
 pub mod prelude {
     //! Common imports for users of the library.
     pub use crate::core::{
-        config::{ConfigValue, ConfigBuilder, ConfigStore, Configurable, PluginConfigManager},
+        config::{ConfigValue, ConfigBuilder, ConfigStore, PluginConfigManager},
         model::{
             Model, ModelBuilder, ModelConfig, BasicModelConfig, Transformer250MConfig,
             InferenceModel, GenerativeModel, TrainableModel, DiffusionModel,

@@ -232,13 +232,14 @@ impl Default for ConfigStore {
 }
 
 /// Trait for types that can be configured.
-pub trait Configurable {
-    /// Applies configuration from a ConfigValue.
-    fn configure(&mut self, config: &ConfigValue) -> Result<()>;
-    
-    /// Gets the current configuration as a ConfigValue.
-    fn get_config(&self) -> ConfigValue;
-}
+// NOTE: This trait is now defined generically in core::traits.
+// pub trait Configurable {
+//     /// Applies configuration from a ConfigValue.
+//     fn configure(&mut self, config: &ConfigValue) -> Result<()>;
+//     
+//     /// Gets the current configuration as a ConfigValue.
+//     fn get_config(&self) -> ConfigValue;
+// }
 
 /// Plugin configuration manager.
 pub struct PluginConfigManager {

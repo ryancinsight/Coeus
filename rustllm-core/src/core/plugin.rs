@@ -16,7 +16,8 @@ use crate::foundation::{
     error::{Error, PluginError, Result},
     types::{PluginName, Version},
 };
-use core::fmt::Debug;
+use core::{fmt::Debug, any::Any};
+use core::any::Any;
 
 #[cfg(feature = "std")]
 use std::sync::{Arc, RwLock, Weak};
@@ -36,15 +37,34 @@ use std::collections::HashMap;
 pub trait Plugin: Send + Sync + Debug {
     /// Returns the unique name of this plugin.
     fn name(&self) -> &str;
-    
+
     /// Returns the plugin version.
     fn version(&self) -> Version;
-    
+
     /// Returns the plugin's capabilities.
     fn capabilities(&self) -> PluginCapabilities;
-    
+
+    /// Optional initialization hook. Default does nothing.
+    fn initialize(&mut self) -> crate::foundation::error::Result<()> {
+        Ok(())
+    }
+
+    /// Indicates whether the plugin has been initialized.
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    /// Type-erased access helpers for runtime downcasting.
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     /// Called when the plugin is being unloaded.
-    /// 
+    ///
     /// This gives the plugin a chance to clean up resources.
     fn on_unload(&mut self) -> Result<()> {
         Ok(())
@@ -198,56 +218,59 @@ impl PluginState {
 /// following the principle of encapsulation.
 #[cfg(feature = "std")]
 pub struct PluginEntry {
-    /// The plugin instance.
-    plugin: Box<dyn Plugin>,
-    
+    /// The plugin instance, reference counted for shared access.
+    plugin: std::sync::Arc<dyn Plugin>,
+
     /// Current state of the plugin.
     state: PluginState,
-    
+
     /// Plugin metadata.
     metadata: PluginMetadata,
-    
+
     /// Dependencies on other plugins.
     dependencies: Vec<PluginName>,
-    
+
     /// Dependents of this plugin.
     dependents: Vec<Weak<RwLock<PluginEntry>>>,
 }
 
 #[cfg(feature = "std")]
 impl PluginEntry {
-    /// Creates a new plugin entry.
+    /// Creates a new plugin entry from a boxed plugin.
+    ///
+    /// The plugin will be wrapped in an [`Arc`] for shared ownership.
     pub fn new(plugin: Box<dyn Plugin>) -> Self {
+        let plugin_arc: std::sync::Arc<dyn Plugin> = plugin.into();
         let metadata = PluginMetadata {
-            name: plugin.name().into(),
-            version: plugin.version(),
-            capabilities: plugin.capabilities(),
+            name: plugin_arc.name().into(),
+            version: plugin_arc.version(),
+            capabilities: plugin_arc.capabilities(),
         };
-        
+
         Self {
-            plugin,
+            plugin: plugin_arc,
             state: PluginState::Registered,
             metadata,
             dependencies: Vec::new(),
             dependents: Vec::new(),
         }
     }
-    
+
     /// Returns the plugin name.
     pub fn name(&self) -> &PluginName {
         &self.metadata.name
     }
-    
+
     /// Returns the plugin version.
     pub fn version(&self) -> &Version {
         &self.metadata.version
     }
-    
+
     /// Returns the current state.
     pub fn state(&self) -> PluginState {
         self.state
     }
-    
+
     /// Transitions to a new state.
     pub fn transition_to(&mut self, new_state: PluginState) -> Result<()> {
         if !self.state.can_transition_to(new_state) {
@@ -257,38 +280,58 @@ impl PluginEntry {
                 actual: "invalid transition",
             }));
         }
-        
+
         self.state = new_state;
         Ok(())
     }
-    
+
+    /// Returns a reference to the plugin's shared [`Arc`].
+    ///
+    /// This allows cheap cloning for thread-safe plugin access.
+    pub fn plugin_arc(&self) -> &std::sync::Arc<dyn Plugin> {
+        &self.plugin
+    }
+
     /// Returns a reference to the plugin.
     pub fn plugin(&self) -> &dyn Plugin {
-        &*self.plugin
+        self.plugin.as_ref()
     }
-    
+
+    /// Attempts to get a mutable reference to the plugin.
+    ///
+    /// Returns `Some(&mut dyn Plugin)` only if this is the sole strong reference to the plugin.
+    /// Otherwise returns `None`, allowing safe deferral of mutation or drop actions.
+    pub fn try_plugin_mut(&mut self) -> Option<&mut dyn Plugin> {
+        std::sync::Arc::get_mut(&mut self.plugin)
+    }
+
     /// Returns a mutable reference to the plugin.
-    pub fn plugin_mut(&mut self) -> &mut dyn Plugin {
-        &mut *self.plugin
+    ///
+    /// # Internal
+    /// Panics if multiple references to the plugin exist.
+    /// Prefer [`try_plugin_mut`](Self::try_plugin_mut) for safe operations.
+    pub(crate) fn plugin_mut(&mut self) -> &mut dyn Plugin {
+        std::sync::Arc::get_mut(&mut self.plugin)
+            .expect("multiple refs to plugin")
     }
-    
+
     /// Adds a dependency.
     pub fn add_dependency(&mut self, dep: PluginName) {
         if !self.dependencies.contains(&dep) {
             self.dependencies.push(dep);
         }
     }
-    
+
     /// Returns the dependencies.
     pub fn dependencies(&self) -> &[PluginName] {
         &self.dependencies
     }
-    
+
     /// Adds a dependent.
     pub fn add_dependent(&mut self, dependent: Weak<RwLock<PluginEntry>>) {
         self.dependents.push(dependent);
     }
-    
+
     /// Removes stale dependents.
     pub fn clean_dependents(&mut self) {
         self.dependents.retain(|weak| weak.strong_count() > 0);
