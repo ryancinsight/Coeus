@@ -17,6 +17,7 @@ use crate::foundation::{
     types::{PluginName, Version},
 };
 use core::fmt::Debug;
+use core::any::Any;
 
 #[cfg(feature = "std")]
 use std::sync::{Arc, RwLock, Weak};

@@ -93,11 +93,9 @@ impl PluginManager {
         entry.transition_to(PluginState::Initializing)?;
 
         // Initialize if the plugin supports it
-        // Note: We need to check capabilities first
         let capabilities = entry.plugin().capabilities();
-        if capabilities.initializable {
-            // We can't initialize through the trait object without the Initialize trait
-            // This is a design limitation we need to address
+        if capabilities.initializable && !entry.plugin().is_initialized() {
+            entry.plugin_mut().initialize()?;
         }
 
         // Transition to ready state
