@@ -42,21 +42,6 @@ impl PluginManager {
         registry.register::<P>()
     }
     
-    /// Loads a plugin by name.
-    /// 
-    /// Note: This method is deprecated. Use `load_plugin` instead for loading plugins.
-    /// Direct type conversion is not supported due to the dynamic nature of plugins.
-    pub fn load<T: 'static>(&self, _name: &str) -> Result<Arc<T>>
-    where
-        T: Any,
-    {
-        // This method cannot work as intended because we can't convert
-        // Arc<dyn Plugin> to Arc<T> for arbitrary T
-        Err(Error::Other(
-            "Direct type loading is not supported. Use load_plugin() and then downcast or use specific plugin traits.".to_string()
-        ))
-    }
-    
     /// Loads a plugin and returns it as a Plugin trait object.
     pub fn load_plugin(&self, name: &str) -> Result<Arc<dyn Plugin>> {
         let plugin_name = PluginName::from(name);
