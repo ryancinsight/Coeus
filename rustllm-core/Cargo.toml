@@ -1,0 +1,99 @@
+[package]
+name = "rustllm-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["RustLLM Contributors"]
+description = "A minimal dependency, high-performance LLM building library in pure Rust"
+documentation = "https://docs.rs/rustllm-core"
+homepage = "https://github.com/rustllm/rustllm-core"
+repository = "https://github.com/rustllm/rustllm-core"
+license = "MIT"
+readme = "../README.md"
+keywords = ["llm", "ml", "tokenizer", "transformer", "neural-network"]
+categories = ["science", "algorithms", "data-structures", "no-std"]
+
+[workspace]
+members = [
+    ".",
+    "plugins/tokenizer-basic",
+    "plugins/tokenizer-bpe",
+    "plugins/model-basic",
+    "plugins/model-transformer",
+    "plugins/loader-basic",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["RustLLM Contributors"]
+license = "MIT"
+
+[workspace.dependencies]
+# Core has zero dependencies
+
+[features]
+default = ["std"]
+std = []
+# Feature flags for conditional compilation
+unstable = []
+bench = []
+async = []
+
+[lib]
+name = "rustllm_core"
+path = "src/lib.rs"
+
+[dependencies]
+# Core has zero external dependencies
+
+[dev-dependencies]
+rustllm-tokenizer-basic = { path = "plugins/tokenizer-basic" }
+rustllm-tokenizer-bpe = { path = "plugins/tokenizer-bpe" }
+rustllm-model-basic = { path = "plugins/model-basic" }
+rustllm-model-transformer = { path = "plugins/model-transformer" }
+rustllm-loader-basic = { path = "plugins/loader-basic" }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
+[[example]]
+name = "streaming"
+path = "examples/streaming.rs"
+
+[[example]]
+name = "config_usage"
+path = "examples/config_usage.rs"
+
+[[example]]
+name = "transformer_250m"
+path = "examples/transformer_250m.rs"
+
+[[bench]]
+name = "tokenizer_bench"
+harness = false
+
+[[bench]]
+name = "iterator_bench"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.bench]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.test]
+opt-level = 2
+debug = true

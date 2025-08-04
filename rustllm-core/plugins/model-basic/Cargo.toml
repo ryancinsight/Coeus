@@ -1,0 +1,13 @@
+[package]
+name = "rustllm-model-basic"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+rustllm-core = { path = "../.." }
+
+[lib]
+name = "rustllm_model_basic"
+path = "src/lib.rs"

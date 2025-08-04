@@ -1,0 +1,17 @@
+[package]
+name = "rustllm-tokenizer-bpe"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Byte Pair Encoding tokenizer plugin for RustLLM Core"
+repository = "https://github.com/rustllm/rustllm-core"
+keywords = ["tokenizer", "bpe", "nlp", "llm"]
+categories = ["text-processing"]
+
+[dependencies]
+rustllm-core = { path = "../.." }
+
+[lib]
+name = "rustllm_tokenizer_bpe"
+path = "src/lib.rs"
