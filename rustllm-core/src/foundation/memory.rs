@@ -11,6 +11,9 @@ use core::slice;
 #[cfg(feature = "std")]
 use std::alloc::{alloc, dealloc, Layout};
 
+#[cfg(feature = "std")]
+use std::sync::RwLock;
+
 #[cfg(not(feature = "std"))]
 use alloc::alloc::{alloc, dealloc, Layout};
 
@@ -23,9 +26,20 @@ use alloc::vec::Vec;
 #[cfg(not(feature = "std"))]
 use alloc::string::String;
 
+// For no_std environments, we'll use a single-threaded arena
+#[cfg(not(feature = "std"))]
+type ArenaStorage = RefCell<Vec<ArenaChunk>>;
+
+// For std environments, use thread-safe RwLock
+#[cfg(feature = "std")]
+type ArenaStorage = RwLock<Vec<ArenaChunk>>;
+
 /// A simple arena allocator for temporary allocations.
+/// 
+/// In `std` environments, this is thread-safe using `RwLock`.
+/// In `no_std` environments, this uses `RefCell` and is NOT thread-safe.
 pub struct Arena {
-    chunks: RefCell<Vec<ArenaChunk>>,
+    chunks: ArenaStorage,
     current_chunk: Cell<usize>,
     chunk_size: usize,
 }
@@ -42,6 +56,9 @@ impl Arena {
         assert!(chunk_size > 0, "Chunk size must be greater than 0");
         
         Self {
+            #[cfg(feature = "std")]
+            chunks: RwLock::new(Vec::new()),
+            #[cfg(not(feature = "std"))]
             chunks: RefCell::new(Vec::new()),
             current_chunk: Cell::new(0),
             chunk_size,
@@ -79,6 +96,10 @@ impl Arena {
         let align = layout.align();
         
         // Try to allocate from current chunk
+        #[cfg(feature = "std")]
+        let mut chunks = self.chunks.write().unwrap();
+        
+        #[cfg(not(feature = "std"))]
         let mut chunks = self.chunks.borrow_mut();
         
         if self.current_chunk.get() < chunks.len() {
@@ -106,7 +127,12 @@ impl Arena {
     
     /// Resets the arena, allowing memory to be reused.
     pub fn reset(&self) {
+        #[cfg(feature = "std")]
+        let chunks = self.chunks.read().unwrap();
+        
+        #[cfg(not(feature = "std"))]
         let chunks = self.chunks.borrow();
+        
         for chunk in chunks.iter() {
             chunk.used.set(0);
         }
@@ -140,8 +166,15 @@ impl Drop for ArenaChunk {
     }
 }
 
+// Arena is Send because it owns its data
 unsafe impl Send for Arena {}
+
+// In std environments, Arena is Sync because we use RwLock
+#[cfg(feature = "std")]
 unsafe impl Sync for Arena {}
+
+// In no_std environments, Arena is NOT Sync because RefCell is not thread-safe
+// Do NOT implement Sync for no_std Arena!
 
 /// A memory pool for fixed-size allocations.
 pub struct Pool<T> {
@@ -346,60 +379,119 @@ mod tests {
     use super::*;
     
     #[test]
-    #[cfg(feature = "std")]
     fn test_arena() {
         let arena = Arena::new(1024);
         
-        let x = arena.alloc(42u32);
+        // Test value allocation
+        let x = arena.alloc(42i32);
         assert_eq!(*x, 42);
         *x = 100;
         assert_eq!(*x, 100);
         
+        // Test slice allocation
         let slice = arena.alloc_slice(&[1, 2, 3, 4, 5]);
         assert_eq!(slice, &[1, 2, 3, 4, 5]);
         slice[0] = 10;
         assert_eq!(slice[0], 10);
         
+        // Test multiple allocations
+        let _y = arena.alloc(3.14f64);
+        let _z = arena.alloc("hello");
+        
+        // Test reset
         arena.reset();
+        let w = arena.alloc(999);
+        assert_eq!(*w, 999);
+    }
+    
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_arena_thread_safety() {
+        use std::sync::Arc;
+        use std::thread;
+        
+        let arena = Arc::new(Arena::new(1024));
+        let mut handles = vec![];
+        
+        // Spawn multiple threads that allocate concurrently
+        for i in 0..10 {
+            let arena_clone = Arc::clone(&arena);
+            let handle = thread::spawn(move || {
+                // Each thread allocates multiple values
+                for j in 0..100 {
+                    let value = i * 100 + j;
+                    let allocated = arena_clone.alloc(value);
+                    assert_eq!(*allocated, value);
+                    
+                    // Also test slice allocation
+                    let slice_data = vec![value; 5];
+                    let slice = arena_clone.alloc_slice(&slice_data);
+                    assert_eq!(slice.len(), 5);
+                    for &item in slice.iter() {
+                        assert_eq!(item, value);
+                    }
+                }
+            });
+            handles.push(handle);
+        }
+        
+        // Wait for all threads to complete
+        for handle in handles {
+            handle.join().unwrap();
+        }
+        
+        // Arena should still be usable after concurrent access
+        let final_value = arena.alloc(12345);
+        assert_eq!(*final_value, 12345);
     }
     
     #[test]
     fn test_pool() {
-        let pool: Pool<Vec<u8>> = Pool::new(2);
+        let pool: Pool<Vec<u8>> = Pool::new(10);
         
-        let mut buf1 = pool.take_or_default();
-        buf1.extend_from_slice(b"hello");
+        // Test taking from empty pool
+        let mut vec1 = pool.take_or_else(|| Vec::with_capacity(100));
+        vec1.extend_from_slice(b"hello");
+        assert_eq!(vec1, b"hello");
         
-        let buf2 = pool.take_or_default();
-        assert!(buf2.is_empty());
+        // Return to pool
+        pool.put(vec1);
         
-        pool.put(buf1);
-        
-        let buf3 = pool.take_or_default();
-        assert_eq!(buf3.len(), 5); // Reused buf1
+        // Take again - should get the same capacity
+        let vec2 = pool.take_or_else(|| Vec::with_capacity(50));
+        assert!(vec2.capacity() >= 100);
     }
     
     #[test]
     fn test_cow_str() {
-        let mut cow1 = CowStr::borrowed("hello");
-        assert_eq!(cow1.as_str(), "hello");
+        // Test borrowed
+        let borrowed = CowStr::borrowed("hello");
+        assert!(matches!(borrowed, CowStr::Borrowed(_)));
+        assert_eq!(borrowed.as_str(), "hello");
         
-        let s = cow1.to_mut();
-        s.push_str(" world");
-        assert_eq!(cow1.as_str(), "hello world");
+        // Test owned
+        let owned = CowStr::owned(String::from("world"));
+        assert!(matches!(owned, CowStr::Owned(_)));
+        assert_eq!(owned.as_str(), "world");
         
-        let cow2 = CowStr::owned(String::from("rust"));
-        assert_eq!(cow2.as_str(), "rust");
+        // Test to_mut on borrowed
+        let mut cow = CowStr::borrowed("test");
+        let mutable = cow.to_mut();
+        mutable.push_str("ing");
+        assert!(matches!(cow, CowStr::Owned(_)));
+        assert_eq!(cow.as_str(), "testing");
     }
     
     #[test]
     fn test_str_builder() {
         let mut builder = StrBuilder::new();
-        builder.push_borrowed("hello");
+        
+        builder.push_borrowed("Hello");
         builder.push_borrowed(" ");
-        builder.push_owned(String::from("world"));
+        builder.push_owned(String::from("World"));
+        builder.push_borrowed("!");
         
         let result = builder.build();
-        assert_eq!(result, "hello world");
+        assert_eq!(result, "Hello World!");
     }
 }
