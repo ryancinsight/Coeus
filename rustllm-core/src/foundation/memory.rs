@@ -918,11 +918,7 @@ impl StringInterner {
         {
             let strings = self.strings.read().unwrap();
             if let Some(interned) = strings.get(s) {
-                let mut stats = self.stats.write().unwrap();
-                stats.total_requests += 1;
-                stats.cache_hits += 1;
-                stats.memory_saved += s.len();
-                return Arc::clone(interned);
+                return self.handle_cache_hit(interned, s);
             }
         }
 
