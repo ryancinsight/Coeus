@@ -28,13 +28,17 @@ impl LinearNoiseSchedule {
                 alpha_bars: Vec::new(),
             };
         }
-        
-        let betas: Vec<f32> = (0..num_steps)
-            .map(|i| {
-                let divisor = if num_steps > 1 { num_steps as f32 - 1.0 } else { 1.0 };
-                beta_start + (beta_end - beta_start) * (i as f32) / divisor
-            })
-            .collect();
+        // Explicitly handle num_steps == 1: set beta to the average of beta_start and beta_end.
+        let betas: Vec<f32> = if num_steps == 1 {
+            vec![(beta_start + beta_end) / 2.0]
+        } else {
+            (0..num_steps)
+                .map(|i| {
+                    let divisor = num_steps as f32 - 1.0;
+                    beta_start + (beta_end - beta_start) * (i as f32) / divisor
+                })
+                .collect()
+        };
         
         let alphas: Vec<f32> = betas.iter().map(|&beta| 1.0 - beta).collect();
         
