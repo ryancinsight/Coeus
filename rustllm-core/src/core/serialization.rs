@@ -85,7 +85,7 @@ impl ModelHeader {
         }
         
         if self.format_version != FORMAT_VERSION {
-            return Err(Error::InvalidInput(format!(
+            return Err(validation_error(&format!(
                 "Unsupported format version: {}",
                 self.format_version
             )));
@@ -143,7 +143,7 @@ impl ParameterSerializer {
             }
             
             writer.write_all(&bytes)
-                .map_err(|e| io_error(Error::Other(format!("Failed to write parameters: {}", e))format!("Failed to write parameters: {}", e)))?;
+                .map_err(|e| io_error(&format!("Failed to write parameters: {}", e)))?;
             
             written += bytes.len();
             progress(written, total_bytes);
@@ -173,7 +173,7 @@ impl ParameterSerializer {
             let mut bytes = vec![0u8; chunk.len() * mem::size_of::<f32>()];
             
             reader.read_exact(&mut bytes)
-                .map_err(|e| io_error(Error::Other(format!("Failed to read parameters: {}", e))format!("Failed to read parameters: {}", e)))?;
+                .map_err(|e| io_error(&format!("Failed to read parameters: {}", e)))?;
             
             // Convert bytes to f32 using little-endian
             for (i, val) in chunk.iter_mut().enumerate() {

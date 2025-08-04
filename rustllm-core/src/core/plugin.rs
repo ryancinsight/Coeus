@@ -403,9 +403,53 @@ pub trait HotReloadablePlugin: Plugin {
     }
 }
 
+// ============================================================================
+// Helper Macros
+// ============================================================================
+
+/// Helper macro for implementing the Plugin trait.
+/// 
+/// This macro provides a convenient way to implement the Plugin trait
+/// with sensible defaults.
+#[macro_export]
+macro_rules! impl_plugin {
+    ($type:ty, $name:expr, $version:expr) => {
+        impl $crate::core::plugin::Plugin for $type {
+            fn name(&self) -> &str {
+                $name
+            }
+            
+            fn version(&self) -> $crate::foundation::types::Version {
+                $version
+            }
+            
+            fn capabilities(&self) -> $crate::core::plugin::PluginCapabilities {
+                $crate::core::plugin::PluginCapabilities::standard()
+            }
+        }
+    };
+    
+    ($type:ty, $name:expr, $version:expr, $capabilities:expr) => {
+        impl $crate::core::plugin::Plugin for $type {
+            fn name(&self) -> &str {
+                $name
+            }
+            
+            fn version(&self) -> $crate::foundation::types::Version {
+                $version
+            }
+            
+            fn capabilities(&self) -> $crate::core::plugin::PluginCapabilities {
+                $capabilities
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::foundation::types::Version;
     
     #[derive(Debug)]
     struct TestPlugin {
@@ -425,16 +469,6 @@ mod tests {
             PluginCapabilities::none()
         }
         
-        fn initialize(&mut self) -> Result<()> {
-            self.initialized = true;
-            Ok(())
-        }
-        
-        fn shutdown(&mut self) -> Result<()> {
-            self.initialized = false;
-            Ok(())
-        }
-        
         fn on_unload(&mut self) -> Result<()> {
             self.initialized = false;
             Ok(())
@@ -442,28 +476,27 @@ mod tests {
     }
     
     #[test]
-    fn test_plugin_lifecycle() {
-        let mut plugin = TestPlugin { initialized: false };
+    fn test_plugin_state_transitions() {
+        let state = PluginState::Registered;
+        assert!(state.can_transition_to(PluginState::Initializing));
+        assert!(!state.can_transition_to(PluginState::Running));
         
-        assert_eq!(plugin.name(), "test_plugin");
-        assert_eq!(plugin.version(), Version::new(1, 0, 0));
-        assert!(!plugin.initialized);
-        
-        plugin.initialize().unwrap();
-        assert!(plugin.initialized);
-        
-        plugin.shutdown().unwrap();
-        assert!(!plugin.initialized);
+        let state = PluginState::Ready;
+        assert!(state.can_transition_to(PluginState::Running));
+        assert!(!state.can_transition_to(PluginState::Initializing));
     }
     
     #[test]
-    fn test_plugin_dependency() {
-        let dep = PluginDependency::required("tokenizer", Version::new(1, 0, 0));
-        assert_eq!(dep.name.as_str(), "tokenizer");
-        assert_eq!(dep.min_version, Version::new(1, 0, 0));
-        assert!(!dep.optional);
+    fn test_plugin_capabilities() {
+        let caps = PluginCapabilities::standard();
+        assert!(caps.initializable);
+        assert!(caps.lifecycle);
+        assert!(caps.metadata);
+        assert!(caps.configurable);
         
-        let opt_dep = PluginDependency::optional("model", Version::new(2, 0, 0));
-        assert!(opt_dep.optional);
+        let caps = PluginCapabilities::none()
+            .with_feature("custom_feature");
+        assert!(caps.has_feature("custom_feature"));
+        assert!(!caps.has_feature("other_feature"));
     }
 }

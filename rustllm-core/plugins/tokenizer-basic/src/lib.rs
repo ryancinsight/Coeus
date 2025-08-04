@@ -1,7 +1,7 @@
 //! Basic tokenizer plugin implementation.
 
 use rustllm_core::core::{
-    plugin::{Plugin, TokenizerPlugin},
+    plugin::{Plugin, TokenizerPlugin, PluginCapabilities},
     tokenizer::{Tokenizer, Token, StringToken, TokenIterator},
 };
 use rustllm_core::foundation::{
@@ -23,24 +23,10 @@ impl Plugin for BasicTokenizerPlugin {
         Version::new(0, 1, 0)
     }
     
-    fn description(&self) -> &str {
-        "Basic whitespace tokenizer"
-    }
-    
-    fn initialize(&mut self) -> Result<()> {
-        Ok(())
-    }
-    
-    fn shutdown(&mut self) -> Result<()> {
-        Ok(())
-    }
-    
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::standard()
+            .with_feature("tokenization")
+            .with_feature("whitespace")
     }
 }
 

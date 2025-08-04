@@ -44,7 +44,7 @@ impl PluginRegistry {
         
         // Check if already registered
         if self.factories.contains_key(&name) {
-            return Err(Error::Plugin(PluginError::AlreadyLoaded(name.as_str().to_string())));
+            return Err(Error::Plugin(PluginError::AlreadyLoaded { name: name.as_str().to_string() }));
         }
         
         // Create factory
@@ -68,7 +68,7 @@ impl PluginRegistry {
         
         // Check if already registered
         if self.factories.contains_key(&name) {
-            return Err(Error::Plugin(PluginError::AlreadyLoaded(name.as_str().to_string())));
+            return Err(Error::Plugin(PluginError::AlreadyLoaded { name: name.as_str().to_string() }));
         }
         
         self.factories.insert(name, Box::new(factory));
@@ -189,22 +189,8 @@ mod tests {
             Version::new(1, 0, 0)
         }
         
-        fn initialize(&mut self) -> Result<()> {
-            self.value = 42;
-            Ok(())
-        }
-        
-        fn shutdown(&mut self) -> Result<()> {
-            self.value = 0;
-            Ok(())
-        }
-        
-        fn as_any(&self) -> &dyn core::any::Any {
-            self
-        }
-        
-        fn as_any_mut(&mut self) -> &mut dyn core::any::Any {
-            self
+        fn capabilities(&self) -> crate::core::plugin::PluginCapabilities {
+            crate::core::plugin::PluginCapabilities::none()
         }
     }
     
