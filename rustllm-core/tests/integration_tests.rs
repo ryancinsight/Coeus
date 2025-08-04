@@ -36,7 +36,7 @@ fn test_plugin_registration_and_loading() {
 fn test_tokenizer_plugin_usage() -> Result<()> {
     // Create tokenizer through plugin directly
     let plugin = BasicTokenizerPlugin::default();
-    let tokenizer = plugin.create_tokenizer().unwrap();
+    let tokenizer = plugin.create_tokenizer()?;
     
     // Test tokenization
     let text = "Hello, RustLLM!";
