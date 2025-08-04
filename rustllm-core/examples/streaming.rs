@@ -16,7 +16,7 @@ fn stream_process_file(path: &str) -> Result<()> {
     println!("Processing file: {}", path);
     
     let file = File::open(path)
-        .map_err(|e| Error::Other(format!("Failed to open file: {}", e)))?;
+        .map_err(|e| internal_error(format!("Failed to open file: {}", e)))?;
     let reader = BufReader::new(file);
     
     let tokenizer = BasicTokenizer::new();
@@ -31,7 +31,7 @@ fn stream_process_file(path: &str) -> Result<()> {
     // Process file line by line
     for (line_num, line_result) in reader.lines().enumerate() {
         let line = line_result
-            .map_err(|e| Error::Other(format!("Failed to read line: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to read line: {}", e)))?;
         
         total_lines += 1;
         total_chars += line.len();
@@ -176,13 +176,13 @@ fn token_frequency_analysis() -> Result<()> {
 fn create_sample_file() -> Result<()> {
     let path = "sample_large_file.txt";
     let mut file = File::create(path)
-        .map_err(|e| Error::Other(format!("Failed to create file: {}", e)))?;
+        .map_err(|e| internal_error(format!("Failed to create file: {}", e)))?;
     
     // Write 10,000 lines
     for i in 0..10_000 {
         writeln!(file, "This is line number {}. It contains sample text for streaming processing. \
                         The quick brown fox jumps over the lazy dog.", i)
-            .map_err(|e| Error::Other(format!("Failed to write to file: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to write to file: {}", e)))?;
     }
     
     Ok(())
@@ -211,7 +211,7 @@ fn main() -> Result<()> {
     // Clean up
     if std::path::Path::new(sample_file).exists() {
         std::fs::remove_file(sample_file)
-            .map_err(|e| Error::Other(format!("Failed to remove file: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to remove file: {}", e)))?;
     }
     
     println!("\n\nAll streaming examples completed successfully!");

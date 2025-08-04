@@ -1,6 +1,6 @@
 //! Basic model plugin implementation.
 
-use rustllm_core::core::plugin::{Plugin, ModelBuilderPlugin};
+use rustllm_core::core::plugin::{Plugin, ModelBuilderPlugin, PluginCapabilities};
 use rustllm_core::core::model::{Model, ModelBuilder, ModelConfig, BasicModelConfig};
 use rustllm_core::foundation::{
     error::Result,
@@ -20,24 +20,9 @@ impl Plugin for BasicModelPlugin {
         Version::new(0, 1, 0)
     }
     
-    fn description(&self) -> &str {
-        "Basic model implementation"
-    }
-    
-    fn initialize(&mut self) -> Result<()> {
-        Ok(())
-    }
-    
-    fn shutdown(&mut self) -> Result<()> {
-        Ok(())
-    }
-    
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::standard()
+            .with_feature("model_building")
     }
 }
 

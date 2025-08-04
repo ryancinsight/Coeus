@@ -1,14 +1,9 @@
-//! Byte Pair Encoding (BPE) tokenizer plugin.
-//!
-//! This module implements a BPE tokenizer following the algorithm used in GPT models.
-//! It's a pure Rust implementation with no external dependencies.
+//! BPE tokenizer plugin implementation.
 
-use rustllm_core::core::{
-    plugin::{Plugin, TokenizerPlugin},
-    tokenizer::{Tokenizer, Token, StringToken, VocabularyTokenizer, TokenIterator},
-};
+use rustllm_core::core::plugin::{Plugin, TokenizerPlugin, PluginCapabilities};
+use rustllm_core::core::tokenizer::{Tokenizer, Token, StringToken, TokenIterator, VocabularyTokenizer};
 use rustllm_core::foundation::{
-    error::{Result, Error},
+    error::{Error, Result},
     types::{Version, TokenId, VocabSize},
 };
 use std::collections::HashMap;
@@ -17,7 +12,9 @@ use std::cmp::Ordering;
 
 /// BPE tokenizer plugin.
 #[derive(Debug, Default)]
-pub struct BpeTokenizerPlugin;
+pub struct BpeTokenizerPlugin {
+    tokenizer: Option<BpeTokenizer>,
+}
 
 impl Plugin for BpeTokenizerPlugin {
     fn name(&self) -> &str {
@@ -28,24 +25,10 @@ impl Plugin for BpeTokenizerPlugin {
         Version::new(0, 1, 0)
     }
     
-    fn description(&self) -> &str {
-        "Byte Pair Encoding tokenizer with learned merge rules"
-    }
-    
-    fn initialize(&mut self) -> Result<()> {
-        Ok(())
-    }
-    
-    fn shutdown(&mut self) -> Result<()> {
-        Ok(())
-    }
-    
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::standard()
+            .with_feature("tokenization")
+            .with_feature("bpe")
     }
 }
 
@@ -362,7 +345,9 @@ impl VocabularyTokenizer for BpeTokenizer {
             self.reverse_vocab.remove(&id);
             Ok(())
         } else {
-            Err(Error::InvalidInput(format!("Token not found: {}", token)))
+            Err(Error::Processing(rustllm_core::foundation::error::ProcessingError::InvalidInput { 
+                reason: format!("Token not found: {}", token) 
+            }))
         }
     }
     

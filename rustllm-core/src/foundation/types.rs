@@ -52,22 +52,34 @@ impl FromStr for Version {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('.').collect();
         if parts.len() != 3 {
-            return Err(crate::foundation::error::Error::InvalidInput(
-                format!("Invalid version format: {s}")
+            return Err(crate::foundation::error::Error::Validation(
+                crate::foundation::error::ValidationError::PatternMismatch {
+                    value: s.to_string(),
+                    pattern: "major.minor.patch".to_string(),
+                }
             ));
         }
         
         let major = parts[0].parse::<u16>()
-            .map_err(|e| crate::foundation::error::Error::InvalidInput(
-                format!("Invalid major version: {}", e)
+            .map_err(|e| crate::foundation::error::Error::Validation(
+                crate::foundation::error::ValidationError::PatternMismatch {
+                    value: parts[0].to_string(),
+                    pattern: format!("valid u16: {}", e),
+                }
             ))?;
         let minor = parts[1].parse::<u16>()
-            .map_err(|e| crate::foundation::error::Error::InvalidInput(
-                format!("Invalid minor version: {}", e)
+            .map_err(|e| crate::foundation::error::Error::Validation(
+                crate::foundation::error::ValidationError::PatternMismatch {
+                    value: parts[1].to_string(),
+                    pattern: format!("valid u16: {}", e),
+                }
             ))?;
         let patch = parts[2].parse::<u16>()
-            .map_err(|e| crate::foundation::error::Error::InvalidInput(
-                format!("Invalid patch version: {}", e)
+            .map_err(|e| crate::foundation::error::Error::Validation(
+                crate::foundation::error::ValidationError::PatternMismatch {
+                    value: parts[2].to_string(),
+                    pattern: format!("valid u16: {}", e),
+                }
             ))?;
         
         Ok(Self::new(major, minor, patch))

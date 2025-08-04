@@ -189,21 +189,18 @@ fn test_memory_management() {
 
 #[test]
 fn test_error_handling() {
-    use rustllm_core::foundation::error::{Error, ErrorContext};
+    use rustllm_core::foundation::error::{Error, ErrorExt, internal_error};
     
     // Test error creation
-    let _base_error = Error::Other("base error".to_string());
+    let _base_error = internal_error("base error");
     
-    // Test Result extension with context
-    let result: Result<i32> = Err(Error::Other("test".to_string()));
-    let with_context = result.context("operation failed");
-    assert!(with_context.is_err());
+    // Test error with context
+    let error = internal_error("test");
+    let with_context = error.with_context("operation failed");
     
     // Check error message
-    if let Err(e) = with_context {
-        let error_string = format!("{}", e);
-        assert!(error_string.contains("operation failed"));
-    }
+    let error_string = format!("{}", with_context);
+    assert!(error_string.contains("operation failed"));
 }
 
 #[test]

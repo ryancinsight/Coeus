@@ -1,9 +1,9 @@
 //! Basic loader plugin implementation.
 
-use rustllm_core::core::plugin::{Plugin, ModelLoaderPlugin};
+use rustllm_core::core::plugin::{Plugin, ModelLoaderPlugin, PluginCapabilities};
 use rustllm_core::core::model::{Model, BasicModelConfig};
 use rustllm_core::foundation::{
-    error::{Error, Result},
+    error::{Error, Result, ProcessingError},
     types::Version,
 };
 
@@ -20,24 +20,10 @@ impl Plugin for BasicLoaderPlugin {
         Version::new(0, 1, 0)
     }
     
-    fn description(&self) -> &str {
-        "Basic model file loader"
-    }
-    
-    fn initialize(&mut self) -> Result<()> {
-        Ok(())
-    }
-    
-    fn shutdown(&mut self) -> Result<()> {
-        Ok(())
-    }
-    
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::standard()
+            .with_feature("model_loading")
+            .with_feature("formats:txt,json")
     }
 }
 
@@ -53,7 +39,9 @@ impl ModelLoaderPlugin for BasicLoaderPlugin {
     >>> {
         // For demonstration, we just create a dummy model
         if !path.ends_with(".txt") && !path.ends_with(".json") {
-            return Err(Error::NotSupported(format!("Unsupported file format: {}", path)));
+            return Err(Error::Processing(ProcessingError::Unsupported { 
+                operation: format!("Loading file format: {}", path) 
+            }));
         }
         
         // In a real implementation, we would read the file and deserialize the model

@@ -6,12 +6,12 @@
 //! - Minimal allocations during forward pass
 
 use rustllm_core::core::{
-    plugin::{Plugin, ModelBuilderPlugin},
+    plugin::{Plugin, ModelBuilderPlugin, PluginCapabilities},
     model::{Model, ModelBuilder, Transformer250MConfig},
     serialization::{ModelSerializable, ModelHeader, ModelMetadata, ParameterSerializer, calculate_checksum},
 };
 use rustllm_core::foundation::{
-    error::{Result, Error},
+    error::{Result, Error, ProcessingError, ValidationError, internal_error},
     types::Version,
 };
 use std::io::{Write, Read, Seek, SeekFrom};
@@ -29,24 +29,11 @@ impl Plugin for TransformerModelPlugin {
         Version::new(0, 1, 0)
     }
     
-    fn description(&self) -> &str {
-        "Transformer model optimized for 250M parameters"
-    }
-    
-    fn initialize(&mut self) -> Result<()> {
-        Ok(())
-    }
-    
-    fn shutdown(&mut self) -> Result<()> {
-        Ok(())
-    }
-    
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::standard()
+            .with_feature("model_building")
+            .with_feature("transformer")
+            .with_feature("250M_params")
     }
 }
 
@@ -178,7 +165,11 @@ impl Model for TransformerModel {
         // Add token and position embeddings
         for (i, &token_id) in input.iter().enumerate() {
             if token_id >= vocab_size {
-                return Err(Error::InvalidInput(format!("Token ID {} out of vocabulary", token_id)));
+                return Err(Error::Validation(rustllm_core::foundation::error::ValidationError::OutOfRange {
+                value: token_id.to_string(),
+                min: Some("0".to_string()),
+                max: Some((self.config.vocab_size - 1).to_string()),
+            }));
             }
             
             for j in 0..hidden_dim {
@@ -275,7 +266,7 @@ impl ModelSerializable for TransformerModel {
             )
         };
         writer.write_all(header_bytes)
-            .map_err(|e| Error::Other(format!("Failed to write header: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to write header: {}", e)))?;
         
         // Write parameters with progress
         let serializer = ParameterSerializer::new();
@@ -296,13 +287,13 @@ impl ModelSerializable for TransformerModel {
         
         let metadata_bytes = metadata.to_bytes()?;
         let metadata_offset = writer.seek(SeekFrom::Current(0))
-            .map_err(|e| Error::Other(format!("Failed to seek: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to seek: {}", e)))?;
         writer.write_all(&metadata_bytes)
-            .map_err(|e| Error::Other(format!("Failed to write metadata: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to write metadata: {}", e)))?;
         
         // Update header with metadata info
         writer.seek(SeekFrom::Start(0))
-            .map_err(|e| Error::Other(format!("Failed to seek to start: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to seek to start: {}", e)))?;
         header.metadata_offset = metadata_offset;
         header.metadata_size = metadata_bytes.len() as u64;
         
@@ -313,7 +304,7 @@ impl ModelSerializable for TransformerModel {
             )
         };
         writer.write_all(header_bytes)
-            .map_err(|e| Error::Other(format!("Failed to update header: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to update header: {}", e)))?;
         
         Ok(())
     }
@@ -322,7 +313,7 @@ impl ModelSerializable for TransformerModel {
         // Read header
         let mut header_bytes = vec![0u8; std::mem::size_of::<ModelHeader>()];
         reader.read_exact(&mut header_bytes)
-            .map_err(|e| Error::Other(format!("Failed to read header: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to read header: {}", e)))?;
         
         let header = unsafe {
             std::ptr::read(header_bytes.as_ptr() as *const ModelHeader)
@@ -332,7 +323,7 @@ impl ModelSerializable for TransformerModel {
         
         // Read parameters
         reader.seek(SeekFrom::Start(header.param_offset))
-            .map_err(|e| Error::Other(format!("Failed to seek to parameters: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to seek to parameters: {}", e)))?;
         let serializer = ParameterSerializer::new();
         let parameters = serializer.read_parameters(reader, header.param_count as usize, |current, total| {
             let percent = (current as f64 / total as f64) * 100.0;
@@ -344,15 +335,15 @@ impl ModelSerializable for TransformerModel {
         // Verify checksum
         let checksum = calculate_checksum(&parameters);
         if checksum != header.checksum {
-            return Err(Error::Other("Checksum mismatch".to_string()));
+            return Err(internal_error("Checksum mismatch".to_string()));
         }
         
         // Read metadata
         reader.seek(SeekFrom::Start(header.metadata_offset))
-            .map_err(|e| Error::Other(format!("Failed to seek to metadata: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to seek to metadata: {}", e)))?;
         let mut metadata_bytes = vec![0u8; header.metadata_size as usize];
         reader.read_exact(&mut metadata_bytes)
-            .map_err(|e| Error::Other(format!("Failed to read metadata: {}", e)))?;
+            .map_err(|e| internal_error(format!("Failed to read metadata: {}", e)))?;
         
         let metadata = ModelMetadata::from_bytes(&metadata_bytes)?;
         

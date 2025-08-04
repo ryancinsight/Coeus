@@ -80,12 +80,12 @@ fn main() -> Result<()> {
     println!("Saving model to {}...", model_path);
     let start = Instant::now();
     let mut file = File::create(model_path)
-        .map_err(|e| Error::Other(format!("Failed to create file: {}", e)))?;
+        .map_err(|e| internal_error(format!("Failed to create file: {}", e)))?;
     model.write_to(&mut file)?;
     let save_time = start.elapsed();
     
     let file_size = std::fs::metadata(model_path)
-        .map_err(|e| Error::Other(format!("Failed to get file metadata: {}", e)))?
+        .map_err(|e| internal_error(format!("Failed to get file metadata: {}", e)))?
         .len();
     
     println!("Model saved in {:.2}s", save_time.as_secs_f64());
@@ -95,7 +95,7 @@ fn main() -> Result<()> {
     println!("\nLoading model from {}...", model_path);
     let start = Instant::now();
     let mut file = File::open(model_path)
-        .map_err(|e| Error::Other(format!("Failed to open file: {}", e)))?;
+        .map_err(|e| internal_error(format!("Failed to open file: {}", e)))?;
     let loaded_model = <TransformerModel as ModelSerializable>::read_from(&mut file)?;
     let load_time = start.elapsed();
     
@@ -109,7 +109,7 @@ fn main() -> Result<()> {
     
     // Clean up
     std::fs::remove_file(model_path)
-        .map_err(|e| Error::Other(format!("Failed to remove file: {}", e)))?;
+        .map_err(|e| internal_error(format!("Failed to remove file: {}", e)))?;
     
     // Example 5: Plugin Usage
     println!("\n\nExample 5: Plugin Usage");

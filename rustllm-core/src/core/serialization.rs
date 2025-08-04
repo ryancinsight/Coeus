@@ -4,7 +4,7 @@
 //! of parameters, using a custom binary format optimized for speed and size.
 
 use crate::foundation::{
-    error::{Error, Result},
+    error::{Error, Result, ValidationError, ProcessingError, internal_error},
     types::Version,
 };
 use std::io::{Read, Write, Seek};
@@ -15,6 +15,21 @@ const MAGIC: &[u8; 8] = b"RUSTLLM\0";
 
 /// Current serialization format version.
 const FORMAT_VERSION: u32 = 1;
+
+// Helper function for validation errors
+fn validation_error(msg: &str) -> Error {
+    Error::Validation(ValidationError::PatternMismatch {
+        value: "input".to_string(),
+        pattern: msg.to_string(),
+    })
+}
+
+// Helper function for I/O errors
+fn io_error(msg: &str) -> Error {
+    Error::Processing(ProcessingError::Internal {
+        reason: msg.to_string(),
+    })
+}
 
 /// Header for serialized model files.
 #[repr(C)]
@@ -66,11 +81,11 @@ impl ModelHeader {
     /// Validates the header.
     pub fn validate(&self) -> Result<()> {
         if &self.magic != MAGIC {
-            return Err(Error::InvalidInput("Invalid magic bytes".to_string()));
+            return Err(validation_error("Invalid magic bytes"));
         }
         
         if self.format_version != FORMAT_VERSION {
-            return Err(Error::InvalidInput(format!(
+            return Err(validation_error(&format!(
                 "Unsupported format version: {}",
                 self.format_version
             )));
@@ -128,7 +143,7 @@ impl ParameterSerializer {
             }
             
             writer.write_all(&bytes)
-                .map_err(|e| Error::Other(format!("Failed to write parameters: {}", e)))?;
+                .map_err(|e| io_error(&format!("Failed to write parameters: {}", e)))?;
             
             written += bytes.len();
             progress(written, total_bytes);
@@ -158,7 +173,7 @@ impl ParameterSerializer {
             let mut bytes = vec![0u8; chunk.len() * mem::size_of::<f32>()];
             
             reader.read_exact(&mut bytes)
-                .map_err(|e| Error::Other(format!("Failed to read parameters: {}", e)))?;
+                .map_err(|e| io_error(&format!("Failed to read parameters: {}", e)))?;
             
             // Convert bytes to f32 using little-endian
             for (i, val) in chunk.iter_mut().enumerate() {
@@ -249,7 +264,7 @@ impl ModelMetadata {
         
         // Read architecture
         if bytes.len() < cursor + 4 {
-            return Err(Error::InvalidInput("Invalid metadata format".to_string()));
+            return Err(validation_error("Invalid metadata format"));
         }
         let arch_len = u32::from_le_bytes([
             bytes[cursor], bytes[cursor + 1], bytes[cursor + 2], bytes[cursor + 3]
@@ -257,22 +272,22 @@ impl ModelMetadata {
         cursor += 4;
         
         if bytes.len() < cursor + arch_len {
-            return Err(Error::InvalidInput("Invalid metadata format".to_string()));
+            return Err(validation_error("Invalid metadata format"));
         }
         let architecture = String::from_utf8(bytes[cursor..cursor + arch_len].to_vec())
-            .map_err(|_| Error::InvalidInput("Invalid UTF-8 in metadata".to_string()))?;
+            .map_err(|_| validation_error("Invalid UTF-8 in metadata"))?;
         cursor += arch_len;
         
         // Read training config
         if bytes.len() < cursor + 1 {
-            return Err(Error::InvalidInput("Invalid metadata format".to_string()));
+            return Err(validation_error("Invalid metadata format"));
         }
         let has_config = bytes[cursor] != 0;
         cursor += 1;
         
         let training_config = if has_config {
             if bytes.len() < cursor + 4 {
-                return Err(Error::InvalidInput("Invalid metadata format".to_string()));
+                return Err(validation_error("Invalid metadata format"));
             }
             let config_len = u32::from_le_bytes([
                 bytes[cursor], bytes[cursor + 1], bytes[cursor + 2], bytes[cursor + 3]
@@ -280,10 +295,10 @@ impl ModelMetadata {
             cursor += 4;
             
             if bytes.len() < cursor + config_len {
-                return Err(Error::InvalidInput("Invalid metadata format".to_string()));
+                return Err(validation_error("Invalid metadata format"));
             }
             let config = String::from_utf8(bytes[cursor..cursor + config_len].to_vec())
-                .map_err(|_| Error::InvalidInput("Invalid UTF-8 in metadata".to_string()))?;
+                .map_err(|_| validation_error("Invalid UTF-8 in metadata"))?;
             cursor += config_len;
             Some(config)
         } else {
@@ -292,7 +307,7 @@ impl ModelMetadata {
         
         // Read custom metadata
         if bytes.len() < cursor + 4 {
-            return Err(Error::InvalidInput("Invalid metadata format".to_string()));
+            return Err(validation_error("Invalid metadata format"));
         }
         let custom_count = u32::from_le_bytes([
             bytes[cursor], bytes[cursor + 1], bytes[cursor + 2], bytes[cursor + 3]
@@ -303,7 +318,7 @@ impl ModelMetadata {
         for _ in 0..custom_count {
             // Read key
             if bytes.len() < cursor + 4 {
-                return Err(Error::InvalidInput("Invalid metadata format".to_string()));
+                return Err(validation_error("Invalid metadata format"));
             }
             let key_len = u32::from_le_bytes([
                 bytes[cursor], bytes[cursor + 1], bytes[cursor + 2], bytes[cursor + 3]
@@ -311,15 +326,15 @@ impl ModelMetadata {
             cursor += 4;
             
             if bytes.len() < cursor + key_len {
-                return Err(Error::InvalidInput("Invalid metadata format".to_string()));
+                return Err(validation_error("Invalid metadata format"));
             }
             let key = String::from_utf8(bytes[cursor..cursor + key_len].to_vec())
-                .map_err(|_| Error::InvalidInput("Invalid UTF-8 in metadata".to_string()))?;
+                .map_err(|_| validation_error("Invalid UTF-8 in metadata"))?;
             cursor += key_len;
             
             // Read value
             if bytes.len() < cursor + 4 {
-                return Err(Error::InvalidInput("Invalid metadata format".to_string()));
+                return Err(validation_error("Invalid metadata format"));
             }
             let value_len = u32::from_le_bytes([
                 bytes[cursor], bytes[cursor + 1], bytes[cursor + 2], bytes[cursor + 3]
@@ -327,10 +342,10 @@ impl ModelMetadata {
             cursor += 4;
             
             if bytes.len() < cursor + value_len {
-                return Err(Error::InvalidInput("Invalid metadata format".to_string()));
+                return Err(validation_error("Invalid metadata format"));
             }
             let value = String::from_utf8(bytes[cursor..cursor + value_len].to_vec())
-                .map_err(|_| Error::InvalidInput("Invalid UTF-8 in metadata".to_string()))?;
+                .map_err(|_| validation_error("Invalid UTF-8 in metadata"))?;
             cursor += value_len;
             
             custom.push((key, value));

@@ -4,6 +4,7 @@
 //! including arena allocators, memory pools, and copy-on-write wrappers.
 
 use core::cell::{Cell, RefCell};
+use core::fmt;
 use core::marker::PhantomData;
 use core::ptr::{self, NonNull};
 use core::slice;
@@ -381,6 +382,353 @@ impl<'a> Default for StrBuilder<'a> {
         Self::new()
     }
 }
+
+/// Zero-copy string builder using rope data structure.
+/// 
+/// This provides efficient string concatenation without copying,
+/// following the principle of zero-cost abstractions.
+#[derive(Debug, Clone)]
+pub struct ZeroCopyStringBuilder<'a> {
+    segments: Vec<StringSegment<'a>>,
+    total_len: usize,
+}
+
+#[derive(Debug, Clone)]
+enum StringSegment<'a> {
+    Borrowed(&'a str),
+    #[cfg(feature = "std")]
+    Shared(std::sync::Arc<String>),
+    #[cfg(not(feature = "std"))]
+    Owned(String),
+    Slice { 
+        #[cfg(feature = "std")]
+        data: std::sync::Arc<String>, 
+        #[cfg(not(feature = "std"))]
+        data: String,
+        start: usize, 
+        end: usize 
+    },
+}
+
+impl<'a> ZeroCopyStringBuilder<'a> {
+    /// Creates a new empty string builder.
+    pub fn new() -> Self {
+        Self {
+            segments: Vec::new(),
+            total_len: 0,
+        }
+    }
+    
+    /// Creates a string builder with initial capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            segments: Vec::with_capacity(capacity),
+            total_len: 0,
+        }
+    }
+    
+    /// Appends a borrowed string slice.
+    pub fn append_borrowed(&mut self, s: &'a str) -> &mut Self {
+        self.total_len += s.len();
+        self.segments.push(StringSegment::Borrowed(s));
+        self
+    }
+    
+    /// Appends an owned string.
+    #[cfg(feature = "std")]
+    pub fn append_owned(&mut self, s: String) -> &mut Self {
+        self.total_len += s.len();
+        self.segments.push(StringSegment::Shared(std::sync::Arc::new(s)));
+        self
+    }
+    
+    /// Appends an owned string (no_std version).
+    #[cfg(not(feature = "std"))]
+    pub fn append_owned(&mut self, s: String) -> &mut Self {
+        self.total_len += s.len();
+        self.segments.push(StringSegment::Owned(s));
+        self
+    }
+    
+    /// Appends a shared string.
+    #[cfg(feature = "std")]
+    pub fn append_shared(&mut self, s: std::sync::Arc<String>) -> &mut Self {
+        self.total_len += s.len();
+        self.segments.push(StringSegment::Shared(s));
+        self
+    }
+    
+    /// Appends a slice of a shared string.
+    #[cfg(feature = "std")]
+    pub fn append_slice(&mut self, data: std::sync::Arc<String>, start: usize, end: usize) -> &mut Self {
+        assert!(start <= end && end <= data.len());
+        self.total_len += end - start;
+        self.segments.push(StringSegment::Slice { data, start, end });
+        self
+    }
+    
+    /// Appends a slice of an owned string (no_std version).
+    #[cfg(not(feature = "std"))]
+    pub fn append_slice(&mut self, data: String, start: usize, end: usize) -> &mut Self {
+        assert!(start <= end && end <= data.len());
+        self.total_len += end - start;
+        self.segments.push(StringSegment::Slice { data, start, end });
+        self
+    }
+    
+    /// Returns the total length without materializing the string.
+    pub fn len(&self) -> usize {
+        self.total_len
+    }
+    
+    /// Returns whether the builder is empty.
+    pub fn is_empty(&self) -> bool {
+        self.total_len == 0
+    }
+    
+    /// Builds the final string, minimizing allocations.
+    pub fn build(self) -> String {
+        if self.segments.is_empty() {
+            return String::new();
+        }
+        
+        if self.segments.len() == 1 {
+            return match self.segments.into_iter().next().unwrap() {
+                StringSegment::Borrowed(s) => s.to_string(),
+                #[cfg(feature = "std")]
+                StringSegment::Shared(s) => (*s).clone(),
+                #[cfg(not(feature = "std"))]
+                StringSegment::Owned(s) => s,
+                StringSegment::Slice { data, start, end } => {
+                    #[cfg(feature = "std")]
+                    { data[start..end].to_string() }
+                    #[cfg(not(feature = "std"))]
+                    { data[start..end].to_string() }
+                },
+            };
+        }
+        
+        let mut result = String::with_capacity(self.total_len);
+        for segment in self.segments {
+            match segment {
+                StringSegment::Borrowed(s) => result.push_str(s),
+                #[cfg(feature = "std")]
+                StringSegment::Shared(s) => result.push_str(&s),
+                #[cfg(not(feature = "std"))]
+                StringSegment::Owned(s) => result.push_str(&s),
+                StringSegment::Slice { data, start, end } => result.push_str(&data[start..end]),
+            }
+        }
+        result
+    }
+}
+
+impl<'a> Default for ZeroCopyStringBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Zero-copy view into a slice with lazy evaluation.
+/// 
+/// This provides a view that can be transformed without copying the underlying data.
+/// 
+/// Note: Due to the signature Fn(&T) -> T, transformations must clone the data.
+/// For true zero-copy, consider using a different transformation signature.
+pub struct SliceView<'a, T> {
+    data: &'a [T],
+    transforms: Vec<Box<dyn Fn(T) -> T + 'a>>,
+}
+
+impl<'a, T> SliceView<'a, T> {
+    /// Creates a new slice view.
+    pub fn new(data: &'a [T]) -> Self {
+        Self {
+            data,
+            transforms: Vec::new(),
+        }
+    }
+    
+    /// Adds a transformation to be applied lazily.
+    /// 
+    /// Multiple map calls will chain the transformations.
+    pub fn map<F>(mut self, f: F) -> Self
+    where
+        F: Fn(T) -> T + 'a,
+        T: Clone,
+    {
+        self.transforms.push(Box::new(f));
+        self
+    }
+    
+    /// Gets an element with all transformations applied.
+    pub fn get(&self, index: usize) -> Option<T>
+    where
+        T: Clone,
+    {
+        self.data.get(index).map(|item| {
+            let mut result = item.clone();
+            for transform in &self.transforms {
+                result = transform(result);
+            }
+            result
+        })
+    }
+    
+    /// Returns the length of the view.
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+    
+    /// Returns whether the view is empty.
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+    
+    /// Materializes the view into a vector.
+    pub fn to_vec(&self) -> Vec<T>
+    where
+        T: Clone,
+    {
+        self.data.iter().map(|item| {
+            let mut result = item.clone();
+            for transform in &self.transforms {
+                result = transform(result);
+            }
+            result
+        }).collect()
+    }
+}
+
+/// Memory-mapped buffer for zero-copy file operations.
+/// 
+/// This provides a zero-copy abstraction over memory-mapped files,
+/// following the principle of minimal allocations.
+#[cfg(feature = "std")]
+pub struct MappedBuffer {
+    ptr: NonNull<u8>,
+    len: usize,
+    _phantom: PhantomData<[u8]>,
+}
+
+#[cfg(feature = "std")]
+impl MappedBuffer {
+    /// Creates a new mapped buffer from raw parts.
+    /// 
+    /// # Safety
+    /// The caller must ensure that:
+    /// - The pointer is valid for the given length
+    /// - The memory remains valid for the lifetime of the buffer
+    /// - The memory is properly aligned
+    pub unsafe fn from_raw_parts(ptr: *mut u8, len: usize) -> Self {
+        Self {
+            ptr: NonNull::new_unchecked(ptr),
+            len,
+            _phantom: PhantomData,
+        }
+    }
+    
+    /// Returns a slice view of the buffer.
+    pub fn as_slice(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
+    }
+    
+    /// Returns the length of the buffer.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+    
+    /// Returns whether the buffer is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+    
+    /// Creates a zero-copy view into a subregion.
+    pub fn slice(&self, start: usize, end: usize) -> Option<&[u8]> {
+        if start <= end && end <= self.len {
+            Some(&self.as_slice()[start..end])
+        } else {
+            None
+        }
+    }
+}
+
+/// Lazy allocation wrapper that defers allocation until first use.
+/// 
+/// This follows the principle of lazy evaluation for better performance.
+/// 
+/// Note: This type is thread-safe when T is Send + Sync.
+pub struct LazyAlloc<T> {
+    #[cfg(feature = "std")]
+    value: std::sync::OnceLock<Box<T>>,
+    #[cfg(not(feature = "std"))]
+    value: Cell<Option<Box<T>>>,
+    init: fn() -> T,
+}
+
+impl<T> LazyAlloc<T> {
+    /// Creates a new lazy allocation with the given initializer.
+    pub fn new(init: fn() -> T) -> Self {
+        Self {
+            #[cfg(feature = "std")]
+            value: std::sync::OnceLock::new(),
+            #[cfg(not(feature = "std"))]
+            value: Cell::new(None),
+            init,
+        }
+    }
+    
+    /// Gets or initializes the value.
+    #[cfg(feature = "std")]
+    pub fn get_or_init(&self) -> &T {
+        self.value.get_or_init(|| Box::new((self.init)()))
+    }
+    
+    /// Gets or initializes the value (no_std version - not thread safe).
+    #[cfg(not(feature = "std"))]
+    pub fn get_or_init(&self) -> &T {
+        if self.value.get().is_none() {
+            self.value.set(Some(Box::new((self.init)())));
+        }
+        
+        // Safe: we just initialized it above if it was None
+        self.value.get().as_ref().unwrap().as_ref()
+    }
+    
+    /// Returns whether the value has been initialized.
+    #[cfg(feature = "std")]
+    pub fn is_initialized(&self) -> bool {
+        self.value.get().is_some()
+    }
+    
+    /// Returns whether the value has been initialized (no_std version).
+    #[cfg(not(feature = "std"))]
+    pub fn is_initialized(&self) -> bool {
+        self.value.get().is_some()
+    }
+}
+
+// Drop is handled automatically by Box
+
+// Debug implementation that doesn't require T: Debug
+impl<T> fmt::Debug for LazyAlloc<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LazyAlloc")
+            .field("initialized", &self.is_initialized())
+            .finish()
+    }
+}
+
+// Safety: LazyAlloc is Send if T is Send
+// With std: OnceLock<Box<T>> is Send if T is Send
+// Without std: Cell<Option<Box<T>>> is Send if T is Send
+unsafe impl<T: Send> Send for LazyAlloc<T> {}
+
+// Safety: LazyAlloc is Sync if T is Send + Sync
+// With std: OnceLock<Box<T>> is Sync if T is Send + Sync
+// Without std: Cell is not Sync, so we don't implement Sync
+#[cfg(feature = "std")]
+unsafe impl<T: Send + Sync> Sync for LazyAlloc<T> {}
 
 #[cfg(test)]
 mod tests {

@@ -44,7 +44,7 @@ impl PluginRegistry {
         
         // Check if already registered
         if self.factories.contains_key(&name) {
-            return Err(Error::Plugin(PluginError::AlreadyLoaded(name.as_str().to_string())));
+            return Err(Error::Plugin(PluginError::AlreadyLoaded { name: name.as_str().to_string() }));
         }
         
         // Create factory
@@ -68,7 +68,7 @@ impl PluginRegistry {
         
         // Check if already registered
         if self.factories.contains_key(&name) {
-            return Err(Error::Plugin(PluginError::AlreadyLoaded(name.as_str().to_string())));
+            return Err(Error::Plugin(PluginError::AlreadyLoaded { name: name.as_str().to_string() }));
         }
         
         self.factories.insert(name, Box::new(factory));
@@ -80,7 +80,7 @@ impl PluginRegistry {
     pub fn create(&self, name: &PluginName) -> Result<Box<dyn Plugin>> {
         self.factories
             .get(name)
-            .ok_or_else(|| Error::Plugin(PluginError::NotFound(name.as_str().to_string())))
+            .ok_or_else(|| Error::Plugin(PluginError::NotFound { name: name.as_str().to_string() }))
             .and_then(|factory| factory())
     }
     
@@ -110,7 +110,7 @@ impl PluginRegistry {
             self.type_map.retain(|_, v| v != name);
             Ok(())
         } else {
-            Err(Error::Plugin(PluginError::NotFound(name.as_str().to_string())))
+            Err(Error::Plugin(PluginError::NotFound { name: name.as_str().to_string() }))
         }
     }
     
@@ -189,22 +189,8 @@ mod tests {
             Version::new(1, 0, 0)
         }
         
-        fn initialize(&mut self) -> Result<()> {
-            self.value = 42;
-            Ok(())
-        }
-        
-        fn shutdown(&mut self) -> Result<()> {
-            self.value = 0;
-            Ok(())
-        }
-        
-        fn as_any(&self) -> &dyn core::any::Any {
-            self
-        }
-        
-        fn as_any_mut(&mut self) -> &mut dyn core::any::Any {
-            self
+        fn capabilities(&self) -> crate::core::plugin::PluginCapabilities {
+            crate::core::plugin::PluginCapabilities::none()
         }
     }
     

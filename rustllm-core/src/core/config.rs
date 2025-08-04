@@ -1,7 +1,7 @@
 //! Configuration system for plugins and components.
 
 use crate::foundation::{
-    error::{Error, Result},
+    error::{Error, Result, internal_error},
     types::PluginName,
 };
 use std::collections::HashMap;
@@ -168,7 +168,7 @@ impl ConfigStore {
     /// Sets a configuration value.
     pub fn set(&self, key: impl Into<String>, value: impl Into<ConfigValue>) -> Result<()> {
         let mut configs = self.configs.write()
-            .map_err(|_| Error::Other("Failed to acquire config lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire config lock"))?;
         configs.insert(key.into(), value.into());
         Ok(())
     }
@@ -176,7 +176,7 @@ impl ConfigStore {
     /// Gets a configuration value.
     pub fn get(&self, key: &str) -> Result<Option<ConfigValue>> {
         let configs = self.configs.read()
-            .map_err(|_| Error::Other("Failed to acquire config lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire config lock"))?;
         Ok(configs.get(key).cloned())
     }
     
@@ -191,14 +191,14 @@ impl ConfigStore {
     /// Removes a configuration value.
     pub fn remove(&self, key: &str) -> Result<Option<ConfigValue>> {
         let mut configs = self.configs.write()
-            .map_err(|_| Error::Other("Failed to acquire config lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire config lock"))?;
         Ok(configs.remove(key))
     }
     
     /// Clears all configuration values.
     pub fn clear(&self) -> Result<()> {
         let mut configs = self.configs.write()
-            .map_err(|_| Error::Other("Failed to acquire config lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire config lock"))?;
         configs.clear();
         Ok(())
     }
@@ -206,16 +206,16 @@ impl ConfigStore {
     /// Lists all configuration keys.
     pub fn keys(&self) -> Result<Vec<String>> {
         let configs = self.configs.read()
-            .map_err(|_| Error::Other("Failed to acquire config lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire config lock"))?;
         Ok(configs.keys().cloned().collect())
     }
     
     /// Merges another configuration store into this one.
     pub fn merge(&self, other: &ConfigStore) -> Result<()> {
         let other_configs = other.configs.read()
-            .map_err(|_| Error::Other("Failed to acquire other config lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire other config lock"))?;
         let mut configs = self.configs.write()
-            .map_err(|_| Error::Other("Failed to acquire config lock".to_string()))?;
+            .map_err(|_| internal_error("Failed to acquire config lock"))?;
         
         for (key, value) in other_configs.iter() {
             configs.insert(key.clone(), value.clone());

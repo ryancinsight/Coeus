@@ -83,19 +83,28 @@ impl ModelConfig for BasicModelConfig {
     fn validate(&self) -> Result<()> {
         if self.model_dim == 0 {
             return Err(crate::foundation::error::Error::Config(
-                "Model dimension must be greater than 0".to_string()
+                crate::foundation::error::ConfigError::ValidationFailed {
+                    field: "model_dim".to_string(),
+                    reason: "Model dimension must be greater than 0".to_string(),
+                }
             ));
         }
         
         if self.model_dim % self.head_count != 0 {
             return Err(crate::foundation::error::Error::Config(
-                "Model dimension must be divisible by head count".to_string()
+                crate::foundation::error::ConfigError::ValidationFailed {
+                    field: "model_dim".to_string(),
+                    reason: "Model dimension must be divisible by head count".to_string(),
+                }
             ));
         }
         
         if self.layer_count == 0 {
             return Err(crate::foundation::error::Error::Config(
-                "Layer count must be greater than 0".to_string()
+                crate::foundation::error::ConfigError::ValidationFailed {
+                    field: "layer_count".to_string(),
+                    reason: "Layer count must be greater than 0".to_string(),
+                }
             ));
         }
         
@@ -213,22 +222,42 @@ impl Transformer250MConfig {
     /// Validates the configuration.
     pub fn validate(&self) -> Result<()> {
         if self.hidden_dim % self.num_heads != 0 {
-            return Err(crate::foundation::error::Error::InvalidInput(format!(
-                "Hidden dimension {} must be divisible by number of heads {}",
-                self.hidden_dim, self.num_heads
-            )));
+            return Err(crate::foundation::error::Error::Config(
+                crate::foundation::error::ConfigError::ValidationFailed {
+                    field: "hidden_dim".to_string(),
+                    reason: format!(
+                        "Hidden dimension {} must be divisible by number of heads {}",
+                        self.hidden_dim, self.num_heads
+                    ),
+                }
+            ));
         }
         
         if self.num_layers == 0 {
-            return Err(crate::foundation::error::Error::InvalidInput("Number of layers must be > 0".to_string()));
+            return Err(crate::foundation::error::Error::Config(
+                crate::foundation::error::ConfigError::ValidationFailed {
+                    field: "num_layers".to_string(),
+                    reason: "Number of layers must be > 0".to_string(),
+                }
+            ));
         }
         
         if self.vocab_size == 0 {
-            return Err(crate::foundation::error::Error::InvalidInput("Vocabulary size must be > 0".to_string()));
+            return Err(crate::foundation::error::Error::Config(
+                crate::foundation::error::ConfigError::ValidationFailed {
+                    field: "vocab_size".to_string(),
+                    reason: "Vocabulary size must be > 0".to_string(),
+                }
+            ));
         }
         
         if self.max_seq_len == 0 {
-            return Err(crate::foundation::error::Error::InvalidInput("Maximum sequence length must be > 0".to_string()));
+            return Err(crate::foundation::error::Error::Config(
+                crate::foundation::error::ConfigError::ValidationFailed {
+                    field: "max_seq_len".to_string(),
+                    reason: "Maximum sequence length must be > 0".to_string(),
+                }
+            ));
         }
         
         Ok(())
@@ -310,6 +339,183 @@ pub trait GenerativeModel: Model {
         input: Self::Input,
         config: Self::GenerationConfig,
     ) -> Result<Self::Output>;
+}
+
+/// Trait for models that support training.
+/// 
+/// This trait provides a zero-cost abstraction for training models
+/// using iterator-based batch processing and lazy evaluation.
+pub trait TrainableModel: Model {
+    /// The type of training data.
+    type TrainingData;
+    
+    /// The type of optimizer state.
+    type OptimizerState: OptimizerState;
+    
+    /// The type of loss function.
+    type Loss: Loss;
+    
+    /// Performs a training step on a batch of data.
+    /// 
+    /// This method uses zero-copy semantics where possible and
+    /// returns the loss value for monitoring.
+    fn train_step(
+        &mut self,
+        batch: Self::TrainingData,
+        optimizer_state: &mut Self::OptimizerState,
+    ) -> Result<ModelFloat>;
+    
+    /// Computes the loss for a given batch without updating parameters.
+    fn compute_loss(&self, batch: Self::TrainingData) -> Result<ModelFloat>;
+    
+    /// Updates model parameters using gradients.
+    /// 
+    /// This method follows the principle of separation of concerns,
+    /// allowing different optimization strategies to be plugged in.
+    fn update_parameters(
+        &mut self,
+        gradients: &[ModelFloat],
+        optimizer_state: &mut Self::OptimizerState,
+    ) -> Result<()>;
+    
+    /// Returns whether the model is in training mode.
+    fn is_training(&self) -> bool;
+    
+    /// Sets the training mode.
+    fn set_training(&mut self, training: bool);
+}
+
+/// Trait representing an optimizer state.
+/// 
+/// This trait follows the Interface Segregation Principle (ISP)
+/// by providing a minimal interface for optimizer state management.
+pub trait OptimizerState: Send + Sync {
+    /// Resets the optimizer state.
+    fn reset(&mut self);
+    
+    /// Returns the current learning rate.
+    fn learning_rate(&self) -> ModelFloat;
+    
+    /// Updates the learning rate.
+    fn set_learning_rate(&mut self, lr: ModelFloat);
+    
+    /// Returns the current step count.
+    fn step_count(&self) -> usize;
+    
+    /// Increments the step count.
+    fn increment_step(&mut self);
+}
+
+/// Trait representing a loss function.
+/// 
+/// This trait provides a composable abstraction for different loss functions,
+/// following the Open/Closed Principle.
+pub trait Loss: Send + Sync {
+    /// Computes the loss given predictions and targets.
+    fn compute(&self, predictions: &[ModelFloat], targets: &[ModelFloat]) -> Result<ModelFloat>;
+    
+    /// Computes the gradient of the loss with respect to predictions.
+    fn gradient(&self, predictions: &[ModelFloat], targets: &[ModelFloat]) -> Result<Vec<ModelFloat>>;
+}
+
+/// Trait for diffusion models.
+/// 
+/// This trait provides support for diffusion-based generative models,
+/// using iterator combinators for efficient noise scheduling.
+pub trait DiffusionModel: Model {
+    /// The type of noise schedule.
+    type NoiseSchedule: NoiseSchedule;
+    
+    /// The type of sampler.
+    type Sampler: DiffusionSampler;
+    
+    /// Adds noise to the input according to the noise schedule.
+    /// 
+    /// This method uses zero-copy operations where possible.
+    fn add_noise(
+        &self,
+        input: &Self::Input,
+        timestep: usize,
+        noise_schedule: &Self::NoiseSchedule,
+    ) -> Result<Self::Input>;
+    
+    /// Predicts noise from a noisy input.
+    fn predict_noise(
+        &self,
+        noisy_input: Self::Input,
+        timestep: usize,
+    ) -> Result<Self::Output>;
+    
+    /// Performs a denoising step.
+    /// 
+    /// This method follows the Single Responsibility Principle by
+    /// focusing only on the denoising operation.
+    fn denoise_step(
+        &self,
+        noisy_input: Self::Input,
+        timestep: usize,
+        predicted_noise: Self::Output,
+        noise_schedule: &Self::NoiseSchedule,
+    ) -> Result<Self::Input>;
+    
+    /// Generates samples using the diffusion process.
+    /// 
+    /// This method uses iterator combinators for efficient processing
+    /// of the reverse diffusion process.
+    fn generate_samples(
+        &self,
+        initial_noise: Self::Input,
+        sampler: &Self::Sampler,
+        noise_schedule: &Self::NoiseSchedule,
+    ) -> Result<Self::Output>;
+}
+
+/// Trait for noise schedules in diffusion models.
+/// 
+/// This trait provides a pluggable interface for different noise schedules,
+/// adhering to the Dependency Inversion Principle.
+pub trait NoiseSchedule: Send + Sync {
+    /// Returns the number of diffusion steps.
+    fn num_steps(&self) -> usize;
+    
+    /// Returns the noise level (beta) at a given timestep.
+    fn beta(&self, timestep: usize) -> ModelFloat;
+    
+    /// Returns the cumulative product of alphas up to a given timestep.
+    fn alpha_bar(&self, timestep: usize) -> ModelFloat;
+    
+    /// Returns the signal-to-noise ratio at a given timestep.
+    /// 
+    /// Returns infinity when there is no noise (alpha_bar = 1.0).
+    fn snr(&self, timestep: usize) -> ModelFloat {
+        let alpha_bar = self.alpha_bar(timestep);
+        let noise_var = 1.0 - alpha_bar;
+        
+        if noise_var <= f32::EPSILON {
+            // No noise, SNR is effectively infinite
+            f32::INFINITY
+        } else {
+            alpha_bar / noise_var
+        }
+    }
+}
+
+/// Trait for diffusion samplers.
+/// 
+/// This trait allows different sampling strategies to be implemented,
+/// following the Strategy pattern.
+pub trait DiffusionSampler: Send + Sync {
+    /// Performs a sampling step.
+    fn sample_step(
+        &self,
+        current: &[ModelFloat],
+        predicted_noise: &[ModelFloat],
+        timestep: usize,
+        noise_schedule: &dyn NoiseSchedule,
+    ) -> Result<Vec<ModelFloat>>;
+    
+    /// Returns whether the sampler is deterministic.
+    fn is_deterministic(&self) -> bool;
 }
 
 /// Configuration for text generation.
