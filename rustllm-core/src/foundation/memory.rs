@@ -842,6 +842,29 @@ impl<'a, T> ZeroCopySliceBuilder<'a, T> {
         self
     }
 
+    /// Appends a slice of a shared vector (std version).
+    ///
+    /// This method enables zero-copy slicing of shared data, which is particularly
+    /// useful for tokenization where you want to reference parts of larger buffers.
+    #[cfg(feature = "std")]
+    pub fn append_slice(&mut self, data: std::sync::Arc<Vec<T>>, start: usize, end: usize) -> &mut Self {
+        assert!(start <= end && end <= data.len(), "Invalid slice bounds");
+        self.total_len += end - start;
+        self.segments.push(SliceSegment::Slice { data, start, end });
+        self
+    }
+
+    /// Appends a slice of an owned vector (no_std version).
+    ///
+    /// This method enables zero-copy slicing for no_std environments.
+    #[cfg(not(feature = "std"))]
+    pub fn append_slice(&mut self, data: Vec<T>, start: usize, end: usize) -> &mut Self {
+        assert!(start <= end && end <= data.len(), "Invalid slice bounds");
+        self.total_len += end - start;
+        self.segments.push(SliceSegment::Slice { data, start, end });
+        self
+    }
+
     /// Returns the total length of all segments.
     pub fn len(&self) -> usize {
         self.total_len
@@ -893,12 +916,20 @@ pub struct StringInterner {
     stats: std::sync::RwLock<InternerStats>,
 }
 
+/// Statistics for string interner performance tracking.
+///
+/// This struct provides insights into the effectiveness of string interning,
+/// helping to optimize memory usage and performance.
 #[cfg(feature = "std")]
 #[derive(Debug, Default)]
 pub struct InternerStats {
+    /// Total number of intern requests made.
     pub total_requests: usize,
+    /// Number of requests that resulted in cache hits.
     pub cache_hits: usize,
+    /// Number of unique strings stored in the interner.
     pub unique_strings: usize,
+    /// Estimated memory saved through string deduplication (in bytes).
     pub memory_saved: usize,
 }
 
@@ -943,6 +974,15 @@ impl StringInterner {
         stats.unique_strings += 1;
 
         interned
+    }
+
+    /// Handles a cache hit, updating statistics and returning the interned string.
+    fn handle_cache_hit(&self, interned: &std::sync::Arc<String>, s: &str) -> std::sync::Arc<String> {
+        let mut stats = self.stats.write().unwrap();
+        stats.total_requests += 1;
+        stats.cache_hits += 1;
+        stats.memory_saved += s.len();
+        Arc::clone(interned)
     }
 
     /// Returns current statistics.

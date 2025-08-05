@@ -199,7 +199,7 @@ fn bench_slice_view(c: &mut Criterion) {
     group.bench_function("slice_view_lazy", |b| {
         b.iter(|| {
             let view = SliceView::new(&data)
-                .map(|&x| x * 2.0 + 1.0);
+                .map(|x| x * 2.0 + 1.0);
             
             // Access only a few elements
             let mut sum = 0.0;
