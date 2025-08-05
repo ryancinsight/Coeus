@@ -404,14 +404,6 @@ pub trait IteratorExt: Iterator {
         SlidingWindows::new(self, window_size, step_size)
     }
     
-    /// Creates a zero-copy view iterator over slices.
-    fn zero_copy_windows<T>(self) -> ZeroCopyView<'static, T>
-    where
-        Self: Sized + Iterator<Item = &'static [T]>,
-    {
-        panic!("zero_copy_windows requires a slice iterator")
-    }
-    
     /// Creates a chunking iterator.
     fn chunks(self, size: usize) -> Chunks<Self, Self::Item>
     where
