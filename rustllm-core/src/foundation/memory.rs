@@ -767,7 +767,7 @@ impl SimdAlignedArena {
             self.alignment.max(core::mem::align_of::<T>())
         ).unwrap();
 
-        let ptr = self.arena.alloc_raw(layout) .cast::<T>();
+        let ptr = self.arena.alloc_raw(layout).cast::<T>();
 
         // Initialize with default values
         unsafe {
@@ -788,7 +788,7 @@ impl SimdAlignedArena {
             self.alignment.max(core::mem::align_of::<T>())
         ).unwrap();
 
-        let ptr = self.arena.alloc_raw(layout) .cast::<T>();
+        let ptr = self.arena.alloc_raw(layout).cast::<T>();
 
         unsafe {
             ptr::copy_nonoverlapping(data.as_ptr(), ptr, data.len());
@@ -1070,8 +1070,8 @@ impl BumpAllocator {
         let ptr = self.alloc_raw(layout)?;
 
         unsafe {
-            ptr::write(ptr .cast::<T>(), value);
-            Some(&mut *(ptr .cast::<T>()))
+            ptr::write(ptr.cast::<T>(), value);
+            Some(&mut *(ptr.cast::<T>()))
         }
     }
 
@@ -1081,7 +1081,7 @@ impl BumpAllocator {
         T: Copy,
     {
         let layout = Layout::array::<T>(slice.len()).ok()?;
-        let ptr = self.alloc_raw(layout)? .cast::<T>();
+        let ptr = self.alloc_raw(layout)?.cast::<T>();
 
         unsafe {
             ptr::copy_nonoverlapping(slice.as_ptr(), ptr, slice.len());
