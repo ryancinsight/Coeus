@@ -1,6 +1,7 @@
 //! Streaming example for processing large files with RustLLM Core.
 
 use rustllm_core::prelude::*;
+use rustllm_core::foundation::error::internal_error;
 use rustllm_core::foundation::iterator::IteratorExt;
 use rustllm_tokenizer_basic::BasicTokenizer;
 use rustllm_tokenizer_bpe::BpeTokenizer;

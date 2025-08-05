@@ -4,8 +4,8 @@
 //! of parameters, using a custom binary format optimized for speed and size.
 
 use crate::foundation::{
-    error::{Error, Result, ValidationError, ProcessingError, internal_error},
-    types::Version,
+    error::{Error, Result, ValidationError, ProcessingError},
+    types::{ModelId, Version},
 };
 use std::io::{Read, Write, Seek};
 use std::mem;

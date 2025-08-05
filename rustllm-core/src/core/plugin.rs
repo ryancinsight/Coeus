@@ -11,18 +11,16 @@
 //! - **Single Responsibility**: Each plugin has one clear purpose
 //! - **Liskov Substitution**: All plugins are interchangeable through traits
 
-use crate::core::traits::{Initialize, Lifecycle, Metadata, Named, Versioned, Described};
 use crate::foundation::{
     error::{Error, PluginError, Result},
     types::{PluginName, Version},
 };
+
+
 use core::fmt::Debug;
 
 #[cfg(feature = "std")]
 use std::sync::{Arc, RwLock, Weak};
-
-#[cfg(feature = "std")]
-use std::collections::HashMap;
 
 // ============================================================================
 // Core Plugin Trait
@@ -46,7 +44,7 @@ pub trait Plugin: Send + Sync + Debug {
     /// Called when the plugin is being unloaded.
     /// 
     /// This gives the plugin a chance to clean up resources.
-    fn on_unload(&mut self) -> Result<()> {
+    fn on_unload(&self) -> Result<()> {
         Ok(())
     }
 }
@@ -199,7 +197,7 @@ impl PluginState {
 #[cfg(feature = "std")]
 pub struct PluginEntry {
     /// The plugin instance.
-    plugin: Box<dyn Plugin>,
+    plugin: Arc<dyn Plugin>,
     
     /// Current state of the plugin.
     state: PluginState,
@@ -218,14 +216,15 @@ pub struct PluginEntry {
 impl PluginEntry {
     /// Creates a new plugin entry.
     pub fn new(plugin: Box<dyn Plugin>) -> Self {
+        let plugin_arc: Arc<dyn Plugin> = Arc::from(plugin);
         let metadata = PluginMetadata {
-            name: plugin.name().into(),
-            version: plugin.version(),
-            capabilities: plugin.capabilities(),
+            name: plugin_arc.name().into(),
+            version: plugin_arc.version(),
+            capabilities: plugin_arc.capabilities(),
         };
         
         Self {
-            plugin,
+            plugin: plugin_arc,
             state: PluginState::Registered,
             metadata,
             dependencies: Vec::new(),
@@ -267,9 +266,9 @@ impl PluginEntry {
         &*self.plugin
     }
     
-    /// Returns a mutable reference to the plugin.
-    pub fn plugin_mut(&mut self) -> &mut dyn Plugin {
-        &mut *self.plugin
+    /// Returns the plugin Arc.
+    pub fn plugin_arc(&self) -> Arc<dyn Plugin> {
+        self.plugin.clone()
     }
     
     /// Adds a dependency.
@@ -453,7 +452,7 @@ mod tests {
     
     #[derive(Debug)]
     struct TestPlugin {
-        initialized: bool,
+        initialized: std::sync::atomic::AtomicBool,
     }
     
     impl Plugin for TestPlugin {
@@ -469,8 +468,8 @@ mod tests {
             PluginCapabilities::none()
         }
         
-        fn on_unload(&mut self) -> Result<()> {
-            self.initialized = false;
+        fn on_unload(&self) -> Result<()> {
+            self.initialized.store(false, std::sync::atomic::Ordering::Relaxed);
             Ok(())
         }
     }

@@ -116,6 +116,9 @@ pub type ModelDouble = f64;
 /// Type alias for dynamic trait objects.
 pub type DynError = dyn core::error::Error + Send + Sync;
 
+/// Model identifier type.
+pub type ModelId = String;
+
 /// A type-safe wrapper for plugin names.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PluginName(String);

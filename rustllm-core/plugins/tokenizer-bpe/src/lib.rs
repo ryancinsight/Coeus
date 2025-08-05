@@ -12,9 +12,7 @@ use std::cmp::Ordering;
 
 /// BPE tokenizer plugin.
 #[derive(Debug, Default)]
-pub struct BpeTokenizerPlugin {
-    tokenizer: Option<BpeTokenizer>,
-}
+pub struct BpeTokenizerPlugin;
 
 impl Plugin for BpeTokenizerPlugin {
     fn name(&self) -> &str {

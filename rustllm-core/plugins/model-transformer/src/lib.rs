@@ -11,7 +11,7 @@ use rustllm_core::core::{
     serialization::{ModelSerializable, ModelHeader, ModelMetadata, ParameterSerializer, calculate_checksum},
 };
 use rustllm_core::foundation::{
-    error::{Result, Error, ProcessingError, ValidationError, internal_error},
+    error::{Result, Error, internal_error},
     types::Version,
 };
 use std::io::{Write, Read, Seek, SeekFrom};
@@ -385,9 +385,9 @@ mod tests {
     
     #[test]
     fn test_transformer_plugin() {
-        let mut plugin = TransformerModelPlugin::default();
+        let plugin = TransformerModelPlugin::default();
         assert_eq!(plugin.name(), "transformer_model");
-        assert!(plugin.initialize().is_ok());
+        assert_eq!(plugin.version(), Version::new(0, 1, 0));
     }
     
     #[test]

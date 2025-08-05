@@ -9,7 +9,7 @@
 
 use crate::core::plugin::{Plugin, PluginEntry, PluginState, PluginCapabilities};
 use crate::foundation::{
-    error::{Error, PluginError, Result, internal_error, ProcessingError},
+    error::{Error, PluginError, Result, internal_error},
     types::{PluginName, Version},
 };
 use crate::plugins::registry::PluginRegistry;
@@ -59,8 +59,8 @@ impl PluginManager {
                 
                 // Check if plugin is in a usable state
                 if entry.state().is_usable() {
-                    // Return a cloned Arc to the plugin
-                    return Ok(entry.plugin_arc().clone());
+                    // Return the plugin Arc
+                    return Ok(entry.plugin_arc());
                 }
             }
         }
@@ -99,20 +99,16 @@ impl PluginManager {
         // Transition to ready state
         entry.transition_to(PluginState::Ready)?;
         
+        // Get the plugin Arc before wrapping in RwLock
+        let plugin_arc = entry.plugin_arc();
+        
         // Wrap in Arc<RwLock> for thread-safe access
         let entry_arc = Arc::new(RwLock::new(entry));
         
         // Store plugin
-        plugins.insert(plugin_name.clone(), entry_arc.clone());
+        plugins.insert(plugin_name.clone(), entry_arc);
         
-        // Return a reference to the plugin
-        // SAFETY: We know entry_arc contains the plugin we just loaded.
-        let plugin_arc = {
-            let entry = entry_arc.read()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
-            // Clone the Arc<dyn Plugin> from the entry
-            entry.plugin_arc().clone()
-        };
+        // Return the plugin Arc
         Ok(plugin_arc)
     }
     
@@ -132,7 +128,7 @@ impl PluginManager {
                 entry.transition_to(PluginState::Stopping)?;
                 
                 // Call on_unload if available
-                entry.plugin_mut().on_unload()?;
+                entry.plugin().on_unload()?;
                 
                 entry.transition_to(PluginState::Stopped)?;
             }
@@ -230,36 +226,7 @@ impl PluginManager {
         }
     }
     
-    /// Executes a mutable operation on a plugin.
-    pub fn with_plugin_mut<F, R>(&self, name: &str, f: F) -> Result<R>
-    where
-        F: FnOnce(&mut dyn Plugin) -> Result<R>,
-    {
-        let plugin_name = PluginName::from(name);
-        
-        let plugins = self.plugins.read()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
-        
-        if let Some(entry_arc) = plugins.get(&plugin_name) {
-            let mut entry = entry_arc.write()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
-            
-            // Check if plugin is usable
-            if !entry.state().is_usable() {
-                return Err(Error::Plugin(PluginError::InvalidState {
-                    plugin: name.to_string(),
-                    expected: "Ready, Running, or Paused",
-                    actual: "Not usable",
-                }));
-            }
-            
-            f(entry.plugin_mut())
-        } else {
-            Err(Error::Plugin(PluginError::NotFound { 
-                name: name.to_string() 
-            }))
-        }
-    }
+
 }
 
 impl Default for PluginManager {
