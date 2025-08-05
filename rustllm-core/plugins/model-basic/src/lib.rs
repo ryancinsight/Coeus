@@ -1,7 +1,7 @@
 //! Basic model plugin implementation.
 
 use rustllm_core::core::plugin::{Plugin, ModelBuilderPlugin, PluginCapabilities};
-use rustllm_core::core::model::{Model, ModelBuilder, ModelConfig, BasicModelConfig};
+use rustllm_core::core::model::{Model, ForwardModel, ModelBuilder, ModelConfig, BasicModelConfig};
 use rustllm_core::foundation::{
     error::Result,
     types::Version,
@@ -54,7 +54,6 @@ impl Default for BasicModelBuilder {
 impl ModelBuilder for BasicModelBuilder {
     type Model = BasicModel;
     type Config = BasicModelConfig;
-    type Error = std::io::Error;
     
     fn build(&self, config: Self::Config) -> Result<Self::Model> {
         config.validate()?;
@@ -66,36 +65,49 @@ impl ModelBuilder for BasicModelBuilder {
 #[derive(Debug)]
 pub struct BasicModel {
     config: BasicModelConfig,
+    num_parameters: usize,
 }
 
 impl BasicModel {
     /// Creates a new basic model.
     pub fn new(config: BasicModelConfig) -> Self {
-        Self { config }
+        // Calculate parameters once during construction
+        let embed_params = config.vocab_size * config.model_dim;
+        let attn_params = config.layer_count * config.model_dim * config.model_dim * 4;
+        let ffn_params = config.layer_count * config.model_dim * config.model_dim * 8;
+        let num_parameters = embed_params + attn_params + ffn_params;
+        
+        Self { 
+            config,
+            num_parameters,
+        }
+    }
+    
+    /// Returns the number of parameters in the model.
+    pub fn num_parameters(&self) -> usize {
+        self.num_parameters
     }
 }
 
 impl Model for BasicModel {
-    type Input = Vec<f32>;
-    type Output = Vec<f32>;
     type Config = BasicModelConfig;
-    
-    fn forward(&self, input: Self::Input) -> Result<Self::Output> {
-        // Simple identity function for demonstration
-        Ok(input)
-    }
     
     fn config(&self) -> &Self::Config {
         &self.config
     }
     
-    fn num_parameters(&self) -> usize {
-        // Simplified calculation
-        let embed_params = self.config.vocab_size * self.config.model_dim;
-        let attn_params = self.config.layer_count * self.config.model_dim * self.config.model_dim * 4;
-        let ffn_params = self.config.layer_count * self.config.model_dim * self.config.model_dim * 8;
-        
-        embed_params + attn_params + ffn_params
+    fn name(&self) -> &str {
+        "BasicModel"
+    }
+}
+
+impl ForwardModel for BasicModel {
+    type Input = Vec<f32>;
+    type Output = Vec<f32>;
+    
+    fn forward(&self, input: Self::Input) -> Result<Self::Output> {
+        // Simple identity function for demonstration
+        Ok(input)
     }
 }
 

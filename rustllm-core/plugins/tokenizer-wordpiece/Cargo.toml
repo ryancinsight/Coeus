@@ -1,13 +1,14 @@
 [package]
 name = "rustllm-tokenizer-wordpiece"
-version = "0.1.0"
-edition = "2021"
-authors = ["Augment Code <hello@augmentcode.com>"]
-description = "Production-ready WordPiece tokenizer plugin for RustLLM"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/ryancinsight/Coeus"
-keywords = ["llm", "tokenizer", "wordpiece", "nlp", "plugin"]
-categories = ["text-processing", "algorithms"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "WordPiece tokenizer plugin for RustLLM Core"
+repository = "https://github.com/rustllm/rustllm-core"
+readme = "README.md"
+keywords = ["llm", "tokenizer", "wordpiece", "nlp", "text"]
+categories = ["text-processing", "parser-implementations"]
 
 [dependencies]
 rustllm-core = { path = "../../", features = ["std"] }
