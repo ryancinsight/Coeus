@@ -2,6 +2,7 @@
 
 use rustllm_core::prelude::*;
 use rustllm_core::foundation::error::internal_error;
+use rustllm_core::core::model::ForwardModel;
 use rustllm_model_transformer::{TransformerModelPlugin, TransformerModelBuilder};
 use std::time::Instant;
 

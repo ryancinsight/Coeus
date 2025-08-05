@@ -856,13 +856,14 @@ impl ForwardModel for TransformerModel {
 
         Ok(logits)
     }
+    
+    fn num_parameters(&self) -> usize {
+        self.parameters.len()
+    }
 }
 
 impl TransformerModel {
-    /// Returns the number of parameters in the model.
-    pub fn num_parameters(&self) -> usize {
-        self.parameters.len()
-    }
+    // Helper methods will go here if needed
 }
 
 impl ModelSerializable for TransformerModel {

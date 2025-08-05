@@ -74,22 +74,26 @@ fn sliding_window_analysis() -> Result<()> {
     println!("Total tokens: {}\n", tokens.len());
     
     // Analyze with different window sizes
-    for window_size in [3, 5, 7] {
-        println!("Window size {}: ", window_size);
-        
-        let windows: Vec<_> = tokens.iter()
-            .cloned()
-            .windows(window_size)
-            .take(5) // Just show first 5 windows
-            .collect();
-        
-        for (i, window) in windows.iter().enumerate() {
-            let window_text: Vec<_> = window.iter()
-                .filter_map(|t| t.as_str())
-                .collect();
-            println!("  Window {}: {:?}", i, window_text);
-        }
-        println!();
+    println!("Window size 3: ");
+    let windows_3: Vec<_> = tokens.iter()
+        .cloned()
+        .windows::<3>()
+        .take(5) // Just show first 5 windows
+        .collect();
+    
+    for (i, window) in windows_3.iter().enumerate() {
+        println!("  Window {}: {:?}", i, window);
+    }
+    
+    println!("\nWindow size 5: ");
+    let windows_5: Vec<_> = tokens.iter()
+        .cloned()
+        .windows::<5>()
+        .take(5) // Just show first 5 windows
+        .collect();
+    
+    for (i, window) in windows_5.iter().enumerate() {
+        println!("  Window {}: {:?}", i, window);
     }
     
     Ok(())

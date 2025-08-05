@@ -848,9 +848,25 @@ pub trait IteratorExt: Iterator + Sized {
         Scan::new(self, initial_state, f)
     }
     
-    /// Creates a prefetch iterator for cache optimization.
-    fn prefetch<const N: usize>(self) -> Prefetch<Self, N> {
+    /// Creates a prefetching iterator with double buffering.
+    fn prefetch<const N: usize>(self) -> Prefetch<Self, N>
+    where
+        Self::Item: Clone,
+    {
         Prefetch::new(self)
+    }
+    
+    /// Alias for batch() for backward compatibility.
+    fn lazy_batch(self, batch_size: usize) -> BatchIterator<Self> {
+        self.batch(batch_size, batch_size)
+    }
+    
+    /// Alias for map() for stream processing.
+    fn stream_map<B, F>(self, f: F) -> core::iter::Map<Self, F>
+    where
+        F: FnMut(Self::Item) -> B,
+    {
+        self.map(f)
     }
 }
 

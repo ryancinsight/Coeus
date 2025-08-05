@@ -508,6 +508,16 @@ impl<'a> ZeroCopyStringBuilder<'a> {
         self
     }
     
+    /// Alias for append_borrowed (backward compatibility).
+    pub fn push_borrowed(&mut self, s: &'a str) -> &mut Self {
+        self.append_borrowed(s)
+    }
+    
+    /// Alias for append_owned (backward compatibility).
+    pub fn push_owned(&mut self, s: String) -> &mut Self {
+        self.append_owned(s)
+    }
+    
     /// Returns the total length without materializing the string.
     pub const fn len(&self) -> usize {
         self.total_len

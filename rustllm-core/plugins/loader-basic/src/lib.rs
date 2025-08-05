@@ -81,6 +81,10 @@ impl ForwardModel for DummyModel {
         // Simple pass-through
         Ok(input)
     }
+    
+    fn num_parameters(&self) -> usize {
+        1000 // Dummy value
+    }
 }
 
 #[cfg(test)]

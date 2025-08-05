@@ -144,6 +144,7 @@ impl DiffusionSampler for DDPMSampler {
 }
 
 /// Simple diffusion model for demonstration.
+#[derive(Debug)]
 struct SimpleDiffusionModel {
     dim: usize,
 }
@@ -155,26 +156,33 @@ impl SimpleDiffusionModel {
 }
 
 impl Model for SimpleDiffusionModel {
-    type Input = Vec<f32>;
-    type Output = Vec<f32>;
     type Config = BasicModelConfig;
-    
-    fn forward(&self, input: Self::Input) -> Result<Self::Output> {
-        // Simplified noise prediction - in practice would be a neural network
-        Ok(input.iter().map(|&x| x * 0.9).collect())
-    }
     
     fn config(&self) -> &Self::Config {
         static CONFIG: BasicModelConfig = BasicModelConfig {
             model_dim: 128,
             head_count: 8,
-            layer_count: 6,
+            layer_count: 1,
             max_seq_len: 512,
-            vocab_size: 1000,
+            vocab_size: 10000,
             dropout: 0.0,
             layer_norm_eps: 1e-5,
         };
         &CONFIG
+    }
+    
+    fn name(&self) -> &str {
+        "SimpleDiffusionModel"
+    }
+}
+
+impl ForwardModel for SimpleDiffusionModel {
+    type Input = Vec<f32>;
+    type Output = Vec<f32>;
+    
+    fn forward(&self, input: Self::Input) -> Result<Self::Output> {
+        // Simplified noise prediction - in practice would be a neural network
+        Ok(input.iter().map(|&x| x * 0.9).collect())
     }
     
     fn num_parameters(&self) -> usize {
@@ -207,7 +215,7 @@ impl DiffusionModel for SimpleDiffusionModel {
     
     fn predict_noise(
         &self,
-        noisy_input: Self::Input,
+        noisy_input: &Self::Input,
         timestep: usize,
     ) -> Result<Self::Output> {
         // In practice, this would condition on timestep
@@ -217,39 +225,39 @@ impl DiffusionModel for SimpleDiffusionModel {
     
     fn denoise_step(
         &self,
-        noisy_input: Self::Input,
+        noisy_input: &Self::Input,
         timestep: usize,
-        predicted_noise: Self::Output,
         noise_schedule: &Self::NoiseSchedule,
+        sampler: &Self::Sampler,
     ) -> Result<Self::Input> {
-        let alpha_bar = noise_schedule.alpha_bar(timestep);
+        // First predict the noise
+        let predicted_noise = self.predict_noise(noisy_input, timestep)?;
         
-        // Remove predicted noise
-        let denoised: Vec<f32> = noisy_input.iter()
-            .zip(predicted_noise.iter())
-            .map(|(&noisy, &noise)| {
-                (noisy - noise * (1.0 - alpha_bar).sqrt()) / alpha_bar.sqrt()
-            })
-            .collect();
-        
-        Ok(denoised)
+        // Use sampler to perform denoising step
+        sampler.sample_step(noisy_input, &predicted_noise, timestep, noise_schedule)
     }
     
     fn generate_samples(
         &self,
-        initial_noise: Self::Input,
-        sampler: &Self::Sampler,
+        num_samples: usize,
         noise_schedule: &Self::NoiseSchedule,
-    ) -> Result<Self::Output> {
-        let mut current = initial_noise;
+        sampler: &Self::Sampler,
+    ) -> Result<Vec<Self::Output>> {
+        let mut samples = Vec::new();
         
-        // Reverse diffusion process using iterator
-        for timestep in (0..noise_schedule.num_steps()).rev() {
-            let predicted_noise = self.predict_noise(current.clone(), timestep)?;
-            current = sampler.sample_step(&current, &predicted_noise, timestep, noise_schedule)?;
+        for _ in 0..num_samples {
+            // Start with random noise
+            let mut current: Vec<f32> = (0..self.dim).map(|i| ((i + 1) as f32 * 0.1).sin()).collect();
+            
+            // Reverse diffusion process
+            for timestep in (0..noise_schedule.num_steps()).rev() {
+                current = self.denoise_step(&current, timestep, noise_schedule, sampler)?;
+            }
+            
+            samples.push(current);
         }
         
-        Ok(current)
+        Ok(samples)
     }
 }
 
@@ -284,23 +292,31 @@ fn main() -> Result<()> {
     
     // Demonstrate reverse diffusion (generation)
     println!("\nReverse diffusion (generation):");
-    let initial_noise: Vec<f32> = (0..10).map(|i| ((i as f32 + 1.0) * 0.3).sin()).collect();
-    println!("Initial noise: {:?}", initial_noise);
-    
-    let generated = model.generate_samples(initial_noise, &sampler, &noise_schedule)?;
-    println!("Generated samples: {:?}", generated);
+    let generated = model.generate_samples(3, &noise_schedule, &sampler)?;
+    for (i, sample) in generated.iter().enumerate() {
+        println!("Generated sample {}: mean={:.4}, std={:.4}",
+                 i,
+                 sample.iter().sum::<f32>() / sample.len() as f32,
+                 (sample.iter().map(|&x| x * x).sum::<f32>() / sample.len() as f32).sqrt());
+    }
     
     // Demonstrate efficient batch processing with iterators
     println!("\nBatch diffusion with iterator combinators:");
     let batch_results: Vec<Vec<f32>> = (0..5)
         .map(|i| {
-            let noise: Vec<f32> = (0..10)
+            // Generate different initial noise for each batch
+            (0..10)
                 .map(|j| ((i * 10 + j) as f32 * 0.1).cos())
-                .collect();
-            noise
+                .collect::<Vec<f32>>()
         })
-        .stream_map(|noise| {
-            model.generate_samples(noise, &sampler, &noise_schedule).unwrap_or_default()
+        .stream_map(|initial_noise| {
+            // Process each noise vector through reverse diffusion
+            let mut current = initial_noise;
+            for timestep in (0..noise_schedule.num_steps()).rev() {
+                current = model.denoise_step(&current, timestep, &noise_schedule, &sampler)
+                    .unwrap_or_else(|_| vec![0.0; 10]);
+            }
+            current
         })
         .collect();
     

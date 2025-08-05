@@ -109,6 +109,10 @@ impl ForwardModel for BasicModel {
         // Simple identity function for demonstration
         Ok(input)
     }
+    
+    fn num_parameters(&self) -> usize {
+        self.num_parameters
+    }
 }
 
 #[cfg(test)]

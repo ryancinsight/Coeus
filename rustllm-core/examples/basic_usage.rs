@@ -70,7 +70,7 @@ fn main() -> Result<()> {
     println!("------------------------");
     
     use rustllm_model_basic::BasicModelBuilder;
-    use rustllm_core::core::model::{ModelBuilder, BasicModelConfig};
+    use rustllm_core::core::model::{ModelBuilder, BasicModelConfig, ForwardModel};
     
     let builder = BasicModelBuilder::new();
     let config = BasicModelConfig::default();
@@ -88,13 +88,14 @@ fn main() -> Result<()> {
     println!("Example 5: Zero-Copy Memory Management");
     println!("-------------------------------------");
     
-    use rustllm_core::foundation::memory::{Arena, CowStr, StrBuilder};
+    use rustllm_core::foundation::memory::{Arena, CowStr, ZeroCopyStringBuilder};
     
     // Arena allocator
-    let arena = Arena::new(1024);
+    let mut arena = Arena::new(1024);
     let x = arena.alloc(42);
-    let slice = arena.alloc_slice(&[1, 2, 3, 4, 5]);
     println!("Arena allocated value: {}", x);
+    
+    let slice = arena.alloc_slice(&[1, 2, 3, 4, 5]);
     println!("Arena allocated slice: {:?}", slice);
     
     // Copy-on-write strings
@@ -106,7 +107,7 @@ fn main() -> Result<()> {
     println!("Modified COW: {:?}", cow.as_str());
     
     // Zero-copy string builder
-    let mut builder = StrBuilder::new();
+    let mut builder = ZeroCopyStringBuilder::new();
     builder.push_borrowed("Hello");
     builder.push_borrowed(" ");
     builder.push_owned(String::from("RustLLM"));
