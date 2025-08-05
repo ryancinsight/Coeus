@@ -1,0 +1,26 @@
+[package]
+name = "rustllm-tokenizer-wordpiece"
+version = "0.1.0"
+edition = "2021"
+authors = ["Augment Code <hello@augmentcode.com>"]
+description = "Production-ready WordPiece tokenizer plugin for RustLLM"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ryancinsight/Coeus"
+keywords = ["llm", "tokenizer", "wordpiece", "nlp", "plugin"]
+categories = ["text-processing", "algorithms"]
+
+[dependencies]
+rustllm-core = { path = "../../", features = ["std"] }
+unicode-normalization = "0.1"
+unicode-segmentation = "1.10"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "wordpiece_bench"
+harness = false
+
+[features]
+default = ["std"]
+std = []

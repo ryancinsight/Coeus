@@ -397,7 +397,6 @@ impl PositionalEncoding {
 struct TransformerBlock {
     attention: MultiHeadAttention,
     feed_forward: FeedForward,
-    hidden_dim: usize,
 }
 
 impl TransformerBlock {
@@ -406,7 +405,6 @@ impl TransformerBlock {
         Self {
             attention: MultiHeadAttention::new(hidden_dim, num_heads),
             feed_forward: FeedForward::new(hidden_dim, intermediate_dim),
-            hidden_dim,
         }
     }
 
@@ -588,10 +586,8 @@ impl TransformerModel {
         let token_embed_size = vocab_size * hidden_dim;
         offset += token_embed_size;
 
-        // Position embeddings (if using learned positions)
-        let pos_embed_offset = offset;
-        let pos_embed_size = self.config.max_seq_len * hidden_dim;
-        offset += pos_embed_size;
+        // Position embeddings (using sinusoidal, no parameters needed)
+        // Sinusoidal encodings are computed on-the-fly, no storage required
 
         // Layer parameters
         let mut layer_offsets = Vec::with_capacity(num_layers);
@@ -636,8 +632,6 @@ impl TransformerModel {
         ParameterLayout {
             token_embed_offset,
             token_embed_size,
-            pos_embed_offset,
-            pos_embed_size,
             layer_offsets,
             final_ln_offset,
             output_proj_offset,
@@ -666,13 +660,12 @@ impl TransformerModel {
 ///
 /// This structure provides a clear mapping of where each parameter
 /// type is located in the parameter buffer, enabling efficient
-/// cache-friendly access patterns.
+/// cache-friendly access patterns. Positional encodings are computed
+/// on-the-fly using sinusoidal functions, requiring no parameter storage.
 #[derive(Debug, Clone)]
 struct ParameterLayout {
     token_embed_offset: usize,
     token_embed_size: usize,
-    pos_embed_offset: usize,
-    pos_embed_size: usize,
     layer_offsets: Vec<usize>,
     final_ln_offset: usize,
     output_proj_offset: usize,
@@ -773,7 +766,7 @@ impl Model for TransformerModel {
             let ff_bias = if self.config.use_bias {
                 let bias_size = self.config.intermediate_dim + hidden_dim;
                 let bias = self.get_params(offset, bias_size)?;
-                offset += bias_size;
+                // Note: offset not used after this point in the loop
                 Some(bias)
             } else {
                 None
