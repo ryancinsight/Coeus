@@ -202,8 +202,8 @@ impl Tensor {
     /// Creates a new tensor with the given shape and data.
     pub fn new(shape: Shape, data: Vec<ModelFloat>) -> Result<Self> {
         if shape.numel() != data.len() {
-            return Err(crate::foundation::error::Error::Model(
-                crate::foundation::error::ModelError::ShapeMismatch {
+            return Err(crate::foundation::error::Error::Processing(
+                crate::foundation::error::ProcessingError::ShapeMismatch {
                     expected: format!("numel={}", shape.numel()),
                     actual: format!("len={}", data.len()),
                 }
@@ -322,18 +322,20 @@ impl ModelConfig for BasicModelConfig {
     fn validate(&self) -> Result<()> {
         if self.model_dim == 0 {
             return Err(crate::foundation::error::Error::Config(
-                crate::foundation::error::ConfigError::ValidationFailed {
-                    field: "model_dim".to_string(),
-                    reason: "Model dimension must be greater than 0".to_string(),
+                crate::foundation::error::ConfigError::Invalid {
+                    key: "model_dim".to_string(),
+                    value: self.model_dim.to_string(),
+                    error: "Model dimension must be greater than 0".to_string(),
                 }
             ));
         }
         
         if self.model_dim % self.head_count != 0 {
             return Err(crate::foundation::error::Error::Config(
-                crate::foundation::error::ConfigError::ValidationFailed {
-                    field: "model_dim".to_string(),
-                    reason: "Model dimension must be divisible by head count".to_string(),
+                crate::foundation::error::ConfigError::Invalid {
+                    key: "model_dim".to_string(),
+                    value: format!("{} (head_count={})", self.model_dim, self.head_count),
+                    error: "Model dimension must be divisible by head count".to_string(),
                 }
             ));
         }
@@ -443,36 +445,40 @@ impl ModelConfig for Transformer250MConfig {
     fn validate(&self) -> Result<()> {
         if self.num_layers == 0 {
             return Err(crate::foundation::error::Error::Config(
-                crate::foundation::error::ConfigError::ValidationFailed {
-                    field: "num_layers".to_string(),
-                    reason: "Number of layers must be greater than 0".to_string(),
+                crate::foundation::error::ConfigError::Invalid {
+                    key: "num_layers".to_string(),
+                    value: self.num_layers.to_string(),
+                    error: "Number of layers must be greater than 0".to_string(),
                 }
             ));
         }
         
         if self.vocab_size == 0 {
             return Err(crate::foundation::error::Error::Config(
-                crate::foundation::error::ConfigError::ValidationFailed {
-                    field: "vocab_size".to_string(),
-                    reason: "Vocabulary size must be greater than 0".to_string(),
+                crate::foundation::error::ConfigError::Invalid {
+                    key: "vocab_size".to_string(),
+                    value: self.vocab_size.to_string(),
+                    error: "Vocabulary size must be greater than 0".to_string(),
                 }
             ));
         }
         
         if self.max_seq_len == 0 {
             return Err(crate::foundation::error::Error::Config(
-                crate::foundation::error::ConfigError::ValidationFailed {
-                    field: "max_seq_len".to_string(),
-                    reason: "Maximum sequence length must be greater than 0".to_string(),
+                crate::foundation::error::ConfigError::Invalid {
+                    key: "max_seq_len".to_string(),
+                    value: self.max_seq_len.to_string(),
+                    error: "Maximum sequence length must be greater than 0".to_string(),
                 }
             ));
         }
         
         if self.hidden_dim % self.num_heads != 0 {
             return Err(crate::foundation::error::Error::Config(
-                crate::foundation::error::ConfigError::ValidationFailed {
-                    field: "hidden_dim".to_string(),
-                    reason: format!(
+                crate::foundation::error::ConfigError::Invalid {
+                    key: "hidden_dim".to_string(),
+                    value: format!("{} (num_heads={})", self.hidden_dim, self.num_heads),
+                    error: format!(
                         "Hidden dimension {} must be divisible by number of heads {}",
                         self.hidden_dim, self.num_heads
                     ),

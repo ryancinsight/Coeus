@@ -9,7 +9,7 @@
 
 use crate::core::plugin::{Plugin, PluginEntry, PluginState, PluginCapabilities};
 use crate::foundation::{
-    error::{Error, PluginError, Result, internal_error},
+    error::{Error, PluginError, Result, ProcessingError},
     types::{PluginName, Version},
 };
 use crate::plugins::registry::PluginRegistry;
@@ -36,10 +36,21 @@ impl PluginManager {
         }
     }
     
+    /// Helper to create a processing error for lock failures
+    fn lock_error(component: &'static str) -> Error {
+        Error::Processing(ProcessingError::Failed {
+            component,
+            reason: "Failed to acquire lock".to_string(),
+        })
+    }
+    
     /// Registers a plugin type with the manager.
     pub fn register<P: Plugin + Default + 'static>(&self) -> Result<()> {
         let mut registry = self.registry.write()
-            .map_err(|_| internal_error("Failed to acquire registry lock"))?;
+            .map_err(|_| Error::Processing(ProcessingError::Failed {
+                component: "plugin_manager",
+                reason: "Failed to acquire registry lock".to_string(),
+            }))?;
         
         registry.register::<P>()
     }
@@ -51,11 +62,11 @@ impl PluginManager {
         // Double-checked locking pattern for thread safety
         {
             let plugins = self.plugins.read()
-                .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
+                .map_err(|_| Self::lock_error("plugins"))?;
             
             if let Some(entry_arc) = plugins.get(&plugin_name) {
                 let entry = entry_arc.read()
-                    .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
+                    .map_err(|_| Self::lock_error("plugin_entry"))?;
                 
                 // Check if plugin is in a usable state
                 if entry.state().is_usable() {
@@ -67,18 +78,20 @@ impl PluginManager {
         
         // Plugin not loaded, acquire write lock
         let mut plugins = self.plugins.write()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
+            .map_err(|_| Self::lock_error("plugins"))?;
         
         // Check again in case another thread loaded it
         if plugins.contains_key(&plugin_name) {
-            return Err(Error::Plugin(PluginError::AlreadyLoaded { 
-                name: name.to_string() 
+            return Err(Error::Plugin(PluginError::Lifecycle { 
+                name: name.to_string(),
+                current_state: "Ready".to_string(),
+                operation: "load",
             }));
         }
         
         // Create plugin from registry
         let registry = self.registry.read()
-            .map_err(|_| internal_error("Failed to acquire registry lock"))?;
+            .map_err(|_| Self::lock_error("registry"))?;
         
         let plugin = registry.create(&plugin_name)?;
         
@@ -109,7 +122,7 @@ impl PluginManager {
         // SAFETY: We know entry_arc contains the plugin we just loaded.
         let plugin_arc = {
             let entry = entry_arc.read()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
+                .map_err(|_| Self::lock_error("plugin_entry"))?;
             // Clone the Arc<dyn Plugin> from the entry
             entry.plugin_arc_cloned()
         };
@@ -121,11 +134,11 @@ impl PluginManager {
         let plugin_name = PluginName::from(name);
         
         let mut plugins = self.plugins.write()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
+            .map_err(|_| Self::lock_error("plugins"))?;
         
         if let Some(entry_arc) = plugins.remove(&plugin_name) {
             let mut entry = entry_arc.write()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
+                .map_err(|_| Self::lock_error("plugin_entry"))?;
             
             // Transition through proper states
             if entry.state().can_stop() {
@@ -140,7 +153,8 @@ impl PluginManager {
             Ok(())
         } else {
             Err(Error::Plugin(PluginError::NotFound { 
-                name: name.to_string() 
+                name: name.to_string(),
+                available: self.list_available().unwrap_or_default(),
             }))
         }
     }
@@ -148,7 +162,7 @@ impl PluginManager {
     /// Lists all loaded plugins.
     pub fn list_loaded(&self) -> Result<Vec<String>> {
         let plugins = self.plugins.read()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
+            .map_err(|_| Self::lock_error("plugins"))?;
         
         Ok(plugins.keys().map(|name| name.as_str().to_string()).collect())
     }
@@ -156,7 +170,7 @@ impl PluginManager {
     /// Lists all available plugins in the registry.
     pub fn list_available(&self) -> Result<Vec<String>> {
         let registry = self.registry.read()
-            .map_err(|_| internal_error("Failed to acquire registry lock"))?;
+            .map_err(|_| Self::lock_error("registry"))?;
         
         Ok(registry.list())
     }
@@ -166,11 +180,11 @@ impl PluginManager {
         let plugin_name = PluginName::from(name);
         
         let plugins = self.plugins.read()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
+            .map_err(|_| Self::lock_error("plugins"))?;
         
         if let Some(entry_arc) = plugins.get(&plugin_name) {
             let entry = entry_arc.read()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
+                .map_err(|_| Self::lock_error("plugin_entry"))?;
             
             Ok(PluginInfo {
                 name: plugin_name,
@@ -180,7 +194,8 @@ impl PluginManager {
             })
         } else {
             Err(Error::Plugin(PluginError::NotFound { 
-                name: name.to_string() 
+                name: name.to_string(),
+                available: self.list_available().unwrap_or_default(),
             }))
         }
     }
@@ -205,25 +220,26 @@ impl PluginManager {
         let plugin_name = PluginName::from(name);
         
         let plugins = self.plugins.read()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
+            .map_err(|_| Self::lock_error("plugins"))?;
         
         if let Some(entry_arc) = plugins.get(&plugin_name) {
             let entry = entry_arc.read()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
+                .map_err(|_| Self::lock_error("plugin_entry"))?;
             
             // Check if plugin is usable
             if !entry.state().is_usable() {
-                return Err(Error::Plugin(PluginError::InvalidState {
-                    plugin: name.to_string(),
-                    expected: "Ready, Running, or Paused",
-                    actual: "Not usable",
+                return Err(Error::Plugin(PluginError::Lifecycle {
+                    name: name.to_string(),
+                    current_state: format!("{:?}", entry.state()),
+                    operation: "access",
                 }));
             }
             
             entry.with_plugin(f)?
         } else {
             Err(Error::Plugin(PluginError::NotFound { 
-                name: name.to_string() 
+                name: name.to_string(),
+                available: self.list_available().unwrap_or_default(),
             }))
         }
     }
@@ -236,25 +252,26 @@ impl PluginManager {
         let plugin_name = PluginName::from(name);
         
         let plugins = self.plugins.read()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
+            .map_err(|_| Self::lock_error("plugins"))?;
         
         if let Some(entry_arc) = plugins.get(&plugin_name) {
             let entry = entry_arc.write()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
+                .map_err(|_| Self::lock_error("plugin_entry"))?;
             
             // Check if plugin is usable
             if !entry.state().is_usable() {
-                return Err(Error::Plugin(PluginError::InvalidState {
-                    plugin: name.to_string(),
-                    expected: "Ready, Running, or Paused",
-                    actual: "Not usable",
+                return Err(Error::Plugin(PluginError::Lifecycle {
+                    name: name.to_string(),
+                    current_state: format!("{:?}", entry.state()),
+                    operation: "access",
                 }));
             }
             
             entry.with_plugin_mut(f)
         } else {
             Err(Error::Plugin(PluginError::NotFound { 
-                name: name.to_string() 
+                name: name.to_string(),
+                available: self.list_available().unwrap_or_default(),
             }))
         }
     }

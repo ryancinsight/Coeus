@@ -4,7 +4,7 @@
 //! of parameters, using a custom binary format optimized for speed and size.
 
 use crate::foundation::{
-    error::{Error, Result, ValidationError, ProcessingError},
+    error::{Error, Result, ProcessingError, invalid_input},
     types::Version,
 };
 use std::io::{Read, Write, Seek};
@@ -18,15 +18,13 @@ const FORMAT_VERSION: u32 = 1;
 
 // Helper function for validation errors
 fn validation_error(msg: &str) -> Error {
-    Error::Validation(ValidationError::PatternMismatch {
-        value: "input".to_string(),
-        pattern: msg.to_string(),
-    })
+    invalid_input(msg)
 }
 
 // Helper function for I/O errors
 fn io_error(msg: &str) -> Error {
-    Error::Processing(ProcessingError::Internal {
+    Error::Processing(ProcessingError::Failed {
+        component: "io",
         reason: msg.to_string(),
     })
 }

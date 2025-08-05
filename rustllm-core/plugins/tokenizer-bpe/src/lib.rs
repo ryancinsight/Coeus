@@ -348,7 +348,8 @@ impl VocabularyTokenizer for BpeTokenizer {
             Ok(())
         } else {
             Err(Error::Processing(rustllm_core::foundation::error::ProcessingError::InvalidInput { 
-                reason: format!("Token not found: {}", token) 
+                description: format!("Token not found: {}", token),
+                position: None,
             }))
         }
     }

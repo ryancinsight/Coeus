@@ -36,7 +36,8 @@ impl ModelLoaderPlugin for BasicLoaderPlugin {
         // For demonstration, we just create a dummy model
         if !path.ends_with(".txt") && !path.ends_with(".json") {
             return Err(Error::Processing(ProcessingError::Unsupported { 
-                operation: format!("Loading file format: {}", path) 
+                operation: format!("Loading file format: {}", path),
+                reason: None,
             }));
         }
         

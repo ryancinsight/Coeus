@@ -21,7 +21,7 @@
 
 use crate::{
     foundation::{
-        error::{Error, PluginError, Result},
+        error::{Error, PluginError, ProcessingError, Result},
         types::{PluginName, Version},
     },
     core::traits::{HealthStatus, MetricsSnapshot},
@@ -312,10 +312,10 @@ impl PluginEntry {
     /// Transitions to a new state.
     pub fn transition_to(&mut self, new_state: PluginState) -> Result<()> {
         if !self.state.can_transition_to(new_state) {
-            return Err(Error::Plugin(PluginError::InvalidState {
-                plugin: self.name().to_string(),
-                expected: "valid transition",
-                actual: "invalid transition",
+            return Err(Error::Plugin(PluginError::Lifecycle {
+                name: self.name().to_string(),
+                current_state: format!("{:?}", self.state),
+                operation: "transition",
             }));
         }
         
@@ -339,10 +339,9 @@ impl PluginEntry {
         F: FnOnce(&dyn Plugin) -> R,
     {
         let plugin = self.plugin.read()
-            .map_err(|_| Error::Plugin(PluginError::InvalidState {
-                plugin: self.name().to_string(),
-                expected: "readable",
-                actual: "lock poisoned",
+            .map_err(|_| Error::Processing(ProcessingError::Failed {
+                component: "plugin_lock",
+                reason: format!("Failed to acquire read lock for plugin '{}'", self.name()),
             }))?;
         Ok(f(&**plugin))
     }
@@ -353,10 +352,9 @@ impl PluginEntry {
         F: FnOnce(&mut dyn Plugin) -> Result<R>,
     {
         let mut plugin = self.plugin.write()
-            .map_err(|_| Error::Plugin(PluginError::InvalidState {
-                plugin: self.name().to_string(),
-                expected: "writable",
-                actual: "lock poisoned",
+            .map_err(|_| Error::Processing(ProcessingError::Failed {
+                component: "plugin_lock",
+                reason: format!("Failed to acquire write lock for plugin '{}'", self.name()),
             }))?;
         f(&mut **plugin)
     }

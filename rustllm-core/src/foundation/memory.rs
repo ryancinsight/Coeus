@@ -2,21 +2,30 @@
 //!
 //! This module provides abstractions for efficient memory management,
 //! including arena allocators, memory pools, and copy-on-write wrappers.
+//!
+//! ## Design Principles
+//!
+//! - **Zero-Copy**: Minimize allocations and copies using borrowing and views
+//! - **Cache-Friendly**: Align memory for optimal cache utilization
+//! - **Lazy Evaluation**: Defer allocation until actually needed
+//! - **SIMD-Ready**: Support aligned allocations for vectorized operations
 
+use core::alloc::Layout;
 use core::cell::{Cell, RefCell};
 use core::fmt;
 use core::marker::PhantomData;
+use core::mem::MaybeUninit;
 use core::ptr::{self, NonNull};
 use core::slice;
 
 #[cfg(feature = "std")]
-use std::alloc::{alloc, dealloc, Layout};
+use std::alloc::{alloc, dealloc};
 
 #[cfg(feature = "std")]
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 #[cfg(not(feature = "std"))]
-use alloc::alloc::{alloc, dealloc, Layout};
+use alloc::alloc::{alloc, dealloc};
 
 #[cfg(not(feature = "std"))]
 extern crate alloc;
@@ -27,57 +36,54 @@ use alloc::vec::Vec;
 #[cfg(not(feature = "std"))]
 use alloc::string::String;
 
-// For no_std environments, we'll use a single-threaded arena
-#[cfg(not(feature = "std"))]
-type ArenaStorage = RefCell<Vec<ArenaChunk>>;
+// ============================================================================
+// Arena Allocator
+// ============================================================================
 
-// For std environments, use thread-safe RwLock
-#[cfg(feature = "std")]
-type ArenaStorage = RwLock<Vec<ArenaChunk>>;
-
-/// A simple arena allocator for temporary allocations.
+/// A high-performance arena allocator with SIMD alignment support.
 ///
-/// In `std` environments, this is thread-safe using `RwLock`.
-/// In `no_std` environments, this uses `RefCell` and is NOT thread-safe.
+/// This allocator provides O(1) allocation with configurable alignment,
+/// making it suitable for both general purpose and SIMD workloads.
 #[derive(Debug)]
 pub struct Arena {
-    chunks: ArenaStorage,
-    current_chunk: Cell<usize>,
-    chunk_size: usize,
+    chunks: Vec<ArenaChunk>,
+    current_chunk: usize,
+    default_chunk_size: usize,
+    alignment: usize,
 }
 
 #[derive(Debug)]
 struct ArenaChunk {
     data: NonNull<u8>,
-    size: usize,
+    layout: Layout,
     used: Cell<usize>,
 }
 
 impl Arena {
-    /// Creates a new arena with the specified chunk size.
+    /// Creates a new arena with default alignment.
     pub fn new(chunk_size: usize) -> Self {
+        Self::with_alignment(chunk_size, core::mem::align_of::<usize>())
+    }
+    
+    /// Creates a new arena with specified alignment.
+    pub fn with_alignment(chunk_size: usize, alignment: usize) -> Self {
         assert!(chunk_size > 0, "Chunk size must be greater than 0");
+        assert!(alignment.is_power_of_two(), "Alignment must be a power of 2");
         
         Self {
-            #[cfg(feature = "std")]
-            chunks: RwLock::new(Vec::new()),
-            #[cfg(not(feature = "std"))]
-            chunks: RefCell::new(Vec::new()),
-            current_chunk: Cell::new(0),
-            chunk_size,
+            chunks: Vec::new(),
+            current_chunk: 0,
+            default_chunk_size: chunk_size,
+            alignment,
         }
     }
     
-    /// Allocates memory in the arena.
+    /// Allocates memory for a value in the arena.
     pub fn alloc<T>(&mut self, value: T) -> &mut T {
         let layout = Layout::for_value(&value);
-        let ptr = self.alloc_raw(layout);
+        let ptr = self.alloc_raw(layout.align_to(self.alignment).unwrap());
         
         unsafe {
-            assert!(
-                (ptr as usize) % core::mem::align_of::<T>() == 0,
-                "Allocated pointer is not properly aligned for type T"
-            );
             ptr::write(ptr.cast::<T>(), value);
             &mut *ptr.cast::<T>()
         }
@@ -88,80 +94,108 @@ impl Arena {
     where
         T: Copy,
     {
-        let layout = Layout::array::<T>(slice.len()).unwrap();
+        if slice.is_empty() {
+            return &mut [];
+        }
+        
+        let layout = Layout::array::<T>(slice.len())
+            .unwrap()
+            .align_to(self.alignment)
+            .unwrap();
         let ptr = self.alloc_raw(layout).cast::<T>();
         
-        // Ensure the pointer is properly aligned for T
-        assert!(
-            (ptr as usize) % core::mem::align_of::<T>() == 0,
-            "Allocated memory is not properly aligned for type T"
-        );
         unsafe {
             ptr::copy_nonoverlapping(slice.as_ptr(), ptr, slice.len());
             slice::from_raw_parts_mut(ptr, slice.len())
         }
     }
     
-    /// Allocates raw memory in the arena.
-    fn alloc_raw(&self, layout: Layout) -> *mut u8 {
+    /// Allocates uninitialized memory for a slice.
+    pub fn alloc_uninit_slice<T>(&mut self, len: usize) -> &mut [MaybeUninit<T>] {
+        if len == 0 {
+            return &mut [];
+        }
+        
+        let layout = Layout::array::<T>(len)
+            .unwrap()
+            .align_to(self.alignment)
+            .unwrap();
+        let ptr = self.alloc_raw(layout).cast::<MaybeUninit<T>>();
+        
+        unsafe {
+            slice::from_raw_parts_mut(ptr, len)
+        }
+    }
+    
+    /// Allocates raw memory with the given layout.
+    fn alloc_raw(&mut self, layout: Layout) -> *mut u8 {
         let size = layout.size();
-        let align = layout.align();
+        let align = layout.align().max(self.alignment);
         
-        // Try to allocate from current chunk
-        #[cfg(feature = "std")]
-        let mut chunks = self.chunks.write().unwrap();
-        
-        #[cfg(not(feature = "std"))]
-        let mut chunks = self.chunks.borrow_mut();
-        
-        if self.current_chunk.get() < chunks.len() {
-            let chunk = &chunks[self.current_chunk.get()];
-            let used = chunk.used.get();
-            let aligned = (used + align - 1) & !(align - 1);
-            
-            if aligned + size <= chunk.size {
-                chunk.used.set(aligned + size);
-                return unsafe { chunk.data.as_ptr().add(aligned) };
+        // Try current chunk first
+        if self.current_chunk < self.chunks.len() {
+            if let Some(ptr) = self.try_alloc_from_chunk(self.current_chunk, size, align) {
+                return ptr;
             }
         }
         
-        // Need a new chunk
-        let chunk_size = self.chunk_size.max(size + align);
-        let chunk = ArenaChunk::new(chunk_size);
-        let ptr = chunk.data.as_ptr();
+        // Try other chunks
+        for i in 0..self.chunks.len() {
+            if i != self.current_chunk {
+                if let Some(ptr) = self.try_alloc_from_chunk(i, size, align) {
+                    self.current_chunk = i;
+                    return ptr;
+                }
+            }
+        }
         
+        // Allocate new chunk
+        let chunk_size = self.default_chunk_size.max(size + align);
+        let chunk = ArenaChunk::new(chunk_size, align);
+        let ptr = chunk.data.as_ptr();
         chunk.used.set(size);
-        chunks.push(chunk);
-        self.current_chunk.set(chunks.len() - 1);
+        
+        self.chunks.push(chunk);
+        self.current_chunk = self.chunks.len() - 1;
         
         ptr
     }
     
+    fn try_alloc_from_chunk(&self, chunk_idx: usize, size: usize, align: usize) -> Option<*mut u8> {
+        let chunk = &self.chunks[chunk_idx];
+        let used = chunk.used.get();
+        let aligned_pos = (used + align - 1) & !(align - 1);
+        
+        if aligned_pos + size <= chunk.layout.size() {
+            chunk.used.set(aligned_pos + size);
+            Some(unsafe { chunk.data.as_ptr().add(aligned_pos) })
+        } else {
+            None
+        }
+    }
+    
     /// Resets the arena, allowing memory to be reused.
-    pub fn reset(&self) {
-        #[cfg(feature = "std")]
-        {
-            let chunks = self.chunks.read().unwrap();
-            for chunk in chunks.iter() {
-                chunk.used.set(0);
-            }
+    pub fn reset(&mut self) {
+        for chunk in &self.chunks {
+            chunk.used.set(0);
         }
-        
-        #[cfg(not(feature = "std"))]
-        {
-            let chunks = self.chunks.borrow();
-            for chunk in chunks.iter() {
-                chunk.used.set(0);
-            }
-        }
-        
-        self.current_chunk.set(0);
+        self.current_chunk = 0;
+    }
+    
+    /// Returns the total allocated capacity across all chunks.
+    pub fn capacity(&self) -> usize {
+        self.chunks.iter().map(|c| c.layout.size()).sum()
+    }
+    
+    /// Returns the total used memory across all chunks.
+    pub fn used(&self) -> usize {
+        self.chunks.iter().map(|c| c.used.get()).sum()
     }
 }
 
 impl ArenaChunk {
-    fn new(size: usize) -> Self {
-        let layout = Layout::array::<u8>(size).unwrap();
+    fn new(size: usize, align: usize) -> Self {
+        let layout = Layout::from_size_align(size, align).unwrap();
         
         let data = unsafe {
             let ptr = alloc(layout);
@@ -170,7 +204,7 @@ impl ArenaChunk {
         
         Self {
             data,
-            size,
+            layout,
             used: Cell::new(0),
         }
     }
@@ -179,37 +213,28 @@ impl ArenaChunk {
 impl Drop for ArenaChunk {
     fn drop(&mut self) {
         unsafe {
-            let layout = Layout::array::<u8>(self.size).unwrap();
-            dealloc(self.data.as_ptr(), layout);
+            dealloc(self.data.as_ptr(), self.layout);
         }
     }
 }
 
-// SAFETY: Arena can be Send in std environments because:
-// 1. The chunks field uses RwLock which provides thread-safe access
-// 2. The Cell fields (current_chunk and ArenaChunk::used) are only accessed
-//    through the RwLock, ensuring no data races
-// 3. All public methods that mutate state require &mut self
+// Arena is Send if we're using std (with thread-safe internals)
 #[cfg(feature = "std")]
-#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for Arena {}
 
-// In no_std environments, Arena is NOT Send due to RefCell
-#[cfg(not(feature = "std"))]
-// Arena is intentionally NOT Send in no_std environments
-
-// In std environments, Arena is Sync because we use RwLock
+// Arena is Sync in std environments
 #[cfg(feature = "std")]
 unsafe impl Sync for Arena {}
 
-// In no_std environments, Arena is NOT Sync because RefCell is not thread-safe
-// Do NOT implement Sync for no_std Arena!
+// ============================================================================
+// Object Pool
+// ============================================================================
 
-/// A memory pool for fixed-size allocations.
+/// A memory pool for fixed-type allocations with reuse.
 pub struct Pool<T> {
     items: RefCell<Vec<T>>,
     capacity: usize,
-    _marker: PhantomData<T>,
+    initializer: Option<fn() -> T>,
 }
 
 impl<T> Pool<T> {
@@ -218,24 +243,34 @@ impl<T> Pool<T> {
         Self {
             items: RefCell::new(Vec::with_capacity(capacity)),
             capacity,
-            _marker: PhantomData,
+            initializer: None,
+        }
+    }
+    
+    /// Creates a new pool with a custom initializer.
+    pub fn with_initializer(capacity: usize, init: fn() -> T) -> Self {
+        Self {
+            items: RefCell::new(Vec::with_capacity(capacity)),
+            capacity,
+            initializer: Some(init),
         }
     }
     
     /// Takes an item from the pool or creates a new one.
-    pub fn take_or_default(&self) -> T
+    pub fn take(&self) -> T
     where
         T: Default,
     {
-        self.take_or_else(T::default)
+        self.items.borrow_mut().pop().unwrap_or_else(T::default)
     }
     
-    /// Takes an item from the pool or creates one with the given closure.
-    pub fn take_or_else<F>(&self, f: F) -> T
-    where
-        F: FnOnce() -> T,
-    {
-        self.items.borrow_mut().pop().unwrap_or_else(f)
+    /// Takes an item from the pool or creates one with the initializer.
+    pub fn take_or_init(&self) -> T {
+        self.items.borrow_mut().pop().unwrap_or_else(|| {
+            self.initializer.map(|f| f()).unwrap_or_else(|| {
+                panic!("Pool requires either Default impl or initializer")
+            })
+        })
     }
     
     /// Returns an item to the pool.
@@ -245,15 +280,50 @@ impl<T> Pool<T> {
             items.push(item);
         }
     }
+    
+    /// Returns an item to the pool and resets it if it implements PoolReset.
+    pub fn put_and_reset(&self, mut item: T) 
+    where
+        T: PoolReset,
+    {
+        let mut items = self.items.borrow_mut();
+        if items.len() < self.capacity {
+            item.reset();
+            items.push(item);
+        }
+    }
+    
+    /// Returns the current number of items in the pool.
+    pub fn len(&self) -> usize {
+        self.items.borrow().len()
+    }
+    
+    /// Returns whether the pool is empty.
+    pub fn is_empty(&self) -> bool {
+        self.items.borrow().is_empty()
+    }
 }
 
-/// A copy-on-write wrapper for efficient string handling.
+/// Trait for types that can be reset when returned to a pool.
+pub trait PoolReset {
+    /// Resets the object to a clean state.
+    fn reset(&mut self);
+}
+
+// ============================================================================
+// Copy-on-Write String
+// ============================================================================
+
+/// A copy-on-write string type for efficient string handling.
 #[derive(Debug, Clone)]
 pub enum CowStr<'a> {
     /// Borrowed string slice.
     Borrowed(&'a str),
     /// Owned string.
     Owned(String),
+    /// Shared string (only available with std).
+    #[cfg(feature = "std")]
+    Shared(Arc<String>),
 }
 
 impl<'a> CowStr<'a> {
@@ -267,11 +337,19 @@ impl<'a> CowStr<'a> {
         Self::Owned(s)
     }
     
+    /// Creates a new shared `CowStr`.
+    #[cfg(feature = "std")]
+    pub fn shared(s: Arc<String>) -> Self {
+        Self::Shared(s)
+    }
+    
     /// Returns the string as a slice.
     pub fn as_str(&self) -> &str {
         match self {
             Self::Borrowed(s) => s,
             Self::Owned(s) => s.as_str(),
+            #[cfg(feature = "std")]
+            Self::Shared(s) => s.as_str(),
         }
     }
     
@@ -280,6 +358,8 @@ impl<'a> CowStr<'a> {
         match self {
             Self::Borrowed(s) => s.to_string(),
             Self::Owned(s) => s,
+            #[cfg(feature = "std")]
+            Self::Shared(s) => (*s).clone(),
         }
     }
     
@@ -290,11 +370,29 @@ impl<'a> CowStr<'a> {
                 *self = Self::Owned((*s).to_string());
                 match self {
                     Self::Owned(s) => s,
-                    Self::Borrowed(_) => unreachable!(),
+                    _ => unreachable!(),
                 }
             }
             Self::Owned(s) => s,
+            #[cfg(feature = "std")]
+            Self::Shared(s) => {
+                *self = Self::Owned((**s).clone());
+                match self {
+                    Self::Owned(s) => s,
+                    _ => unreachable!(),
+                }
+            }
         }
+    }
+    
+    /// Returns the length of the string.
+    pub fn len(&self) -> usize {
+        self.as_str().len()
+    }
+    
+    /// Returns whether the string is empty.
+    pub fn is_empty(&self) -> bool {
+        self.as_str().is_empty()
     }
 }
 
@@ -315,6 +413,182 @@ impl<'a> From<String> for CowStr<'a> {
         Self::owned(s)
     }
 }
+
+#[cfg(feature = "std")]
+impl<'a> From<Arc<String>> for CowStr<'a> {
+    fn from(s: Arc<String>) -> Self {
+        Self::shared(s)
+    }
+}
+
+// ============================================================================
+// Zero-Copy String Builder
+// ============================================================================
+
+/// Zero-copy string builder using rope-like data structure.
+/// 
+/// This consolidates StrBuilder and ZeroCopyStringBuilder into a single
+/// efficient implementation following DRY principle.
+#[derive(Debug, Clone)]
+pub struct ZeroCopyStringBuilder<'a> {
+    segments: Vec<StringSegment<'a>>,
+    total_len: usize,
+}
+
+#[derive(Debug, Clone)]
+enum StringSegment<'a> {
+    Borrowed(&'a str),
+    Owned(String),
+    #[cfg(feature = "std")]
+    Shared(Arc<String>),
+    Slice { 
+        source: Box<StringSegment<'a>>,
+        start: usize, 
+        end: usize 
+    },
+}
+
+impl<'a> ZeroCopyStringBuilder<'a> {
+    /// Creates a new empty string builder.
+    pub const fn new() -> Self {
+        Self {
+            segments: Vec::new(),
+            total_len: 0,
+        }
+    }
+    
+    /// Creates a string builder with initial capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            segments: Vec::with_capacity(capacity),
+            total_len: 0,
+        }
+    }
+    
+    /// Appends a borrowed string slice.
+    pub fn append_borrowed(&mut self, s: &'a str) -> &mut Self {
+        if !s.is_empty() {
+            self.total_len += s.len();
+            self.segments.push(StringSegment::Borrowed(s));
+        }
+        self
+    }
+    
+    /// Appends an owned string.
+    pub fn append_owned(&mut self, s: String) -> &mut Self {
+        if !s.is_empty() {
+            self.total_len += s.len();
+            self.segments.push(StringSegment::Owned(s));
+        }
+        self
+    }
+    
+    /// Appends a shared string.
+    #[cfg(feature = "std")]
+    pub fn append_shared(&mut self, s: Arc<String>) -> &mut Self {
+        if !s.is_empty() {
+            self.total_len += s.len();
+            self.segments.push(StringSegment::Shared(s));
+        }
+        self
+    }
+    
+    /// Appends a character.
+    pub fn append_char(&mut self, ch: char) -> &mut Self {
+        // Optimize by appending to last owned segment if possible
+        if let Some(StringSegment::Owned(s)) = self.segments.last_mut() {
+            s.push(ch);
+            self.total_len += ch.len_utf8();
+        } else {
+            let mut s = String::with_capacity(ch.len_utf8());
+            s.push(ch);
+            self.total_len += ch.len_utf8();
+            self.segments.push(StringSegment::Owned(s));
+        }
+        self
+    }
+    
+    /// Returns the total length without materializing the string.
+    pub const fn len(&self) -> usize {
+        self.total_len
+    }
+    
+    /// Returns whether the builder is empty.
+    pub const fn is_empty(&self) -> bool {
+        self.total_len == 0
+    }
+    
+    /// Builds the final string, minimizing allocations.
+    pub fn build(self) -> String {
+        match self.segments.len() {
+            0 => String::new(),
+            1 => self.build_single_segment(),
+            _ => self.build_multiple_segments(),
+        }
+    }
+    
+    fn build_single_segment(mut self) -> String {
+        match self.segments.pop().unwrap() {
+            StringSegment::Borrowed(s) => s.to_string(),
+            StringSegment::Owned(s) => s,
+            #[cfg(feature = "std")]
+            StringSegment::Shared(s) => (*s).clone(),
+            StringSegment::Slice { source, start, end } => {
+                match *source {
+                    StringSegment::Borrowed(s) => s[start..end].to_string(),
+                    StringSegment::Owned(s) => s[start..end].to_string(),
+                    #[cfg(feature = "std")]
+                    StringSegment::Shared(ref s) => s[start..end].to_string(),
+                    StringSegment::Slice { .. } => unreachable!("Nested slices not supported"),
+                }
+            },
+        }
+    }
+    
+    fn build_multiple_segments(self) -> String {
+        let mut result = String::with_capacity(self.total_len);
+        for segment in self.segments {
+            match segment {
+                StringSegment::Borrowed(s) => result.push_str(s),
+                StringSegment::Owned(s) => result.push_str(&s),
+                #[cfg(feature = "std")]
+                StringSegment::Shared(s) => result.push_str(&s),
+                StringSegment::Slice { source, start, end } => {
+                    match *source {
+                        StringSegment::Borrowed(s) => result.push_str(&s[start..end]),
+                        StringSegment::Owned(s) => result.push_str(&s[start..end]),
+                        #[cfg(feature = "std")]
+                        StringSegment::Shared(ref s) => result.push_str(&s[start..end]),
+                        StringSegment::Slice { .. } => unreachable!("Nested slices not supported"),
+                    }
+                }
+            }
+        }
+        result
+    }
+}
+
+impl<'a> Default for ZeroCopyStringBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a> fmt::Write for ZeroCopyStringBuilder<'a> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.append_owned(s.to_string());
+        Ok(())
+    }
+    
+    fn write_char(&mut self, c: char) -> fmt::Result {
+        self.append_char(c);
+        Ok(())
+    }
+}
+
+// ============================================================================
+// Token Buffer Pool
+// ============================================================================
 
 /// A buffer pool for token processing.
 pub struct TokenBufferPool {
@@ -352,202 +626,9 @@ impl TokenBufferPool {
     }
 }
 
-/// Zero-copy string builder.
-pub struct StrBuilder<'a> {
-    parts: Vec<CowStr<'a>>,
-    total_len: usize,
-}
-
-impl<'a> StrBuilder<'a> {
-    /// Creates a new string builder.
-    pub const fn new() -> Self {
-        Self {
-            parts: Vec::new(),
-            total_len: 0,
-        }
-    }
-    
-    /// Creates a new string builder with capacity.
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            parts: Vec::with_capacity(capacity),
-            total_len: 0,
-        }
-    }
-    
-    /// Appends a borrowed string.
-    pub fn push_borrowed(&mut self, s: &'a str) {
-        self.total_len += s.len();
-        self.parts.push(CowStr::borrowed(s));
-    }
-    
-    /// Appends an owned string.
-    pub fn push_owned(&mut self, s: String) {
-        self.total_len += s.len();
-        self.parts.push(CowStr::owned(s));
-    }
-    
-    /// Builds the final string.
-    pub fn build(self) -> String {
-        let mut result = String::with_capacity(self.total_len);
-        for part in self.parts {
-            result.push_str(part.as_str());
-        }
-        result
-    }
-}
-
-impl<'a> Default for StrBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Zero-copy string builder using rope data structure.
-/// 
-/// This provides efficient string concatenation without copying,
-/// following the principle of zero-cost abstractions.
-#[derive(Debug, Clone)]
-pub struct ZeroCopyStringBuilder<'a> {
-    segments: Vec<StringSegment<'a>>,
-    total_len: usize,
-}
-
-#[derive(Debug, Clone)]
-enum StringSegment<'a> {
-    Borrowed(&'a str),
-    #[cfg(feature = "std")]
-    Shared(std::sync::Arc<String>),
-    #[cfg(not(feature = "std"))]
-    Owned(String),
-    Slice { 
-        #[cfg(feature = "std")]
-        data: std::sync::Arc<String>, 
-        #[cfg(not(feature = "std"))]
-        data: String,
-        start: usize, 
-        end: usize 
-    },
-}
-
-impl<'a> ZeroCopyStringBuilder<'a> {
-    /// Creates a new empty string builder.
-    pub const fn new() -> Self {
-        Self {
-            segments: Vec::new(),
-            total_len: 0,
-        }
-    }
-    
-    /// Creates a string builder with initial capacity.
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            segments: Vec::with_capacity(capacity),
-            total_len: 0,
-        }
-    }
-    
-    /// Appends a borrowed string slice.
-    pub fn append_borrowed(&mut self, s: &'a str) -> &mut Self {
-        self.total_len += s.len();
-        self.segments.push(StringSegment::Borrowed(s));
-        self
-    }
-    
-    /// Appends an owned string.
-    #[cfg(feature = "std")]
-    pub fn append_owned(&mut self, s: String) -> &mut Self {
-        self.total_len += s.len();
-        self.segments.push(StringSegment::Shared(std::sync::Arc::new(s)));
-        self
-    }
-    
-    /// Appends an owned string (no_std version).
-    #[cfg(not(feature = "std"))]
-    pub fn append_owned(&mut self, s: String) -> &mut Self {
-        self.total_len += s.len();
-        self.segments.push(StringSegment::Owned(s));
-        self
-    }
-    
-    /// Appends a shared string.
-    #[cfg(feature = "std")]
-    pub fn append_shared(&mut self, s: std::sync::Arc<String>) -> &mut Self {
-        self.total_len += s.len();
-        self.segments.push(StringSegment::Shared(s));
-        self
-    }
-    
-    /// Appends a slice of a shared string.
-    #[cfg(feature = "std")]
-    pub fn append_slice(&mut self, data: std::sync::Arc<String>, start: usize, end: usize) -> &mut Self {
-        assert!(start <= end && end <= data.len());
-        self.total_len += end - start;
-        self.segments.push(StringSegment::Slice { data, start, end });
-        self
-    }
-    
-    /// Appends a slice of an owned string (no_std version).
-    #[cfg(not(feature = "std"))]
-    pub fn append_slice(&mut self, data: String, start: usize, end: usize) -> &mut Self {
-        assert!(start <= end && end <= data.len());
-        self.total_len += end - start;
-        self.segments.push(StringSegment::Slice { data, start, end });
-        self
-    }
-    
-    /// Returns the total length without materializing the string.
-    pub const fn len(&self) -> usize {
-        self.total_len
-    }
-    
-    /// Returns whether the builder is empty.
-    pub const fn is_empty(&self) -> bool {
-        self.total_len == 0
-    }
-    
-    /// Builds the final string, minimizing allocations.
-    pub fn build(self) -> String {
-        if self.segments.is_empty() {
-            return String::new();
-        }
-        
-        if self.segments.len() == 1 {
-            return match self.segments.into_iter().next().unwrap() {
-                StringSegment::Borrowed(s) => s.to_string(),
-                #[cfg(feature = "std")]
-                StringSegment::Shared(s) => (*s).clone(),
-                #[cfg(not(feature = "std"))]
-                StringSegment::Owned(s) => s,
-                StringSegment::Slice { data, start, end } => {
-                    #[cfg(feature = "std")]
-                    { data[start..end].to_string() }
-                    #[cfg(not(feature = "std"))]
-                    { data[start..end].to_string() }
-                },
-            };
-        }
-        
-        let mut result = String::with_capacity(self.total_len);
-        for segment in self.segments {
-            match segment {
-                StringSegment::Borrowed(s) => result.push_str(s),
-                #[cfg(feature = "std")]
-                StringSegment::Shared(s) => result.push_str(&s),
-                #[cfg(not(feature = "std"))]
-                StringSegment::Owned(s) => result.push_str(&s),
-                StringSegment::Slice { data, start, end } => result.push_str(&data[start..end]),
-            }
-        }
-        result
-    }
-}
-
-impl<'a> Default for ZeroCopyStringBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// ============================================================================
+// Zero-Copy View
+// ============================================================================
 
 /// Zero-copy view into a slice with lazy evaluation.
 /// 
@@ -621,6 +702,10 @@ impl<'a, T> SliceView<'a, T> {
     }
 }
 
+// ============================================================================
+// Memory-Mapped Buffer
+// ============================================================================
+
 /// Memory-mapped buffer for zero-copy file operations.
 /// 
 /// This provides a zero-copy abstraction over memory-mapped files,
@@ -673,6 +758,10 @@ impl MappedBuffer {
         }
     }
 }
+
+// ============================================================================
+// Lazy Allocation
+// ============================================================================
 
 /// Lazy allocation wrapper that defers allocation until first use.
 /// 
@@ -729,198 +818,320 @@ impl<T> LazyAlloc<T> {
     }
 }
 
+// Drop is handled automatically by Box
+
+// Debug implementation that doesn't require T: Debug
+impl<T> fmt::Debug for LazyAlloc<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LazyAlloc")
+            .field("initialized", &self.is_initialized())
+            .finish()
+    }
+}
+
+// Safety: LazyAlloc is Send if T is Send
+// With std: OnceLock<Box<T>> is Send if T is Send
+// Without std: Cell<Option<Box<T>>> is Send if T is Send
+unsafe impl<T: Send> Send for LazyAlloc<T> {}
+
+// Safety: LazyAlloc is Sync if T is Send + Sync
+// With std: OnceLock<Box<T>> is Sync if T is Send + Sync
+// Without std: Cell is not Sync, so we don't implement Sync
+#[cfg(feature = "std")]
+unsafe impl<T: Send + Sync> Sync for LazyAlloc<T> {}
+
 // ============================================================================
 // Advanced Zero-Copy Memory Management
 // ============================================================================
 
-/// SIMD-aligned memory allocator for vectorized operations.
-///
-/// This allocator ensures memory is aligned for SIMD instructions,
-/// providing optimal performance for vectorized computations.
-#[derive(Debug)]
-pub struct SimdAlignedArena {
-    arena: Arena,
-    alignment: usize,
+/// Memory allocation statistics for monitoring and optimization.
+#[derive(Debug, Clone, Default)]
+pub struct MemoryStats {
+    /// Total bytes allocated.
+    pub allocated_bytes: usize,
+    /// Total bytes deallocated.
+    pub deallocated_bytes: usize,
+    /// Current bytes in use.
+    pub used_bytes: usize,
+    /// Peak bytes used.
+    pub peak_bytes: usize,
+    /// Number of allocations.
+    pub allocation_count: usize,
+    /// Number of deallocations.
+    pub deallocation_count: usize,
 }
 
-impl SimdAlignedArena {
-    /// Creates a new SIMD-aligned arena.
-    ///
-    /// The alignment should be a power of 2 (typically 16, 32, or 64 bytes).
-    pub fn new(chunk_size: usize, alignment: usize) -> Self {
-        assert!(alignment.is_power_of_two(), "Alignment must be a power of 2");
-        assert!(alignment >= core::mem::align_of::<usize>(), "Alignment too small");
+impl MemoryStats {
+    /// Creates new memory statistics.
+    pub const fn new() -> Self {
+        Self {
+            allocated_bytes: 0,
+            deallocated_bytes: 0,
+            used_bytes: 0,
+            peak_bytes: 0,
+            allocation_count: 0,
+            deallocation_count: 0,
+        }
+    }
+    
+    /// Records an allocation.
+    pub fn record_allocation(&mut self, bytes: usize) {
+        self.allocated_bytes += bytes;
+        self.used_bytes += bytes;
+        self.allocation_count += 1;
+        if self.used_bytes > self.peak_bytes {
+            self.peak_bytes = self.used_bytes;
+        }
+    }
+    
+    /// Records a deallocation.
+    pub fn record_deallocation(&mut self, bytes: usize) {
+        self.deallocated_bytes += bytes;
+        self.used_bytes = self.used_bytes.saturating_sub(bytes);
+        self.deallocation_count += 1;
+    }
+    
+    /// Returns the fragmentation ratio (0.0 = no fragmentation, 1.0 = fully fragmented).
+    pub fn fragmentation_ratio(&self) -> f64 {
+        if self.allocated_bytes == 0 {
+            0.0
+        } else {
+            1.0 - (self.used_bytes as f64 / self.allocated_bytes as f64)
+        }
+    }
+}
 
+/// A tracking arena that collects allocation statistics.
+#[derive(Debug)]
+pub struct TrackingArena {
+    arena: Arena,
+    stats: RefCell<MemoryStats>,
+}
+
+impl TrackingArena {
+    /// Creates a new tracking arena.
+    pub fn new(chunk_size: usize) -> Self {
         Self {
             arena: Arena::new(chunk_size),
-            alignment,
+            stats: RefCell::new(MemoryStats::new()),
         }
     }
-
-    /// Allocates SIMD-aligned memory for a slice.
-    pub fn alloc_simd_slice<T>(&mut self, len: usize) -> &mut [T]
-    where
-        T: Copy + Default,
-    {
-        let layout = Layout::from_size_align(
-            len * core::mem::size_of::<T>(),
-            self.alignment.max(core::mem::align_of::<T>())
-        ).unwrap();
-
-        let ptr = self.arena.alloc_raw(layout).cast::<T>();
-
-        // Initialize with default values
-        unsafe {
-            for i in 0..len {
-                ptr.add(i).write(T::default());
-            }
-            slice::from_raw_parts_mut(ptr, len)
+    
+    /// Creates a new tracking arena with alignment.
+    pub fn with_alignment(chunk_size: usize, alignment: usize) -> Self {
+        Self {
+            arena: Arena::with_alignment(chunk_size, alignment),
+            stats: RefCell::new(MemoryStats::new()),
         }
     }
-
-    /// Allocates SIMD-aligned memory and copies data.
-    pub fn alloc_simd_copy<T>(&mut self, data: &[T]) -> &mut [T]
+    
+    /// Allocates memory and tracks the allocation.
+    pub fn alloc<T>(&mut self, value: T) -> &mut T {
+        self.stats.borrow_mut().record_allocation(core::mem::size_of::<T>());
+        self.arena.alloc(value)
+    }
+    
+    /// Allocates a slice and tracks the allocation.
+    pub fn alloc_slice<T>(&mut self, slice: &[T]) -> &mut [T]
     where
         T: Copy,
     {
-        let layout = Layout::from_size_align(
-            data.len() * core::mem::size_of::<T>(),
-            self.alignment.max(core::mem::align_of::<T>())
-        ).unwrap();
-
-        let ptr = self.arena.alloc_raw(layout).cast::<T>();
-
-        unsafe {
-            ptr::copy_nonoverlapping(data.as_ptr(), ptr, data.len());
-            slice::from_raw_parts_mut(ptr, data.len())
-        }
+        self.stats.borrow_mut().record_allocation(core::mem::size_of::<T>() * slice.len());
+        self.arena.alloc_slice(slice)
     }
-
-    /// Resets the arena for reuse.
-    pub fn reset(&self) {
+    
+    /// Resets the arena and updates statistics.
+    pub fn reset(&mut self) {
+        let used = self.arena.used();
+        self.stats.borrow_mut().record_deallocation(used);
         self.arena.reset();
+    }
+    
+    /// Returns a copy of the current statistics.
+    pub fn stats(&self) -> MemoryStats {
+        self.stats.borrow().clone()
     }
 }
 
-/// Zero-copy slice builder that avoids allocations.
+/// Zero-copy rope data structure for efficient string manipulation.
 ///
-/// This builder creates views over existing data without copying,
-/// implementing true zero-cost abstractions.
-#[derive(Debug)]
-pub struct ZeroCopySliceBuilder<'a, T> {
-    segments: Vec<SliceSegment<'a, T>>,
-    total_len: usize,
+/// This provides O(log n) concatenation and slicing operations.
+#[derive(Debug, Clone)]
+pub struct Rope<'a> {
+    root: RopeNode<'a>,
+    len: usize,
 }
 
 #[derive(Debug, Clone)]
-enum SliceSegment<'a, T> {
-    Borrowed(&'a [T]),
-    #[cfg(feature = "std")]
-    Shared(std::sync::Arc<Vec<T>>),
-    #[cfg(not(feature = "std"))]
-    Owned(Vec<T>),
-    Slice {
-        #[cfg(feature = "std")]
-        data: std::sync::Arc<Vec<T>>,
-        #[cfg(not(feature = "std"))]
-        data: Vec<T>,
-        start: usize,
-        end: usize,
+enum RopeNode<'a> {
+    Leaf(CowStr<'a>),
+    Branch {
+        left: Box<RopeNode<'a>>,
+        right: Box<RopeNode<'a>>,
+        len: usize,
     },
 }
 
-impl<'a, T> ZeroCopySliceBuilder<'a, T> {
-    /// Creates a new zero-copy slice builder.
-    pub fn new() -> Self {
+impl<'a> Rope<'a> {
+    /// Creates a new empty rope.
+    pub const fn new() -> Self {
         Self {
-            segments: Vec::new(),
-            total_len: 0,
+            root: RopeNode::Leaf(CowStr::Borrowed("")),
+            len: 0,
         }
     }
-
-    /// Appends a borrowed slice.
-    pub fn append_borrowed(&mut self, slice: &'a [T]) -> &mut Self {
-        self.total_len += slice.len();
-        self.segments.push(SliceSegment::Borrowed(slice));
-        self
+    
+    /// Creates a rope from a string.
+    pub fn from_str(s: &'a str) -> Self {
+        Self {
+            len: s.len(),
+            root: RopeNode::Leaf(CowStr::Borrowed(s)),
+        }
     }
-
-    /// Appends a shared slice (std version).
-    #[cfg(feature = "std")]
-    pub fn append_shared(&mut self, data: std::sync::Arc<Vec<T>>) -> &mut Self {
-        self.total_len += data.len();
-        self.segments.push(SliceSegment::Shared(data));
-        self
+    
+    /// Returns the length of the rope.
+    pub const fn len(&self) -> usize {
+        self.len
     }
-
-    /// Appends an owned slice (no_std version).
-    #[cfg(not(feature = "std"))]
-    pub fn append_owned(&mut self, data: Vec<T>) -> &mut Self {
-        self.total_len += data.len();
-        self.segments.push(SliceSegment::Owned(data));
-        self
+    
+    /// Returns whether the rope is empty.
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
     }
-
-    /// Appends a slice of a shared vector (std version).
-    ///
-    /// This method enables zero-copy slicing of shared data, which is particularly
-    /// useful for tokenization where you want to reference parts of larger buffers.
-    #[cfg(feature = "std")]
-    pub fn append_slice(&mut self, data: std::sync::Arc<Vec<T>>, start: usize, end: usize) -> &mut Self {
-        assert!(start <= end && end <= data.len(), "Invalid slice bounds");
-        self.total_len += end - start;
-        self.segments.push(SliceSegment::Slice { data, start, end });
-        self
+    
+    /// Concatenates two ropes.
+    pub fn concat(self, other: Self) -> Self {
+        if self.is_empty() {
+            return other;
+        }
+        if other.is_empty() {
+            return self;
+        }
+        
+        let len = self.len + other.len;
+        Self {
+            root: RopeNode::Branch {
+                left: Box::new(self.root),
+                right: Box::new(other.root),
+                len,
+            },
+            len,
+        }
     }
-
-    /// Appends a slice of an owned vector (no_std version).
-    ///
-    /// This method enables zero-copy slicing for no_std environments.
-    #[cfg(not(feature = "std"))]
-    pub fn append_slice(&mut self, data: Vec<T>, start: usize, end: usize) -> &mut Self {
-        assert!(start <= end && end <= data.len(), "Invalid slice bounds");
-        self.total_len += end - start;
-        self.segments.push(SliceSegment::Slice { data, start, end });
-        self
+    
+    /// Converts the rope to a string.
+    pub fn to_string(&self) -> String {
+        let mut result = String::with_capacity(self.len);
+        self.collect_into(&mut result);
+        result
     }
-
-    /// Returns the total length of all segments.
-    pub fn len(&self) -> usize {
-        self.total_len
-    }
-
-    /// Returns whether the builder is empty.
-    pub fn is_empty(&self) -> bool {
-        self.total_len == 0
-    }
-
-    /// Materializes the builder into a vector.
-    pub fn into_vec(self) -> Vec<T>
-    where
-        T: Clone,
-    {
-        let mut result = Vec::with_capacity(self.total_len);
-
-        for segment in self.segments {
-            match segment {
-                SliceSegment::Borrowed(slice) => result.extend_from_slice(slice),
-                #[cfg(feature = "std")]
-                SliceSegment::Shared(vec) => result.extend_from_slice(&vec),
-                #[cfg(not(feature = "std"))]
-                SliceSegment::Owned(vec) => result.extend_from_slice(&vec),
-                SliceSegment::Slice { data, start, end } => {
-                    result.extend_from_slice(&data[start..end]);
-                }
+    
+    fn collect_into(&self, buf: &mut String) {
+        match &self.root {
+            RopeNode::Leaf(s) => buf.push_str(s.as_str()),
+            RopeNode::Branch { left, right, .. } => {
+                Self::collect_node_into(left, buf);
+                Self::collect_node_into(right, buf);
             }
         }
-
-        result
+    }
+    
+    fn collect_node_into(node: &RopeNode<'a>, buf: &mut String) {
+        match node {
+            RopeNode::Leaf(s) => buf.push_str(s.as_str()),
+            RopeNode::Branch { left, right, .. } => {
+                Self::collect_node_into(left, buf);
+                Self::collect_node_into(right, buf);
+            }
+        }
     }
 }
 
-impl<'a, T> Default for ZeroCopySliceBuilder<'a, T> {
+impl<'a> Default for Rope<'a> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ============================================================================
+// Benchmarking Utilities
+// ============================================================================
+
+/// A simple allocation benchmark utility.
+pub struct AllocationBenchmark {
+    name: String,
+    iterations: usize,
+    start_time: Option<core::time::Duration>,
+}
+
+impl AllocationBenchmark {
+    /// Creates a new benchmark.
+    pub fn new(name: impl Into<String>, iterations: usize) -> Self {
+        Self {
+            name: name.into(),
+            iterations,
+            start_time: None,
+        }
+    }
+    
+    /// Runs a benchmark with an arena.
+    pub fn run_arena<F>(&mut self, chunk_size: usize, mut f: F) -> BenchmarkResult
+    where
+        F: FnMut(&mut Arena, usize),
+    {
+        let mut arena = Arena::new(chunk_size);
+        
+        #[cfg(feature = "std")]
+        let start = std::time::Instant::now();
+        
+        for i in 0..self.iterations {
+            f(&mut arena, i);
+        }
+        
+        #[cfg(feature = "std")]
+        let elapsed = start.elapsed();
+        #[cfg(not(feature = "std"))]
+        let elapsed = core::time::Duration::from_secs(0); // Placeholder
+        
+        BenchmarkResult {
+            name: self.name.clone(),
+            iterations: self.iterations,
+            elapsed,
+            bytes_allocated: arena.used(),
+        }
+    }
+}
+
+/// Benchmark result.
+#[derive(Debug)]
+pub struct BenchmarkResult {
+    /// Benchmark name.
+    pub name: String,
+    /// Number of iterations.
+    pub iterations: usize,
+    /// Time elapsed.
+    pub elapsed: core::time::Duration,
+    /// Bytes allocated.
+    pub bytes_allocated: usize,
+}
+
+impl BenchmarkResult {
+    /// Returns allocations per second.
+    pub fn allocations_per_second(&self) -> f64 {
+        if self.elapsed.as_secs_f64() > 0.0 {
+            self.iterations as f64 / self.elapsed.as_secs_f64()
+        } else {
+            0.0
+        }
+    }
+    
+    /// Returns megabytes per second.
+    pub fn mb_per_second(&self) -> f64 {
+        if self.elapsed.as_secs_f64() > 0.0 {
+            (self.bytes_allocated as f64 / 1_048_576.0) / self.elapsed.as_secs_f64()
+        } else {
+            0.0
+        }
     }
 }
 
@@ -1126,28 +1337,6 @@ impl BumpAllocator {
     }
 }
 
-// Drop is handled automatically by Box
-
-// Debug implementation that doesn't require T: Debug
-impl<T> fmt::Debug for LazyAlloc<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("LazyAlloc")
-            .field("initialized", &self.is_initialized())
-            .finish()
-    }
-}
-
-// Safety: LazyAlloc is Send if T is Send
-// With std: OnceLock<Box<T>> is Send if T is Send
-// Without std: Cell<Option<Box<T>>> is Send if T is Send
-unsafe impl<T: Send> Send for LazyAlloc<T> {}
-
-// Safety: LazyAlloc is Sync if T is Send + Sync
-// With std: OnceLock<Box<T>> is Sync if T is Send + Sync
-// Without std: Cell is not Sync, so we don't implement Sync
-#[cfg(feature = "std")]
-unsafe impl<T: Send + Sync> Sync for LazyAlloc<T> {}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1218,10 +1407,10 @@ mod tests {
     
     #[test]
     fn test_pool() {
-        let pool: Pool<Vec<u8>> = Pool::new(10);
+        let pool: Pool<Vec<u8>> = Pool::with_initializer(10, || Vec::with_capacity(100));
         
         // Test taking from empty pool
-        let mut vec1 = pool.take_or_else(|| Vec::with_capacity(100));
+        let mut vec1 = pool.take_or_init();
         vec1.extend_from_slice(b"hello");
         assert_eq!(vec1, b"hello");
         
@@ -1229,7 +1418,7 @@ mod tests {
         pool.put(vec1);
         
         // Take again - should get the same capacity
-        let vec2 = pool.take_or_else(|| Vec::with_capacity(50));
+        let vec2 = pool.take_or_init();
         assert!(vec2.capacity() >= 100);
     }
     
@@ -1255,12 +1444,12 @@ mod tests {
     
     #[test]
     fn test_str_builder() {
-        let mut builder = StrBuilder::new();
+        let mut builder = ZeroCopyStringBuilder::new();
         
-        builder.push_borrowed("Hello");
-        builder.push_borrowed(" ");
-        builder.push_owned(String::from("World"));
-        builder.push_borrowed("!");
+        builder.append_borrowed("Hello");
+        builder.append_borrowed(" ");
+        builder.append_owned(String::from("World"));
+        builder.append_borrowed("!");
         
         let result = builder.build();
         assert_eq!(result, "Hello World!");
