@@ -139,31 +139,50 @@ impl<E: fmt::Display> fmt::Display for ContextualError<E> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PluginError {
     /// Plugin not found.
-    NotFound { name: String },
-    
+    NotFound {
+        /// Name of the plugin that was not found.
+        name: String
+    },
+
     /// Plugin initialization failed.
-    InitializationFailed { name: String, reason: String },
-    
+    InitializationFailed {
+        /// Name of the plugin that failed to initialize.
+        name: String,
+        /// Reason for the initialization failure.
+        reason: String
+    },
+
     /// Plugin version mismatch.
     VersionMismatch {
+        /// Name of the plugin with version mismatch.
         name: String,
+        /// Expected version specification.
         expected: String,
+        /// Actual version found.
         actual: String,
     },
-    
+
     /// Plugin already loaded.
-    AlreadyLoaded { name: String },
-    
+    AlreadyLoaded {
+        /// Name of the plugin that is already loaded.
+        name: String
+    },
+
     /// Plugin dependency missing.
-    DependencyMissing { 
+    DependencyMissing {
+        /// Name of the plugin with missing dependency.
         plugin: String,
+        /// Name of the missing dependency.
         dependency: String,
     },
-    
+
     /// Plugin state error.
     InvalidState {
+        /// Name of the plugin with invalid state.
         plugin: String,
+        /// Expected state for the operation.
         expected: &'static str,
+        /// Actual current state of the plugin.
         actual: &'static str,
     },
 }
@@ -172,33 +191,43 @@ pub enum PluginError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenizerError {
     /// Invalid token encountered.
-    InvalidToken { 
+    InvalidToken {
+        /// The invalid token string.
         token: String,
+        /// Position in the input where the invalid token was found.
         position: usize,
     },
-    
+
     /// Vocabulary not loaded.
     VocabularyNotLoaded,
-    
+
     /// Encoding failed.
-    EncodingFailed { 
+    EncodingFailed {
+        /// Input text that failed to encode.
         input: String,
+        /// Reason for the encoding failure.
         reason: String,
     },
-    
+
     /// Decoding failed.
     DecodingFailed {
+        /// Reason for the decoding failure.
         reason: String,
     },
-    
+
     /// Token limit exceeded.
     TokenLimitExceeded {
+        /// Maximum allowed number of tokens.
         limit: usize,
+        /// Actual number of tokens encountered.
         actual: usize,
     },
-    
+
     /// Unknown token ID.
-    UnknownTokenId { id: u32 },
+    UnknownTokenId {
+        /// The unknown token ID.
+        id: u32
+    },
 }
 
 /// Model-specific errors.
@@ -208,31 +237,46 @@ pub enum ModelError {
     NotInitialized,
     
     /// Invalid model configuration.
-    InvalidConfig { 
+    InvalidConfig {
+        /// Name of the configuration field that is invalid.
         field: String,
+        /// Reason why the configuration is invalid.
         reason: String,
     },
-    
+
     /// Inference failed.
-    InferenceFailed { reason: String },
-    
+    InferenceFailed {
+        /// Reason for the inference failure.
+        reason: String
+    },
+
     /// Model format not supported.
-    UnsupportedFormat { format: String },
-    
+    UnsupportedFormat {
+        /// The unsupported model format.
+        format: String
+    },
+
     /// Shape mismatch.
     ShapeMismatch {
+        /// Expected tensor shape.
         expected: String,
+        /// Actual tensor shape encountered.
         actual: String,
     },
-    
+
     /// Parameter error.
     InvalidParameter {
+        /// Name of the invalid parameter.
         name: String,
+        /// Reason why the parameter is invalid.
         reason: String,
     },
-    
+
     /// Training error.
-    TrainingFailed { reason: String },
+    TrainingFailed {
+        /// Reason for the training failure.
+        reason: String
+    },
 }
 
 /// I/O errors for std environments.
@@ -240,44 +284,74 @@ pub enum ModelError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IoError {
     /// File not found.
-    FileNotFound { path: String },
-    
+    FileNotFound {
+        /// Path to the file that was not found.
+        path: String
+    },
+
     /// Permission denied.
-    PermissionDenied { path: String },
-    
+    PermissionDenied {
+        /// Path to the file with permission issues.
+        path: String
+    },
+
     /// Read error.
-    ReadError { path: String, reason: String },
-    
+    ReadError {
+        /// Path to the file that failed to read.
+        path: String,
+        /// Reason for the read failure.
+        reason: String
+    },
+
     /// Write error.
-    WriteError { path: String, reason: String },
-    
+    WriteError {
+        /// Path to the file that failed to write.
+        path: String,
+        /// Reason for the write failure.
+        reason: String
+    },
+
     /// Network error.
-    NetworkError { reason: String },
+    NetworkError {
+        /// Reason for the network error.
+        reason: String
+    },
 }
 
 /// Configuration errors.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConfigError {
     /// Missing required field.
-    MissingField { field: String },
-    
+    MissingField {
+        /// Name of the missing required field.
+        field: String
+    },
+
     /// Invalid field value.
-    InvalidValue { 
+    InvalidValue {
+        /// Name of the field with invalid value.
         field: String,
+        /// The invalid value that was provided.
         value: String,
+        /// Description of the expected value format.
         expected: String,
     },
-    
+
     /// Type mismatch.
     TypeMismatch {
+        /// Name of the field with type mismatch.
         field: String,
+        /// Expected type for the field.
         expected: &'static str,
+        /// Actual type that was provided.
         actual: &'static str,
     },
     
     /// Validation failed.
     ValidationFailed {
+        /// Name of the field that failed validation.
         field: String,
+        /// Reason for the validation failure.
         reason: String,
     },
 }
@@ -287,26 +361,35 @@ pub enum ConfigError {
 pub enum ValidationError {
     /// Range validation failed.
     OutOfRange {
+        /// The value that is out of range.
         value: String,
+        /// Minimum allowed value, if any.
         min: Option<String>,
+        /// Maximum allowed value, if any.
         max: Option<String>,
     },
-    
+
     /// Pattern validation failed.
     PatternMismatch {
+        /// The value that doesn't match the pattern.
         value: String,
+        /// The expected pattern.
         pattern: String,
     },
-    
+
     /// Constraint violation.
     ConstraintViolation {
+        /// Description of the violated constraint.
         constraint: String,
+        /// The value that violates the constraint.
         value: String,
     },
-    
+
     /// Invalid state.
     InvalidState {
+        /// Current state description.
         current: String,
+        /// Expected state description.
         expected: String,
     },
 }
@@ -315,24 +398,38 @@ pub enum ValidationError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResourceError {
     /// Resource not found.
-    NotFound { resource: String },
-    
+    NotFound {
+        /// Name or identifier of the resource that was not found.
+        resource: String
+    },
+
     /// Resource already exists.
-    AlreadyExists { resource: String },
-    
+    AlreadyExists {
+        /// Name or identifier of the resource that already exists.
+        resource: String
+    },
+
     /// Resource busy.
-    Busy { resource: String },
-    
+    Busy {
+        /// Name or identifier of the resource that is busy.
+        resource: String
+    },
+
     /// Insufficient resources.
     Insufficient {
+        /// Name or type of the insufficient resource.
         resource: String,
+        /// Amount of resource currently available.
         available: usize,
+        /// Amount of resource required for the operation.
         required: usize,
     },
-    
+
     /// Resource limit exceeded.
     LimitExceeded {
+        /// Name or type of the resource that exceeded its limit.
         resource: String,
+        /// The limit that was exceeded.
         limit: usize,
     },
 }
@@ -341,19 +438,36 @@ pub enum ResourceError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProcessingError {
     /// Timeout occurred.
-    Timeout { operation: String, timeout_ms: u64 },
-    
+    Timeout {
+        /// Description of the operation that timed out.
+        operation: String,
+        /// Timeout duration in milliseconds.
+        timeout_ms: u64
+    },
+
     /// Operation cancelled.
-    Cancelled { operation: String },
-    
+    Cancelled {
+        /// Description of the operation that was cancelled.
+        operation: String
+    },
+
     /// Invalid input.
-    InvalidInput { reason: String },
-    
+    InvalidInput {
+        /// Reason why the input is invalid.
+        reason: String
+    },
+
     /// Unsupported operation.
-    Unsupported { operation: String },
-    
+    Unsupported {
+        /// Description of the unsupported operation.
+        operation: String
+    },
+
     /// Internal error.
-    Internal { reason: String },
+    Internal {
+        /// Reason for the internal error.
+        reason: String
+    },
 }
 
 // ============================================================================

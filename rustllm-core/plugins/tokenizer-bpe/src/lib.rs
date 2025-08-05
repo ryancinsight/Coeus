@@ -11,10 +11,12 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 
 /// BPE tokenizer plugin.
+///
+/// This plugin provides Byte Pair Encoding tokenization capabilities.
+/// It creates new tokenizer instances on demand rather than storing them,
+/// following the stateless plugin design principle.
 #[derive(Debug, Default)]
-pub struct BpeTokenizerPlugin {
-    tokenizer: Option<BpeTokenizer>,
-}
+pub struct BpeTokenizerPlugin;
 
 impl Plugin for BpeTokenizerPlugin {
     fn name(&self) -> &str {

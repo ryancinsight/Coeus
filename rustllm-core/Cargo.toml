@@ -17,6 +17,7 @@ members = [
     ".",
     "plugins/tokenizer-basic",
     "plugins/tokenizer-bpe",
+    "plugins/tokenizer-wordpiece",
     "plugins/model-basic",
     "plugins/model-transformer",
     "plugins/loader-basic",
@@ -50,6 +51,7 @@ path = "src/lib.rs"
 [dev-dependencies]
 rustllm-tokenizer-basic = { path = "plugins/tokenizer-basic" }
 rustllm-tokenizer-bpe = { path = "plugins/tokenizer-bpe" }
+rustllm-tokenizer-wordpiece = { path = "plugins/tokenizer-wordpiece" }
 rustllm-model-basic = { path = "plugins/model-basic" }
 rustllm-model-transformer = { path = "plugins/model-transformer" }
 rustllm-loader-basic = { path = "plugins/loader-basic" }
