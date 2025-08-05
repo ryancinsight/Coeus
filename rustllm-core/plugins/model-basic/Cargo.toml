@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Basic model plugin for RustLLM Core"
+repository = "https://github.com/rustllm/rustllm-core"
+readme = "README.md"
+keywords = ["llm", "model", "plugin", "neural-network", "ml"]
+categories = ["science", "algorithms"]
 
 [dependencies]
 rustllm-core = { path = "../.." }

@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Basic file loader plugin for RustLLM Core"
+repository = "https://github.com/rustllm/rustllm-core"
+readme = "README.md"
+keywords = ["llm", "loader", "plugin", "file", "streaming"]
+categories = ["filesystem", "parser-implementations"]
 
 [dependencies]
 rustllm-core = { path = "../.." }

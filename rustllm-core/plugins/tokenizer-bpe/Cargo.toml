@@ -4,10 +4,11 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Byte Pair Encoding tokenizer plugin for RustLLM Core"
+description = "BPE tokenizer plugin for RustLLM Core"
 repository = "https://github.com/rustllm/rustllm-core"
-keywords = ["tokenizer", "bpe", "nlp", "llm"]
-categories = ["text-processing"]
+readme = "README.md"
+keywords = ["llm", "tokenizer", "bpe", "nlp", "text"]
+categories = ["text-processing", "parser-implementations"]
 
 [dependencies]
 rustllm-core = { path = "../.." }

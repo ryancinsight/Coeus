@@ -69,26 +69,27 @@ impl Arena {
     }
     
     /// Allocates memory in the arena.
-    pub fn alloc<T>(&self, value: T) -> &mut T {
+    pub fn alloc<T>(&mut self, value: T) -> &mut T {
         let layout = Layout::for_value(&value);
         let ptr = self.alloc_raw(layout);
         
         unsafe {
-            if (ptr as usize) % core::mem::align_of::<T>() != 0 {
-                panic!("Allocated pointer is not properly aligned for type T");
-            }
-            ptr::write(ptr as *mut T, value);
-            &mut *(ptr as *mut T)
+            assert!(
+                (ptr as usize) % core::mem::align_of::<T>() == 0,
+                "Allocated pointer is not properly aligned for type T"
+            );
+            ptr::write(ptr.cast::<T>(), value);
+            &mut *ptr.cast::<T>()
         }
     }
     
     /// Allocates a slice in the arena.
-    pub fn alloc_slice<T>(&self, slice: &[T]) -> &mut [T]
+    pub fn alloc_slice<T>(&mut self, slice: &[T]) -> &mut [T]
     where
         T: Copy,
     {
         let layout = Layout::array::<T>(slice.len()).unwrap();
-        let ptr = self.alloc_raw(layout) as *mut T;
+        let ptr = self.alloc_raw(layout).cast::<T>();
         
         // Ensure the pointer is properly aligned for T
         assert!(
@@ -139,14 +140,21 @@ impl Arena {
     /// Resets the arena, allowing memory to be reused.
     pub fn reset(&self) {
         #[cfg(feature = "std")]
-        let chunks = self.chunks.read().unwrap();
+        {
+            let chunks = self.chunks.read().unwrap();
+            for chunk in chunks.iter() {
+                chunk.used.set(0);
+            }
+        }
         
         #[cfg(not(feature = "std"))]
-        let chunks = self.chunks.borrow();
-        
-        for chunk in chunks.iter() {
-            chunk.used.set(0);
+        {
+            let chunks = self.chunks.borrow();
+            for chunk in chunks.iter() {
+                chunk.used.set(0);
+            }
         }
+        
         self.current_chunk.set(0);
     }
 }
@@ -177,8 +185,18 @@ impl Drop for ArenaChunk {
     }
 }
 
-// Arena is Send because it owns its data
+// SAFETY: Arena can be Send in std environments because:
+// 1. The chunks field uses RwLock which provides thread-safe access
+// 2. The Cell fields (current_chunk and ArenaChunk::used) are only accessed
+//    through the RwLock, ensuring no data races
+// 3. All public methods that mutate state require &mut self
+#[cfg(feature = "std")]
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for Arena {}
+
+// In no_std environments, Arena is NOT Send due to RefCell
+#[cfg(not(feature = "std"))]
+// Arena is intentionally NOT Send in no_std environments
 
 // In std environments, Arena is Sync because we use RwLock
 #[cfg(feature = "std")]
@@ -239,13 +257,13 @@ pub enum CowStr<'a> {
 }
 
 impl<'a> CowStr<'a> {
-    /// Creates a new borrowed CowStr.
-    pub fn borrowed(s: &'a str) -> Self {
+    /// Creates a new borrowed `CowStr`.
+    pub const fn borrowed(s: &'a str) -> Self {
         Self::Borrowed(s)
     }
     
-    /// Creates a new owned CowStr.
-    pub fn owned(s: String) -> Self {
+    /// Creates a new owned `CowStr`.
+    pub const fn owned(s: String) -> Self {
         Self::Owned(s)
     }
     
@@ -269,10 +287,10 @@ impl<'a> CowStr<'a> {
     pub fn to_mut(&mut self) -> &mut String {
         match self {
             Self::Borrowed(s) => {
-                *self = Self::Owned(s.to_string());
+                *self = Self::Owned((*s).to_string());
                 match self {
                     Self::Owned(s) => s,
-                    _ => unreachable!(),
+                    Self::Borrowed(_) => unreachable!(),
                 }
             }
             Self::Owned(s) => s,
@@ -342,7 +360,7 @@ pub struct StrBuilder<'a> {
 
 impl<'a> StrBuilder<'a> {
     /// Creates a new string builder.
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             parts: Vec::new(),
             total_len: 0,
@@ -414,7 +432,7 @@ enum StringSegment<'a> {
 
 impl<'a> ZeroCopyStringBuilder<'a> {
     /// Creates a new empty string builder.
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             segments: Vec::new(),
             total_len: 0,
@@ -479,12 +497,12 @@ impl<'a> ZeroCopyStringBuilder<'a> {
     }
     
     /// Returns the total length without materializing the string.
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.total_len
     }
     
     /// Returns whether the builder is empty.
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.total_len == 0
     }
     
@@ -554,6 +572,7 @@ impl<'a, T> SliceView<'a, T> {
     /// Adds a transformation to be applied lazily.
     /// 
     /// Multiple map calls will chain the transformations.
+    #[must_use]
     pub fn map<F>(mut self, f: F) -> Self
     where
         F: Fn(T) -> T + 'a,
@@ -578,7 +597,7 @@ impl<'a, T> SliceView<'a, T> {
     }
     
     /// Returns the length of the view.
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.data.len()
     }
     
@@ -739,7 +758,7 @@ impl SimdAlignedArena {
     }
 
     /// Allocates SIMD-aligned memory for a slice.
-    pub fn alloc_simd_slice<T>(&self, len: usize) -> &mut [T]
+    pub fn alloc_simd_slice<T>(&mut self, len: usize) -> &mut [T]
     where
         T: Copy + Default,
     {
@@ -748,7 +767,7 @@ impl SimdAlignedArena {
             self.alignment.max(core::mem::align_of::<T>())
         ).unwrap();
 
-        let ptr = self.arena.alloc_raw(layout) as *mut T;
+        let ptr = self.arena.alloc_raw(layout) .cast::<T>();
 
         // Initialize with default values
         unsafe {
@@ -760,7 +779,7 @@ impl SimdAlignedArena {
     }
 
     /// Allocates SIMD-aligned memory and copies data.
-    pub fn alloc_simd_copy<T>(&self, data: &[T]) -> &mut [T]
+    pub fn alloc_simd_copy<T>(&mut self, data: &[T]) -> &mut [T]
     where
         T: Copy,
     {
@@ -769,7 +788,7 @@ impl SimdAlignedArena {
             self.alignment.max(core::mem::align_of::<T>())
         ).unwrap();
 
-        let ptr = self.arena.alloc_raw(layout) as *mut T;
+        let ptr = self.arena.alloc_raw(layout) .cast::<T>();
 
         unsafe {
             ptr::copy_nonoverlapping(data.as_ptr(), ptr, data.len());
@@ -1051,8 +1070,8 @@ impl BumpAllocator {
         let ptr = self.alloc_raw(layout)?;
 
         unsafe {
-            ptr::write(ptr as *mut T, value);
-            Some(&mut *(ptr as *mut T))
+            ptr::write(ptr .cast::<T>(), value);
+            Some(&mut *(ptr .cast::<T>()))
         }
     }
 
@@ -1062,7 +1081,7 @@ impl BumpAllocator {
         T: Copy,
     {
         let layout = Layout::array::<T>(slice.len()).ok()?;
-        let ptr = self.alloc_raw(layout)? as *mut T;
+        let ptr = self.alloc_raw(layout)? .cast::<T>();
 
         unsafe {
             ptr::copy_nonoverlapping(slice.as_ptr(), ptr, slice.len());
@@ -1083,7 +1102,7 @@ impl BumpAllocator {
         }
 
         self.position.set(aligned + size);
-        Some(self.buffer.as_ptr().wrapping_add(aligned) as *mut u8)
+                    Some(self.buffer.as_ptr().wrapping_add(aligned).cast_mut())
     }
 
     /// Resets the allocator, making all memory available again.

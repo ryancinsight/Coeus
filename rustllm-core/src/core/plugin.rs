@@ -10,10 +10,21 @@
 //! - **Interface Segregation**: Plugins implement only the interfaces they need
 //! - **Single Responsibility**: Each plugin has one clear purpose
 //! - **Liskov Substitution**: All plugins are interchangeable through traits
+//!
+//! ## Architecture
+//!
+//! The plugin system uses a layered approach:
+//! 1. Core traits define minimal contracts
+//! 2. Extension traits add optional capabilities
+//! 3. Adapters provide compatibility layers
+//! 4. The plugin manager handles lifecycle
 
-use crate::foundation::{
-    error::{Error, PluginError, Result},
-    types::{PluginName, Version},
+use crate::{
+    foundation::{
+        error::{Error, PluginError, Result},
+        types::{PluginName, Version},
+    },
+    core::traits::{HealthStatus, MetricsSnapshot},
 };
 use core::fmt::Debug;
 
@@ -21,7 +32,7 @@ use core::fmt::Debug;
 use std::sync::{Arc, RwLock, Weak};
 
 // ============================================================================
-// Core Plugin Trait
+// Core Plugin Trait (Interface Segregation Principle)
 // ============================================================================
 
 /// The base trait that all plugins must implement.
@@ -96,6 +107,58 @@ impl PluginCapabilities {
     pub fn has_feature(&self, feature: &str) -> bool {
         self.features.iter().any(|f| f == feature)
     }
+}
+
+// ============================================================================
+// Extension Traits (Interface Segregation Principle)
+// ============================================================================
+
+/// Lifecycle management for plugins that need initialization.
+pub trait PluginLifecycle: Plugin {
+    /// Initializes the plugin with the given configuration.
+    fn initialize(&mut self, config: &dyn PluginConfig) -> Result<()>;
+    
+    /// Shuts down the plugin gracefully.
+    fn shutdown(&mut self) -> Result<()>;
+}
+
+/// Health monitoring for plugins.
+pub trait PluginHealth: Plugin {
+    /// Checks if the plugin is healthy.
+    fn is_healthy(&self) -> bool;
+    
+    /// Gets detailed health status.
+    fn health_status(&self) -> HealthStatus;
+}
+
+/// Metrics collection for plugins.
+pub trait PluginMetrics: Plugin {
+    /// Collects current metrics from the plugin.
+    fn collect_metrics(&self) -> MetricsSnapshot;
+    
+    /// Resets metrics counters.
+    fn reset_metrics(&mut self);
+}
+
+/// Configuration interface for plugins (Dependency Inversion Principle).
+pub trait PluginConfig: Debug + Send + Sync {
+    /// Gets a configuration value by key.
+    fn get(&self, key: &str) -> Option<&dyn core::any::Any>;
+    
+    /// Validates the configuration.
+    fn validate(&self) -> Result<()>;
+}
+
+/// Factory trait for creating plugins (Abstract Factory Pattern).
+pub trait PluginFactory: Send + Sync {
+    /// The type of plugin this factory creates.
+    type Plugin: Plugin;
+    
+    /// Creates a new plugin instance.
+    fn create(&self, config: &dyn PluginConfig) -> Result<Self::Plugin>;
+    
+    /// Returns the plugin type identifier.
+    fn plugin_type(&self) -> &str;
 }
 
 // ============================================================================
@@ -396,11 +459,7 @@ pub trait ModelLoaderPlugin: Plugin {
     fn supported_formats(&self) -> Vec<&'static str>;
     
     /// Loads a model from the given path.
-    fn load_model(&self, path: &str) -> Result<Box<dyn crate::core::model::Model<
-        Input = Vec<f32>,
-        Output = Vec<f32>,
-        Config = crate::core::model::BasicModelConfig,
-    >>>;
+    fn load_model(&self, path: &str) -> Result<Box<dyn crate::core::model::Model<Config = crate::core::model::BasicModelConfig>>>;
 }
 
 /// Trait for plugins that support configuration.

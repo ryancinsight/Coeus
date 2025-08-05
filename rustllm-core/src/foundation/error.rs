@@ -1,4 +1,4 @@
-//! Error handling for RustLLM Core.
+//! Error handling for `RustLLM` Core.
 //!
 //! This module provides a zero-dependency error handling system that follows
 //! Rust best practices while maintaining simplicity and performance.
@@ -11,10 +11,10 @@
 
 use core::fmt;
 
-/// The main result type for RustLLM Core.
+/// The main result type for `RustLLM` Core.
 pub type Result<T> = core::result::Result<T, Error>;
 
-/// The main error type for RustLLM Core.
+/// The main error type for `RustLLM` Core.
 /// 
 /// This type follows the principle of exhaustive error handling,
 /// where each variant represents a specific error category.
@@ -67,7 +67,7 @@ pub struct ErrorContext {
 
 impl ErrorContext {
     /// Creates a new error context.
-    pub fn new(operation: &'static str) -> Self {
+    pub const fn new(operation: &'static str) -> Self {
         Self {
             operation,
             context: String::new(),
@@ -76,13 +76,15 @@ impl ErrorContext {
     }
     
     /// Adds context information.
+    #[must_use]
     pub fn with_context(mut self, context: impl Into<String>) -> Self {
         self.context = context.into();
         self
     }
     
     /// Adds source location.
-    pub fn at_location(mut self, file: &'static str, line: u32, column: u32) -> Self {
+    #[must_use]
+    pub const fn at_location(mut self, file: &'static str, line: u32, column: u32) -> Self {
         self.location = Some((file, line, column));
         self
     }
@@ -129,7 +131,7 @@ impl<E: fmt::Display> fmt::Display for ContextualError<E> {
             write!(f, " ({})", self.context.context)?;
         }
         if let Some((file, line, col)) = self.context.location {
-            write!(f, " at {}:{}:{}", file, line, col)?;
+            write!(f, " at {file}:{line}:{col}")?;
         }
         Ok(())
     }
@@ -477,19 +479,19 @@ pub enum ProcessingError {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Plugin(e) => write!(f, "Plugin error: {}", e),
-            Error::Tokenizer(e) => write!(f, "Tokenizer error: {}", e),
-            Error::Model(e) => write!(f, "Model error: {}", e),
+            Self::Plugin(e) => write!(f, "Plugin error: {e}"),
+            Self::Tokenizer(e) => write!(f, "Tokenizer error: {e}"),
+            Self::Model(e) => write!(f, "Model error: {e}"),
             #[cfg(feature = "std")]
-            Error::Io(e) => write!(f, "I/O error: {}", e),
-            Error::Config(e) => write!(f, "Configuration error: {}", e),
-            Error::Validation(e) => write!(f, "Validation error: {}", e),
-            Error::Resource(e) => write!(f, "Resource error: {}", e),
-            Error::Processing(e) => write!(f, "Processing error: {}", e),
-            Error::Multiple(errors) => {
+            Self::Io(e) => write!(f, "I/O error: {e}"),
+            Self::Config(e) => write!(f, "Configuration error: {e}"),
+            Self::Validation(e) => write!(f, "Validation error: {e}"),
+            Self::Resource(e) => write!(f, "Resource error: {e}"),
+            Self::Processing(e) => write!(f, "Processing error: {e}"),
+            Self::Multiple(errors) => {
                 write!(f, "Multiple errors occurred:")?;
                 for (i, e) in errors.iter().enumerate() {
-                    write!(f, "\n  {}. {}", i + 1, e)?;
+                    write!(f, "\n  {}. {e}", i + 1)?;
                 }
                 Ok(())
             }
@@ -500,18 +502,18 @@ impl fmt::Display for Error {
 impl fmt::Display for PluginError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PluginError::NotFound { name } => 
-                write!(f, "Plugin '{}' not found", name),
-            PluginError::InitializationFailed { name, reason } => 
-                write!(f, "Plugin '{}' initialization failed: {}", name, reason),
-            PluginError::VersionMismatch { name, expected, actual } => 
-                write!(f, "Plugin '{}' version mismatch: expected {}, got {}", name, expected, actual),
-            PluginError::AlreadyLoaded { name } => 
-                write!(f, "Plugin '{}' is already loaded", name),
-            PluginError::DependencyMissing { plugin, dependency } => 
-                write!(f, "Plugin '{}' missing dependency '{}'", plugin, dependency),
-            PluginError::InvalidState { plugin, expected, actual } => 
-                write!(f, "Plugin '{}' in invalid state: expected {}, got {}", plugin, expected, actual),
+            Self::NotFound { name } => 
+                write!(f, "Plugin '{name}' not found"),
+            Self::InitializationFailed { name, reason } => 
+                write!(f, "Plugin '{name}' initialization failed: {reason}"),
+            Self::VersionMismatch { name, expected, actual } => 
+                write!(f, "Plugin '{name}' version mismatch: expected {expected}, got {actual}"),
+            Self::AlreadyLoaded { name } => 
+                write!(f, "Plugin '{name}' is already loaded"),
+            Self::DependencyMissing { plugin, dependency } => 
+                write!(f, "Plugin '{plugin}' missing dependency '{dependency}'"),
+            Self::InvalidState { plugin, expected, actual } => 
+                write!(f, "Plugin '{plugin}' in invalid state: expected {expected}, got {actual}"),
         }
     }
 }
@@ -519,18 +521,18 @@ impl fmt::Display for PluginError {
 impl fmt::Display for TokenizerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TokenizerError::InvalidToken { token, position } => 
-                write!(f, "Invalid token '{}' at position {}", token, position),
-            TokenizerError::VocabularyNotLoaded => 
+            Self::InvalidToken { token, position } => 
+                write!(f, "Invalid token '{token}' at position {position}"),
+            Self::VocabularyNotLoaded => 
                 write!(f, "Vocabulary not loaded"),
-            TokenizerError::EncodingFailed { input, reason } => 
-                write!(f, "Failed to encode '{}': {}", input, reason),
-            TokenizerError::DecodingFailed { reason } => 
-                write!(f, "Failed to decode: {}", reason),
-            TokenizerError::TokenLimitExceeded { limit, actual } => 
-                write!(f, "Token limit exceeded: {} > {}", actual, limit),
-            TokenizerError::UnknownTokenId { id } => 
-                write!(f, "Unknown token ID: {}", id),
+            Self::EncodingFailed { input, reason } => 
+                write!(f, "Failed to encode '{input}': {reason}"),
+            Self::DecodingFailed { reason } => 
+                write!(f, "Failed to decode: {reason}"),
+            Self::TokenLimitExceeded { limit, actual } => 
+                write!(f, "Token limit exceeded: {actual} > {limit}"),
+            Self::UnknownTokenId { id } => 
+                write!(f, "Unknown token ID: {id}"),
         }
     }
 }
@@ -538,20 +540,20 @@ impl fmt::Display for TokenizerError {
 impl fmt::Display for ModelError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ModelError::NotInitialized => 
+            Self::NotInitialized => 
                 write!(f, "Model not initialized"),
-            ModelError::InvalidConfig { field, reason } => 
-                write!(f, "Invalid configuration field '{}': {}", field, reason),
-            ModelError::InferenceFailed { reason } => 
-                write!(f, "Inference failed: {}", reason),
-            ModelError::UnsupportedFormat { format } => 
-                write!(f, "Unsupported model format: {}", format),
-            ModelError::ShapeMismatch { expected, actual } => 
-                write!(f, "Shape mismatch: expected {}, got {}", expected, actual),
-            ModelError::InvalidParameter { name, reason } => 
-                write!(f, "Invalid parameter '{}': {}", name, reason),
-            ModelError::TrainingFailed { reason } => 
-                write!(f, "Training failed: {}", reason),
+            Self::InvalidConfig { field, reason } => 
+                write!(f, "Invalid configuration field '{field}': {reason}"),
+            Self::InferenceFailed { reason } => 
+                write!(f, "Inference failed: {reason}"),
+            Self::UnsupportedFormat { format } => 
+                write!(f, "Unsupported model format: {format}"),
+            Self::ShapeMismatch { expected, actual } => 
+                write!(f, "Shape mismatch: expected {expected}, got {actual}"),
+            Self::InvalidParameter { name, reason } => 
+                write!(f, "Invalid parameter '{name}': {reason}"),
+            Self::TrainingFailed { reason } => 
+                write!(f, "Training failed: {reason}"),
         }
     }
 }
@@ -560,16 +562,16 @@ impl fmt::Display for ModelError {
 impl fmt::Display for IoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            IoError::FileNotFound { path } => 
-                write!(f, "File not found: {}", path),
-            IoError::PermissionDenied { path } => 
-                write!(f, "Permission denied: {}", path),
-            IoError::ReadError { path, reason } => 
-                write!(f, "Failed to read '{}': {}", path, reason),
-            IoError::WriteError { path, reason } => 
-                write!(f, "Failed to write '{}': {}", path, reason),
-            IoError::NetworkError { reason } => 
-                write!(f, "Network error: {}", reason),
+            Self::FileNotFound { path } => 
+                write!(f, "File not found: {path}"),
+            Self::PermissionDenied { path } => 
+                write!(f, "Permission denied: {path}"),
+            Self::ReadError { path, reason } => 
+                write!(f, "Failed to read '{path}': {reason}"),
+            Self::WriteError { path, reason } => 
+                write!(f, "Failed to write '{path}': {reason}"),
+            Self::NetworkError { reason } => 
+                write!(f, "Network error: {reason}"),
         }
     }
 }
@@ -577,14 +579,14 @@ impl fmt::Display for IoError {
 impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ConfigError::MissingField { field } => 
-                write!(f, "Missing required field: {}", field),
-            ConfigError::InvalidValue { field, value, expected } => 
-                write!(f, "Invalid value for field '{}': '{}', expected {}", field, value, expected),
-            ConfigError::TypeMismatch { field, expected, actual } => 
-                write!(f, "Type mismatch for field '{}': expected {}, got {}", field, expected, actual),
-            ConfigError::ValidationFailed { field, reason } => 
-                write!(f, "Validation failed for field '{}': {}", field, reason),
+            Self::MissingField { field } => 
+                write!(f, "Missing required field: {field}"),
+            Self::InvalidValue { field, value, expected } => 
+                write!(f, "Invalid value for field '{field}': '{value}', expected {expected}"),
+            Self::TypeMismatch { field, expected, actual } => 
+                write!(f, "Type mismatch for field '{field}': expected {expected}, got {actual}"),
+            Self::ValidationFailed { field, reason } => 
+                write!(f, "Validation failed for field '{field}': {reason}"),
         }
     }
 }
@@ -592,21 +594,21 @@ impl fmt::Display for ConfigError {
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ValidationError::OutOfRange { value, min, max } => {
-                write!(f, "Value '{}' out of range", value)?;
+            Self::OutOfRange { value, min, max } => {
+                write!(f, "Value '{value}' out of range")?;
                 match (min, max) {
-                    (Some(min), Some(max)) => write!(f, " [{}, {}]", min, max),
-                    (Some(min), None) => write!(f, " [{}+)", min),
-                    (None, Some(max)) => write!(f, " (-∞, {}]", max),
+                    (Some(min), Some(max)) => write!(f, " [{min}, {max}]"),
+                    (Some(min), None) => write!(f, " [{min}+)"),
+                    (None, Some(max)) => write!(f, " (-∞, {max}]"),
                     (None, None) => Ok(()),
                 }
             }
-            ValidationError::PatternMismatch { value, pattern } => 
-                write!(f, "Value '{}' does not match pattern '{}'", value, pattern),
-            ValidationError::ConstraintViolation { constraint, value } => 
-                write!(f, "Constraint '{}' violated by value '{}'", constraint, value),
-            ValidationError::InvalidState { current, expected } => 
-                write!(f, "Invalid state: current '{}', expected '{}'", current, expected),
+            Self::PatternMismatch { value, pattern } => 
+                write!(f, "Value '{value}' does not match pattern '{pattern}'"),
+            Self::ConstraintViolation { constraint, value } => 
+                write!(f, "Constraint '{constraint}' violated by value '{value}'"),
+            Self::InvalidState { current, expected } => 
+                write!(f, "Invalid state: current '{current}', expected '{expected}'"),
         }
     }
 }
@@ -614,16 +616,16 @@ impl fmt::Display for ValidationError {
 impl fmt::Display for ResourceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ResourceError::NotFound { resource } => 
-                write!(f, "Resource not found: {}", resource),
-            ResourceError::AlreadyExists { resource } => 
-                write!(f, "Resource already exists: {}", resource),
-            ResourceError::Busy { resource } => 
-                write!(f, "Resource busy: {}", resource),
-            ResourceError::Insufficient { resource, available, required } => 
-                write!(f, "Insufficient {}: {} available, {} required", resource, available, required),
-            ResourceError::LimitExceeded { resource, limit } => 
-                write!(f, "Resource limit exceeded for {}: {}", resource, limit),
+            Self::NotFound { resource } => 
+                write!(f, "Resource not found: {resource}"),
+            Self::AlreadyExists { resource } => 
+                write!(f, "Resource already exists: {resource}"),
+            Self::Busy { resource } => 
+                write!(f, "Resource busy: {resource}"),
+            Self::Insufficient { resource, available, required } => 
+                write!(f, "Insufficient {resource}: {available} available, {required} required"),
+            Self::LimitExceeded { resource, limit } => 
+                write!(f, "Resource limit exceeded for {resource}: {limit}"),
         }
     }
 }
@@ -631,16 +633,16 @@ impl fmt::Display for ResourceError {
 impl fmt::Display for ProcessingError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ProcessingError::Timeout { operation, timeout_ms } => 
-                write!(f, "Operation '{}' timed out after {}ms", operation, timeout_ms),
-            ProcessingError::Cancelled { operation } => 
-                write!(f, "Operation '{}' was cancelled", operation),
-            ProcessingError::InvalidInput { reason } => 
-                write!(f, "Invalid input: {}", reason),
-            ProcessingError::Unsupported { operation } => 
-                write!(f, "Unsupported operation: {}", operation),
-            ProcessingError::Internal { reason } => 
-                write!(f, "Internal error: {}", reason),
+            Self::Timeout { operation, timeout_ms } => 
+                write!(f, "Operation '{operation}' timed out after {timeout_ms}ms"),
+            Self::Cancelled { operation } => 
+                write!(f, "Operation '{operation}' was cancelled"),
+            Self::InvalidInput { reason } => 
+                write!(f, "Invalid input: {reason}"),
+            Self::Unsupported { operation } => 
+                write!(f, "Unsupported operation: {operation}"),
+            Self::Internal { reason } => 
+                write!(f, "Internal error: {reason}"),
         }
     }
 }
@@ -682,50 +684,50 @@ impl std::error::Error for ProcessingError {}
 
 impl From<PluginError> for Error {
     fn from(err: PluginError) -> Self {
-        Error::Plugin(err)
+        Self::Plugin(err)
     }
 }
 
 impl From<TokenizerError> for Error {
     fn from(err: TokenizerError) -> Self {
-        Error::Tokenizer(err)
+        Self::Tokenizer(err)
     }
 }
 
 impl From<ModelError> for Error {
     fn from(err: ModelError) -> Self {
-        Error::Model(err)
+        Self::Model(err)
     }
 }
 
 #[cfg(feature = "std")]
 impl From<IoError> for Error {
     fn from(err: IoError) -> Self {
-        Error::Io(err)
+        Self::Io(err)
     }
 }
 
 impl From<ConfigError> for Error {
     fn from(err: ConfigError) -> Self {
-        Error::Config(err)
+        Self::Config(err)
     }
 }
 
 impl From<ValidationError> for Error {
     fn from(err: ValidationError) -> Self {
-        Error::Validation(err)
+        Self::Validation(err)
     }
 }
 
 impl From<ResourceError> for Error {
     fn from(err: ResourceError) -> Self {
-        Error::Resource(err)
+        Self::Resource(err)
     }
 }
 
 impl From<ProcessingError> for Error {
     fn from(err: ProcessingError) -> Self {
-        Error::Processing(err)
+        Self::Processing(err)
     }
 }
 
@@ -739,7 +741,7 @@ pub fn plugin_not_found(name: impl Into<String>) -> Error {
 }
 
 /// Creates a model not initialized error.
-pub fn model_not_initialized() -> Error {
+pub const fn model_not_initialized() -> Error {
     Error::Model(ModelError::NotInitialized)
 }
 
