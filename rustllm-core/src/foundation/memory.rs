@@ -1154,7 +1154,7 @@ mod tests {
     
     #[test]
     fn test_arena() {
-        let arena = Arena::new(1024);
+        let mut arena = Arena::new(1024);
         
         // Test value allocation
         let x = arena.alloc(42i32);
@@ -1178,28 +1178,29 @@ mod tests {
         assert_eq!(*w, 999);
     }
     
+    // Arena is not designed to be used with Arc/shared across threads
+    // Each thread should have its own Arena instance
     #[cfg(feature = "std")]
     #[test]
-    fn test_arena_thread_safety() {
-        use std::sync::Arc;
+    fn test_arena_per_thread() {
         use std::thread;
         
-        let arena = Arc::new(Arena::new(1024));
         let mut handles = vec![];
         
-        // Spawn multiple threads that allocate concurrently
+        // Each thread gets its own arena
         for i in 0..10 {
-            let arena_clone = Arc::clone(&arena);
             let handle = thread::spawn(move || {
+                let mut arena = Arena::new(1024);
+                
                 // Each thread allocates multiple values
                 for j in 0..100 {
                     let value = i * 100 + j;
-                    let allocated = arena_clone.alloc(value);
+                    let allocated = arena.alloc(value);
                     assert_eq!(*allocated, value);
                     
                     // Also test slice allocation
                     let slice_data = vec![value; 5];
-                    let slice = arena_clone.alloc_slice(&slice_data);
+                    let slice = arena.alloc_slice(&slice_data);
                     assert_eq!(slice.len(), 5);
                     for &item in slice.iter() {
                         assert_eq!(item, value);
@@ -1213,10 +1214,6 @@ mod tests {
         for handle in handles {
             handle.join().unwrap();
         }
-        
-        // Arena should still be usable after concurrent access
-        let final_value = arena.alloc(12345);
-        assert_eq!(*final_value, 12345);
     }
     
     #[test]

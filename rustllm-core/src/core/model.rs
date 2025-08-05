@@ -441,6 +441,33 @@ impl ModelConfig for Transformer250MConfig {
     }
     
     fn validate(&self) -> Result<()> {
+        if self.num_layers == 0 {
+            return Err(crate::foundation::error::Error::Config(
+                crate::foundation::error::ConfigError::ValidationFailed {
+                    field: "num_layers".to_string(),
+                    reason: "Number of layers must be greater than 0".to_string(),
+                }
+            ));
+        }
+        
+        if self.vocab_size == 0 {
+            return Err(crate::foundation::error::Error::Config(
+                crate::foundation::error::ConfigError::ValidationFailed {
+                    field: "vocab_size".to_string(),
+                    reason: "Vocabulary size must be greater than 0".to_string(),
+                }
+            ));
+        }
+        
+        if self.max_seq_len == 0 {
+            return Err(crate::foundation::error::Error::Config(
+                crate::foundation::error::ConfigError::ValidationFailed {
+                    field: "max_seq_len".to_string(),
+                    reason: "Maximum sequence length must be greater than 0".to_string(),
+                }
+            ));
+        }
+        
         if self.hidden_dim % self.num_heads != 0 {
             return Err(crate::foundation::error::Error::Config(
                 crate::foundation::error::ConfigError::ValidationFailed {
@@ -677,7 +704,7 @@ mod tests {
         let config = BasicGenerationConfig::default();
         assert_eq!(config.max_length(), 100);
         assert_eq!(config.temperature(), 1.0);
-        assert_eq!(config.top_k(), None);
-        assert_eq!(config.top_p(), None);
+        assert_eq!(config.top_k, None);
+        assert_eq!(config.top_p, None);
     }
 }

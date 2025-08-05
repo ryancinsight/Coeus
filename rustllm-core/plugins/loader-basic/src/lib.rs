@@ -1,7 +1,7 @@
 //! Basic loader plugin implementation.
 
 use rustllm_core::core::plugin::{Plugin, ModelLoaderPlugin, PluginCapabilities};
-use rustllm_core::core::model::{Model, BasicModelConfig};
+use rustllm_core::core::model::{Model, ForwardModel, BasicModelConfig};
 use rustllm_core::foundation::{
     error::{Error, Result, ProcessingError},
     types::Version,
@@ -32,11 +32,7 @@ impl ModelLoaderPlugin for BasicLoaderPlugin {
         vec!["txt", "json"]
     }
     
-    fn load_model(&self, path: &str) -> Result<Box<dyn Model<
-        Input = Vec<f32>,
-        Output = Vec<f32>,
-        Config = BasicModelConfig,
-    >>> {
+    fn load_model(&self, path: &str) -> Result<Box<dyn Model<Config = BasicModelConfig>>> {
         // For demonstration, we just create a dummy model
         if !path.ends_with(".txt") && !path.ends_with(".json") {
             return Err(Error::Processing(ProcessingError::Unsupported { 
@@ -65,21 +61,24 @@ impl DummyModel {
 }
 
 impl Model for DummyModel {
-    type Input = Vec<f32>;
-    type Output = Vec<f32>;
     type Config = BasicModelConfig;
-    
-    fn forward(&self, input: Self::Input) -> Result<Self::Output> {
-        // Simple pass-through
-        Ok(input)
-    }
     
     fn config(&self) -> &Self::Config {
         &self.config
     }
     
-    fn num_parameters(&self) -> usize {
-        1000 // Dummy value
+    fn name(&self) -> &str {
+        "DummyModel"
+    }
+}
+
+impl ForwardModel for DummyModel {
+    type Input = Vec<f32>;
+    type Output = Vec<f32>;
+    
+    fn forward(&self, input: Self::Input) -> Result<Self::Output> {
+        // Simple pass-through
+        Ok(input)
     }
 }
 
@@ -94,11 +93,19 @@ mod tests {
         
         // Test loading a supported format
         let model = loader.load_model("model.txt").unwrap();
-        let input = vec![1.0, 2.0, 3.0];
-        let output = model.forward(input.clone()).unwrap();
-        assert_eq!(output, input);
+        assert_eq!(model.name(), "DummyModel");
         
         // Test unsupported format
         assert!(loader.load_model("model.bin").is_err());
+    }
+    
+    #[test]
+    fn test_dummy_model_forward() {
+        let config = BasicModelConfig::default();
+        let model = DummyModel::new(config);
+        
+        let input = vec![1.0, 2.0, 3.0];
+        let output = model.forward(input.clone()).unwrap();
+        assert_eq!(output, input);
     }
 }

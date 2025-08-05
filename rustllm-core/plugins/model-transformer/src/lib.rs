@@ -24,15 +24,17 @@
 //! - Cache-friendly memory access patterns
 //! - Minimal allocations during forward pass
 
-use rustllm_core::core::{
-    plugin::{Plugin, ModelBuilderPlugin, PluginCapabilities},
-    model::{Model, ModelBuilder, Transformer250MConfig},
-    serialization::{ModelSerializable, ModelHeader, ModelMetadata, ParameterSerializer, calculate_checksum},
+use rustllm_core::{
+    core::{
+        plugin::{Plugin, ModelBuilderPlugin, PluginCapabilities},
+        model::{ModelBuilder, Model, ForwardModel, Transformer250MConfig},
+    },
+    foundation::{
+        error::{Result, Error},
+        types::Version,
+    },
 };
-use rustllm_core::foundation::{
-    error::{Result, Error, internal_error},
-    types::Version,
-};
+use rustllm_core::core::serialization::{ModelSerializable, ModelHeader, ModelMetadata, ParameterSerializer, calculate_checksum};
 use std::io::{Write, Read, Seek, SeekFrom};
 
 /// Mathematical operations for transformer components.
@@ -487,15 +489,62 @@ impl ModelBuilderPlugin for TransformerModelPlugin {
 #[derive(Debug, Default)]
 pub struct TransformerModelBuilder;
 
+impl TransformerModelBuilder {
+    /// Calculates the number of parameters for a given configuration.
+    fn calculate_num_parameters(config: &Transformer250MConfig) -> usize {
+        let mut params = 0;
+        
+        // Embedding parameters
+        params += config.vocab_size * config.hidden_dim; // Token embeddings
+        params += config.max_seq_len * config.hidden_dim; // Position embeddings
+        
+        // Transformer layers
+        for _ in 0..config.num_layers {
+            // Self-attention
+            params += 4 * config.hidden_dim * config.hidden_dim; // Q, K, V, O projections
+            if config.use_bias {
+                params += 4 * config.hidden_dim; // Biases
+            }
+            
+            // Layer norm 1
+            params += 2 * config.hidden_dim; // Scale and bias
+            
+            // Feedforward
+            params += config.hidden_dim * config.intermediate_dim; // Up projection
+            params += config.intermediate_dim * config.hidden_dim; // Down projection
+            if config.use_bias {
+                params += config.intermediate_dim + config.hidden_dim; // Biases
+            }
+            
+            // Layer norm 2
+            params += 2 * config.hidden_dim; // Scale and bias
+        }
+        
+        // Final layer norm
+        params += 2 * config.hidden_dim;
+        
+        // Output projection
+        params += config.hidden_dim * config.vocab_size;
+        if config.use_bias {
+            params += config.vocab_size;
+        }
+        
+        params
+    }
+}
+
 impl ModelBuilder for TransformerModelBuilder {
     type Model = TransformerModel;
     type Config = Transformer250MConfig;
-    type Error = std::io::Error;
 
     fn build(&self, config: Self::Config) -> Result<Self::Model> {
+        // Import the trait to use validate method
+        use rustllm_core::core::model::ModelConfig as _;
+        
         config.validate()?;
 
-        let param_count = config.num_parameters();
+        // Calculate parameters using a method on the config
+        let param_count = Self::calculate_num_parameters(&config);
         println!("Building enhanced transformer model with {} parameters", param_count);
 
         // Pre-allocate parameter buffer with proper alignment
@@ -673,9 +722,20 @@ struct ParameterLayout {
 }
 
 impl Model for TransformerModel {
+    type Config = Transformer250MConfig;
+    
+    fn config(&self) -> &Self::Config {
+        &self.config
+    }
+    
+    fn name(&self) -> &str {
+        "TransformerModel"
+    }
+}
+
+impl ForwardModel for TransformerModel {
     type Input = Vec<usize>; // Token IDs
     type Output = Vec<f32>; // Logits
-    type Config = Transformer250MConfig;
     
     fn forward(&self, input: Self::Input) -> Result<Self::Output> {
         let seq_len = input.len();
@@ -805,12 +865,11 @@ impl Model for TransformerModel {
 
         Ok(logits)
     }
-    
-    fn config(&self) -> &Self::Config {
-        &self.config
-    }
-    
-    fn num_parameters(&self) -> usize {
+}
+
+impl TransformerModel {
+    /// Returns the number of parameters in the model.
+    pub fn num_parameters(&self) -> usize {
         self.parameters.len()
     }
 }
@@ -835,7 +894,7 @@ impl ModelSerializable for TransformerModel {
             )
         };
         writer.write_all(header_bytes)
-            .map_err(|e| internal_error(format!("Failed to write header: {}", e)))?;
+            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to write header: {}", e)))?;
         
         // Write parameters with progress
         let serializer = ParameterSerializer::new();
@@ -856,13 +915,13 @@ impl ModelSerializable for TransformerModel {
         
         let metadata_bytes = metadata.to_bytes()?;
         let metadata_offset = writer.seek(SeekFrom::Current(0))
-            .map_err(|e| internal_error(format!("Failed to seek: {}", e)))?;
+            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to seek: {}", e)))?;
         writer.write_all(&metadata_bytes)
-            .map_err(|e| internal_error(format!("Failed to write metadata: {}", e)))?;
+            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to write metadata: {}", e)))?;
         
         // Update header with metadata info
         writer.seek(SeekFrom::Start(0))
-            .map_err(|e| internal_error(format!("Failed to seek to start: {}", e)))?;
+            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to seek to start: {}", e)))?;
         header.metadata_offset = metadata_offset;
         header.metadata_size = metadata_bytes.len() as u64;
         
@@ -873,7 +932,7 @@ impl ModelSerializable for TransformerModel {
             )
         };
         writer.write_all(header_bytes)
-            .map_err(|e| internal_error(format!("Failed to update header: {}", e)))?;
+            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to update header: {}", e)))?;
         
         Ok(())
     }
@@ -882,7 +941,7 @@ impl ModelSerializable for TransformerModel {
         // Read header
         let mut header_bytes = vec![0u8; std::mem::size_of::<ModelHeader>()];
         reader.read_exact(&mut header_bytes)
-            .map_err(|e| internal_error(format!("Failed to read header: {}", e)))?;
+            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to read header: {}", e)))?;
         
         let header = unsafe {
             std::ptr::read(header_bytes.as_ptr() as *const ModelHeader)
@@ -892,7 +951,7 @@ impl ModelSerializable for TransformerModel {
         
         // Read parameters
         reader.seek(SeekFrom::Start(header.param_offset))
-            .map_err(|e| internal_error(format!("Failed to seek to parameters: {}", e)))?;
+            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to seek to parameters: {}", e)))?;
         let serializer = ParameterSerializer::new();
         let parameters = serializer.read_parameters(reader, header.param_count as usize, |current, total| {
             let percent = (current as f64 / total as f64) * 100.0;
@@ -904,15 +963,15 @@ impl ModelSerializable for TransformerModel {
         // Verify checksum
         let checksum = calculate_checksum(&parameters);
         if checksum != header.checksum {
-            return Err(internal_error("Checksum mismatch".to_string()));
+            return Err(rustllm_core::foundation::error::internal_error("Checksum mismatch".to_string()));
         }
         
         // Read metadata
         reader.seek(SeekFrom::Start(header.metadata_offset))
-            .map_err(|e| internal_error(format!("Failed to seek to metadata: {}", e)))?;
+            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to seek to metadata: {}", e)))?;
         let mut metadata_bytes = vec![0u8; header.metadata_size as usize];
         reader.read_exact(&mut metadata_bytes)
-            .map_err(|e| internal_error(format!("Failed to read metadata: {}", e)))?;
+            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to read metadata: {}", e)))?;
         
         let metadata = ModelMetadata::from_bytes(&metadata_bytes)?;
         
@@ -979,7 +1038,7 @@ mod tests {
     #[test]
     fn test_transformer_builder() {
         let builder = TransformerModelBuilder::default();
-        let config = Transformer250MConfig::new();
+        let config = Transformer250MConfig::default();
         let model = builder.build(config).unwrap();
         
         // Should be approximately 163M parameters (not 250M - that was the target)

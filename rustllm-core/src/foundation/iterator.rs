@@ -450,7 +450,7 @@ pub trait IteratorExt: Iterator {
     fn stream_map<F, B>(self, f: F) -> StreamMap<Self, F>
     where
         Self: Sized,
-        F: FnMut(&Self::Item) -> B,
+        F: FnMut(Self::Item) -> B,
     {
         StreamMap::new(self, f)
     }
@@ -1395,9 +1395,13 @@ impl<T> Zipper<T> {
 
     /// Moves the focus one position to the left.
     pub fn move_left(&mut self) -> Option<&T> {
-        if let Some(item) = self.left.pop() {
-            self.right.push(item);
-            self.right.last()
+        if self.left.len() > 1 {
+            if let Some(item) = self.left.pop() {
+                self.right.push(item);
+                self.left.last()
+            } else {
+                None
+            }
         } else {
             None
         }
