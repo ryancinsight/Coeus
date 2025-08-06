@@ -7,7 +7,7 @@ use rustllm_core::{
     core::{
         plugin::TokenizerPlugin,
         tokenizer::{Token, Tokenizer},
-        traits::{foundation::Named, identity::Versioned},
+        traits::{Identity, Versioned},
     },
     foundation::error::Result,
 };
@@ -21,7 +21,7 @@ fn main() -> Result<()> {
     // Create the WordPiece tokenizer plugin
     let plugin = WordPieceTokenizerPlugin::default();
     println!("✓ Created WordPiece tokenizer plugin");
-    println!("   • Name: {}", plugin.name());
+    println!("   • Name: {}", plugin.id());
     println!("   • Version: {}", plugin.version());
     
     // Create tokenizer instance

@@ -118,7 +118,7 @@ fn main() -> Result<()> {
     println!("----------------------");
     
     let plugin = TransformerModelPlugin::default();
-    println!("Plugin name: {}", plugin.name());
+    println!("Plugin name: {}", plugin.id());
     println!("Plugin version: {}", plugin.version());
     println!("Plugin capabilities: {:?}", plugin.capabilities());
     

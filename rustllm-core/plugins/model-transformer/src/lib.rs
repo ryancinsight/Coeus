@@ -28,7 +28,7 @@ use rustllm_core::{
     core::{
         plugin::{Plugin, ModelBuilderPlugin, PluginCapabilities},
         model::{ModelBuilder, Model, ForwardModel, Transformer250MConfig},
-        traits::{foundation::Named, identity::Versioned},
+        traits::{Identity, Versioned},
     },
     foundation::{
         error::Result,
@@ -461,8 +461,8 @@ impl TransformerBlock {
 #[derive(Debug, Default)]
 pub struct TransformerModelPlugin;
 
-impl Named for TransformerModelPlugin {
-    fn name(&self) -> &str {
+impl Identity for TransformerModelPlugin {
+    fn id(&self) -> &str {
         "transformer_model"
     }
 }
@@ -544,7 +544,7 @@ impl ModelBuilder for TransformerModelBuilder {
 
     fn build(&self, config: Self::Config) -> Result<Self::Model> {
         // Import the trait to use validate method
-        use rustllm_core::core::model::ModelConfig as _;
+
         
         config.validate()?;
 
@@ -1026,7 +1026,7 @@ mod tests {
     #[test]
     fn test_transformer_plugin() {
         let plugin = TransformerModelPlugin::default();
-        assert_eq!(plugin.name(), "transformer_model");
+        assert_eq!(plugin.id(), "transformer_model");
         assert_eq!(plugin.version().major, 0);
         assert_eq!(plugin.version().minor, 1);
         assert_eq!(plugin.version().patch, 0);
