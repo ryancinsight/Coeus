@@ -2,7 +2,7 @@
 
 use rustllm_core::core::plugin::{Plugin, ModelLoaderPlugin, PluginCapabilities};
 use rustllm_core::core::model::{Model, ForwardModel, BasicModelConfig};
-use rustllm_core::core::traits::{foundation::Named, identity::Versioned};
+use rustllm_core::core::traits::{Identity, Versioned};
 use rustllm_core::foundation::{
     error::{Error, Result, ProcessingError},
     types::Version,
@@ -12,8 +12,8 @@ use rustllm_core::foundation::{
 #[derive(Debug, Default)]
 pub struct BasicLoaderPlugin;
 
-impl Named for BasicLoaderPlugin {
-    fn name(&self) -> &str {
+impl Identity for BasicLoaderPlugin {
+    fn id(&self) -> &str {
         "basic_loader"
     }
 }

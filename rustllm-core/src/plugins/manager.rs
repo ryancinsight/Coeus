@@ -8,6 +8,7 @@
 #![cfg(feature = "std")]
 
 use crate::core::plugin::{Plugin, PluginEntry, PluginState};
+use crate::core::traits::Versioned;
 use crate::foundation::{
     error::{Error, PluginError, Result, ProcessingError},
     types::{PluginName, Version},
@@ -285,15 +286,15 @@ mod tests {
     #[derive(Debug, Default)]
     struct TestPlugin;
     
-    impl Named for TestPlugin {
-        fn name(&self) -> &str {
+    impl Identity for TestPlugin {
+        fn id(&self) -> &str {
             "test"
         }
     }
     
-    impl Versioned for TestPlugin {
-        fn version(&self) -> Version {
-            Version::new(1, 0, 0)
+    impl crate::core::traits::Versioned for TestPlugin {
+        fn version(&self) -> crate::foundation::types::Version {
+            crate::foundation::types::Version::new(1, 0, 0)
         }
     }
     

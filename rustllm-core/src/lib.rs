@@ -106,6 +106,9 @@ pub mod plugins {
     pub mod registry;
 }
 
+// Domain-driven design modules
+pub mod domain;
+
 // Re-exports for convenience
 pub mod prelude {
     //! Common imports for users of the library.
@@ -129,6 +132,28 @@ pub mod prelude {
         types::*,
     };
     pub use crate::plugins::manager::PluginManager;
+    
+    // Domain types - selectively import to avoid conflicts
+    pub use crate::domain::tokenization::{
+        TokenizationService, TokenizerAggregate, Token as DomainToken,
+        TokenizationEvent, TokenizerRepository,
+    };
+    pub use crate::domain::modeling::{
+        ModelingService, ModelAggregate as DomainModelAggregate, Architecture,
+        ModelingEvent, ModelRepository,
+    };
+    pub use crate::domain::inference::{
+        InferenceService, InferenceSession, InferenceRequest,
+        InferenceEvent, InferenceResult,
+    };
+    pub use crate::domain::training::{
+        TrainingService, TrainingSession, TrainingConfig as DomainTrainingConfig,
+        TrainingEvent, Optimizer,
+    };
+    pub use crate::domain::persistence::{
+        PersistenceService, StorageBackend, SerializationFormat,
+        PersistenceEvent, Checkpoint as DomainCheckpoint,
+    };
 }
 
 // Version information

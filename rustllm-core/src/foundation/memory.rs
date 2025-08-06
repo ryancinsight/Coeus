@@ -435,17 +435,16 @@ pub struct ZeroCopyStringBuilder<'a> {
     total_len: usize,
 }
 
+/// Segments in the zero-copy string builder.
 #[derive(Debug, Clone)]
 enum StringSegment<'a> {
+    /// Borrowed string slice.
     Borrowed(&'a str),
+    /// Owned string.
     Owned(String),
+    /// Shared string (when std feature is enabled).
     #[cfg(feature = "std")]
     Shared(Arc<String>),
-    Slice { 
-        source: Box<StringSegment<'a>>,
-        start: usize, 
-        end: usize 
-    },
 }
 
 impl<'a> ZeroCopyStringBuilder<'a> {
@@ -543,15 +542,6 @@ impl<'a> ZeroCopyStringBuilder<'a> {
             StringSegment::Owned(s) => s,
             #[cfg(feature = "std")]
             StringSegment::Shared(s) => (*s).clone(),
-            StringSegment::Slice { source, start, end } => {
-                match *source {
-                    StringSegment::Borrowed(s) => s[start..end].to_string(),
-                    StringSegment::Owned(s) => s[start..end].to_string(),
-                    #[cfg(feature = "std")]
-                    StringSegment::Shared(ref s) => s[start..end].to_string(),
-                    StringSegment::Slice { .. } => unreachable!("Nested slices not supported"),
-                }
-            },
         }
     }
     
@@ -563,15 +553,6 @@ impl<'a> ZeroCopyStringBuilder<'a> {
                 StringSegment::Owned(s) => result.push_str(&s),
                 #[cfg(feature = "std")]
                 StringSegment::Shared(s) => result.push_str(&s),
-                StringSegment::Slice { source, start, end } => {
-                    match *source {
-                        StringSegment::Borrowed(s) => result.push_str(&s[start..end]),
-                        StringSegment::Owned(s) => result.push_str(&s[start..end]),
-                        #[cfg(feature = "std")]
-                        StringSegment::Shared(ref s) => result.push_str(&s[start..end]),
-                        StringSegment::Slice { .. } => unreachable!("Nested slices not supported"),
-                    }
-                }
             }
         }
         result
@@ -972,13 +953,16 @@ pub struct Rope<'a> {
     len: usize,
 }
 
+/// Node in a rope data structure.
 #[derive(Debug, Clone)]
 enum RopeNode<'a> {
+    /// Leaf node containing actual data.
     Leaf(CowStr<'a>),
+    /// Branch node containing child nodes.
     Branch {
         left: Box<RopeNode<'a>>,
         right: Box<RopeNode<'a>>,
-        len: usize,
+        // Removed unused len field
     },
 }
 
@@ -1023,7 +1007,7 @@ impl<'a> Rope<'a> {
             root: RopeNode::Branch {
                 left: Box::new(self.root),
                 right: Box::new(other.root),
-                len,
+                // Removed unused len field
             },
             len,
         }
@@ -1067,69 +1051,68 @@ impl<'a> Default for Rope<'a> {
 // Benchmarking Utilities
 // ============================================================================
 
-/// A simple allocation benchmark utility.
+/// Benchmark structure for memory operations.
+#[derive(Debug, Clone)]
 pub struct AllocationBenchmark {
-    name: String,
-    iterations: usize,
-    start_time: Option<core::time::Duration>,
+    /// Total allocations made.
+    pub allocations: usize,
+    /// Total bytes allocated.
+    pub bytes_allocated: usize,
+    /// Peak memory usage.
+    pub peak_usage: usize,
+    // Removed unused start_time field
 }
 
 impl AllocationBenchmark {
     /// Creates a new benchmark.
-    pub fn new(name: impl Into<String>, iterations: usize) -> Self {
+    pub fn new() -> Self {
         Self {
-            name: name.into(),
-            iterations,
-            start_time: None,
+            allocations: 0,
+            bytes_allocated: 0,
+            peak_usage: 0,
         }
     }
     
-    /// Runs a benchmark with an arena.
-    pub fn run_arena<F>(&mut self, chunk_size: usize, mut f: F) -> BenchmarkResult
-    where
-        F: FnMut(&mut Arena, usize),
-    {
-        let mut arena = Arena::new(chunk_size);
-        
-        #[cfg(feature = "std")]
-        let start = std::time::Instant::now();
-        
-        for i in 0..self.iterations {
-            f(&mut arena, i);
-        }
-        
-        #[cfg(feature = "std")]
-        let elapsed = start.elapsed();
-        #[cfg(not(feature = "std"))]
-        let elapsed = core::time::Duration::from_secs(0); // Placeholder
-        
-        BenchmarkResult {
-            name: self.name.clone(),
-            iterations: self.iterations,
-            elapsed,
-            bytes_allocated: arena.used(),
-        }
+    /// Records an allocation.
+    pub fn record_allocation(&mut self, bytes: usize) {
+        self.allocations += 1;
+        self.bytes_allocated += bytes;
+        self.peak_usage = self.peak_usage.max(self.bytes_allocated);
+    }
+    
+    /// Records a deallocation.
+    pub fn record_deallocation(&mut self, bytes: usize) {
+        self.bytes_allocated = self.bytes_allocated.saturating_sub(bytes);
+    }
+    
+    /// Resets the benchmark.
+    pub fn reset(&mut self) {
+        self.allocations = 0;
+        self.bytes_allocated = 0;
+        self.peak_usage = 0;
     }
 }
 
-/// Benchmark result.
-#[derive(Debug)]
+/// Result of a benchmark run.
+#[derive(Debug, Clone)]
 pub struct BenchmarkResult {
-    /// Benchmark name.
-    pub name: String,
-    /// Number of iterations.
-    pub iterations: usize,
-    /// Time elapsed.
-    pub elapsed: core::time::Duration,
-    /// Bytes allocated.
+    /// Number of allocations.
+    pub allocations: usize,
+    /// Total bytes allocated.
     pub bytes_allocated: usize,
+    /// Peak memory usage.
+    pub peak_usage: usize,
+    /// Elapsed time (if std feature is enabled).
+    #[cfg(feature = "std")]
+    pub elapsed: std::time::Duration,
 }
 
 impl BenchmarkResult {
     /// Returns allocations per second.
+    #[cfg(feature = "std")]
     pub fn allocations_per_second(&self) -> f64 {
         if self.elapsed.as_secs_f64() > 0.0 {
-            self.iterations as f64 / self.elapsed.as_secs_f64()
+            self.allocations as f64 / self.elapsed.as_secs_f64()
         } else {
             0.0
         }

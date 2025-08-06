@@ -2,7 +2,7 @@
 
 use rustllm_core::core::plugin::{Plugin, TokenizerPlugin, PluginCapabilities};
 use rustllm_core::core::tokenizer::{Tokenizer, Token, StringToken, TokenIterator, VocabularyTokenizer};
-use rustllm_core::core::traits::{foundation::Named, identity::Versioned};
+use rustllm_core::core::traits::{Identity, Versioned};
 use rustllm_core::foundation::{
     error::{Error, Result},
     types::{Version, TokenId, VocabSize},
@@ -19,8 +19,8 @@ use std::cmp::Ordering;
 #[derive(Debug, Default)]
 pub struct BpeTokenizerPlugin;
 
-impl Named for BpeTokenizerPlugin {
-    fn name(&self) -> &str {
+impl Identity for BpeTokenizerPlugin {
+    fn id(&self) -> &str {
         "bpe_tokenizer"
     }
 }

@@ -8,6 +8,7 @@
 #![cfg(feature = "std")]
 
 use crate::core::plugin::Plugin;
+use crate::core::traits::Identity;
 use crate::foundation::{
     error::{Error, PluginError, Result},
     types::PluginName,
@@ -39,7 +40,7 @@ impl PluginRegistry {
         P: Plugin + Default + 'static,
     {
         let plugin = P::default();
-        let name = PluginName::from(plugin.name());
+        let name = PluginName::from(plugin.id());
         let type_id = TypeId::of::<P>();
         
         // Check if already registered
@@ -195,15 +196,15 @@ mod tests {
         value: i32,
     }
     
-    impl Named for TestPlugin {
-        fn name(&self) -> &str {
+    impl Identity for TestPlugin {
+        fn id(&self) -> &str {
             "test"
         }
     }
     
-    impl Versioned for TestPlugin {
-        fn version(&self) -> Version {
-            Version::new(1, 0, 0)
+    impl crate::core::traits::Versioned for TestPlugin {
+        fn version(&self) -> crate::foundation::types::Version {
+            crate::foundation::types::Version::new(1, 0, 0)
         }
     }
     
@@ -226,7 +227,7 @@ mod tests {
         registry.register::<TestPlugin>().unwrap();
         
         let plugin = registry.create(&PluginName::from("test")).unwrap();
-        assert_eq!(plugin.name(), "test");
+        assert_eq!(plugin.id(), "test");
         assert_eq!(plugin.version(), Version::new(1, 0, 0));
     }
     

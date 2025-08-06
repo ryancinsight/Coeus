@@ -23,7 +23,7 @@ use crate::{
         error::{Error, PluginError, Result},
         types::{PluginName, Version},
     },
-    core::traits::{monitoring::*, lifecycle::*, identity::*, foundation::*},
+    core::traits::{Identity, Versioned, Lifecycle, HealthCheck, Metrics},
 };
 use core::fmt::Debug;
 
@@ -36,7 +36,7 @@ use core::fmt::Debug;
 /// This trait is intentionally minimal, following the Interface
 /// Segregation Principle. Additional functionality is provided
 /// through extension traits.
-pub trait Plugin: Send + Sync + Debug + Named + Versioned {
+pub trait Plugin: Send + Sync + Debug + Identity + Versioned {
     /// Returns the plugin's capabilities.
     fn capabilities(&self) -> PluginCapabilities;
     
@@ -104,10 +104,7 @@ impl PluginCapabilities {
 // ============================================================================
 
 /// Lifecycle management for plugins.
-pub trait PluginLifecycle: Plugin + Initialize {
-    /// Shuts down the plugin gracefully.
-    fn shutdown(&mut self) -> Result<()>;
-}
+pub trait PluginLifecycle: Plugin + Lifecycle {}
 
 /// Health monitoring for plugins.
 pub trait PluginHealth: Plugin + HealthCheck {}
@@ -116,12 +113,17 @@ pub trait PluginHealth: Plugin + HealthCheck {}
 pub trait PluginMetrics: Plugin + Metrics {}
 
 /// Configuration interface for plugins.
-pub trait PluginConfig: Debug + Send + Sync + Validate {
+pub trait PluginConfig: Debug + Send + Sync {
     /// Gets a configuration value by key.
     fn get(&self, key: &str) -> Option<&dyn core::any::Any>;
     
     /// Clones the configuration into a boxed trait object.
     fn clone_box(&self) -> Box<dyn PluginConfig>;
+    
+    /// Validates the configuration.
+    fn validate(&self) -> Result<()> {
+        Ok(())
+    }
 }
 
 /// Factory trait for creating plugins (Abstract Factory Pattern).
@@ -236,7 +238,7 @@ impl PluginEntry {
     
     /// Returns the plugin name.
     pub fn name(&self) -> &str {
-        self.plugin.name()
+        self.plugin.id()
     }
     
     /// Returns the plugin version.
@@ -366,13 +368,13 @@ pub trait ModelLoaderPlugin: Plugin {
 #[macro_export]
 macro_rules! impl_plugin {
     ($type:ty, $name:expr, $version:expr) => {
-        impl $crate::core::traits::foundation::Named for $type {
-            fn name(&self) -> &str {
+        impl $crate::core::traits::Identity for $type {
+            fn id(&self) -> &str {
                 $name
             }
         }
         
-        impl $crate::core::traits::identity::Versioned for $type {
+        impl $crate::core::traits::Versioned for $type {
             fn version(&self) -> $crate::foundation::types::Version {
                 $version
             }
@@ -386,13 +388,13 @@ macro_rules! impl_plugin {
     };
     
     ($type:ty, $name:expr, $version:expr, $capabilities:expr) => {
-        impl $crate::core::traits::foundation::Named for $type {
-            fn name(&self) -> &str {
+        impl $crate::core::traits::Identity for $type {
+            fn id(&self) -> &str {
                 $name
             }
         }
         
-        impl $crate::core::traits::identity::Versioned for $type {
+        impl $crate::core::traits::Versioned for $type {
             fn version(&self) -> $crate::foundation::types::Version {
                 $version
             }
@@ -416,15 +418,15 @@ mod tests {
         initialized: bool,
     }
     
-    impl Named for TestPlugin {
-        fn name(&self) -> &str {
+    impl Identity for TestPlugin {
+        fn id(&self) -> &str {
             "test_plugin"
         }
     }
     
-    impl Versioned for TestPlugin {
-        fn version(&self) -> Version {
-            Version::new(1, 0, 0)
+    impl crate::core::traits::Versioned for TestPlugin {
+        fn version(&self) -> crate::foundation::types::Version {
+            crate::foundation::types::Version::new(1, 0, 0)
         }
     }
     
