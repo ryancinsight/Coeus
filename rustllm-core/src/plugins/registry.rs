@@ -188,21 +188,26 @@ impl Default for PluginRegistryBuilder {
 mod tests {
     use super::*;
     use crate::foundation::types::Version;
+    use crate::core::traits::{foundation::Named, identity::Versioned};
     
     #[derive(Debug, Default)]
     struct TestPlugin {
         value: i32,
     }
     
-    impl Plugin for TestPlugin {
+    impl Named for TestPlugin {
         fn name(&self) -> &str {
             "test"
         }
-        
+    }
+    
+    impl Versioned for TestPlugin {
         fn version(&self) -> Version {
             Version::new(1, 0, 0)
         }
-        
+    }
+    
+    impl Plugin for TestPlugin {
         fn capabilities(&self) -> crate::core::plugin::PluginCapabilities {
             crate::core::plugin::PluginCapabilities::none()
         }

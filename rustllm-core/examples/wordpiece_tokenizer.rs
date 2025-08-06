@@ -5,8 +5,9 @@
 
 use rustllm_core::{
     core::{
-        plugin::{Plugin, TokenizerPlugin},
+        plugin::TokenizerPlugin,
         tokenizer::{Token, Tokenizer},
+        traits::{foundation::Named, identity::Versioned},
     },
     foundation::error::Result,
 };

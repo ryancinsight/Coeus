@@ -6,6 +6,7 @@ use rustllm_core::plugins::registry::PluginRegistryBuilder;
 use rustllm_core::core::plugin::{TokenizerPlugin, ModelBuilderPlugin, PluginState};
 use rustllm_core::core::tokenizer::VocabularyTokenizer;
 use rustllm_core::core::model::{ModelBuilder, BasicModelConfig};
+use rustllm_core::core::traits::{foundation::Named, identity::Versioned};
 use rustllm_core::foundation::iterator::IteratorExt;
 
 // Import plugins
@@ -25,7 +26,7 @@ fn test_plugin_registration_and_loading() {
     assert!(manager.register::<BasicLoaderPlugin>().is_ok());
     
     // Check available plugins
-    let available = manager.list_available().unwrap();
+    let available = manager.list_registered();
     assert!(available.contains(&"basic_tokenizer".to_string()));
     assert!(available.contains(&"bpe_tokenizer".to_string()));
     assert!(available.contains(&"basic_model".to_string()));
@@ -100,9 +101,12 @@ fn test_plugin_lifecycle() -> Result<()> {
     manager.register::<BasicTokenizerPlugin>()?;
     
     // Load plugin
-    let plugin = manager.load_plugin("basic_tokenizer")?;
-    let plugin_guard = plugin.read().unwrap();
-    assert_eq!(plugin_guard.name(), "basic_tokenizer");
+    manager.load("basic_tokenizer")?;
+    
+    // Access plugin through manager
+    manager.with_plugin("basic_tokenizer", |plugin| {
+        assert_eq!(plugin.name(), "basic_tokenizer");
+    })?;
     
     // Get plugin info
     let info = manager.info("basic_tokenizer")?;
@@ -110,14 +114,14 @@ fn test_plugin_lifecycle() -> Result<()> {
     assert_eq!(info.state, PluginState::Ready);
     
     // List loaded plugins
-    let loaded = manager.list_loaded()?;
+    let loaded = manager.list_loaded();
     assert!(loaded.contains(&"basic_tokenizer".to_string()));
     
     // Unload plugin
     manager.unload("basic_tokenizer")?;
     
     // Should not be in loaded list
-    let loaded = manager.list_loaded()?;
+    let loaded = manager.list_loaded();
     assert!(!loaded.contains(&"basic_tokenizer".to_string()));
     
     Ok(())
@@ -250,7 +254,7 @@ fn test_concurrent_plugin_access() {
             let manager_clone = Arc::clone(&manager);
             thread::spawn(move || {
                 // Each thread checks available plugins
-                let available = manager_clone.list_available().unwrap();
+                let available = manager_clone.list_registered();
                 assert!(!available.is_empty());
                 
                 // Create plugin instances directly
@@ -271,7 +275,7 @@ fn test_concurrent_plugin_access() {
     }
     
     // Check available plugins
-    let available = manager.list_available().unwrap();
+    let available = manager.list_registered();
     assert!(available.contains(&"basic_tokenizer".to_string()));
     assert!(available.contains(&"bpe_tokenizer".to_string()));
 }
@@ -317,30 +321,23 @@ fn test_concurrent_plugin_loading() {
             let manager_clone = Arc::clone(&manager);
             thread::spawn(move || {
                 // All threads try to load the same plugins
-                let tokenizer_plugin = manager_clone.load_plugin("basic_tokenizer").unwrap();
-                {
-                    let tokenizer_guard = tokenizer_plugin.read().unwrap();
-                    assert_eq!(tokenizer_guard.name(), "basic_tokenizer");
-                }
+                // Note: load will fail if already loaded, so we ignore the error
+                let _ = manager_clone.load("basic_tokenizer");
+                let _ = manager_clone.load("basic_model");
                 
-                let model_plugin = manager_clone.load_plugin("basic_model").unwrap();
-                {
-                    let model_guard = model_plugin.read().unwrap();
-                    assert_eq!(model_guard.name(), "basic_model");
-                }
+                // Access plugins through manager
+                manager_clone.with_plugin("basic_tokenizer", |plugin| {
+                    assert_eq!(plugin.name(), "basic_tokenizer");
+                    assert_eq!(plugin.version().major, 0);
+                }).unwrap();
                 
-                // Verify plugins are properly initialized
-                {
-                    let tokenizer_guard = tokenizer_plugin.read().unwrap();
-                    assert_eq!(tokenizer_guard.version().major, 0);
-                }
-                {
-                    let model_guard = model_plugin.read().unwrap();
-                    assert_eq!(model_guard.version().major, 0);
-                }
+                manager_clone.with_plugin("basic_model", |plugin| {
+                    assert_eq!(plugin.name(), "basic_model");
+                    assert_eq!(plugin.version().major, 0);
+                }).unwrap();
                 
                 // Each thread also lists loaded plugins
-                let loaded = manager_clone.list_loaded().unwrap();
+                let loaded = manager_clone.list_loaded();
                 assert!(loaded.contains(&"basic_tokenizer".to_string()));
                 assert!(loaded.contains(&"basic_model".to_string()));
             })
@@ -353,7 +350,7 @@ fn test_concurrent_plugin_loading() {
     }
     
     // Verify final state
-    let loaded = manager.list_loaded().unwrap();
+    let loaded = manager.list_loaded();
     assert_eq!(loaded.len(), 2);
     assert!(loaded.contains(&"basic_tokenizer".to_string()));
     assert!(loaded.contains(&"basic_model".to_string()));

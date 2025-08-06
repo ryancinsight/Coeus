@@ -28,9 +28,10 @@ use rustllm_core::{
     core::{
         plugin::{Plugin, ModelBuilderPlugin, PluginCapabilities},
         model::{ModelBuilder, Model, ForwardModel, Transformer250MConfig},
+        traits::{foundation::Named, identity::Versioned},
     },
     foundation::{
-        error::{Result, Error},
+        error::Result,
         types::Version,
     },
 };
@@ -460,15 +461,19 @@ impl TransformerBlock {
 #[derive(Debug, Default)]
 pub struct TransformerModelPlugin;
 
-impl Plugin for TransformerModelPlugin {
+impl Named for TransformerModelPlugin {
     fn name(&self) -> &str {
         "transformer_model"
     }
-    
+}
+
+impl Versioned for TransformerModelPlugin {
     fn version(&self) -> Version {
         Version::new(0, 1, 0)
     }
-    
+}
+
+impl Plugin for TransformerModelPlugin {
     fn capabilities(&self) -> PluginCapabilities {
         PluginCapabilities::standard()
             .with_feature("model_building")

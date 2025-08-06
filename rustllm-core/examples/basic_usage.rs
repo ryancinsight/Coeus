@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     manager.register::<BasicLoaderPlugin>()?;
     
     // List available plugins
-    let available = manager.list_available()?;
+    let available = manager.list_registered();
     println!("Available plugins: {:?}\n", available);
     
     // Example 1: Using the tokenizer directly
