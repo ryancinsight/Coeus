@@ -838,8 +838,14 @@ impl<'a> Iterator for RopeIterator<'a> {
                 }
             }
             
-            self.current = self.advance();
-            self.position = 0;
+            // Advance to next leaf, if no more leaves, return None
+            match self.advance() {
+                Some(next) => {
+                    self.current = Some(next);
+                    self.position = 0;
+                }
+                None => return None, // Exit when exhausted
+            }
         }
     }
 }
@@ -850,49 +856,97 @@ impl<'a> Iterator for RopeIterator<'a> {
 /// Provides optimal cache performance without tuning parameters.
 #[derive(Debug)]
 pub struct BTreeIterator<T, const B: usize = 64> {
+    stack: Vec<(usize, usize)>, // (node_index, key_index)
     nodes: Vec<BTreeNode<T, B>>,
-    current_node: usize,
-    current_index: usize,
 }
 
 #[derive(Debug)]
 struct BTreeNode<T, const B: usize> {
     keys: [MaybeUninit<T>; B],
-    children: Option<Vec<usize>>,
+    children: Option<Vec<usize>>, // Indices to child nodes
     len: usize,
+    is_leaf: bool,
 }
 
 impl<T: Clone + Ord, const B: usize> BTreeIterator<T, B> {
     /// Creates a new B-tree iterator.
-    pub fn new(root: BTreeNode<T, B>) -> Self {
-        Self {
-            nodes: vec![root],
-            current_node: 0,
-            current_index: 0,
+    pub fn new(nodes: Vec<BTreeNode<T, B>>) -> Self {
+        let mut stack = Vec::new();
+        if !nodes.is_empty() {
+            // Start with leftmost path
+            let mut current = 0;
+            loop {
+                stack.push((current, 0));
+                if nodes[current].is_leaf || nodes[current].children.is_none() {
+                    break;
+                }
+                if let Some(ref children) = nodes[current].children {
+                    if !children.is_empty() {
+                        current = children[0];
+                    } else {
+                        break;
+                    }
+                }
+            }
         }
+        Self { nodes, stack }
+    }
+    
+    /// Advances to the next key in the B-tree.
+    fn advance(&mut self) -> Option<(usize, usize)> {
+        while let Some((node_idx, key_idx)) = self.stack.pop() {
+            let node = &self.nodes[node_idx];
+            
+            // If we haven't exhausted this node's keys
+            if key_idx < node.len {
+                // Push back with incremented key index for next time
+                self.stack.push((node_idx, key_idx + 1));
+                
+                // If not a leaf and has right child, traverse down
+                if !node.is_leaf {
+                    if let Some(ref children) = node.children {
+                        if key_idx + 1 < children.len() {
+                            // Go down the right subtree
+                            let mut current = children[key_idx + 1];
+                            loop {
+                                self.stack.push((current, 0));
+                                let curr_node = &self.nodes[current];
+                                if curr_node.is_leaf || curr_node.children.is_none() {
+                                    break;
+                                }
+                                if let Some(ref child_indices) = curr_node.children {
+                                    if !child_indices.is_empty() {
+                                        current = child_indices[0];
+                                    } else {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                return Some((node_idx, key_idx));
+            }
+        }
+        None
     }
 }
 
-impl<T: Clone, const B: usize> Iterator for BTreeIterator<T, B> {
+impl<T: Clone + Ord, const B: usize> Iterator for BTreeIterator<T, B> {
     type Item = T;
     
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_node >= self.nodes.len() {
-            return None;
+        if let Some((node_idx, key_idx)) = self.advance() {
+            let node = &self.nodes[node_idx];
+            if key_idx < node.len {
+                let item = unsafe {
+                    node.keys[key_idx].assume_init_ref().clone()
+                };
+                return Some(item);
+            }
         }
-        
-        let node = &self.nodes[self.current_node];
-        if self.current_index < node.len {
-            let item = unsafe {
-                node.keys[self.current_index].assume_init_ref().clone()
-            };
-            self.current_index += 1;
-            Some(item)
-        } else {
-            self.current_node += 1;
-            self.current_index = 0;
-            self.next()
-        }
+        None
     }
 }
 
@@ -900,6 +954,9 @@ impl<T: Clone, const B: usize> Iterator for BTreeIterator<T, B> {
 /// 
 /// Based on "Design and Implementation of an Efficient Priority Queue" - van Emde Boas, 1977
 /// Provides O(log log U) operations where U is the universe size.
+/// 
+/// **Note**: This is a placeholder implementation that simply iterates 0..universe.
+/// A full implementation would require proper vEB tree construction and traversal.
 #[derive(Debug)]
 pub struct VEBIterator {
     universe: usize,
@@ -950,7 +1007,8 @@ impl Iterator for VEBIterator {
             return None;
         }
         
-        // Simplified iteration - in practice would traverse the tree structure
+        // TODO: Implement proper vEB tree traversal
+        // This is a simplified placeholder that doesn't use the tree structure
         let result = self.current;
         self.current += 1;
         Some(result)
@@ -962,17 +1020,22 @@ impl Iterator for VEBIterator {
 /// Based on "Linear Work Suffix Array Construction" - Kärkkäinen & Sanders, 2003
 /// Provides O(n) construction and O(log n) search.
 #[derive(Debug)]
-pub struct SuffixArrayIterator<'a> {
-    text: &'a str,
+pub struct SuffixArrayIterator {
+    text: String, // Own the text to avoid lifetime issues
     suffix_array: Vec<usize>,
     current: usize,
 }
 
-impl<'a> SuffixArrayIterator<'a> {
-    /// Creates a new suffix array iterator using DC3 algorithm.
-    pub fn new(text: &'a str) -> Self {
-        let suffix_array = Self::build_suffix_array(text);
+impl SuffixArrayIterator {
+    /// Creates a new suffix array iterator from owned text.
+    pub fn new(text: String) -> Self {
+        let suffix_array = Self::build_suffix_array(&text);
         Self { text, suffix_array, current: 0 }
+    }
+    
+    /// Creates a new suffix array iterator from a string slice.
+    pub fn from_str(text: &str) -> Self {
+        Self::new(text.to_string())
     }
     
     /// Builds suffix array using DC3 (Difference Cover modulo 3) algorithm.
@@ -994,18 +1057,21 @@ impl<'a> SuffixArrayIterator<'a> {
     }
     
     /// Returns the suffix at the given position.
-    pub fn suffix_at(&self, pos: usize) -> Option<&'a str> {
+    pub fn suffix_at(&self, pos: usize) -> Option<&str> {
         self.suffix_array.get(pos).map(|&i| &self.text[i..])
     }
 }
 
-impl<'a> Iterator for SuffixArrayIterator<'a> {
-    type Item = &'a str;
+impl Iterator for SuffixArrayIterator {
+    type Item = String; // Return owned strings to avoid lifetime issues
     
     fn next(&mut self) -> Option<Self::Item> {
-        let suffix = self.suffix_at(self.current)?;
+        if self.current >= self.suffix_array.len() {
+            return None;
+        }
+        let idx = self.suffix_array[self.current];
         self.current += 1;
-        Some(suffix)
+        Some(self.text[idx..].to_string())
     }
 }
 
@@ -1013,6 +1079,9 @@ impl<'a> Iterator for SuffixArrayIterator<'a> {
 /// 
 /// Based on "The Wavelet Matrix" - Claude et al., 2015
 /// Provides space-efficient representation with fast queries.
+/// 
+/// **Note**: This is a placeholder implementation that iterates over sorted data.
+/// A full implementation would traverse the wavelet tree structure for range queries.
 #[derive(Debug)]
 pub struct WaveletTreeIterator<T: Clone + Ord> {
     data: Vec<T>,
@@ -1025,33 +1094,14 @@ pub struct WaveletTreeIterator<T: Clone + Ord> {
 impl<T: Clone + Ord> WaveletTreeIterator<T> {
     /// Creates a new wavelet tree iterator.
     pub fn new(mut data: Vec<T>) -> Self {
-        if data.is_empty() {
-            return Self {
-                data: vec![],
-                bitmap: vec![],
-                left: None,
-                right: None,
-                current: 0,
-            };
-        }
-        
+        // For the placeholder implementation, just store the sorted data
         data.sort();
-        let mid = data.len() / 2;
-        let pivot = data[mid].clone();
-        
-        let (left_data, right_data): (Vec<_>, Vec<_>) = data.iter()
-            .cloned()
-            .partition(|x| x < &pivot);
-        
-        let bitmap: Vec<bool> = data.iter()
-            .map(|x| x >= &pivot)
-            .collect();
         
         Self {
             data,
-            bitmap,
-            left: if left_data.is_empty() { None } else { Some(Box::new(Self::new(left_data))) },
-            right: if right_data.is_empty() { None } else { Some(Box::new(Self::new(right_data))) },
+            bitmap: vec![],
+            left: None,
+            right: None,
             current: 0,
         }
     }
@@ -1064,6 +1114,8 @@ impl<T: Clone + Ord> Iterator for WaveletTreeIterator<T> {
         if self.current >= self.data.len() {
             None
         } else {
+            // TODO: Implement proper wavelet tree traversal
+            // This currently just iterates the sorted data
             let item = self.data[self.current].clone();
             self.current += 1;
             Some(item)
@@ -1117,19 +1169,22 @@ impl<'a> Iterator for TrieIterator<'a> {
     }
 }
 
-/// Bloom filter iterator for probabilistic membership testing.
+/// Bloom filter bit iterator for inspecting the internal bit array.
 /// 
 /// Based on "Space/Time Trade-offs in Hash Coding with Allowable Errors" - Bloom, 1970
-/// Provides space-efficient approximate set membership.
+/// 
+/// **Note**: This iterates over the internal bits, NOT the elements in the set.
+/// Bloom filters cannot enumerate their elements - they only support membership testing.
+/// This iterator is useful for debugging or serialization of the filter state.
 #[derive(Debug)]
-pub struct BloomFilterIterator {
+pub struct BloomFilterBitIterator {
     bits: Vec<bool>,
     hash_count: usize,
     current: usize,
 }
 
-impl BloomFilterIterator {
-    /// Creates a new bloom filter iterator.
+impl BloomFilterBitIterator {
+    /// Creates a new bloom filter bit iterator.
     pub fn new(expected_items: usize, false_positive_rate: f64) -> Self {
         let bits_per_item = -(false_positive_rate.ln() / (2.0_f64.ln().powi(2)));
         let total_bits = (expected_items as f64 * bits_per_item).ceil() as usize;
@@ -1140,6 +1195,28 @@ impl BloomFilterIterator {
             hash_count,
             current: 0,
         }
+    }
+    
+    /// Sets a bit at the given index.
+    pub fn set_bit(&mut self, index: usize) {
+        if index < self.bits.len() {
+            self.bits[index] = true;
+        }
+    }
+    
+    /// Gets a bit at the given index.
+    pub fn get_bit(&self, index: usize) -> bool {
+        self.bits.get(index).copied().unwrap_or(false)
+    }
+    
+    /// Returns the total number of bits.
+    pub fn bit_count(&self) -> usize {
+        self.bits.len()
+    }
+    
+    /// Returns the number of set bits.
+    pub fn popcount(&self) -> usize {
+        self.bits.iter().filter(|&&b| b).count()
     }
     
     /// Hashes an item using double hashing.
@@ -1161,7 +1238,7 @@ impl BloomFilterIterator {
     }
 }
 
-impl Iterator for BloomFilterIterator {
+impl Iterator for BloomFilterBitIterator {
     type Item = bool;
     
     fn next(&mut self) -> Option<Self::Item> {
@@ -1178,29 +1255,28 @@ impl Iterator for BloomFilterIterator {
 /// Extension trait for advanced iterator patterns.
 pub trait AdvancedIteratorExt: Iterator + Sized {
     /// Converts to a rope iterator for efficient string processing.
-    fn into_rope(self) -> RopeIterator<'static>
+    /// Note: This requires owned strings to avoid lifetime issues.
+    fn into_rope_owned(self) -> OwnedRopeIterator
     where
-        Self: Iterator<Item = &'static str>,
+        Self: Iterator<Item = String>,
     {
-        let nodes: Vec<RopeNode> = self.map(RopeNode::Leaf).collect();
+        let nodes: Vec<OwnedRopeNode> = self.map(OwnedRopeNode::Leaf).collect();
         let root = nodes.into_iter().reduce(|left, right| {
-            RopeNode::Branch {
+            OwnedRopeNode::Branch {
                 left: Box::new(left),
                 right: Box::new(right),
             }
-        }).unwrap_or(RopeNode::Leaf(""));
-        RopeIterator::new(root)
+        }).unwrap_or(OwnedRopeNode::Leaf(String::new()));
+        OwnedRopeIterator::new(root)
     }
     
     /// Creates a suffix array from string iterator.
-    fn into_suffix_array(self) -> SuffixArrayIterator<'static>
+    fn into_suffix_array<'a>(self) -> SuffixArrayIterator
     where
-        Self: Iterator<Item = &'static str>,
+        Self: Iterator<Item = &'a str>,
     {
         let text: String = self.collect();
-        // Note: This leaks memory - in practice would use proper lifetime management
-        let leaked: &'static str = Box::leak(text.into_boxed_str());
-        SuffixArrayIterator::new(leaked)
+        SuffixArrayIterator::new(text)
     }
     
     /// Creates a wavelet tree from the iterator.
@@ -1214,6 +1290,69 @@ pub trait AdvancedIteratorExt: Iterator + Sized {
 }
 
 impl<I: Iterator> AdvancedIteratorExt for I {}
+
+/// Owned rope iterator that owns its string data.
+/// 
+/// This variant owns the strings to avoid lifetime issues when constructing
+/// from iterators with non-static lifetimes.
+#[derive(Debug, Clone)]
+pub struct OwnedRopeIterator {
+    stack: Vec<OwnedRopeNode>,
+    current: Option<String>,
+    position: usize,
+}
+
+#[derive(Debug, Clone)]
+enum OwnedRopeNode {
+    Leaf(String),
+    Branch { left: Box<OwnedRopeNode>, right: Box<OwnedRopeNode> },
+}
+
+impl OwnedRopeIterator {
+    /// Creates a new owned rope iterator from a root node.
+    pub fn new(root: OwnedRopeNode) -> Self {
+        let mut stack = vec![root];
+        Self { stack, current: None, position: 0 }
+    }
+    
+    /// Advances to the next leaf node.
+    fn advance(&mut self) -> Option<String> {
+        while let Some(node) = self.stack.pop() {
+            match node {
+                OwnedRopeNode::Leaf(s) => return Some(s),
+                OwnedRopeNode::Branch { left, right } => {
+                    self.stack.push(*right);
+                    self.stack.push(*left);
+                }
+            }
+        }
+        None
+    }
+}
+
+impl Iterator for OwnedRopeIterator {
+    type Item = char;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(ref current) = self.current {
+                if let Some(ch) = current.chars().nth(self.position) {
+                    self.position += 1;
+                    return Some(ch);
+                }
+            }
+            
+            // Advance to next leaf, if no more leaves, return None
+            match self.advance() {
+                Some(next) => {
+                    self.current = Some(next);
+                    self.position = 0;
+                }
+                None => return None,
+            }
+        }
+    }
+}
 
 // ============================================================================
 // Extension Trait
@@ -1524,6 +1663,127 @@ mod tests {
         let text = "hello,world,rust";
         let parts: Vec<_> = ZeroCopySplit::new(text, ',').collect();
         assert_eq!(parts, vec!["hello", "world", "rust"]);
+    }
+}
+
+#[cfg(test)]
+mod advanced_iterator_tests {
+    use super::*;
+    
+    #[test]
+    fn test_rope_iterator_terminates() {
+        // Test that RopeIterator properly terminates and doesn't loop infinitely
+        let root = RopeNode::Branch {
+            left: Box::new(RopeNode::Leaf("hello")),
+            right: Box::new(RopeNode::Leaf(" world")),
+        };
+        
+        let mut iter = RopeIterator::new(root);
+        let result: String = iter.collect();
+        assert_eq!(result, "hello world");
+    }
+    
+    #[test]
+    fn test_rope_iterator_empty() {
+        // Test empty rope
+        let root = RopeNode::Leaf("");
+        let mut iter = RopeIterator::new(root);
+        let result: String = iter.collect();
+        assert_eq!(result, "");
+    }
+    
+    #[test]
+    fn test_btree_iterator_traversal() {
+        // Test that BTreeIterator properly traverses all nodes
+        // Create a simple B-tree with 3 nodes
+        let mut nodes = vec![];
+        
+        // Leaf nodes
+        let mut leaf1 = BTreeNode {
+            keys: [MaybeUninit::uninit(); 4],
+            children: None,
+            len: 2,
+            is_leaf: true,
+        };
+        unsafe {
+            leaf1.keys[0].write(1);
+            leaf1.keys[1].write(3);
+        }
+        
+        let mut leaf2 = BTreeNode {
+            keys: [MaybeUninit::uninit(); 4],
+            children: None,
+            len: 2,
+            is_leaf: true,
+        };
+        unsafe {
+            leaf2.keys[0].write(5);
+            leaf2.keys[1].write(7);
+        }
+        
+        // Root node
+        let mut root = BTreeNode {
+            keys: [MaybeUninit::uninit(); 4],
+            children: Some(vec![0, 1]),
+            len: 1,
+            is_leaf: false,
+        };
+        unsafe {
+            root.keys[0].write(4);
+        }
+        
+        nodes.push(leaf1);
+        nodes.push(leaf2);
+        nodes.push(root);
+        
+        let mut iter = BTreeIterator::<i32, 4>::new(nodes);
+        let result: Vec<i32> = iter.collect();
+        
+        // Should traverse in order: 1, 3, 4, 5, 7
+        assert_eq!(result, vec![1, 3, 4, 5, 7]);
+    }
+    
+    #[test]
+    fn test_suffix_array_no_leak() {
+        // Test that SuffixArrayIterator doesn't leak memory
+        let text = "banana".to_string();
+        let mut iter = SuffixArrayIterator::new(text);
+        
+        let suffixes: Vec<String> = iter.collect();
+        
+        // Check we get all suffixes in sorted order
+        assert_eq!(suffixes.len(), 6);
+        assert!(suffixes[0].starts_with('a')); // "a"
+        assert!(suffixes[1].starts_with('a')); // "ana"
+        assert!(suffixes[2].starts_with('a')); // "anana"
+    }
+    
+    #[test]
+    fn test_bloom_filter_bit_iterator() {
+        // Test that BloomFilterBitIterator iterates bits, not elements
+        let mut filter = BloomFilterBitIterator::new(100, 0.01);
+        
+        // Set some bits
+        filter.set_bit(5);
+        filter.set_bit(10);
+        filter.set_bit(15);
+        
+        // Count set bits
+        let set_bits: usize = filter.clone().filter(|&bit| bit).count();
+        assert_eq!(set_bits, 3);
+        
+        // Verify it iterates all bits
+        let total_bits = filter.bit_count();
+        let iterated_bits: Vec<bool> = filter.collect();
+        assert_eq!(iterated_bits.len(), total_bits);
+    }
+    
+    #[test]
+    fn test_owned_rope_iterator() {
+        // Test the owned rope iterator
+        let strings = vec!["hello".to_string(), " ".to_string(), "world".to_string()];
+        let result: String = strings.into_iter().into_rope_owned().collect();
+        assert_eq!(result, "hello world");
     }
 }
 
