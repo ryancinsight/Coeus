@@ -63,10 +63,10 @@ struct MSELoss;
 impl Loss for MSELoss {
     fn compute(&self, predictions: &[ModelFloat], targets: &[ModelFloat]) -> Result<ModelFloat> {
         if predictions.len() != targets.len() {
-            return Err(Error::Validation(rustllm_core::foundation::error::ValidationError::InvalidState {
-                current: format!("predictions length: {}", predictions.len()),
-                expected: format!("targets length: {}", targets.len()),
-            }));
+            return Err(rustllm_core::foundation::error::invalid_input(
+                format!("predictions length ({}) != targets length ({})", 
+                    predictions.len(), targets.len())
+            ));
         }
         
         let mse = predictions.iter()
@@ -79,10 +79,10 @@ impl Loss for MSELoss {
     
     fn gradient(&self, predictions: &[ModelFloat], targets: &[ModelFloat]) -> Result<Vec<ModelFloat>> {
         if predictions.len() != targets.len() {
-            return Err(Error::Validation(rustllm_core::foundation::error::ValidationError::InvalidState {
-                current: format!("predictions length: {}", predictions.len()),
-                expected: format!("targets length: {}", targets.len()),
-            }));
+            return Err(rustllm_core::foundation::error::invalid_input(
+                format!("predictions length ({}) != targets length ({})", 
+                    predictions.len(), targets.len())
+            ));
         }
         
         let gradients = predictions.iter()
@@ -95,10 +95,12 @@ impl Loss for MSELoss {
 }
 
 /// Example trainable model - a simple sine wave predictor.
+#[derive(Debug)]
 struct SinePredictor {
     weights: Vec<f32>,
     bias: f32,
     training: bool,
+    last_loss: f32,
 }
 
 impl SinePredictor {
@@ -112,14 +114,36 @@ impl SinePredictor {
             weights,
             bias: 0.0,
             training: false,
+            last_loss: 0.0,
         }
     }
 }
 
 impl Model for SinePredictor {
+    type Config = BasicModelConfig;
+    
+    fn config(&self) -> &Self::Config {
+        // Simplified for example
+        static CONFIG: BasicModelConfig = BasicModelConfig {
+            model_dim: 128,
+            head_count: 8,
+            layer_count: 1,
+            max_seq_len: 512,
+            vocab_size: 10000,
+            dropout: 0.0,
+            layer_norm_eps: 1e-5,
+        };
+        &CONFIG
+    }
+    
+    fn name(&self) -> &str {
+        "SinePredictor"
+    }
+}
+
+impl ForwardModel for SinePredictor {
     type Input = Vec<f32>;
     type Output = Vec<f32>;
-    type Config = BasicModelConfig;
     
     fn forward(&self, input: Self::Input) -> Result<Self::Output> {
         // Simple linear transformation followed by sine activation
@@ -131,92 +155,57 @@ impl Model for SinePredictor {
         Ok(output)
     }
     
-    fn config(&self) -> &Self::Config {
-        // Simplified for example
-        static CONFIG: BasicModelConfig = BasicModelConfig {
-            model_dim: 128,
-            head_count: 8,
-            layer_count: 1,
-            max_seq_len: 512,
-            vocab_size: 1000,
-            dropout: 0.0,
-            layer_norm_eps: 1e-5,
-        };
-        &CONFIG
-    }
-    
     fn num_parameters(&self) -> usize {
         self.weights.len() + 1 // weights + bias
     }
 }
 
 impl TrainableModel for SinePredictor {
-    type TrainingData = (Vec<f32>, Vec<f32>); // (input, target)
     type OptimizerState = AdamOptimizerState;
     type Loss = MSELoss;
+    type TrainingInput = (Vec<f32>, Vec<f32>); // (input, target)
+    type TrainingData = (Vec<f32>, Vec<f32>); // (input, target)
     
     fn train_step(
         &mut self,
-        batch: Self::TrainingData,
+        input: Self::TrainingInput,
         optimizer_state: &mut Self::OptimizerState,
-    ) -> Result<ModelFloat> {
-        let (input, target) = batch;
+    ) -> Result<Self::Loss> {
+        let (input_data, target) = input;
         
         // Forward pass
-        let predictions = self.forward(input.clone())?;
+        let predictions = self.forward(input_data.clone())?;
         
         // Compute loss
         let loss_fn = MSELoss;
-        let loss = loss_fn.compute(&predictions, &target)?;
+        let loss_value = loss_fn.compute(&predictions, &target)?;
+        self.last_loss = loss_value;
         
         // Compute gradients (simplified)
         let gradients = loss_fn.gradient(&predictions, &target)?;
         
         // Update parameters using optimizer
-        self.update_parameters(&gradients, optimizer_state)?;
+        self.update_parameters(&gradients)?;
         
-        Ok(loss)
-    }
-    
-    fn compute_loss(&self, batch: Self::TrainingData) -> Result<ModelFloat> {
-        let (input, target) = batch;
-        let predictions = self.forward(input)?;
-        MSELoss.compute(&predictions, &target)
-    }
-    
-    fn update_parameters(
-        &mut self,
-        gradients: &[ModelFloat],
-        optimizer_state: &mut Self::OptimizerState,
-    ) -> Result<()> {
+        // Update optimizer state
         optimizer_state.increment_step();
-        let t = optimizer_state.step_count() as f32;
         
-        // Adam optimizer update (simplified)
-        for (i, grad) in gradients.iter().enumerate() {
-            // Update momentum
-            optimizer_state.momentum[i] = optimizer_state.beta1 * optimizer_state.momentum[i]
-                + (1.0 - optimizer_state.beta1) * grad;
-            
-            // Update variance
-            optimizer_state.variance[i] = optimizer_state.beta2 * optimizer_state.variance[i]
-                + (1.0 - optimizer_state.beta2) * grad * grad;
-            
-            // Bias correction
-            let m_hat = optimizer_state.momentum[i] / (1.0 - optimizer_state.beta1.powf(t));
-            let v_hat = optimizer_state.variance[i] / (1.0 - optimizer_state.beta2.powf(t));
-            
-            // Update parameters
-            if i < self.weights.len() {
-                // Update weight
-                self.weights[i] -= optimizer_state.learning_rate * m_hat / (v_hat.sqrt() + optimizer_state.epsilon);
-            } else if i == self.weights.len() {
-                // Update bias
-                self.bias -= optimizer_state.learning_rate * m_hat / (v_hat.sqrt() + optimizer_state.epsilon);
-            }
+        Ok(loss_fn)
+    }
+    
+    fn update_parameters(&mut self, gradients: &[ModelFloat]) -> Result<()> {
+        // Simplified gradient descent
+        let learning_rate = 0.01;
+        for (w, g) in self.weights.iter_mut().zip(gradients.iter()) {
+            *w -= learning_rate * g;
         }
-        
         Ok(())
+    }
+    
+    fn compute_loss(&self, data: &Self::TrainingData) -> Result<ModelFloat> {
+        let (input, target) = data;
+        let predictions = self.forward(input.clone())?;
+        MSELoss.compute(&predictions, &target)
     }
     
     fn is_training(&self) -> bool {
@@ -260,7 +249,11 @@ fn main() -> Result<()> {
             .map(|batch| {
                 // Process batch and accumulate loss
                 batch.into_iter()
-                    .map(|data| model.train_step(data, &mut optimizer).unwrap_or(0.0))
+                    .map(|data| {
+                        model.train_step(data, &mut optimizer)
+                            .map(|_| model.last_loss)
+                            .unwrap_or(0.0)
+                    })
                     .sum::<f32>() / 16.0
             })
             .sum::<f32>() / (training_data.len() as f32 / 16.0);
@@ -297,7 +290,10 @@ fn main() -> Result<()> {
     let values: Vec<f32> = (0..20)
         .map(|i| i as f32 * 0.1)
         .stream_map(|x| (x * PI).sin())
-        .rolling_aggregate(5, |window| window.iter().sum::<f32>() / window.len() as f32)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .windows::<5>()
+        .map(|window| window.iter().sum::<f32>() / window.len() as f32)
         .take(10)
         .collect();
     

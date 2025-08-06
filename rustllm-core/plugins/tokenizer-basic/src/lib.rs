@@ -3,6 +3,7 @@
 use rustllm_core::core::{
     plugin::{Plugin, TokenizerPlugin, PluginCapabilities},
     tokenizer::{Tokenizer, Token, StringToken, TokenIterator},
+    traits::{foundation::Named, identity::Versioned},
 };
 use rustllm_core::foundation::{
     error::Result,
@@ -14,15 +15,19 @@ use std::borrow::Cow;
 #[derive(Debug, Default)]
 pub struct BasicTokenizerPlugin;
 
-impl Plugin for BasicTokenizerPlugin {
+impl Named for BasicTokenizerPlugin {
     fn name(&self) -> &str {
         "basic_tokenizer"
     }
-    
+}
+
+impl Versioned for BasicTokenizerPlugin {
     fn version(&self) -> Version {
         Version::new(0, 1, 0)
     }
-    
+}
+
+impl Plugin for BasicTokenizerPlugin {
     fn capabilities(&self) -> PluginCapabilities {
         PluginCapabilities::standard()
             .with_feature("tokenization")

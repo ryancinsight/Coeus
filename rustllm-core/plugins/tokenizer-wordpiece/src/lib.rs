@@ -27,6 +27,7 @@ use rustllm_core::{
     core::{
         plugin::{Plugin, TokenizerPlugin, PluginCapabilities},
         tokenizer::{Tokenizer, TokenizerConfig, Token, StringToken, TokenIterator},
+        traits::{foundation::Named, identity::Versioned},
     },
     foundation::{
         error::Result,
@@ -42,15 +43,19 @@ use std::collections::HashMap;
 #[derive(Debug, Default)]
 pub struct WordPieceTokenizerPlugin;
 
-impl Plugin for WordPieceTokenizerPlugin {
+impl Named for WordPieceTokenizerPlugin {
     fn name(&self) -> &str {
         "wordpiece_tokenizer"
     }
-    
+}
+
+impl Versioned for WordPieceTokenizerPlugin {
     fn version(&self) -> Version {
         Version::new(0, 1, 0)
     }
-    
+}
+
+impl Plugin for WordPieceTokenizerPlugin {
     fn capabilities(&self) -> PluginCapabilities {
         PluginCapabilities::standard()
             .with_feature("tokenization")

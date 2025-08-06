@@ -2,6 +2,7 @@
 
 use rustllm_core::core::plugin::{Plugin, ModelLoaderPlugin, PluginCapabilities};
 use rustllm_core::core::model::{Model, ForwardModel, BasicModelConfig};
+use rustllm_core::core::traits::{foundation::Named, identity::Versioned};
 use rustllm_core::foundation::{
     error::{Error, Result, ProcessingError},
     types::Version,
@@ -11,15 +12,19 @@ use rustllm_core::foundation::{
 #[derive(Debug, Default)]
 pub struct BasicLoaderPlugin;
 
-impl Plugin for BasicLoaderPlugin {
+impl Named for BasicLoaderPlugin {
     fn name(&self) -> &str {
         "basic_loader"
     }
-    
+}
+
+impl Versioned for BasicLoaderPlugin {
     fn version(&self) -> Version {
         Version::new(0, 1, 0)
     }
-    
+}
+
+impl Plugin for BasicLoaderPlugin {
     fn capabilities(&self) -> PluginCapabilities {
         PluginCapabilities::standard()
             .with_feature("model_loading")
@@ -36,7 +41,8 @@ impl ModelLoaderPlugin for BasicLoaderPlugin {
         // For demonstration, we just create a dummy model
         if !path.ends_with(".txt") && !path.ends_with(".json") {
             return Err(Error::Processing(ProcessingError::Unsupported { 
-                operation: format!("Loading file format: {}", path) 
+                operation: format!("Loading file format: {}", path),
+                reason: None,
             }));
         }
         
@@ -79,6 +85,10 @@ impl ForwardModel for DummyModel {
     fn forward(&self, input: Self::Input) -> Result<Self::Output> {
         // Simple pass-through
         Ok(input)
+    }
+    
+    fn num_parameters(&self) -> usize {
+        1000 // Dummy value
     }
 }
 

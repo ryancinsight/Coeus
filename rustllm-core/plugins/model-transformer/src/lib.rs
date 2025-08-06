@@ -28,9 +28,10 @@ use rustllm_core::{
     core::{
         plugin::{Plugin, ModelBuilderPlugin, PluginCapabilities},
         model::{ModelBuilder, Model, ForwardModel, Transformer250MConfig},
+        traits::{foundation::Named, identity::Versioned},
     },
     foundation::{
-        error::{Result, Error},
+        error::Result,
         types::Version,
     },
 };
@@ -460,15 +461,19 @@ impl TransformerBlock {
 #[derive(Debug, Default)]
 pub struct TransformerModelPlugin;
 
-impl Plugin for TransformerModelPlugin {
+impl Named for TransformerModelPlugin {
     fn name(&self) -> &str {
         "transformer_model"
     }
-    
+}
+
+impl Versioned for TransformerModelPlugin {
     fn version(&self) -> Version {
         Version::new(0, 1, 0)
     }
-    
+}
+
+impl Plugin for TransformerModelPlugin {
     fn capabilities(&self) -> PluginCapabilities {
         PluginCapabilities::standard()
             .with_feature("model_building")
@@ -608,12 +613,9 @@ impl TransformerModel {
     /// guarantees about bounds safety.
     fn get_params(&self, offset: usize, size: usize) -> Result<&[f32]> {
         if offset + size > self.parameters.len() {
-            return Err(Error::Validation(
-                rustllm_core::foundation::error::ValidationError::OutOfRange {
-                    value: format!("offset {} + size {}", offset, size),
-                    min: Some("0".to_string()),
-                    max: Some(self.parameters.len().to_string()),
-                }
+            return Err(rustllm_core::foundation::error::invalid_input(
+                format!("Parameter access out of range: offset {} + size {} > {}", 
+                    offset, size, self.parameters.len())
             ));
         }
         Ok(&self.parameters[offset..offset + size])
@@ -744,12 +746,9 @@ impl ForwardModel for TransformerModel {
 
         // Validate input sequence length
         if seq_len > self.config.max_seq_len {
-            return Err(Error::Validation(
-                rustllm_core::foundation::error::ValidationError::OutOfRange {
-                    value: seq_len.to_string(),
-                    min: Some("1".to_string()),
-                    max: Some(self.config.max_seq_len.to_string()),
-                }
+            return Err(rustllm_core::foundation::error::invalid_input(
+                format!("Sequence length {} out of range [1, {}]", 
+                    seq_len, self.config.max_seq_len)
             ));
         }
 
@@ -765,12 +764,9 @@ impl ForwardModel for TransformerModel {
         // Add token embeddings
         for (i, &token_id) in input.iter().enumerate() {
             if token_id >= vocab_size {
-                return Err(Error::Validation(
-                    rustllm_core::foundation::error::ValidationError::OutOfRange {
-                        value: token_id.to_string(),
-                        min: Some("0".to_string()),
-                        max: Some((vocab_size - 1).to_string()),
-                    }
+                return Err(rustllm_core::foundation::error::invalid_input(
+                    format!("Token ID {} out of range [0, {}]", 
+                        token_id, vocab_size - 1)
                 ));
             }
 
@@ -865,13 +861,14 @@ impl ForwardModel for TransformerModel {
 
         Ok(logits)
     }
+    
+    fn num_parameters(&self) -> usize {
+        self.parameters.len()
+    }
 }
 
 impl TransformerModel {
-    /// Returns the number of parameters in the model.
-    pub fn num_parameters(&self) -> usize {
-        self.parameters.len()
-    }
+    // Helper methods will go here if needed
 }
 
 impl ModelSerializable for TransformerModel {

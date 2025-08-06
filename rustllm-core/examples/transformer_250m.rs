@@ -2,6 +2,7 @@
 
 use rustllm_core::prelude::*;
 use rustllm_core::foundation::error::internal_error;
+use rustllm_core::core::model::ForwardModel;
 use rustllm_model_transformer::{TransformerModelPlugin, TransformerModelBuilder};
 use std::time::Instant;
 
@@ -125,7 +126,7 @@ fn main() -> Result<()> {
     let manager = PluginManager::new();
     manager.register::<TransformerModelPlugin>()?;
     
-    let available = manager.list_available()?;
+    let available = manager.list_registered();
     println!("\nAvailable plugins: {:?}", available);
     
     // Example 6: Performance Metrics

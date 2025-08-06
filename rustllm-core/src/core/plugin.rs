@@ -16,20 +16,16 @@
 //! The plugin system uses a layered approach:
 //! 1. Core traits define minimal contracts
 //! 2. Extension traits add optional capabilities
-//! 3. Adapters provide compatibility layers
-//! 4. The plugin manager handles lifecycle
+//! 3. The plugin manager handles lifecycle
 
 use crate::{
     foundation::{
         error::{Error, PluginError, Result},
         types::{PluginName, Version},
     },
-    core::traits::{HealthStatus, MetricsSnapshot},
+    core::traits::{monitoring::*, lifecycle::*, identity::*, foundation::*},
 };
 use core::fmt::Debug;
-
-#[cfg(feature = "std")]
-use std::sync::{Arc, RwLock, Weak};
 
 // ============================================================================
 // Core Plugin Trait (Interface Segregation Principle)
@@ -40,13 +36,7 @@ use std::sync::{Arc, RwLock, Weak};
 /// This trait is intentionally minimal, following the Interface
 /// Segregation Principle. Additional functionality is provided
 /// through extension traits.
-pub trait Plugin: Send + Sync + Debug {
-    /// Returns the unique name of this plugin.
-    fn name(&self) -> &str;
-    
-    /// Returns the plugin version.
-    fn version(&self) -> Version;
-    
+pub trait Plugin: Send + Sync + Debug + Named + Versioned {
     /// Returns the plugin's capabilities.
     fn capabilities(&self) -> PluginCapabilities;
     
@@ -64,14 +54,14 @@ pub trait Plugin: Send + Sync + Debug {
 /// implementing unnecessary interfaces.
 #[derive(Debug, Clone, Default)]
 pub struct PluginCapabilities {
-    /// Whether the plugin supports initialization.
-    pub initializable: bool,
-    
     /// Whether the plugin supports lifecycle management.
     pub lifecycle: bool,
     
-    /// Whether the plugin provides metadata.
-    pub metadata: bool,
+    /// Whether the plugin provides health monitoring.
+    pub health: bool,
+    
+    /// Whether the plugin provides metrics.
+    pub metrics: bool,
     
     /// Whether the plugin supports configuration.
     pub configurable: bool,
@@ -89,9 +79,9 @@ impl PluginCapabilities {
     /// Creates a capabilities descriptor with standard features.
     pub fn standard() -> Self {
         Self {
-            initializable: true,
             lifecycle: true,
-            metadata: true,
+            health: true,
+            metrics: true,
             configurable: true,
             features: Vec::new(),
         }
@@ -113,40 +103,25 @@ impl PluginCapabilities {
 // Extension Traits (Interface Segregation Principle)
 // ============================================================================
 
-/// Lifecycle management for plugins that need initialization.
-pub trait PluginLifecycle: Plugin {
-    /// Initializes the plugin with the given configuration.
-    fn initialize(&mut self, config: &dyn PluginConfig) -> Result<()>;
-    
+/// Lifecycle management for plugins.
+pub trait PluginLifecycle: Plugin + Initialize {
     /// Shuts down the plugin gracefully.
     fn shutdown(&mut self) -> Result<()>;
 }
 
 /// Health monitoring for plugins.
-pub trait PluginHealth: Plugin {
-    /// Checks if the plugin is healthy.
-    fn is_healthy(&self) -> bool;
-    
-    /// Gets detailed health status.
-    fn health_status(&self) -> HealthStatus;
-}
+pub trait PluginHealth: Plugin + HealthCheck {}
 
 /// Metrics collection for plugins.
-pub trait PluginMetrics: Plugin {
-    /// Collects current metrics from the plugin.
-    fn collect_metrics(&self) -> MetricsSnapshot;
-    
-    /// Resets metrics counters.
-    fn reset_metrics(&mut self);
-}
+pub trait PluginMetrics: Plugin + Metrics {}
 
-/// Configuration interface for plugins (Dependency Inversion Principle).
-pub trait PluginConfig: Debug + Send + Sync {
+/// Configuration interface for plugins.
+pub trait PluginConfig: Debug + Send + Sync + Validate {
     /// Gets a configuration value by key.
     fn get(&self, key: &str) -> Option<&dyn core::any::Any>;
     
-    /// Validates the configuration.
-    fn validate(&self) -> Result<()>;
+    /// Clones the configuration into a boxed trait object.
+    fn clone_box(&self) -> Box<dyn PluginConfig>;
 }
 
 /// Factory trait for creating plugins (Abstract Factory Pattern).
@@ -155,7 +130,7 @@ pub trait PluginFactory: Send + Sync {
     type Plugin: Plugin;
     
     /// Creates a new plugin instance.
-    fn create(&self, config: &dyn PluginConfig) -> Result<Self::Plugin>;
+    fn create(&self, config: Option<&dyn PluginConfig>) -> Result<Self::Plugin>;
     
     /// Returns the plugin type identifier.
     fn plugin_type(&self) -> &str;
@@ -171,20 +146,11 @@ pub enum PluginState {
     /// Plugin is registered but not initialized.
     Registered,
     
-    /// Plugin is being initialized.
-    Initializing,
-    
     /// Plugin is initialized and ready.
     Ready,
     
     /// Plugin is running.
     Running,
-    
-    /// Plugin is paused.
-    Paused,
-    
-    /// Plugin is being stopped.
-    Stopping,
     
     /// Plugin is stopped.
     Stopped,
@@ -196,7 +162,7 @@ pub enum PluginState {
 impl PluginState {
     /// Returns whether the plugin is in a usable state.
     pub fn is_usable(&self) -> bool {
-        matches!(self, Self::Ready | Self::Running | Self::Paused)
+        matches!(self, Self::Ready | Self::Running)
     }
     
     /// Returns whether the plugin can be started.
@@ -206,7 +172,7 @@ impl PluginState {
     
     /// Returns whether the plugin can be stopped.
     pub fn can_stop(&self) -> bool {
-        matches!(self, Self::Running | Self::Paused)
+        matches!(self, Self::Running)
     }
     
     /// Validates a state transition.
@@ -215,24 +181,14 @@ impl PluginState {
         
         match (*self, next) {
             // Registration transitions
-            (Registered, Initializing) => true,
-            
-            // Initialization transitions
-            (Initializing, Ready) => true,
-            (Initializing, Error) => true,
+            (Registered, Ready) => true,
             
             // Start transitions
             (Ready, Running) => true,
             (Stopped, Running) => true,
             
-            // Pause transitions
-            (Running, Paused) => true,
-            (Paused, Running) => true,
-            
             // Stop transitions
-            (Running, Stopping) => true,
-            (Paused, Stopping) => true,
-            (Stopping, Stopped) => true,
+            (Running, Stopped) => true,
             
             // Error transitions
             (_, Error) => true,
@@ -257,51 +213,35 @@ impl PluginState {
 /// following the principle of encapsulation.
 #[cfg(feature = "std")]
 pub struct PluginEntry {
-    /// The plugin instance with thread-safe mutable access.
-    plugin: Arc<RwLock<Box<dyn Plugin>>>,
+    /// The plugin instance.
+    plugin: Box<dyn Plugin>,
 
     /// Current state of the plugin.
     state: PluginState,
 
-    /// Plugin metadata.
-    metadata: PluginMetadata,
-
     /// Dependencies on other plugins.
     dependencies: Vec<PluginName>,
-
-    /// Dependents of this plugin.
-    dependents: Vec<Weak<RwLock<PluginEntry>>>,
 }
 
 #[cfg(feature = "std")]
 impl PluginEntry {
-    /// Creates a new plugin entry from a boxed plugin.
+    /// Creates a new plugin entry.
     pub fn new(plugin: Box<dyn Plugin>) -> Self {
-        let metadata = PluginMetadata {
-            name: plugin.name().into(),
-            version: plugin.version(),
-            capabilities: plugin.capabilities(),
-        };
-
-        let plugin_arc = Arc::new(RwLock::new(plugin));
-
         Self {
-            plugin: plugin_arc,
+            plugin,
             state: PluginState::Registered,
-            metadata,
             dependencies: Vec::new(),
-            dependents: Vec::new(),
         }
     }
     
     /// Returns the plugin name.
-    pub fn name(&self) -> &PluginName {
-        &self.metadata.name
+    pub fn name(&self) -> &str {
+        self.plugin.name()
     }
     
     /// Returns the plugin version.
-    pub fn version(&self) -> &Version {
-        &self.metadata.version
+    pub fn version(&self) -> Version {
+        self.plugin.version()
     }
     
     /// Returns the current state.
@@ -312,10 +252,10 @@ impl PluginEntry {
     /// Transitions to a new state.
     pub fn transition_to(&mut self, new_state: PluginState) -> Result<()> {
         if !self.state.can_transition_to(new_state) {
-            return Err(Error::Plugin(PluginError::InvalidState {
-                plugin: self.name().to_string(),
-                expected: "valid transition",
-                actual: "invalid transition",
+            return Err(Error::Plugin(PluginError::Lifecycle {
+                name: self.name().to_string(),
+                current_state: format!("{:?}", self.state),
+                operation: "transition",
             }));
         }
         
@@ -323,42 +263,14 @@ impl PluginEntry {
         Ok(())
     }
     
-    /// Returns the plugin Arc for shared ownership.
-    pub fn plugin_arc(&self) -> &Arc<RwLock<Box<dyn Plugin>>> {
-        &self.plugin
+    /// Returns a reference to the plugin.
+    pub fn plugin(&self) -> &dyn Plugin {
+        &*self.plugin
     }
-
-    /// Returns a cloned Arc to the plugin.
-    pub fn plugin_arc_cloned(&self) -> Arc<RwLock<Box<dyn Plugin>>> {
-        Arc::clone(&self.plugin)
-    }
-
-    /// Executes a function with read access to the plugin.
-    pub fn with_plugin<F, R>(&self, f: F) -> Result<R>
-    where
-        F: FnOnce(&dyn Plugin) -> R,
-    {
-        let plugin = self.plugin.read()
-            .map_err(|_| Error::Plugin(PluginError::InvalidState {
-                plugin: self.name().to_string(),
-                expected: "readable",
-                actual: "lock poisoned",
-            }))?;
-        Ok(f(&**plugin))
-    }
-
-    /// Executes a function with write access to the plugin.
-    pub fn with_plugin_mut<F, R>(&self, f: F) -> Result<R>
-    where
-        F: FnOnce(&mut dyn Plugin) -> Result<R>,
-    {
-        let mut plugin = self.plugin.write()
-            .map_err(|_| Error::Plugin(PluginError::InvalidState {
-                plugin: self.name().to_string(),
-                expected: "writable",
-                actual: "lock poisoned",
-            }))?;
-        f(&mut **plugin)
+    
+    /// Returns a mutable reference to the plugin.
+    pub fn plugin_mut(&mut self) -> &mut dyn Plugin {
+        &mut *self.plugin
     }
     
     /// Adds a dependency.
@@ -372,29 +284,6 @@ impl PluginEntry {
     pub fn dependencies(&self) -> &[PluginName] {
         &self.dependencies
     }
-    
-    /// Adds a dependent.
-    pub fn add_dependent(&mut self, dependent: Weak<RwLock<PluginEntry>>) {
-        self.dependents.push(dependent);
-    }
-    
-    /// Removes stale dependents.
-    pub fn clean_dependents(&mut self) {
-        self.dependents.retain(|weak| weak.strong_count() > 0);
-    }
-}
-
-/// Plugin metadata.
-#[derive(Debug, Clone)]
-pub struct PluginMetadata {
-    /// Plugin name.
-    pub name: PluginName,
-    
-    /// Plugin version.
-    pub version: Version,
-    
-    /// Plugin capabilities.
-    pub capabilities: PluginCapabilities,
 }
 
 // ============================================================================
@@ -435,6 +324,10 @@ impl<P: Plugin + 'static> PluginBuilder<P> {
     }
 }
 
+// ============================================================================
+// Specialized Plugin Traits
+// ============================================================================
+
 /// Trait for plugins that provide tokenization functionality.
 pub trait TokenizerPlugin: Plugin {
     /// The tokenizer type provided by this plugin.
@@ -462,32 +355,6 @@ pub trait ModelLoaderPlugin: Plugin {
     fn load_model(&self, path: &str) -> Result<Box<dyn crate::core::model::Model<Config = crate::core::model::BasicModelConfig>>>;
 }
 
-/// Trait for plugins that support configuration.
-pub trait ConfigurablePlugin: Plugin {
-    /// Configuration type for the plugin.
-    type Config: Debug + Clone + Send + Sync;
-    
-    /// Configures the plugin.
-    fn configure(&mut self, config: Self::Config) -> Result<()>;
-    
-    /// Returns the current configuration.
-    fn config(&self) -> &Self::Config;
-}
-
-/// Trait for plugins that support hot reloading.
-pub trait HotReloadablePlugin: Plugin {
-    /// Prepares the plugin for reloading.
-    fn prepare_reload(&mut self) -> Result<()>;
-    
-    /// Completes the reload process.
-    fn complete_reload(&mut self) -> Result<()>;
-    
-    /// Checks if the plugin can be safely reloaded.
-    fn can_reload(&self) -> bool {
-        true
-    }
-}
-
 // ============================================================================
 // Helper Macros
 // ============================================================================
@@ -499,15 +366,19 @@ pub trait HotReloadablePlugin: Plugin {
 #[macro_export]
 macro_rules! impl_plugin {
     ($type:ty, $name:expr, $version:expr) => {
-        impl $crate::core::plugin::Plugin for $type {
+        impl $crate::core::traits::foundation::Named for $type {
             fn name(&self) -> &str {
                 $name
             }
-            
+        }
+        
+        impl $crate::core::traits::identity::Versioned for $type {
             fn version(&self) -> $crate::foundation::types::Version {
                 $version
             }
-            
+        }
+        
+        impl $crate::core::plugin::Plugin for $type {
             fn capabilities(&self) -> $crate::core::plugin::PluginCapabilities {
                 $crate::core::plugin::PluginCapabilities::standard()
             }
@@ -515,15 +386,19 @@ macro_rules! impl_plugin {
     };
     
     ($type:ty, $name:expr, $version:expr, $capabilities:expr) => {
-        impl $crate::core::plugin::Plugin for $type {
+        impl $crate::core::traits::foundation::Named for $type {
             fn name(&self) -> &str {
                 $name
             }
-            
+        }
+        
+        impl $crate::core::traits::identity::Versioned for $type {
             fn version(&self) -> $crate::foundation::types::Version {
                 $version
             }
-            
+        }
+        
+        impl $crate::core::plugin::Plugin for $type {
             fn capabilities(&self) -> $crate::core::plugin::PluginCapabilities {
                 $capabilities
             }
@@ -541,15 +416,19 @@ mod tests {
         initialized: bool,
     }
     
-    impl Plugin for TestPlugin {
+    impl Named for TestPlugin {
         fn name(&self) -> &str {
             "test_plugin"
         }
-        
+    }
+    
+    impl Versioned for TestPlugin {
         fn version(&self) -> Version {
             Version::new(1, 0, 0)
         }
-        
+    }
+    
+    impl Plugin for TestPlugin {
         fn capabilities(&self) -> PluginCapabilities {
             PluginCapabilities::none()
         }
@@ -563,20 +442,20 @@ mod tests {
     #[test]
     fn test_plugin_state_transitions() {
         let state = PluginState::Registered;
-        assert!(state.can_transition_to(PluginState::Initializing));
+        assert!(state.can_transition_to(PluginState::Ready));
         assert!(!state.can_transition_to(PluginState::Running));
         
         let state = PluginState::Ready;
         assert!(state.can_transition_to(PluginState::Running));
-        assert!(!state.can_transition_to(PluginState::Initializing));
+        assert!(!state.can_transition_to(PluginState::Registered));
     }
     
     #[test]
     fn test_plugin_capabilities() {
         let caps = PluginCapabilities::standard();
-        assert!(caps.initializable);
         assert!(caps.lifecycle);
-        assert!(caps.metadata);
+        assert!(caps.health);
+        assert!(caps.metrics);
         assert!(caps.configurable);
         
         let caps = PluginCapabilities::none()

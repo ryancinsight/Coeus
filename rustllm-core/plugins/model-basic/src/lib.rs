@@ -2,6 +2,7 @@
 
 use rustllm_core::core::plugin::{Plugin, ModelBuilderPlugin, PluginCapabilities};
 use rustllm_core::core::model::{Model, ForwardModel, ModelBuilder, ModelConfig, BasicModelConfig};
+use rustllm_core::core::traits::{foundation::Named, identity::Versioned};
 use rustllm_core::foundation::{
     error::Result,
     types::Version,
@@ -11,15 +12,19 @@ use rustllm_core::foundation::{
 #[derive(Debug, Default)]
 pub struct BasicModelPlugin;
 
-impl Plugin for BasicModelPlugin {
+impl Named for BasicModelPlugin {
     fn name(&self) -> &str {
         "basic_model"
     }
-    
+}
+
+impl Versioned for BasicModelPlugin {
     fn version(&self) -> Version {
         Version::new(0, 1, 0)
     }
-    
+}
+
+impl Plugin for BasicModelPlugin {
     fn capabilities(&self) -> PluginCapabilities {
         PluginCapabilities::standard()
             .with_feature("model_building")
@@ -108,6 +113,10 @@ impl ForwardModel for BasicModel {
     fn forward(&self, input: Self::Input) -> Result<Self::Output> {
         // Simple identity function for demonstration
         Ok(input)
+    }
+    
+    fn num_parameters(&self) -> usize {
+        self.num_parameters
     }
 }
 

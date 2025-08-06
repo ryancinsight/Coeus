@@ -6,7 +6,7 @@
 use rustllm_core::{
     core::{
         plugin::ModelBuilderPlugin,
-        model::{Model, ModelBuilder, Transformer250MConfig},
+        model::{Model, ModelBuilder, Transformer250MConfig, ForwardModel},
     },
     foundation::error::Result,
 };

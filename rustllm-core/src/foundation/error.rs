@@ -3,11 +3,13 @@
 //! This module provides a zero-dependency error handling system that follows
 //! Rust best practices while maintaining simplicity and performance.
 //!
-//! The error system follows these principles:
-//! - **Composability**: Errors can be easily combined and wrapped
-//! - **Context**: Errors carry sufficient context for debugging
+//! ## Design Principles
+//!
+//! - **Atomicity**: Errors are complete and self-contained
+//! - **Consistency**: Error types follow a consistent pattern
+//! - **Isolation**: Errors don't leak implementation details
+//! - **Durability**: Error information is preserved through the stack
 //! - **Zero-cost**: No runtime overhead for the happy path
-//! - **Type-safe**: Leverages Rust's type system for safety
 
 use core::fmt;
 
@@ -19,50 +21,57 @@ pub type Result<T> = core::result::Result<T, Error>;
 /// This type follows the principle of exhaustive error handling,
 /// where each variant represents a specific error category.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum Error {
-    /// Plugin-related errors.
+    /// Plugin system errors.
     Plugin(PluginError),
     
-    /// Tokenizer-related errors.
-    Tokenizer(TokenizerError),
-    
-    /// Model-related errors.
-    Model(ModelError),
+    /// Data processing errors (tokenizer, model, etc.).
+    Processing(ProcessingError),
     
     /// I/O errors (when std feature is enabled).
     #[cfg(feature = "std")]
     Io(IoError),
     
-    /// Configuration errors.
+    /// Configuration and validation errors.
     Config(ConfigError),
     
-    /// Validation errors.
-    Validation(ValidationError),
-    
-    /// Resource errors.
+    /// Resource management errors.
     Resource(ResourceError),
     
-    /// Processing errors.
-    Processing(ProcessingError),
-    
-    /// Composition of multiple errors.
-    Multiple(Vec<Error>),
+    /// Composite error for multiple failures.
+    Composite(CompositeError),
 }
 
-/// Error context that can be attached to any error.
+/// Error context providing rich debugging information.
 /// 
-/// This follows the principle of rich error information
-/// without sacrificing performance.
+/// This follows the principle of preserving error context
+/// for better debugging and error recovery.
 #[derive(Debug, Clone)]
 pub struct ErrorContext {
     /// The operation that was being performed.
     pub operation: &'static str,
     
-    /// Additional context information.
-    pub context: String,
-    
     /// Source location (file, line, column).
-    pub location: Option<(&'static str, u32, u32)>,
+    pub location: Option<Location>,
+    
+    /// Additional context information.
+    pub details: Option<String>,
+    
+    /// Timestamp when the error occurred (if available).
+    #[cfg(feature = "std")]
+    pub timestamp: Option<std::time::SystemTime>,
+}
+
+/// Source location information.
+#[derive(Debug, Clone, Copy)]
+pub struct Location {
+    /// Source file.
+    pub file: &'static str,
+    /// Line number.
+    pub line: u32,
+    /// Column number.
+    pub column: u32,
 }
 
 impl ErrorContext {
@@ -70,29 +79,277 @@ impl ErrorContext {
     pub const fn new(operation: &'static str) -> Self {
         Self {
             operation,
-            context: String::new(),
             location: None,
+            details: None,
+            #[cfg(feature = "std")]
+            timestamp: None,
         }
-    }
-    
-    /// Adds context information.
-    #[must_use]
-    pub fn with_context(mut self, context: impl Into<String>) -> Self {
-        self.context = context.into();
-        self
     }
     
     /// Adds source location.
     #[must_use]
-    pub const fn at_location(mut self, file: &'static str, line: u32, column: u32) -> Self {
-        self.location = Some((file, line, column));
+    pub const fn at(mut self, file: &'static str, line: u32, column: u32) -> Self {
+        self.location = Some(Location { file, line, column });
+        self
+    }
+    
+    /// Adds additional details.
+    #[must_use]
+    pub fn with_details(mut self, details: impl Into<String>) -> Self {
+        self.details = Some(details.into());
+        self
+    }
+    
+    /// Adds timestamp (std only).
+    #[cfg(feature = "std")]
+    #[must_use]
+    pub fn with_timestamp(mut self) -> Self {
+        self.timestamp = Some(std::time::SystemTime::now());
+        self
+    }
+}
+
+/// Macro for creating error context with location.
+#[macro_export]
+macro_rules! error_context {
+    ($operation:expr) => {
+        $crate::foundation::error::ErrorContext::new($operation)
+            .at(file!(), line!(), column!())
+    };
+    ($operation:expr, $details:expr) => {
+        $crate::foundation::error::ErrorContext::new($operation)
+            .at(file!(), line!(), column!())
+            .with_details($details)
+    };
+}
+
+/// Plugin system errors.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum PluginError {
+    /// Plugin not found.
+    NotFound {
+        /// Plugin identifier.
+        name: String,
+        /// Available plugins (for suggestions).
+        available: Vec<String>,
+    },
+    
+    /// Plugin lifecycle error.
+    Lifecycle {
+        /// Plugin identifier.
+        name: String,
+        /// Current state.
+        current_state: String,
+        /// Operation that was attempted.
+        operation: &'static str,
+    },
+    
+    /// Plugin dependency error.
+    Dependency {
+        /// Plugin identifier.
+        plugin: String,
+        /// Missing or incompatible dependency.
+        dependency: String,
+        /// Version constraint if applicable.
+        version_constraint: Option<String>,
+    },
+}
+
+/// Processing errors (consolidated from TokenizerError and ModelError).
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum ProcessingError {
+    /// Component not initialized.
+    NotInitialized {
+        /// Component type.
+        component: &'static str,
+    },
+    
+    /// Invalid input data.
+    InvalidInput {
+        /// Description of what's invalid.
+        description: String,
+        /// Position in input if applicable.
+        position: Option<usize>,
+    },
+    
+    /// Processing limit exceeded.
+    LimitExceeded {
+        /// Type of limit.
+        limit_type: &'static str,
+        /// The limit value.
+        limit: usize,
+        /// Actual value that exceeded the limit.
+        actual: usize,
+    },
+    
+    /// Shape or dimension mismatch.
+    ShapeMismatch {
+        /// Expected shape description.
+        expected: String,
+        /// Actual shape description.
+        actual: String,
+    },
+    
+    /// Operation not supported.
+    Unsupported {
+        /// Operation description.
+        operation: String,
+        /// Reason if available.
+        reason: Option<String>,
+    },
+    
+    /// Processing failed.
+    Failed {
+        /// Component that failed.
+        component: &'static str,
+        /// Failure reason.
+        reason: String,
+    },
+}
+
+/// I/O errors for std environments.
+#[cfg(feature = "std")]
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum IoError {
+    /// File system error.
+    FileSystem {
+        /// Path involved.
+        path: String,
+        /// Operation that failed.
+        operation: IoOperation,
+        /// System error if available.
+        source: Option<String>,
+    },
+    
+    /// Network error.
+    Network {
+        /// Endpoint if applicable.
+        endpoint: Option<String>,
+        /// Error description.
+        description: String,
+    },
+}
+
+/// I/O operations.
+#[cfg(feature = "std")]
+#[derive(Debug, Clone, Copy)]
+pub enum IoOperation {
+    /// Read operation.
+    Read,
+    /// Write operation.
+    Write,
+    /// Create operation.
+    Create,
+    /// Delete operation.
+    Delete,
+    /// Metadata operation.
+    Metadata,
+}
+
+/// Configuration errors.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum ConfigError {
+    /// Missing required configuration.
+    Missing {
+        /// Configuration key or field.
+        key: String,
+        /// Expected type or format.
+        expected: String,
+    },
+    
+    /// Invalid configuration value.
+    Invalid {
+        /// Configuration key or field.
+        key: String,
+        /// Provided value (as string).
+        value: String,
+        /// Validation error.
+        error: String,
+    },
+    
+    /// Configuration conflict.
+    Conflict {
+        /// First conflicting key.
+        key1: String,
+        /// Second conflicting key.
+        key2: String,
+        /// Conflict description.
+        description: String,
+    },
+}
+
+/// Resource management errors.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum ResourceError {
+    /// Resource not available.
+    NotAvailable {
+        /// Resource type.
+        resource_type: &'static str,
+        /// Resource identifier.
+        identifier: String,
+    },
+    
+    /// Resource exhausted.
+    Exhausted {
+        /// Resource type.
+        resource_type: &'static str,
+        /// Available amount.
+        available: usize,
+        /// Required amount.
+        required: usize,
+    },
+    
+    /// Resource busy or locked.
+    Busy {
+        /// Resource type.
+        resource_type: &'static str,
+        /// Resource identifier.
+        identifier: String,
+        /// Holder information if available.
+        holder: Option<String>,
+    },
+}
+
+/// Composite error for multiple failures.
+#[derive(Debug, Clone)]
+pub struct CompositeError {
+    /// Primary error.
+    pub primary: Box<Error>,
+    /// Related errors.
+    pub related: Vec<Error>,
+    /// Transaction ID if applicable.
+    pub transaction_id: Option<String>,
+}
+
+impl CompositeError {
+    /// Creates a new composite error.
+    pub fn new(primary: Error) -> Self {
+        Self {
+            primary: Box::new(primary),
+            related: Vec::new(),
+            transaction_id: None,
+        }
+    }
+    
+    /// Adds a related error.
+    pub fn with_related(mut self, error: Error) -> Self {
+        self.related.push(error);
+        self
+    }
+    
+    /// Sets transaction ID for atomicity tracking.
+    pub fn with_transaction_id(mut self, id: impl Into<String>) -> Self {
+        self.transaction_id = Some(id.into());
         self
     }
 }
 
 /// Trait for adding context to errors.
-/// 
-/// This trait follows the decorator pattern for error enhancement.
 pub trait ErrorExt: Sized {
     /// Adds context to the error.
     fn context(self, ctx: ErrorContext) -> ContextualError<Self>;
@@ -110,7 +367,7 @@ impl<E> ErrorExt for E {
     }
     
     fn with_context(self, context: impl Into<String>) -> ContextualError<Self> {
-        self.context(ErrorContext::new("operation").with_context(context))
+        self.context(ErrorContext::new("operation").with_details(context))
     }
 }
 
@@ -119,357 +376,8 @@ impl<E> ErrorExt for E {
 pub struct ContextualError<E> {
     /// The underlying error.
     pub error: E,
-    
     /// The error context.
     pub context: ErrorContext,
-}
-
-impl<E: fmt::Display> fmt::Display for ContextualError<E> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}", self.context.operation, self.error)?;
-        if !self.context.context.is_empty() {
-            write!(f, " ({})", self.context.context)?;
-        }
-        if let Some((file, line, col)) = self.context.location {
-            write!(f, " at {file}:{line}:{col}")?;
-        }
-        Ok(())
-    }
-}
-
-/// Plugin-specific errors.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PluginError {
-    /// Plugin not found.
-    NotFound {
-        /// Name of the plugin that was not found.
-        name: String
-    },
-
-    /// Plugin initialization failed.
-    InitializationFailed {
-        /// Name of the plugin that failed to initialize.
-        name: String,
-        /// Reason for the initialization failure.
-        reason: String
-    },
-
-    /// Plugin version mismatch.
-    VersionMismatch {
-        /// Name of the plugin with version mismatch.
-        name: String,
-        /// Expected version specification.
-        expected: String,
-        /// Actual version found.
-        actual: String,
-    },
-
-    /// Plugin already loaded.
-    AlreadyLoaded {
-        /// Name of the plugin that is already loaded.
-        name: String
-    },
-
-    /// Plugin dependency missing.
-    DependencyMissing {
-        /// Name of the plugin with missing dependency.
-        plugin: String,
-        /// Name of the missing dependency.
-        dependency: String,
-    },
-
-    /// Plugin state error.
-    InvalidState {
-        /// Name of the plugin with invalid state.
-        plugin: String,
-        /// Expected state for the operation.
-        expected: &'static str,
-        /// Actual current state of the plugin.
-        actual: &'static str,
-    },
-}
-
-/// Tokenizer-specific errors.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TokenizerError {
-    /// Invalid token encountered.
-    InvalidToken {
-        /// The invalid token string.
-        token: String,
-        /// Position in the input where the invalid token was found.
-        position: usize,
-    },
-
-    /// Vocabulary not loaded.
-    VocabularyNotLoaded,
-
-    /// Encoding failed.
-    EncodingFailed {
-        /// Input text that failed to encode.
-        input: String,
-        /// Reason for the encoding failure.
-        reason: String,
-    },
-
-    /// Decoding failed.
-    DecodingFailed {
-        /// Reason for the decoding failure.
-        reason: String,
-    },
-
-    /// Token limit exceeded.
-    TokenLimitExceeded {
-        /// Maximum allowed number of tokens.
-        limit: usize,
-        /// Actual number of tokens encountered.
-        actual: usize,
-    },
-
-    /// Unknown token ID.
-    UnknownTokenId {
-        /// The unknown token ID.
-        id: u32
-    },
-}
-
-/// Model-specific errors.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ModelError {
-    /// Model not initialized.
-    NotInitialized,
-    
-    /// Invalid model configuration.
-    InvalidConfig {
-        /// Name of the configuration field that is invalid.
-        field: String,
-        /// Reason why the configuration is invalid.
-        reason: String,
-    },
-
-    /// Inference failed.
-    InferenceFailed {
-        /// Reason for the inference failure.
-        reason: String
-    },
-
-    /// Model format not supported.
-    UnsupportedFormat {
-        /// The unsupported model format.
-        format: String
-    },
-
-    /// Shape mismatch.
-    ShapeMismatch {
-        /// Expected tensor shape.
-        expected: String,
-        /// Actual tensor shape encountered.
-        actual: String,
-    },
-
-    /// Parameter error.
-    InvalidParameter {
-        /// Name of the invalid parameter.
-        name: String,
-        /// Reason why the parameter is invalid.
-        reason: String,
-    },
-
-    /// Training error.
-    TrainingFailed {
-        /// Reason for the training failure.
-        reason: String
-    },
-}
-
-/// I/O errors for std environments.
-#[cfg(feature = "std")]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum IoError {
-    /// File not found.
-    FileNotFound {
-        /// Path to the file that was not found.
-        path: String
-    },
-
-    /// Permission denied.
-    PermissionDenied {
-        /// Path to the file with permission issues.
-        path: String
-    },
-
-    /// Read error.
-    ReadError {
-        /// Path to the file that failed to read.
-        path: String,
-        /// Reason for the read failure.
-        reason: String
-    },
-
-    /// Write error.
-    WriteError {
-        /// Path to the file that failed to write.
-        path: String,
-        /// Reason for the write failure.
-        reason: String
-    },
-
-    /// Network error.
-    NetworkError {
-        /// Reason for the network error.
-        reason: String
-    },
-}
-
-/// Configuration errors.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ConfigError {
-    /// Missing required field.
-    MissingField {
-        /// Name of the missing required field.
-        field: String
-    },
-
-    /// Invalid field value.
-    InvalidValue {
-        /// Name of the field with invalid value.
-        field: String,
-        /// The invalid value that was provided.
-        value: String,
-        /// Description of the expected value format.
-        expected: String,
-    },
-
-    /// Type mismatch.
-    TypeMismatch {
-        /// Name of the field with type mismatch.
-        field: String,
-        /// Expected type for the field.
-        expected: &'static str,
-        /// Actual type that was provided.
-        actual: &'static str,
-    },
-    
-    /// Validation failed.
-    ValidationFailed {
-        /// Name of the field that failed validation.
-        field: String,
-        /// Reason for the validation failure.
-        reason: String,
-    },
-}
-
-/// Validation errors.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ValidationError {
-    /// Range validation failed.
-    OutOfRange {
-        /// The value that is out of range.
-        value: String,
-        /// Minimum allowed value, if any.
-        min: Option<String>,
-        /// Maximum allowed value, if any.
-        max: Option<String>,
-    },
-
-    /// Pattern validation failed.
-    PatternMismatch {
-        /// The value that doesn't match the pattern.
-        value: String,
-        /// The expected pattern.
-        pattern: String,
-    },
-
-    /// Constraint violation.
-    ConstraintViolation {
-        /// Description of the violated constraint.
-        constraint: String,
-        /// The value that violates the constraint.
-        value: String,
-    },
-
-    /// Invalid state.
-    InvalidState {
-        /// Current state description.
-        current: String,
-        /// Expected state description.
-        expected: String,
-    },
-}
-
-/// Resource errors.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ResourceError {
-    /// Resource not found.
-    NotFound {
-        /// Name or identifier of the resource that was not found.
-        resource: String
-    },
-
-    /// Resource already exists.
-    AlreadyExists {
-        /// Name or identifier of the resource that already exists.
-        resource: String
-    },
-
-    /// Resource busy.
-    Busy {
-        /// Name or identifier of the resource that is busy.
-        resource: String
-    },
-
-    /// Insufficient resources.
-    Insufficient {
-        /// Name or type of the insufficient resource.
-        resource: String,
-        /// Amount of resource currently available.
-        available: usize,
-        /// Amount of resource required for the operation.
-        required: usize,
-    },
-
-    /// Resource limit exceeded.
-    LimitExceeded {
-        /// Name or type of the resource that exceeded its limit.
-        resource: String,
-        /// The limit that was exceeded.
-        limit: usize,
-    },
-}
-
-/// Processing errors.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ProcessingError {
-    /// Timeout occurred.
-    Timeout {
-        /// Description of the operation that timed out.
-        operation: String,
-        /// Timeout duration in milliseconds.
-        timeout_ms: u64
-    },
-
-    /// Operation cancelled.
-    Cancelled {
-        /// Description of the operation that was cancelled.
-        operation: String
-    },
-
-    /// Invalid input.
-    InvalidInput {
-        /// Reason why the input is invalid.
-        reason: String
-    },
-
-    /// Unsupported operation.
-    Unsupported {
-        /// Description of the unsupported operation.
-        operation: String
-    },
-
-    /// Internal error.
-    Internal {
-        /// Reason for the internal error.
-        reason: String
-    },
 }
 
 // ============================================================================
@@ -480,18 +388,15 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Plugin(e) => write!(f, "Plugin error: {e}"),
-            Self::Tokenizer(e) => write!(f, "Tokenizer error: {e}"),
-            Self::Model(e) => write!(f, "Model error: {e}"),
+            Self::Processing(e) => write!(f, "Processing error: {e}"),
             #[cfg(feature = "std")]
             Self::Io(e) => write!(f, "I/O error: {e}"),
             Self::Config(e) => write!(f, "Configuration error: {e}"),
-            Self::Validation(e) => write!(f, "Validation error: {e}"),
             Self::Resource(e) => write!(f, "Resource error: {e}"),
-            Self::Processing(e) => write!(f, "Processing error: {e}"),
-            Self::Multiple(errors) => {
-                write!(f, "Multiple errors occurred:")?;
-                for (i, e) in errors.iter().enumerate() {
-                    write!(f, "\n  {}. {e}", i + 1)?;
+            Self::Composite(e) => {
+                write!(f, "Composite error: {}", e.primary)?;
+                if !e.related.is_empty() {
+                    write!(f, " ({} related errors)", e.related.len())?;
                 }
                 Ok(())
             }
@@ -502,58 +407,56 @@ impl fmt::Display for Error {
 impl fmt::Display for PluginError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotFound { name } => 
-                write!(f, "Plugin '{name}' not found"),
-            Self::InitializationFailed { name, reason } => 
-                write!(f, "Plugin '{name}' initialization failed: {reason}"),
-            Self::VersionMismatch { name, expected, actual } => 
-                write!(f, "Plugin '{name}' version mismatch: expected {expected}, got {actual}"),
-            Self::AlreadyLoaded { name } => 
-                write!(f, "Plugin '{name}' is already loaded"),
-            Self::DependencyMissing { plugin, dependency } => 
-                write!(f, "Plugin '{plugin}' missing dependency '{dependency}'"),
-            Self::InvalidState { plugin, expected, actual } => 
-                write!(f, "Plugin '{plugin}' in invalid state: expected {expected}, got {actual}"),
+            Self::NotFound { name, available } => {
+                write!(f, "Plugin '{name}' not found")?;
+                if !available.is_empty() {
+                    write!(f, ". Available: {}", available.join(", "))?;
+                }
+                Ok(())
+            }
+            Self::Lifecycle { name, current_state, operation } => {
+                write!(f, "Plugin '{name}' cannot {operation} in state {current_state:?}")
+            }
+            Self::Dependency { plugin, dependency, version_constraint } => {
+                write!(f, "Plugin '{plugin}' missing dependency '{dependency}'")?;
+                if let Some(constraint) = version_constraint {
+                    write!(f, " (version {constraint})")?;
+                }
+                Ok(())
+            }
         }
     }
 }
 
-impl fmt::Display for TokenizerError {
+impl fmt::Display for ProcessingError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidToken { token, position } => 
-                write!(f, "Invalid token '{token}' at position {position}"),
-            Self::VocabularyNotLoaded => 
-                write!(f, "Vocabulary not loaded"),
-            Self::EncodingFailed { input, reason } => 
-                write!(f, "Failed to encode '{input}': {reason}"),
-            Self::DecodingFailed { reason } => 
-                write!(f, "Failed to decode: {reason}"),
-            Self::TokenLimitExceeded { limit, actual } => 
-                write!(f, "Token limit exceeded: {actual} > {limit}"),
-            Self::UnknownTokenId { id } => 
-                write!(f, "Unknown token ID: {id}"),
-        }
-    }
-}
-
-impl fmt::Display for ModelError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NotInitialized => 
-                write!(f, "Model not initialized"),
-            Self::InvalidConfig { field, reason } => 
-                write!(f, "Invalid configuration field '{field}': {reason}"),
-            Self::InferenceFailed { reason } => 
-                write!(f, "Inference failed: {reason}"),
-            Self::UnsupportedFormat { format } => 
-                write!(f, "Unsupported model format: {format}"),
-            Self::ShapeMismatch { expected, actual } => 
-                write!(f, "Shape mismatch: expected {expected}, got {actual}"),
-            Self::InvalidParameter { name, reason } => 
-                write!(f, "Invalid parameter '{name}': {reason}"),
-            Self::TrainingFailed { reason } => 
-                write!(f, "Training failed: {reason}"),
+            Self::NotInitialized { component } => {
+                write!(f, "{component} not initialized")
+            }
+            Self::InvalidInput { description, position } => {
+                write!(f, "Invalid input: {description}")?;
+                if let Some(pos) = position {
+                    write!(f, " at position {pos}")?;
+                }
+                Ok(())
+            }
+            Self::LimitExceeded { limit_type, limit, actual } => {
+                write!(f, "{limit_type} limit exceeded: {actual} > {limit}")
+            }
+            Self::ShapeMismatch { expected, actual } => {
+                write!(f, "Shape mismatch: expected {expected}, got {actual}")
+            }
+            Self::Unsupported { operation, reason } => {
+                write!(f, "Unsupported operation: {operation}")?;
+                if let Some(r) = reason {
+                    write!(f, " ({r})")?;
+                }
+                Ok(())
+            }
+            Self::Failed { component, reason } => {
+                write!(f, "{component} failed: {reason}")
+            }
         }
     }
 }
@@ -562,16 +465,20 @@ impl fmt::Display for ModelError {
 impl fmt::Display for IoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::FileNotFound { path } => 
-                write!(f, "File not found: {path}"),
-            Self::PermissionDenied { path } => 
-                write!(f, "Permission denied: {path}"),
-            Self::ReadError { path, reason } => 
-                write!(f, "Failed to read '{path}': {reason}"),
-            Self::WriteError { path, reason } => 
-                write!(f, "Failed to write '{path}': {reason}"),
-            Self::NetworkError { reason } => 
-                write!(f, "Network error: {reason}"),
+            Self::FileSystem { path, operation, source } => {
+                write!(f, "File system error on '{path}' during {operation:?}")?;
+                if let Some(s) = source {
+                    write!(f, ": {s}")?;
+                }
+                Ok(())
+            }
+            Self::Network { endpoint, description } => {
+                write!(f, "Network error")?;
+                if let Some(ep) = endpoint {
+                    write!(f, " on '{ep}'")?;
+                }
+                write!(f, ": {description}")
+            }
         }
     }
 }
@@ -579,36 +486,15 @@ impl fmt::Display for IoError {
 impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingField { field } => 
-                write!(f, "Missing required field: {field}"),
-            Self::InvalidValue { field, value, expected } => 
-                write!(f, "Invalid value for field '{field}': '{value}', expected {expected}"),
-            Self::TypeMismatch { field, expected, actual } => 
-                write!(f, "Type mismatch for field '{field}': expected {expected}, got {actual}"),
-            Self::ValidationFailed { field, reason } => 
-                write!(f, "Validation failed for field '{field}': {reason}"),
-        }
-    }
-}
-
-impl fmt::Display for ValidationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::OutOfRange { value, min, max } => {
-                write!(f, "Value '{value}' out of range")?;
-                match (min, max) {
-                    (Some(min), Some(max)) => write!(f, " [{min}, {max}]"),
-                    (Some(min), None) => write!(f, " [{min}+)"),
-                    (None, Some(max)) => write!(f, " (-∞, {max}]"),
-                    (None, None) => Ok(()),
-                }
+            Self::Missing { key, expected } => {
+                write!(f, "Missing configuration '{key}' (expected {expected})")
             }
-            Self::PatternMismatch { value, pattern } => 
-                write!(f, "Value '{value}' does not match pattern '{pattern}'"),
-            Self::ConstraintViolation { constraint, value } => 
-                write!(f, "Constraint '{constraint}' violated by value '{value}'"),
-            Self::InvalidState { current, expected } => 
-                write!(f, "Invalid state: current '{current}', expected '{expected}'"),
+            Self::Invalid { key, value, error } => {
+                write!(f, "Invalid configuration '{key}' = '{value}': {error}")
+            }
+            Self::Conflict { key1, key2, description } => {
+                write!(f, "Configuration conflict between '{key1}' and '{key2}': {description}")
+            }
         }
     }
 }
@@ -616,52 +502,62 @@ impl fmt::Display for ValidationError {
 impl fmt::Display for ResourceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotFound { resource } => 
-                write!(f, "Resource not found: {resource}"),
-            Self::AlreadyExists { resource } => 
-                write!(f, "Resource already exists: {resource}"),
-            Self::Busy { resource } => 
-                write!(f, "Resource busy: {resource}"),
-            Self::Insufficient { resource, available, required } => 
-                write!(f, "Insufficient {resource}: {available} available, {required} required"),
-            Self::LimitExceeded { resource, limit } => 
-                write!(f, "Resource limit exceeded for {resource}: {limit}"),
+            Self::NotAvailable { resource_type, identifier } => {
+                write!(f, "{resource_type} '{identifier}' not available")
+            }
+            Self::Exhausted { resource_type, available, required } => {
+                write!(f, "{resource_type} exhausted: {available} available, {required} required")
+            }
+            Self::Busy { resource_type, identifier, holder } => {
+                write!(f, "{resource_type} '{identifier}' is busy")?;
+                if let Some(h) = holder {
+                    write!(f, " (held by {h})")?;
+                }
+                Ok(())
+            }
         }
     }
 }
 
-impl fmt::Display for ProcessingError {
+impl<E: fmt::Display> fmt::Display for ContextualError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Timeout { operation, timeout_ms } => 
-                write!(f, "Operation '{operation}' timed out after {timeout_ms}ms"),
-            Self::Cancelled { operation } => 
-                write!(f, "Operation '{operation}' was cancelled"),
-            Self::InvalidInput { reason } => 
-                write!(f, "Invalid input: {reason}"),
-            Self::Unsupported { operation } => 
-                write!(f, "Unsupported operation: {operation}"),
-            Self::Internal { reason } => 
-                write!(f, "Internal error: {reason}"),
+        write!(f, "[{}] {}", self.context.operation, self.error)?;
+        
+        if let Some(details) = &self.context.details {
+            write!(f, ": {details}")?;
         }
+        
+        if let Some(loc) = &self.context.location {
+            write!(f, " at {}:{}:{}", loc.file, loc.line, loc.column)?;
+        }
+        
+        #[cfg(feature = "std")]
+        if let Some(ts) = &self.context.timestamp {
+            if let Ok(duration) = ts.duration_since(std::time::UNIX_EPOCH) {
+                write!(f, " ({})", duration.as_secs())?;
+            }
+        }
+        
+        Ok(())
     }
 }
 
 // ============================================================================
-// Error trait implementation
+// Error trait implementations
 // ============================================================================
 
 #[cfg(feature = "std")]
-impl std::error::Error for Error {}
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
 
 #[cfg(feature = "std")]
 impl std::error::Error for PluginError {}
 
 #[cfg(feature = "std")]
-impl std::error::Error for TokenizerError {}
-
-#[cfg(feature = "std")]
-impl std::error::Error for ModelError {}
+impl std::error::Error for ProcessingError {}
 
 #[cfg(feature = "std")]
 impl std::error::Error for IoError {}
@@ -670,106 +566,45 @@ impl std::error::Error for IoError {}
 impl std::error::Error for ConfigError {}
 
 #[cfg(feature = "std")]
-impl std::error::Error for ValidationError {}
-
-#[cfg(feature = "std")]
 impl std::error::Error for ResourceError {}
 
 #[cfg(feature = "std")]
-impl std::error::Error for ProcessingError {}
-
-// ============================================================================
-// Conversion implementations
-// ============================================================================
-
-impl From<PluginError> for Error {
-    fn from(err: PluginError) -> Self {
-        Self::Plugin(err)
-    }
-}
-
-impl From<TokenizerError> for Error {
-    fn from(err: TokenizerError) -> Self {
-        Self::Tokenizer(err)
-    }
-}
-
-impl From<ModelError> for Error {
-    fn from(err: ModelError) -> Self {
-        Self::Model(err)
-    }
-}
-
-#[cfg(feature = "std")]
-impl From<IoError> for Error {
-    fn from(err: IoError) -> Self {
-        Self::Io(err)
-    }
-}
-
-impl From<ConfigError> for Error {
-    fn from(err: ConfigError) -> Self {
-        Self::Config(err)
-    }
-}
-
-impl From<ValidationError> for Error {
-    fn from(err: ValidationError) -> Self {
-        Self::Validation(err)
-    }
-}
-
-impl From<ResourceError> for Error {
-    fn from(err: ResourceError) -> Self {
-        Self::Resource(err)
-    }
-}
-
-impl From<ProcessingError> for Error {
-    fn from(err: ProcessingError) -> Self {
-        Self::Processing(err)
+impl<E: std::error::Error + 'static> std::error::Error for ContextualError<E> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.error)
     }
 }
 
 // ============================================================================
-// Helper functions
+// Conversion helpers
 // ============================================================================
 
-/// Creates a plugin not found error.
-pub fn plugin_not_found(name: impl Into<String>) -> Error {
-    Error::Plugin(PluginError::NotFound { name: name.into() })
+/// Creates a not initialized error for a component.
+pub fn not_initialized(component: &'static str) -> Error {
+    Error::Processing(ProcessingError::NotInitialized { component })
 }
 
-/// Creates a model not initialized error.
-pub const fn model_not_initialized() -> Error {
-    Error::Model(ModelError::NotInitialized)
-}
-
-/// Creates a validation out of range error.
-pub fn out_of_range(
-    value: impl Into<String>,
-    min: Option<impl Into<String>>,
-    max: Option<impl Into<String>>,
-) -> Error {
-    Error::Validation(ValidationError::OutOfRange {
-        value: value.into(),
-        min: min.map(Into::into),
-        max: max.map(Into::into),
+/// Creates an invalid input error.
+pub fn invalid_input(description: impl Into<String>) -> Error {
+    Error::Processing(ProcessingError::InvalidInput {
+        description: description.into(),
+        position: None,
     })
 }
 
-/// Creates a processing internal error.
+/// Creates a limit exceeded error.
+pub fn limit_exceeded(limit_type: &'static str, limit: usize, actual: usize) -> Error {
+    Error::Processing(ProcessingError::LimitExceeded {
+        limit_type,
+        limit,
+        actual,
+    })
+}
+
+/// Creates a processing failed error (replacement for internal_error).
 pub fn internal_error(reason: impl Into<String>) -> Error {
-    Error::Processing(ProcessingError::Internal {
-        reason: reason.into(),
-    })
-}
-
-/// Creates an I/O error (std only).
-#[cfg(feature = "std")]
-pub fn io_error(path: impl Into<String>, reason: impl Into<String>) -> Error {
-    Error::Io(IoError::ReadError {
-        path: path.into(),
+    Error::Processing(ProcessingError::Failed {
+        component: "internal",
         reason: reason.into(),
     })
 }
@@ -779,35 +614,46 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_error_display() {
-        let err = Error::Plugin(PluginError::NotFound { 
-            name: "test-plugin".to_string() 
-        });
-        assert_eq!(err.to_string(), "Plugin error: Plugin 'test-plugin' not found");
-    }
-    
-    #[test]
     fn test_error_context() {
-        let err = plugin_not_found("test")
-            .context(ErrorContext::new("loading plugin")
-                .with_context("during startup"));
+        let ctx = ErrorContext::new("test_operation")
+            .at("test.rs", 42, 10)
+            .with_details("test details");
         
-        let display = format!("{}", err);
-        assert!(display.contains("loading plugin"));
-        assert!(display.contains("during startup"));
+        assert_eq!(ctx.operation, "test_operation");
+        assert!(ctx.location.is_some());
+        assert_eq!(ctx.details.as_deref(), Some("test details"));
     }
     
     #[test]
-    fn test_multiple_errors() {
-        let errors = vec![
-            plugin_not_found("plugin1"),
-            model_not_initialized(),
-        ];
-        let err = Error::Multiple(errors);
+    fn test_error_display() {
+        let error = Error::Processing(ProcessingError::NotInitialized {
+            component: "tokenizer",
+        });
         
-        let display = err.to_string();
-        assert!(display.contains("Multiple errors"));
-        assert!(display.contains("plugin1"));
-        assert!(display.contains("Model not initialized"));
+        let display = format!("{error}");
+        assert!(display.contains("tokenizer not initialized"));
+    }
+    
+    #[test]
+    fn test_composite_error() {
+        let primary = invalid_input("bad data");
+        let related = limit_exceeded("token", 100, 150);
+        
+        let composite = CompositeError::new(primary)
+            .with_related(related)
+            .with_transaction_id("tx-123");
+        
+        assert_eq!(composite.related.len(), 1);
+        assert_eq!(composite.transaction_id.as_deref(), Some("tx-123"));
+    }
+    
+    #[test]
+    fn test_error_context_macro() {
+        let ctx = error_context!("macro_test");
+        assert_eq!(ctx.operation, "macro_test");
+        assert!(ctx.location.is_some());
+        
+        let ctx_with_details = error_context!("macro_test", "with details");
+        assert_eq!(ctx_with_details.details.as_deref(), Some("with details"));
     }
 }

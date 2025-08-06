@@ -113,7 +113,7 @@ pub mod prelude {
         config::{ConfigValue, ConfigBuilder, ConfigStore, Configurable, PluginConfigManager},
         model::{
             Model, ModelBuilder, ModelConfig, BasicModelConfig, Transformer250MConfig,
-            InferenceModel, GenerativeModel, TrainableModel, DiffusionModel,
+            ForwardModel, InferenceModel, GenerativeModel, TrainableModel, DiffusionModel,
             OptimizerState, Loss, NoiseSchedule, DiffusionSampler,
             GenerationConfig, BasicGenerationConfig,
         },

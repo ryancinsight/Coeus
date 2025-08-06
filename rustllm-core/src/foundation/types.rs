@@ -52,34 +52,22 @@ impl FromStr for Version {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('.').collect();
         if parts.len() != 3 {
-            return Err(crate::foundation::error::Error::Validation(
-                crate::foundation::error::ValidationError::PatternMismatch {
-                    value: s.to_string(),
-                    pattern: "major.minor.patch".to_string(),
-                }
+            return Err(crate::foundation::error::invalid_input(
+                format!("invalid version format '{}', expected 'major.minor.patch'", s)
             ));
         }
         
         let major = parts[0].parse::<u16>()
-            .map_err(|e| crate::foundation::error::Error::Validation(
-                crate::foundation::error::ValidationError::PatternMismatch {
-                    value: parts[0].to_string(),
-                    pattern: format!("valid u16: {}", e),
-                }
+            .map_err(|e| crate::foundation::error::invalid_input(
+                format!("invalid major version '{}': {}", parts[0], e)
             ))?;
         let minor = parts[1].parse::<u16>()
-            .map_err(|e| crate::foundation::error::Error::Validation(
-                crate::foundation::error::ValidationError::PatternMismatch {
-                    value: parts[1].to_string(),
-                    pattern: format!("valid u16: {}", e),
-                }
+            .map_err(|e| crate::foundation::error::invalid_input(
+                format!("invalid minor version '{}': {}", parts[1], e)
             ))?;
         let patch = parts[2].parse::<u16>()
-            .map_err(|e| crate::foundation::error::Error::Validation(
-                crate::foundation::error::ValidationError::PatternMismatch {
-                    value: parts[2].to_string(),
-                    pattern: format!("valid u16: {}", e),
-                }
+            .map_err(|e| crate::foundation::error::invalid_input(
+                format!("invalid patch version '{}': {}", parts[2], e)
             ))?;
         
         Ok(Self::new(major, minor, patch))

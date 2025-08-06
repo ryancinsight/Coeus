@@ -44,7 +44,11 @@ impl PluginRegistry {
         
         // Check if already registered
         if self.factories.contains_key(&name) {
-            return Err(Error::Plugin(PluginError::AlreadyLoaded { name: name.as_str().to_string() }));
+            return Err(Error::Plugin(PluginError::Lifecycle { 
+                name: name.as_str().to_string(),
+                current_state: "Ready".to_string(),
+                operation: "register",
+            }));
         }
         
         // Create factory
@@ -68,7 +72,11 @@ impl PluginRegistry {
         
         // Check if already registered
         if self.factories.contains_key(&name) {
-            return Err(Error::Plugin(PluginError::AlreadyLoaded { name: name.as_str().to_string() }));
+            return Err(Error::Plugin(PluginError::Lifecycle { 
+                name: name.as_str().to_string(),
+                current_state: "Ready".to_string(),
+                operation: "register",
+            }));
         }
         
         self.factories.insert(name, Box::new(factory));
@@ -80,7 +88,10 @@ impl PluginRegistry {
     pub fn create(&self, name: &PluginName) -> Result<Box<dyn Plugin>> {
         self.factories
             .get(name)
-            .ok_or_else(|| Error::Plugin(PluginError::NotFound { name: name.as_str().to_string() }))
+            .ok_or_else(|| Error::Plugin(PluginError::NotFound { 
+                name: name.as_str().to_string(),
+                available: self.list(),
+            }))
             .and_then(|factory| factory())
     }
     
@@ -110,7 +121,10 @@ impl PluginRegistry {
             self.type_map.retain(|_, v| v != name);
             Ok(())
         } else {
-            Err(Error::Plugin(PluginError::NotFound { name: name.as_str().to_string() }))
+            Err(Error::Plugin(PluginError::NotFound { 
+                name: name.as_str().to_string(),
+                available: self.list(),
+            }))
         }
     }
     
@@ -174,21 +188,26 @@ impl Default for PluginRegistryBuilder {
 mod tests {
     use super::*;
     use crate::foundation::types::Version;
+    use crate::core::traits::{foundation::Named, identity::Versioned};
     
     #[derive(Debug, Default)]
     struct TestPlugin {
         value: i32,
     }
     
-    impl Plugin for TestPlugin {
+    impl Named for TestPlugin {
         fn name(&self) -> &str {
             "test"
         }
-        
+    }
+    
+    impl Versioned for TestPlugin {
         fn version(&self) -> Version {
             Version::new(1, 0, 0)
         }
-        
+    }
+    
+    impl Plugin for TestPlugin {
         fn capabilities(&self) -> crate::core::plugin::PluginCapabilities {
             crate::core::plugin::PluginCapabilities::none()
         }

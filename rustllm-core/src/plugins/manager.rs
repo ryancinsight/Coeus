@@ -7,9 +7,9 @@
 
 #![cfg(feature = "std")]
 
-use crate::core::plugin::{Plugin, PluginEntry, PluginState, PluginCapabilities};
+use crate::core::plugin::{Plugin, PluginEntry, PluginState};
 use crate::foundation::{
-    error::{Error, PluginError, Result, internal_error},
+    error::{Error, PluginError, Result, ProcessingError},
     types::{PluginName, Version},
 };
 use crate::plugins::registry::PluginRegistry;
@@ -24,7 +24,7 @@ use std::{
 /// providing a centralized access point for all plugin operations.
 pub struct PluginManager {
     registry: Arc<RwLock<PluginRegistry>>,
-    plugins: Arc<RwLock<HashMap<PluginName, Arc<RwLock<PluginEntry>>>>>,
+    plugins: Arc<RwLock<HashMap<PluginName, PluginEntry>>>,
 }
 
 impl PluginManager {
@@ -36,84 +36,67 @@ impl PluginManager {
         }
     }
     
+    /// Helper to create a processing error for lock failures
+    fn lock_error(component: &'static str) -> Error {
+        Error::Processing(ProcessingError::Failed {
+            component,
+            reason: "Failed to acquire lock".to_string(),
+        })
+    }
+    
     /// Registers a plugin type with the manager.
     pub fn register<P: Plugin + Default + 'static>(&self) -> Result<()> {
         let mut registry = self.registry.write()
-            .map_err(|_| internal_error("Failed to acquire registry lock"))?;
+            .map_err(|_| Self::lock_error("registry"))?;
         
         registry.register::<P>()
     }
     
-    /// Loads a plugin and returns it as a Plugin trait object.
-    pub fn load_plugin(&self, name: &str) -> Result<Arc<RwLock<Box<dyn Plugin>>>> {
+    /// Loads a plugin by name.
+    pub fn load(&self, name: &str) -> Result<()> {
         let plugin_name = PluginName::from(name);
         
-        // Double-checked locking pattern for thread safety
+        // Check if already loaded
         {
             let plugins = self.plugins.read()
-                .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
+                .map_err(|_| Self::lock_error("plugins"))?;
             
-            if let Some(entry_arc) = plugins.get(&plugin_name) {
-                let entry = entry_arc.read()
-                    .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
-                
-                // Check if plugin is in a usable state
-                if entry.state().is_usable() {
-                    // Return a cloned Arc to the plugin
-                    return Ok(entry.plugin_arc_cloned());
-                }
+            if plugins.contains_key(&plugin_name) {
+                return Err(Error::Plugin(PluginError::Lifecycle { 
+                    name: name.to_string(),
+                    current_state: "loaded".to_string(),
+                    operation: "load",
+                }));
             }
         }
         
-        // Plugin not loaded, acquire write lock
-        let mut plugins = self.plugins.write()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
-        
-        // Check again in case another thread loaded it
-        if plugins.contains_key(&plugin_name) {
-            return Err(Error::Plugin(PluginError::AlreadyLoaded { 
-                name: name.to_string() 
-            }));
-        }
-        
         // Create plugin from registry
-        let registry = self.registry.read()
-            .map_err(|_| internal_error("Failed to acquire registry lock"))?;
-        
-        let plugin = registry.create(&plugin_name)?;
+        let plugin = {
+            let registry = self.registry.read()
+                .map_err(|_| Self::lock_error("registry"))?;
+            registry.create(&plugin_name)?
+        };
         
         // Create plugin entry
         let mut entry = PluginEntry::new(plugin);
         
-        // Transition to initializing state
-        entry.transition_to(PluginState::Initializing)?;
-        
         // Initialize if the plugin supports it
-        // Note: We need to check capabilities first
-        let capabilities = entry.with_plugin(|plugin| plugin.capabilities())?;
-        if capabilities.initializable {
-            // We can't initialize through the trait object without the Initialize trait
-            // This is a design limitation we need to address
+        let capabilities = entry.plugin().capabilities();
+        if capabilities.lifecycle {
+            // Plugin supports lifecycle, but we need the concrete type
+            // to call initialize. This is a limitation of the trait object approach.
+            // For now, we'll just transition to ready state.
         }
         
         // Transition to ready state
         entry.transition_to(PluginState::Ready)?;
         
-        // Wrap in Arc<RwLock> for thread-safe access
-        let entry_arc = Arc::new(RwLock::new(entry));
-        
         // Store plugin
-        plugins.insert(plugin_name.clone(), entry_arc.clone());
+        let mut plugins = self.plugins.write()
+            .map_err(|_| Self::lock_error("plugins"))?;
+        plugins.insert(plugin_name, entry);
         
-        // Return a reference to the plugin
-        // SAFETY: We know entry_arc contains the plugin we just loaded.
-        let plugin_arc = {
-            let entry = entry_arc.read()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
-            // Clone the Arc<dyn Plugin> from the entry
-            entry.plugin_arc_cloned()
-        };
-        Ok(plugin_arc)
+        Ok(())
     }
     
     /// Unloads a plugin by name.
@@ -121,44 +104,114 @@ impl PluginManager {
         let plugin_name = PluginName::from(name);
         
         let mut plugins = self.plugins.write()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
+            .map_err(|_| Self::lock_error("plugins"))?;
         
-        if let Some(entry_arc) = plugins.remove(&plugin_name) {
-            let mut entry = entry_arc.write()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
-            
-            // Transition through proper states
-            if entry.state().can_stop() {
-                entry.transition_to(PluginState::Stopping)?;
-                
-                // Call on_unload if available
-                entry.with_plugin_mut(|plugin| plugin.on_unload())?;
-                
+        if let Some(mut entry) = plugins.remove(&plugin_name) {
+            // Stop if running
+            if entry.state() == PluginState::Running {
                 entry.transition_to(PluginState::Stopped)?;
             }
+            
+            // Call on_unload
+            entry.plugin_mut().on_unload()?;
             
             Ok(())
         } else {
             Err(Error::Plugin(PluginError::NotFound { 
-                name: name.to_string() 
+                name: name.to_string(),
+                available: self.list_loaded(),
             }))
         }
     }
     
-    /// Lists all loaded plugins.
-    pub fn list_loaded(&self) -> Result<Vec<String>> {
-        let plugins = self.plugins.read()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
+    /// Starts a plugin.
+    pub fn start(&self, name: &str) -> Result<()> {
+        let plugin_name = PluginName::from(name);
         
-        Ok(plugins.keys().map(|name| name.as_str().to_string()).collect())
+        let mut plugins = self.plugins.write()
+            .map_err(|_| Self::lock_error("plugins"))?;
+        
+        if let Some(entry) = plugins.get_mut(&plugin_name) {
+            if !entry.state().can_start() {
+                return Err(Error::Plugin(PluginError::Lifecycle {
+                    name: name.to_string(),
+                    current_state: format!("{:?}", entry.state()),
+                    operation: "start",
+                }));
+            }
+            
+            entry.transition_to(PluginState::Running)?;
+            Ok(())
+        } else {
+            Err(Error::Plugin(PluginError::NotFound { 
+                name: name.to_string(),
+                available: self.list_loaded(),
+            }))
+        }
     }
     
-    /// Lists all available plugins in the registry.
-    pub fn list_available(&self) -> Result<Vec<String>> {
-        let registry = self.registry.read()
-            .map_err(|_| internal_error("Failed to acquire registry lock"))?;
+    /// Stops a plugin.
+    pub fn stop(&self, name: &str) -> Result<()> {
+        let plugin_name = PluginName::from(name);
         
-        Ok(registry.list())
+        let mut plugins = self.plugins.write()
+            .map_err(|_| Self::lock_error("plugins"))?;
+        
+        if let Some(entry) = plugins.get_mut(&plugin_name) {
+            if !entry.state().can_stop() {
+                return Err(Error::Plugin(PluginError::Lifecycle {
+                    name: name.to_string(),
+                    current_state: format!("{:?}", entry.state()),
+                    operation: "stop",
+                }));
+            }
+            
+            entry.transition_to(PluginState::Stopped)?;
+            Ok(())
+        } else {
+            Err(Error::Plugin(PluginError::NotFound { 
+                name: name.to_string(),
+                available: self.list_loaded(),
+            }))
+        }
+    }
+    
+    /// Executes a function with access to a plugin.
+    pub fn with_plugin<F, R>(&self, name: &str, f: F) -> Result<R>
+    where
+        F: FnOnce(&dyn Plugin) -> R,
+    {
+        let plugin_name = PluginName::from(name);
+        
+        let plugins = self.plugins.read()
+            .map_err(|_| Self::lock_error("plugins"))?;
+        
+        if let Some(entry) = plugins.get(&plugin_name) {
+            Ok(f(entry.plugin()))
+        } else {
+            Err(Error::Plugin(PluginError::NotFound { 
+                name: name.to_string(),
+                available: self.list_loaded(),
+            }))
+        }
+    }
+    
+    /// Lists all registered plugins.
+    pub fn list_registered(&self) -> Vec<String> {
+        self.registry.read()
+            .map(|registry| registry.list())
+            .unwrap_or_default()
+    }
+    
+    /// Lists all loaded plugins.
+    pub fn list_loaded(&self) -> Vec<String> {
+        self.plugins.read()
+            .map(|plugins| {
+                plugins.keys()
+                    .map(|name| name.as_str().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
     
     /// Gets plugin information.
@@ -166,97 +219,35 @@ impl PluginManager {
         let plugin_name = PluginName::from(name);
         
         let plugins = self.plugins.read()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
+            .map_err(|_| Self::lock_error("plugins"))?;
         
-        if let Some(entry_arc) = plugins.get(&plugin_name) {
-            let entry = entry_arc.read()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
-            
+        if let Some(entry) = plugins.get(&plugin_name) {
             Ok(PluginInfo {
-                name: plugin_name,
-                version: entry.version().clone(),
+                name: entry.name().to_string(),
+                version: entry.version(),
                 state: entry.state(),
-                capabilities: entry.with_plugin(|plugin| plugin.capabilities())?,
+                capabilities: entry.plugin().capabilities(),
+                dependencies: entry.dependencies().to_vec(),
             })
         } else {
             Err(Error::Plugin(PluginError::NotFound { 
-                name: name.to_string() 
+                name: name.to_string(),
+                available: self.list_loaded(),
             }))
         }
     }
     
-    /// Checks if a plugin is loaded.
-    pub fn is_loaded(&self, name: &str) -> bool {
-        let plugin_name = PluginName::from(name);
+    /// Clears all plugins.
+    pub fn clear(&self) -> Result<()> {
+        let mut plugins = self.plugins.write()
+            .map_err(|_| Self::lock_error("plugins"))?;
         
-        self.plugins.read()
-            .map(|plugins| plugins.contains_key(&plugin_name))
-            .unwrap_or(false)
-    }
-    
-    /// Executes an operation on a plugin.
-    /// 
-    /// This is the preferred way to interact with plugins, as it handles
-    /// all the locking and state management.
-    pub fn with_plugin<F, R>(&self, name: &str, f: F) -> Result<R>
-    where
-        F: FnOnce(&dyn Plugin) -> Result<R>,
-    {
-        let plugin_name = PluginName::from(name);
-        
-        let plugins = self.plugins.read()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
-        
-        if let Some(entry_arc) = plugins.get(&plugin_name) {
-            let entry = entry_arc.read()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
-            
-            // Check if plugin is usable
-            if !entry.state().is_usable() {
-                return Err(Error::Plugin(PluginError::InvalidState {
-                    plugin: name.to_string(),
-                    expected: "Ready, Running, or Paused",
-                    actual: "Not usable",
-                }));
-            }
-            
-            entry.with_plugin(f)?
-        } else {
-            Err(Error::Plugin(PluginError::NotFound { 
-                name: name.to_string() 
-            }))
+        // Unload all plugins
+        for (_, mut entry) in plugins.drain() {
+            let _ = entry.plugin_mut().on_unload();
         }
-    }
-    
-    /// Executes a mutable operation on a plugin.
-    pub fn with_plugin_mut<F, R>(&self, name: &str, f: F) -> Result<R>
-    where
-        F: FnOnce(&mut dyn Plugin) -> Result<R>,
-    {
-        let plugin_name = PluginName::from(name);
         
-        let plugins = self.plugins.read()
-            .map_err(|_| internal_error("Failed to acquire plugins lock"))?;
-        
-        if let Some(entry_arc) = plugins.get(&plugin_name) {
-            let entry = entry_arc.write()
-                .map_err(|_| internal_error("Failed to acquire plugin entry lock"))?;
-            
-            // Check if plugin is usable
-            if !entry.state().is_usable() {
-                return Err(Error::Plugin(PluginError::InvalidState {
-                    plugin: name.to_string(),
-                    expected: "Ready, Running, or Paused",
-                    actual: "Not usable",
-                }));
-            }
-            
-            entry.with_plugin_mut(f)
-        } else {
-            Err(Error::Plugin(PluginError::NotFound { 
-                name: name.to_string() 
-            }))
-        }
+        Ok(())
     }
 }
 
@@ -270,52 +261,81 @@ impl Default for PluginManager {
 #[derive(Debug, Clone)]
 pub struct PluginInfo {
     /// Plugin name.
-    pub name: PluginName,
+    pub name: String,
     
     /// Plugin version.
     pub version: Version,
     
-    /// Plugin state.
+    /// Current state.
     pub state: PluginState,
     
     /// Plugin capabilities.
-    pub capabilities: PluginCapabilities,
-}
-
-/// Global plugin manager instance.
-static PLUGIN_MANAGER: std::sync::OnceLock<PluginManager> = std::sync::OnceLock::new();
-
-/// Gets the global plugin manager instance.
-pub fn plugin_manager() -> &'static PluginManager {
-    PLUGIN_MANAGER.get_or_init(PluginManager::new)
-}
-
-/// Convenience function to execute an operation on a plugin.
-pub fn with_plugin<F, R>(name: &str, f: F) -> Result<R>
-where
-    F: FnOnce(&dyn Plugin) -> Result<R>,
-{
-    plugin_manager().with_plugin(name, f)
-}
-
-/// Convenience function to unload a plugin.
-pub fn unload_plugin(name: &str) -> Result<()> {
-    plugin_manager().unload(name)
+    pub capabilities: crate::core::plugin::PluginCapabilities,
+    
+    /// Dependencies.
+    pub dependencies: Vec<PluginName>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::plugin::PluginCapabilities;
+    use crate::core::traits::{foundation::Named, identity::Versioned};
     
-    #[test]
-    fn test_plugin_manager_creation() {
-        let manager = PluginManager::new();
-        assert_eq!(manager.list_loaded().unwrap().len(), 0);
+    #[derive(Debug, Default)]
+    struct TestPlugin;
+    
+    impl Named for TestPlugin {
+        fn name(&self) -> &str {
+            "test"
+        }
+    }
+    
+    impl Versioned for TestPlugin {
+        fn version(&self) -> Version {
+            Version::new(1, 0, 0)
+        }
+    }
+    
+    impl Plugin for TestPlugin {
+        fn capabilities(&self) -> PluginCapabilities {
+            PluginCapabilities::none()
+        }
     }
     
     #[test]
-    fn test_plugin_manager_global() {
-        let manager = plugin_manager();
-        assert_eq!(manager.list_loaded().unwrap().len(), 0);
+    fn test_plugin_manager() {
+        let manager = PluginManager::new();
+        
+        // Register plugin type
+        manager.register::<TestPlugin>().unwrap();
+        
+        // Load plugin
+        manager.load("test").unwrap();
+        
+        // Check loaded plugins
+        let loaded = manager.list_loaded();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0], "test");
+        
+        // Get plugin info
+        let info = manager.info("test").unwrap();
+        assert_eq!(info.name, "test");
+        assert_eq!(info.version, Version::new(1, 0, 0));
+        assert_eq!(info.state, PluginState::Ready);
+        
+        // Start plugin
+        manager.start("test").unwrap();
+        let info = manager.info("test").unwrap();
+        assert_eq!(info.state, PluginState::Running);
+        
+        // Stop plugin
+        manager.stop("test").unwrap();
+        let info = manager.info("test").unwrap();
+        assert_eq!(info.state, PluginState::Stopped);
+        
+        // Unload plugin
+        manager.unload("test").unwrap();
+        assert!(manager.info("test").is_err());
     }
 }
