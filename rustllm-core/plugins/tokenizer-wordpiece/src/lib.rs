@@ -403,7 +403,7 @@ mod tests {
     #[test]
     fn test_wordpiece_plugin() {
         let plugin = WordPieceTokenizerPlugin::default();
-        assert_eq!(plugin.name(), "wordpiece_tokenizer");
+        assert_eq!(plugin.id(), "wordpiece_tokenizer");
         assert_eq!(plugin.version().major, 0);
         assert_eq!(plugin.version().minor, 1);
         assert_eq!(plugin.version().patch, 0);

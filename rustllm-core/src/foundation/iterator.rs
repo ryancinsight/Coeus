@@ -166,8 +166,10 @@ where
                 if self.initialized > 0 {
                     ptr::drop_in_place(self.buffer[0].as_mut_ptr());
                 }
-                // Shift elements left by one using memmove semantics
-                self.buffer.copy_within(1..N, 0);
+                // Shift elements left by one using raw pointer copy to support MaybeUninit
+                let dst = self.buffer.as_mut_ptr();
+                let src = self.buffer.as_ptr().add(1);
+                ptr::copy(src, dst, N - 1);
             }
 
             // Add new element at the end
@@ -1479,18 +1481,7 @@ pub trait IteratorExt: Iterator + Sized {
         Prefetch::new(self)
     }
 
-    /// Alias for batch() for backward compatibility.
-    fn lazy_batch(self, batch_size: usize) -> BatchIterator<Self> {
-        self.batch(batch_size, batch_size)
-    }
 
-    /// Alias for map() for stream processing.
-    fn stream_map<B, F>(self, f: F) -> core::iter::Map<Self, F>
-    where
-        F: FnMut(Self::Item) -> B,
-    {
-        self.map(f)
-    }
 }
 
 impl<I: Iterator> IteratorExt for I {}

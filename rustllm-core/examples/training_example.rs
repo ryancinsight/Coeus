@@ -258,7 +258,7 @@ fn main() -> Result<()> {
         // Use lazy_batch iterator for efficient batching
         let epoch_loss: f32 = training_data.iter()
             .cloned()
-            .lazy_batch(16)  // Batch size of 16
+            .batch(16, 16)  // Batch size of 16
             .map(|batch| {
                 // Process batch and accumulate loss
                 batch.into_iter()
@@ -305,7 +305,7 @@ fn main() -> Result<()> {
     println!("\nAdvanced iterator example:");
     let values: Vec<f32> = (0..20)
         .map(|i| i as f32 * 0.1)
-        .stream_map(|x| (x * PI).sin())
+        .map(|x| (x * PI).sin())
         .collect::<Vec<_>>()
         .into_iter()
         .windows::<5>()
