@@ -645,53 +645,8 @@ impl DropoutConfig for Transformer250MConfig {
 }
 
 // ============================================================================
-// Legacy Traits (for backward compatibility)
+// Trait for optimizer state.
 // ============================================================================
-
-/// Legacy inference model trait.
-pub trait InferenceModel: ForwardModel {
-    /// Performs inference on a single input.
-    fn infer(&self, input: Self::Input) -> Result<Self::Output> {
-        self.forward(input)
-    }
-}
-
-/// Legacy diffusion model trait.
-pub trait DiffusionModel: ForwardModel {
-    /// The type of noise schedule.
-    type NoiseSchedule: NoiseSchedule;
-
-    /// The type of sampler.
-    type Sampler: DiffusionSampler;
-
-    /// Adds noise to the input.
-    fn add_noise(
-        &self,
-        input: &Self::Input,
-        timestep: usize,
-        noise_schedule: &Self::NoiseSchedule,
-    ) -> Result<Self::Input>;
-
-    /// Predicts noise from noisy input.
-    fn predict_noise(&self, noisy_input: &Self::Input, timestep: usize) -> Result<Self::Output>;
-
-    /// Performs a single denoising step.
-    fn denoise_step(
-        &self,
-        noisy_input: &Self::Input,
-        timestep: usize,
-        noise_schedule: &Self::NoiseSchedule,
-        sampler: &Self::Sampler,
-    ) -> Result<Self::Input>;
-
-    /// Generates samples from noise.
-    fn generate_samples(
-        &self,
-        num_samples: usize,
-        noise_schedule: &Self::NoiseSchedule,
-        sampler: &Self::Sampler,
-    ) -> Result<Vec<Self::Output>>;
-}
 
 /// Trait for optimizer state.
 pub trait OptimizerState: Send + Sync {

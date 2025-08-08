@@ -115,8 +115,8 @@ pub mod prelude {
     pub use crate::core::{
         config::{ConfigBuilder, ConfigStore, ConfigValue, Configurable, PluginConfigManager},
         model::{
-            BasicGenerationConfig, BasicModelConfig, DiffusionModel, DiffusionSampler,
-            ForwardModel, GenerationConfig, GenerativeModel, InferenceModel, Loss, Model,
+            BasicGenerationConfig, BasicModelConfig, DiffusionSampler, ForwardModel,
+            GenerationConfig, GenerativeModel, Loss, Model,
             ModelBuilder, ModelConfig, NoiseSchedule, OptimizerState, TrainableModel,
             Transformer250MConfig,
         },

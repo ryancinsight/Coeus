@@ -191,16 +191,13 @@ impl ForwardModel for SimpleDiffusionModel {
     }
 }
 
-impl DiffusionModel for SimpleDiffusionModel {
-    type NoiseSchedule = LinearNoiseSchedule;
-    type Sampler = DDPMSampler;
-
+impl SimpleDiffusionModel {
     fn add_noise(
         &self,
-        input: &Self::Input,
+        input: &Vec<f32>,
         timestep: usize,
-        noise_schedule: &Self::NoiseSchedule,
-    ) -> Result<Self::Input> {
+        noise_schedule: &LinearNoiseSchedule,
+    ) -> Result<Vec<f32>> {
         let alpha_bar = noise_schedule.alpha_bar(timestep);
 
         // Add noise according to schedule
@@ -215,7 +212,7 @@ impl DiffusionModel for SimpleDiffusionModel {
         Ok(noisy_input)
     }
 
-    fn predict_noise(&self, noisy_input: &Self::Input, timestep: usize) -> Result<Self::Output> {
+    fn predict_noise(&self, noisy_input: &Vec<f32>, timestep: usize) -> Result<Vec<f32>> {
         // In practice, this would condition on timestep
         let scale = 1.0 - (timestep as f32 / 1000.0);
         Ok(noisy_input.iter().map(|&x| x * scale * 0.1).collect())
@@ -223,11 +220,11 @@ impl DiffusionModel for SimpleDiffusionModel {
 
     fn denoise_step(
         &self,
-        noisy_input: &Self::Input,
+        noisy_input: &Vec<f32>,
         timestep: usize,
-        noise_schedule: &Self::NoiseSchedule,
-        sampler: &Self::Sampler,
-    ) -> Result<Self::Input> {
+        noise_schedule: &LinearNoiseSchedule,
+        sampler: &DDPMSampler,
+    ) -> Result<Vec<f32>> {
         // First predict the noise
         let predicted_noise = self.predict_noise(noisy_input, timestep)?;
 
@@ -238,9 +235,9 @@ impl DiffusionModel for SimpleDiffusionModel {
     fn generate_samples(
         &self,
         num_samples: usize,
-        noise_schedule: &Self::NoiseSchedule,
-        sampler: &Self::Sampler,
-    ) -> Result<Vec<Self::Output>> {
+        noise_schedule: &LinearNoiseSchedule,
+        sampler: &DDPMSampler,
+    ) -> Result<Vec<Vec<f32>>> {
         let mut samples = Vec::new();
 
         for _ in 0..num_samples {
