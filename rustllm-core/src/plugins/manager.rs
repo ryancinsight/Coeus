@@ -156,7 +156,17 @@ impl PluginManager {
 
         // Load dependencies first (depth-1; registry-level graph not deep for now)
         for d in deps {
-            let _ = self.load_with_deps(&d); // attempt recursively; ignore if already loaded
+            if let Err(err) = self.load_with_deps(&d) {
+                // Only ignore "already loaded" errors, log others
+                match &err {
+                    Error::Plugin(PluginError::Lifecycle { current_state, .. }) if current_state == "loaded" => {
+                        // Dependency already loaded, ignore
+                    }
+                    _ => {
+                        eprintln!("Failed to load dependency '{}': {:?}", d, err);
+                    }
+                }
+            }
         }
 
         self.load(name)
