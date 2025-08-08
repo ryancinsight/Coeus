@@ -23,6 +23,7 @@ type PluginFactory = Box<dyn Fn() -> Result<Box<dyn Plugin>> + Send + Sync>;
 pub struct PluginRegistry {
     factories: HashMap<PluginName, PluginFactory>,
     type_map: HashMap<TypeId, PluginName>,
+    deps_map: HashMap<PluginName, Vec<PluginName>>, // new: track dependencies
 }
 
 impl PluginRegistry {
@@ -31,6 +32,7 @@ impl PluginRegistry {
         Self {
             factories: HashMap::new(),
             type_map: HashMap::new(),
+            deps_map: HashMap::new(),
         }
     }
 
@@ -64,6 +66,18 @@ impl PluginRegistry {
         Ok(())
     }
 
+    /// Registers a plugin type with declared dependencies.
+    pub fn register_with_deps<P>(&mut self, deps: &[PluginName]) -> Result<()>
+    where
+        P: Plugin + Default + 'static,
+    {
+        let plugin = P::default();
+        let name = PluginName::from(plugin.id());
+        self.register::<P>()?;
+        self.deps_map.insert(name, deps.to_vec());
+        Ok(())
+    }
+
     /// Registers a plugin with a custom factory.
     pub fn register_with_factory<F>(
         &mut self,
@@ -86,6 +100,22 @@ impl PluginRegistry {
 
         self.factories.insert(name, Box::new(factory));
 
+        Ok(())
+    }
+
+    /// Registers a plugin with a factory and declared dependencies.
+    pub fn register_factory_with_deps<F>(
+        &mut self,
+        name: impl Into<PluginName>,
+        factory: F,
+        deps: &[PluginName],
+    ) -> Result<()>
+    where
+        F: Fn() -> Result<Box<dyn Plugin>> + Send + Sync + 'static,
+    {
+        let name = name.into();
+        self.register_with_factory(name.clone(), factory)?;
+        self.deps_map.insert(name, deps.to_vec());
         Ok(())
     }
 
@@ -121,11 +151,20 @@ impl PluginRegistry {
         self.type_map.get(&type_id)
     }
 
+    /// Returns declared dependencies for a plugin, if any.
+    pub fn dependencies(&self, name: &PluginName) -> &[PluginName] {
+        self.deps_map
+            .get(name)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
+    }
+
     /// Unregisters a plugin.
     pub fn unregister(&mut self, name: &PluginName) -> Result<()> {
         if self.factories.remove(name).is_some() {
             // Remove from type map
             self.type_map.retain(|_, v| v != name);
+            self.deps_map.remove(name);
             Ok(())
         } else {
             Err(Error::Plugin(PluginError::NotFound {
@@ -139,6 +178,7 @@ impl PluginRegistry {
     pub fn clear(&mut self) {
         self.factories.clear();
         self.type_map.clear();
+        self.deps_map.clear();
     }
 }
 
