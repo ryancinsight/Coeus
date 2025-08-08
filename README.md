@@ -131,6 +131,7 @@ impl Plugin for CustomTokenizer {
 ```
 
 ### Advanced Iterator Chains
+All iterators included are production-ready; no placeholders. Prefer std slice windows and the crate's `IteratorExt` for zero-copy patterns.
 
 ```rust
 use rustllm_core::prelude::*;

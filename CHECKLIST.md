@@ -114,7 +114,7 @@
 ### Benchmarks
 - [ ] Set up criterion benchmarks
 - [ ] Benchmark tokenizer performance
-- [ ] Benchmark iterator operations
+- [ ] Benchmark iterator operations (deferred)
 - [ ] Benchmark memory allocations
 - [ ] Benchmark plugin overhead
 - [ ] Create performance regression tests
@@ -184,7 +184,7 @@
 ### Code Quality
 - [x] Refactor for clarity (removed deprecated aliases; unified PluginName usage)
 - [ ] Ensure consistent naming
-- [ ] Remove dead code (warnings remaining in advanced iterators)
+- [x] Remove dead code/placeholders (removed VEB/Wavelet placeholders; advanced iterators validated)
 - [ ] Optimize imports
 - [ ] Add debug assertions
 - [ ] Improve error messages
@@ -208,7 +208,7 @@
 - [ ] Examples working
 - [ ] Clean build on all targets
 - [ ] Performance targets met
-- [ ] Design principles followed (SSOT, SoC, DRY, DIP reinforced)
+- [x] Design principles followed (SSOT, SoC, DRY, DIP; no placeholders)
 
 ---
 

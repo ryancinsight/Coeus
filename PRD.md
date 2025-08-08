@@ -167,7 +167,7 @@ let builder = load_plugin::<dyn ModelBuilder>("transformer")?;
 let model = builder.build(config)?;
 
 // Chaining operations
-// Note: use slice windows for runtime-sized windows, or const-generic windows::<N>() when size is known at compile time
+// Use slice windows for runtime-sized windows, or const-generic windows::<N>() when size is known at compile time
 let tokens: Vec<_> = input
     .lines()
     .flat_map(|line| tokenizer.tokenize(std::borrow::Cow::Borrowed(line)))
@@ -233,3 +233,5 @@ let result = tokens
 - Rust Performance Book
 - Rust Design Patterns
 - LLM Architecture Papers
+Notes:
+- Removed literature placeholders (vEB, wavelet) to uphold SSOT and YAGNI; will reintroduce only with complete, validated implementations.
