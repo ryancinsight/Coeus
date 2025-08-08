@@ -27,7 +27,7 @@ impl Version {
             patch,
         }
     }
-    
+
     /// Checks if this version is compatible with another version.
     ///
     /// Compatibility rules:
@@ -48,28 +48,35 @@ impl fmt::Display for Version {
 
 impl FromStr for Version {
     type Err = crate::foundation::error::Error;
-    
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('.').collect();
         if parts.len() != 3 {
-            return Err(crate::foundation::error::invalid_input(
-                format!("invalid version format '{}', expected 'major.minor.patch'", s)
-            ));
+            return Err(crate::foundation::error::invalid_input(format!(
+                "invalid version format '{}', expected 'major.minor.patch'",
+                s
+            )));
         }
-        
-        let major = parts[0].parse::<u16>()
-            .map_err(|e| crate::foundation::error::invalid_input(
-                format!("invalid major version '{}': {}", parts[0], e)
-            ))?;
-        let minor = parts[1].parse::<u16>()
-            .map_err(|e| crate::foundation::error::invalid_input(
-                format!("invalid minor version '{}': {}", parts[1], e)
-            ))?;
-        let patch = parts[2].parse::<u16>()
-            .map_err(|e| crate::foundation::error::invalid_input(
-                format!("invalid patch version '{}': {}", parts[2], e)
-            ))?;
-        
+
+        let major = parts[0].parse::<u16>().map_err(|e| {
+            crate::foundation::error::invalid_input(format!(
+                "invalid major version '{}': {}",
+                parts[0], e
+            ))
+        })?;
+        let minor = parts[1].parse::<u16>().map_err(|e| {
+            crate::foundation::error::invalid_input(format!(
+                "invalid minor version '{}': {}",
+                parts[1], e
+            ))
+        })?;
+        let patch = parts[2].parse::<u16>().map_err(|e| {
+            crate::foundation::error::invalid_input(format!(
+                "invalid patch version '{}': {}",
+                parts[2], e
+            ))
+        })?;
+
         Ok(Self::new(major, minor, patch))
     }
 }
@@ -113,7 +120,7 @@ impl PluginName {
     pub fn new(name: impl Into<String>) -> Self {
         Self(name.into())
     }
-    
+
     /// Returns the plugin name as a string slice.
     #[inline]
     pub fn as_str(&self) -> &str {
@@ -148,7 +155,7 @@ impl ConfigKey {
     pub fn new(key: impl Into<String>) -> Self {
         Self(key.into())
     }
-    
+
     /// Returns the key as a string slice.
     #[inline]
     pub fn as_str(&self) -> &str {
@@ -173,28 +180,31 @@ impl Shape {
     pub fn new(dims: Vec<usize>) -> Self {
         Self { dims }
     }
-    
+
     /// Returns the number of dimensions.
     #[inline]
     pub fn ndim(&self) -> usize {
         self.dims.len()
     }
-    
+
     /// Returns the dimensions.
     #[inline]
     pub fn dims(&self) -> &[usize] {
         &self.dims
     }
-    
+
     /// Computes the total number of elements.
     pub fn numel(&self) -> usize {
         self.dims.iter().product()
     }
-    
+
     /// Checks if this shape is compatible with another shape.
     pub fn is_compatible_with(&self, other: &Self) -> bool {
         self.dims.len() == other.dims.len()
-            && self.dims.iter().zip(other.dims.iter())
+            && self
+                .dims
+                .iter()
+                .zip(other.dims.iter())
                 .all(|(a, b)| *a == *b || *a == 1 || *b == 1)
     }
 }
@@ -216,19 +226,19 @@ impl fmt::Display for Shape {
 pub mod markers {
     /// Marker for initialized state.
     pub struct Initialized;
-    
+
     /// Marker for uninitialized state.
     pub struct Uninitialized;
-    
+
     /// Marker for mutable access.
     pub struct Mutable;
-    
+
     /// Marker for immutable access.
     pub struct Immutable;
-    
+
     /// Marker for owned data.
     pub struct Owned;
-    
+
     /// Marker for borrowed data.
     pub struct Borrowed;
 }
@@ -236,39 +246,39 @@ pub mod markers {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_version_compatibility() {
         let v1 = Version::new(1, 2, 3);
         let v2 = Version::new(1, 2, 0);
         let v3 = Version::new(1, 3, 0);
         let v4 = Version::new(2, 0, 0);
-        
+
         assert!(v1.is_compatible_with(&v2));
         assert!(v3.is_compatible_with(&v2));
         assert!(!v2.is_compatible_with(&v3));
         assert!(!v1.is_compatible_with(&v4));
     }
-    
+
     #[test]
     fn test_version_parsing() {
         let version = "1.2.3".parse::<Version>().unwrap();
         assert_eq!(version, Version::new(1, 2, 3));
         assert_eq!(version.to_string(), "1.2.3");
-        
+
         assert!("1.2".parse::<Version>().is_err());
         assert!("a.b.c".parse::<Version>().is_err());
     }
-    
+
     #[test]
     fn test_shape_operations() {
         let shape1 = Shape::new(vec![2, 3, 4]);
         assert_eq!(shape1.ndim(), 3);
         assert_eq!(shape1.numel(), 24);
-        
+
         let shape2 = Shape::new(vec![2, 1, 4]);
         assert!(shape1.is_compatible_with(&shape2));
-        
+
         let shape3 = Shape::new(vec![2, 3]);
         assert!(!shape1.is_compatible_with(&shape3));
     }

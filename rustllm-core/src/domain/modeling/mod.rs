@@ -2,8 +2,8 @@
 //!
 //! This domain handles model architecture definition and construction.
 
-use crate::foundation::error::Result;
 use crate::core::traits::Identity;
+use crate::foundation::error::Result;
 
 /// Model architecture types.
 #[derive(Debug, Clone)]

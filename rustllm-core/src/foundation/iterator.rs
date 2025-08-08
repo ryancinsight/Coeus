@@ -19,7 +19,7 @@
 
 #![allow(clippy::module_name_repetitions)]
 
-use core::iter::{Iterator, FusedIterator, ExactSizeIterator};
+use core::iter::{ExactSizeIterator, FusedIterator, Iterator};
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 
@@ -36,10 +36,10 @@ use alloc::vec::Vec;
 pub trait IteratorAdapter: Iterator + Sized {
     /// The source iterator type.
     type Source: Iterator;
-    
+
     /// Returns a reference to the source iterator.
     fn source(&self) -> &Self::Source;
-    
+
     /// Returns a mutable reference to the source iterator.
     fn source_mut(&mut self) -> &mut Self::Source;
 }
@@ -48,16 +48,16 @@ pub trait IteratorAdapter: Iterator + Sized {
 pub trait StatefulIterator: Iterator {
     /// The state type.
     type State;
-    
+
     /// Returns the current state.
     fn state(&self) -> &Self::State;
-    
+
     /// Resets the internal state.
     fn reset_state(&mut self);
 }
 
 /// Trait for iterators that can provide size hints.
-/// 
+///
 /// This extends the standard `size_hint` with more precise information.
 pub trait PreciseSizeHint: Iterator {
     /// Returns the exact number of remaining elements, if known.
@@ -69,7 +69,7 @@ pub trait PreciseSizeHint: Iterator {
             None
         }
     }
-    
+
     /// Returns whether the iterator is empty.
     fn is_empty(&self) -> bool {
         self.size_hint().1 == Some(0)
@@ -86,7 +86,7 @@ impl<I: Iterator> PreciseSizeHint for I {}
 /// Zero-copy sliding window iterator that avoids cloning elements.
 /// Uses const generics for compile-time optimization.
 #[derive(Debug)]
-pub struct Windows<I, const N: usize> 
+pub struct Windows<I, const N: usize>
 where
     I: Iterator,
     I::Item: Clone,
@@ -106,12 +106,12 @@ where
     pub fn new(iter: I) -> Self {
         Self::with_step(iter, 1)
     }
-    
+
     /// Creates a new sliding window iterator with custom step size.
     pub fn with_step(iter: I, step: usize) -> Self {
         assert!(N > 0, "Window size must be greater than 0");
         assert!(step > 0, "Step size must be greater than 0");
-        
+
         Self {
             iter,
             buffer: unsafe { MaybeUninit::uninit().assume_init() },
@@ -119,12 +119,12 @@ where
             step,
         }
     }
-    
+
     /// Returns the window size.
     pub const fn window_size(&self) -> usize {
         N
     }
-    
+
     /// Returns the step size.
     pub const fn step_size(&self) -> usize {
         self.step
@@ -145,11 +145,11 @@ where
                 Some(item) => {
                     self.buffer[self.initialized].write(item);
                     self.initialized += 1;
-                }
+                },
                 None => return None,
             }
         }
-        
+
         // Create output array by cloning from buffer
         let mut output = unsafe { MaybeUninit::<[I::Item; N]>::uninit().assume_init() };
         for i in 0..N {
@@ -157,17 +157,17 @@ where
                 output[i] = (*self.buffer[i].as_ptr()).clone();
             }
         }
-        
+
         // Advance window by step size
         for _ in 0..self.step {
             // Shift elements left
-            for i in 0..N-1 {
+            for i in 0..N - 1 {
                 unsafe {
                     let item = self.buffer[i + 1].as_ptr().read();
                     self.buffer[i].write(item);
                 }
             }
-            
+
             // Add new element at the end
             match self.iter.next() {
                 Some(item) => {
@@ -176,10 +176,10 @@ where
                 None => {
                     self.initialized = 0; // Mark as exhausted
                     break;
-                }
+                },
             }
         }
-        
+
         Some(output)
     }
 
@@ -213,7 +213,8 @@ impl<I, const N: usize> FusedIterator for Windows<I, N>
 where
     I: Iterator + FusedIterator,
     I::Item: Clone,
-{}
+{
+}
 
 // ============================================================================
 // Zero-Copy View Iterator
@@ -231,7 +232,12 @@ pub struct SliceWindows<'a, T> {
 impl<'a, T> SliceWindows<'a, T> {
     /// Creates a new slice windows iterator.
     pub const fn new(slice: &'a [T], size: usize, step: usize) -> Self {
-        Self { slice, size, step, pos: 0 }
+        Self {
+            slice,
+            size,
+            step,
+            pos: 0,
+        }
     }
 }
 
@@ -242,7 +248,7 @@ impl<'a, T> Iterator for SliceWindows<'a, T> {
         if self.pos + self.size > self.slice.len() {
             return None;
         }
-        
+
         let window = &self.slice[self.pos..self.pos + self.size];
         self.pos += self.step;
         Some(window)
@@ -297,7 +303,7 @@ where
                         return Some(result);
                     }
                     // Continue if f returned None (filter effect)
-                }
+                },
                 None => return None,
             }
         }
@@ -313,7 +319,8 @@ impl<I, F, B> FusedIterator for StreamFusion<I, F>
 where
     I: FusedIterator,
     F: FnMut(I::Item) -> Option<B>,
-{}
+{
+}
 
 // ============================================================================
 // Cache-Oblivious Iterator
@@ -340,7 +347,7 @@ impl<I: Iterator> CacheOblivious<I> {
             index: 0,
         }
     }
-    
+
     fn fill_buffer(&mut self) {
         self.buffer.clear();
         self.buffer.extend(self.iter.by_ref().take(self.block_size));
@@ -348,7 +355,7 @@ impl<I: Iterator> CacheOblivious<I> {
     }
 }
 
-impl<I: Iterator> Iterator for CacheOblivious<I> 
+impl<I: Iterator> Iterator for CacheOblivious<I>
 where
     I::Item: Clone,
 {
@@ -361,7 +368,7 @@ where
                 return None;
             }
         }
-        
+
         let item = self.buffer.get(self.index).cloned();
         self.index += 1;
         item
@@ -427,7 +434,7 @@ impl<T> Zipper<T> {
     pub fn current(&self) -> Option<&T> {
         self.focus.as_ref()
     }
-    
+
     /// Gets the current focus element mutably.
     pub fn current_mut(&mut self) -> Option<&mut T> {
         self.focus.as_mut()
@@ -451,7 +458,7 @@ impl<T> Zipper<T> {
 /// Chunked iterator using const generics for compile-time optimization.
 /// This replaces the old dynamic Chunks iterator with a zero-cost abstraction.
 #[derive(Debug, Clone)]
-pub struct Chunks<I, const N: usize> 
+pub struct Chunks<I, const N: usize>
 where
     I: Iterator,
 {
@@ -481,14 +488,14 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut chunk = Vec::with_capacity(N);
-        
+
         for _ in 0..N {
             match self.iter.next() {
                 Some(item) => chunk.push(item),
                 None => break,
             }
         }
-        
+
         if chunk.is_empty() {
             None
         } else {
@@ -503,10 +510,7 @@ where
     }
 }
 
-impl<I, const N: usize> FusedIterator for Chunks<I, N>
-where
-    I: FusedIterator,
-{}
+impl<I, const N: usize> FusedIterator for Chunks<I, N> where I: FusedIterator {}
 
 /// Strided iterator with const generic step for compile-time optimization.
 #[derive(Debug, Clone)]
@@ -533,12 +537,12 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let item = self.iter.next()?;
-        
+
         // Skip S-1 items
         for _ in 1..S {
             self.iter.next();
         }
-        
+
         Some(item)
     }
 
@@ -549,10 +553,7 @@ where
     }
 }
 
-impl<I, const S: usize> FusedIterator for Stride<I, S>
-where
-    I: FusedIterator,
-{}
+impl<I, const S: usize> FusedIterator for Stride<I, S> where I: FusedIterator {}
 
 /// Lazy batch iterator with backpressure support.
 /// Combines LazyBatch and BackpressureBatch into a single efficient implementation.
@@ -569,8 +570,11 @@ impl<I: Iterator> BatchIterator<I> {
     /// Creates a new batch iterator with specified constraints.
     pub fn new(iter: I, min_size: usize, max_size: usize) -> Self {
         assert!(min_size > 0, "Min batch size must be greater than 0");
-        assert!(max_size >= min_size, "Max batch size must be >= min batch size");
-        
+        assert!(
+            max_size >= min_size,
+            "Max batch size must be >= min batch size"
+        );
+
         Self {
             iter,
             min_batch_size: min_size,
@@ -579,13 +583,13 @@ impl<I: Iterator> BatchIterator<I> {
             current_batch: Vec::with_capacity(max_size),
         }
     }
-    
+
     /// Sets memory limit for backpressure.
     pub fn with_memory_limit(mut self, bytes: usize) -> Self {
         self.max_memory_bytes = Some(bytes);
         self
     }
-    
+
     /// Estimates memory size of an item.
     fn estimate_size(&self, _item: &I::Item) -> usize {
         core::mem::size_of::<I::Item>()
@@ -601,30 +605,31 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         self.current_batch.clear();
         let mut current_memory = 0;
-        
+
         // Fill batch up to constraints
         while self.current_batch.len() < self.max_batch_size {
             match self.iter.next() {
                 Some(item) => {
                     let item_size = self.estimate_size(&item);
-                    
+
                     // Check memory constraint if set
                     if let Some(max_mem) = self.max_memory_bytes {
-                        if current_memory + item_size > max_mem 
-                            && self.current_batch.len() >= self.min_batch_size {
+                        if current_memory + item_size > max_mem
+                            && self.current_batch.len() >= self.min_batch_size
+                        {
                             // Return current batch without this item
                             // Note: In a real implementation, we'd need to buffer this item
                             break;
                         }
                     }
-                    
+
                     current_memory += item_size;
                     self.current_batch.push(item);
-                }
+                },
                 None => break,
             }
         }
-        
+
         if self.current_batch.is_empty() {
             None
         } else {
@@ -644,7 +649,11 @@ pub struct ZeroCopyTokenizer<'a> {
 impl<'a> ZeroCopyTokenizer<'a> {
     /// Creates a new zero-copy tokenizer.
     pub const fn new(text: &'a str, delimiter: char) -> Self {
-        Self { text, pos: 0, delimiter }
+        Self {
+            text,
+            pos: 0,
+            delimiter,
+        }
     }
 }
 
@@ -655,22 +664,22 @@ impl<'a> Iterator for ZeroCopyTokenizer<'a> {
         if self.pos >= self.text.len() {
             return None;
         }
-        
+
         let start = self.pos;
         let bytes = self.text.as_bytes();
-        
+
         // Find next delimiter
         while self.pos < bytes.len() && bytes[self.pos] != self.delimiter as u8 {
             self.pos += 1;
         }
-        
+
         let token = &self.text[start..self.pos];
-        
+
         // Skip delimiter
         if self.pos < bytes.len() {
             self.pos += 1;
         }
-        
+
         if token.is_empty() && self.pos >= bytes.len() {
             None
         } else {
@@ -693,7 +702,11 @@ pub struct Scan<I, S, F> {
 impl<I, S, F> Scan<I, S, F> {
     /// Creates a new scan iterator.
     pub const fn new(iter: I, initial_state: S, f: F) -> Self {
-        Self { iter, state: initial_state, f }
+        Self {
+            iter,
+            state: initial_state,
+            f,
+        }
     }
 }
 
@@ -706,7 +719,9 @@ where
     type Item = B;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().and_then(|item| (self.f)(&mut self.state, item))
+        self.iter
+            .next()
+            .and_then(|item| (self.f)(&mut self.state, item))
     }
 }
 
@@ -715,7 +730,8 @@ where
     I: FusedIterator,
     S: Clone,
     F: FnMut(&mut S, I::Item) -> Option<B>,
-{}
+{
+}
 
 /// Prefetch iterator for cache-friendly access patterns.
 /// Uses double buffering for optimal performance.
@@ -740,12 +756,12 @@ impl<I: Iterator, const N: usize> Prefetch<I, N> {
             use_front: true,
         }
     }
-    
+
     fn fill_back_buffer(&mut self) {
         self.back_buffer.clear();
         self.back_buffer.extend(self.iter.by_ref().take(N));
     }
-    
+
     fn swap_buffers(&mut self) {
         core::mem::swap(&mut self.front_buffer, &mut self.back_buffer);
         self.front_index = 0;
@@ -753,7 +769,7 @@ impl<I: Iterator, const N: usize> Prefetch<I, N> {
     }
 }
 
-impl<I: Iterator, const N: usize> Iterator for Prefetch<I, N> 
+impl<I: Iterator, const N: usize> Iterator for Prefetch<I, N>
 where
     I::Item: Clone,
 {
@@ -765,7 +781,7 @@ where
             self.fill_back_buffer();
             self.swap_buffers();
         }
-        
+
         // Check if we need to prefetch
         if self.front_index >= self.front_buffer.len() {
             self.fill_back_buffer();
@@ -774,7 +790,7 @@ where
             }
             self.swap_buffers();
         }
-        
+
         let item = self.front_buffer.get(self.front_index).cloned();
         self.front_index += 1;
         item
@@ -788,7 +804,7 @@ impl<I: Iterator, const N: usize> FusedIterator for Prefetch<I, N> where I::Item
 // ============================================================================
 
 /// Rope iterator for efficient string processing.
-/// 
+///
 /// Based on "Ropes: An Alternative to Strings" - Boehm et al., 1995
 /// Provides O(log n) concatenation and O(1) substring operations.
 #[derive(Debug, Clone)]
@@ -801,16 +817,23 @@ pub struct RopeIterator<'a> {
 #[derive(Debug, Clone)]
 enum RopeNode<'a> {
     Leaf(&'a str),
-    Branch { left: Box<RopeNode<'a>>, right: Box<RopeNode<'a>> },
+    Branch {
+        left: Box<RopeNode<'a>>,
+        right: Box<RopeNode<'a>>,
+    },
 }
 
 impl<'a> RopeIterator<'a> {
     /// Creates a new rope iterator from a root node.
     pub fn new(root: RopeNode<'a>) -> Self {
         let mut stack = vec![root];
-        Self { stack, current: None, position: 0 }
+        Self {
+            stack,
+            current: None,
+            position: 0,
+        }
     }
-    
+
     /// Advances to the next leaf node.
     fn advance(&mut self) -> Option<&'a str> {
         while let Some(node) = self.stack.pop() {
@@ -819,7 +842,7 @@ impl<'a> RopeIterator<'a> {
                 RopeNode::Branch { left, right } => {
                     self.stack.push(*right);
                     self.stack.push(*left);
-                }
+                },
             }
         }
         None
@@ -828,7 +851,7 @@ impl<'a> RopeIterator<'a> {
 
 impl<'a> Iterator for RopeIterator<'a> {
     type Item = char;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some(current) = self.current {
@@ -837,13 +860,13 @@ impl<'a> Iterator for RopeIterator<'a> {
                     return Some(ch);
                 }
             }
-            
+
             // Advance to next leaf, if no more leaves, return None
             match self.advance() {
                 Some(next) => {
                     self.current = Some(next);
                     self.position = 0;
-                }
+                },
                 None => return None, // Exit when exhausted
             }
         }
@@ -851,7 +874,7 @@ impl<'a> Iterator for RopeIterator<'a> {
 }
 
 /// B-tree based iterator for cache-efficient sorted iteration.
-/// 
+///
 /// Based on "Cache-Oblivious B-Trees" - Bender et al., 2000
 /// Provides optimal cache performance without tuning parameters.
 #[derive(Debug)]
@@ -873,14 +896,29 @@ impl<T: Clone + Ord, const B: usize> BTreeIterator<T, B> {
     pub fn new(nodes: Vec<BTreeNode<T, B>>) -> Self {
         let mut stack = Vec::new();
         if !nodes.is_empty() {
-            // Start with leftmost path
-            let mut current = 0;
+            // Determine root as the node that is not referenced as a child by any node
+            let n = nodes.len();
+            let mut is_child = vec![false; n];
+            for node in &nodes {
+                if let Some(ref children) = node.children {
+                    for &child_idx in children {
+                        if child_idx < n {
+                            is_child[child_idx] = true;
+                        }
+                    }
+                }
+            }
+            let root_index = (0..n).find(|&i| !is_child[i]).unwrap_or(0);
+
+            // Start with leftmost path from the root
+            let mut current = root_index;
             loop {
                 stack.push((current, 0));
-                if nodes[current].is_leaf || nodes[current].children.is_none() {
+                let node = &nodes[current];
+                if node.is_leaf || node.children.is_none() {
                     break;
                 }
-                if let Some(ref children) = nodes[current].children {
+                if let Some(ref children) = node.children {
                     if !children.is_empty() {
                         current = children[0];
                     } else {
@@ -891,17 +929,17 @@ impl<T: Clone + Ord, const B: usize> BTreeIterator<T, B> {
         }
         Self { nodes, stack }
     }
-    
+
     /// Advances to the next key in the B-tree.
     fn advance(&mut self) -> Option<(usize, usize)> {
         while let Some((node_idx, key_idx)) = self.stack.pop() {
             let node = &self.nodes[node_idx];
-            
+
             // If we haven't exhausted this node's keys
             if key_idx < node.len {
                 // Push back with incremented key index for next time
                 self.stack.push((node_idx, key_idx + 1));
-                
+
                 // If not a leaf and has right child, traverse down
                 if !node.is_leaf {
                     if let Some(ref children) = node.children {
@@ -925,7 +963,7 @@ impl<T: Clone + Ord, const B: usize> BTreeIterator<T, B> {
                         }
                     }
                 }
-                
+
                 return Some((node_idx, key_idx));
             }
         }
@@ -935,14 +973,12 @@ impl<T: Clone + Ord, const B: usize> BTreeIterator<T, B> {
 
 impl<T: Clone + Ord, const B: usize> Iterator for BTreeIterator<T, B> {
     type Item = T;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if let Some((node_idx, key_idx)) = self.advance() {
             let node = &self.nodes[node_idx];
             if key_idx < node.len {
-                let item = unsafe {
-                    node.keys[key_idx].assume_init_ref().clone()
-                };
+                let item = unsafe { node.keys[key_idx].assume_init_ref().clone() };
                 return Some(item);
             }
         }
@@ -951,10 +987,10 @@ impl<T: Clone + Ord, const B: usize> Iterator for BTreeIterator<T, B> {
 }
 
 /// Van Emde Boas tree iterator for universe-sized data.
-/// 
+///
 /// Based on "Design and Implementation of an Efficient Priority Queue" - van Emde Boas, 1977
 /// Provides O(log log U) operations where U is the universe size.
-/// 
+///
 /// **Note**: This is a placeholder implementation that simply iterates 0..universe.
 /// A full implementation would require proper vEB tree construction and traversal.
 #[derive(Debug)]
@@ -972,27 +1008,31 @@ impl VEBIterator {
     pub fn new(universe_size: usize) -> Self {
         let universe = universe_size.next_power_of_two();
         let cluster_size = (universe as f64).sqrt() as usize;
-        
+
         Self {
             universe,
             min: None,
             max: None,
-            summary: if universe > 2 { Some(Box::new(Self::new(cluster_size))) } else { None },
+            summary: if universe > 2 {
+                Some(Box::new(Self::new(cluster_size)))
+            } else {
+                None
+            },
             cluster: (0..cluster_size).map(|_| None).collect(),
             current: 0,
         }
     }
-    
+
     /// Returns the high part of an index.
     fn high(&self, x: usize) -> usize {
         x / self.cluster_size()
     }
-    
+
     /// Returns the low part of an index.
     fn low(&self, x: usize) -> usize {
         x % self.cluster_size()
     }
-    
+
     /// Returns the cluster size.
     fn cluster_size(&self) -> usize {
         (self.universe as f64).sqrt() as usize
@@ -1001,12 +1041,12 @@ impl VEBIterator {
 
 impl Iterator for VEBIterator {
     type Item = usize;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.current >= self.universe {
             return None;
         }
-        
+
         // TODO: Implement proper vEB tree traversal
         // This is a simplified placeholder that doesn't use the tree structure
         let result = self.current;
@@ -1016,7 +1056,7 @@ impl Iterator for VEBIterator {
 }
 
 /// Suffix array iterator for efficient string searching.
-/// 
+///
 /// Based on "Linear Work Suffix Array Construction" - Kärkkäinen & Sanders, 2003
 /// Provides O(n) construction and O(log n) search.
 #[derive(Debug)]
@@ -1030,32 +1070,34 @@ impl SuffixArrayIterator {
     /// Creates a new suffix array iterator from owned text.
     pub fn new(text: String) -> Self {
         let suffix_array = Self::build_suffix_array(&text);
-        Self { text, suffix_array, current: 0 }
+        Self {
+            text,
+            suffix_array,
+            current: 0,
+        }
     }
-    
+
     /// Creates a new suffix array iterator from a string slice.
     pub fn from_str(text: &str) -> Self {
         Self::new(text.to_string())
     }
-    
+
     /// Builds suffix array using DC3 (Difference Cover modulo 3) algorithm.
     fn build_suffix_array(text: &str) -> Vec<usize> {
         let n = text.len();
         let mut sa = vec![0; n];
-        
+
         // Simplified implementation - in practice would use DC3
-        let mut suffixes: Vec<(usize, &str)> = (0..n)
-            .map(|i| (i, &text[i..]))
-            .collect();
+        let mut suffixes: Vec<(usize, &str)> = (0..n).map(|i| (i, &text[i..])).collect();
         suffixes.sort_by(|a, b| a.1.cmp(b.1));
-        
+
         for (i, (idx, _)) in suffixes.iter().enumerate() {
             sa[i] = *idx;
         }
-        
+
         sa
     }
-    
+
     /// Returns the suffix at the given position.
     pub fn suffix_at(&self, pos: usize) -> Option<&str> {
         self.suffix_array.get(pos).map(|&i| &self.text[i..])
@@ -1064,7 +1106,7 @@ impl SuffixArrayIterator {
 
 impl Iterator for SuffixArrayIterator {
     type Item = String; // Return owned strings to avoid lifetime issues
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.current >= self.suffix_array.len() {
             return None;
@@ -1076,10 +1118,10 @@ impl Iterator for SuffixArrayIterator {
 }
 
 /// Wavelet tree iterator for efficient rank/select queries.
-/// 
+///
 /// Based on "The Wavelet Matrix" - Claude et al., 2015
 /// Provides space-efficient representation with fast queries.
-/// 
+///
 /// **Note**: This is a placeholder implementation that iterates over sorted data.
 /// A full implementation would traverse the wavelet tree structure for range queries.
 #[derive(Debug)]
@@ -1096,7 +1138,7 @@ impl<T: Clone + Ord> WaveletTreeIterator<T> {
     pub fn new(mut data: Vec<T>) -> Self {
         // For the placeholder implementation, just store the sorted data
         data.sort();
-        
+
         Self {
             data,
             bitmap: vec![],
@@ -1109,7 +1151,7 @@ impl<T: Clone + Ord> WaveletTreeIterator<T> {
 
 impl<T: Clone + Ord> Iterator for WaveletTreeIterator<T> {
     type Item = T;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.current >= self.data.len() {
             None
@@ -1124,7 +1166,7 @@ impl<T: Clone + Ord> Iterator for WaveletTreeIterator<T> {
 }
 
 /// Trie iterator for efficient prefix-based iteration.
-/// 
+///
 /// Based on "PATRICIA - Practical Algorithm to Retrieve Information Coded in Alphanumeric" - Morrison, 1968
 /// Provides space-efficient trie representation.
 #[derive(Debug)]
@@ -1149,7 +1191,7 @@ impl<'a> TrieIterator<'a> {
 
 impl<'a> Iterator for TrieIterator<'a> {
     type Item = String;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((node, prefix)) = self.stack.pop() {
             // Push children in reverse order for correct traversal
@@ -1160,7 +1202,7 @@ impl<'a> Iterator for TrieIterator<'a> {
                     self.stack.push((child_node, new_prefix));
                 }
             }
-            
+
             if node.is_end {
                 return Some(prefix);
             }
@@ -1170,9 +1212,9 @@ impl<'a> Iterator for TrieIterator<'a> {
 }
 
 /// Bloom filter bit iterator for inspecting the internal bit array.
-/// 
+///
 /// Based on "Space/Time Trade-offs in Hash Coding with Allowable Errors" - Bloom, 1970
-/// 
+///
 /// **Note**: This iterates over the internal bits, NOT the elements in the set.
 /// Bloom filters cannot enumerate their elements - they only support membership testing.
 /// This iterator is useful for debugging or serialization of the filter state.
@@ -1189,43 +1231,43 @@ impl BloomFilterBitIterator {
         let bits_per_item = -(false_positive_rate.ln() / (2.0_f64.ln().powi(2)));
         let total_bits = (expected_items as f64 * bits_per_item).ceil() as usize;
         let hash_count = (bits_per_item * 2.0_f64.ln()).ceil() as usize;
-        
+
         Self {
             bits: vec![false; total_bits],
             hash_count,
             current: 0,
         }
     }
-    
+
     /// Sets a bit at the given index.
     pub fn set_bit(&mut self, index: usize) {
         if index < self.bits.len() {
             self.bits[index] = true;
         }
     }
-    
+
     /// Gets a bit at the given index.
     pub fn get_bit(&self, index: usize) -> bool {
         self.bits.get(index).copied().unwrap_or(false)
     }
-    
+
     /// Returns the total number of bits.
     pub fn bit_count(&self) -> usize {
         self.bits.len()
     }
-    
+
     /// Returns the number of set bits.
     pub fn popcount(&self) -> usize {
         self.bits.iter().filter(|&&b| b).count()
     }
-    
+
     /// Hashes an item using double hashing.
     fn hash(&self, item: &[u8], k: usize) -> usize {
         let h1 = self.murmur_hash(item, 0);
         let h2 = self.murmur_hash(item, h1);
         (h1.wrapping_add(k.wrapping_mul(h2))) % self.bits.len()
     }
-    
+
     /// Simple MurmurHash implementation.
     fn murmur_hash(&self, data: &[u8], seed: usize) -> usize {
         let mut h = seed;
@@ -1240,7 +1282,7 @@ impl BloomFilterBitIterator {
 
 impl Iterator for BloomFilterBitIterator {
     type Item = bool;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.current >= self.bits.len() {
             None
@@ -1261,15 +1303,16 @@ pub trait AdvancedIteratorExt: Iterator + Sized {
         Self: Iterator<Item = String>,
     {
         let nodes: Vec<OwnedRopeNode> = self.map(OwnedRopeNode::Leaf).collect();
-        let root = nodes.into_iter().reduce(|left, right| {
-            OwnedRopeNode::Branch {
+        let root = nodes
+            .into_iter()
+            .reduce(|left, right| OwnedRopeNode::Branch {
                 left: Box::new(left),
                 right: Box::new(right),
-            }
-        }).unwrap_or(OwnedRopeNode::Leaf(String::new()));
+            })
+            .unwrap_or(OwnedRopeNode::Leaf(String::new()));
         OwnedRopeIterator::new(root)
     }
-    
+
     /// Creates a suffix array from string iterator.
     fn into_suffix_array<'a>(self) -> SuffixArrayIterator
     where
@@ -1278,7 +1321,7 @@ pub trait AdvancedIteratorExt: Iterator + Sized {
         let text: String = self.collect();
         SuffixArrayIterator::new(text)
     }
-    
+
     /// Creates a wavelet tree from the iterator.
     fn into_wavelet_tree<T>(self) -> WaveletTreeIterator<T>
     where
@@ -1292,7 +1335,7 @@ pub trait AdvancedIteratorExt: Iterator + Sized {
 impl<I: Iterator> AdvancedIteratorExt for I {}
 
 /// Owned rope iterator that owns its string data.
-/// 
+///
 /// This variant owns the strings to avoid lifetime issues when constructing
 /// from iterators with non-static lifetimes.
 #[derive(Debug, Clone)]
@@ -1305,16 +1348,23 @@ pub struct OwnedRopeIterator {
 #[derive(Debug, Clone)]
 enum OwnedRopeNode {
     Leaf(String),
-    Branch { left: Box<OwnedRopeNode>, right: Box<OwnedRopeNode> },
+    Branch {
+        left: Box<OwnedRopeNode>,
+        right: Box<OwnedRopeNode>,
+    },
 }
 
 impl OwnedRopeIterator {
     /// Creates a new owned rope iterator from a root node.
     pub fn new(root: OwnedRopeNode) -> Self {
         let mut stack = vec![root];
-        Self { stack, current: None, position: 0 }
+        Self {
+            stack,
+            current: None,
+            position: 0,
+        }
     }
-    
+
     /// Advances to the next leaf node.
     fn advance(&mut self) -> Option<String> {
         while let Some(node) = self.stack.pop() {
@@ -1323,7 +1373,7 @@ impl OwnedRopeIterator {
                 OwnedRopeNode::Branch { left, right } => {
                     self.stack.push(*right);
                     self.stack.push(*left);
-                }
+                },
             }
         }
         None
@@ -1332,7 +1382,7 @@ impl OwnedRopeIterator {
 
 impl Iterator for OwnedRopeIterator {
     type Item = char;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some(ref current) = self.current {
@@ -1341,13 +1391,13 @@ impl Iterator for OwnedRopeIterator {
                     return Some(ch);
                 }
             }
-            
+
             // Advance to next leaf, if no more leaves, return None
             match self.advance() {
                 Some(next) => {
                     self.current = Some(next);
                     self.position = 0;
-                }
+                },
                 None => return None,
             }
         }
@@ -1367,7 +1417,7 @@ pub trait IteratorExt: Iterator + Sized {
     {
         Windows::new(self)
     }
-    
+
     /// Creates a sliding window iterator with custom step and const generic size.
     fn windows_step<const N: usize>(self, step: usize) -> Windows<Self, N>
     where
@@ -1375,7 +1425,7 @@ pub trait IteratorExt: Iterator + Sized {
     {
         Windows::with_step(self, step)
     }
-    
+
     /// Applies stream fusion optimization.
     fn stream_fusion<F, B>(self, f: F) -> StreamFusion<Self, F>
     where
@@ -1383,12 +1433,12 @@ pub trait IteratorExt: Iterator + Sized {
     {
         StreamFusion::new(self, f)
     }
-    
+
     /// Creates a cache-oblivious iterator.
     fn cache_oblivious(self, block_size: usize) -> CacheOblivious<Self> {
         CacheOblivious::new(self, block_size)
     }
-    
+
     /// Converts iterator to a zipper for bidirectional traversal.
     #[cfg(any(feature = "std", feature = "alloc"))]
     fn into_zipper(self) -> Zipper<Self::Item> {
@@ -1399,17 +1449,17 @@ pub trait IteratorExt: Iterator + Sized {
     fn chunks<const N: usize>(self) -> Chunks<Self, N> {
         Chunks::new(self)
     }
-    
+
     /// Creates a striding iterator with const generic step.
     fn stride<const S: usize>(self) -> Stride<Self, S> {
         Stride::new(self)
     }
-    
+
     /// Creates a batch iterator with dynamic sizing.
     fn batch(self, min_size: usize, max_size: usize) -> BatchIterator<Self> {
         BatchIterator::new(self, min_size, max_size)
     }
-    
+
     /// Creates a scan iterator with state.
     fn scan_with<S, F, B>(self, initial_state: S, f: F) -> Scan<Self, S, F>
     where
@@ -1418,7 +1468,7 @@ pub trait IteratorExt: Iterator + Sized {
     {
         Scan::new(self, initial_state, f)
     }
-    
+
     /// Creates a prefetching iterator with double buffering.
     fn prefetch<const N: usize>(self) -> Prefetch<Self, N>
     where
@@ -1426,12 +1476,12 @@ pub trait IteratorExt: Iterator + Sized {
     {
         Prefetch::new(self)
     }
-    
+
     /// Alias for batch() for backward compatibility.
     fn lazy_batch(self, batch_size: usize) -> BatchIterator<Self> {
         self.batch(batch_size, batch_size)
     }
-    
+
     /// Alias for map() for stream processing.
     fn stream_map<B, F>(self, f: F) -> core::iter::Map<Self, F>
     where
@@ -1553,18 +1603,18 @@ mod tests {
         let tokens: Vec<_> = ZeroCopyTokenizer::new(text, ' ').collect();
         assert_eq!(tokens, vec!["hello", "world", "rust"]);
     }
-    
+
     #[test]
     fn test_slice_windows() {
         let data = vec![1, 2, 3, 4, 5, 6, 7, 8];
         let windows: Vec<_> = slice_windows(&data, 3).collect();
-        
+
         assert_eq!(windows.len(), 6);
         assert_eq!(windows[0], &[1, 2, 3]);
         assert_eq!(windows[1], &[2, 3, 4]);
         assert_eq!(windows[5], &[6, 7, 8]);
     }
-    
+
     #[test]
     fn test_slice_windows_exact_size() {
         let data = vec![1, 2, 3, 4, 5];
@@ -1572,7 +1622,7 @@ mod tests {
         assert_eq!(view.len(), 4);
         assert_eq!(view.size_hint(), (4, Some(4)));
     }
-    
+
     #[test]
     fn test_stream_fusion() {
         let data = vec![1, 2, 3, 4, 5];
@@ -1586,7 +1636,7 @@ mod tests {
         let result: Vec<_> = fusion.collect();
         assert_eq!(result, vec![4, 8]);
     }
-    
+
     #[test]
     fn test_cache_oblivious_iter() {
         let data = vec![1, 2, 3, 4, 5, 6, 7, 8];
@@ -1596,60 +1646,65 @@ mod tests {
         assert!(result.contains(&1));
         assert!(result.contains(&8));
     }
-    
+
     #[test]
     fn test_zipper() {
         let data = vec![1, 2, 3, 4, 5];
         let mut zipper = Zipper::new(data);
-        
+
         // Initial focus is on 5 (last element)
         assert_eq!(zipper.current(), Some(&5));
-        
+
         // Move right wraps around to first element
         assert!(zipper.move_right());
         assert_eq!(zipper.current(), Some(&1));
-        
+
         assert!(zipper.move_right());
         assert_eq!(zipper.current(), Some(&2));
-        
+
         assert!(zipper.move_right());
         assert_eq!(zipper.current(), Some(&3));
-        
+
         assert!(zipper.move_left());
         assert_eq!(zipper.current(), Some(&2));
-        
+
         // into_vec returns elements with current structure preserved
         let result = zipper.into_vec();
         // The zipper has moved elements around: left=[5,1], focus=2, right=[3,4]
         // into_vec returns left + focus + reversed right = [5,1,2,3,4]
         assert_eq!(result, vec![5, 1, 2, 3, 4]);
     }
-    
+
     #[test]
     fn test_iterator_ext_integration() {
         let data = vec!["hello", "world", "from", "rust", "llm"];
-        
+
         // Test chaining multiple zero-copy operations
-        let result: Vec<_> = data.iter()
+        let result: Vec<_> = data
+            .iter()
             .copied()
             .windows::<2>()
             .map(|w| format!("{}-{}", w[0], w[1]))
             .collect();
-            
-        assert_eq!(result, vec!["hello-world", "world-from", "from-rust", "rust-llm"]);
+
+        assert_eq!(
+            result,
+            vec!["hello-world", "world-from", "from-rust", "rust-llm"]
+        );
     }
-    
+
     #[test]
     fn test_batch_iterator() {
         let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
         let batches: Vec<_> = data.into_iter().batch(3, 3).collect();
         assert_eq!(batches, vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]]);
     }
-    
+
     #[test]
     fn test_batch_with_memory_limit() {
         let data = vec![1, 2, 3, 4, 5, 6, 7, 8];
-        let batches: Vec<_> = data.into_iter()
+        let batches: Vec<_> = data
+            .into_iter()
             .batch(2, 4)
             .with_memory_limit(100)
             .collect();
@@ -1657,7 +1712,7 @@ mod tests {
         assert_eq!(batches[0].len(), 4);
         assert_eq!(batches[1].len(), 4);
     }
-    
+
     #[test]
     fn test_zero_copy_split() {
         let text = "hello,world,rust";
@@ -1669,7 +1724,7 @@ mod tests {
 #[cfg(test)]
 mod advanced_iterator_tests {
     use super::*;
-    
+
     #[test]
     fn test_rope_iterator_terminates() {
         // Test that RopeIterator properly terminates and doesn't loop infinitely
@@ -1677,12 +1732,12 @@ mod advanced_iterator_tests {
             left: Box::new(RopeNode::Leaf("hello")),
             right: Box::new(RopeNode::Leaf(" world")),
         };
-        
+
         let mut iter = RopeIterator::new(root);
         let result: String = iter.collect();
         assert_eq!(result, "hello world");
     }
-    
+
     #[test]
     fn test_rope_iterator_empty() {
         // Test empty rope
@@ -1691,13 +1746,13 @@ mod advanced_iterator_tests {
         let result: String = iter.collect();
         assert_eq!(result, "");
     }
-    
+
     #[test]
     fn test_btree_iterator_traversal() {
         // Test that BTreeIterator properly traverses all nodes
         // Create a simple B-tree with 3 nodes
         let mut nodes = vec![];
-        
+
         // Leaf nodes
         let mut leaf1 = BTreeNode {
             keys: [MaybeUninit::uninit(); 4],
@@ -1709,7 +1764,7 @@ mod advanced_iterator_tests {
             leaf1.keys[0].write(1);
             leaf1.keys[1].write(3);
         }
-        
+
         let mut leaf2 = BTreeNode {
             keys: [MaybeUninit::uninit(); 4],
             children: None,
@@ -1720,7 +1775,7 @@ mod advanced_iterator_tests {
             leaf2.keys[0].write(5);
             leaf2.keys[1].write(7);
         }
-        
+
         // Root node
         let mut root = BTreeNode {
             keys: [MaybeUninit::uninit(); 4],
@@ -1731,53 +1786,52 @@ mod advanced_iterator_tests {
         unsafe {
             root.keys[0].write(4);
         }
-        
+
         nodes.push(leaf1);
         nodes.push(leaf2);
         nodes.push(root);
-        
+
         let mut iter = BTreeIterator::<i32, 4>::new(nodes);
         let result: Vec<i32> = iter.collect();
-        
+
         // Should traverse in order: 1, 3, 4, 5, 7
         assert_eq!(result, vec![1, 3, 4, 5, 7]);
     }
-    
+
     #[test]
     fn test_suffix_array_no_leak() {
         // Test that SuffixArrayIterator doesn't leak memory
         let text = "banana".to_string();
         let mut iter = SuffixArrayIterator::new(text);
-        
+
         let suffixes: Vec<String> = iter.collect();
-        
+
         // Check we get all suffixes in sorted order
         assert_eq!(suffixes.len(), 6);
         assert!(suffixes[0].starts_with('a')); // "a"
         assert!(suffixes[1].starts_with('a')); // "ana"
         assert!(suffixes[2].starts_with('a')); // "anana"
     }
-    
+
     #[test]
     fn test_bloom_filter_bit_iterator() {
         // Test that BloomFilterBitIterator iterates bits, not elements
         let mut filter = BloomFilterBitIterator::new(100, 0.01);
-        
+
         // Set some bits
         filter.set_bit(5);
         filter.set_bit(10);
         filter.set_bit(15);
-        
-        // Count set bits
-        let set_bits: usize = filter.clone().filter(|&bit| bit).count();
-        assert_eq!(set_bits, 3);
-        
-        // Verify it iterates all bits
+
+        // Verify it iterates all bits and count set bits via iteration
+        let expected_set_bits = filter.popcount();
         let total_bits = filter.bit_count();
         let iterated_bits: Vec<bool> = filter.collect();
         assert_eq!(iterated_bits.len(), total_bits);
+        let iter_set_bits = iterated_bits.iter().filter(|&&b| b).count();
+        assert_eq!(iter_set_bits, expected_set_bits);
     }
-    
+
     #[test]
     fn test_owned_rope_iterator() {
         // Test the owned rope iterator
@@ -1786,10 +1840,3 @@ mod advanced_iterator_tests {
         assert_eq!(result, "hello world");
     }
 }
-
-
-
-
-
-
-

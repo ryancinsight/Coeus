@@ -1,7 +1,8 @@
 # Rustfmt configuration for RustLLM Core
 
 # Use verbose diffs
-verbose = true
+# verbose is deprecated or expects string; disable
+# verbose = true
 
 # Stable features
 edition = "2021"

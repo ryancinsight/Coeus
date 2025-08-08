@@ -3,8 +3,8 @@
 //! This domain handles all aspects of text tokenization following DDD principles.
 //! It provides a rich domain model for tokenization with clear boundaries.
 
-use crate::foundation::{error::Result, types::VocabSize};
 use crate::core::traits::{Identity, Process};
+use crate::foundation::{error::Result, types::VocabSize};
 use core::fmt::Debug;
 
 // ============================================================================
@@ -22,24 +22,32 @@ pub struct Token {
 impl Token {
     /// Creates a new token.
     pub fn new(id: usize, text: String) -> Self {
-        Self { id, text, score: None }
+        Self {
+            id,
+            text,
+            score: None,
+        }
     }
-    
+
     /// Creates a token with score.
     pub fn with_score(id: usize, text: String, score: f32) -> Self {
-        Self { id, text, score: Some(score) }
+        Self {
+            id,
+            text,
+            score: Some(score),
+        }
     }
-    
+
     /// Returns the token ID.
     pub fn id(&self) -> usize {
         self.id
     }
-    
+
     /// Returns the token text.
     pub fn text(&self) -> &str {
         &self.text
     }
-    
+
     /// Returns the token score if available.
     pub fn score(&self) -> Option<f32> {
         self.score
@@ -56,24 +64,28 @@ pub struct Vocabulary {
 impl Vocabulary {
     /// Creates a new vocabulary.
     pub fn new(tokens: Vec<String>) -> Self {
-        let token_to_id = tokens.iter()
+        let token_to_id = tokens
+            .iter()
             .enumerate()
             .map(|(id, token)| (token.clone(), id))
             .collect();
-        
-        Self { tokens, token_to_id }
+
+        Self {
+            tokens,
+            token_to_id,
+        }
     }
-    
+
     /// Returns the vocabulary size.
     pub fn size(&self) -> VocabSize {
         self.tokens.len() as VocabSize
     }
-    
+
     /// Looks up a token by text.
     pub fn token_to_id(&self, token: &str) -> Option<usize> {
         self.token_to_id.get(token).copied()
     }
-    
+
     /// Looks up a token by ID.
     pub fn id_to_token(&self, id: usize) -> Option<&str> {
         self.tokens.get(id).map(String::as_str)
@@ -129,29 +141,31 @@ impl TokenizerAggregate {
             state: TokenizerState::Initialized,
         }
     }
-    
+
     /// Tokenizes text maintaining consistency.
     pub fn tokenize(&mut self, text: &str) -> Result<Vec<Token>> {
         self.state = TokenizerState::Processing;
-        
+
         // Domain logic for tokenization
-        let tokens = text.split_whitespace()
+        let tokens = text
+            .split_whitespace()
             .filter_map(|word| {
                 let word = if self.config.lowercase {
                     word.to_lowercase()
                 } else {
                     word.to_string()
                 };
-                
-                self.vocabulary.token_to_id(&word)
+
+                self.vocabulary
+                    .token_to_id(&word)
                     .map(|id| Token::new(id, word))
             })
             .collect();
-        
+
         self.state = TokenizerState::Ready;
         Ok(tokens)
     }
-    
+
     /// Returns the current state.
     pub fn state(&self) -> &TokenizerState {
         &self.state
@@ -170,7 +184,7 @@ impl TokenizationService {
     pub fn merge_vocabularies(vocabs: &[Vocabulary]) -> Vocabulary {
         let mut merged_tokens = Vec::new();
         let mut seen = std::collections::HashSet::new();
-        
+
         for vocab in vocabs {
             for token in &vocab.tokens {
                 if seen.insert(token.clone()) {
@@ -178,10 +192,10 @@ impl TokenizationService {
                 }
             }
         }
-        
+
         Vocabulary::new(merged_tokens)
     }
-    
+
     /// Validates tokenizer configuration.
     pub fn validate_config(config: &TokenizerConfig) -> Result<()> {
         if config.vocab_size == 0 {
@@ -190,7 +204,7 @@ impl TokenizationService {
                     key: "vocab_size".to_string(),
                     value: config.vocab_size.to_string(),
                     error: "Vocabulary size must be greater than 0".to_string(),
-                }
+                },
             ));
         }
         Ok(())
@@ -205,16 +219,25 @@ impl TokenizationService {
 #[derive(Debug, Clone)]
 pub enum TokenizationEvent {
     /// Tokenization started.
-    Started { tokenizer_id: String, text_length: usize },
-    
+    Started {
+        tokenizer_id: String,
+        text_length: usize,
+    },
+
     /// Tokenization completed.
-    Completed { tokenizer_id: String, token_count: usize },
-    
+    Completed {
+        tokenizer_id: String,
+        token_count: usize,
+    },
+
     /// Tokenization failed.
     Failed { tokenizer_id: String, error: String },
-    
+
     /// Vocabulary updated.
-    VocabularyUpdated { tokenizer_id: String, new_size: VocabSize },
+    VocabularyUpdated {
+        tokenizer_id: String,
+        new_size: VocabSize,
+    },
 }
 
 // ============================================================================
@@ -225,13 +248,13 @@ pub enum TokenizationEvent {
 pub trait TokenizerRepository: Send + Sync {
     /// Saves a tokenizer configuration.
     fn save(&self, config: &TokenizerConfig) -> Result<()>;
-    
+
     /// Loads a tokenizer configuration by ID.
     fn load(&self, id: &str) -> Result<TokenizerConfig>;
-    
+
     /// Lists all tokenizer configurations.
     fn list(&self) -> Result<Vec<String>>;
-    
+
     /// Deletes a tokenizer configuration.
     fn delete(&self, id: &str) -> Result<()>;
 }
@@ -254,7 +277,7 @@ impl<R: TokenizerRepository> TokenizationApplicationService<R> {
             domain_service: TokenizationService,
         }
     }
-    
+
     /// Creates and saves a new tokenizer.
     pub fn create_tokenizer(
         &self,
@@ -263,20 +286,16 @@ impl<R: TokenizerRepository> TokenizationApplicationService<R> {
     ) -> Result<TokenizerAggregate> {
         // Validate configuration
         TokenizationService::validate_config(&config)?;
-        
+
         // Save configuration
         self.repository.save(&config)?;
-        
+
         // Create aggregate
         Ok(TokenizerAggregate::new(config, vocabulary))
     }
-    
+
     /// Loads an existing tokenizer.
-    pub fn load_tokenizer(
-        &self,
-        id: &str,
-        vocabulary: Vocabulary,
-    ) -> Result<TokenizerAggregate> {
+    pub fn load_tokenizer(&self, id: &str, vocabulary: Vocabulary) -> Result<TokenizerAggregate> {
         let config = self.repository.load(id)?;
         Ok(TokenizerAggregate::new(config, vocabulary))
     }

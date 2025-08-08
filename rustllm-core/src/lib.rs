@@ -33,20 +33,20 @@
 //!
 //! ```rust,ignore
 //! use rustllm_core::prelude::*;
-//! 
+//!
 //! // Create a tokenizer
 //! let tokenizer = BasicTokenizer::new();
-//! 
+//!
 //! // Tokenize text
 //! let tokens: Vec<_> = tokenizer
 //!     .tokenize_str("Hello, world!")
 //!     .filter(|token| token.as_str().map(|s| s.len() > 3).unwrap_or(false))
 //!     .collect();
-//! 
+//!
 //! // Build a model
 //! let config = BasicModelConfig::default();
 //! let model = builder.build(config)?;
-//! 
+//!
 //! // Process tokens through the model
 //! let output = model.forward(tokens)?;
 //! ```
@@ -80,7 +80,7 @@ extern crate alloc;
 // Foundation layer modules
 pub mod foundation {
     //! Foundation layer providing core utilities and abstractions.
-    
+
     pub mod error;
     pub mod iterator;
     pub mod memory;
@@ -93,15 +93,15 @@ pub mod core {
     pub mod config;
     pub mod model;
     pub mod plugin;
+    pub mod serialization;
     pub mod tokenizer;
     pub mod traits;
-    pub mod serialization;
 }
 
 // Plugin system module
 pub mod plugins {
     //! Plugin system for extensibility.
-    
+
     pub mod manager;
     pub mod registry;
 }
@@ -113,46 +113,47 @@ pub mod domain;
 pub mod prelude {
     //! Common imports for users of the library.
     pub use crate::core::{
-        config::{ConfigValue, ConfigBuilder, ConfigStore, Configurable, PluginConfigManager},
+        config::{ConfigBuilder, ConfigStore, ConfigValue, Configurable, PluginConfigManager},
         model::{
-            Model, ModelBuilder, ModelConfig, BasicModelConfig, Transformer250MConfig,
-            ForwardModel, InferenceModel, GenerativeModel, TrainableModel, DiffusionModel,
-            OptimizerState, Loss, NoiseSchedule, DiffusionSampler,
-            GenerationConfig, BasicGenerationConfig,
+            BasicGenerationConfig, BasicModelConfig, DiffusionModel, DiffusionSampler,
+            ForwardModel, GenerationConfig, GenerativeModel, InferenceModel, Loss, Model,
+            ModelBuilder, ModelConfig, NoiseSchedule, OptimizerState, TrainableModel,
+            Transformer250MConfig,
         },
         plugin::Plugin,
-        serialization::{ModelSerializable, ModelHeader, ModelMetadata, ParameterSerializer, calculate_checksum},
+        serialization::{
+            calculate_checksum, ModelHeader, ModelMetadata, ModelSerializable, ParameterSerializer,
+        },
         tokenizer::{Token, Tokenizer},
         traits::*,
     };
     pub use crate::foundation::{
         error::{Error, Result},
         iterator::*,
-        memory::{Arena, CowStr, ZeroCopyStringBuilder, SliceView, LazyAlloc},
+        memory::{Arena, CowStr, LazyAlloc, SliceView, ZeroCopyStringBuilder},
         types::*,
     };
     pub use crate::plugins::manager::PluginManager;
-    
+
     // Domain types - selectively import to avoid conflicts
-    pub use crate::domain::tokenization::{
-        TokenizationService, TokenizerAggregate, Token as DomainToken,
-        TokenizationEvent, TokenizerRepository,
+    pub use crate::domain::inference::{
+        InferenceEvent, InferenceRequest, InferenceResult, InferenceService, InferenceSession,
     };
     pub use crate::domain::modeling::{
-        ModelingService, ModelAggregate as DomainModelAggregate, Architecture,
-        ModelingEvent, ModelRepository,
-    };
-    pub use crate::domain::inference::{
-        InferenceService, InferenceSession, InferenceRequest,
-        InferenceEvent, InferenceResult,
-    };
-    pub use crate::domain::training::{
-        TrainingService, TrainingSession, TrainingConfig as DomainTrainingConfig,
-        TrainingEvent, Optimizer,
+        Architecture, ModelAggregate as DomainModelAggregate, ModelRepository, ModelingEvent,
+        ModelingService,
     };
     pub use crate::domain::persistence::{
-        PersistenceService, StorageBackend, SerializationFormat,
-        PersistenceEvent, Checkpoint as DomainCheckpoint,
+        Checkpoint as DomainCheckpoint, PersistenceEvent, PersistenceService, SerializationFormat,
+        StorageBackend,
+    };
+    pub use crate::domain::tokenization::{
+        Token as DomainToken, TokenizationEvent, TokenizationService, TokenizerAggregate,
+        TokenizerRepository,
+    };
+    pub use crate::domain::training::{
+        Optimizer, TrainingConfig as DomainTrainingConfig, TrainingEvent, TrainingService,
+        TrainingSession,
     };
 }
 
