@@ -22,11 +22,11 @@ use std::{
 /// Event types for plugin lifecycle and manager notifications.
 #[derive(Debug, Clone)]
 pub enum PluginEvent {
-    Registered { name: String },
-    Loaded { name: String },
-    Started { name: String },
-    Stopped { name: String },
-    Unloaded { name: String },
+    Registered { name: PluginName },
+    Loaded { name: PluginName },
+    Started { name: PluginName },
+    Stopped { name: PluginName },
+    Unloaded { name: PluginName },
 }
 
 type EventHandler = Arc<dyn Fn(&PluginEvent) + Send + Sync + 'static>;
