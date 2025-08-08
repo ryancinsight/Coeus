@@ -8,7 +8,7 @@
 #![cfg(feature = "std")]
 
 use crate::core::plugin::Plugin;
-use crate::core::traits::Identity;
+
 use crate::foundation::{
     error::{Error, PluginError, Result},
     types::PluginName,
@@ -235,6 +235,7 @@ impl Default for PluginRegistryBuilder {
 mod tests {
     use super::*;
     use crate::foundation::types::Version;
+    use crate::prelude::Identity;
 
     #[derive(Debug, Default)]
     struct TestPlugin {

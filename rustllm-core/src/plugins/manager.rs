@@ -8,7 +8,7 @@
 #![cfg(feature = "std")]
 
 use crate::core::plugin::{Plugin, PluginEntry, PluginState};
-use crate::core::traits::{Identity, Versioned};
+
 use crate::foundation::{
     error::{Error, PluginError, ProcessingError, Result},
     types::{PluginName, Version},
@@ -371,6 +371,7 @@ pub struct PluginInfo {
 mod tests {
     use super::*;
     use crate::core::plugin::PluginCapabilities;
+    use crate::prelude::Identity; // bring Identity into scope for test
     #[derive(Debug, Default)]
     struct TestPlugin;
 
