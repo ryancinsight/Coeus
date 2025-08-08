@@ -162,8 +162,10 @@ where
         // Advance window by step size
         for _ in 0..self.step {
             unsafe {
-                // Drop the first element before shifting
-                ptr::drop_in_place(self.buffer[0].as_mut_ptr());
+                // Drop the first element before shifting, only if initialized
+                if self.initialized > 0 {
+                    ptr::drop_in_place(self.buffer[0].as_mut_ptr());
+                }
                 // Shift elements left by one using memmove semantics
                 ptr::copy(self.buffer.as_ptr().add(1), self.buffer.as_mut_ptr(), N - 1);
             }
