@@ -2,8 +2,6 @@
 //!
 //! This domain handles model training and optimization.
 
-use crate::foundation::error::Result;
-
 /// Training service.
 pub struct TrainingService;
 

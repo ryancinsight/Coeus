@@ -1,4 +1,4 @@
-//! Core traits defining the fundamental abstractions of RustLLM Core.
+//! Core traits defining the fundamental abstractions of `RustLLM` Core.
 //!
 //! This module contains the essential traits that all components must implement,
 //! following the Interface Segregation Principle (ISP) and Single Responsibility

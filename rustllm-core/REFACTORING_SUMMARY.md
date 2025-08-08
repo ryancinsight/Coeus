@@ -133,3 +133,10 @@ Restructured codebase following Domain-Driven Design (DDD):
 3. Implementation of remaining domain logic
 4. Addition of property-based tests
 5. SIMD optimizations where applicable
+
+### 4. SSOT and API Cleanup (Current Stage)
+
+- Replaced Stringly-typed plugin identifiers with `PluginName` across `plugins/manager.rs` events and flows
+- Removed deprecated `ZeroCopyStringBuilder::{push_borrowed,push_owned}` aliases; use `append_borrowed`/`append_owned`
+- Updated examples and benches to use canonical APIs
+- Ensured iterator combinators remain standard-library friendly and zero-copy where applicable

@@ -60,7 +60,7 @@
 - [x] Write plugin system tests
 
 ### Utilities
-- [ ] Create version parsing and comparison
+- [x] Create version parsing and comparison
 - [ ] Implement configuration system
 - [ ] Add logging abstraction (no deps)
 - [ ] Create benchmarking utilities
@@ -130,7 +130,7 @@
 - [ ] Include error handling guides
 
 ### Examples
-- [ ] Create basic usage example
+- [x] Create basic usage example
 - [ ] Add custom plugin example
 - [ ] Create streaming example
 - [ ] Add parallel processing example
@@ -168,7 +168,7 @@
 - [x] Run `cargo clippy -- -D warnings` (core lint pass pending documentation updates)
 - [x] Run `cargo test --all-features`
 - [x] Run `cargo bench`
-- [ ] Run `cargo doc --no-deps`
+- [x] Run `cargo doc --no-deps` (pending CI wiring; local build passes)
 - [ ] Check for security advisories
 
 ## 🎨 Polish
@@ -182,17 +182,17 @@
 - [ ] Benchmark against alternatives
 
 ### Code Quality
-- [ ] Refactor for clarity
+- [x] Refactor for clarity (removed deprecated aliases; unified PluginName usage)
 - [ ] Ensure consistent naming
-- [ ] Remove dead code
+- [ ] Remove dead code (warnings remaining in advanced iterators)
 - [ ] Optimize imports
 - [ ] Add debug assertions
 - [ ] Improve error messages
 
 ### Final Checks
-- [ ] Verify all tests pass
+- [x] Verify all tests pass
 - [ ] Check documentation completeness
-- [ ] Validate examples compile and run
+- [x] Validate examples compile and run
 - [ ] Ensure zero external dependencies in core
 - [ ] Verify thread safety
 - [ ] Check API stability
@@ -208,7 +208,7 @@
 - [ ] Examples working
 - [ ] Clean build on all targets
 - [ ] Performance targets met
-- [ ] Design principles followed
+- [ ] Design principles followed (SSOT, SoC, DRY, DIP reinforced)
 
 ---
 

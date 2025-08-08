@@ -176,11 +176,11 @@ where
             match self.iter.next() {
                 Some(item) => {
                     self.buffer[N - 1].write(item);
-                }
+                },
                 None => {
                     self.initialized = 0; // Mark as exhausted
                     break;
-                }
+                },
             }
         }
 
@@ -830,7 +830,7 @@ enum RopeNode<'a> {
 impl<'a> RopeIterator<'a> {
     /// Creates a new rope iterator from a root node.
     pub fn new(root: RopeNode<'a>) -> Self {
-        let mut stack = vec![root];
+        let stack = vec![root];
         Self {
             stack,
             current: None,
@@ -1277,7 +1277,7 @@ impl BloomFilterBitIterator {
         let mut h = seed;
         for &byte in data {
             h ^= byte as usize;
-            h = h.wrapping_mul(0x5bd1e995);
+            h = h.wrapping_mul(0x5bd1_e995);
             h ^= h >> 15;
         }
         h
@@ -1361,7 +1361,7 @@ enum OwnedRopeNode {
 impl OwnedRopeIterator {
     /// Creates a new owned rope iterator from a root node.
     pub fn new(root: OwnedRopeNode) -> Self {
-        let mut stack = vec![root];
+        let stack = vec![root];
         Self {
             stack,
             current: None,
@@ -1480,8 +1480,6 @@ pub trait IteratorExt: Iterator + Sized {
     {
         Prefetch::new(self)
     }
-
-
 }
 
 impl<I: Iterator> IteratorExt for I {}

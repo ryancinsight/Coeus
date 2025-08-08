@@ -26,7 +26,7 @@ pub trait Token: Debug + Clone + Send + Sync {
 }
 
 /// Basic string token implementation.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StringToken {
     value: String,
     id: Option<TokenId>,
@@ -81,22 +81,22 @@ pub struct PositionedToken<T: Token> {
 
 impl<T: Token> PositionedToken<T> {
     /// Creates a new positioned token.
-    pub fn new(token: T, start: usize, end: usize) -> Self {
+    pub const fn new(token: T, start: usize, end: usize) -> Self {
         Self { token, start, end }
     }
 
     /// Returns the inner token.
-    pub fn token(&self) -> &T {
+    pub const fn token(&self) -> &T {
         &self.token
     }
 
     /// Returns the start position.
-    pub fn start(&self) -> usize {
+    pub const fn start(&self) -> usize {
         self.start
     }
 
     /// Returns the end position.
-    pub fn end(&self) -> usize {
+    pub const fn end(&self) -> usize {
         self.end
     }
 }

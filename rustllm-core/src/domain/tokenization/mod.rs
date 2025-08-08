@@ -3,7 +3,7 @@
 //! This domain handles all aspects of text tokenization following DDD principles.
 //! It provides a rich domain model for tokenization with clear boundaries.
 
-use crate::core::traits::{Identity, Process};
+use crate::core::traits::Identity;
 use crate::foundation::{error::Result, types::VocabSize};
 use core::fmt::Debug;
 
@@ -21,7 +21,7 @@ pub struct Token {
 
 impl Token {
     /// Creates a new token.
-    pub fn new(id: usize, text: String) -> Self {
+    pub const fn new(id: usize, text: String) -> Self {
         Self {
             id,
             text,
@@ -30,7 +30,7 @@ impl Token {
     }
 
     /// Creates a token with score.
-    pub fn with_score(id: usize, text: String, score: f32) -> Self {
+    pub const fn with_score(id: usize, text: String, score: f32) -> Self {
         Self {
             id,
             text,
@@ -39,7 +39,7 @@ impl Token {
     }
 
     /// Returns the token ID.
-    pub fn id(&self) -> usize {
+    pub const fn id(&self) -> usize {
         self.id
     }
 
@@ -49,7 +49,7 @@ impl Token {
     }
 
     /// Returns the token score if available.
-    pub fn score(&self) -> Option<f32> {
+    pub const fn score(&self) -> Option<f32> {
         self.score
     }
 }
@@ -78,7 +78,7 @@ impl Vocabulary {
 
     /// Returns the vocabulary size.
     pub fn size(&self) -> VocabSize {
-        self.tokens.len() as VocabSize
+        VocabSize::try_from(self.tokens.len()).expect("vocab size fits")
     }
 
     /// Looks up a token by text.
@@ -134,7 +134,7 @@ enum TokenizerState {
 
 impl TokenizerAggregate {
     /// Creates a new tokenizer aggregate.
-    pub fn new(config: TokenizerConfig, vocabulary: Vocabulary) -> Self {
+    pub const fn new(config: TokenizerConfig, vocabulary: Vocabulary) -> Self {
         Self {
             config,
             vocabulary,
@@ -167,7 +167,7 @@ impl TokenizerAggregate {
     }
 
     /// Returns the current state.
-    pub fn state(&self) -> &TokenizerState {
+    pub const fn state(&self) -> &TokenizerState {
         &self.state
     }
 }
