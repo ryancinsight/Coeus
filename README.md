@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Tokenize text using iterator chains
     let tokens: Vec<_> = tokenizer
         .tokenize_str("Hello, world!")
-        .filter(|token| token.len() > 2)
+        .filter(|token| token.as_str().map(|s| s.len() > 2).unwrap_or(false))
         .collect();
 
     // Build a model via plugin
@@ -131,6 +131,7 @@ impl Plugin for CustomTokenizer {
 ```
 
 ### Advanced Iterator Chains
+All iterators included are production-ready; no placeholders. Prefer std slice windows and the crate's `IteratorExt` for zero-copy patterns.
 
 ```rust
 use rustllm_core::prelude::*;
@@ -148,6 +149,7 @@ fn sliding_window_tokens(
     tokens
         .windows(window_size)
         .map(|window| window.to_vec())
+        .collect::<Vec<_>>()
 }
 ```
 

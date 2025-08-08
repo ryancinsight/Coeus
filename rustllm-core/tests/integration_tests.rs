@@ -127,7 +127,6 @@ fn test_plugin_lifecycle() -> Result<()> {
 }
 
 #[test]
-#[ignore] // TODO: Fix memory issue with token cloning
 fn test_iterator_extensions_with_tokenizer() {
     let tokenizer = rustllm_tokenizer_basic::BasicTokenizer::new();
     let text = "one two three four five six seven eight nine ten";

@@ -34,22 +34,8 @@ match self.advance() {
 - Returns owned `String`s instead of borrowed `&str`s to avoid lifetime issues
 - No more memory leaks!
 
-### 4. VEBIterator Placeholder (DOCUMENTED ✅)
-**Issue**: The implementation was a simplified placeholder that didn't implement van Emde Boas tree logic.
-
-**Fix**: Added clear documentation:
-```rust
-/// **Note**: This is a placeholder implementation that simply iterates 0..universe.
-/// A full implementation would require proper vEB tree construction and traversal.
-```
-
-### 5. WaveletTreeIterator Placeholder (DOCUMENTED ✅)
-**Issue**: The iterator just returned sorted data instead of traversing the wavelet tree structure.
-
-**Fix**: 
-- Added clear documentation about placeholder status
-- Fixed stack overflow in constructor by simplifying the placeholder implementation
-- Added TODO comment in the `next()` method
+### 4. Removal of Placeholder Iterators ✅
+VEB and Wavelet Tree iterator placeholders were removed to uphold SSOT, YAGNI, and to avoid shipping stubs. They can be reintroduced as complete, literature-faithful implementations in future iterations if needed.
 
 ### 6. BloomFilterIterator Misleading Name (FIXED ✅)
 **Issue**: The iterator returned bits from the internal bit vector, not elements from the set.

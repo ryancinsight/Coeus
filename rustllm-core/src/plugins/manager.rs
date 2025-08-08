@@ -51,10 +51,10 @@ impl PluginManager {
         }
     }
 
-    fn emit(&self, event: PluginEvent) {
+    fn emit(&self, event: &PluginEvent) {
         if let Ok(subs) = self.subscribers.read() {
             for h in subs.iter() {
-                h(&event);
+                h(event);
             }
         }
     }
@@ -76,15 +76,15 @@ impl PluginManager {
 
     /// Registers a plugin type with the manager.
     pub fn register<P: Plugin + Default + 'static>(&self) -> Result<()> {
-        let mut registry = self
+        let res = self
             .registry
             .write()
-            .map_err(|_| Self::lock_error("registry"))?;
-
-        let res = registry.register::<P>();
+            .map_err(|_| Self::lock_error("registry"))?
+            .register::<P>();
         if res.is_ok() {
-            let name = P::default().id().to_string();
-            self.emit(PluginEvent::Registered { name });
+            let plugin = P::default();
+            let name = PluginName::from(plugin.id());
+            self.emit(&PluginEvent::Registered { name });
         }
         res
     }
@@ -125,14 +125,14 @@ impl PluginManager {
         entry.transition_to(PluginState::Ready)?;
 
         // Store plugin
-        let mut plugins = self
+        self
             .plugins
             .write()
-            .map_err(|_| Self::lock_error("plugins"))?;
-        plugins.insert(plugin_name.clone(), entry);
+            .map_err(|_| Self::lock_error("plugins"))?
+            .insert(plugin_name.clone(), entry);
 
-        self.emit(PluginEvent::Loaded {
-            name: plugin_name.as_str().to_string(),
+        self.emit(&PluginEvent::Loaded {
+            name: plugin_name.clone(),
         });
 
         Ok(())
@@ -159,12 +159,14 @@ impl PluginManager {
             if let Err(err) = self.load_with_deps(&d) {
                 // Only ignore "already loaded" errors, log others
                 match &err {
-                    Error::Plugin(PluginError::Lifecycle { current_state, .. }) if current_state == "loaded" => {
+                    Error::Plugin(PluginError::Lifecycle { current_state, .. })
+                        if current_state == "loaded" =>
+                    {
                         // Dependency already loaded, ignore
-                    }
+                    },
                     _ => {
-                        eprintln!("Failed to load dependency '{}': {:?}", d, err);
-                    }
+                        eprintln!("Failed to load dependency '{d}': {err:?}");
+                    },
                 }
             }
         }
@@ -185,16 +187,16 @@ impl PluginManager {
             // Stop if running
             if entry.state() == PluginState::Running {
                 entry.transition_to(PluginState::Stopped)?;
-                self.emit(PluginEvent::Stopped {
-                    name: plugin_name.as_str().to_string(),
+                self.emit(&PluginEvent::Stopped {
+                    name: plugin_name.clone(),
                 });
             }
 
             // Call on_unload
             entry.plugin_mut().on_unload()?;
 
-            self.emit(PluginEvent::Unloaded {
-                name: plugin_name.as_str().to_string(),
+            self.emit(&PluginEvent::Unloaded {
+                name: plugin_name.clone(),
             });
 
             Ok(())
@@ -225,8 +227,8 @@ impl PluginManager {
             }
 
             entry.transition_to(PluginState::Running)?;
-            self.emit(PluginEvent::Started {
-                name: plugin_name.as_str().to_string(),
+            self.emit(&PluginEvent::Started {
+                name: plugin_name.clone(),
             });
             Ok(())
         } else {
@@ -256,8 +258,8 @@ impl PluginManager {
             }
 
             entry.transition_to(PluginState::Stopped)?;
-            self.emit(PluginEvent::Stopped {
-                name: plugin_name.as_str().to_string(),
+            self.emit(&PluginEvent::Stopped {
+                name: plugin_name.clone(),
             });
             Ok(())
         } else {
@@ -280,14 +282,15 @@ impl PluginManager {
             .read()
             .map_err(|_| Self::lock_error("plugins"))?;
 
-        if let Some(entry) = plugins.get(&plugin_name) {
-            Ok(f(entry.plugin()))
-        } else {
-            Err(Error::Plugin(PluginError::NotFound {
-                name: name.to_string(),
-                available: self.list_loaded(),
-            }))
-        }
+        plugins.get(&plugin_name).map_or_else(
+            || {
+                Err(Error::Plugin(PluginError::NotFound {
+                    name: name.to_string(),
+                    available: self.list_loaded(),
+                }))
+            },
+            |entry| Ok(f(entry.plugin())),
+        )
     }
 
     /// Lists all registered plugins.
@@ -320,33 +323,35 @@ impl PluginManager {
             .read()
             .map_err(|_| Self::lock_error("plugins"))?;
 
-        if let Some(entry) = plugins.get(&plugin_name) {
-            Ok(PluginInfo {
-                name: entry.name().to_string(),
-                version: entry.version(),
-                state: entry.state(),
-                capabilities: entry.plugin().capabilities(),
-                dependencies: entry.dependencies().to_vec(),
-            })
-        } else {
-            Err(Error::Plugin(PluginError::NotFound {
-                name: name.to_string(),
-                available: self.list_loaded(),
-            }))
-        }
+        plugins.get(&plugin_name).map_or_else(
+            || {
+                Err(Error::Plugin(PluginError::NotFound {
+                    name: name.to_string(),
+                    available: self.list_loaded(),
+                }))
+            },
+            |entry| {
+                Ok(PluginInfo {
+                    name: entry.name().to_string(),
+                    version: entry.version(),
+                    state: entry.state(),
+                    capabilities: entry.plugin().capabilities(),
+                    dependencies: entry.dependencies().to_vec(),
+                })
+            },
+        )
     }
 
     /// Clears all plugins.
     pub fn clear(&self) -> Result<()> {
-        let mut plugins = self
+        self
             .plugins
             .write()
-            .map_err(|_| Self::lock_error("plugins"))?;
-
-        // Unload all plugins
-        for (_, mut entry) in plugins.drain() {
-            let _ = entry.plugin_mut().on_unload();
-        }
+            .map_err(|_| Self::lock_error("plugins"))?
+            .drain()
+            .for_each(|(_, mut entry)| {
+                let _ = entry.plugin_mut().on_unload();
+            });
 
         Ok(())
     }
@@ -437,10 +442,14 @@ mod tests {
 
         // Ensure events were emitted
         let evs = events.read().unwrap();
-        assert!(evs.iter().any(|e| matches!(e, PluginEvent::Registered { .. })));
+        assert!(evs
+            .iter()
+            .any(|e| matches!(e, PluginEvent::Registered { .. })));
         assert!(evs.iter().any(|e| matches!(e, PluginEvent::Loaded { .. })));
         assert!(evs.iter().any(|e| matches!(e, PluginEvent::Started { .. })));
         assert!(evs.iter().any(|e| matches!(e, PluginEvent::Stopped { .. })));
-        assert!(evs.iter().any(|e| matches!(e, PluginEvent::Unloaded { .. })));
+        assert!(evs
+            .iter()
+            .any(|e| matches!(e, PluginEvent::Unloaded { .. })));
     }
 }

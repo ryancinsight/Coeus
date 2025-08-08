@@ -215,6 +215,7 @@ impl ModelMetadata {
     }
 
     /// Adds a custom metadata entry.
+    #[must_use]
     pub fn with_custom(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.custom.push((key.into(), value.into()));
         self
@@ -226,28 +227,28 @@ impl ModelMetadata {
 
         // Write architecture
         let arch_bytes = self.architecture.as_bytes();
-        bytes.extend_from_slice(&(arch_bytes.len() as u32).to_le_bytes());
+        bytes.extend_from_slice(&u32::try_from(arch_bytes.len()).expect("arch len fits u32").to_le_bytes());
         bytes.extend_from_slice(arch_bytes);
 
         // Write training config
         if let Some(config) = &self.training_config {
             bytes.push(1); // Has config
             let config_bytes = config.as_bytes();
-            bytes.extend_from_slice(&(config_bytes.len() as u32).to_le_bytes());
+            bytes.extend_from_slice(&u32::try_from(config_bytes.len()).expect("config len fits u32").to_le_bytes());
             bytes.extend_from_slice(config_bytes);
         } else {
             bytes.push(0); // No config
         }
 
         // Write custom metadata
-        bytes.extend_from_slice(&(self.custom.len() as u32).to_le_bytes());
+        bytes.extend_from_slice(&u32::try_from(self.custom.len()).expect("custom count fits u32").to_le_bytes());
         for (key, value) in &self.custom {
             let key_bytes = key.as_bytes();
-            bytes.extend_from_slice(&(key_bytes.len() as u32).to_le_bytes());
+            bytes.extend_from_slice(&u32::try_from(key_bytes.len()).expect("key len fits u32").to_le_bytes());
             bytes.extend_from_slice(key_bytes);
 
             let value_bytes = value.as_bytes();
-            bytes.extend_from_slice(&(value_bytes.len() as u32).to_le_bytes());
+            bytes.extend_from_slice(&u32::try_from(value_bytes.len()).expect("value len fits u32").to_le_bytes());
             bytes.extend_from_slice(value_bytes);
         }
 
@@ -376,7 +377,7 @@ pub fn calculate_checksum(params: &[f32]) -> u64 {
 
     for &param in params {
         let bits = param.to_bits();
-        checksum = checksum.wrapping_add(bits as u64);
+        checksum = checksum.wrapping_add(u64::from(bits));
         checksum = checksum.rotate_left(1);
     }
 

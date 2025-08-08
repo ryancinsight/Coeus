@@ -116,9 +116,8 @@ pub mod prelude {
         config::{ConfigBuilder, ConfigStore, ConfigValue, Configurable, PluginConfigManager},
         model::{
             BasicGenerationConfig, BasicModelConfig, DiffusionSampler, ForwardModel,
-            GenerationConfig, GenerativeModel, Loss, Model,
-            ModelBuilder, ModelConfig, NoiseSchedule, OptimizerState, TrainableModel,
-            Transformer250MConfig,
+            GenerationConfig, GenerativeModel, Loss, Model, ModelBuilder, ModelConfig,
+            NoiseSchedule, OptimizerState, TrainableModel, Transformer250MConfig,
         },
         plugin::Plugin,
         serialization::{
@@ -158,7 +157,7 @@ pub mod prelude {
 }
 
 // Version information
-/// The version of the RustLLM Core library.
+/// The version of the `RustLLM` Core library.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The minimum supported Rust version.

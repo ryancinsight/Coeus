@@ -108,9 +108,9 @@ fn main() -> Result<()> {
 
     // Zero-copy string builder
     let mut builder = ZeroCopyStringBuilder::new();
-    builder.push_borrowed("Hello");
-    builder.push_borrowed(" ");
-    builder.push_owned(String::from("RustLLM"));
+    builder.append_borrowed("Hello");
+    builder.append_borrowed(" ");
+    builder.append_owned(String::from("RustLLM"));
     let result = builder.build();
     println!("Built string: {}\n", result);
 

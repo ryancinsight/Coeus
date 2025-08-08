@@ -151,13 +151,10 @@ where
             }
         }
 
-        // Create output array by cloning from buffer
-        let mut output = unsafe { MaybeUninit::<[I::Item; N]>::uninit().assume_init() };
-        for i in 0..N {
-            unsafe {
-                output[i] = (*self.buffer[i].as_ptr()).clone();
-            }
-        }
+        // Create output array by cloning from buffer using safe initialization
+        let output: [I::Item; N] = core::array::from_fn(|i| unsafe {
+            (*self.buffer[i].as_ptr()).clone()
+        });
 
         // Advance window by step size
         for _ in 0..self.step {
@@ -830,7 +827,7 @@ enum RopeNode<'a> {
 impl<'a> RopeIterator<'a> {
     /// Creates a new rope iterator from a root node.
     pub fn new(root: RopeNode<'a>) -> Self {
-        let mut stack = vec![root];
+        let stack = vec![root];
         Self {
             stack,
             current: None,
@@ -990,74 +987,7 @@ impl<T: Clone + Ord, const B: usize> Iterator for BTreeIterator<T, B> {
     }
 }
 
-/// Van Emde Boas tree iterator for universe-sized data.
-///
-/// Based on "Design and Implementation of an Efficient Priority Queue" - van Emde Boas, 1977
-/// Provides O(log log U) operations where U is the universe size.
-///
-/// **Note**: This is a placeholder implementation that simply iterates 0..universe.
-/// A full implementation would require proper vEB tree construction and traversal.
-#[derive(Debug)]
-pub struct VEBIterator {
-    universe: usize,
-    min: Option<usize>,
-    max: Option<usize>,
-    summary: Option<Box<VEBIterator>>,
-    cluster: Vec<Option<Box<VEBIterator>>>,
-    current: usize,
-}
-
-impl VEBIterator {
-    /// Creates a new van Emde Boas iterator.
-    pub fn new(universe_size: usize) -> Self {
-        let universe = universe_size.next_power_of_two();
-        let cluster_size = (universe as f64).sqrt() as usize;
-
-        Self {
-            universe,
-            min: None,
-            max: None,
-            summary: if universe > 2 {
-                Some(Box::new(Self::new(cluster_size)))
-            } else {
-                None
-            },
-            cluster: (0..cluster_size).map(|_| None).collect(),
-            current: 0,
-        }
-    }
-
-    /// Returns the high part of an index.
-    fn high(&self, x: usize) -> usize {
-        x / self.cluster_size()
-    }
-
-    /// Returns the low part of an index.
-    fn low(&self, x: usize) -> usize {
-        x % self.cluster_size()
-    }
-
-    /// Returns the cluster size.
-    fn cluster_size(&self) -> usize {
-        (self.universe as f64).sqrt() as usize
-    }
-}
-
-impl Iterator for VEBIterator {
-    type Item = usize;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current >= self.universe {
-            return None;
-        }
-
-        // TODO: Implement proper vEB tree traversal
-        // This is a simplified placeholder that doesn't use the tree structure
-        let result = self.current;
-        self.current += 1;
-        Some(result)
-    }
-}
+// Removed VEBIterator and WaveletTreeIterator to maintain SSOT and avoid placeholders.
 
 /// Suffix array iterator for efficient string searching.
 ///
@@ -1089,14 +1019,39 @@ impl SuffixArrayIterator {
     /// Builds suffix array using DC3 (Difference Cover modulo 3) algorithm.
     fn build_suffix_array(text: &str) -> Vec<usize> {
         let n = text.len();
-        let mut sa = vec![0; n];
+        let bytes = text.as_bytes();
+        if n == 0 {
+            return Vec::new();
+        }
 
-        // Simplified implementation - in practice would use DC3
-        let mut suffixes: Vec<(usize, &str)> = (0..n).map(|i| (i, &text[i..])).collect();
-        suffixes.sort_by(|a, b| a.1.cmp(b.1));
+        let mut sa: Vec<usize> = (0..n).collect();
+        let mut rank: Vec<i32> = bytes.iter().map(|&b| b as i32).collect();
+        let mut tmp: Vec<i32> = vec![0; n];
+        let mut k = 1usize;
 
-        for (i, (idx, _)) in suffixes.iter().enumerate() {
-            sa[i] = *idx;
+        let cmp = |i: &usize, j: &usize, k: usize, rank: &Vec<i32>| -> core::cmp::Ordering {
+            if rank[*i] != rank[*j] {
+                return rank[*i].cmp(&rank[*j]);
+            }
+            let ri = if *i + k < n { rank[*i + k] } else { -1 };
+            let rj = if *j + k < n { rank[*j + k] } else { -1 };
+            ri.cmp(&rj)
+        };
+
+        loop {
+            sa.sort_by(|a, b| cmp(a, b, k, &rank));
+
+            tmp[sa[0]] = 0;
+            for i in 1..n {
+                tmp[sa[i]] = tmp[sa[i - 1]]
+                    + if cmp(&sa[i - 1], &sa[i], k, &rank) == core::cmp::Ordering::Less { 1 } else { 0 };
+            }
+            rank.copy_from_slice(&tmp);
+
+            if rank[sa[n - 1]] as usize == n - 1 {
+                break;
+            }
+            k <<= 1;
         }
 
         sa
@@ -1277,7 +1232,7 @@ impl BloomFilterBitIterator {
         let mut h = seed;
         for &byte in data {
             h ^= byte as usize;
-            h = h.wrapping_mul(0x5bd1e995);
+            h = h.wrapping_mul(0x5bd1_e995);
             h ^= h >> 15;
         }
         h
@@ -1325,15 +1280,6 @@ pub trait AdvancedIteratorExt: Iterator + Sized {
         let text: String = self.collect();
         SuffixArrayIterator::new(text)
     }
-
-    /// Creates a wavelet tree from the iterator.
-    fn into_wavelet_tree<T>(self) -> WaveletTreeIterator<T>
-    where
-        Self: Iterator<Item = T>,
-        T: Clone + Ord,
-    {
-        WaveletTreeIterator::new(self.collect())
-    }
 }
 
 impl<I: Iterator> AdvancedIteratorExt for I {}
@@ -1361,7 +1307,7 @@ enum OwnedRopeNode {
 impl OwnedRopeIterator {
     /// Creates a new owned rope iterator from a root node.
     pub fn new(root: OwnedRopeNode) -> Self {
-        let mut stack = vec![root];
+        let stack = vec![root];
         Self {
             stack,
             current: None,
@@ -1480,8 +1426,6 @@ pub trait IteratorExt: Iterator + Sized {
     {
         Prefetch::new(self)
     }
-
-
 }
 
 impl<I: Iterator> IteratorExt for I {}

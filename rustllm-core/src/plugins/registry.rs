@@ -153,10 +153,7 @@ impl PluginRegistry {
 
     /// Returns declared dependencies for a plugin, if any.
     pub fn dependencies(&self, name: &PluginName) -> &[PluginName] {
-        self.deps_map
-            .get(name)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[])
+        self.deps_map.get(name).map_or(&[], Vec::as_slice)
     }
 
     /// Unregisters a plugin.
@@ -202,6 +199,7 @@ impl PluginRegistryBuilder {
     }
 
     /// Registers a plugin type.
+    #[must_use]
     pub fn with_plugin<P>(mut self) -> Self
     where
         P: Plugin + Default + 'static,
@@ -211,6 +209,7 @@ impl PluginRegistryBuilder {
     }
 
     /// Registers a plugin with a custom factory.
+    #[must_use]
     pub fn with_factory<F>(mut self, name: impl Into<PluginName>, factory: F) -> Self
     where
         F: Fn() -> Result<Box<dyn Plugin>> + Send + Sync + 'static,

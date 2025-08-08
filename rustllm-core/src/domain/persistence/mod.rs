@@ -2,8 +2,6 @@
 //!
 //! This domain handles model persistence and checkpointing.
 
-use crate::foundation::error::Result;
-
 /// Persistence service.
 pub struct PersistenceService;
 

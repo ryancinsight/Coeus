@@ -2,8 +2,6 @@
 //!
 //! This domain handles model inference and prediction operations.
 
-use crate::foundation::error::Result;
-
 /// Inference service.
 pub struct InferenceService;
 

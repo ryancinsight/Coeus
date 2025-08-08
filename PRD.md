@@ -112,6 +112,8 @@ RustLLM Core is a minimal dependency, high-performance Large Language Model (LLM
 
 ```rust
 // Tokenizer trait
+// Note: TokenIterator uses a boxed dyn Iterator for API stability; internal
+// implementations should prefer zero-copy iterators and combinators.
 pub trait Tokenizer: Send + Sync {
     type Token: Token;
     type Error: Error + Send + Sync;
@@ -132,6 +134,8 @@ pub trait ModelBuilder: Send + Sync {
 }
 
 // Plugin trait
+// Plugin events and registries use PluginName newtype to avoid Stringly-typed
+// APIs and reinforce SSOT across the codebase.
 pub trait Plugin: Send + Sync {
     fn name(&self) -> &str;
     fn version(&self) -> Version;
@@ -163,7 +167,7 @@ let builder = load_plugin::<dyn ModelBuilder>("transformer")?;
 let model = builder.build(config)?;
 
 // Chaining operations
-// Note: use slice windows for runtime-sized windows, or const-generic windows::<N>() when size is known at compile time
+// Use slice windows for runtime-sized windows, or const-generic windows::<N>() when size is known at compile time
 let tokens: Vec<_> = input
     .lines()
     .flat_map(|line| tokenizer.tokenize(std::borrow::Cow::Borrowed(line)))
@@ -229,3 +233,5 @@ let result = tokens
 - Rust Performance Book
 - Rust Design Patterns
 - LLM Architecture Papers
+Notes:
+- Removed literature placeholders (vEB, wavelet) to uphold SSOT and YAGNI; will reintroduce only with complete, validated implementations.
