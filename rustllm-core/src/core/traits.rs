@@ -40,7 +40,7 @@ use core::fmt::Debug;
 pub trait Identity: Debug + Send + Sync {
     /// Returns the unique identifier for this component.
     fn id(&self) -> &str;
-    
+
     /// Returns the component type name for runtime type information.
     fn type_name(&self) -> &'static str {
         core::any::type_name::<Self>()
@@ -59,7 +59,7 @@ pub trait Versioned {
 pub trait Metadata {
     /// Returns human-readable description.
     fn description(&self) -> &str;
-    
+
     /// Returns component tags for categorization.
     fn tags(&self) -> &[&str] {
         &[]
@@ -75,39 +75,39 @@ pub trait Metadata {
 pub trait Lifecycle: Identity {
     /// Component state enumeration.
     type State: Debug + Clone + Send + Sync;
-    
+
     /// Returns the current state.
     fn state(&self) -> Self::State;
-    
+
     /// Initializes the component.
     fn initialize(&mut self) -> Result<()>;
-    
+
     /// Shuts down the component gracefully.
     fn shutdown(&mut self) -> Result<()>;
-    
+
     /// Validates component state for consistency (ACID).
     fn validate(&self) -> Result<()> {
         Ok(())
     }
 }
 
-    /// Async lifecycle for components that require async operations.
-    /// This extends Lifecycle following the Open/Closed principle.
-    /// Note: Using explicit Future return types to avoid async trait limitations.
-    #[cfg(feature = "async")]
-    pub trait AsyncLifecycle: Lifecycle {
-        /// The future type for initialization.
-        type InitFuture: core::future::Future<Output = Result<()>> + Send;
-        
-        /// The future type for shutdown.
-        type ShutdownFuture: core::future::Future<Output = Result<()>> + Send;
-        
-        /// Async initialization returning a future.
-        fn initialize_async(&mut self) -> Self::InitFuture;
-        
-        /// Async shutdown returning a future.
-        fn shutdown_async(&mut self) -> Self::ShutdownFuture;
-    }
+/// Async lifecycle for components that require async operations.
+/// This extends Lifecycle following the Open/Closed principle.
+/// Note: Using explicit Future return types to avoid async trait limitations.
+#[cfg(feature = "async")]
+pub trait AsyncLifecycle: Lifecycle {
+    /// The future type for initialization.
+    type InitFuture: core::future::Future<Output = Result<()>> + Send;
+
+    /// The future type for shutdown.
+    type ShutdownFuture: core::future::Future<Output = Result<()>> + Send;
+
+    /// Async initialization returning a future.
+    fn initialize_async(&mut self) -> Self::InitFuture;
+
+    /// Async shutdown returning a future.
+    fn shutdown_async(&mut self) -> Self::ShutdownFuture;
+}
 
 // ============================================================================
 // Processing Domain - Data transformation following functional principles
@@ -118,10 +118,10 @@ pub trait Lifecycle: Identity {
 pub trait Process: Identity {
     /// Input type for processing.
     type Input;
-    
+
     /// Output type after processing.
     type Output;
-    
+
     /// Processes input and produces output.
     /// This is a pure function following functional principles.
     fn process(&self, input: Self::Input) -> Result<Self::Output>;
@@ -153,7 +153,10 @@ where
     /// Processes multiple inputs in a single operation.
     /// This enables SIMD and other optimizations.
     fn process_batch(&self, inputs: &[Self::Input]) -> Result<Vec<Self::Output>> {
-        inputs.iter().map(|input| self.process(input.clone())).collect()
+        inputs
+            .iter()
+            .map(|input| self.process(input.clone()))
+            .collect()
     }
 }
 
@@ -166,7 +169,7 @@ where
 pub trait Serialize: Identity {
     /// Serializes the component to bytes.
     fn serialize(&self) -> Result<Vec<u8>>;
-    
+
     /// Deserializes from bytes.
     fn deserialize(data: &[u8]) -> Result<Self>
     where
@@ -180,7 +183,7 @@ pub trait Checkpoint: Serialize {
     fn checkpoint(&self) -> Result<Vec<u8>> {
         self.serialize()
     }
-    
+
     /// Restores from a checkpoint.
     fn restore(&mut self, checkpoint: &[u8]) -> Result<()>;
 }
@@ -194,10 +197,10 @@ pub trait Checkpoint: Serialize {
 pub trait HealthCheck: Identity {
     /// Health status enumeration.
     type Status: Debug + Send + Sync;
-    
+
     /// Returns current health status.
     fn health(&self) -> Self::Status;
-    
+
     /// Performs a health check.
     fn check_health(&self) -> Result<Self::Status> {
         Ok(self.health())
@@ -209,10 +212,10 @@ pub trait HealthCheck: Identity {
 pub trait Metrics: Identity {
     /// Metric type for this component.
     type Metric: Debug + Send + Sync;
-    
+
     /// Returns current metrics.
     fn metrics(&self) -> Vec<Self::Metric>;
-    
+
     /// Resets metrics to initial state.
     fn reset_metrics(&mut self);
 }
@@ -223,14 +226,8 @@ pub trait Metrics: Identity {
 
 /// Full-featured component combining all domains.
 /// This demonstrates trait composition following CUPID principles.
-pub trait Component: 
-    Identity + 
-    Versioned + 
-    Metadata + 
-    Lifecycle + 
-    HealthCheck + 
-    Send + 
-    Sync 
+pub trait Component:
+    Identity + Versioned + Metadata + Lifecycle + HealthCheck + Send + Sync
 {
     /// Helper method to get full component info.
     fn info(&self) -> ComponentInfo {
@@ -310,7 +307,7 @@ where
 {
     type Input = T::Input;
     type Output = P::Output;
-    
+
     fn process(&self, input: Self::Input) -> Result<Self::Output> {
         let intermediate = self.first.process(input)?;
         self.second.process(intermediate)
@@ -329,10 +326,10 @@ impl<T: Process> Pipeline for T {}
 pub trait Factory: Identity {
     /// The type of component this factory creates.
     type Product: Identity;
-    
+
     /// Configuration type for creation.
     type Config: Debug + Send + Sync;
-    
+
     /// Creates a new instance.
     fn create(&self, config: Self::Config) -> Result<Self::Product>;
 }
@@ -342,7 +339,7 @@ pub trait Factory: Identity {
 pub trait Builder: Identity {
     /// The type being built.
     type Product: Identity;
-    
+
     /// Builds the final product.
     fn build(self) -> Result<Self::Product>;
 }
@@ -358,7 +355,7 @@ pub trait Adapter<T>: Identity {
     fn adapt_from(source: T) -> Result<Self>
     where
         Self: Sized;
-    
+
     /// Adapts to the target type.
     fn adapt_to(self) -> Result<T>;
 }
@@ -372,10 +369,10 @@ pub trait Adapter<T>: Identity {
 pub trait Strategy: Identity {
     /// Context type for the strategy.
     type Context;
-    
+
     /// Result type of the strategy.
     type Result;
-    
+
     /// Executes the strategy.
     fn execute(&self, context: &Self::Context) -> Result<Self::Result>;
 }
@@ -389,10 +386,10 @@ pub trait Strategy: Identity {
 pub trait IntoIterator: Identity {
     /// The item type produced by the iterator.
     type Item;
-    
+
     /// The iterator type.
     type IntoIter: Iterator<Item = Self::Item>;
-    
+
     /// Converts into an iterator.
     fn into_iter(self) -> Self::IntoIter;
 }
@@ -413,10 +410,10 @@ pub trait FromIterator<T>: Identity + Sized {
 pub trait Validate {
     /// Validation error type.
     type Error: Debug + Send + Sync;
-    
+
     /// Validates the data according to domain rules.
     fn validate(&self) -> core::result::Result<(), Self::Error>;
-    
+
     /// Checks if the data is valid.
     fn is_valid(&self) -> bool {
         self.validate().is_ok()
@@ -428,7 +425,7 @@ pub trait Validate {
 pub trait Constraint<T> {
     /// Checks if the value satisfies the constraint.
     fn check(&self, value: &T) -> bool;
-    
+
     /// Returns a description of the constraint.
     fn description(&self) -> &str;
 }
@@ -436,68 +433,77 @@ pub trait Constraint<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     // Example implementation for testing
     #[derive(Debug)]
     struct TestComponent {
         id: String,
         version: Version,
     }
-    
+
     impl Identity for TestComponent {
         fn id(&self) -> &str {
             &self.id
         }
     }
-    
+
     impl Versioned for TestComponent {
         fn version(&self) -> Version {
-            self.version
+            self.version.clone()
         }
     }
-    
+
     #[test]
     fn test_identity_trait() {
         let component = TestComponent {
             id: "test-1".to_string(),
             version: Version::new(1, 0, 0),
         };
-        
+
         assert_eq!(component.id(), "test-1");
-        assert_eq!(component.type_name(), "rustllm_core::core::traits::tests::TestComponent");
+        assert_eq!(
+            component.type_name(),
+            "rustllm_core::core::traits::tests::TestComponent"
+        );
     }
-    
+
     #[test]
     fn test_pipeline_composition() {
+        #[derive(Debug)]
         struct AddOne;
+        #[derive(Debug)]
         struct MultiplyTwo;
-        
+
         impl Identity for AddOne {
-            fn id(&self) -> &str { "add-one" }
+            fn id(&self) -> &str {
+                "add-one"
+            }
         }
-        
+
         impl Process for AddOne {
             type Input = i32;
             type Output = i32;
-            
+
             fn process(&self, input: Self::Input) -> Result<Self::Output> {
                 Ok(input + 1)
             }
         }
-        
+
         impl Identity for MultiplyTwo {
-            fn id(&self) -> &str { "multiply-two" }
+            fn id(&self) -> &str {
+                "multiply-two"
+            }
         }
-        
+
         impl Process for MultiplyTwo {
             type Input = i32;
             type Output = i32;
-            
+
             fn process(&self, input: Self::Input) -> Result<Self::Output> {
                 Ok(input * 2)
             }
         }
-        
+
         let pipeline = AddOne.pipe(MultiplyTwo);
         let result = pipeline.process(5).unwrap();
         assert_eq!(result, 12); // (5 + 1) * 2 = 12

@@ -33,7 +33,7 @@ impl PluginRegistry {
             type_map: HashMap::new(),
         }
     }
-    
+
     /// Registers a plugin type.
     pub fn register<P>(&mut self) -> Result<()>
     where
@@ -42,60 +42,66 @@ impl PluginRegistry {
         let plugin = P::default();
         let name = PluginName::from(plugin.id());
         let type_id = TypeId::of::<P>();
-        
+
         // Check if already registered
         if self.factories.contains_key(&name) {
-            return Err(Error::Plugin(PluginError::Lifecycle { 
+            return Err(Error::Plugin(PluginError::Lifecycle {
                 name: name.as_str().to_string(),
                 current_state: "Ready".to_string(),
                 operation: "register",
             }));
         }
-        
+
         // Create factory
         let factory: PluginFactory = Box::new(|| {
             let plugin = P::default();
             Ok(Box::new(plugin) as Box<dyn Plugin>)
         });
-        
+
         self.factories.insert(name.clone(), factory);
         self.type_map.insert(type_id, name);
-        
+
         Ok(())
     }
-    
+
     /// Registers a plugin with a custom factory.
-    pub fn register_with_factory<F>(&mut self, name: impl Into<PluginName>, factory: F) -> Result<()>
+    pub fn register_with_factory<F>(
+        &mut self,
+        name: impl Into<PluginName>,
+        factory: F,
+    ) -> Result<()>
     where
         F: Fn() -> Result<Box<dyn Plugin>> + Send + Sync + 'static,
     {
         let name = name.into();
-        
+
         // Check if already registered
         if self.factories.contains_key(&name) {
-            return Err(Error::Plugin(PluginError::Lifecycle { 
+            return Err(Error::Plugin(PluginError::Lifecycle {
                 name: name.as_str().to_string(),
                 current_state: "Ready".to_string(),
                 operation: "register",
             }));
         }
-        
+
         self.factories.insert(name, Box::new(factory));
-        
+
         Ok(())
     }
-    
+
     /// Creates a plugin instance by name.
     pub fn create(&self, name: &PluginName) -> Result<Box<dyn Plugin>> {
         self.factories
             .get(name)
-            .ok_or_else(|| Error::Plugin(PluginError::NotFound { 
-                name: name.as_str().to_string(),
-                available: self.list(),
-            }))
+            .ok_or_else(|| {
+                Error::Plugin(PluginError::NotFound {
+                    name: name.as_str().to_string(),
+                    available: self.list(),
+                })
+            })
             .and_then(|factory| factory())
     }
-    
+
     /// Lists all registered plugins.
     pub fn list(&self) -> Vec<String> {
         self.factories
@@ -103,18 +109,18 @@ impl PluginRegistry {
             .map(|name| name.as_str().to_string())
             .collect()
     }
-    
+
     /// Checks if a plugin is registered.
     pub fn contains(&self, name: &PluginName) -> bool {
         self.factories.contains_key(name)
     }
-    
+
     /// Gets the plugin name for a type.
     pub fn name_for_type<T: 'static>(&self) -> Option<&PluginName> {
         let type_id = TypeId::of::<T>();
         self.type_map.get(&type_id)
     }
-    
+
     /// Unregisters a plugin.
     pub fn unregister(&mut self, name: &PluginName) -> Result<()> {
         if self.factories.remove(name).is_some() {
@@ -122,13 +128,13 @@ impl PluginRegistry {
             self.type_map.retain(|_, v| v != name);
             Ok(())
         } else {
-            Err(Error::Plugin(PluginError::NotFound { 
+            Err(Error::Plugin(PluginError::NotFound {
                 name: name.as_str().to_string(),
                 available: self.list(),
             }))
         }
     }
-    
+
     /// Clears all registered plugins.
     pub fn clear(&mut self) {
         self.factories.clear();
@@ -154,7 +160,7 @@ impl PluginRegistryBuilder {
             registry: PluginRegistry::new(),
         }
     }
-    
+
     /// Registers a plugin type.
     pub fn with_plugin<P>(mut self) -> Self
     where
@@ -163,7 +169,7 @@ impl PluginRegistryBuilder {
         let _ = self.registry.register::<P>();
         self
     }
-    
+
     /// Registers a plugin with a custom factory.
     pub fn with_factory<F>(mut self, name: impl Into<PluginName>, factory: F) -> Self
     where
@@ -172,7 +178,7 @@ impl PluginRegistryBuilder {
         let _ = self.registry.register_with_factory(name, factory);
         self
     }
-    
+
     /// Builds the registry.
     pub fn build(self) -> PluginRegistry {
         self.registry
@@ -189,71 +195,70 @@ impl Default for PluginRegistryBuilder {
 mod tests {
     use super::*;
     use crate::foundation::types::Version;
-    use crate::core::traits::{foundation::Named, identity::Versioned};
-    
+
     #[derive(Debug, Default)]
     struct TestPlugin {
         value: i32,
     }
-    
+
     impl Identity for TestPlugin {
         fn id(&self) -> &str {
             "test"
         }
     }
-    
+
     impl crate::core::traits::Versioned for TestPlugin {
         fn version(&self) -> crate::foundation::types::Version {
             crate::foundation::types::Version::new(1, 0, 0)
         }
     }
-    
+
     impl Plugin for TestPlugin {
         fn capabilities(&self) -> crate::core::plugin::PluginCapabilities {
             crate::core::plugin::PluginCapabilities::none()
         }
     }
-    
+
     #[test]
     fn test_registry_register() {
         let mut registry = PluginRegistry::new();
         assert!(registry.register::<TestPlugin>().is_ok());
         assert!(registry.contains(&PluginName::from("test")));
     }
-    
+
     #[test]
     fn test_registry_create() {
         let mut registry = PluginRegistry::new();
         registry.register::<TestPlugin>().unwrap();
-        
+
         let plugin = registry.create(&PluginName::from("test")).unwrap();
         assert_eq!(plugin.id(), "test");
         assert_eq!(plugin.version(), Version::new(1, 0, 0));
     }
-    
+
     #[test]
     fn test_registry_duplicate() {
         let mut registry = PluginRegistry::new();
         assert!(registry.register::<TestPlugin>().is_ok());
         assert!(registry.register::<TestPlugin>().is_err());
     }
-    
+
     #[test]
     fn test_registry_list() {
         let mut registry = PluginRegistry::new();
         registry.register::<TestPlugin>().unwrap();
-        
+
         let list = registry.list();
         assert_eq!(list.len(), 1);
         assert!(list.contains(&"test".to_string()));
     }
-    
+
     #[test]
     fn test_registry_builder() {
         let registry = PluginRegistryBuilder::new()
             .with_plugin::<TestPlugin>()
             .build();
-        
+
         assert!(registry.contains(&PluginName::from("test")));
     }
 }

@@ -163,9 +163,13 @@ let builder = load_plugin::<dyn ModelBuilder>("transformer")?;
 let model = builder.build(config)?;
 
 // Chaining operations
-let result = input
+// Note: use slice windows for runtime-sized windows, or const-generic windows::<N>() when size is known at compile time
+let tokens: Vec<_> = input
     .lines()
     .flat_map(|line| tokenizer.tokenize(line))
+    .collect();
+
+let result = tokens
     .windows(context_size)
     .map(|window| model.process(window))
     .collect::<Result<Vec<_>, _>>()?;

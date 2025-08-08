@@ -24,19 +24,18 @@
 //! - Cache-friendly memory access patterns
 //! - Minimal allocations during forward pass
 
+use rustllm_core::core::serialization::{
+    calculate_checksum, ModelHeader, ModelMetadata, ModelSerializable, ParameterSerializer,
+};
 use rustllm_core::{
     core::{
-        plugin::{Plugin, ModelBuilderPlugin, PluginCapabilities},
-        model::{ModelBuilder, Model, ForwardModel, Transformer250MConfig},
+        model::{ForwardModel, Model, ModelBuilder, Transformer250MConfig},
+        plugin::{ModelBuilderPlugin, Plugin, PluginCapabilities},
         traits::{Identity, Versioned},
     },
-    foundation::{
-        error::Result,
-        types::Version,
-    },
+    foundation::{error::Result, types::Version},
 };
-use rustllm_core::core::serialization::{ModelSerializable, ModelHeader, ModelMetadata, ParameterSerializer, calculate_checksum};
-use std::io::{Write, Read, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom, Write};
 
 /// Mathematical operations for transformer components.
 ///
@@ -80,11 +79,10 @@ mod math {
     /// Maintains numerical stability for large input values.
     pub fn softmax(input: &[f32]) -> Vec<f32> {
         let max_val = input.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-        let exp_sum: f32 = input.iter()
-            .map(|&x| (x - max_val).exp())
-            .sum();
+        let exp_sum: f32 = input.iter().map(|&x| (x - max_val).exp()).sum();
 
-        input.iter()
+        input
+            .iter()
             .map(|&x| (x - max_val).exp() / exp_sum)
             .collect()
     }
@@ -144,7 +142,11 @@ struct MultiHeadAttention {
 impl MultiHeadAttention {
     /// Creates a new multi-head attention layer.
     fn new(hidden_dim: usize, num_heads: usize) -> Self {
-        assert_eq!(hidden_dim % num_heads, 0, "hidden_dim must be divisible by num_heads");
+        assert_eq!(
+            hidden_dim % num_heads,
+            0,
+            "hidden_dim must be divisible by num_heads"
+        );
 
         Self {
             num_heads,
@@ -190,13 +192,19 @@ impl MultiHeadAttention {
             let k_bias = &bias[hidden_dim..2 * hidden_dim];
             let v_bias = &bias[2 * hidden_dim..3 * hidden_dim];
 
-            let q_proj: Vec<f32> = q_proj.iter().enumerate()
+            let q_proj: Vec<f32> = q_proj
+                .iter()
+                .enumerate()
                 .map(|(i, &x)| x + q_bias[i % hidden_dim])
                 .collect();
-            let k_proj: Vec<f32> = k_proj.iter().enumerate()
+            let k_proj: Vec<f32> = k_proj
+                .iter()
+                .enumerate()
                 .map(|(i, &x)| x + k_bias[i % hidden_dim])
                 .collect();
-            let v_proj: Vec<f32> = v_proj.iter().enumerate()
+            let v_proj: Vec<f32> = v_proj
+                .iter()
+                .enumerate()
                 .map(|(i, &x)| x + v_bias[i % hidden_dim])
                 .collect();
 
@@ -270,12 +278,20 @@ impl MultiHeadAttention {
         }
 
         // Final output projection
-        let output = math::matmul(&attention_output, o_weights, seq_len, hidden_dim, hidden_dim);
+        let output = math::matmul(
+            &attention_output,
+            o_weights,
+            seq_len,
+            hidden_dim,
+            hidden_dim,
+        );
 
         // Add output bias if provided
         if let Some(bias) = bias {
             let o_bias = &bias[3 * hidden_dim..4 * hidden_dim];
-            output.iter().enumerate()
+            output
+                .iter()
+                .enumerate()
                 .map(|(i, &x)| x + o_bias[i % hidden_dim])
                 .collect()
         } else {
@@ -297,7 +313,10 @@ struct FeedForward {
 impl FeedForward {
     /// Creates a new feed-forward network.
     fn new(hidden_dim: usize, intermediate_dim: usize) -> Self {
-        Self { hidden_dim, intermediate_dim }
+        Self {
+            hidden_dim,
+            intermediate_dim,
+        }
     }
 
     /// Forward pass through the feed-forward network.
@@ -317,7 +336,13 @@ impl FeedForward {
         let down_weights = &weights[self.hidden_dim * self.intermediate_dim..];
 
         // Up projection: input @ W1 + b1
-        let mut intermediate = math::matmul(input, up_weights, seq_len, self.intermediate_dim, self.hidden_dim);
+        let mut intermediate = math::matmul(
+            input,
+            up_weights,
+            seq_len,
+            self.intermediate_dim,
+            self.hidden_dim,
+        );
 
         // Add bias if provided
         if let Some(bias) = bias {
@@ -333,7 +358,13 @@ impl FeedForward {
         }
 
         // Down projection: intermediate @ W2 + b2
-        let mut output = math::matmul(&intermediate, down_weights, seq_len, self.hidden_dim, self.intermediate_dim);
+        let mut output = math::matmul(
+            &intermediate,
+            down_weights,
+            seq_len,
+            self.hidden_dim,
+            self.intermediate_dim,
+        );
 
         // Add output bias if provided
         if let Some(bias) = bias {
@@ -384,7 +415,10 @@ impl PositionalEncoding {
 
     /// Gets positional encoding for a sequence.
     fn get_encoding(&self, seq_len: usize) -> &[f32] {
-        assert!(seq_len <= self.max_seq_len, "Sequence length exceeds maximum");
+        assert!(
+            seq_len <= self.max_seq_len,
+            "Sequence length exceeds maximum"
+        );
         &self.encodings[0..seq_len * self.hidden_dim]
     }
 }
@@ -434,19 +468,27 @@ impl TransformerBlock {
         // Pre-layer norm + attention + residual
         let normed1 = math::layer_norm(input, ln1_scale, ln1_bias, layer_norm_eps);
         let attn_output = self.attention.forward(
-            &normed1, &normed1, &normed1,
-            attn_weights, attn_bias, mask, seq_len
+            &normed1,
+            &normed1,
+            &normed1,
+            attn_weights,
+            attn_bias,
+            mask,
+            seq_len,
         );
 
         // Residual connection
-        let mut hidden_states: Vec<f32> = input.iter()
+        let mut hidden_states: Vec<f32> = input
+            .iter()
             .zip(attn_output.iter())
             .map(|(&x, &y)| x + y)
             .collect();
 
         // Pre-layer norm + feed-forward + residual
         let normed2 = math::layer_norm(&hidden_states, ln2_scale, ln2_bias, layer_norm_eps);
-        let ff_output = self.feed_forward.forward(&normed2, ff_weights, ff_bias, seq_len);
+        let ff_output = self
+            .feed_forward
+            .forward(&normed2, ff_weights, ff_bias, seq_len);
 
         // Residual connection
         for (h, &ff) in hidden_states.iter_mut().zip(ff_output.iter()) {
@@ -484,7 +526,7 @@ impl Plugin for TransformerModelPlugin {
 
 impl ModelBuilderPlugin for TransformerModelPlugin {
     type Builder = TransformerModelBuilder;
-    
+
     fn create_builder(&self) -> Result<Self::Builder> {
         Ok(TransformerModelBuilder)
     }
@@ -498,11 +540,11 @@ impl TransformerModelBuilder {
     /// Calculates the number of parameters for a given configuration.
     fn calculate_num_parameters(config: &Transformer250MConfig) -> usize {
         let mut params = 0;
-        
+
         // Embedding parameters
         params += config.vocab_size * config.hidden_dim; // Token embeddings
         params += config.max_seq_len * config.hidden_dim; // Position embeddings
-        
+
         // Transformer layers
         for _ in 0..config.num_layers {
             // Self-attention
@@ -510,30 +552,30 @@ impl TransformerModelBuilder {
             if config.use_bias {
                 params += 4 * config.hidden_dim; // Biases
             }
-            
+
             // Layer norm 1
             params += 2 * config.hidden_dim; // Scale and bias
-            
+
             // Feedforward
             params += config.hidden_dim * config.intermediate_dim; // Up projection
             params += config.intermediate_dim * config.hidden_dim; // Down projection
             if config.use_bias {
                 params += config.intermediate_dim + config.hidden_dim; // Biases
             }
-            
+
             // Layer norm 2
             params += 2 * config.hidden_dim; // Scale and bias
         }
-        
+
         // Final layer norm
         params += 2 * config.hidden_dim;
-        
+
         // Output projection
         params += config.hidden_dim * config.vocab_size;
         if config.use_bias {
             params += config.vocab_size;
         }
-        
+
         params
     }
 }
@@ -545,12 +587,14 @@ impl ModelBuilder for TransformerModelBuilder {
     fn build(&self, config: Self::Config) -> Result<Self::Model> {
         // Import the trait to use validate method
 
-        
         config.validate()?;
 
         // Calculate parameters using a method on the config
         let param_count = Self::calculate_num_parameters(&config);
-        println!("Building enhanced transformer model with {} parameters", param_count);
+        println!(
+            "Building enhanced transformer model with {} parameters",
+            param_count
+        );
 
         // Pre-allocate parameter buffer with proper alignment
         let mut parameters = vec![0.0f32; param_count];
@@ -580,7 +624,10 @@ impl ModelBuilder for TransformerModelBuilder {
         let pos_encoding = PositionalEncoding::new(config.max_seq_len, config.hidden_dim);
 
         println!("✓ Created {} transformer blocks", config.num_layers);
-        println!("✓ Initialized positional encoding for {} positions", config.max_seq_len);
+        println!(
+            "✓ Initialized positional encoding for {} positions",
+            config.max_seq_len
+        );
 
         Ok(TransformerModel {
             config,
@@ -613,10 +660,12 @@ impl TransformerModel {
     /// guarantees about bounds safety.
     fn get_params(&self, offset: usize, size: usize) -> Result<&[f32]> {
         if offset + size > self.parameters.len() {
-            return Err(rustllm_core::foundation::error::invalid_input(
-                format!("Parameter access out of range: offset {} + size {} > {}", 
-                    offset, size, self.parameters.len())
-            ));
+            return Err(rustllm_core::foundation::error::invalid_input(format!(
+                "Parameter access out of range: offset {} + size {} > {}",
+                offset,
+                size,
+                self.parameters.len()
+            )));
         }
         Ok(&self.parameters[offset..offset + size])
     }
@@ -725,11 +774,11 @@ struct ParameterLayout {
 
 impl Model for TransformerModel {
     type Config = Transformer250MConfig;
-    
+
     fn config(&self) -> &Self::Config {
         &self.config
     }
-    
+
     fn name(&self) -> &str {
         "TransformerModel"
     }
@@ -738,7 +787,7 @@ impl Model for TransformerModel {
 impl ForwardModel for TransformerModel {
     type Input = Vec<usize>; // Token IDs
     type Output = Vec<f32>; // Logits
-    
+
     fn forward(&self, input: Self::Input) -> Result<Self::Output> {
         let seq_len = input.len();
         let hidden_dim = self.config.hidden_dim;
@@ -746,17 +795,18 @@ impl ForwardModel for TransformerModel {
 
         // Validate input sequence length
         if seq_len > self.config.max_seq_len {
-            return Err(rustllm_core::foundation::error::invalid_input(
-                format!("Sequence length {} out of range [1, {}]", 
-                    seq_len, self.config.max_seq_len)
-            ));
+            return Err(rustllm_core::foundation::error::invalid_input(format!(
+                "Sequence length {} out of range [1, {}]",
+                seq_len, self.config.max_seq_len
+            )));
         }
 
         // Calculate parameter layout for efficient access
         let layout = self.calculate_param_layout();
 
         // Get token embeddings
-        let token_embeddings = self.get_params(layout.token_embed_offset, layout.token_embed_size)?;
+        let token_embeddings =
+            self.get_params(layout.token_embed_offset, layout.token_embed_size)?;
 
         // Initialize hidden states with token embeddings
         let mut hidden_states = vec![0.0f32; seq_len * hidden_dim];
@@ -764,10 +814,11 @@ impl ForwardModel for TransformerModel {
         // Add token embeddings
         for (i, &token_id) in input.iter().enumerate() {
             if token_id >= vocab_size {
-                return Err(rustllm_core::foundation::error::invalid_input(
-                    format!("Token ID {} out of range [0, {}]", 
-                        token_id, vocab_size - 1)
-                ));
+                return Err(rustllm_core::foundation::error::invalid_input(format!(
+                    "Token ID {} out of range [0, {}]",
+                    token_id,
+                    vocab_size - 1
+                )));
             }
 
             // Copy token embedding
@@ -814,8 +865,8 @@ impl ForwardModel for TransformerModel {
             offset += hidden_dim;
 
             // Feed-forward parameters
-            let ff_weight_size = hidden_dim * self.config.intermediate_dim +
-                                self.config.intermediate_dim * hidden_dim;
+            let ff_weight_size = hidden_dim * self.config.intermediate_dim
+                + self.config.intermediate_dim * hidden_dim;
             let ff_weights = self.get_params(offset, ff_weight_size)?;
             offset += ff_weight_size;
 
@@ -852,7 +903,12 @@ impl ForwardModel for TransformerModel {
         let final_ln_scale = self.get_params(layout.final_ln_offset, hidden_dim)?;
         let final_ln_bias = self.get_params(layout.final_ln_offset + hidden_dim, hidden_dim)?;
 
-        let final_hidden = math::layer_norm(&hidden_states, final_ln_scale, final_ln_bias, self.config.layer_norm_eps);
+        let final_hidden = math::layer_norm(
+            &hidden_states,
+            final_ln_scale,
+            final_ln_bias,
+            self.config.layer_norm_eps,
+        );
 
         // Output projection - project last token's hidden state to vocabulary
         let output_proj = self.get_params(layout.output_proj_offset, layout.output_proj_size)?;
@@ -861,7 +917,7 @@ impl ForwardModel for TransformerModel {
 
         Ok(logits)
     }
-    
+
     fn num_parameters(&self) -> usize {
         self.parameters.len()
     }
@@ -879,10 +935,10 @@ impl ModelSerializable for TransformerModel {
             self.parameters.len() as u64,
             (self.parameters.len() * std::mem::size_of::<f32>()) as u64,
         );
-        
+
         // Calculate checksum
         header.checksum = calculate_checksum(&self.parameters);
-        
+
         // Write header
         let header_bytes = unsafe {
             std::slice::from_raw_parts(
@@ -890,9 +946,13 @@ impl ModelSerializable for TransformerModel {
                 std::mem::size_of::<ModelHeader>(),
             )
         };
-        writer.write_all(header_bytes)
-            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to write header: {}", e)))?;
-        
+        writer.write_all(header_bytes).map_err(|e| {
+            rustllm_core::foundation::error::internal_error(format!(
+                "Failed to write header: {}",
+                e
+            ))
+        })?;
+
         // Write parameters with progress
         let serializer = ParameterSerializer::new();
         serializer.write_parameters(writer, &self.parameters, |current, total| {
@@ -901,7 +961,7 @@ impl ModelSerializable for TransformerModel {
                 println!("Writing parameters: {:.1}%", percent);
             }
         })?;
-        
+
         // Write metadata
         let metadata = ModelMetadata::new("transformer")
             .with_custom("hidden_dim", self.config.hidden_dim.to_string())
@@ -909,94 +969,135 @@ impl ModelSerializable for TransformerModel {
             .with_custom("num_heads", self.config.num_heads.to_string())
             .with_custom("vocab_size", self.config.vocab_size.to_string())
             .with_custom("max_seq_len", self.config.max_seq_len.to_string());
-        
+
         let metadata_bytes = metadata.to_bytes()?;
-        let metadata_offset = writer.seek(SeekFrom::Current(0))
-            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to seek: {}", e)))?;
-        writer.write_all(&metadata_bytes)
-            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to write metadata: {}", e)))?;
-        
+        let metadata_offset = writer.seek(SeekFrom::Current(0)).map_err(|e| {
+            rustllm_core::foundation::error::internal_error(format!("Failed to seek: {}", e))
+        })?;
+        writer.write_all(&metadata_bytes).map_err(|e| {
+            rustllm_core::foundation::error::internal_error(format!(
+                "Failed to write metadata: {}",
+                e
+            ))
+        })?;
+
         // Update header with metadata info
-        writer.seek(SeekFrom::Start(0))
-            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to seek to start: {}", e)))?;
+        writer.seek(SeekFrom::Start(0)).map_err(|e| {
+            rustllm_core::foundation::error::internal_error(format!(
+                "Failed to seek to start: {}",
+                e
+            ))
+        })?;
         header.metadata_offset = metadata_offset;
         header.metadata_size = metadata_bytes.len() as u64;
-        
+
         let header_bytes = unsafe {
             std::slice::from_raw_parts(
                 &header as *const _ as *const u8,
                 std::mem::size_of::<ModelHeader>(),
             )
         };
-        writer.write_all(header_bytes)
-            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to update header: {}", e)))?;
-        
+        writer.write_all(header_bytes).map_err(|e| {
+            rustllm_core::foundation::error::internal_error(format!(
+                "Failed to update header: {}",
+                e
+            ))
+        })?;
+
         Ok(())
     }
-    
+
     fn read_from<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         // Read header
         let mut header_bytes = vec![0u8; std::mem::size_of::<ModelHeader>()];
-        reader.read_exact(&mut header_bytes)
-            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to read header: {}", e)))?;
-        
-        let header = unsafe {
-            std::ptr::read(header_bytes.as_ptr() as *const ModelHeader)
-        };
-        
-        header.validate()?;
-        
-        // Read parameters
-        reader.seek(SeekFrom::Start(header.param_offset))
-            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to seek to parameters: {}", e)))?;
-        let serializer = ParameterSerializer::new();
-        let parameters = serializer.read_parameters(reader, header.param_count as usize, |current, total| {
-            let percent = (current as f64 / total as f64) * 100.0;
-            if current % (8 * 1024 * 1024) == 0 || current == total {
-                println!("Reading parameters: {:.1}%", percent);
-            }
+        reader.read_exact(&mut header_bytes).map_err(|e| {
+            rustllm_core::foundation::error::internal_error(format!("Failed to read header: {}", e))
         })?;
-        
+
+        let header = unsafe { std::ptr::read(header_bytes.as_ptr() as *const ModelHeader) };
+
+        header.validate()?;
+
+        // Read parameters
+        reader
+            .seek(SeekFrom::Start(header.param_offset))
+            .map_err(|e| {
+                rustllm_core::foundation::error::internal_error(format!(
+                    "Failed to seek to parameters: {}",
+                    e
+                ))
+            })?;
+        let serializer = ParameterSerializer::new();
+        let parameters =
+            serializer.read_parameters(reader, header.param_count as usize, |current, total| {
+                let percent = (current as f64 / total as f64) * 100.0;
+                if current % (8 * 1024 * 1024) == 0 || current == total {
+                    println!("Reading parameters: {:.1}%", percent);
+                }
+            })?;
+
         // Verify checksum
         let checksum = calculate_checksum(&parameters);
         if checksum != header.checksum {
-            return Err(rustllm_core::foundation::error::internal_error("Checksum mismatch".to_string()));
+            return Err(rustllm_core::foundation::error::internal_error(
+                "Checksum mismatch".to_string(),
+            ));
         }
-        
+
         // Read metadata
-        reader.seek(SeekFrom::Start(header.metadata_offset))
-            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to seek to metadata: {}", e)))?;
+        reader
+            .seek(SeekFrom::Start(header.metadata_offset))
+            .map_err(|e| {
+                rustllm_core::foundation::error::internal_error(format!(
+                    "Failed to seek to metadata: {}",
+                    e
+                ))
+            })?;
         let mut metadata_bytes = vec![0u8; header.metadata_size as usize];
-        reader.read_exact(&mut metadata_bytes)
-            .map_err(|e| rustllm_core::foundation::error::internal_error(format!("Failed to read metadata: {}", e)))?;
-        
+        reader.read_exact(&mut metadata_bytes).map_err(|e| {
+            rustllm_core::foundation::error::internal_error(format!(
+                "Failed to read metadata: {}",
+                e
+            ))
+        })?;
+
         let metadata = ModelMetadata::from_bytes(&metadata_bytes)?;
-        
+
         // Reconstruct config from metadata
         let config = Transformer250MConfig {
-            hidden_dim: metadata.custom.iter()
+            hidden_dim: metadata
+                .custom
+                .iter()
                 .find(|(k, _)| k == "hidden_dim")
                 .and_then(|(_, v)| v.parse().ok())
                 .unwrap_or(768),
-            num_layers: metadata.custom.iter()
+            num_layers: metadata
+                .custom
+                .iter()
                 .find(|(k, _)| k == "num_layers")
                 .and_then(|(_, v)| v.parse().ok())
                 .unwrap_or(12),
-            num_heads: metadata.custom.iter()
+            num_heads: metadata
+                .custom
+                .iter()
                 .find(|(k, _)| k == "num_heads")
                 .and_then(|(_, v)| v.parse().ok())
                 .unwrap_or(12),
-            vocab_size: metadata.custom.iter()
+            vocab_size: metadata
+                .custom
+                .iter()
                 .find(|(k, _)| k == "vocab_size")
                 .and_then(|(_, v)| v.parse().ok())
                 .unwrap_or(50257),
-            max_seq_len: metadata.custom.iter()
+            max_seq_len: metadata
+                .custom
+                .iter()
                 .find(|(k, _)| k == "max_seq_len")
                 .and_then(|(_, v)| v.parse().ok())
                 .unwrap_or(1024),
             ..Transformer250MConfig::default()
         };
-        
+
         // Recreate transformer blocks
         let mut blocks = Vec::with_capacity(config.num_layers);
         for _ in 0..config.num_layers {
@@ -1022,7 +1123,7 @@ impl ModelSerializable for TransformerModel {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_transformer_plugin() {
         let plugin = TransformerModelPlugin::default();
@@ -1031,23 +1132,23 @@ mod tests {
         assert_eq!(plugin.version().minor, 1);
         assert_eq!(plugin.version().patch, 0);
     }
-    
+
     #[test]
     fn test_transformer_builder() {
         let builder = TransformerModelBuilder::default();
         let config = Transformer250MConfig::default();
         let model = builder.build(config).unwrap();
-        
+
         // Should be approximately 163M parameters (not 250M - that was the target)
         let param_count = model.num_parameters();
         assert!(param_count > 160_000_000 && param_count < 170_000_000);
-        
+
         // Test forward pass
         let input = vec![100, 200, 300]; // Token IDs
         let output = model.forward(input).unwrap();
         assert_eq!(output.len(), 50257); // Vocabulary size
     }
-    
+
     #[test]
     fn test_layer_norm() {
         let input = vec![1.0, 2.0, 3.0, 4.0];
@@ -1060,9 +1161,8 @@ mod tests {
         let mean: f32 = output.iter().sum::<f32>() / output.len() as f32;
         assert!((mean).abs() < 0.01);
 
-        let variance: f32 = output.iter()
-            .map(|x| (x - mean).powi(2))
-            .sum::<f32>() / output.len() as f32;
+        let variance: f32 =
+            output.iter().map(|x| (x - mean).powi(2)).sum::<f32>() / output.len() as f32;
         assert!((variance - 1.0).abs() < 0.01);
     }
 
@@ -1116,9 +1216,7 @@ mod tests {
         let value = vec![0.1; seq_len * hidden_dim];
         let weights = vec![0.01; 4 * hidden_dim * hidden_dim];
 
-        let output = attention.forward(
-            &query, &key, &value, &weights, None, None, seq_len
-        );
+        let output = attention.forward(&query, &key, &value, &weights, None, None, seq_len);
 
         // Check output dimensions
         assert_eq!(output.len(), seq_len * hidden_dim);

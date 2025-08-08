@@ -25,19 +25,19 @@
 
 use rustllm_core::{
     core::{
-        plugin::{Plugin, TokenizerPlugin, PluginCapabilities},
-        tokenizer::{Tokenizer, TokenizerConfig, Token, StringToken, TokenIterator},
+        plugin::{Plugin, PluginCapabilities, TokenizerPlugin},
+        tokenizer::{StringToken, Token, TokenIterator, Tokenizer, TokenizerConfig},
         traits::{Identity, Versioned},
     },
     foundation::{
         error::Result,
-        types::{Version, TokenId, VocabSize},
+        types::{TokenId, Version, VocabSize},
     },
 };
 use std::borrow::Cow;
-use unicode_normalization::{UnicodeNormalization, is_nfd};
-use unicode_segmentation::UnicodeSegmentation;
 use std::collections::HashMap;
+use unicode_normalization::{is_nfd, UnicodeNormalization};
+use unicode_segmentation::UnicodeSegmentation;
 
 /// WordPiece tokenizer plugin with production-ready implementation.
 #[derive(Debug, Default)]
@@ -75,7 +75,7 @@ impl TokenizerPlugin for WordPieceTokenizerPlugin {
 }
 
 /// Trie node for efficient vocabulary lookup.
-/// 
+///
 /// Uses a compact representation optimized for cache efficiency
 /// and minimal memory overhead.
 #[derive(Debug, Clone)]
@@ -97,21 +97,22 @@ impl TrieNode {
             is_terminal: false,
         }
     }
-    
+
     /// Inserts a token into the trie.
     fn insert(&mut self, token: &str, token_id: u32) {
         let mut current = self;
-        
+
         for ch in token.chars() {
-            current = current.children
+            current = current
+                .children
                 .entry(ch)
                 .or_insert_with(|| Box::new(TrieNode::new()));
         }
-        
+
         current.token_id = Some(token_id);
         current.is_terminal = true;
     }
-    
+
     /// Finds the longest matching token starting from the given position.
     ///
     /// Returns (token_id, length) of the longest match, or None if no match.
@@ -142,7 +143,7 @@ impl TrieNode {
 }
 
 /// Production-ready WordPiece tokenizer.
-/// 
+///
 /// Implements the WordPiece algorithm with proper Unicode handling,
 /// efficient trie-based vocabulary lookup, and zero-copy processing.
 #[derive(Debug)]
@@ -172,13 +173,13 @@ impl WordPieceTokenizer {
             pad_token_id: 3,
             mask_token_id: 4,
         };
-        
+
         // Initialize with basic vocabulary
         tokenizer.initialize_vocabulary()?;
-        
+
         Ok(tokenizer)
     }
-    
+
     /// Initializes the vocabulary with basic tokens.
     fn initialize_vocabulary(&mut self) -> Result<()> {
         // Special tokens
@@ -189,46 +190,46 @@ impl WordPieceTokenizer {
             ("[PAD]", self.pad_token_id),
             ("[MASK]", self.mask_token_id),
         ];
-        
+
         for (token, id) in special_tokens {
             self.add_token(token, id);
         }
-        
+
         // Add basic subword tokens (simplified for demonstration)
         let mut token_id = 100;
         for ch in 'a'..='z' {
             self.add_token(&ch.to_string(), token_id);
             token_id += 1;
         }
-        
+
         for ch in 'A'..='Z' {
             self.add_token(&ch.to_string(), token_id);
             token_id += 1;
         }
-        
+
         // Add common subwords
         let common_subwords = vec![
-            "##ing", "##ed", "##er", "##est", "##ly", "##tion", "##ness",
-            "##ment", "##able", "##ible", "##ful", "##less", "##ous",
+            "##ing", "##ed", "##er", "##est", "##ly", "##tion", "##ness", "##ment", "##able",
+            "##ible", "##ful", "##less", "##ous",
         ];
-        
+
         for subword in common_subwords {
             self.add_token(subword, token_id);
             token_id += 1;
         }
-        
+
         Ok(())
     }
-    
+
     /// Adds a token to the vocabulary.
     fn add_token(&mut self, token: &str, token_id: u32) {
         self.vocabulary.insert(token, token_id);
         self.token_to_id.insert(token.to_string(), token_id);
         self.id_to_token.insert(token_id, token.to_string());
     }
-    
+
     /// Normalizes text using Unicode NFD normalization.
-    /// 
+    ///
     /// This ensures consistent processing of Unicode characters
     /// and proper handling of accented characters.
     fn normalize_text(&self, text: &str) -> String {
@@ -238,31 +239,31 @@ impl WordPieceTokenizer {
             text.nfd().collect()
         }
     }
-    
+
     /// Tokenizes a single word using the WordPiece algorithm.
-    /// 
+    ///
     /// Uses greedy longest-match-first approach with fallback to
     /// character-level tokenization for unknown sequences.
     fn tokenize_word(&self, word: &str) -> Vec<u32> {
         if word.is_empty() {
             return vec![];
         }
-        
+
         let mut tokens = Vec::new();
         let mut remaining = word;
         let mut is_first_subword = true;
-        
+
         while !remaining.is_empty() {
             let prefix = if is_first_subword { "" } else { "##" };
             let search_text = format!("{}{}", prefix, remaining);
-            
+
             if let Some((token_id, char_count)) = self.vocabulary.longest_match(&search_text) {
                 tokens.push(token_id);
-                
+
                 // Calculate byte offset for the matched characters
                 let mut byte_offset = 0;
                 let mut chars_processed = 0;
-                
+
                 for (i, _) in remaining.char_indices() {
                     if chars_processed == char_count - prefix.len() {
                         byte_offset = i;
@@ -270,11 +271,11 @@ impl WordPieceTokenizer {
                     }
                     chars_processed += 1;
                 }
-                
+
                 if chars_processed == char_count - prefix.len() {
                     byte_offset = remaining.len();
                 }
-                
+
                 remaining = &remaining[byte_offset..];
                 is_first_subword = false;
             } else {
@@ -283,7 +284,7 @@ impl WordPieceTokenizer {
                 break;
             }
         }
-        
+
         tokens
     }
 }
@@ -349,18 +350,13 @@ impl WordPieceTokenizer {
         let normalized = self.normalize_text(text);
 
         // Split into words using Unicode word boundaries
-        let words: Vec<&str> = normalized
-            .unicode_words()
-            .collect();
+        let words: Vec<&str> = normalized.unicode_words().collect();
 
         let mut tokens = Vec::new();
         let mut _position = 0;
 
         // Add CLS token at the beginning
-        tokens.push(StringToken::with_id(
-            "[CLS]".to_string(),
-            self.cls_token_id,
-        ));
+        tokens.push(StringToken::with_id("[CLS]".to_string(), self.cls_token_id));
         _position += 5;
 
         // Process each word
@@ -369,10 +365,7 @@ impl WordPieceTokenizer {
 
             for token_id in token_ids {
                 if let Some(token_str) = self.id_to_token.get(&token_id) {
-                    tokens.push(StringToken::with_id(
-                        token_str.clone(),
-                        token_id,
-                    ));
+                    tokens.push(StringToken::with_id(token_str.clone(), token_id));
 
                     _position += token_str.len();
                 }
@@ -380,10 +373,7 @@ impl WordPieceTokenizer {
         }
 
         // Add SEP token at the end
-        tokens.push(StringToken::with_id(
-            "[SEP]".to_string(),
-            self.sep_token_id,
-        ));
+        tokens.push(StringToken::with_id("[SEP]".to_string(), self.sep_token_id));
 
         Ok(tokens)
     }
@@ -484,8 +474,8 @@ mod tests {
 
         // Test longest match algorithm
         assert_eq!(trie.longest_match("hello"), Some((1, 5))); // "hello" is longest
-        assert_eq!(trie.longest_match("help"), Some((2, 4)));  // "help" is longest
-        assert_eq!(trie.longest_match("he"), Some((3, 2)));    // only "he" matches
+        assert_eq!(trie.longest_match("help"), Some((2, 4))); // "help" is longest
+        assert_eq!(trie.longest_match("he"), Some((3, 2))); // only "he" matches
         assert_eq!(trie.longest_match("helicopter"), Some((3, 2))); // "he" prefix is longest match
         assert_eq!(trie.longest_match("xyz"), None);
     }

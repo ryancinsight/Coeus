@@ -1,8 +1,8 @@
 //! Basic tokenizer plugin implementation.
 
 use rustllm_core::core::{
-    plugin::{Plugin, TokenizerPlugin, PluginCapabilities},
-    tokenizer::{Tokenizer, Token, StringToken, TokenIterator},
+    plugin::{Plugin, PluginCapabilities, TokenizerPlugin},
+    tokenizer::{StringToken, Token, TokenIterator, Tokenizer},
     traits::{Identity, Versioned},
 };
 use rustllm_core::foundation::{
@@ -37,7 +37,7 @@ impl Plugin for BasicTokenizerPlugin {
 
 impl TokenizerPlugin for BasicTokenizerPlugin {
     type Tokenizer = BasicTokenizer;
-    
+
     fn create_tokenizer(&self) -> Result<Self::Tokenizer> {
         Ok(BasicTokenizer::new())
     }
@@ -63,7 +63,7 @@ impl Default for BasicTokenizer {
 impl Tokenizer for BasicTokenizer {
     type Token = StringToken;
     type Error = std::io::Error;
-    
+
     fn tokenize<'a>(&self, input: Cow<'a, str>) -> TokenIterator<'a, Self::Token> {
         // Convert to owned string to ensure lifetime independence
         let owned_input = input.into_owned();
@@ -72,10 +72,10 @@ impl Tokenizer for BasicTokenizer {
                 .split_whitespace()
                 .map(|s| StringToken::new(s.to_string()))
                 .collect::<Vec<_>>()
-                .into_iter()
+                .into_iter(),
         )
     }
-    
+
     fn decode<I>(&self, tokens: I) -> Result<String>
     where
         I: IntoIterator<Item = Self::Token>,
@@ -86,11 +86,11 @@ impl Tokenizer for BasicTokenizer {
             .collect::<Vec<_>>()
             .join(" "))
     }
-    
+
     fn vocab_size(&self) -> VocabSize {
         0 // Basic tokenizer has no fixed vocabulary
     }
-    
+
     fn name(&self) -> &str {
         "basic_tokenizer"
     }
@@ -99,17 +99,17 @@ impl Tokenizer for BasicTokenizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_basic_tokenizer() {
         let tokenizer = BasicTokenizer::new();
         let tokens: Vec<_> = tokenizer.tokenize_str("hello world rust").collect();
-        
+
         assert_eq!(tokens.len(), 3);
         assert_eq!(tokens[0].as_str(), Some("hello"));
         assert_eq!(tokens[1].as_str(), Some("world"));
         assert_eq!(tokens[2].as_str(), Some("rust"));
-        
+
         let decoded = tokenizer.decode(tokens).unwrap();
         assert_eq!(decoded, "hello world rust");
     }

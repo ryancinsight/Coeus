@@ -64,12 +64,15 @@ impl Arena {
     pub fn new(chunk_size: usize) -> Self {
         Self::with_alignment(chunk_size, core::mem::align_of::<usize>())
     }
-    
+
     /// Creates a new arena with specified alignment.
     pub fn with_alignment(chunk_size: usize, alignment: usize) -> Self {
         assert!(chunk_size > 0, "Chunk size must be greater than 0");
-        assert!(alignment.is_power_of_two(), "Alignment must be a power of 2");
-        
+        assert!(
+            alignment.is_power_of_two(),
+            "Alignment must be a power of 2"
+        );
+
         Self {
             chunks: Vec::new(),
             current_chunk: 0,
@@ -77,18 +80,18 @@ impl Arena {
             alignment,
         }
     }
-    
+
     /// Allocates memory for a value in the arena.
     pub fn alloc<T>(&mut self, value: T) -> &mut T {
         let layout = Layout::for_value(&value);
         let ptr = self.alloc_raw(layout.align_to(self.alignment).unwrap());
-        
+
         unsafe {
             ptr::write(ptr.cast::<T>(), value);
             &mut *ptr.cast::<T>()
         }
     }
-    
+
     /// Allocates a slice in the arena.
     pub fn alloc_slice<T>(&mut self, slice: &[T]) -> &mut [T]
     where
@@ -97,48 +100,46 @@ impl Arena {
         if slice.is_empty() {
             return &mut [];
         }
-        
+
         let layout = Layout::array::<T>(slice.len())
             .unwrap()
             .align_to(self.alignment)
             .unwrap();
         let ptr = self.alloc_raw(layout).cast::<T>();
-        
+
         unsafe {
             ptr::copy_nonoverlapping(slice.as_ptr(), ptr, slice.len());
             slice::from_raw_parts_mut(ptr, slice.len())
         }
     }
-    
+
     /// Allocates uninitialized memory for a slice.
     pub fn alloc_uninit_slice<T>(&mut self, len: usize) -> &mut [MaybeUninit<T>] {
         if len == 0 {
             return &mut [];
         }
-        
+
         let layout = Layout::array::<T>(len)
             .unwrap()
             .align_to(self.alignment)
             .unwrap();
         let ptr = self.alloc_raw(layout).cast::<MaybeUninit<T>>();
-        
-        unsafe {
-            slice::from_raw_parts_mut(ptr, len)
-        }
+
+        unsafe { slice::from_raw_parts_mut(ptr, len) }
     }
-    
+
     /// Allocates raw memory with the given layout.
     fn alloc_raw(&mut self, layout: Layout) -> *mut u8 {
         let size = layout.size();
         let align = layout.align().max(self.alignment);
-        
+
         // Try current chunk first
         if self.current_chunk < self.chunks.len() {
             if let Some(ptr) = self.try_alloc_from_chunk(self.current_chunk, size, align) {
                 return ptr;
             }
         }
-        
+
         // Try other chunks
         for i in 0..self.chunks.len() {
             if i != self.current_chunk {
@@ -148,24 +149,24 @@ impl Arena {
                 }
             }
         }
-        
+
         // Allocate new chunk
         let chunk_size = self.default_chunk_size.max(size + align);
         let chunk = ArenaChunk::new(chunk_size, align);
         let ptr = chunk.data.as_ptr();
         chunk.used.set(size);
-        
+
         self.chunks.push(chunk);
         self.current_chunk = self.chunks.len() - 1;
-        
+
         ptr
     }
-    
+
     fn try_alloc_from_chunk(&self, chunk_idx: usize, size: usize, align: usize) -> Option<*mut u8> {
         let chunk = &self.chunks[chunk_idx];
         let used = chunk.used.get();
         let aligned_pos = (used + align - 1) & !(align - 1);
-        
+
         if aligned_pos + size <= chunk.layout.size() {
             chunk.used.set(aligned_pos + size);
             Some(unsafe { chunk.data.as_ptr().add(aligned_pos) })
@@ -173,7 +174,7 @@ impl Arena {
             None
         }
     }
-    
+
     /// Resets the arena, allowing memory to be reused.
     pub fn reset(&mut self) {
         for chunk in &self.chunks {
@@ -181,12 +182,12 @@ impl Arena {
         }
         self.current_chunk = 0;
     }
-    
+
     /// Returns the total allocated capacity across all chunks.
     pub fn capacity(&self) -> usize {
         self.chunks.iter().map(|c| c.layout.size()).sum()
     }
-    
+
     /// Returns the total used memory across all chunks.
     pub fn used(&self) -> usize {
         self.chunks.iter().map(|c| c.used.get()).sum()
@@ -196,12 +197,12 @@ impl Arena {
 impl ArenaChunk {
     fn new(size: usize, align: usize) -> Self {
         let layout = Layout::from_size_align(size, align).unwrap();
-        
+
         let data = unsafe {
             let ptr = alloc(layout);
             NonNull::new(ptr).expect("Allocation failed")
         };
-        
+
         Self {
             data,
             layout,
@@ -246,7 +247,7 @@ impl<T> Pool<T> {
             initializer: None,
         }
     }
-    
+
     /// Creates a new pool with a custom initializer.
     pub fn with_initializer(capacity: usize, init: fn() -> T) -> Self {
         Self {
@@ -255,7 +256,7 @@ impl<T> Pool<T> {
             initializer: Some(init),
         }
     }
-    
+
     /// Takes an item from the pool or creates a new one.
     pub fn take(&self) -> T
     where
@@ -263,16 +264,16 @@ impl<T> Pool<T> {
     {
         self.items.borrow_mut().pop().unwrap_or_else(T::default)
     }
-    
+
     /// Takes an item from the pool or creates one with the initializer.
     pub fn take_or_init(&self) -> T {
         self.items.borrow_mut().pop().unwrap_or_else(|| {
-            self.initializer.map(|f| f()).unwrap_or_else(|| {
-                panic!("Pool requires either Default impl or initializer")
-            })
+            self.initializer
+                .map(|f| f())
+                .unwrap_or_else(|| panic!("Pool requires either Default impl or initializer"))
         })
     }
-    
+
     /// Returns an item to the pool.
     pub fn put(&self, item: T) {
         let mut items = self.items.borrow_mut();
@@ -280,9 +281,9 @@ impl<T> Pool<T> {
             items.push(item);
         }
     }
-    
+
     /// Returns an item to the pool and resets it if it implements PoolReset.
-    pub fn put_and_reset(&self, mut item: T) 
+    pub fn put_and_reset(&self, mut item: T)
     where
         T: PoolReset,
     {
@@ -292,12 +293,12 @@ impl<T> Pool<T> {
             items.push(item);
         }
     }
-    
+
     /// Returns the current number of items in the pool.
     pub fn len(&self) -> usize {
         self.items.borrow().len()
     }
-    
+
     /// Returns whether the pool is empty.
     pub fn is_empty(&self) -> bool {
         self.items.borrow().is_empty()
@@ -331,18 +332,18 @@ impl<'a> CowStr<'a> {
     pub const fn borrowed(s: &'a str) -> Self {
         Self::Borrowed(s)
     }
-    
+
     /// Creates a new owned `CowStr`.
     pub const fn owned(s: String) -> Self {
         Self::Owned(s)
     }
-    
+
     /// Creates a new shared `CowStr`.
     #[cfg(feature = "std")]
     pub fn shared(s: Arc<String>) -> Self {
         Self::Shared(s)
     }
-    
+
     /// Returns the string as a slice.
     pub fn as_str(&self) -> &str {
         match self {
@@ -352,7 +353,7 @@ impl<'a> CowStr<'a> {
             Self::Shared(s) => s.as_str(),
         }
     }
-    
+
     /// Converts to an owned string if not already owned.
     pub fn into_owned(self) -> String {
         match self {
@@ -362,7 +363,7 @@ impl<'a> CowStr<'a> {
             Self::Shared(s) => (*s).clone(),
         }
     }
-    
+
     /// Makes the string mutable, cloning if necessary.
     pub fn to_mut(&mut self) -> &mut String {
         match self {
@@ -372,7 +373,7 @@ impl<'a> CowStr<'a> {
                     Self::Owned(s) => s,
                     _ => unreachable!(),
                 }
-            }
+            },
             Self::Owned(s) => s,
             #[cfg(feature = "std")]
             Self::Shared(s) => {
@@ -381,15 +382,15 @@ impl<'a> CowStr<'a> {
                     Self::Owned(s) => s,
                     _ => unreachable!(),
                 }
-            }
+            },
         }
     }
-    
+
     /// Returns the length of the string.
     pub fn len(&self) -> usize {
         self.as_str().len()
     }
-    
+
     /// Returns whether the string is empty.
     pub fn is_empty(&self) -> bool {
         self.as_str().is_empty()
@@ -426,7 +427,7 @@ impl<'a> From<Arc<String>> for CowStr<'a> {
 // ============================================================================
 
 /// Zero-copy string builder using rope-like data structure.
-/// 
+///
 /// This consolidates StrBuilder and ZeroCopyStringBuilder into a single
 /// efficient implementation following DRY principle.
 #[derive(Debug, Clone)]
@@ -455,7 +456,7 @@ impl<'a> ZeroCopyStringBuilder<'a> {
             total_len: 0,
         }
     }
-    
+
     /// Creates a string builder with initial capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
@@ -463,7 +464,7 @@ impl<'a> ZeroCopyStringBuilder<'a> {
             total_len: 0,
         }
     }
-    
+
     /// Appends a borrowed string slice.
     pub fn append_borrowed(&mut self, s: &'a str) -> &mut Self {
         if !s.is_empty() {
@@ -472,7 +473,7 @@ impl<'a> ZeroCopyStringBuilder<'a> {
         }
         self
     }
-    
+
     /// Appends an owned string.
     pub fn append_owned(&mut self, s: String) -> &mut Self {
         if !s.is_empty() {
@@ -481,7 +482,7 @@ impl<'a> ZeroCopyStringBuilder<'a> {
         }
         self
     }
-    
+
     /// Appends a shared string.
     #[cfg(feature = "std")]
     pub fn append_shared(&mut self, s: Arc<String>) -> &mut Self {
@@ -491,7 +492,7 @@ impl<'a> ZeroCopyStringBuilder<'a> {
         }
         self
     }
-    
+
     /// Appends a character.
     pub fn append_char(&mut self, ch: char) -> &mut Self {
         // Optimize by appending to last owned segment if possible
@@ -506,27 +507,27 @@ impl<'a> ZeroCopyStringBuilder<'a> {
         }
         self
     }
-    
+
     /// Alias for append_borrowed (backward compatibility).
     pub fn push_borrowed(&mut self, s: &'a str) -> &mut Self {
         self.append_borrowed(s)
     }
-    
+
     /// Alias for append_owned (backward compatibility).
     pub fn push_owned(&mut self, s: String) -> &mut Self {
         self.append_owned(s)
     }
-    
+
     /// Returns the total length without materializing the string.
     pub const fn len(&self) -> usize {
         self.total_len
     }
-    
+
     /// Returns whether the builder is empty.
     pub const fn is_empty(&self) -> bool {
         self.total_len == 0
     }
-    
+
     /// Builds the final string, minimizing allocations.
     pub fn build(self) -> String {
         match self.segments.len() {
@@ -535,7 +536,7 @@ impl<'a> ZeroCopyStringBuilder<'a> {
             _ => self.build_multiple_segments(),
         }
     }
-    
+
     fn build_single_segment(mut self) -> String {
         match self.segments.pop().unwrap() {
             StringSegment::Borrowed(s) => s.to_string(),
@@ -544,7 +545,7 @@ impl<'a> ZeroCopyStringBuilder<'a> {
             StringSegment::Shared(s) => (*s).clone(),
         }
     }
-    
+
     fn build_multiple_segments(self) -> String {
         let mut result = String::with_capacity(self.total_len);
         for segment in self.segments {
@@ -570,7 +571,7 @@ impl<'a> fmt::Write for ZeroCopyStringBuilder<'a> {
         self.append_owned(s.to_string());
         Ok(())
     }
-    
+
     fn write_char(&mut self, c: char) -> fmt::Result {
         self.append_char(c);
         Ok(())
@@ -597,7 +598,7 @@ impl TokenBufferPool {
             max_buffers,
         }
     }
-    
+
     /// Acquires a buffer from the pool.
     pub fn acquire(&self) -> Vec<u8> {
         self.buffers
@@ -605,11 +606,11 @@ impl TokenBufferPool {
             .pop()
             .unwrap_or_else(|| Vec::with_capacity(self.buffer_size))
     }
-    
+
     /// Releases a buffer back to the pool.
     pub fn release(&self, mut buffer: Vec<u8>) {
         buffer.clear();
-        
+
         let mut buffers = self.buffers.borrow_mut();
         if buffers.len() < self.max_buffers {
             buffers.push(buffer);
@@ -622,9 +623,9 @@ impl TokenBufferPool {
 // ============================================================================
 
 /// Zero-copy view into a slice with lazy evaluation.
-/// 
+///
 /// This provides a view that can be transformed without copying the underlying data.
-/// 
+///
 /// Note: Due to the signature Fn(&T) -> T, transformations must clone the data.
 /// For true zero-copy, consider using a different transformation signature.
 pub struct SliceView<'a, T> {
@@ -640,9 +641,9 @@ impl<'a, T> SliceView<'a, T> {
             transforms: Vec::new(),
         }
     }
-    
+
     /// Adds a transformation to be applied lazily.
-    /// 
+    ///
     /// Multiple map calls will chain the transformations.
     #[must_use]
     pub fn map<F>(mut self, f: F) -> Self
@@ -653,7 +654,7 @@ impl<'a, T> SliceView<'a, T> {
         self.transforms.push(Box::new(f));
         self
     }
-    
+
     /// Gets an element with all transformations applied.
     pub fn get(&self, index: usize) -> Option<T>
     where
@@ -667,29 +668,32 @@ impl<'a, T> SliceView<'a, T> {
             result
         })
     }
-    
+
     /// Returns the length of the view.
     pub const fn len(&self) -> usize {
         self.data.len()
     }
-    
+
     /// Returns whether the view is empty.
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
-    
+
     /// Materializes the view into a vector.
     pub fn to_vec(&self) -> Vec<T>
     where
         T: Clone,
     {
-        self.data.iter().map(|item| {
-            let mut result = item.clone();
-            for transform in &self.transforms {
-                result = transform(result);
-            }
-            result
-        }).collect()
+        self.data
+            .iter()
+            .map(|item| {
+                let mut result = item.clone();
+                for transform in &self.transforms {
+                    result = transform(result);
+                }
+                result
+            })
+            .collect()
     }
 }
 
@@ -698,7 +702,7 @@ impl<'a, T> SliceView<'a, T> {
 // ============================================================================
 
 /// Memory-mapped buffer for zero-copy file operations.
-/// 
+///
 /// This provides a zero-copy abstraction over memory-mapped files,
 /// following the principle of minimal allocations.
 #[cfg(feature = "std")]
@@ -711,7 +715,7 @@ pub struct MappedBuffer {
 #[cfg(feature = "std")]
 impl MappedBuffer {
     /// Creates a new mapped buffer from raw parts.
-    /// 
+    ///
     /// # Safety
     /// The caller must ensure that:
     /// - The pointer is valid for the given length
@@ -724,22 +728,22 @@ impl MappedBuffer {
             _phantom: PhantomData,
         }
     }
-    
+
     /// Returns a slice view of the buffer.
     pub fn as_slice(&self) -> &[u8] {
         unsafe { slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
     }
-    
+
     /// Returns the length of the buffer.
     pub fn len(&self) -> usize {
         self.len
     }
-    
+
     /// Returns whether the buffer is empty.
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
-    
+
     /// Creates a zero-copy view into a subregion.
     pub fn slice(&self, start: usize, end: usize) -> Option<&[u8]> {
         if start <= end && end <= self.len {
@@ -755,9 +759,9 @@ impl MappedBuffer {
 // ============================================================================
 
 /// Lazy allocation wrapper that defers allocation until first use.
-/// 
+///
 /// This follows the principle of lazy evaluation for better performance.
-/// 
+///
 /// Note: This type is thread-safe when T is Send + Sync.
 pub struct LazyAlloc<T> {
     #[cfg(feature = "std")]
@@ -778,13 +782,13 @@ impl<T> LazyAlloc<T> {
             init,
         }
     }
-    
+
     /// Gets or initializes the value.
     #[cfg(feature = "std")]
     pub fn get_or_init(&self) -> &T {
         self.value.get_or_init(|| Box::new((self.init)()))
     }
-    
+
     /// Gets or initializes the value (no_std version - not thread safe).
     #[cfg(not(feature = "std"))]
     pub fn get_or_init(&self) -> &T {
@@ -864,7 +868,7 @@ impl MemoryStats {
             deallocation_count: 0,
         }
     }
-    
+
     /// Records an allocation.
     pub fn record_allocation(&mut self, bytes: usize) {
         self.allocated_bytes += bytes;
@@ -874,14 +878,14 @@ impl MemoryStats {
             self.peak_bytes = self.used_bytes;
         }
     }
-    
+
     /// Records a deallocation.
     pub fn record_deallocation(&mut self, bytes: usize) {
         self.deallocated_bytes += bytes;
         self.used_bytes = self.used_bytes.saturating_sub(bytes);
         self.deallocation_count += 1;
     }
-    
+
     /// Returns the fragmentation ratio (0.0 = no fragmentation, 1.0 = fully fragmented).
     pub fn fragmentation_ratio(&self) -> f64 {
         if self.allocated_bytes == 0 {
@@ -907,7 +911,7 @@ impl TrackingArena {
             stats: RefCell::new(MemoryStats::new()),
         }
     }
-    
+
     /// Creates a new tracking arena with alignment.
     pub fn with_alignment(chunk_size: usize, alignment: usize) -> Self {
         Self {
@@ -915,29 +919,33 @@ impl TrackingArena {
             stats: RefCell::new(MemoryStats::new()),
         }
     }
-    
+
     /// Allocates memory and tracks the allocation.
     pub fn alloc<T>(&mut self, value: T) -> &mut T {
-        self.stats.borrow_mut().record_allocation(core::mem::size_of::<T>());
+        self.stats
+            .borrow_mut()
+            .record_allocation(core::mem::size_of::<T>());
         self.arena.alloc(value)
     }
-    
+
     /// Allocates a slice and tracks the allocation.
     pub fn alloc_slice<T>(&mut self, slice: &[T]) -> &mut [T]
     where
         T: Copy,
     {
-        self.stats.borrow_mut().record_allocation(core::mem::size_of::<T>() * slice.len());
+        self.stats
+            .borrow_mut()
+            .record_allocation(core::mem::size_of::<T>() * slice.len());
         self.arena.alloc_slice(slice)
     }
-    
+
     /// Resets the arena and updates statistics.
     pub fn reset(&mut self) {
         let used = self.arena.used();
         self.stats.borrow_mut().record_deallocation(used);
         self.arena.reset();
     }
-    
+
     /// Returns a copy of the current statistics.
     pub fn stats(&self) -> MemoryStats {
         self.stats.borrow().clone()
@@ -974,7 +982,7 @@ impl<'a> Rope<'a> {
             len: 0,
         }
     }
-    
+
     /// Creates a rope from a string.
     pub fn from_str(s: &'a str) -> Self {
         Self {
@@ -982,17 +990,17 @@ impl<'a> Rope<'a> {
             root: RopeNode::Leaf(CowStr::Borrowed(s)),
         }
     }
-    
+
     /// Returns the length of the rope.
     pub const fn len(&self) -> usize {
         self.len
     }
-    
+
     /// Returns whether the rope is empty.
     pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
-    
+
     /// Concatenates two ropes.
     pub fn concat(self, other: Self) -> Self {
         if self.is_empty() {
@@ -1001,7 +1009,7 @@ impl<'a> Rope<'a> {
         if other.is_empty() {
             return self;
         }
-        
+
         let len = self.len + other.len;
         Self {
             root: RopeNode::Branch {
@@ -1012,31 +1020,31 @@ impl<'a> Rope<'a> {
             len,
         }
     }
-    
+
     /// Converts the rope to a string.
     pub fn to_string(&self) -> String {
         let mut result = String::with_capacity(self.len);
         self.collect_into(&mut result);
         result
     }
-    
+
     fn collect_into(&self, buf: &mut String) {
         match &self.root {
             RopeNode::Leaf(s) => buf.push_str(s.as_str()),
             RopeNode::Branch { left, right, .. } => {
                 Self::collect_node_into(left, buf);
                 Self::collect_node_into(right, buf);
-            }
+            },
         }
     }
-    
+
     fn collect_node_into(node: &RopeNode<'a>, buf: &mut String) {
         match node {
             RopeNode::Leaf(s) => buf.push_str(s.as_str()),
             RopeNode::Branch { left, right, .. } => {
                 Self::collect_node_into(left, buf);
                 Self::collect_node_into(right, buf);
-            }
+            },
         }
     }
 }
@@ -1072,19 +1080,19 @@ impl AllocationBenchmark {
             peak_usage: 0,
         }
     }
-    
+
     /// Records an allocation.
     pub fn record_allocation(&mut self, bytes: usize) {
         self.allocations += 1;
         self.bytes_allocated += bytes;
         self.peak_usage = self.peak_usage.max(self.bytes_allocated);
     }
-    
+
     /// Records a deallocation.
     pub fn record_deallocation(&mut self, bytes: usize) {
         self.bytes_allocated = self.bytes_allocated.saturating_sub(bytes);
     }
-    
+
     /// Resets the benchmark.
     pub fn reset(&mut self) {
         self.allocations = 0;
@@ -1117,7 +1125,7 @@ impl BenchmarkResult {
             0.0
         }
     }
-    
+
     /// Returns megabytes per second.
     pub fn mb_per_second(&self) -> f64 {
         if self.elapsed.as_secs_f64() > 0.0 {
@@ -1200,7 +1208,11 @@ impl StringInterner {
     }
 
     /// Handles a cache hit, updating statistics and returning the interned string.
-    fn handle_cache_hit(&self, interned: &std::sync::Arc<String>, s: &str) -> std::sync::Arc<String> {
+    fn handle_cache_hit(
+        &self,
+        interned: &std::sync::Arc<String>,
+        s: &str,
+    ) -> std::sync::Arc<String> {
         let mut stats = self.stats.write().unwrap();
         stats.total_requests += 1;
         stats.cache_hits += 1;
@@ -1306,7 +1318,7 @@ impl BumpAllocator {
         }
 
         self.position.set(aligned + size);
-                    Some(self.buffer.as_ptr().wrapping_add(aligned).cast_mut())
+        Some(self.buffer.as_ptr().wrapping_add(aligned).cast_mut())
     }
 
     /// Resets the allocator, making all memory available again.
@@ -1333,53 +1345,53 @@ impl BumpAllocator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_arena() {
         let mut arena = Arena::new(1024);
-        
+
         // Test value allocation
         let x = arena.alloc(42i32);
         assert_eq!(*x, 42);
         *x = 100;
         assert_eq!(*x, 100);
-        
+
         // Test slice allocation
         let slice = arena.alloc_slice(&[1, 2, 3, 4, 5]);
         assert_eq!(slice, &[1, 2, 3, 4, 5]);
         slice[0] = 10;
         assert_eq!(slice[0], 10);
-        
+
         // Test multiple allocations
         let _y = arena.alloc(3.14f64);
         let _z = arena.alloc("hello");
-        
+
         // Test reset
         arena.reset();
         let w = arena.alloc(999);
         assert_eq!(*w, 999);
     }
-    
+
     // Arena is not designed to be used with Arc/shared across threads
     // Each thread should have its own Arena instance
     #[cfg(feature = "std")]
     #[test]
     fn test_arena_per_thread() {
         use std::thread;
-        
+
         let mut handles = vec![];
-        
+
         // Each thread gets its own arena
         for i in 0..10 {
             let handle = thread::spawn(move || {
                 let mut arena = Arena::new(1024);
-                
+
                 // Each thread allocates multiple values
                 for j in 0..100 {
                     let value = i * 100 + j;
                     let allocated = arena.alloc(value);
                     assert_eq!(*allocated, value);
-                    
+
                     // Also test slice allocation
                     let slice_data = vec![value; 5];
                     let slice = arena.alloc_slice(&slice_data);
@@ -1391,42 +1403,42 @@ mod tests {
             });
             handles.push(handle);
         }
-        
+
         // Wait for all threads to complete
         for handle in handles {
             handle.join().unwrap();
         }
     }
-    
+
     #[test]
     fn test_pool() {
         let pool: Pool<Vec<u8>> = Pool::with_initializer(10, || Vec::with_capacity(100));
-        
+
         // Test taking from empty pool
         let mut vec1 = pool.take_or_init();
         vec1.extend_from_slice(b"hello");
         assert_eq!(vec1, b"hello");
-        
+
         // Return to pool
         pool.put(vec1);
-        
+
         // Take again - should get the same capacity
         let vec2 = pool.take_or_init();
         assert!(vec2.capacity() >= 100);
     }
-    
+
     #[test]
     fn test_cow_str() {
         // Test borrowed
         let borrowed = CowStr::borrowed("hello");
         assert!(matches!(borrowed, CowStr::Borrowed(_)));
         assert_eq!(borrowed.as_str(), "hello");
-        
+
         // Test owned
         let owned = CowStr::owned(String::from("world"));
         assert!(matches!(owned, CowStr::Owned(_)));
         assert_eq!(owned.as_str(), "world");
-        
+
         // Test to_mut on borrowed
         let mut cow = CowStr::borrowed("test");
         let mutable = cow.to_mut();
@@ -1434,16 +1446,16 @@ mod tests {
         assert!(matches!(cow, CowStr::Owned(_)));
         assert_eq!(cow.as_str(), "testing");
     }
-    
+
     #[test]
     fn test_str_builder() {
         let mut builder = ZeroCopyStringBuilder::new();
-        
+
         builder.append_borrowed("Hello");
         builder.append_borrowed(" ");
         builder.append_owned(String::from("World"));
         builder.append_borrowed("!");
-        
+
         let result = builder.build();
         assert_eq!(result, "Hello World!");
     }

@@ -1,30 +1,29 @@
 //! Integration tests for RustLLM Core.
 
-use rustllm_core::prelude::*;
+use rustllm_core::core::model::{BasicModelConfig, ModelBuilder};
+use rustllm_core::core::plugin::{ModelBuilderPlugin, PluginState, TokenizerPlugin};
+use rustllm_core::core::tokenizer::VocabularyTokenizer;
+use rustllm_core::foundation::iterator::IteratorExt;
 use rustllm_core::plugins::manager::PluginManager;
 use rustllm_core::plugins::registry::PluginRegistryBuilder;
-use rustllm_core::core::plugin::{TokenizerPlugin, ModelBuilderPlugin, PluginState};
-use rustllm_core::core::tokenizer::VocabularyTokenizer;
-use rustllm_core::core::model::{ModelBuilder, BasicModelConfig};
-use rustllm_core::core::traits::{foundation::Named, identity::Versioned};
-use rustllm_core::foundation::iterator::IteratorExt;
+use rustllm_core::prelude::*;
 
 // Import plugins
+use rustllm_loader_basic::BasicLoaderPlugin;
+use rustllm_model_basic::BasicModelPlugin;
 use rustllm_tokenizer_basic::BasicTokenizerPlugin;
 use rustllm_tokenizer_bpe::BpeTokenizerPlugin;
-use rustllm_model_basic::BasicModelPlugin;
-use rustllm_loader_basic::BasicLoaderPlugin;
 
 #[test]
 fn test_plugin_registration_and_loading() {
     let manager = PluginManager::new();
-    
+
     // Register plugins
     assert!(manager.register::<BasicTokenizerPlugin>().is_ok());
     assert!(manager.register::<BpeTokenizerPlugin>().is_ok());
     assert!(manager.register::<BasicModelPlugin>().is_ok());
     assert!(manager.register::<BasicLoaderPlugin>().is_ok());
-    
+
     // Check available plugins
     let available = manager.list_registered();
     assert!(available.contains(&"basic_tokenizer".to_string()));
@@ -38,16 +37,16 @@ fn test_tokenizer_plugin_usage() -> Result<()> {
     // Create tokenizer through plugin directly
     let plugin = BasicTokenizerPlugin::default();
     let tokenizer = plugin.create_tokenizer()?;
-    
+
     // Test tokenization
     let text = "Hello, RustLLM!";
     let tokens: Vec<_> = tokenizer.tokenize_str(text).collect();
     assert!(!tokens.is_empty());
-    
+
     // Test decode
     let decoded = tokenizer.decode(tokens)?;
     assert_eq!(decoded.trim(), text);
-    
+
     Ok(())
 }
 
@@ -55,23 +54,23 @@ fn test_tokenizer_plugin_usage() -> Result<()> {
 fn test_bpe_tokenizer_plugin() {
     let plugin = BpeTokenizerPlugin::default();
     let mut tokenizer = plugin.create_tokenizer().unwrap();
-    
+
     // Test basic tokenization
     let text = "The quick brown fox";
     let tokens: Vec<_> = tokenizer.tokenize_str(text).collect();
     assert!(!tokens.is_empty());
-    
+
     // Test vocabulary operations
     assert!(tokenizer.vocab_size() > 0);
-    
+
     // Test special tokens
     assert!(tokenizer.contains_token("<PAD>"));
     assert!(tokenizer.contains_token("<UNK>"));
-    
+
     // Add custom token
     let _token_id = tokenizer.add_token("custom_token").unwrap();
     assert!(tokenizer.contains_token("custom_token"));
-    
+
     let vocab_size = tokenizer.vocab_size();
     assert!(vocab_size > 256); // Should have more than just byte tokens
 }
@@ -81,11 +80,11 @@ fn test_model_builder_plugin() {
     // Create model through plugin directly
     let plugin = BasicModelPlugin::default();
     let builder = plugin.create_builder().unwrap();
-    
+
     // Build model
     let config = BasicModelConfig::default();
     let model = builder.build(config).unwrap();
-    
+
     // Test model - BasicModel calculates parameters based on config
     assert!(model.num_parameters() > 0); // Model has parameters
     let input = vec![1.0, 2.0, 3.0];
@@ -96,34 +95,34 @@ fn test_model_builder_plugin() {
 #[test]
 fn test_plugin_lifecycle() -> Result<()> {
     let manager = PluginManager::new();
-    
+
     // Register plugin
     manager.register::<BasicTokenizerPlugin>()?;
-    
+
     // Load plugin
     manager.load("basic_tokenizer")?;
-    
+
     // Access plugin through manager
     manager.with_plugin("basic_tokenizer", |plugin| {
-        assert_eq!(plugin.name(), "basic_tokenizer");
+        assert_eq!(plugin.id(), "basic_tokenizer");
     })?;
-    
+
     // Get plugin info
     let info = manager.info("basic_tokenizer")?;
     assert_eq!(info.name.as_str(), "basic_tokenizer");
     assert_eq!(info.state, PluginState::Ready);
-    
+
     // List loaded plugins
     let loaded = manager.list_loaded();
     assert!(loaded.contains(&"basic_tokenizer".to_string()));
-    
+
     // Unload plugin
     manager.unload("basic_tokenizer")?;
-    
+
     // Should not be in loaded list
     let loaded = manager.list_loaded();
     assert!(!loaded.contains(&"basic_tokenizer".to_string()));
-    
+
     Ok(())
 }
 
@@ -132,61 +131,55 @@ fn test_plugin_lifecycle() -> Result<()> {
 fn test_iterator_extensions_with_tokenizer() {
     let tokenizer = rustllm_tokenizer_basic::BasicTokenizer::new();
     let text = "one two three four five six seven eight nine ten";
-    
+
     // Test windows
     let tokens: Vec<_> = tokenizer.tokenize_str(text).collect();
-    assert!(tokens.len() >= 3, "Need at least 3 tokens, got {}", tokens.len());
-    
-    let windows: Vec<_> = tokens.iter()
-        .cloned()
-        .windows::<3>()
-        .collect();
+    assert!(
+        tokens.len() >= 3,
+        "Need at least 3 tokens, got {}",
+        tokens.len()
+    );
+
+    let windows: Vec<_> = tokens.iter().cloned().windows::<3>().collect();
     // windows count should be tokens.len() - 2 for window size 3
     assert_eq!(windows.len(), tokens.len().saturating_sub(2));
-    
+
     // Test chunks
-    let chunks: Vec<_> = tokens.iter()
-        .cloned()
-        .chunks::<2>()
-        .take(3)
-        .collect();
+    let chunks: Vec<_> = tokens.iter().cloned().chunks::<2>().take(3).collect();
     assert_eq!(chunks.len(), 3);
     assert_eq!(chunks[0].len(), 2);
-    
+
     // Test stride
-    let strided: Vec<_> = tokens.iter()
-        .cloned()
-        .stride::<2>()
-        .collect();
+    let strided: Vec<_> = tokens.iter().cloned().stride::<2>().collect();
     // stride of 2 means every other token: (tokens.len() + 1) / 2
     assert_eq!(strided.len(), (tokens.len() + 1) / 2);
 }
 
 #[test]
 fn test_memory_management() {
-    use rustllm_core::foundation::memory::{Arena, Pool, CowStr, ZeroCopyStringBuilder};
-    
+    use rustllm_core::foundation::memory::{Arena, CowStr, Pool, ZeroCopyStringBuilder};
+
     // Test arena allocator
     let mut arena = Arena::new(1024);
     let x = arena.alloc(42);
     assert_eq!(*x, 42);
-    
+
     let slice = arena.alloc_slice(&[1, 2, 3, 4, 5]);
     assert_eq!(slice, &[1, 2, 3, 4, 5]);
-    
+
     // Test pool
     let pool: Pool<Vec<u8>> = Pool::with_initializer(10, || Vec::with_capacity(100));
     let buffer = pool.take_or_init();
     assert!(buffer.capacity() >= 100);
-    
+
     // Test COW string
     let mut cow = CowStr::borrowed("hello");
     assert!(matches!(cow, CowStr::Borrowed(_)));
-    
+
     let mutable = cow.to_mut();
     mutable.push_str(" world");
     assert!(matches!(cow, CowStr::Owned(_)));
-    
+
     // Test string builder
     let mut builder = ZeroCopyStringBuilder::new();
     builder.push_borrowed("Hello");
@@ -198,15 +191,15 @@ fn test_memory_management() {
 
 #[test]
 fn test_error_handling() {
-    use rustllm_core::foundation::error::{ErrorExt, internal_error};
-    
+    use rustllm_core::foundation::error::{internal_error, ErrorExt};
+
     // Test error creation
     let _base_error = internal_error("base error");
-    
+
     // Test error with context
     let error = internal_error("test");
     let with_context = error.with_context("operation failed");
-    
+
     // Check error message
     let error_string = format!("{}", with_context);
     assert!(error_string.contains("operation failed"));
@@ -214,23 +207,23 @@ fn test_error_handling() {
 
 #[test]
 fn test_type_safety() {
-    use rustllm_core::foundation::types::{Version, Shape};
-    
+    use rustllm_core::foundation::types::{Shape, Version};
+
     // Test version compatibility
     let v1 = Version::new(1, 0, 0);
     let v2 = Version::new(1, 1, 0);
     let v3 = Version::new(2, 0, 0);
-    
+
     // Same major version, higher minor is compatible
     assert!(v2.is_compatible_with(&v1)); // 1.1.0 is compatible with 1.0.0
     assert!(!v1.is_compatible_with(&v2)); // 1.0.0 is NOT compatible with 1.1.0
     assert!(!v1.is_compatible_with(&v3)); // Different major version
-    
+
     // Test shape operations
     let shape1 = Shape::new(vec![2, 3, 4]);
     let shape2 = Shape::new(vec![2, 3, 4]);
     let shape3 = Shape::new(vec![3, 4]);
-    
+
     assert_eq!(shape1.dims().len(), 3);
     assert_eq!(shape1.numel(), 24);
     assert!(shape1.is_compatible_with(&shape2));
@@ -241,13 +234,13 @@ fn test_type_safety() {
 fn test_concurrent_plugin_access() {
     use std::sync::Arc;
     use std::thread;
-    
+
     let manager = Arc::new(PluginManager::new());
-    
+
     // Register plugins
     manager.register::<BasicTokenizerPlugin>().unwrap();
     manager.register::<BpeTokenizerPlugin>().unwrap();
-    
+
     // Spawn multiple threads to access plugins
     let handles: Vec<_> = (0..4)
         .map(|i| {
@@ -256,7 +249,7 @@ fn test_concurrent_plugin_access() {
                 // Each thread checks available plugins
                 let available = manager_clone.list_registered();
                 assert!(!available.is_empty());
-                
+
                 // Create plugin instances directly
                 if i % 2 == 0 {
                     let plugin = BasicTokenizerPlugin::default();
@@ -268,12 +261,12 @@ fn test_concurrent_plugin_access() {
             })
         })
         .collect();
-    
+
     // Wait for all threads
     for handle in handles {
         handle.join().unwrap();
     }
-    
+
     // Check available plugins
     let available = manager.list_registered();
     assert!(available.contains(&"basic_tokenizer".to_string()));
@@ -283,22 +276,24 @@ fn test_concurrent_plugin_access() {
 #[test]
 fn test_plugin_registry_builder() {
     use rustllm_core::foundation::types::PluginName;
-    
+
     let registry = PluginRegistryBuilder::new()
         .with_plugin::<BasicTokenizerPlugin>()
         .with_plugin::<BpeTokenizerPlugin>()
         .with_plugin::<BasicModelPlugin>()
         .build();
-    
+
     // Check all plugins are registered
     let plugins = registry.list();
     assert_eq!(plugins.len(), 3);
     assert!(plugins.contains(&"basic_tokenizer".to_string()));
     assert!(plugins.contains(&"bpe_tokenizer".to_string()));
     assert!(plugins.contains(&"basic_model".to_string()));
-    
+
     // Create instances
-    assert!(registry.create(&PluginName::from("basic_tokenizer")).is_ok());
+    assert!(registry
+        .create(&PluginName::from("basic_tokenizer"))
+        .is_ok());
     assert!(registry.create(&PluginName::from("bpe_tokenizer")).is_ok());
     assert!(registry.create(&PluginName::from("basic_model")).is_ok());
     assert!(registry.create(&PluginName::from("nonexistent")).is_err());
@@ -308,13 +303,13 @@ fn test_plugin_registry_builder() {
 fn test_concurrent_plugin_loading() {
     use std::sync::Arc;
     use std::thread;
-    
+
     let manager = Arc::new(PluginManager::new());
-    
+
     // Register plugins
     manager.register::<BasicTokenizerPlugin>().unwrap();
     manager.register::<BasicModelPlugin>().unwrap();
-    
+
     // Spawn multiple threads that try to load the same plugin simultaneously
     let handles: Vec<_> = (0..10)
         .map(|_i| {
@@ -324,18 +319,22 @@ fn test_concurrent_plugin_loading() {
                 // Note: load will fail if already loaded, so we ignore the error
                 let _ = manager_clone.load("basic_tokenizer");
                 let _ = manager_clone.load("basic_model");
-                
+
                 // Access plugins through manager
-                manager_clone.with_plugin("basic_tokenizer", |plugin| {
-                    assert_eq!(plugin.name(), "basic_tokenizer");
-                    assert_eq!(plugin.version().major, 0);
-                }).unwrap();
-                
-                manager_clone.with_plugin("basic_model", |plugin| {
-                    assert_eq!(plugin.name(), "basic_model");
-                    assert_eq!(plugin.version().major, 0);
-                }).unwrap();
-                
+                manager_clone
+                    .with_plugin("basic_tokenizer", |plugin| {
+                        assert_eq!(plugin.id(), "basic_tokenizer");
+                        assert_eq!(plugin.version().major, 0);
+                    })
+                    .unwrap();
+
+                manager_clone
+                    .with_plugin("basic_model", |plugin| {
+                        assert_eq!(plugin.id(), "basic_model");
+                        assert_eq!(plugin.version().major, 0);
+                    })
+                    .unwrap();
+
                 // Each thread also lists loaded plugins
                 let loaded = manager_clone.list_loaded();
                 assert!(loaded.contains(&"basic_tokenizer".to_string()));
@@ -343,12 +342,12 @@ fn test_concurrent_plugin_loading() {
             })
         })
         .collect();
-    
+
     // Wait for all threads
     for handle in handles {
         handle.join().unwrap();
     }
-    
+
     // Verify final state
     let loaded = manager.list_loaded();
     assert_eq!(loaded.len(), 2);

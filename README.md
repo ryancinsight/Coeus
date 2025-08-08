@@ -153,9 +153,8 @@ fn sliding_window_tokens(
     let tokenizer = PluginManager::load::<dyn Tokenizer>("bpe")
         .expect("Failed to load tokenizer");
     
-    tokenizer
-        .tokenize(text)
-        .collect::<Vec<_>>()
+    let tokens = tokenizer.tokenize(text).collect::<Vec<_>>();
+    tokens
         .windows(window_size)
         .map(|window| window.to_vec())
 }

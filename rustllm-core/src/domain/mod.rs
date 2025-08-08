@@ -20,36 +20,32 @@
 //! - **Domain Events**: Communication between domains through events
 //! - **Repository Pattern**: Abstract persistence from domain logic
 
-pub mod tokenization;
-pub mod modeling;
 pub mod inference;
-pub mod training;
+pub mod modeling;
 pub mod persistence;
+pub mod tokenization;
+pub mod training;
 
 // Re-export commonly used domain types
 pub mod prelude {
     pub use super::tokenization::{
-        TokenizationService, TokenizerAggregate, Token as DomainToken,
-        TokenizationEvent, TokenizerRepository,
+        Token as DomainToken, TokenizationEvent, TokenizationService, TokenizerAggregate,
+        TokenizerRepository,
     };
-    
+
     pub use super::modeling::{
-        ModelingService, ModelAggregate, Architecture,
-        ModelingEvent, ModelRepository,
+        Architecture, ModelAggregate, ModelRepository, ModelingEvent, ModelingService,
     };
-    
+
     pub use super::inference::{
-        InferenceService, InferenceSession, InferenceRequest,
-        InferenceEvent, InferenceResult,
+        InferenceEvent, InferenceRequest, InferenceResult, InferenceService, InferenceSession,
     };
-    
+
     pub use super::training::{
-        TrainingService, TrainingSession, TrainingConfig,
-        TrainingEvent, Optimizer,
+        Optimizer, TrainingConfig, TrainingEvent, TrainingService, TrainingSession,
     };
-    
+
     pub use super::persistence::{
-        PersistenceService, StorageBackend, SerializationFormat,
-        PersistenceEvent, Checkpoint,
+        Checkpoint, PersistenceEvent, PersistenceService, SerializationFormat, StorageBackend,
     };
 }
