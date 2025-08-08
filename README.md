@@ -121,7 +121,7 @@ impl Tokenizer for CustomTokenizer {
     where
         I: IntoIterator<Item = Self::Token>,
     {
-        Ok(tokens.into_iter().filter_map(|t| t.as_str().map(|s| s.to_string())).collect::<Vec<_>>().join(" "))
+        Ok(tokens.into_iter().filter_map(|t| t.as_str()).collect::<Vec<_>>().join(" "))
     }
 }
 
