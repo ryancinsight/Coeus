@@ -270,13 +270,13 @@ fn bench_combined_iterators(c: &mut Criterion) {
             let result: Vec<f32> = data
                 .iter()
                 .copied()
-                                 .map(|x| x.sin())
-                 .windows::<5>()
-                 .map(|w| w.iter().sum::<f32>() / 5.0)
-                 .batch(32, 32)
-                 .flat_map(|batch| batch.into_iter())
-                 .take(500)
-                 .collect();
+                .map(|x| x.sin())
+                .windows::<5>()
+                .map(|w| w.iter().sum::<f32>() / 5.0)
+                .batch(32, 32)
+                .flat_map(|batch| batch.into_iter())
+                .take(500)
+                .collect();
             black_box(result)
         });
     });
