@@ -30,24 +30,26 @@ rustllm-core = "0.1.0"
 
 ```rust
 use rustllm_core::prelude::*;
+use rustllm_tokenizer_bpe::BpeTokenizerPlugin;
+use rustllm_model_transformer::TransformerModelPlugin;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load a tokenizer plugin
-    let tokenizer = PluginManager::load::<dyn Tokenizer>("bpe")?;
-    
+    // Create a tokenizer via plugin
+    let tokenizer = BpeTokenizerPlugin::default().create_tokenizer()?;
+
     // Tokenize text using iterator chains
     let tokens: Vec<_> = tokenizer
-        .tokenize("Hello, world!")
+        .tokenize_str("Hello, world!")
         .filter(|token| token.len() > 2)
         .collect();
-    
-    // Build a model
-    let builder = PluginManager::load::<dyn ModelBuilder>("transformer")?;
-    let model = builder.build(ModelConfig::default())?;
-    
-    // Process tokens
-let output = model.forward(tokens.into_iter())?
-    
+
+    // Build a model via plugin
+    let builder = TransformerModelPlugin::default().create_builder()?;
+    let model = builder.build(Transformer250MConfig::default())?;
+
+    // Process tokens (example forwards expects ids; adapt as needed)
+    let _output = model.forward(vec![1,2,3])?;
+
     Ok(())
 }
 ```
@@ -80,19 +82,20 @@ The library is organized into three main layers:
 use rustllm_core::prelude::*;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use rustllm_tokenizer_bpe::BpeTokenizerPlugin;
 
 fn process_large_file(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
-    let tokenizer = PluginManager::load::<dyn Tokenizer>("bpe")?;
-    
+    let tokenizer = BpeTokenizerPlugin::default().create_tokenizer()?;
+
     // Process file line by line with zero copies
     let token_count = reader
         .lines()
         .filter_map(Result::ok)
-        .flat_map(|line| tokenizer.tokenize(&line))
+        .flat_map(|line| tokenizer.tokenize_str(&line))
         .count();
-    
+
     println!("Total tokens: {}", token_count);
     Ok(())
 }
@@ -107,37 +110,23 @@ use rustllm_core::prelude::*;
 struct CustomTokenizer;
 
 impl Tokenizer for CustomTokenizer {
-    type Token = String;
-    type Error = std::io::Error;
-    
-    fn tokenize<'a>(&self, input: &'a str) -> TokenIterator<'a, Self::Token> {
-        Box::new(input.split_whitespace().map(String::from))
+    type Token = StringToken;
+    type Error = rustllm_core::foundation::error::Error;
+
+    fn tokenize<'a>(&self, input: std::borrow::Cow<'a, str>) -> TokenIterator<'a, Self::Token> {
+        Box::new(input.as_ref().split_whitespace().map(|s| StringToken::new(s.to_string())))
     }
-    
-    fn decode<I>(&self, tokens: I) -> Result<String, Self::Error>
+
+    fn decode<I>(&self, tokens: I) -> Result<String>
     where
         I: IntoIterator<Item = Self::Token>,
     {
-        Ok(tokens.into_iter().collect::<Vec<_>>().join(" "))
+        Ok(tokens.into_iter().filter_map(|t| t.as_str().map(|s| s.to_string())).collect::<Vec<_>>().join(" "))
     }
 }
 
 impl Plugin for CustomTokenizer {
-    fn name(&self) -> &str {
-        "custom_tokenizer"
-    }
-    
-    fn version(&self) -> Version {
-        Version::new(0, 1, 0)
-    }
-    
-    fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(())
-    }
-    
-    fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(())
-    }
+    fn capabilities(&self) -> PluginCapabilities { PluginCapabilities::standard() }
 }
 ```
 
@@ -145,15 +134,17 @@ impl Plugin for CustomTokenizer {
 
 ```rust
 use rustllm_core::prelude::*;
+use rustllm_tokenizer_bpe::BpeTokenizerPlugin;
 
 fn sliding_window_tokens(
     text: &str,
     window_size: usize,
-) -> impl Iterator<Item = Vec<String>> + '_ {
-    let tokenizer = PluginManager::load::<dyn Tokenizer>("bpe")
-        .expect("Failed to load tokenizer");
-    
-    let tokens = tokenizer.tokenize(text).collect::<Vec<_>>();
+) -> impl Iterator<Item = Vec<StringToken>> + '_ {
+    let tokenizer = BpeTokenizerPlugin::default()
+        .create_tokenizer()
+        .expect("Failed to create tokenizer");
+
+    let tokens = tokenizer.tokenize_str(text).collect::<Vec<_>>();
     tokens
         .windows(window_size)
         .map(|window| window.to_vec())

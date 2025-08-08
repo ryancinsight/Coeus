@@ -28,7 +28,7 @@
 ### Iterator Extensions
 - [x] Implement sliding window iterator (const-generic `windows::<N>()`)
 - [x] Add chunking iterator for batch processing (`chunks::<N>()`)
-- [x] Implement streaming combinators (`stream_map`, `scan_with`, `prefetch::<N>()`)
+- [x] Implement streaming combinators (`scan_with`, `prefetch::<N>()`)
 - [x] Provide zero-copy slice windows for runtime-sized windows
 - [x] Write iterator tests and adapt benches to new APIs
 

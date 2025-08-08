@@ -6,26 +6,15 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use rustllm_core::prelude::*;
 
-/// Benchmark the stream_map iterator combinator.
-fn bench_stream_map(c: &mut Criterion) {
-    let mut group = c.benchmark_group("stream_map");
+/// Benchmark map iterator combinator.
+fn bench_map(c: &mut Criterion) {
+    let mut group = c.benchmark_group("map");
 
     for size in [100, 1000, 10000, 100000] {
-        group.bench_with_input(BenchmarkId::new("vs_map", size), &size, |b, &size| {
+        group.bench_with_input(BenchmarkId::new("map", size), &size, |b, &size| {
             let data: Vec<f32> = (0..size).map(|i| i as f32).collect();
 
             b.iter(|| {
-                // Using our stream_map
-                let result: Vec<f32> = data.iter().copied().stream_map(|x| x * 2.0 + 1.0).collect();
-                black_box(result)
-            });
-        });
-
-        group.bench_with_input(BenchmarkId::new("baseline_map", size), &size, |b, &size| {
-            let data: Vec<f32> = (0..size).map(|i| i as f32).collect();
-
-            b.iter(|| {
-                // Using standard map
                 let result: Vec<f32> = data.iter().copied().map(|x| x * 2.0 + 1.0).collect();
                 black_box(result)
             });
@@ -35,20 +24,20 @@ fn bench_stream_map(c: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark the lazy_batch iterator combinator.
-fn bench_lazy_batch(c: &mut Criterion) {
-    let mut group = c.benchmark_group("lazy_batch");
+/// Benchmark the batch iterator combinator.
+fn bench_batch(c: &mut Criterion) {
+    let mut group = c.benchmark_group("batch");
 
     for batch_size in [16, 32, 64, 128] {
         group.bench_with_input(
-            BenchmarkId::new("lazy_batch", batch_size),
+            BenchmarkId::new("batch", batch_size),
             &batch_size,
             |b, &batch_size| {
                 let data: Vec<f32> = (0..10000).map(|i| i as f32).collect();
 
                 b.iter(|| {
                     let batches: Vec<Vec<f32>> =
-                        data.iter().copied().lazy_batch(batch_size).collect();
+                        data.iter().copied().batch(batch_size, batch_size).collect();
                     black_box(batches)
                 });
             },
@@ -281,13 +270,13 @@ fn bench_combined_iterators(c: &mut Criterion) {
             let result: Vec<f32> = data
                 .iter()
                 .copied()
-                .stream_map(|x| x.sin())
-                .windows::<5>()
-                .map(|w| w.iter().sum::<f32>() / 5.0)
-                .lazy_batch(32)
-                .flat_map(|batch| batch.into_iter())
-                .take(500)
-                .collect();
+                                 .map(|x| x.sin())
+                 .windows::<5>()
+                 .map(|w| w.iter().sum::<f32>() / 5.0)
+                 .batch(32, 32)
+                 .flat_map(|batch| batch.into_iter())
+                 .take(500)
+                 .collect();
             black_box(result)
         });
     });
@@ -297,8 +286,8 @@ fn bench_combined_iterators(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    bench_stream_map,
-    bench_lazy_batch,
+    bench_map,
+    bench_batch,
     bench_rolling_avg,
     bench_prefetch,
     bench_zero_copy_string_builder,

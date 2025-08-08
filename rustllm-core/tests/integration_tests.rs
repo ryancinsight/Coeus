@@ -182,9 +182,9 @@ fn test_memory_management() {
 
     // Test string builder
     let mut builder = ZeroCopyStringBuilder::new();
-    builder.push_borrowed("Hello");
-    builder.push_borrowed(" ");
-    builder.push_owned(String::from("World"));
+    builder.append_borrowed("Hello");
+    builder.append_borrowed(" ");
+    builder.append_owned(String::from("World"));
     let result = builder.build();
     assert_eq!(result, "Hello World");
 }

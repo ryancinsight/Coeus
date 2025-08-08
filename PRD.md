@@ -166,7 +166,7 @@ let model = builder.build(config)?;
 // Note: use slice windows for runtime-sized windows, or const-generic windows::<N>() when size is known at compile time
 let tokens: Vec<_> = input
     .lines()
-    .flat_map(|line| tokenizer.tokenize(line))
+    .flat_map(|line| tokenizer.tokenize(std::borrow::Cow::Borrowed(line)))
     .collect();
 
 let result = tokens

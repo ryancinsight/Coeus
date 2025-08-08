@@ -315,7 +315,7 @@ fn main() -> Result<()> {
                 .map(|j| ((i * 10 + j) as f32 * 0.1).cos())
                 .collect::<Vec<f32>>()
         })
-        .stream_map(|initial_noise| {
+        .map(|initial_noise| {
             // Process each noise vector through reverse diffusion
             let mut current = initial_noise;
             for timestep in (0..noise_schedule.num_steps()).rev() {
