@@ -167,7 +167,7 @@ where
                     ptr::drop_in_place(self.buffer[0].as_mut_ptr());
                 }
                 // Shift elements left by one using memmove semantics
-                ptr::copy(self.buffer.as_ptr().add(1), self.buffer.as_mut_ptr(), N - 1);
+                self.buffer.copy_within(1..N, 0);
             }
 
             // Add new element at the end
