@@ -22,6 +22,7 @@
 use core::iter::{ExactSizeIterator, FusedIterator, Iterator};
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
+use core::ptr;
 
 #[cfg(not(feature = "std"))]
 extern crate alloc;
@@ -160,23 +161,22 @@ where
 
         // Advance window by step size
         for _ in 0..self.step {
-            // Shift elements left
-            for i in 0..N - 1 {
-                unsafe {
-                    let item = self.buffer[i + 1].as_ptr().read();
-                    self.buffer[i].write(item);
-                }
+            unsafe {
+                // Drop the first element before shifting
+                ptr::drop_in_place(self.buffer[0].as_mut_ptr());
+                // Shift elements left by one using memmove semantics
+                ptr::copy(self.buffer.as_ptr().add(1), self.buffer.as_mut_ptr(), N - 1);
             }
 
             // Add new element at the end
             match self.iter.next() {
                 Some(item) => {
                     self.buffer[N - 1].write(item);
-                },
+                }
                 None => {
                     self.initialized = 0; // Mark as exhausted
                     break;
-                },
+                }
             }
         }
 
