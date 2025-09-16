@@ -1,0 +1,31 @@
+[package]
+name = "pycoeus"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Python bindings for Coeus tensor library with PyTorch-compatible API"
+
+[lints.clippy]
+useless_conversion = "allow"
+
+[lib]
+name = "pycoeus"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }
+numpy = "0.22"
+coeus-tensor = { path = "../tensor" }
+coeus-dtype = { path = "../dtype" }
+coeus-nn = { path = "../nn" }
+coeus-optim = { path = "../optim" }
+num-traits.workspace = true
+thiserror.workspace = true
+rand.workspace = true
+
+[features]
+default = []
+cpu = []
+gpu = []

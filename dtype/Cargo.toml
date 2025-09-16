@@ -1,0 +1,13 @@
+[package]
+name = "coeus-dtype"
+version = "0.1.0"
+edition = "2021"
+description = "Data type definitions and traits for the Coeus tensor library"
+keywords = ["machine-learning", "tensor", "dtype", "quantization"]
+categories = ["science", "data-structures"]
+
+[dependencies]
+num-traits = { workspace = true }
+half = { workspace = true }
+approx = { workspace = true }
+bytemuck = { version = "1.14", features = ["derive"] }

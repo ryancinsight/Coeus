@@ -1,0 +1,147 @@
+[build-system]
+requires = ["maturin>=1.0", "pip"]
+build-backend = "maturin"
+
+[project]
+name = "pycoeus"
+version = "0.1.0"
+description = "PyTorch-compatible tensor library in Rust with Python bindings"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+keywords = ["tensor", "machine-learning", "autograd", "pytorch", "rust"]
+authors = [
+    { name = "Coeus Team", email = "team@coeus.dev" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "numpy>=1.21.0",
+    "psutil>=5.8.0",
+    "pytest-benchmark>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/coeus"
+Documentation = "https://coeus.readthedocs.io/"
+Repository = "https://github.com/your-org/coeus.git"
+Issues = "https://github.com/your-org/coeus/issues"
+
+[tool.maturin]
+python-source = "python"
+module-name = "pycoeus"
+# Cross-platform wheel building configuration
+compatibility = "manylinux2014"
+# Enable universal2 wheels on macOS for both Intel and Apple Silicon
+universal2 = true
+# Include additional files in the wheel
+include = [
+    { path = "README.md", format = "sdist" },
+    { path = "LICENSE", format = "sdist" },
+    { path = "pyproject.toml", format = "sdist" },
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers --strict-config -v"
+testpaths = [
+    "tests/python",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "pytorch_compat: marks tests for PyTorch compatibility",
+    "performance: marks tests for performance comparison",
+    "benchmark: marks tests as benchmarks using pytest-benchmark",
+    "autograd: marks tests for automatic differentiation",
+    "neural_net: marks tests for neural network modules",
+]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["pycoeus"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/conftest.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["pycoeus"]
+known_third_party = ["numpy", "torch", "pytest"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "torch.*",
+    "numpy.*",
+]
+ignore_missing_imports = true

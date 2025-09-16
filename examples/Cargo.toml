@@ -1,0 +1,15 @@
+[package]
+name = "coeus-examples"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Examples for the Coeus tensor library"
+
+[dependencies]
+coeus-tensor = { path = "../tensor" }
+coeus-autograd = { path = "../autograd" }
+coeus-nn = { path = "../nn" }
+coeus-optim = { path = "../optim" }
+num-traits.workspace = true
+approx.workspace = true
