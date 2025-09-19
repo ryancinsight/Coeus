@@ -101,7 +101,10 @@ pub mod modules;
 pub mod optimizers;
 pub mod validation;
 
-pub use activations::*;
+pub use activations::{
+    ReLU, Sigmoid, Tanh, Softmax, LeakyReLU, ELU, GELU, Hardtanh, LogSigmoid, SELU, CELU,
+    Hardshrink, Tanhshrink, Threshold, PReLU, RReLU, Softmin, Softmax2d,
+};
 pub use containers::*;
 pub use init::*;
 pub use losses::*;

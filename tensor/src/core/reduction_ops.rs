@@ -17,7 +17,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     ///
     /// let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
     /// let sum = tensor.sum();
-    /// assert_eq!(sum.item(), 10.0);
+    /// assert_eq!(sum.item().unwrap(), 10.0);
     /// ```
     pub fn sum(&self) -> Tensor<T> {
         let sum = self.data.iter().fold(T::zero(), |acc, x| acc + *x);
@@ -100,7 +100,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     ///
     /// let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
     /// let mean = tensor.mean();
-    /// assert_eq!(mean.item(), 2.5);
+    /// assert_eq!(mean.item().unwrap(), 2.5);
     /// ```
     pub fn mean(&self) -> Tensor<T>
     where

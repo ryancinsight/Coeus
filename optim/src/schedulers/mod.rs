@@ -4,11 +4,13 @@
 //! `torch.optim.lr_scheduler` module.
 
 pub mod cosinelr;
+pub mod cycliclr;
 pub mod exponentiallr;
 pub mod reducelr;
 pub mod steplr;
 
 pub use cosinelr::CosineAnnealingLR;
+pub use cycliclr::{CyclicLR, Mode as CyclicMode};
 pub use exponentiallr::ExponentialLR;
 pub use reducelr::{Mode as ReduceMode, ReduceLROnPlateau, ThresholdMode};
 pub use steplr::StepLR;

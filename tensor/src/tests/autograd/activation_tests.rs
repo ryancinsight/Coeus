@@ -1,5 +1,6 @@
 /// Activation function gradient tests
 /// This module contains tests for activation functions and their gradients
+use crate::Tensor;
 use approx::assert_relative_eq;
 
 /// Test gradient computation for power function
@@ -13,7 +14,7 @@ fn test_power_gradient() {
     let y = x.pow(3.0);
     y.backward().unwrap();
 
-    assert_relative_eq!(x.grad().unwrap().as_scalar(), 12.0, epsilon = 1e-6);
+    assert_relative_eq!(x.grad().unwrap().as_scalar().unwrap(), 12.0, epsilon = 1e-6);
 }
 
 /// Test gradient computation for exponential function
@@ -27,7 +28,7 @@ fn test_exp_gradient() {
     let y = x.exp();
     y.backward().unwrap();
 
-    assert_relative_eq!(x.grad().unwrap().as_scalar(), 1.0, epsilon = 1e-6);
+    assert_relative_eq!(x.grad().unwrap().as_scalar().unwrap(), 1.0, epsilon = 1e-6);
 }
 
 /// Test gradient computation for logarithm
@@ -41,7 +42,7 @@ fn test_log_gradient() {
     let y = x.log();
     y.backward().unwrap();
 
-    assert_relative_eq!(x.grad().unwrap().as_scalar(), 1.0, epsilon = 1e-6);
+    assert_relative_eq!(x.grad().unwrap().as_scalar().unwrap(), 1.0, epsilon = 1e-6);
 }
 
 /// Test gradient computation for sine function
@@ -55,7 +56,7 @@ fn test_sin_gradient() {
     let y = x.sin();
     y.backward().unwrap();
 
-    assert_relative_eq!(x.grad().unwrap().as_scalar(), 1.0, epsilon = 1e-6);
+    assert_relative_eq!(x.grad().unwrap().as_scalar().unwrap(), 1.0, epsilon = 1e-6);
 }
 
 /// Test gradient computation for cosine function
@@ -69,7 +70,7 @@ fn test_cos_gradient() {
     let y = x.cos();
     y.backward().unwrap();
 
-    assert_relative_eq!(x.grad().unwrap().as_scalar(), 0.0, epsilon = 1e-6);
+    assert_relative_eq!(x.grad().unwrap().as_scalar().unwrap(), 0.0, epsilon = 1e-6);
 }
 
 /// Test gradient computation for ReLU
@@ -84,7 +85,7 @@ fn test_relu_gradient() {
     let y_pos = x_pos.relu();
     y_pos.backward().unwrap();
 
-    assert_relative_eq!(x_pos.grad().unwrap().as_scalar(), 1.0, epsilon = 1e-6);
+    assert_relative_eq!(x_pos.grad().unwrap().as_scalar().unwrap(), 1.0, epsilon = 1e-6);
 
     // Test negative input
     let mut x_neg = Tensor::scalar(-1.0);
@@ -93,7 +94,7 @@ fn test_relu_gradient() {
     let y_neg = x_neg.relu();
     y_neg.backward().unwrap();
 
-    assert_relative_eq!(x_neg.grad().unwrap().as_scalar(), 0.0, epsilon = 1e-6);
+    assert_relative_eq!(x_neg.grad().unwrap().as_scalar().unwrap(), 0.0, epsilon = 1e-6);
 }
 
 /// Test gradient computation for sigmoid function
@@ -107,7 +108,7 @@ fn test_sigmoid_gradient() {
     let y = x.sigmoid();
     y.backward().unwrap();
 
-    assert_relative_eq!(x.grad().unwrap().as_scalar(), 0.25, epsilon = 1e-6);
+    assert_relative_eq!(x.grad().unwrap().as_scalar().unwrap(), 0.25, epsilon = 1e-6);
 }
 
 /// Test gradient computation for tanh function
@@ -121,7 +122,7 @@ fn test_tanh_gradient() {
     let y = x.tanh();
     y.backward().unwrap();
 
-    assert_relative_eq!(x.grad().unwrap().as_scalar(), 1.0, epsilon = 1e-6);
+    assert_relative_eq!(x.grad().unwrap().as_scalar().unwrap(), 1.0, epsilon = 1e-6);
 }
 
 /// Test gradient computation for square root function
@@ -135,5 +136,5 @@ fn test_sqrt_gradient() {
     let y = x.sqrt();
     y.backward().unwrap();
 
-    assert_relative_eq!(x.grad().unwrap().as_scalar(), 0.25, epsilon = 1e-6);
+    assert_relative_eq!(x.grad().unwrap().as_scalar().unwrap(), 0.25, epsilon = 1e-6);
 }

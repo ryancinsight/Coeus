@@ -29,42 +29,6 @@ where
         "Small step size error too high: {} > {}", error_small, tolerance * 2.0);
 }
 
-/// Comprehensive edge case testing for mathematical operations
-pub fn test_mathematical_edge_cases<F>(operation: F, test_name: &str)
-where
-    F: Fn(f64) -> f64,
-{
-    // Test special values
-    let special_values = [
-        (0.0, "zero"),
-        (1.0, "one"),
-        (-1.0, "negative_one"),
-        (f64::INFINITY, "infinity"),
-        (f64::NEG_INFINITY, "negative_infinity"),
-        (f64::NAN, "nan"),
-        (f64::EPSILON, "epsilon"),
-        (f64::MAX, "max_value"),
-        (f64::MIN, "min_value"),
-        (f64::MIN_POSITIVE, "min_positive"),
-    ];
-
-    for (value, description) in &special_values {
-        let result = operation(*value);
-        match *description {
-            "nan" => assert!(result.is_nan(), "{}: NaN input should produce NaN output", test_name),
-            "infinity" => assert!(result.is_infinite() || result.is_nan(), "{}: Infinity input should produce infinity or NaN", test_name),
-            "negative_infinity" => assert!(result.is_infinite() || result.is_nan(), "{}: Negative infinity input should produce infinity or NaN", test_name),
-            _ => {
-                // For finite inputs, result should be finite unless mathematically expected to be infinite
-                if value.is_finite() {
-                    assert!(result.is_finite() || result == f64::INFINITY || result == f64::NEG_INFINITY,
-                        "{}: Finite input {} should produce finite, infinity, or expected special value. Got: {}",
-                        test_name, value, result);
-                }
-            }
-        }
-    }
-}
 
 /// Test mathematical identities and properties
 #[cfg(test)]
@@ -74,10 +38,19 @@ mod math_validation_tests {
     #[test]
     fn test_exponential_properties() {
         // Test that exp(0) = 1
-        test_mathematical_edge_cases(|x| x.exp(), "exp");
+        assert_relative_eq!(0.0f64.exp(), 1.0, epsilon = 1e-10);
+
+        // Test exp(-∞) = 0 (mathematically correct)
+        assert_relative_eq!(f64::NEG_INFINITY.exp(), 0.0, epsilon = 1e-10);
+
+        // Test exp(∞) = ∞
+        assert_eq!(f64::INFINITY.exp(), f64::INFINITY);
+
+        // Test exp(NaN) = NaN
+        assert!(f64::NAN.exp().is_nan());
 
         // Test exp(x) > 0 for all finite x
-        let test_values = [-10.0, -1.0, 0.0, 1.0, 10.0];
+        let test_values = [-10.0f64, -1.0f64, 0.0f64, 1.0f64, 10.0f64];
         for &x in &test_values {
             let result = x.exp();
             assert!(result > 0.0, "exp({}) = {} should be positive", x, result);
@@ -87,11 +60,11 @@ mod math_validation_tests {
     #[test]
     fn test_logarithmic_properties() {
         // Test that log(1) = 0
-        let log_1 = 1.0.ln();
+        let log_1 = 1.0f64.ln();
         assert_relative_eq!(log_1, 0.0, epsilon = 1e-10);
 
         // Test log(exp(x)) = x for reasonable x
-        let test_values = [-5.0, -1.0, 0.0, 1.0, 5.0];
+        let test_values = [-5.0f64, -1.0f64, 0.0f64, 1.0f64, 5.0f64];
         for &x in &test_values {
             let log_exp = x.exp().ln();
             assert_relative_eq!(log_exp, x, epsilon = 1e-10);

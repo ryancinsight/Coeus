@@ -1,4 +1,4 @@
-//! Advanced indexing operations for tensors
+//! Indexing operations for tensors
 //!
 //! This module provides PyTorch-compatible advanced indexing operations
 //! including slicing, gathering, scattering, and advanced selection methods.
@@ -9,7 +9,7 @@
 //! - **Gather Operations**: Collect values along a dimension using indices
 //! - **Scatter Operations**: Distribute values to specific positions
 //! - **Index Select**: Select elements by indices along a dimension
-//! - **Advanced Selection**: Boolean masking and conditional selection
+//! - **Selection**: Boolean masking and conditional selection
 //!
 //! ## Usage
 //!
@@ -36,7 +36,7 @@
 //!
 //! ## References
 //!
-//! - [PyTorch Advanced Indexing](https://pytorch.org/docs/stable/notes/advanced_indexing.html)
+//! - [PyTorch Indexing](https://pytorch.org/docs/stable/notes/advanced_indexing.html)
 //! - [NumPy Advanced Indexing](https://numpy.org/doc/stable/user/basics.indexing.html)
 
 use crate::{Dtype, Result, Tensor, TensorError};
@@ -84,8 +84,8 @@ impl Slice {
     }
 }
 
-/// Advanced indexing operations for tensors
-pub trait AdvancedIndexing<T: Dtype> {
+/// Indexing operations for tensors
+pub trait Indexing<T: Dtype> {
     /// Slice tensor using range specifications for each dimension
     ///
     /// # Arguments
@@ -259,9 +259,28 @@ pub trait AdvancedIndexing<T: Dtype> {
     /// # Returns
     /// Tensor of shape [num_nonzero, ndim] containing indices of non-zero elements
     fn nonzero(&self) -> Result<Tensor<i64>>;
+
+    /// Take elements from tensor at specified indices
+    ///
+    /// # Arguments
+    /// * `indices` - Indices to take
+    ///
+    /// # Returns
+    /// Tensor with elements at specified indices
+    fn take(&self, indices: &Tensor<i64>) -> Result<Tensor<T>>;
+
+    /// Put values at specified positions (alias for index_put)
+    ///
+    /// # Arguments
+    /// * `indices` - Indices where to put values
+    /// * `values` - Values to put
+    ///
+    /// # Returns
+    /// Tensor with values placed at specified indices
+    fn put(&self, indices: &Tensor<i64>, values: &Tensor<T>) -> Result<Tensor<T>>;
 }
 
-impl<T: Dtype + Clone + num_traits::FromPrimitive + num_traits::ToPrimitive> AdvancedIndexing<T>
+impl<T: Dtype + Clone + num_traits::FromPrimitive + num_traits::ToPrimitive> Indexing<T>
     for Tensor<T>
 {
     fn slice(&self, slices: &[Slice]) -> Result<Tensor<T>> {
@@ -1003,6 +1022,58 @@ impl<T: Dtype + Clone + num_traits::FromPrimitive + num_traits::ToPrimitive> Adv
 
         let num_nonzero = indices.len() / self.ndim();
         Ok(Tensor::from_vec(indices, vec![num_nonzero, self.ndim()]))
+    }
+
+    fn take(&self, indices: &Tensor<i64>) -> Result<Tensor<T>> {
+        if indices.ndim() != 1 {
+            return Err(TensorError::InvalidOperation {
+                message: "take indices must be 1D".to_string(),
+            });
+        }
+
+        let mut result_data = Vec::new();
+        for &idx in indices.data() {
+            let idx_usize = idx as usize;
+            if idx_usize >= self.numel() {
+                return Err(TensorError::IndexOutOfBounds {
+                    index: idx_usize,
+                    size: self.numel(),
+                });
+            }
+            result_data.push(self.data()[idx_usize]);
+        }
+
+        Ok(Tensor::from_vec(result_data, vec![indices.numel()]))
+    }
+
+    fn put(&self, indices: &Tensor<i64>, values: &Tensor<T>) -> Result<Tensor<T>> {
+        if indices.ndim() != 1 {
+            return Err(TensorError::InvalidOperation {
+                message: "put indices must be 1D".to_string(),
+            });
+        }
+
+        if indices.numel() != values.numel() {
+            return Err(TensorError::ShapeMismatch {
+                expected: vec![indices.numel()],
+                actual: vec![values.numel()],
+            });
+        }
+
+        let mut result_data = self.data().to_vec();
+
+        for (i, &idx) in indices.data().iter().enumerate() {
+            let idx_usize = idx as usize;
+            if idx_usize >= self.numel() {
+                return Err(TensorError::IndexOutOfBounds {
+                    index: idx_usize,
+                    size: self.numel(),
+                });
+            }
+            result_data[idx_usize] = values.data()[i];
+        }
+
+        Ok(Tensor::from_vec(result_data, self.shape().to_vec()))
     }
 }
 

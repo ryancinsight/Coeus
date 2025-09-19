@@ -1,10 +1,10 @@
 [package]
 name = "pycoeus"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
-repository.workspace = true
+version = "0.1.0"
+edition = "2021"
+authors = ["Coeus Team"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/your-org/coeus"
 description = "Python bindings for Coeus tensor library with PyTorch-compatible API"
 
 [lints.clippy]
@@ -15,15 +15,21 @@ name = "pycoeus"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.22", features = ["extension-module"] }
+pyo3 = { version = "0.22", features = ["extension-module", "macros"] }
 numpy = "0.22"
 coeus-tensor = { path = "../tensor" }
 coeus-dtype = { path = "../dtype" }
 coeus-nn = { path = "../nn" }
 coeus-optim = { path = "../optim" }
-num-traits.workspace = true
-thiserror.workspace = true
-rand.workspace = true
+# coeus-utils = { path = "../utils" }  # Temporarily disabled due to compilation errors
+coeus-fft = { path = "../fft" }
+coeus-hub = { path = "../hub" }
+coeus-tokenizer = { path = "../tokenizer" }
+num-traits = "0.2"
+thiserror = "1.0"
+rand = "0.8"
+rand_distr = "0.4"
+serde = { version = "1.0", features = ["derive"] }
 
 [features]
 default = []

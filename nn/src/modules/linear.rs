@@ -89,7 +89,8 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Linear<T> {
             })
             .collect();
 
-        let weight = Tensor::from_vec(weight_data, vec![out_features, in_features]);
+        let mut weight = Tensor::from_vec(weight_data, vec![out_features, in_features]);
+        weight.set_requires_grad(true); // Linear weights need gradients for training
 
         let bias_tensor = if bias {
             let bias_data: Vec<T> = (0..out_features)
@@ -98,7 +99,9 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Linear<T> {
                     T::from_f64(val).unwrap()
                 })
                 .collect();
-            Some(Tensor::from_vec(bias_data, vec![out_features]))
+            let mut bias_tensor = Tensor::from_vec(bias_data, vec![out_features]);
+            bias_tensor.set_requires_grad(true); // Linear bias needs gradients for training
+            Some(bias_tensor)
         } else {
             None
         };

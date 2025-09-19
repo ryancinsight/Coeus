@@ -1,6 +1,6 @@
 //! # Coeus Autograd
 //!
-//! Advanced automatic differentiation engine providing computational graphs, gradient computation,
+//! Automatic differentiation engine providing computational graphs, gradient computation,
 //! and higher-order derivatives (Hessian matrices) for second-order optimization.
 //!
 //! This crate implements reverse-mode automatic differentiation with support for:
@@ -70,7 +70,9 @@
 //! - **Natural Gradient Descent**: Fisher information matrix adaptation
 //! - **Hessian-free Optimization**: Conjugate gradient on Hessian-vector products
 
+pub mod edge_case_tests;
 pub mod graph;
+pub mod numerical_stability;
 pub mod ops;
 pub mod tensor_ref;
 
@@ -282,6 +284,33 @@ pub mod context {
         Sign,
         Tan,
         Clamp,
+        Acosh,
+        Asinh,
+        Atanh,
+        Erfc,
+        Expm1,
+        Fix,
+        Fmod,
+        Frac,
+        Remainder,
+        Log1p,
+        NanToNum,
+        Sgn,
+        Signbit,
+        Xlogy,
+        // Missing operations that were causing compilation errors
+        Acos,
+        Atan,
+        Erf,
+        Exp2,
+        Log10,
+        Log2,
+        Rsqrt,
+        // Activation functions
+        Elu,
+        Gelu,
+        Hardtanh,
+        Logsigmoid,
         // Future operations
         Pow(f64), // Base^exponent, stores the exponent
     }
@@ -346,8 +375,11 @@ pub mod context {
             self.tensor_data.get(&node_id)
         }
 
-        /// Store computed gradient for a node
-        pub fn set_gradient(&mut self, node_id: u64, gradient: Vec<f64>) {
+        /// Store computed gradient for a node with numerical stability checks
+        pub fn set_gradient(&mut self, node_id: u64, mut gradient: Vec<f64>) {
+            use crate::numerical_stability::NumericalStability;
+            // Sanitize gradients to prevent numerical instability
+            NumericalStability::sanitize_gradients(&mut gradient);
             self.gradients.insert(node_id, gradient);
         }
 
@@ -458,6 +490,24 @@ pub mod context {
                 Operation::Sign => self.backward_sign(&node.inputs, output_grad),
                 Operation::Tan => self.backward_tan(&node.inputs, output_grad),
                 Operation::Clamp => self.backward_clamp(&node.inputs, output_grad),
+                Operation::Acosh => self.backward_acosh(&node.inputs, output_grad),
+                Operation::Asinh => self.backward_asinh(&node.inputs, output_grad),
+                Operation::Atanh => self.backward_atanh(&node.inputs, output_grad),
+                Operation::Erfc => self.backward_erfc(&node.inputs, output_grad),
+                Operation::Expm1 => self.backward_expm1(&node.inputs, output_grad),
+                Operation::Fix => self.backward_fix(&node.inputs, output_grad),
+                Operation::Fmod => self.backward_fmod(&node.inputs, output_grad),
+                Operation::Frac => self.backward_frac(&node.inputs, output_grad),
+                Operation::Remainder => self.backward_remainder(&node.inputs, output_grad),
+                Operation::Log1p => self.backward_log1p(&node.inputs, output_grad),
+                Operation::NanToNum => self.backward_nan_to_num(&node.inputs, output_grad),
+                Operation::Sgn => self.backward_sgn(&node.inputs, output_grad),
+                Operation::Signbit => self.backward_signbit(&node.inputs, output_grad),
+                Operation::Xlogy => self.backward_xlogy(&node.inputs, output_grad),
+                Operation::Elu => self.backward_elu(&node.inputs, output_grad),
+                Operation::Gelu => self.backward_gelu(&node.inputs, output_grad),
+                Operation::Hardtanh => self.backward_hardtanh(&node.inputs, output_grad),
+                Operation::Logsigmoid => self.backward_logsigmoid(&node.inputs, output_grad),
                 #[allow(unreachable_patterns)]
                 _ => {} // Future operations not yet implemented - intentional for extensibility
             }
@@ -637,7 +687,10 @@ pub mod context {
                         let grad_left: Vec<f64> = output_grad
                             .iter()
                             .zip(right_data.iter())
-                            .map(|(og, r)| og / r)
+                            .map(|(og, r)| {
+                                use crate::numerical_stability::NumericalStability;
+                                NumericalStability::safe_divide(*og, *r)
+                            })
                             .collect();
                         let existing_grad = self
                             .get_gradient(inputs[0])
@@ -657,7 +710,10 @@ pub mod context {
                             .iter()
                             .zip(left_data.iter())
                             .zip(right_data.iter())
-                            .map(|((og, l), r)| -og * l / (r * r))
+                            .map(|((og, l), r)| {
+                                use crate::numerical_stability::NumericalStability;
+                                -NumericalStability::safe_divide(og * l, r * r)
+                            })
                             .collect();
                         let existing_grad = self
                             .get_gradient(inputs[1])
@@ -1052,10 +1108,14 @@ pub mod context {
             if !inputs.is_empty() {
                 if let Some(data) = self.get_tensor_data(inputs[0]) {
                     // For log: d/dx log(x) = 1/x
+                    // Use numerical stability utilities for mathematically correct handling
                     let grad_log: Vec<f64> = output_grad
                         .iter()
                         .zip(data.iter())
-                        .map(|(og, x)| og / x)
+                        .map(|(og, x)| {
+                            use crate::numerical_stability::NumericalStability;
+                            og * NumericalStability::safe_log_derivative(*x)
+                        })
                         .collect();
                     let existing_grad = self
                         .get_gradient(inputs[0])
@@ -1121,17 +1181,13 @@ pub mod context {
             if !inputs.is_empty() {
                 if let Some(data) = self.get_tensor_data(inputs[0]) {
                     // For sqrt: d/dx sqrt(x) = 1/(2*sqrt(x))
-                    // Handle x=0 case where derivative approaches infinity
+                    // Use numerical stability utilities for mathematically correct handling
                     let grad_sqrt: Vec<f64> = output_grad
                         .iter()
                         .zip(data.iter())
                         .map(|(og, x)| {
-                            if x.abs() < 1e-10 {
-                                // At x=0, derivative is infinite, but we use a large finite value
-                                og * 1e10 // Large positive value as approximation
-                            } else {
-                                og / (2.0 * x.sqrt())
-                            }
+                            use crate::numerical_stability::NumericalStability;
+                            og * NumericalStability::safe_sqrt_derivative(*x)
                         })
                         .collect();
                     let existing_grad = self
@@ -1152,19 +1208,13 @@ pub mod context {
             if !inputs.is_empty() {
                 if let Some(base_data) = self.get_tensor_data(inputs[0]) {
                     // For pow: d/dx (x^n) = n * x^(n-1)
+                    // Use numerical stability utilities for mathematically correct handling
                     let base_grad: Vec<f64> = output_grad
                         .iter()
                         .zip(base_data.iter())
                         .map(|(og, x)| {
-                            if x.abs() < 1e-10 && exponent <= 1.0 {
-                                // Handle special cases near x=0
-                                og * exponent * 1e10 // Large finite approximation
-                            } else if *x < 0.0 && exponent.fract() != 0.0 {
-                                // Fractional powers of negative numbers are complex
-                                0.0 // No real derivative
-                            } else {
-                                og * exponent * x.powf(exponent - 1.0)
-                            }
+                            use crate::numerical_stability::NumericalStability;
+                            og * NumericalStability::safe_power_derivative(*x, exponent)
                         })
                         .collect();
 
@@ -1359,9 +1409,11 @@ pub mod context {
                 let input_data = &self.tensor_data[&inputs[0]];
                 let input_grad: Vec<f64> = input_data
                     .iter()
-                    .map(|&x| -1.0 / (x * x)) // derivative of 1/x is -1/x^2
                     .zip(output_grad.iter())
-                    .map(|(dx, grad)| dx * grad)
+                    .map(|(&x, grad)| {
+                        use crate::numerical_stability::NumericalStability;
+                        grad * NumericalStability::safe_reciprocal_derivative(x)
+                    })
                     .collect();
 
                 let existing_grad = self
@@ -1437,6 +1489,518 @@ pub mod context {
                     .map(|(a, b)| a + b)
                     .collect();
                 self.set_gradient(inputs[0], new_grad);
+            }
+        }
+
+        // Backward pass for acosh operation: d/dx(acosh(x)) = 1 / sqrt(x^2 - 1)
+        fn backward_acosh(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                let input_data = &self.tensor_data[&inputs[0]];
+                let input_grad: Vec<f64> = input_data
+                    .iter()
+                    .map(|&x| {
+                        let x_squared = x * x;
+                        if x_squared > 1.0 {
+                            1.0 / (x_squared - 1.0).sqrt()
+                        } else {
+                            0.0 // derivative undefined for |x| < 1
+                        }
+                    })
+                    .zip(output_grad.iter())
+                    .map(|(dx, grad)| dx * grad)
+                    .collect();
+
+                let existing_grad = self
+                    .get_gradient(inputs[0])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; input_grad.len()]);
+                let new_grad = input_grad
+                    .iter()
+                    .zip(existing_grad.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[0], new_grad);
+            }
+        }
+
+        // Backward pass for asinh operation: d/dx(asinh(x)) = 1 / sqrt(x^2 + 1)
+        fn backward_asinh(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                let input_data = &self.tensor_data[&inputs[0]];
+                let input_grad: Vec<f64> = input_data
+                    .iter()
+                    .map(|&x| 1.0 / (x * x + 1.0).sqrt())
+                    .zip(output_grad.iter())
+                    .map(|(dx, grad)| dx * grad)
+                    .collect();
+
+                let existing_grad = self
+                    .get_gradient(inputs[0])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; input_grad.len()]);
+                let new_grad = input_grad
+                    .iter()
+                    .zip(existing_grad.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[0], new_grad);
+            }
+        }
+
+        // Backward pass for atanh operation: d/dx(atanh(x)) = 1 / (1 - x^2)
+        fn backward_atanh(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                let input_data = &self.tensor_data[&inputs[0]];
+                let input_grad: Vec<f64> = input_data
+                    .iter()
+                    .map(|&x| {
+                        let x_squared = x * x;
+                        if x_squared < 1.0 {
+                            1.0 / (1.0 - x_squared)
+                        } else {
+                            0.0 // derivative undefined for |x| >= 1
+                        }
+                    })
+                    .zip(output_grad.iter())
+                    .map(|(dx, grad)| dx * grad)
+                    .collect();
+
+                let existing_grad = self
+                    .get_gradient(inputs[0])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; input_grad.len()]);
+                let new_grad = input_grad
+                    .iter()
+                    .zip(existing_grad.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[0], new_grad);
+            }
+        }
+
+        // Backward pass for erfc operation: d/dx(erfc(x)) = -2/sqrt(π) * exp(-x^2)
+        fn backward_erfc(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                let input_data = &self.tensor_data[&inputs[0]];
+                let input_grad: Vec<f64> = input_data
+                    .iter()
+                    .map(|&x| -2.0 / std::f64::consts::PI.sqrt() * (-x * x).exp())
+                    .zip(output_grad.iter())
+                    .map(|(dx, grad)| dx * grad)
+                    .collect();
+
+                let existing_grad = self
+                    .get_gradient(inputs[0])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; input_grad.len()]);
+                let new_grad = input_grad
+                    .iter()
+                    .zip(existing_grad.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[0], new_grad);
+            }
+        }
+
+        // Backward pass for expm1 operation: d/dx(expm1(x)) = exp(x)
+        fn backward_expm1(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                let input_data = &self.tensor_data[&inputs[0]];
+                let input_grad: Vec<f64> = input_data
+                    .iter()
+                    .map(|&x| x.exp())
+                    .zip(output_grad.iter())
+                    .map(|(dx, grad)| dx * grad)
+                    .collect();
+
+                let existing_grad = self
+                    .get_gradient(inputs[0])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; input_grad.len()]);
+                let new_grad = input_grad
+                    .iter()
+                    .zip(existing_grad.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[0], new_grad);
+            }
+        }
+
+        // Backward pass for fix operation: d/dx(fix(x)) = 0 (non-differentiable)
+        fn backward_fix(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            // fix is non-differentiable, gradient is zero
+            if !inputs.is_empty() {
+                let zero_grad = vec![0.0; output_grad.len()];
+                let existing_grad = self
+                    .get_gradient(inputs[0])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; zero_grad.len()]);
+                let new_grad = zero_grad
+                    .iter()
+                    .zip(existing_grad.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[0], new_grad);
+            }
+        }
+
+        // Backward pass for fmod operation: d/dx(fmod(x, y)) = 1 where defined
+        fn backward_fmod(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if inputs.len() >= 2 {
+                // Gradient w.r.t. first input (x): pass through output gradient
+                let existing_grad_x = self
+                    .get_gradient(inputs[0])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; output_grad.len()]);
+                let new_grad_x = output_grad
+                    .iter()
+                    .zip(existing_grad_x.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[0], new_grad_x);
+
+                // Gradient w.r.t. second input (y): -floor(x/y) * output_grad
+                if let Some(y_data) = self.get_tensor_data(inputs[1]) {
+                    if let Some(x_data) = self.get_tensor_data(inputs[0]) {
+                        let grad_y: Vec<f64> = x_data
+                            .iter()
+                            .zip(y_data.iter())
+                            .zip(output_grad.iter())
+                            .map(|((x, y), grad)| {
+                                if *y != 0.0 {
+                                    -(*x / *y).floor() * grad
+                                } else {
+                                    0.0 // undefined for y = 0
+                                }
+                            })
+                            .collect();
+
+                        let existing_grad_y = self
+                            .get_gradient(inputs[1])
+                            .cloned()
+                            .unwrap_or_else(|| vec![0.0; grad_y.len()]);
+                        let new_grad_y = grad_y
+                            .iter()
+                            .zip(existing_grad_y.iter())
+                            .map(|(a, b)| a + b)
+                            .collect();
+                        self.set_gradient(inputs[1], new_grad_y);
+                    }
+                }
+            }
+        }
+
+        // Backward pass for frac operation: d/dx(frac(x)) = 1 (fractional part derivative is 1)
+        fn backward_frac(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                // frac(x) has derivative 1 for all x
+                let existing_grad = self
+                    .get_gradient(inputs[0])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; output_grad.len()]);
+                let new_grad = output_grad
+                    .iter()
+                    .zip(existing_grad.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[0], new_grad);
+            }
+        }
+
+        // Backward pass for remainder operation: d/dx(remainder(x, y)) = 1 where defined
+        fn backward_remainder(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if inputs.len() >= 2 {
+                // IEEE 754 remainder derivative w.r.t. x is 1
+                let existing_grad_x = self
+                    .get_gradient(inputs[0])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; output_grad.len()]);
+                let new_grad_x = output_grad
+                    .iter()
+                    .zip(existing_grad_x.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[0], new_grad_x);
+
+                // Gradient w.r.t. y is more complex for IEEE 754 remainder
+                // For simplicity, we'll pass zero gradient (non-differentiable w.r.t. y in most cases)
+                let zero_grad = vec![0.0; output_grad.len()];
+                let existing_grad_y = self
+                    .get_gradient(inputs[1])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; zero_grad.len()]);
+                let new_grad_y = zero_grad
+                    .iter()
+                    .zip(existing_grad_y.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[1], new_grad_y);
+            }
+        }
+
+        // Backward pass for log1p operation: d/dx(log(1+x)) = 1/(1+x)
+        fn backward_log1p(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                let input_data = &self.tensor_data[&inputs[0]];
+                let input_grad: Vec<f64> = input_data
+                    .iter()
+                    .map(|&x| 1.0 / (1.0 + x))
+                    .zip(output_grad.iter())
+                    .map(|(dx, grad)| dx * grad)
+                    .collect();
+
+                let existing_grad = self
+                    .get_gradient(inputs[0])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; input_grad.len()]);
+                let new_grad = input_grad
+                    .iter()
+                    .zip(existing_grad.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[0], new_grad);
+            }
+        }
+
+        // Backward pass for nan_to_num operation: pass through gradients for finite values, zero for replaced values
+        fn backward_nan_to_num(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                if let Some(input_data) = self.get_tensor_data(inputs[0]) {
+                    let input_grad: Vec<f64> = input_data
+                        .iter()
+                        .zip(output_grad.iter())
+                        .map(|(&x, &grad)| {
+                            // Pass gradient through only for finite values
+                            if x.is_finite() {
+                                grad
+                            } else {
+                                0.0 // Zero gradient for NaN/inf values that were replaced
+                            }
+                        })
+                        .collect();
+
+                    let existing_grad = self
+                        .get_gradient(inputs[0])
+                        .cloned()
+                        .unwrap_or_else(|| vec![0.0; input_grad.len()]);
+                    let new_grad = input_grad
+                        .iter()
+                        .zip(existing_grad.iter())
+                        .map(|(a, b)| a + b)
+                        .collect();
+                    self.set_gradient(inputs[0], new_grad);
+                }
+            }
+        }
+
+        // Backward pass for sgn operation: d/dx(sgn(x)) = 0 (non-differentiable at 0)
+        fn backward_sgn(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            // sgn is non-differentiable, gradient is zero everywhere (even at x=0)
+            if !inputs.is_empty() {
+                let zero_grad = vec![0.0; output_grad.len()];
+                let existing_grad = self
+                    .get_gradient(inputs[0])
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; zero_grad.len()]);
+                let new_grad = zero_grad
+                    .iter()
+                    .zip(existing_grad.iter())
+                    .map(|(a, b)| a + b)
+                    .collect();
+                self.set_gradient(inputs[0], new_grad);
+            }
+        }
+
+        // Backward pass for signbit operation: not differentiable, no backward pass needed
+        fn backward_signbit(&mut self, _inputs: &[u64], _output_grad: &[f64]) {
+            // signbit returns boolean values and is not differentiable
+            // No gradients to propagate
+        }
+
+        // Backward pass for xlogy operation: d/dx(x*log(y)) = log(y), d/dy(x*log(y)) = x/y
+        fn backward_xlogy(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if inputs.len() >= 2 {
+                // Clone data to avoid borrowing issues
+                let x_data = self.get_tensor_data(inputs[0]).cloned();
+                let y_data = self.get_tensor_data(inputs[1]).cloned();
+
+                if let (Some(x_data), Some(y_data)) = (x_data, y_data) {
+                    // Gradient w.r.t. x: log(y)
+                    let grad_x: Vec<f64> = y_data
+                        .iter()
+                        .zip(output_grad.iter())
+                        .map(|(y, grad)| {
+                            if *y > 0.0 {
+                                y.ln() * grad
+                            } else {
+                                0.0 // undefined, but xlogy handles x=0 specially
+                            }
+                        })
+                        .collect();
+
+                    let existing_grad_x = self
+                        .get_gradient(inputs[0])
+                        .cloned()
+                        .unwrap_or_else(|| vec![0.0; grad_x.len()]);
+                    let new_grad_x = grad_x
+                        .iter()
+                        .zip(existing_grad_x.iter())
+                        .map(|(a, b)| a + b)
+                        .collect();
+                    self.set_gradient(inputs[0], new_grad_x);
+
+                    // Gradient w.r.t. y: x/y
+                    let grad_y: Vec<f64> = x_data
+                        .iter()
+                        .zip(y_data.iter())
+                        .zip(output_grad.iter())
+                        .map(|((x, y), grad)| {
+                            if *y > 0.0 {
+                                (x / y) * grad
+                            } else {
+                                0.0 // undefined for y <= 0
+                            }
+                        })
+                        .collect();
+
+                    let existing_grad_y = self
+                        .get_gradient(inputs[1])
+                        .cloned()
+                        .unwrap_or_else(|| vec![0.0; grad_y.len()]);
+                    let new_grad_y = grad_y
+                        .iter()
+                        .zip(existing_grad_y.iter())
+                        .map(|(a, b)| a + b)
+                        .collect();
+                    self.set_gradient(inputs[1], new_grad_y);
+                }
+            }
+        }
+
+        // Backward pass for ELU activation: d/dx ELU(x) = 1 if x > 0, alpha*exp(x) if x <= 0
+        fn backward_elu(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                if let Some(data) = self.get_tensor_data(inputs[0]) {
+                    // ELU derivative: 1 for x > 0, alpha*exp(x) for x <= 0
+                    // Note: we use alpha=1.0 as default
+                    let alpha = 1.0;
+                    let grad_elu: Vec<f64> = output_grad
+                        .iter()
+                        .zip(data.iter())
+                        .map(|(og, x)| {
+                            if *x > 0.0 {
+                                *og // derivative is 1
+                            } else {
+                                og * alpha * x.exp() // derivative is alpha*exp(x)
+                            }
+                        })
+                        .collect();
+                    let existing_grad = self
+                        .get_gradient(inputs[0])
+                        .cloned()
+                        .unwrap_or_else(|| vec![0.0; grad_elu.len()]);
+                    let new_grad = grad_elu
+                        .iter()
+                        .zip(existing_grad.iter())
+                        .map(|(a, b)| a + b)
+                        .collect();
+                    self.set_gradient(inputs[0], new_grad);
+                }
+            }
+        }
+
+        // Backward pass for GELU activation: d/dx GELU(x) = 0.5 * (1 + erf(x/sqrt(2))) + (x/sqrt(2*pi)) * exp(-(x^2)/2)
+        fn backward_gelu(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                if let Some(data) = self.get_tensor_data(inputs[0]) {
+                    let grad_gelu: Vec<f64> = output_grad
+                        .iter()
+                        .zip(data.iter())
+                        .map(|(og, x)| {
+                            // GELU derivative using approximation
+                            let sqrt_2 = 2.0_f64.sqrt();
+                            let x_norm = x / sqrt_2;
+                            // Approximation of erf function: erf(x) ≈ tanh(1.27324*x + 0.005*x^3)
+                            let erf_approx =
+                                (1.27324 * x_norm + 0.005 * x_norm * x_norm * x_norm).tanh();
+                            let cdf = 0.5 * (1.0 + erf_approx);
+                            let pdf = (1.0 / (2.0 * std::f64::consts::PI).sqrt())
+                                * (-x_norm * x_norm).exp();
+                            og * (cdf + x_norm * pdf)
+                        })
+                        .collect();
+                    let existing_grad = self
+                        .get_gradient(inputs[0])
+                        .cloned()
+                        .unwrap_or_else(|| vec![0.0; grad_gelu.len()]);
+                    let new_grad = grad_gelu
+                        .iter()
+                        .zip(existing_grad.iter())
+                        .map(|(a, b)| a + b)
+                        .collect();
+                    self.set_gradient(inputs[0], new_grad);
+                }
+            }
+        }
+
+        // Backward pass for Hardtanh activation: d/dx Hardtanh(x) = 1 if min_val < x < max_val, 0 otherwise
+        fn backward_hardtanh(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                if let Some(data) = self.get_tensor_data(inputs[0]) {
+                    // Hardtanh derivative: 1 if min_val < x < max_val, 0 otherwise
+                    // Note: we use default bounds min_val=-1.0, max_val=1.0
+                    let min_val = -1.0;
+                    let max_val = 1.0;
+                    let grad_hardtanh: Vec<f64> = output_grad
+                        .iter()
+                        .zip(data.iter())
+                        .map(|(og, x)| {
+                            if *x > min_val && *x < max_val {
+                                *og // derivative is 1
+                            } else {
+                                0.0 // derivative is 0
+                            }
+                        })
+                        .collect();
+                    let existing_grad = self
+                        .get_gradient(inputs[0])
+                        .cloned()
+                        .unwrap_or_else(|| vec![0.0; grad_hardtanh.len()]);
+                    let new_grad = grad_hardtanh
+                        .iter()
+                        .zip(existing_grad.iter())
+                        .map(|(a, b)| a + b)
+                        .collect();
+                    self.set_gradient(inputs[0], new_grad);
+                }
+            }
+        }
+
+        // Backward pass for LogSigmoid activation: d/dx LogSigmoid(x) = sigmoid(-x)
+        fn backward_logsigmoid(&mut self, inputs: &[u64], output_grad: &[f64]) {
+            if !inputs.is_empty() {
+                if let Some(data) = self.get_tensor_data(inputs[0]) {
+                    // LogSigmoid derivative: sigmoid(-x)
+                    let grad_logsigmoid: Vec<f64> = output_grad
+                        .iter()
+                        .zip(data.iter())
+                        .map(|(og, x)| {
+                            let neg_x = -x;
+                            let sigmoid_neg_x = 1.0 / (1.0 + (-neg_x).exp());
+                            og * sigmoid_neg_x
+                        })
+                        .collect();
+                    let existing_grad = self
+                        .get_gradient(inputs[0])
+                        .cloned()
+                        .unwrap_or_else(|| vec![0.0; grad_logsigmoid.len()]);
+                    let new_grad = grad_logsigmoid
+                        .iter()
+                        .zip(existing_grad.iter())
+                        .map(|(a, b)| a + b)
+                        .collect();
+                    self.set_gradient(inputs[0], new_grad);
+                }
             }
         }
     }

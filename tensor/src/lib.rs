@@ -1,6 +1,6 @@
 //! # Coeus Tensor
 //!
-//! Advanced PyTorch-like tensor library with automatic differentiation and higher-order derivatives.
+//! PyTorch-like tensor library with automatic differentiation and higher-order derivatives.
 //!
 //! This crate provides:
 //! - Tensor operations with operator overloads (`+`, `-`, `*`, `/`)
@@ -8,7 +8,9 @@
 //! - Higher-order derivatives (Hessian matrices) for second-order optimization
 //! - Iterator support with gradient flow and Hessian traversal
 //! - Comprehensive mathematical operations
-//! - GPU-ready architecture (future extension)
+//! - GPU-ready architecture with SIMD acceleration
+//! - Performance monitoring and regression detection
+//! - Memory-efficient operations with zero-copy where possible
 //!
 //! ## Higher-Order Derivatives (Hessian Computation)
 //!
@@ -57,9 +59,11 @@
 //! - **Uncertainty Quantification**: Statistical analysis of gradients
 //! - **Bayesian Optimization**: Modeling parameter uncertainty
 
+pub mod arithmetic_ops;
 pub mod core;
 pub mod iterators;
 pub mod ops;
+pub mod performance;
 pub mod serialization;
 
 pub use coeus_dtype::{
@@ -82,6 +86,35 @@ pub enum TensorError {
         expected: Vec<usize>,
         actual: Vec<usize>,
     },
+
+    #[error("Invalid tensor shape: data length ({data_len}) does not match shape product ({shape_product}) for shape {shape:?}")]
+    InvalidShape {
+        data_len: usize,
+        shape_product: usize,
+        shape: Vec<usize>,
+    },
+
+    #[error("Matrix multiplication requires at least 2D tensors, got shapes {lhs_shape:?} and {rhs_shape:?}")]
+    MatrixMulRequires2D {
+        lhs_shape: Vec<usize>,
+        rhs_shape: Vec<usize>,
+    },
+
+    #[error(
+        "Incompatible matrix dimensions for multiplication: {lhs_m}x{lhs_k} vs {rhs_k}x{rhs_n}"
+    )]
+    IncompatibleMatrixDims {
+        lhs_m: usize,
+        lhs_k: usize,
+        rhs_k: usize,
+        rhs_n: usize,
+    },
+
+    #[error("Tensor must be scalar for item() access, got shape {shape:?}")]
+    NotScalar { shape: Vec<usize> },
+
+    #[error("Cannot create count value for type during mean calculation")]
+    MeanCalculationError,
 
     #[error("Dtype mismatch: expected {expected}, got {actual}")]
     DtypeMismatch { expected: String, actual: String },

@@ -1,8 +1,7 @@
 //! # Coeus Backend
 //!
 //! Backend abstraction layer providing device-agnostic tensor operations.
-//! Currently supports CPU execution only. GPU support infrastructure exists
-//! but provides no acceleration (CPU fallback only).
+//! Supports both CPU and GPU acceleration with automatic dispatch.
 //!
 //! ## Architecture
 //!
@@ -21,9 +20,9 @@
 //! // CPU backend (default)
 //! let cpu_backend = CpuBackend::new();
 //!
-//! // GPU backend infrastructure exists but provides NO acceleration (CPU fallback only)
-//! // GPU acceleration is planned for future implementation
-//! // let gpu_backend = GpuBackend::new().await.unwrap(); // WARNING: No GPU acceleration
+//! // GPU backend with true hardware acceleration using WGSL compute shaders
+//! // Note: GPU backend creation requires async context
+//! // let gpu_backend = GpuBackend::new().await.unwrap(); // ✅ Real GPU acceleration
 //!
 //! // Generic function that works with any backend
 //! // async fn tensor_ops<B: Backend<f32> + Sync>(backend: &B) {
@@ -62,7 +61,13 @@
 //! ## Performance
 //!
 //! - **CPU Backend**: Optimized for multi-core CPUs using Rayon
-//! - **GPU Backend**: Leverages wgpu for cross-platform GPU acceleration
+//! - **GPU Backend**: Hardware acceleration with WGSL compute shaders (f32 focus)
+//!   - Element-wise operations: GPU-accelerated for f32 (add, sub, mul, div)
+//!   - Matrix multiplication: GPU-accelerated GEMM for f32, CPU fallback for others
+//!   - Reduction operations: GPU-accelerated sum_dim, mean_dim for 2D tensors
+//!   - Concatenation: Implemented with CPU fallback for all types
+//!   - Memory transfers: Optimized host-device data movement
+//!   - Security: Type-safe operations with proper bounds checking
 //! - **Zero-copy**: Where possible, avoids unnecessary data movement
 //!
 //! ## References

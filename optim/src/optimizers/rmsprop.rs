@@ -134,49 +134,153 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rmsprop<T> {
     }
 
     fn step(&mut self) -> Result<()> {
-        // Collect updates first to avoid borrowing conflicts
+        // Collect all updates first to avoid borrowing conflicts
         let mut state_updates = Vec::new();
+        let mut param_updates = Vec::new();
 
-        // First pass: collect current state and compute updates
-        for group in self.base.param_groups().iter() {
-            for param in group.params.iter() {
-                if let Some(grad) = param.grad() {
-                    let param_key = format!("rmsprop_{:p}", param as *const _);
+        // Process each parameter group
+        for group_idx in 0..self.base.param_groups().len() {
+            let group = &self.base.param_groups()[group_idx];
+            let lr = group.lr;
+            let weight_decay = group.weight_decay;
 
-                    // Get or initialize square average
-                    let square_avg_key = format!("{}_square_avg", param_key);
-                    let grad_avg_key = format!("{}_grad_avg", param_key);
-                    let momentum_buffer_key = format!("{}_momentum_buffer", param_key);
+            // Process each parameter in the group
+            for param_idx in 0..group.params.len() {
+                let param_key = format!(
+                    "rmsprop_{}_{}_{:p}",
+                    group_idx, param_idx, &group.params[param_idx] as *const _
+                );
 
-                    let square_avg = self.base.state().get(&square_avg_key).cloned();
+                // Get gradient for this parameter
+                let Some(grad) = group.params[param_idx].grad() else {
+                    continue; // Skip parameters without gradients
+                };
 
-                    // For now, simplified implementation
-                    let updated_square_avg =
-                        square_avg.unwrap_or_else(|| Tensor::zeros(grad.shape().to_vec()));
+                // Get or initialize state variables
+                let square_avg_key = format!("{}_square_avg", param_key);
+                let grad_avg_key = format!("{}_grad_avg", param_key);
+                let momentum_buffer_key = format!("{}_momentum_buffer", param_key);
 
-                    // Store updates
-                    state_updates.push((square_avg_key, updated_square_avg));
+                // Get current state or initialize to zeros
+                let square_avg_prev = self
+                    .base
+                    .state()
+                    .get(&square_avg_key)
+                    .cloned()
+                    .unwrap_or_else(|| Tensor::zeros_like(&grad));
+                let grad_avg_prev = if self.centered {
+                    self.base
+                        .state()
+                        .get(&grad_avg_key)
+                        .cloned()
+                        .unwrap_or_else(|| Tensor::zeros_like(&grad))
+                } else {
+                    Tensor::zeros_like(&grad)
+                };
+                let momentum_buffer_prev = if self.momentum.is_some() {
+                    self.base
+                        .state()
+                        .get(&momentum_buffer_key)
+                        .cloned()
+                        .unwrap_or_else(|| Tensor::zeros_like(&grad))
+                } else {
+                    Tensor::zeros_like(&grad)
+                };
 
-                    if self.centered {
-                        let grad_avg = self.base.state().get(&grad_avg_key).cloned();
-                        let updated_grad_avg =
-                            grad_avg.unwrap_or_else(|| Tensor::zeros(grad.shape().to_vec()));
-                        state_updates.push((grad_avg_key, updated_grad_avg));
-                    }
+                // Apply weight decay if specified
+                let effective_grad = if weight_decay != T::zero() {
+                    let param_ref = &group.params[param_idx];
+                    let wd_tensor = Tensor::scalar(weight_decay);
+                    (&grad + &(param_ref * &wd_tensor)?)?
+                } else {
+                    grad.clone()
+                };
 
-                    if self.momentum.is_some() {
-                        let momentum_buffer = self.base.state().get(&momentum_buffer_key).cloned();
-                        let updated_momentum_buffer =
-                            momentum_buffer.unwrap_or_else(|| Tensor::zeros(grad.shape().to_vec()));
-                        state_updates.push((momentum_buffer_key, updated_momentum_buffer));
-                    }
+                // Update moving average of squared gradients: v_t = α * v_{t-1} + (1 - α) * g_t²
+                let alpha_tensor = Tensor::scalar(self.alpha);
+                let one_minus_alpha_tensor = Tensor::scalar(T::one() - self.alpha);
+                let square_avg_t = (&alpha_tensor * &square_avg_prev)?;
+                let grad_squared = (&effective_grad * &effective_grad)?;
+                let grad_squared_term = (&one_minus_alpha_tensor * &grad_squared)?;
+                let square_avg_t = (&square_avg_t + &grad_squared_term)?;
+
+                // Update moving average of gradients (for centered RMSprop)
+                let grad_avg_t = if self.centered {
+                    let grad_avg_update = (&alpha_tensor * &grad_avg_prev)?;
+                    let grad_term = (&one_minus_alpha_tensor * &effective_grad)?;
+                    (&grad_avg_update + &grad_term)?
+                } else {
+                    grad_avg_prev.clone()
+                };
+
+                // Compute the adaptive learning rate denominator
+                // For centered RMSprop: v̂_t = v_t - (moving_avg_g)² + ε
+                // For regular RMSprop: v̂_t = v_t + ε
+                let eps_tensor = Tensor::scalar(self.eps);
+                let adaptive_lr_denom = if self.centered {
+                    let grad_avg_squared = (&grad_avg_t * &grad_avg_t)?;
+                    let centered_square_avg = (&square_avg_t - &grad_avg_squared)?;
+                    let centered_square_avg_sqrt = centered_square_avg.sqrt();
+                    (&centered_square_avg_sqrt + &eps_tensor)?
+                } else {
+                    let square_avg_sqrt = square_avg_t.sqrt();
+                    (&square_avg_sqrt + &eps_tensor)?
+                };
+
+                // Compute the update
+                let lr_tensor = Tensor::scalar(lr);
+                let lr_grad = (&lr_tensor * &effective_grad)?;
+                let update = (&lr_grad / &adaptive_lr_denom)?;
+
+                // Apply momentum if specified
+                let final_update = if let Some(momentum_val) = self.momentum {
+                    let momentum_tensor = Tensor::scalar(momentum_val);
+                    let momentum_update = (&momentum_tensor * &momentum_buffer_prev)?;
+                    let new_momentum_buffer = (&momentum_update + &update)?;
+                    state_updates.push((momentum_buffer_key, new_momentum_buffer.clone()));
+                    new_momentum_buffer
+                } else {
+                    update
+                };
+
+                // Compute new parameter value
+                let param_data = group.params[param_idx].data();
+                let update_data = final_update.data();
+                let new_param_data: Vec<T> = param_data
+                    .iter()
+                    .zip(update_data.iter())
+                    .map(|(p, u)| *p - *u)
+                    .collect();
+
+                let new_param_shape = group.params[param_idx].shape().to_vec();
+                let mut new_param = Tensor::from_vec(new_param_data, new_param_shape);
+
+                // Preserve gradient tracking
+                if group.params[param_idx].requires_grad() {
+                    new_param.set_requires_grad(true);
                 }
+
+                // Store state updates
+                state_updates.push((square_avg_key, square_avg_t));
+                if self.centered {
+                    state_updates.push((grad_avg_key, grad_avg_t));
+                }
+                param_updates.push((group_idx, param_idx, new_param));
             }
         }
 
-        // Second pass: apply updates
+        // Apply all state updates
         for (key, tensor) in state_updates {
             self.base.state_mut().insert(key, tensor);
+        }
+
+        // Apply all parameter updates
+        for (group_idx, param_idx, new_param) in param_updates {
+            if let Some(group) = self.base.param_groups_mut().get_mut(group_idx) {
+                if let Some(param) = group.params.get_mut(param_idx) {
+                    *param = new_param;
+                }
+            }
         }
 
         Ok(())

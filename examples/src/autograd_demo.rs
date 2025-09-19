@@ -35,12 +35,12 @@ pub fn run_autograd_demo() {
     let sin_exp_x = exp_x.sin();
     sin_exp_x.backward().unwrap();
 
-    let x_val: f64 = x2.as_scalar();
+    let x_val: f64 = x2.as_scalar().unwrap();
     let expected_grad = (x_val.exp()).cos() * x_val.exp();
     println!("f(x) = sin(e^x)");
-    println!("x = {:?}", x2.as_scalar());
-    println!("f(x) = {:?}", sin_exp_x.as_scalar());
-    println!("f'(x) = {:?}", x2.grad().unwrap().as_scalar());
+    println!("x = {:?}", x2.as_scalar().unwrap());
+    println!("f(x) = {:?}", sin_exp_x.as_scalar().unwrap());
+    println!("f'(x) = {:?}", x2.grad().unwrap().as_scalar().unwrap());
     println!("Expected: cos(e^x) * e^x = {:.6} ✓", expected_grad);
 
     // Multi-variable function
@@ -60,16 +60,20 @@ pub fn run_autograd_demo() {
 
     result.backward().unwrap();
 
-    let a_val: f64 = a.as_scalar();
-    let b_val: f64 = b.as_scalar();
+    let a_val: f64 = a.as_scalar().unwrap();
+    let b_val: f64 = b.as_scalar().unwrap();
     let expected_da = 2.0 * a_val * b_val + a_val.cos();
-    let expected_db = a.as_scalar() * a.as_scalar();
+    let expected_db = a_val * a_val;
 
     println!("f(a,b) = a² * b + sin(a)");
-    println!("a = {:?}, b = {:?}", a.as_scalar(), b.as_scalar());
-    println!("f(a,b) = {:?}", result.as_scalar());
-    println!("∂f/∂a = {:?}", a.grad().unwrap().as_scalar());
-    println!("∂f/∂b = {:?}", b.grad().unwrap().as_scalar());
+    println!(
+        "a = {:?}, b = {:?}",
+        a.as_scalar().unwrap(),
+        b.as_scalar().unwrap()
+    );
+    println!("f(a,b) = {:?}", result.as_scalar().unwrap());
+    println!("∂f/∂a = {:?}", a.grad().unwrap().as_scalar().unwrap());
+    println!("∂f/∂b = {:?}", b.grad().unwrap().as_scalar().unwrap());
     println!("Expected ∂f/∂a = 2*a*b + cos(a) = {:.6} ✓", expected_da);
     println!("Expected ∂f/∂b = a² = {:.6} ✓", expected_db);
 

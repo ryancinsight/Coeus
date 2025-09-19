@@ -61,7 +61,7 @@ where
         let f_plus = f(&x_plus_tensor);
         let f_minus = f(&x_minus_tensor);
 
-        let grad_i = (f_plus.item() - f_minus.item()) / (eps + eps);
+        let grad_i = (f_plus.item().unwrap() - f_minus.item().unwrap()) / (eps + eps);
         grad_data.push(T::from(num_traits::ToPrimitive::to_f64(&grad_i).unwrap()).unwrap());
     }
 
@@ -269,7 +269,7 @@ where
         for (param, target) in params.iter().zip(target_params.iter()) {
             let diff = (*param - target).unwrap();
             let squared = (&diff * &diff).unwrap();
-            total_loss = total_loss + squared.sum().item();
+            total_loss = total_loss + squared.sum().item().unwrap();
         }
         Tensor::scalar(total_loss * T::from(0.5).unwrap())
     };
@@ -344,8 +344,8 @@ where
         let x_plus_h = Tensor::scalar(x + h);
         let x_minus_h = Tensor::scalar(x - h);
 
-        let f_plus = activation(&x_plus_h).item();
-        let f_minus = activation(&x_minus_h).item();
+        let f_plus = activation(&x_plus_h).item().unwrap();
+        let f_minus = activation(&x_minus_h).item().unwrap();
 
         let numerical_deriv = (f_plus - f_minus) / (h + h);
 
@@ -470,9 +470,12 @@ mod tests {
 
         let test_points = [-1.0, 0.0, 1.0];
         let expected_derivatives = [
-            sigmoid(&Tensor::scalar(-1.0)).item() * (1.0 - sigmoid(&Tensor::scalar(-1.0)).item()),
-            sigmoid(&Tensor::scalar(0.0)).item() * (1.0 - sigmoid(&Tensor::scalar(0.0)).item()),
-            sigmoid(&Tensor::scalar(1.0)).item() * (1.0 - sigmoid(&Tensor::scalar(1.0)).item()),
+            sigmoid(&Tensor::scalar(-1.0)).item().unwrap()
+                * (1.0 - sigmoid(&Tensor::scalar(-1.0)).item().unwrap()),
+            sigmoid(&Tensor::scalar(0.0)).item().unwrap()
+                * (1.0 - sigmoid(&Tensor::scalar(0.0)).item().unwrap()),
+            sigmoid(&Tensor::scalar(1.0)).item().unwrap()
+                * (1.0 - sigmoid(&Tensor::scalar(1.0)).item().unwrap()),
         ];
 
         assert!(validate_activation_derivatives(

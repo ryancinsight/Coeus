@@ -12,27 +12,27 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     /// * `data` - Vector containing tensor elements in row-major order
     /// * `shape` - Shape of the tensor
     ///
-    /// # Panics
-    /// Panics if the data length doesn't match the shape product
+    /// # Errors
+    /// Returns `TensorError::InvalidShape` if the data length doesn't match the shape product
     ///
     /// # Example
     /// ```rust
     /// use coeus_tensor::Tensor;
     ///
     /// let data = vec![1.0, 2.0, 3.0, 4.0];
-    /// let tensor = Tensor::from_vec(data, vec![2, 2]);
+    /// let tensor = Tensor::from_vec(data, vec![2, 2]).unwrap();
     /// ```
-    pub fn from_vec(data: Vec<T>, shape: Vec<usize>) -> Self {
+    pub fn from_vec(data: Vec<T>, shape: Vec<usize>) -> crate::Result<Self> {
         let expected_len: usize = shape.iter().product();
         if data.len() != expected_len {
-            panic!(
-                "Data length ({}) must match shape product ({})",
-                data.len(),
-                expected_len
-            );
+            return Err(crate::TensorError::InvalidShape {
+                data_len: data.len(),
+                shape_product: expected_len,
+                shape: shape.clone(),
+            });
         }
 
-        Tensor {
+        Ok(Tensor {
             data,
             shape,
             device: Device::Cpu,
@@ -41,7 +41,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
             input_tensor_nodes: vec![],
-        }
+        })
     }
 
     /// Create a tensor from a vector and shape with gradient tracking enabled
@@ -50,20 +50,26 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     /// * `data` - Vector containing tensor elements
     /// * `shape` - Shape of the tensor
     ///
+    /// # Returns
+    /// A Result containing the tensor with gradient tracking enabled or a TensorError
+    ///
+    /// # Errors
+    /// Returns `TensorError::InvalidShape` if the data length doesn't match the shape product
+    ///
     /// # Example
     /// ```rust
     /// use coeus_tensor::Tensor;
     ///
     /// let data = vec![1.0, 2.0, 3.0];
-    /// let tensor = Tensor::from_vec_with_grad(data, vec![3]);
+    /// let tensor = Tensor::from_vec_with_grad(data, vec![3]).unwrap();
     /// ```
-    pub fn from_vec_with_grad(data: Vec<T>, shape: Vec<usize>) -> Self
+    pub fn from_vec_with_grad(data: Vec<T>, shape: Vec<usize>) -> crate::Result<Self>
     where
         T: FloatDtype + std::ops::Neg<Output = T>,
     {
-        let mut tensor = Self::from_vec(data, shape);
+        let mut tensor = Self::from_vec(data, shape)?;
         tensor.set_requires_grad(true);
-        tensor
+        Ok(tensor)
     }
 
     /// Create a tensor filled with zeros

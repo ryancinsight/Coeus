@@ -1,8 +1,8 @@
 use crate::tensor::PyTensor;
 use coeus_nn::{
-    Conv2d as RustConv2d, CrossEntropyLoss as RustCrossEntropyLoss, Gru as RustGru,
+    Conv2d as RustConv2d, CrossEntropyLoss as RustCrossEntropyLoss, GPTConfig, Gru as RustGru,
     Linear as RustLinear, Lstm as RustLstm, Module, MseLoss as RustMSELoss, ReLU as RustReLU,
-    Rnn as RustRnn,
+    Rnn as RustRnn, GPT2 as RustGPT2,
 };
 use coeus_optim::{Adam as RustAdam, Optimizer, Sgd as RustSGD};
 use pyo3::prelude::*;
@@ -623,6 +623,142 @@ impl Rnn {
     }
 }
 
+/// GPT-2 model
+#[pyclass]
+pub struct GPT2 {
+    /// Underlying Rust GPT-2 model
+    gpt2: RustGPT2<f32>,
+    /// Parameters
+    pub wte: PyTensor,
+    pub wpe: PyTensor,
+}
+
+#[pymethods]
+impl GPT2 {
+    #[new]
+    #[pyo3(signature = (vocab_size, n_embd=None, n_head=None, n_layer=None, block_size=None, dropout=None))]
+    fn new(
+        vocab_size: usize,
+        n_embd: Option<usize>,
+        n_head: Option<usize>,
+        n_layer: Option<usize>,
+        block_size: Option<usize>,
+        dropout: Option<f64>,
+    ) -> PyResult<Self> {
+        let config = GPTConfig {
+            attn_config: coeus_nn::attention::AttentionConfig {
+                n_embd: n_embd.unwrap_or(768),
+                n_head: n_head.unwrap_or(12),
+                block_size: block_size.unwrap_or(1024),
+                dropout: dropout.unwrap_or(0.1),
+                causal: true,
+            },
+            vocab_size,
+            n_layer: n_layer.unwrap_or(12),
+            dropout: dropout.unwrap_or(0.1),
+        };
+
+        let gpt2 = RustGPT2::new(config);
+
+        // Create token embeddings parameter
+        let wte_shape = gpt2.wte.weight.shape().to_vec();
+        let wte_tensor = PyTensor::new(gpt2.wte.weight.data().to_vec(), wte_shape)?;
+
+        // Create position embeddings parameter
+        let wpe_shape = gpt2.wpe.weight.shape().to_vec();
+        let wpe_tensor = PyTensor::new(gpt2.wpe.weight.data().to_vec(), wpe_shape)?;
+
+        Ok(GPT2 {
+            gpt2,
+            wte: wte_tensor,
+            wpe: wpe_tensor,
+        })
+    }
+
+    /// Forward pass for language modeling
+    #[pyo3(signature = (input, targets=None))]
+    fn forward_lm(&self, input: &PyTensor, targets: Option<&PyTensor>) -> PyResult<PyTensor> {
+        let result = if let Some(targets_tensor) = targets {
+            self.gpt2
+                .forward_lm(&input.tensor, Some(&targets_tensor.tensor))
+        } else {
+            self.gpt2.forward_lm(&input.tensor, None)
+        }
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+
+        Ok(PyTensor {
+            tensor: result,
+            requires_grad: input.requires_grad || targets.as_ref().is_some_and(|t| t.requires_grad),
+            device: input.device.clone(),
+        })
+    }
+
+    /// Generate text autoregressively
+    #[pyo3(signature = (input, max_new_tokens=None, temperature=None))]
+    fn generate(
+        &self,
+        input: &PyTensor,
+        max_new_tokens: Option<usize>,
+        temperature: Option<f64>,
+    ) -> PyResult<PyTensor> {
+        let max_new_tokens = max_new_tokens.unwrap_or(50);
+        let temperature = temperature.unwrap_or(1.0);
+
+        let result = self
+            .gpt2
+            .generate(&input.tensor, max_new_tokens, temperature)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+
+        Ok(PyTensor {
+            tensor: result,
+            requires_grad: input.requires_grad,
+            device: input.device.clone(),
+        })
+    }
+
+    /// Get vocabulary size
+    #[getter]
+    fn vocab_size(&self) -> usize {
+        self.gpt2.wte.vocab_size
+    }
+
+    /// Get embedding dimension
+    #[getter]
+    fn n_embd(&self) -> usize {
+        self.gpt2.wte.embedding_dim
+    }
+
+    /// Get number of attention heads
+    #[getter]
+    fn n_head(&self) -> usize {
+        self.gpt2.h[0].attn.config.n_head
+    }
+
+    /// Get number of layers
+    #[getter]
+    fn n_layer(&self) -> usize {
+        self.gpt2.h.len()
+    }
+
+    /// Get block size (maximum sequence length)
+    #[getter]
+    fn block_size(&self) -> usize {
+        self.gpt2.h[0].attn.config.block_size
+    }
+
+    /// Get token embeddings weight
+    #[getter]
+    fn wte(&self) -> PyTensor {
+        self.wte.clone()
+    }
+
+    /// Get position embeddings weight
+    #[getter]
+    fn wpe(&self) -> PyTensor {
+        self.wpe.clone()
+    }
+}
+
 /// LSTM layer
 #[pyclass]
 pub struct Lstm {
@@ -1082,3 +1218,5 @@ impl Gru {
         self.bias_hh.clone()
     }
 }
+
+// GPT2 is already public in this module

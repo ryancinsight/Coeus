@@ -3,6 +3,7 @@
 //! This module provides utility functions for common machine learning
 //! and tensor operations that complement the core functionality.
 
+use coeus_dtype::Dtype;
 use coeus_tensor::{Add, Div, Mul, Neg, Result, Sub, Tensor};
 
 /// Mathematical constants and utilities
@@ -356,6 +357,35 @@ pub enum Reduction {
     Mean,
 }
 
+/// Advanced loss functions
+pub mod advanced_loss {
+    use super::*;
+
+    /// KL Divergence Loss
+    pub fn kl_div_loss<T: coeus_dtype::FloatDtype>(
+        input: &Tensor<T>,
+        target: &Tensor<T>,
+        reduction: Reduction,
+    ) -> Result<Tensor<T>> {
+        // KL divergence: target * (log(target) - log(input))
+        let log_target = target.log();
+        let log_input = input.log();
+        let diff = log_target.sub(&log_input)?;
+        let kl_div = target.mul(&diff)?;
+
+        match reduction {
+            Reduction::None => Ok(kl_div),
+            Reduction::Sum => Ok(kl_div.sum()),
+            Reduction::Mean => {
+                let sum = kl_div.sum();
+                let count = T::from(kl_div.numel() as f64).unwrap();
+                let count_tensor = Tensor::scalar(count);
+                Ok(sum.div(&count_tensor)?)
+            }
+        }
+    }
+}
+
 /// Tensor operations utilities
 pub mod tensor_ops {
     use super::*;
@@ -459,89 +489,189 @@ pub mod metrics {
         Ok(correct as f64 / batch_size as f64)
     }
 
-    /// Compute precision for binary classification
-    pub fn precision<T: coeus_dtype::FloatDtype>(
+    /// Compute top-k accuracy for classification
+    pub fn top_k_accuracy<T: coeus_dtype::FloatDtype>(
         predictions: &Tensor<T>,
         targets: &Tensor<i64>,
+        k: usize,
     ) -> Result<f64> {
-        // Precision = TP / (TP + FP)
-        // For binary classification: predictions are probabilities, targets are 0/1
-        let mut true_positives = 0.0;
-        let mut false_positives = 0.0;
+        let batch_size = predictions.shape()[0];
+        let num_classes = predictions.shape()[predictions.shape().len() - 1];
 
-        let pred_data = predictions.data();
-        let target_data = targets.data();
+        if k > num_classes {
+            return Err(coeus_tensor::TensorError::InvalidOperation {
+                message: format!(
+                    "k ({}) cannot be greater than num_classes ({})",
+                    k, num_classes
+                ),
+            });
+        }
 
-        for (pred, target) in pred_data.iter().zip(target_data.iter()) {
-            let pred_val = coeus_dtype::Dtype::to_f64(pred).unwrap();
-            let target_val = *target as f64;
+        let mut correct = 0;
 
-            // Binary classification: threshold at 0.5
-            let pred_class = if pred_val >= 0.5 { 1.0 } else { 0.0 };
+        for batch_idx in 0..batch_size {
+            // Get top-k predictions using argmax for each position
+            let target_class = targets.data()[batch_idx] as usize;
 
-            if pred_class == 1.0 && target_val == 1.0 {
-                true_positives += 1.0;
-            } else if pred_class == 1.0 && target_val == 0.0 {
-                false_positives += 1.0;
+            // Simple approach: check if target is among the top k predictions
+            // by finding k largest values and checking if target is among them
+            let mut values: Vec<T> = (0..num_classes)
+                .map(|class_idx| {
+                    let prob_idx = batch_idx * num_classes + class_idx;
+                    predictions.data()[prob_idx]
+                })
+                .collect();
+
+            // Sort in descending order
+            values.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+
+            // Check if target probability is among top k
+            let target_prob = predictions.data()[batch_idx * num_classes + target_class];
+            let top_k_found = values.iter().take(k.min(values.len())).any(|&prob| {
+                // Use epsilon comparison for floating point values
+                (prob - target_prob).abs() < T::from(1e-6).unwrap()
+            });
+
+            if top_k_found {
+                correct += 1;
             }
         }
 
-        if true_positives + false_positives == 0.0 {
-            Ok(0.0) // No positive predictions
-        } else {
-            Ok(true_positives / (true_positives + false_positives))
-        }
+        Ok(correct as f64 / batch_size as f64)
     }
 
-    /// Compute recall for binary classification
-    pub fn recall<T: coeus_dtype::FloatDtype>(
-        predictions: &Tensor<T>,
+    /// Compute confusion matrix for multi-class classification
+    pub fn confusion_matrix(
+        predictions: &Tensor<i64>,
         targets: &Tensor<i64>,
-    ) -> Result<f64> {
-        // Recall = TP / (TP + FN)
-        // For binary classification: predictions are probabilities, targets are 0/1
-        let mut true_positives = 0.0;
-        let mut false_negatives = 0.0;
+        num_classes: usize,
+    ) -> Result<Tensor<i64>> {
+        let batch_size = predictions.numel();
+        let mut matrix = vec![0i64; num_classes * num_classes];
 
-        let pred_data = predictions.data();
-        let target_data = targets.data();
+        for i in 0..batch_size {
+            let pred = predictions.data()[i] as usize;
+            let target = targets.data()[i] as usize;
 
-        for (pred, target) in pred_data.iter().zip(target_data.iter()) {
-            let pred_val = coeus_dtype::Dtype::to_f64(pred).unwrap();
-            let target_val = *target as f64;
-
-            // Binary classification: threshold at 0.5
-            let pred_class = if pred_val >= 0.5 { 1.0 } else { 0.0 };
-
-            if pred_class == 1.0 && target_val == 1.0 {
-                true_positives += 1.0;
-            } else if pred_class == 0.0 && target_val == 1.0 {
-                false_negatives += 1.0;
+            if pred >= num_classes || target >= num_classes {
+                return Err(coeus_tensor::TensorError::InvalidOperation {
+                    message: format!(
+                        "Class index out of range: pred={}, target={}, num_classes={}",
+                        pred, target, num_classes
+                    ),
+                });
             }
+
+            let idx = target * num_classes + pred;
+            matrix[idx] += 1;
         }
 
-        if true_positives + false_negatives == 0.0 {
-            Ok(0.0) // No positive targets
-        } else {
-            Ok(true_positives / (true_positives + false_negatives))
-        }
+        Ok(Tensor::from_vec(matrix, vec![num_classes, num_classes]))
     }
 
-    /// Compute F1 score for binary classification
-    pub fn f1_score<T: coeus_dtype::FloatDtype>(
+    /// Compute multi-class precision, recall, and F1 scores
+    pub fn classification_report(
+        predictions: &Tensor<i64>,
+        targets: &Tensor<i64>,
+        num_classes: usize,
+    ) -> Result<ClassificationReport> {
+        let cm = confusion_matrix(predictions, targets, num_classes)?;
+
+        let mut precision = vec![0.0; num_classes];
+        let mut recall = vec![0.0; num_classes];
+        let mut f1_score = vec![0.0; num_classes];
+
+        for class in 0..num_classes {
+            let tp = cm.data()[class * num_classes + class];
+            let fp: i64 = (0..num_classes)
+                .map(|i| cm.data()[i * num_classes + class])
+                .sum::<i64>()
+                - tp;
+            let fn_val: i64 = (0..num_classes)
+                .map(|i| cm.data()[class * num_classes + i])
+                .sum::<i64>()
+                - tp;
+
+            let tp_f64 = tp as f64;
+            let fp_f64 = fp as f64;
+            let fn_f64 = fn_val as f64;
+
+            precision[class] = if tp_f64 + fp_f64 > 0.0 {
+                tp_f64 / (tp_f64 + fp_f64)
+            } else {
+                0.0
+            };
+            recall[class] = if tp_f64 + fn_f64 > 0.0 {
+                tp_f64 / (tp_f64 + fn_f64)
+            } else {
+                0.0
+            };
+            f1_score[class] = if precision[class] + recall[class] > 0.0 {
+                2.0 * precision[class] * recall[class] / (precision[class] + recall[class])
+            } else {
+                0.0
+            };
+        }
+
+        let macro_precision = precision.iter().sum::<f64>() / num_classes as f64;
+        let macro_recall = recall.iter().sum::<f64>() / num_classes as f64;
+        let macro_f1 = f1_score.iter().sum::<f64>() / num_classes as f64;
+
+        Ok(ClassificationReport {
+            precision,
+            recall,
+            f1_score,
+            macro_precision,
+            macro_recall,
+            macro_f1,
+        })
+    }
+
+    /// Compute Mean Squared Error (MSE) for regression
+    pub fn mean_squared_error<T: coeus_dtype::FloatDtype>(
         predictions: &Tensor<T>,
+        targets: &Tensor<T>,
+    ) -> Result<f64> {
+        // MSE = mean((predictions - targets)^2)
+        let diff = predictions.sub(targets)?;
+        let squared_diff = diff.mul(&diff)?;
+        let sum_squared_diff = squared_diff.sum();
+        let sum_val = sum_squared_diff.as_scalar()?;
+        let numel = T::from(predictions.numel() as f64).unwrap();
+        let mse_tensor = sum_val.div(numel);
+        let mse = Dtype::to_f64(&mse_tensor).unwrap();
+        Ok(mse)
+    }
+
+    /// Compute Area Under ROC Curve (AUC-ROC) for binary classification
+    pub fn auc_roc<T: coeus_dtype::FloatDtype>(
+        _predictions: &Tensor<T>,
         targets: &Tensor<i64>,
     ) -> Result<f64> {
-        // F1 = 2 * (precision * recall) / (precision + recall)
-        let precision = precision(predictions, targets)?;
-        let recall = recall(predictions, targets)?;
+        // Simplified AUC calculation - for now return a placeholder
+        // Full implementation would require sorting and complex AUC computation
+        let n_positives: usize = targets.data().iter().map(|&x| x as usize).sum();
+        let n_negatives = targets.numel() - n_positives;
 
-        if (precision + recall) == 0.0 {
-            Ok(0.0) // No positive predictions or targets
+        if n_positives == 0 || n_negatives == 0 {
+            Ok(0.5) // Random classifier AUC
         } else {
-            Ok(2.0 * (precision * recall) / (precision + recall))
+            // Placeholder: return 0.5 (random classifier)
+            // TODO: Implement full AUC calculation with proper sorting
+            Ok(0.5)
         }
     }
+}
+
+/// Classification report structure
+#[derive(Debug, Clone)]
+pub struct ClassificationReport {
+    pub precision: Vec<f64>,
+    pub recall: Vec<f64>,
+    pub f1_score: Vec<f64>,
+    pub macro_precision: f64,
+    pub macro_recall: f64,
+    pub macro_f1: f64,
 }
 
 pub use loss::*;

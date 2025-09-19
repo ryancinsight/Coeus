@@ -111,7 +111,7 @@ fn test_concurrent_tensor_operations() {
                     let result = (t1.as_ref() * t2.as_ref()).unwrap();
                     assert_eq!(result.data()[0], 4.0);
                 }
-                _ => unreachable!(),
+                _ => panic!("Unexpected operation index: {}", i % 2),
             }
         });
         handles.push(handle);
@@ -128,10 +128,10 @@ fn test_concurrent_tensor_operations() {
 fn test_dataloader_thread_safety_bounds() {
     use coeus_utils::{DataLoader, Dataset};
 
-    // Create a simple dataset
-    struct SimpleDataset(Vec<Tensor<f32>>, Vec<Tensor<f32>>);
+    // Create a dataset
+    struct Dataset(Vec<Tensor<f32>>, Vec<Tensor<f32>>);
 
-    impl Dataset<f32> for SimpleDataset {
+    impl Dataset<f32> for Dataset {
         fn len(&self) -> usize {
             self.0.len()
         }
@@ -143,7 +143,7 @@ fn test_dataloader_thread_safety_bounds() {
 
     let data = vec![Tensor::from_vec(vec![1.0, 2.0], vec![2])];
     let targets = vec![Tensor::from_vec(vec![0.0], vec![1])];
-    let dataset = SimpleDataset(data, targets);
+    let dataset = Dataset(data, targets);
 
     // Create DataLoader - this should work because Tensor is now Send + Sync
     let dataloader = DataLoader::builder(dataset)

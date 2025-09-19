@@ -3,6 +3,8 @@
 //! Provides efficient batching, shuffling, and parallel data loading
 //! compatible with PyTorch's DataLoader interface.
 
+#![allow(clippy::map_identity)]
+
 use super::Dataset;
 use coeus_tensor::Tensor;
 use rand::prelude::*;
@@ -222,9 +224,15 @@ where
         self.current_batch += 1;
 
         if self.num_workers > 0 {
-            self.load_batch_parallel(batch_indices)
+            Some(
+                self.load_batch_parallel(batch_indices)
+                    .unwrap_or_else(|| panic!("Failed to load batch in parallel mode")),
+            )
         } else {
-            self.load_batch_sequential(batch_indices)
+            Some(
+                self.load_batch_sequential(batch_indices)
+                    .unwrap_or_else(|| panic!("Failed to load batch in sequential mode")),
+            )
         }
     }
 }
@@ -322,13 +330,29 @@ where
         let mut data_vec = Vec::new();
         let mut targets_vec = Vec::new();
 
-        for _ in &indices {
+        // Collect results with proper error handling
+        let mut received_count = 0;
+        let expected_count = indices.len();
+
+        loop {
             match rx.recv() {
                 Ok((data, target)) => {
                     data_vec.push(data);
                     targets_vec.push(target);
+                    received_count += 1;
+
+                    // Break if we've received all expected samples
+                    if received_count >= expected_count {
+                        break;
+                    }
                 }
-                Err(_) => break,
+                Err(_) => {
+                    // Channel closed - check if we have enough samples
+                    if received_count == 0 {
+                        return None; // No samples received
+                    }
+                    break; // Use whatever we have
+                }
             }
         }
 
@@ -345,14 +369,24 @@ where
                 // For single tensor, add batch dimension
                 let mut new_shape = vec![1];
                 new_shape.extend_from_slice(data_vec[0].shape());
-                data_vec[0]
-                    .reshape(new_shape)
-                    .unwrap_or_else(|_| data_vec[0].clone())
+                match data_vec[0].reshape(new_shape) {
+                    Ok(reshaped) => reshaped,
+                    Err(e) => {
+                        eprintln!("Failed to reshape data tensor: {:?}", e);
+                        return None;
+                    }
+                }
             } else {
                 // Use stack function for multiple tensors
-                match crate::tensor_ops::stack(&data_vec.iter().collect::<Vec<_>>(), 0) {
+                match crate::tensor_ops::stack(
+                    &data_vec.iter().map(|x| x).collect::<Vec<_>>(), // Required for &[&Tensor<T>] signature
+                    0,
+                ) {
                     Ok(stacked) => stacked,
-                    Err(_) => return None, // Return None on error
+                    Err(e) => {
+                        eprintln!("Failed to stack data tensors: {:?}", e);
+                        return None;
+                    }
                 }
             };
 
@@ -361,14 +395,24 @@ where
                 // For single tensor, add batch dimension
                 let mut new_shape = vec![1];
                 new_shape.extend_from_slice(targets_vec[0].shape());
-                targets_vec[0]
-                    .reshape(new_shape)
-                    .unwrap_or_else(|_| targets_vec[0].clone())
+                match targets_vec[0].reshape(new_shape) {
+                    Ok(reshaped) => reshaped,
+                    Err(e) => {
+                        eprintln!("Failed to reshape target tensor: {:?}", e);
+                        return None;
+                    }
+                }
             } else {
                 // Use stack function for multiple tensors
-                match crate::tensor_ops::stack(&targets_vec.iter().collect::<Vec<_>>(), 0) {
+                match crate::tensor_ops::stack(
+                    &targets_vec.iter().map(|x| x).collect::<Vec<_>>(), // Required for &[&Tensor<T>] signature
+                    0,
+                ) {
                     Ok(stacked) => stacked,
-                    Err(_) => return None, // Return None on error
+                    Err(e) => {
+                        eprintln!("Failed to stack target tensors: {:?}", e);
+                        return None;
+                    }
                 }
             };
 

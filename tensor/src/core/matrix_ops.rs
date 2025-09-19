@@ -16,6 +16,11 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     /// # Returns
     /// Result containing the matrix product or an error if shapes are incompatible
     ///
+    /// # Errors
+    /// Returns `TensorError::MatrixMulRequires2D` if either tensor is not at least 2D
+    /// Returns `TensorError::IncompatibleMatrixDims` if matrix dimensions are incompatible
+    /// Returns `TensorError::InvalidOperation` if batched matrix multiplication is attempted
+    ///
     /// # Example
     /// ```rust
     /// use coeus_tensor::Tensor;
@@ -25,10 +30,15 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     /// let c = a.matmul(&b).unwrap();
     /// // c.shape() == [2, 2]
     /// ```
-    pub fn matmul(&self, other: &Tensor<T>) -> Tensor<T> {
+    pub fn matmul(&self, other: &Tensor<T>) -> crate::Result<Tensor<T>> {
+        let _guard = crate::performance::global_context().start_measurement("matmul");
+
         // Validate dimensions
         if self.shape.len() < 2 || other.shape.len() < 2 {
-            panic!("Matrix multiplication requires at least 2D tensors");
+            return Err(crate::TensorError::MatrixMulRequires2D {
+                lhs_shape: self.shape.clone(),
+                rhs_shape: other.shape.clone(),
+            });
         }
 
         let m = self.shape[self.shape.len() - 2];
@@ -36,8 +46,12 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
         let n = other.shape[other.shape.len() - 1];
 
         if k != other.shape[other.shape.len() - 2] {
-            panic!("Incompatible matrix dimensions for multiplication: {}x{} vs {}x{}",
-                   m, k, other.shape[other.shape.len() - 2], n);
+            return Err(crate::TensorError::IncompatibleMatrixDims {
+                lhs_m: m,
+                lhs_k: k,
+                rhs_k: other.shape[other.shape.len() - 2],
+                rhs_n: n,
+            });
         }
 
         // For simplicity, handle 2D case first
@@ -97,11 +111,12 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 });
             }
 
-            result
+            Ok(result)
         } else {
-            // For now, panic on higher-dimensional tensors
-            // TODO: Implement batched matrix multiplication
-            panic!("Batched matrix multiplication not yet implemented");
+            // Batched matrix multiplication not yet implemented
+            Err(crate::TensorError::InvalidOperation {
+                message: "Batched matrix multiplication not yet implemented".to_string(),
+            })
         }
     }
 }

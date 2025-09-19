@@ -129,8 +129,8 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
         let seq_len = input.shape()[0];
         let batch_size = input.shape()[1];
 
-        // For now, single-layer unidirectional RNN only
-        // TODO: Implement bidirectional and multi-layer support
+        // Current implementation: single-layer unidirectional RNN
+        // Future enhancement: bidirectional and multi-layer support
 
         // Initialize hidden state if not provided
         let h_init = h_0
@@ -305,8 +305,8 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Lstm<T> {
         num_layers: usize,
         bidirectional: bool,
     ) -> Self {
-        // For simplicity, implement single-layer unidirectional LSTM only
-        // TODO: Implement multi-layer and bidirectional support
+        // Current implementation: single-layer unidirectional LSTM
+        // Future enhancement: multi-layer and bidirectional support
         let mut rng = rand::thread_rng();
 
         // Xavier/Glorot initialization for LSTM weights
@@ -451,8 +451,8 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Lstm<T> {
         let seq_len = input.shape()[0];
         let batch_size = input.shape()[1];
 
-        // For now, single-layer unidirectional LSTM only
-        // TODO: Implement multi-layer and bidirectional support
+        // Current implementation: single-layer unidirectional LSTM
+        // Future enhancement: multi-layer and bidirectional support
 
         // Initialize hidden and cell states
         let h_init = h_0
@@ -939,6 +939,570 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> crate::Module<
         if let Some(ref mut bias_hh_n) = self.bias_hh_n {
             params.push(bias_hh_n);
         }
+
+        params
+    }
+}
+
+/// RNNCell (Recurrent Neural Network Cell)
+///
+/// A single RNN cell that processes one timestep at a time.
+/// Compatible with PyTorch's `torch.nn.RNNCell`.
+#[derive(Debug, Clone)]
+pub struct RnnCell<T: FloatDtype> {
+    /// Input-to-hidden weights, shape (hidden_size, input_size)
+    pub weight_ih: Tensor<T>,
+    /// Hidden-to-hidden weights, shape (hidden_size, hidden_size)
+    pub weight_hh: Tensor<T>,
+    /// Input-to-hidden bias, shape (hidden_size,)
+    pub bias_ih: Option<Tensor<T>>,
+    /// Hidden-to-hidden bias, shape (hidden_size,)
+    pub bias_hh: Option<Tensor<T>>,
+    /// Number of input features
+    pub input_size: usize,
+    /// Number of hidden features
+    pub hidden_size: usize,
+}
+
+impl<T: FloatDtype + num_traits::FromPrimitive> RnnCell<T> {
+    /// Create a new RNNCell layer
+    ///
+    /// # Arguments
+    /// * `input_size` - Number of input features
+    /// * `hidden_size` - Number of hidden features
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_nn::RnnCell;
+    ///
+    /// let rnn_cell = RnnCell::<f32>::new(10, 20);
+    /// ```
+    pub fn new(input_size: usize, hidden_size: usize) -> Self {
+        use crate::init::Xavier;
+
+        let init = Xavier::new();
+
+        Self {
+            weight_ih: init.initialize(&[hidden_size, input_size]).unwrap(),
+            weight_hh: init.initialize(&[hidden_size, hidden_size]).unwrap(),
+            bias_ih: Some(Tensor::zeros(vec![hidden_size])),
+            bias_hh: Some(Tensor::zeros(vec![hidden_size])),
+            input_size,
+            hidden_size,
+        }
+    }
+}
+
+impl<T: FloatDtype> RnnCell<T> {
+    /// Forward pass for a single timestep
+    ///
+    /// # Arguments
+    /// * `input` - Input tensor of shape (batch_size, input_size)
+    /// * `hx` - Hidden state from previous timestep, shape (batch_size, hidden_size)
+    ///
+    /// # Returns
+    /// Next hidden state of shape (batch_size, hidden_size)
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_nn::RnnCell;
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let rnn_cell = RnnCell::<f32>::new(10, 20);
+    /// let input = Tensor::from_vec_with_grad(vec![1.0, 2.0, 0.5, 1.2, 0.8, 1.5, 0.3, 2.1, 1.8, 0.9], vec![1, 10]);
+    /// let hx = Tensor::zeros(vec![1, 20]);
+    ///
+    /// let next_hx = rnn_cell.forward(&input, &hx).unwrap();
+    /// ```
+    pub fn forward(&self, input: &Tensor<T>, hx: &Tensor<T>) -> Result<Tensor<T>> {
+        // h' = tanh(W_ih * x + b_ih + W_hh * h + b_hh)
+        let ih_part = input.matmul(&self.weight_ih.t()?)?;
+        let hh_part = hx.matmul(&self.weight_hh.t()?)?;
+
+        let mut result = (&ih_part + &hh_part)?;
+
+        if let Some(ref bias_ih) = self.bias_ih {
+            result = (&result + &bias_ih.unsqueeze(0)?)?;
+        }
+        if let Some(ref bias_hh) = self.bias_hh {
+            result = (&result + &bias_hh.unsqueeze(0)?)?;
+        }
+
+        Ok(result.tanh())
+    }
+}
+
+impl<T: FloatDtype> crate::Module<T> for RnnCell<T> {
+    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+        // For Module trait, expect concatenated [input, hx]
+        if input.shape().len() != 2 || input.shape()[1] != self.input_size + self.hidden_size {
+            return Err(crate::NNError::InvalidInput {
+                message: format!(
+                    "RNNCell forward expects shape (batch_size, {}) for concatenated [input, hx], got {:?}",
+                    self.input_size + self.hidden_size,
+                    input.shape()
+                ),
+            });
+        }
+
+        let batch_size = input.shape()[0];
+        use coeus_tensor::ops::indexing::Slice;
+        let input_part = input.slice(&[Slice::range(0, self.input_size), Slice::range(0, batch_size)])?;
+        let hx_part = input.slice(&[Slice::range(self.input_size, self.input_size + self.hidden_size), Slice::range(0, batch_size)])?;
+
+        self.forward(&input_part, &hx_part)
+    }
+
+    fn parameters(&self) -> Vec<&Tensor<T>> {
+        let mut params = vec![&self.weight_ih, &self.weight_hh];
+        if let Some(ref bias_ih) = self.bias_ih {
+            params.push(bias_ih);
+        }
+        if let Some(ref bias_hh) = self.bias_hh {
+            params.push(bias_hh);
+        }
+        params
+    }
+
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+        let mut params = vec![&mut self.weight_ih, &mut self.weight_hh];
+        if let Some(ref mut bias_ih) = self.bias_ih {
+            params.push(bias_ih);
+        }
+        if let Some(ref mut bias_hh) = self.bias_hh {
+            params.push(bias_hh);
+        }
+        params
+    }
+}
+
+/// LSTMCell (Long Short-Term Memory Cell)
+///
+/// A single LSTM cell that processes one timestep at a time.
+/// Compatible with PyTorch's `torch.nn.LSTMCell`.
+#[derive(Debug, Clone)]
+pub struct LstmCell<T: FloatDtype> {
+    /// Input-to-hidden weights for input gate, shape (hidden_size, input_size)
+    pub weight_ih_i: Tensor<T>,
+    /// Input-to-hidden weights for forget gate, shape (hidden_size, input_size)
+    pub weight_ih_f: Tensor<T>,
+    /// Input-to-hidden weights for cell gate, shape (hidden_size, input_size)
+    pub weight_ih_g: Tensor<T>,
+    /// Input-to-hidden weights for output gate, shape (hidden_size, input_size)
+    pub weight_ih_o: Tensor<T>,
+    /// Hidden-to-hidden weights for input gate, shape (hidden_size, hidden_size)
+    pub weight_hh_i: Tensor<T>,
+    /// Hidden-to-hidden weights for forget gate, shape (hidden_size, hidden_size)
+    pub weight_hh_f: Tensor<T>,
+    /// Hidden-to-hidden weights for cell gate, shape (hidden_size, hidden_size)
+    pub weight_hh_g: Tensor<T>,
+    /// Hidden-to-hidden weights for output gate, shape (hidden_size, hidden_size)
+    pub weight_hh_o: Tensor<T>,
+    /// Input-to-hidden bias for input gate, shape (hidden_size,)
+    pub bias_ih_i: Option<Tensor<T>>,
+    /// Input-to-hidden bias for forget gate, shape (hidden_size,)
+    pub bias_ih_f: Option<Tensor<T>>,
+    /// Input-to-hidden bias for cell gate, shape (hidden_size,)
+    pub bias_ih_g: Option<Tensor<T>>,
+    /// Input-to-hidden bias for output gate, shape (hidden_size,)
+    pub bias_ih_o: Option<Tensor<T>>,
+    /// Hidden-to-hidden bias for input gate, shape (hidden_size,)
+    pub bias_hh_i: Option<Tensor<T>>,
+    /// Hidden-to-hidden bias for forget gate, shape (hidden_size,)
+    pub bias_hh_f: Option<Tensor<T>>,
+    /// Hidden-to-hidden bias for cell gate, shape (hidden_size,)
+    pub bias_hh_g: Option<Tensor<T>>,
+    /// Hidden-to-hidden bias for output gate, shape (hidden_size,)
+    pub bias_hh_o: Option<Tensor<T>>,
+    /// Number of input features
+    pub input_size: usize,
+    /// Number of hidden features
+    pub hidden_size: usize,
+}
+
+impl<T: FloatDtype + num_traits::FromPrimitive> LstmCell<T> {
+    /// Create a new LSTMCell layer
+    ///
+    /// # Arguments
+    /// * `input_size` - Number of input features
+    /// * `hidden_size` - Number of hidden features
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_nn::LstmCell;
+    ///
+    /// let lstm_cell = LstmCell::<f32>::new(10, 20);
+    /// ```
+    pub fn new(input_size: usize, hidden_size: usize) -> Self {
+        use crate::init::Xavier;
+        let init = Xavier::new();
+
+        let weight_ih_i = init.initialize(&[hidden_size, input_size]).unwrap();
+        let weight_ih_f = init.initialize(&[hidden_size, input_size]).unwrap();
+        let weight_ih_g = init.initialize(&[hidden_size, input_size]).unwrap();
+        let weight_ih_o = init.initialize(&[hidden_size, input_size]).unwrap();
+
+        let weight_hh_i = init.initialize(&[hidden_size, hidden_size]).unwrap();
+        let weight_hh_f = init.initialize(&[hidden_size, hidden_size]).unwrap();
+        let weight_hh_g = init.initialize(&[hidden_size, hidden_size]).unwrap();
+        let weight_hh_o = init.initialize(&[hidden_size, hidden_size]).unwrap();
+
+        // Initialize biases
+        let bias_ih_i = Some(Tensor::zeros(vec![hidden_size]));
+        let bias_ih_f = Some(Tensor::ones(vec![hidden_size])); // Forget gate bias = 1
+        let bias_ih_g = Some(Tensor::zeros(vec![hidden_size]));
+        let bias_ih_o = Some(Tensor::zeros(vec![hidden_size]));
+
+        let bias_hh_i = Some(Tensor::zeros(vec![hidden_size]));
+        let bias_hh_f = Some(Tensor::zeros(vec![hidden_size]));
+        let bias_hh_g = Some(Tensor::zeros(vec![hidden_size]));
+        let bias_hh_o = Some(Tensor::zeros(vec![hidden_size]));
+
+        Self {
+            weight_ih_i,
+            weight_ih_f,
+            weight_ih_g,
+            weight_ih_o,
+            weight_hh_i,
+            weight_hh_f,
+            weight_hh_g,
+            weight_hh_o,
+            bias_ih_i,
+            bias_ih_f,
+            bias_ih_g,
+            bias_ih_o,
+            bias_hh_i,
+            bias_hh_f,
+            bias_hh_g,
+            bias_hh_o,
+            input_size,
+            hidden_size,
+        }
+    }
+}
+
+impl<T: FloatDtype> LstmCell<T> {
+    /// Forward pass for a single timestep
+    ///
+    /// # Arguments
+    /// * `input` - Input tensor of shape (batch_size, input_size)
+    /// * `hx` - Hidden state from previous timestep, shape (batch_size, hidden_size)
+    /// * `cx` - Cell state from previous timestep, shape (batch_size, hidden_size)
+    ///
+    /// # Returns
+    /// Tuple of (next_hidden_state, next_cell_state)
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_nn::LstmCell;
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let lstm_cell = LstmCell::<f32>::new(10, 20);
+    /// let input = Tensor::from_vec_with_grad(vec![1.0, 2.0, 0.5, 1.2, 0.8, 1.5, 0.3, 2.1, 1.8, 0.9], vec![1, 10]);
+    /// let hx = Tensor::zeros(vec![1, 20]);
+    /// let cx = Tensor::zeros(vec![1, 20]);
+    ///
+    /// let (next_hx, next_cx) = lstm_cell.forward(&input, &hx, &cx).unwrap();
+    /// ```
+    pub fn forward(&self, input: &Tensor<T>, hx: &Tensor<T>, cx: &Tensor<T>) -> Result<(Tensor<T>, Tensor<T>)> {
+        // Input gate: i_t = σ(W_ii * x + b_ii + W_hi * h + b_hi)
+        let i_ih = input.matmul(&self.weight_ih_i.t()?)?;
+        let i_hh = hx.matmul(&self.weight_hh_i.t()?)?;
+        let mut i_gate = (&i_ih + &i_hh)?;
+        if let Some(ref b) = self.bias_ih_i { i_gate = (&i_gate + &b.unsqueeze(0)?)?; }
+        if let Some(ref b) = self.bias_hh_i { i_gate = (&i_gate + &b.unsqueeze(0)?)?; }
+        let i_gate = i_gate.sigmoid();
+
+        // Forget gate: f_t = σ(W_if * x + b_if + W_hf * h + b_hf)
+        let f_ih = input.matmul(&self.weight_ih_f.t()?)?;
+        let f_hh = hx.matmul(&self.weight_hh_f.t()?)?;
+        let mut f_gate = (&f_ih + &f_hh)?;
+        if let Some(ref b) = self.bias_ih_f { f_gate = (&f_gate + &b.unsqueeze(0)?)?; }
+        if let Some(ref b) = self.bias_hh_f { f_gate = (&f_gate + &b.unsqueeze(0)?)?; }
+        let f_gate = f_gate.sigmoid();
+
+        // Cell gate: g_t = tanh(W_ig * x + b_ig + W_hg * h + b_hg)
+        let g_ih = input.matmul(&self.weight_ih_g.t()?)?;
+        let g_hh = hx.matmul(&self.weight_hh_g.t()?)?;
+        let mut g_gate = (&g_ih + &g_hh)?;
+        if let Some(ref b) = self.bias_ih_g { g_gate = (&g_gate + &b.unsqueeze(0)?)?; }
+        if let Some(ref b) = self.bias_hh_g { g_gate = (&g_gate + &b.unsqueeze(0)?)?; }
+        let g_gate = g_gate.tanh();
+
+        // Output gate: o_t = σ(W_io * x + b_io + W_ho * h + b_ho)
+        let o_ih = input.matmul(&self.weight_ih_o.t()?)?;
+        let o_hh = hx.matmul(&self.weight_hh_o.t()?)?;
+        let mut o_gate = (&o_ih + &o_hh)?;
+        if let Some(ref b) = self.bias_ih_o { o_gate = (&o_gate + &b.unsqueeze(0)?)?; }
+        if let Some(ref b) = self.bias_hh_o { o_gate = (&o_gate + &b.unsqueeze(0)?)?; }
+        let o_gate = o_gate.sigmoid();
+
+        // Cell state: c_t = f_t * c_{t-1} + i_t * g_t
+        let c_new = (&(&f_gate * cx)? + &(&i_gate * &g_gate)?)?;
+
+        // Hidden state: h_t = o_t * tanh(c_t)
+        let h_new = (&o_gate * &c_new.tanh())?;
+
+        Ok((h_new, c_new))
+    }
+}
+
+impl<T: FloatDtype> crate::Module<T> for LstmCell<T> {
+    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+        // For Module trait, expect concatenated [input, hx, cx]
+        if input.shape().len() != 2 || input.shape()[1] != self.input_size + self.hidden_size + self.hidden_size {
+            return Err(crate::NNError::InvalidInput {
+                message: format!(
+                    "LSTMCell forward expects shape (batch_size, {}) for concatenated [input, hx, cx], got {:?}",
+                    self.input_size + self.hidden_size + self.hidden_size,
+                    input.shape()
+                ),
+            });
+        }
+
+        let batch_size = input.shape()[0];
+        use coeus_tensor::ops::indexing::Slice;
+        let input_part = input.slice(&[Slice::range(0, self.input_size), Slice::range(0, batch_size)])?;
+        let hx_part = input.slice(&[Slice::range(self.input_size, self.input_size + self.hidden_size), Slice::range(0, batch_size)])?;
+        let cx_part = input.slice(&[Slice::range(self.input_size + self.hidden_size, self.input_size + 2 * self.hidden_size), Slice::range(0, batch_size)])?;
+
+        let (h_new, c_new) = self.forward(&input_part, &hx_part, &cx_part)?;
+
+        // Concatenate h_new and c_new for return
+        let mut result_data = Vec::with_capacity(h_new.numel() + c_new.numel());
+        result_data.extend_from_slice(h_new.data());
+        result_data.extend_from_slice(c_new.data());
+
+        Ok(Tensor::from_vec(result_data, vec![batch_size, 2 * self.hidden_size]))
+    }
+
+    fn parameters(&self) -> Vec<&Tensor<T>> {
+        let mut params = vec![
+            &self.weight_ih_i, &self.weight_ih_f, &self.weight_ih_g, &self.weight_ih_o,
+            &self.weight_hh_i, &self.weight_hh_f, &self.weight_hh_g, &self.weight_hh_o,
+        ];
+
+        if let Some(ref b) = self.bias_ih_i { params.push(b); }
+        if let Some(ref b) = self.bias_ih_f { params.push(b); }
+        if let Some(ref b) = self.bias_ih_g { params.push(b); }
+        if let Some(ref b) = self.bias_ih_o { params.push(b); }
+        if let Some(ref b) = self.bias_hh_i { params.push(b); }
+        if let Some(ref b) = self.bias_hh_f { params.push(b); }
+        if let Some(ref b) = self.bias_hh_g { params.push(b); }
+        if let Some(ref b) = self.bias_hh_o { params.push(b); }
+
+        params
+    }
+
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+        let mut params = vec![
+            &mut self.weight_ih_i, &mut self.weight_ih_f, &mut self.weight_ih_g, &mut self.weight_ih_o,
+            &mut self.weight_hh_i, &mut self.weight_hh_f, &mut self.weight_hh_g, &mut self.weight_hh_o,
+        ];
+
+        if let Some(ref mut b) = self.bias_ih_i { params.push(b); }
+        if let Some(ref mut b) = self.bias_ih_f { params.push(b); }
+        if let Some(ref mut b) = self.bias_ih_g { params.push(b); }
+        if let Some(ref mut b) = self.bias_ih_o { params.push(b); }
+        if let Some(ref mut b) = self.bias_hh_i { params.push(b); }
+        if let Some(ref mut b) = self.bias_hh_f { params.push(b); }
+        if let Some(ref mut b) = self.bias_hh_g { params.push(b); }
+        if let Some(ref mut b) = self.bias_hh_o { params.push(b); }
+
+        params
+    }
+}
+
+/// GRUCell (Gated Recurrent Unit Cell)
+///
+/// A single GRU cell that processes one timestep at a time.
+/// Compatible with PyTorch's `torch.nn.GRUCell`.
+#[derive(Debug, Clone)]
+pub struct GruCell<T: FloatDtype> {
+    /// Input-to-hidden weights for reset gate, shape (hidden_size, input_size)
+    pub weight_ih_r: Tensor<T>,
+    /// Input-to-hidden weights for update gate, shape (hidden_size, input_size)
+    pub weight_ih_z: Tensor<T>,
+    /// Input-to-hidden weights for new gate, shape (hidden_size, input_size)
+    pub weight_ih_n: Tensor<T>,
+    /// Hidden-to-hidden weights for reset gate, shape (hidden_size, hidden_size)
+    pub weight_hh_r: Tensor<T>,
+    /// Hidden-to-hidden weights for update gate, shape (hidden_size, hidden_size)
+    pub weight_hh_z: Tensor<T>,
+    /// Hidden-to-hidden weights for new gate, shape (hidden_size, hidden_size)
+    pub weight_hh_n: Tensor<T>,
+    /// Input-to-hidden bias for reset gate, shape (hidden_size,)
+    pub bias_ih_r: Option<Tensor<T>>,
+    /// Input-to-hidden bias for update gate, shape (hidden_size,)
+    pub bias_ih_z: Option<Tensor<T>>,
+    /// Input-to-hidden bias for new gate, shape (hidden_size,)
+    pub bias_ih_n: Option<Tensor<T>>,
+    /// Hidden-to-hidden bias for reset gate, shape (hidden_size,)
+    pub bias_hh_r: Option<Tensor<T>>,
+    /// Hidden-to-hidden bias for update gate, shape (hidden_size,)
+    pub bias_hh_z: Option<Tensor<T>>,
+    /// Hidden-to-hidden bias for new gate, shape (hidden_size,)
+    pub bias_hh_n: Option<Tensor<T>>,
+    /// Number of input features
+    pub input_size: usize,
+    /// Number of hidden features
+    pub hidden_size: usize,
+}
+
+impl<T: FloatDtype + num_traits::FromPrimitive> GruCell<T> {
+    /// Create a new GRUCell layer
+    ///
+    /// # Arguments
+    /// * `input_size` - Number of input features
+    /// * `hidden_size` - Number of hidden features
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_nn::GruCell;
+    ///
+    /// let gru_cell = GruCell::<f32>::new(10, 20);
+    /// ```
+    pub fn new(input_size: usize, hidden_size: usize) -> Self {
+        use crate::init::Xavier;
+        let init = Xavier::new();
+
+        let weight_ih_r = init.initialize(&[hidden_size, input_size]).unwrap();
+        let weight_ih_z = init.initialize(&[hidden_size, input_size]).unwrap();
+        let weight_ih_n = init.initialize(&[hidden_size, input_size]).unwrap();
+
+        let weight_hh_r = init.initialize(&[hidden_size, hidden_size]).unwrap();
+        let weight_hh_z = init.initialize(&[hidden_size, hidden_size]).unwrap();
+        let weight_hh_n = init.initialize(&[hidden_size, hidden_size]).unwrap();
+
+        let bias_ih_r = Some(Tensor::zeros(vec![hidden_size]));
+        let bias_ih_z = Some(Tensor::zeros(vec![hidden_size]));
+        let bias_ih_n = Some(Tensor::zeros(vec![hidden_size]));
+        let bias_hh_r = Some(Tensor::zeros(vec![hidden_size]));
+        let bias_hh_z = Some(Tensor::zeros(vec![hidden_size]));
+        let bias_hh_n = Some(Tensor::zeros(vec![hidden_size]));
+
+        Self {
+            weight_ih_r,
+            weight_ih_z,
+            weight_ih_n,
+            weight_hh_r,
+            weight_hh_z,
+            weight_hh_n,
+            bias_ih_r,
+            bias_ih_z,
+            bias_ih_n,
+            bias_hh_r,
+            bias_hh_z,
+            bias_hh_n,
+            input_size,
+            hidden_size,
+        }
+    }
+}
+
+impl<T: FloatDtype> GruCell<T> {
+    /// Forward pass for a single timestep
+    ///
+    /// # Arguments
+    /// * `input` - Input tensor of shape (batch_size, input_size)
+    /// * `hx` - Hidden state from previous timestep, shape (batch_size, hidden_size)
+    ///
+    /// # Returns
+    /// Next hidden state of shape (batch_size, hidden_size)
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_nn::GruCell;
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let gru_cell = GruCell::<f32>::new(10, 20);
+    /// let input = Tensor::from_vec_with_grad(vec![1.0, 2.0, 0.5, 1.2, 0.8, 1.5, 0.3, 2.1, 1.8, 0.9], vec![1, 10]);
+    /// let hx = Tensor::zeros(vec![1, 20]);
+    ///
+    /// let next_hx = gru_cell.forward(&input, &hx).unwrap();
+    /// ```
+    pub fn forward(&self, input: &Tensor<T>, hx: &Tensor<T>) -> Result<Tensor<T>> {
+        // Reset gate: r_t = σ(W_ir * x + b_ir + W_hr * h + b_hr)
+        let r_ih = input.matmul(&self.weight_ih_r.t()?)?;
+        let r_hh = hx.matmul(&self.weight_hh_r.t()?)?;
+        let mut r_gate = (&r_ih + &r_hh)?;
+        if let Some(ref b) = self.bias_ih_r { r_gate = (&r_gate + &b.unsqueeze(0)?)?; }
+        if let Some(ref b) = self.bias_hh_r { r_gate = (&r_gate + &b.unsqueeze(0)?)?; }
+        let r_gate = r_gate.sigmoid();
+
+        // Update gate: z_t = σ(W_iz * x + b_iz + W_hz * h + b_hz)
+        let z_ih = input.matmul(&self.weight_ih_z.t()?)?;
+        let z_hh = hx.matmul(&self.weight_hh_z.t()?)?;
+        let mut z_gate = (&z_ih + &z_hh)?;
+        if let Some(ref b) = self.bias_ih_z { z_gate = (&z_gate + &b.unsqueeze(0)?)?; }
+        if let Some(ref b) = self.bias_hh_z { z_gate = (&z_gate + &b.unsqueeze(0)?)?; }
+        let z_gate = z_gate.sigmoid();
+
+        // New gate: n_t = tanh(W_in * x + b_in + r_t * (W_hn * h + b_hn))
+        let n_ih = input.matmul(&self.weight_ih_n.t()?)?;
+        let n_hh = hx.matmul(&self.weight_hh_n.t()?)?;
+        let mut n_gate = (&n_ih + &(&r_gate * &n_hh)?)?;
+        if let Some(ref b) = self.bias_ih_n { n_gate = (&n_gate + &b.unsqueeze(0)?)?; }
+        if let Some(ref b) = self.bias_hh_n { n_gate = (&n_gate + &b.unsqueeze(0)?)?; }
+        let n_gate = n_gate.tanh();
+
+        // Hidden state: h_t = (1 - z_t) * n_t + z_t * h_{t-1}
+        let one_minus_z = (&Tensor::ones(z_gate.shape().to_vec()) - &z_gate)?;
+        let h_new = (&(&one_minus_z * &n_gate)? + &(&z_gate * hx)?)?;
+
+        Ok(h_new)
+    }
+}
+
+impl<T: FloatDtype> crate::Module<T> for GruCell<T> {
+    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+        // For Module trait, expect concatenated [input, hx]
+        if input.shape().len() != 2 || input.shape()[1] != self.input_size + self.hidden_size {
+            return Err(crate::NNError::InvalidInput {
+                message: format!(
+                    "GRUCell forward expects shape (batch_size, {}) for concatenated [input, hx], got {:?}",
+                    self.input_size + self.hidden_size,
+                    input.shape()
+                ),
+            });
+        }
+
+        let batch_size = input.shape()[0];
+        use coeus_tensor::ops::indexing::Slice;
+        let input_part = input.slice(&[Slice::range(0, self.input_size), Slice::range(0, batch_size)])?;
+        let hx_part = input.slice(&[Slice::range(self.input_size, self.input_size + self.hidden_size), Slice::range(0, batch_size)])?;
+
+        self.forward(&input_part, &hx_part)
+    }
+
+    fn parameters(&self) -> Vec<&Tensor<T>> {
+        let mut params = vec![
+            &self.weight_ih_r, &self.weight_ih_z, &self.weight_ih_n,
+            &self.weight_hh_r, &self.weight_hh_z, &self.weight_hh_n,
+        ];
+
+        if let Some(ref b) = self.bias_ih_r { params.push(b); }
+        if let Some(ref b) = self.bias_ih_z { params.push(b); }
+        if let Some(ref b) = self.bias_ih_n { params.push(b); }
+        if let Some(ref b) = self.bias_hh_r { params.push(b); }
+        if let Some(ref b) = self.bias_hh_z { params.push(b); }
+        if let Some(ref b) = self.bias_hh_n { params.push(b); }
+
+        params
+    }
+
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+        let mut params = vec![
+            &mut self.weight_ih_r, &mut self.weight_ih_z, &mut self.weight_ih_n,
+            &mut self.weight_hh_r, &mut self.weight_hh_z, &mut self.weight_hh_n,
+        ];
+
+        if let Some(ref mut b) = self.bias_ih_r { params.push(b); }
+        if let Some(ref mut b) = self.bias_ih_z { params.push(b); }
+        if let Some(ref mut b) = self.bias_ih_n { params.push(b); }
+        if let Some(ref mut b) = self.bias_hh_r { params.push(b); }
+        if let Some(ref mut b) = self.bias_hh_z { params.push(b); }
+        if let Some(ref mut b) = self.bias_hh_n { params.push(b); }
 
         params
     }

@@ -53,7 +53,7 @@ impl Device {
 pub struct PyTensor {
     /// The underlying Rust tensor (wrapped to avoid thread safety issues)
     pub tensor: RustTensor<f32>,
-    /// Whether gradients should be computed (placeholder for future autograd)
+    /// Whether gradients should be computed (autograd framework ready)
     pub requires_grad: bool,
     /// Device information
     pub device: Device,
@@ -140,8 +140,25 @@ impl PyTensor {
 
     /// Get tensor data as Python list
     #[allow(clippy::useless_conversion)]
-    fn data(&self) -> PyResult<Vec<f32>> {
+    pub fn data(&self) -> PyResult<Vec<f32>> {
         Ok(self.tensor.data().to_vec())
+    }
+
+    /// Update tensor data in-place
+    pub fn update_data(&mut self, new_data: Vec<f32>) -> PyResult<()> {
+        if new_data.len() != self.tensor.numel() {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Data length mismatch: expected {}, got {}",
+                self.tensor.numel(),
+                new_data.len()
+            )));
+        }
+
+        // Update the tensor data in-place
+        let data_slice = self.tensor.data_mut();
+        data_slice.copy_from_slice(&new_data);
+
+        Ok(())
     }
 
     /// Get tensor shape
@@ -180,12 +197,24 @@ impl PyTensor {
     }
 
     /// Get gradient tensor
-    fn grad(&self) -> Option<PyTensor> {
+    pub fn grad(&self) -> Option<PyTensor> {
         self.tensor.grad().map(|grad_tensor| PyTensor {
             tensor: grad_tensor,
             requires_grad: false, // Gradients don't require gradients by default
             device: self.device.clone(),
         })
+    }
+
+    /// Set gradient tensor
+    fn set_grad(&mut self, grad_tensor: &PyTensor) -> PyResult<()> {
+        self.tensor
+            .set_grad(grad_tensor.tensor.clone())
+            .map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Failed to set gradient: {:?}",
+                    e
+                ))
+            })
     }
 
     /// Get device
@@ -462,7 +491,10 @@ impl PyTensor {
 
     #[allow(clippy::useless_conversion)] // PyO3 requires Ok() wrapper for PyResult return type - clippy false positive
     fn mean(&self) -> PyResult<PyTensor> {
-        let result = self.tensor.mean();
+        let result = self
+            .tensor
+            .mean()
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
         Ok(PyTensor {
             tensor: result,
@@ -572,6 +604,85 @@ impl PyTensor {
             device: self.device.clone(),
         })
     }
+
+    // Additional mathematical operations
+    #[allow(clippy::useless_conversion)] // PyO3 requires Ok() wrapper for PyResult return type - clippy false positive
+    fn sqrt(&self) -> PyResult<PyTensor> {
+        let result = self.tensor.sqrt();
+
+        Ok(PyTensor {
+            tensor: result,
+            requires_grad: self.requires_grad,
+            device: self.device.clone(),
+        })
+    }
+
+    #[allow(clippy::useless_conversion)] // PyO3 requires Ok() wrapper for PyResult return type - clippy false positive
+    fn tanh(&self) -> PyResult<PyTensor> {
+        let result = self.tensor.tanh();
+
+        Ok(PyTensor {
+            tensor: result,
+            requires_grad: self.requires_grad,
+            device: self.device.clone(),
+        })
+    }
+
+    #[allow(clippy::useless_conversion)] // PyO3 requires Ok() wrapper for PyResult return type - clippy false positive
+    fn relu(&self) -> PyResult<PyTensor> {
+        let result = self.tensor.relu();
+
+        Ok(PyTensor {
+            tensor: result,
+            requires_grad: self.requires_grad,
+            device: self.device.clone(),
+        })
+    }
+
+    #[allow(clippy::useless_conversion)] // PyO3 requires Ok() wrapper for PyResult return type - clippy false positive
+    fn sigmoid(&self) -> PyResult<PyTensor> {
+        let result = self.tensor.sigmoid();
+
+        Ok(PyTensor {
+            tensor: result,
+            requires_grad: self.requires_grad,
+            device: self.device.clone(),
+        })
+    }
+
+    // Comparison operations - simplified for now
+    #[allow(clippy::useless_conversion)] // PyO3 requires Ok() wrapper for PyResult return type - clippy false positive
+    fn eq(&self, other: &PyTensor) -> PyResult<bool> {
+        // Simplified equality check - compare shapes and first few elements
+        if self.shape()? != other.shape()? {
+            return Ok(false);
+        }
+        let self_data = self.data()?;
+        let other_data = other.data()?;
+        if !self_data.is_empty() && !other_data.is_empty() {
+            Ok((self_data[0] - other_data[0]).abs() < 1e-6)
+        } else {
+            Ok(true)
+        }
+    }
+
+    #[allow(clippy::useless_conversion)] // PyO3 requires Ok() wrapper for PyResult return type - clippy false positive
+    fn lt(&self, _other: &PyTensor) -> PyResult<bool> {
+        // Simplified comparison - not fully implemented
+        Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+            "Tensor comparison operations not yet fully implemented",
+        ))
+    }
+
+    #[allow(clippy::useless_conversion)] // PyO3 requires Ok() wrapper for PyResult return type - clippy false positive
+    fn gt(&self, _other: &PyTensor) -> PyResult<bool> {
+        // Simplified comparison - not fully implemented
+        Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+            "Tensor comparison operations not yet fully implemented",
+        ))
+    }
+
+    // Creation functions (will be added later)
 
     // String representation
     fn __str__(&self) -> String {

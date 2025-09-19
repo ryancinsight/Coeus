@@ -44,7 +44,7 @@ pub struct SerializableTensor {
     pub shape: Vec<usize>,
     /// Whether gradients are required
     pub requires_grad: bool,
-    /// Device information (placeholder for future GPU support)
+    /// Device information (reserved for future GPU support)
     pub device: String,
     /// Data type information
     pub dtype: String,
@@ -168,7 +168,7 @@ impl Tensor<f32> {
     /// * `format` - Serialization format to use
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,no_run
     /// use coeus_tensor::{Tensor, serialization::SerializationFormat};
     ///
     /// let tensor = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
@@ -204,7 +204,7 @@ impl Tensor<f32> {
     /// * `format` - Serialization format to use
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,no_run
     /// use coeus_tensor::{Tensor, serialization::SerializationFormat};
     ///
     /// let tensor = Tensor::<f32>::load("tensor.bin", SerializationFormat::Binary).unwrap();
@@ -289,7 +289,7 @@ impl StateDict {
     /// * `format` - Serialization format to use
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,no_run
     /// use coeus_tensor::{Tensor, serialization::{StateDict, SerializationFormat}};
     ///
     /// let mut state_dict = StateDict::new();
@@ -326,7 +326,7 @@ impl StateDict {
     /// * `format` - Serialization format to use
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,no_run
     /// use coeus_tensor::serialization::{StateDict, SerializationFormat};
     ///
     /// let state_dict = StateDict::load("model.bin", SerializationFormat::Binary).unwrap();
@@ -357,7 +357,7 @@ impl StateDict {
     /// Convert state dictionary to f32 tensor map
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,no_run
     /// use coeus_tensor::serialization::{StateDict, SerializationFormat};
     ///
     /// let state_dict = StateDict::load("model.bin", SerializationFormat::Binary).unwrap();
@@ -406,7 +406,7 @@ impl StateDict {
     /// * `tensors` - Map of parameter names to tensors
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,no_run
     /// use coeus_tensor::{Tensor, serialization::StateDict};
     /// use std::collections::HashMap;
     ///
@@ -421,7 +421,7 @@ impl StateDict {
     /// * `tensors` - Map of parameter names to tensors
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,no_run
     /// use coeus_tensor::{Tensor, serialization::StateDict};
     /// use std::collections::HashMap;
     ///
@@ -566,7 +566,7 @@ pub mod helpers {
     /// * `format` - Serialization format
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,no_run
     /// use coeus_tensor::{Tensor, serialization::{helpers, SerializationFormat}};
     ///
     /// let tensors = vec![
@@ -639,7 +639,7 @@ pub mod helpers {
     /// * `format` - Serialization format
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,no_run
     /// use coeus_tensor::serialization::{helpers, SerializationFormat};
     ///
     /// let tensors = helpers::load_tensors_f32(2, "tensor", SerializationFormat::Binary).unwrap();

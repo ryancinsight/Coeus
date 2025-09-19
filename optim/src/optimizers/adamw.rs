@@ -4,7 +4,7 @@
 //! compatible with PyTorch's `torch.optim.AdamW`.
 
 use crate::{BaseOptimizer, Optimizer, ParamGroup, Result};
-use coeus_tensor::Tensor;
+use coeus_tensor::{ops::arithmetic::maximum, Tensor};
 
 /// AdamW optimizer
 ///
@@ -143,46 +143,153 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for AdamW<T> {
 
     fn step(&mut self) -> Result<()> {
         self.step_count += 1;
-        let _step_t = T::from(self.step_count as f64).unwrap();
+        let step_t = T::from(self.step_count as f64).ok_or_else(|| {
+            crate::OptimError::InvalidParameter("Failed to convert step count to float".into())
+        })?;
 
-        // Collect updates first to avoid borrowing conflicts
+        // Collect all updates first to avoid borrowing conflicts
         let mut state_updates = Vec::new();
+        let mut param_updates = Vec::new();
 
-        // First pass: collect current state and compute updates
-        for group in self.base.param_groups().iter() {
-            for param in group.params.iter() {
-                if let Some(grad) = param.grad() {
-                    let param_key = format!("adamw_{:p}", param as *const _);
+        // Process each parameter group
+        for group_idx in 0..self.base.param_groups().len() {
+            let group = &self.base.param_groups()[group_idx];
+            let lr = group.lr;
+            let weight_decay = group.weight_decay;
 
-                    // Get or initialize moment estimates
-                    let m_key = format!("{}_m", param_key);
-                    let v_key = format!("{}_v", param_key);
-                    let v_max_key = format!("{}_v_max", param_key);
+            // Process each parameter in the group
+            for param_idx in 0..group.params.len() {
+                let param_key = format!(
+                    "adamw_{}_{}_{:p}",
+                    group_idx, param_idx, &group.params[param_idx] as *const _
+                );
 
-                    let m = self.base.state().get(&m_key).cloned();
-                    let v = self.base.state().get(&v_key).cloned();
+                // Get gradient for this parameter
+                let Some(grad) = group.params[param_idx].grad() else {
+                    continue; // Skip parameters without gradients
+                };
 
-                    // For now, simplified implementation
-                    let updated_m = m.unwrap_or_else(|| Tensor::zeros(grad.shape().to_vec()));
-                    let updated_v = v.unwrap_or_else(|| Tensor::zeros(grad.shape().to_vec()));
+                // Get or initialize moment estimates
+                let m_key = format!("{}_m", param_key);
+                let v_key = format!("{}_v", param_key);
+                let v_max_key = format!("{}_v_max", param_key);
 
-                    // Store updates
-                    state_updates.push((m_key, updated_m));
+                // Get current moment estimates or initialize to zeros
+                let m_prev = self
+                    .base
+                    .state()
+                    .get(&m_key)
+                    .cloned()
+                    .unwrap_or_else(|| Tensor::zeros_like(&grad));
+                let v_prev = self
+                    .base
+                    .state()
+                    .get(&v_key)
+                    .cloned()
+                    .unwrap_or_else(|| Tensor::zeros_like(&grad));
 
-                    if self.amsgrad {
-                        let v_max = self.base.state().get(&v_max_key).cloned();
-                        let updated_v_max = v_max.unwrap_or_else(|| updated_v.clone());
-                        state_updates.push((v_max_key, updated_v_max));
-                    }
+                // AdamW: Weight decay is applied directly to parameters (decoupled from gradients)
+                // The gradient used for optimization remains unchanged
+                let effective_grad = grad.clone();
 
-                    state_updates.push((v_key, updated_v));
+                // Update biased first moment estimate: m_t = β₁ * m_{t-1} + (1 - β₁) * g_t
+                let beta1_tensor = Tensor::scalar(self.beta1);
+                let one_minus_beta1_tensor = Tensor::scalar(T::one() - self.beta1);
+                let m_t = (&beta1_tensor * &m_prev)?;
+                let grad_term = (&one_minus_beta1_tensor * &effective_grad)?;
+                let m_t = (&m_t + &grad_term)?;
+
+                // Update biased second moment estimate: v_t = β₂ * v_{t-1} + (1 - β₂) * g_t²
+                let beta2_tensor = Tensor::scalar(self.beta2);
+                let one_minus_beta2_tensor = Tensor::scalar(T::one() - self.beta2);
+                let v_t = (&beta2_tensor * &v_prev)?;
+                let grad_squared = (&effective_grad * &effective_grad)?;
+                let grad_squared_term = (&one_minus_beta2_tensor * &grad_squared)?;
+                let v_t = (&v_t + &grad_squared_term)?;
+
+                // Compute bias-corrected moments
+                // β₁^t and β₂^t using iterative multiplication for integer powers
+                let mut beta1_pow = T::one();
+                let mut beta2_pow = T::one();
+                let step_int = if step_t >= T::one() { 1 } else { 0 }; // Simple conversion for step count
+                for _ in 0..step_int {
+                    beta1_pow = beta1_pow * self.beta1;
+                    beta2_pow = beta2_pow * self.beta2;
                 }
+
+                let bias_correction1 = T::one() - beta1_pow;
+                let bias_correction2 = T::one() - beta2_pow;
+                let bias_correction1_tensor = Tensor::scalar(bias_correction1);
+                let bias_correction2_tensor = Tensor::scalar(bias_correction2);
+
+                let m_hat = (&m_t / &bias_correction1_tensor)?;
+                let v_hat = (&v_t / &bias_correction2_tensor)?;
+
+                // AMSGrad: take maximum of current and previous v_hat
+                let v_hat_final = if self.amsgrad {
+                    let v_max_prev = self
+                        .base
+                        .state()
+                        .get(&v_max_key)
+                        .cloned()
+                        .unwrap_or_else(|| v_hat.clone());
+                    let v_max_new = maximum(&v_hat, &v_max_prev)?;
+                    state_updates.push((v_max_key, v_max_new.clone()));
+                    v_max_new
+                } else {
+                    v_hat
+                };
+
+                // Compute parameter update: θ = θ - η * m̂_t / (√v̂_t + ε)
+                let eps_tensor = Tensor::scalar(self.eps);
+                let v_hat_sqrt = v_hat_final.sqrt();
+                let denominator = (&v_hat_sqrt + &eps_tensor)?;
+                let lr_tensor = Tensor::scalar(lr);
+                let lr_m_hat = (&lr_tensor * &m_hat)?;
+                let update = (&lr_m_hat / &denominator)?;
+
+                // Apply weight decay directly to parameters (AdamW style)
+                let param_data = group.params[param_idx].data();
+                let update_data = update.data();
+                let mut new_param_data: Vec<T> = param_data
+                    .iter()
+                    .zip(update_data.iter())
+                    .map(|(p, u)| *p - *u)
+                    .collect();
+
+                // Apply decoupled weight decay: θ = θ * (1 - η * λ)
+                if weight_decay != T::zero() {
+                    let wd_factor = T::one() - lr * weight_decay;
+                    new_param_data.iter_mut().for_each(|p| *p = *p * wd_factor);
+                }
+
+                let new_param_shape = group.params[param_idx].shape().to_vec();
+                let mut new_param = Tensor::from_vec(new_param_data, new_param_shape);
+
+                // Preserve gradient tracking
+                if group.params[param_idx].requires_grad() {
+                    new_param.set_requires_grad(true);
+                }
+
+                // Store updates
+                state_updates.push((m_key, m_t));
+                state_updates.push((v_key, v_t));
+                param_updates.push((group_idx, param_idx, new_param));
             }
         }
 
-        // Second pass: apply updates
+        // Apply all state updates
         for (key, tensor) in state_updates {
             self.base.state_mut().insert(key, tensor);
+        }
+
+        // Apply all parameter updates
+        for (group_idx, param_idx, new_param) in param_updates {
+            if let Some(group) = self.base.param_groups_mut().get_mut(group_idx) {
+                if let Some(param) = group.params.get_mut(param_idx) {
+                    *param = new_param;
+                }
+            }
         }
 
         Ok(())

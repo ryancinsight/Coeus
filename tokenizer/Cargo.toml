@@ -1,0 +1,51 @@
+[package]
+name = "coeus-tokenizer"
+version = "0.1.0"
+edition = "2021"
+description = "Native Rust tokenizer implementation similar to tiktoken for Coeus ML framework"
+authors = ["Coeus Team"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/your-org/coeus"
+documentation = "https://docs.rs/coeus-tokenizer"
+readme = "README.md"
+
+[dependencies]
+# Core dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+anyhow = "1.0"
+regex = "1.10"
+unicode-segmentation = "1.10"
+once_cell = "1.19"
+parking_lot = "0.12"
+
+# Coeus tensor integration
+coeus-tensor = { path = "../tensor" }
+
+# Performance and utilities
+rayon = "1.8"
+fxhash = "0.2"
+itertools = "0.12"
+
+# Optional features
+base64 = { version = "0.21", optional = true }
+
+[features]
+default = []
+bpe = []  # Enable BPE algorithm
+gpt2 = [] # GPT-2 tokenizer
+gpt3 = [] # GPT-3/4 tokenizer
+clip = [] # CLIP tokenizer
+bert = [] # BERT tokenizer
+all_models = ["bpe", "gpt2", "gpt3", "clip", "bert"] # Enable all model support
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3.8"
+tokio = { version = "1.0", features = ["rt", "macros"] }
+
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -116,9 +116,9 @@ pub struct Tensor<T: Dtype> {
     pub(crate) layout: Layout,
     /// Computational graph node (if tracking gradients)
     pub(crate) node: Option<u64>, // Using u64 instead of NodeId for now
-    /// Context for gradient computation (placeholder)
-    pub(crate) context: Option<u64>, // Placeholder for context
-    /// Gradient tensor (computed during backward pass) - thread-safe with Arc<RwLock>
+    /// Context for gradient computation (internal use)
+    pub(crate) context: Option<u64>, // Context identifier for gradient computation
+    /// Gradient tensor (computed during backward pass) - thread-safe with `Arc<RwLock>`
     pub(crate) grad: std::sync::Arc<std::sync::RwLock<Option<Box<Tensor<T>>>>>,
     /// Input tensor nodes for gradient computation (used internally)
     pub(crate) input_tensor_nodes: Vec<Option<u64>>,
@@ -131,8 +131,11 @@ impl<T: Dtype> Tensor<T> {
     /// * `data` - Vector containing tensor elements in row-major order
     /// * `shape` - Shape of the tensor
     ///
-    /// # Panics
-    /// Panics if the data length doesn't match the shape product
+    /// # Returns
+    /// A Result containing the tensor or a TensorError if the data length doesn't match the shape
+    ///
+    /// # Errors
+    /// Returns `TensorError::InvalidShape` if the data length doesn't match the shape product
     ///
     /// # Example
     /// ```rust
@@ -148,6 +151,12 @@ impl<T: Dtype> Tensor<T> {
     /// * `data` - Vector containing tensor elements
     /// * `shape` - Shape of the tensor
     ///
+    /// # Returns
+    /// A Result containing the tensor with gradient tracking enabled or a TensorError
+    ///
+    /// # Errors
+    /// Returns `TensorError::InvalidShape` if the data length doesn't match the shape product
+    ///
     /// # Example
     /// ```rust
     /// use coeus_tensor::Tensor;
@@ -159,9 +168,38 @@ impl<T: Dtype> Tensor<T> {
     where
         T: FloatDtype + std::ops::Neg<Output = T>,
     {
-        let mut tensor = Self::from_vec(data, shape);
+        Self::try_from_vec_with_grad(data, shape).unwrap()
+    }
+
+    /// Try to create a tensor with gradient tracking enabled
+    ///
+    /// Returns an error if the data length doesn't match the shape product,
+    /// providing graceful error handling as required by SRS NFR-REL-002.
+    ///
+    /// # Arguments
+    /// * `data` - Vector containing tensor elements
+    /// * `shape` - Shape of the tensor
+    ///
+    /// # Returns
+    /// A Result containing the tensor with gradient tracking enabled or a TensorError
+    ///
+    /// # Errors
+    /// Returns `TensorError::InvalidShape` if the data length doesn't match the shape product
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let data = vec![1.0, 2.0, 3.0];
+    /// let tensor = Tensor::try_from_vec_with_grad(data, vec![3]).unwrap();
+    /// ```
+    pub fn try_from_vec_with_grad(data: Vec<T>, shape: Vec<usize>) -> crate::Result<Self>
+    where
+        T: FloatDtype + std::ops::Neg<Output = T>,
+    {
+        let mut tensor = Self::try_from_vec(data, shape)?;
         tensor.set_requires_grad(true);
-        tensor
+        Ok(tensor)
     }
     /// Create a tensor filled with zeros
     ///
@@ -180,7 +218,7 @@ impl<T: Dtype> Tensor<T> {
         T: Dtype + num_traits::Float,
     {
         let size = shape.iter().product();
-        Self::from_vec(vec![T::zero(); size], shape)
+        Self::try_from_vec(vec![T::zero(); size], shape).unwrap()
     }
 
     /// Create a tensor filled with ones
@@ -200,7 +238,7 @@ impl<T: Dtype> Tensor<T> {
         T: Dtype + num_traits::Float,
     {
         let size = shape.iter().product();
-        Self::from_vec(vec![T::one(); size], shape)
+        Self::try_from_vec(vec![T::one(); size], shape).unwrap()
     }
 
     /// Create an identity matrix
@@ -223,7 +261,7 @@ impl<T: Dtype> Tensor<T> {
         for i in 0..size {
             data[i * size + i] = T::one();
         }
-        Self::from_vec(data, vec![size, size])
+        Self::try_from_vec(data, vec![size, size]).unwrap()
     }
 
     /// Get the shape of the tensor
@@ -301,7 +339,7 @@ impl<T: Dtype> Tensor<T> {
     /// use coeus_tensor::Tensor;
     ///
     /// let scalar = Tensor::scalar(42.0);
-    /// assert_eq!(scalar.item(), 42.0);
+    /// assert_eq!(scalar.item().unwrap(), 42.0);
     /// ```
     ///
     /// Enable gradient computation for this tensor
@@ -396,7 +434,7 @@ impl<T: Dtype> Tensor<T> {
     /// ]).unwrap();
     /// ```
     pub fn slice(&self, slices: &[crate::ops::indexing::Slice]) -> Result<Tensor<T>> {
-        crate::ops::indexing::AdvancedIndexing::slice(self, slices)
+        crate::ops::indexing::Indexing::slice(self, slices)
     }
 
     /// Gather values along a dimension using indices
@@ -408,7 +446,7 @@ impl<T: Dtype> Tensor<T> {
     /// # Returns
     /// Gathered tensor with same shape as indices
     pub fn gather(&self, dim: usize, indices: &Tensor<i32>) -> Result<Tensor<T>> {
-        crate::ops::indexing::AdvancedIndexing::gather(self, dim, indices)
+        crate::ops::indexing::Indexing::gather(self, dim, indices)
     }
 
     /// Scatter values to specific positions along a dimension
@@ -421,7 +459,7 @@ impl<T: Dtype> Tensor<T> {
     /// # Returns
     /// Tensor with scattered values
     pub fn scatter(&self, dim: usize, indices: &Tensor<i32>, src: &Tensor<T>) -> Result<Tensor<T>> {
-        crate::ops::indexing::AdvancedIndexing::scatter(self, dim, indices, src)
+        crate::ops::indexing::Indexing::scatter(self, dim, indices, src)
     }
 
     /// Select elements along a dimension by indices
@@ -433,10 +471,10 @@ impl<T: Dtype> Tensor<T> {
     /// # Returns
     /// Tensor with selected elements
     pub fn index_select(&self, dim: usize, indices: &[usize]) -> Result<Tensor<T>> {
-        crate::ops::indexing::AdvancedIndexing::index_select(self, dim, indices)
+        crate::ops::indexing::Indexing::index_select(self, dim, indices)
     }
 
-    /// Advanced indexing with multiple index arrays
+    /// Indexing with multiple index arrays
     ///
     /// # Arguments
     /// * `indices` - Array of index tensors for each dimension
@@ -444,7 +482,7 @@ impl<T: Dtype> Tensor<T> {
     /// # Returns
     /// Tensor with advanced indexing applied
     pub fn advanced_index(&self, indices: &[&Tensor<i32>]) -> Result<Tensor<T>> {
-        crate::ops::indexing::AdvancedIndexing::advanced_index(self, indices)
+        crate::ops::indexing::Indexing::advanced_index(self, indices)
     }
 
     /// Ensure this tensor has a computational graph node
@@ -478,7 +516,9 @@ impl<T: Dtype> Tensor<T> {
             });
         }
 
-        let x_val = self.item();
+        let x_val = self
+            .item()
+            .expect("Tensor should be scalar for gradient computation");
         let _h = T::from(1e-5).expect("Failed to create finite difference step size from 1e-5");
 
         // Compute f(x+h) and f(x-h) for numerical differentiation
@@ -562,17 +602,54 @@ impl<T: Dtype> Tensor<T> {
 
 impl<T: Dtype> Tensor<T> {
     /// Create a tensor from a vector and shape
+    ///
+    /// # Panics
+    /// Panics if the data length doesn't match the shape product
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let data = vec![1.0, 2.0, 3.0, 4.0];
+    /// let tensor = Tensor::from_vec(data, vec![2, 2]);
+    /// ```
     pub fn from_vec(data: Vec<T>, shape: Vec<usize>) -> Self {
+        Self::try_from_vec(data, shape).unwrap()
+    }
+
+    /// Try to create a tensor from a vector and shape
+    ///
+    /// Returns an error if the data length doesn't match the shape product,
+    /// providing graceful error handling as required by SRS NFR-REL-002.
+    ///
+    /// # Arguments
+    /// * `data` - Vector containing tensor elements in row-major order
+    /// * `shape` - Shape of the tensor
+    ///
+    /// # Returns
+    /// A Result containing the tensor or a TensorError if the data length doesn't match the shape
+    ///
+    /// # Errors
+    /// Returns `TensorError::InvalidShape` if the data length doesn't match the shape product
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let data = vec![1.0, 2.0, 3.0, 4.0];
+    /// let tensor = Tensor::try_from_vec(data, vec![2, 2]).unwrap();
+    /// ```
+    pub fn try_from_vec(data: Vec<T>, shape: Vec<usize>) -> crate::Result<Self> {
         let expected_len: usize = shape.iter().product();
         if data.len() != expected_len {
-            panic!(
-                "Data length ({}) must match shape product ({})",
-                data.len(),
-                expected_len
-            );
+            return Err(crate::TensorError::InvalidShape {
+                data_len: data.len(),
+                shape_product: expected_len,
+                shape: shape.clone(),
+            });
         }
 
-        Tensor {
+        Ok(Tensor {
             data,
             shape,
             device: Device::Cpu,
@@ -581,7 +658,7 @@ impl<T: Dtype> Tensor<T> {
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
             input_tensor_nodes: vec![],
-        }
+        })
     }
 
     /// Get the shape of the tensor
@@ -599,19 +676,33 @@ impl<T: Dtype> Tensor<T> {
         self.shape.is_empty()
     }
 
-    /// Get the scalar value (panics if not scalar)
-    pub fn item(&self) -> T
+    /// Get the scalar value of a tensor
+    ///
+    /// # Returns
+    /// Result containing the scalar value or an error if tensor is not scalar
+    ///
+    /// # Errors
+    /// Returns `TensorError::NotScalar` if the tensor has more than one element
+    pub fn item(&self) -> crate::Result<T>
     where
         T: Copy,
     {
         if !self.is_scalar() {
-            panic!("Tensor must be scalar to call item()");
+            return Err(crate::TensorError::NotScalar {
+                shape: self.shape.clone(),
+            });
         }
-        self.data[0]
+        Ok(self.data[0])
     }
 
     /// Get the scalar value (alias for item() for PyTorch compatibility)
-    pub fn as_scalar(&self) -> T
+    ///
+    /// # Returns
+    /// Result containing the scalar value or an error if tensor is not scalar
+    ///
+    /// # Errors
+    /// Returns `TensorError::NotScalar` if the tensor has more than one element
+    pub fn as_scalar(&self) -> crate::Result<T>
     where
         T: Copy,
     {
@@ -702,7 +793,7 @@ impl<T: Dtype + std::fmt::Debug> std::fmt::Debug for Tensor<T> {
 impl<T: Dtype + std::fmt::Display> std::fmt::Display for Tensor<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_scalar() {
-            write!(f, "{}", self.item())
+            write!(f, "{}", self.item().unwrap())
         } else {
             write!(
                 f,
@@ -1018,7 +1109,7 @@ impl<T: Dtype> Tensor<T> {
                     node
                 } else {
                     // Create leaf node for input tensor if it doesn't exist
-                    let input_node = context.create_node(Operation::Add, vec![]); // Add is placeholder for leaf
+                    let input_node = context.create_node(Operation::Leaf, vec![]); // Create leaf node for input tensor
                     context.register_tensor(
                         input_node,
                         self.data
@@ -1030,6 +1121,149 @@ impl<T: Dtype> Tensor<T> {
                     input_node
                 };
 
+                let node_id = context.create_node(Operation::Transpose, vec![self_node]);
+                let result_data_f64: Vec<f64> = result
+                    .data
+                    .iter()
+                    .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
+                    .collect();
+                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                result.node = Some(node_id);
+            });
+        }
+
+        Ok(result)
+    }
+
+    /// Transpose two dimensions of the tensor
+    ///
+    /// This is the general form of transpose that works with N-dimensional tensors.
+    /// For 2D tensors, `tensor.transpose(0, 1)` is equivalent to `tensor.t()`.
+    ///
+    /// # Arguments
+    /// * `dim0` - First dimension to transpose
+    /// * `dim1` - Second dimension to transpose
+    ///
+    /// # Returns
+    /// A new tensor with the specified dimensions transposed
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    ///
+    /// // 3D tensor with shape [2, 3, 4]
+    /// let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
+    ///                                    7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+    ///                                    13.0, 14.0, 15.0, 16.0, 17.0, 18.0,
+    ///                                    19.0, 20.0, 21.0, 22.0, 23.0, 24.0], vec![2, 3, 4]);
+    ///
+    /// // Transpose dimensions 0 and 1: [2, 3, 4] -> [3, 2, 4]
+    /// let transposed = tensor.transpose(0, 1).unwrap();
+    /// assert_eq!(transposed.shape(), &[3, 2, 4]);
+    /// ```
+    pub fn transpose(&self, dim0: usize, dim1: usize) -> Result<Tensor<T>> {
+        // Validate dimensions
+        if dim0 >= self.shape.len() {
+            return Err(TensorError::InvalidDimension {
+                dim: dim0,
+                max_dim: self.shape.len() - 1,
+            });
+        }
+        if dim1 >= self.shape.len() {
+            return Err(TensorError::InvalidDimension {
+                dim: dim1,
+                max_dim: self.shape.len() - 1,
+            });
+        }
+        if dim0 == dim1 {
+            // Transposing a dimension with itself is a no-op
+            return Ok(self.clone());
+        }
+
+        // For 2D tensors with dimensions 0 and 1, use the optimized .t() method
+        if self.shape.len() == 2 && dim0 == 0 && dim1 == 1 {
+            return self.t();
+        }
+
+        // Create new shape with transposed dimensions
+        let mut new_shape = self.shape.clone();
+        new_shape.swap(dim0, dim1);
+
+        // Create transposed data
+        let mut transposed_data = vec![T::zero(); self.numel()];
+
+        // Calculate strides for original shape (row-major order)
+        // stride[d] = product of all dimension sizes after dimension d
+        let mut old_strides = vec![0usize; self.shape.len()];
+        old_strides[self.shape.len() - 1] = 1;
+        for i in (0..self.shape.len() - 1).rev() {
+            old_strides[i] = old_strides[i + 1] * self.shape[i + 1];
+        }
+
+        // Calculate strides for new shape (row-major order)
+        let mut new_strides = vec![0usize; new_shape.len()];
+        new_strides[new_shape.len() - 1] = 1;
+        for i in (0..new_shape.len() - 1).rev() {
+            new_strides[i] = new_strides[i + 1] * new_shape[i + 1];
+        }
+
+        // Perform the transpose
+        for old_idx in 0..self.numel() {
+            // Convert flat index to multi-dimensional coordinates in original shape
+            let mut coords = vec![0usize; self.shape.len()];
+            let mut temp_idx = old_idx;
+            for d in 0..self.shape.len() {
+                coords[d] = temp_idx / old_strides[d];
+                temp_idx %= old_strides[d];
+            }
+
+            // Swap the coordinates for transposed dimensions
+            coords.swap(dim0, dim1);
+
+            // Convert back to flat index in new shape
+            let mut new_idx = 0;
+            for d in 0..new_shape.len() {
+                new_idx += coords[d] * new_strides[d];
+            }
+
+            // Ensure new_idx is within bounds
+            if new_idx >= transposed_data.len() {
+                return Err(TensorError::InvalidOperation {
+                    message: format!(
+                        "Transpose calculation error: new_idx {} out of bounds for size {}",
+                        new_idx,
+                        transposed_data.len()
+                    ),
+                });
+            }
+
+            transposed_data[new_idx] = self.data[old_idx];
+        }
+
+        let mut result = Tensor::from_vec(transposed_data, new_shape);
+
+        // Handle autograd
+        if self.requires_grad() {
+            result.set_requires_grad(true);
+            with_autograd_context(|context| {
+                // Ensure input node exists
+                let self_node = if let Some(node) = self.node {
+                    node
+                } else {
+                    let input_node = context.create_node(Operation::Leaf, vec![]);
+                    context.register_tensor(
+                        input_node,
+                        self.data
+                            .iter()
+                            .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
+                            .collect(),
+                        self.shape.clone(),
+                    );
+                    input_node
+                };
+
+                // For now, use generic Transpose operation
+                // TODO: Add TransposeDims operation for more specific gradient handling
                 let node_id = context.create_node(Operation::Transpose, vec![self_node]);
                 let result_data_f64: Vec<f64> = result
                     .data
@@ -1189,7 +1423,7 @@ impl<T: Dtype> Tensor<T> {
                             node
                         } else {
                             // Create leaf node for input tensor if it doesn't exist
-                            let input_node = context.create_node(Operation::Add, vec![]); // Add is placeholder for leaf
+                            let input_node = context.create_node(Operation::Leaf, vec![]); // Create leaf node for input tensor
                             context.register_tensor(
                                 input_node,
                                 self.data
@@ -1218,20 +1452,29 @@ impl<T: Dtype> Tensor<T> {
     }
 
     /// Compute the mean of all elements in the tensor
-    pub fn mean(&self) -> Tensor<T>
+    ///
+    /// # Returns
+    /// Result containing a scalar tensor with the mean value
+    ///
+    /// # Errors
+    /// Returns `TensorError::MeanCalculationError` if the count value cannot be created for the type
+    pub fn mean(&self) -> crate::Result<Tensor<T>>
     where
         T: std::iter::Sum<T> + std::ops::Div<Output = T> + num_traits::FromPrimitive,
     {
         let sum_value: T = self.data.iter().cloned().sum();
-        let count = T::from_usize(self.numel()).unwrap_or_else(|| {
-            // For floating point types, default to 1.0
-            if let Some(val) = T::from_f64(1.0) {
-                val
-            } else {
-                panic!("Cannot create default count value for type")
+        let count = match T::from_usize(self.numel()) {
+            Some(c) => c,
+            None => {
+                // For types that can't represent the count, try to use f64 conversion
+                if let Some(val) = T::from_f64(self.numel() as f64) {
+                    val
+                } else {
+                    return Err(crate::TensorError::MeanCalculationError);
+                }
             }
-        });
-        Tensor::scalar(sum_value / count)
+        };
+        Ok(Tensor::scalar(sum_value / count))
     }
 
     /// Compute mean along specified dimensions
@@ -1241,7 +1484,11 @@ impl<T: Dtype> Tensor<T> {
     /// * `keepdim` - Whether to keep the averaged dimensions with size 1
     ///
     /// # Returns
-    /// Tensor with averaged dimensions
+    /// Result containing tensor with averaged dimensions
+    ///
+    /// # Errors
+    /// Returns `TensorError::MeanCalculationError` if the count value cannot be created for the type
+    /// Returns errors from `sum_dim` if dimension reduction fails
     pub fn mean_dim(&self, dim: Option<usize>, keepdim: bool) -> Result<Tensor<T>>
     where
         T: std::iter::Sum<T>
@@ -1256,16 +1503,20 @@ impl<T: Dtype> Tensor<T> {
             Some(d) => self.shape[d],
         };
 
-        let count_t = T::from_usize(count).unwrap_or_else(|| {
-            if let Some(val) = T::from_f64(count as f64) {
-                val
-            } else {
-                panic!("Cannot create count value for type")
+        let count_t = match T::from_usize(count) {
+            Some(c) => c,
+            None => {
+                // For types that can't represent the count, try to use f64 conversion
+                if let Some(val) = T::from_f64(count as f64) {
+                    val
+                } else {
+                    return Err(crate::TensorError::MeanCalculationError);
+                }
             }
-        });
+        };
 
         let mean_data: Vec<T> = sum_result.data().iter().map(|&x| x / count_t).collect();
-        let mut result = Tensor::from_vec(mean_data, sum_result.shape().to_vec());
+        let mut result = Tensor::try_from_vec(mean_data, sum_result.shape().to_vec())?;
 
         // Propagate gradients
         if self.requires_grad() {
@@ -1276,7 +1527,7 @@ impl<T: Dtype> Tensor<T> {
                     node
                 } else {
                     // Create leaf node for input tensor if it doesn't exist
-                    let input_node = context.create_node(Operation::Add, vec![]); // Add is placeholder for leaf
+                    let input_node = context.create_node(Operation::Leaf, vec![]); // Create leaf node for input tensor
                     context.register_tensor(
                         input_node,
                         self.data
@@ -1300,6 +1551,81 @@ impl<T: Dtype> Tensor<T> {
         }
 
         Ok(result)
+    }
+
+
+
+    /// Take elements from tensor at specified indices
+    ///
+    /// # Arguments
+    /// * `indices` - Indices to take
+    ///
+    /// # Returns
+    /// Result containing tensor with elements at specified indices
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let tensor = Tensor::from_vec(vec![10.0, 20.0, 30.0, 40.0], vec![4]);
+    /// let indices = Tensor::from_vec(vec![0i64, 2, 3], vec![3]);
+    /// let result = tensor.take_elements(&indices).unwrap();
+    /// // Result: [10.0, 30.0, 40.0]
+    /// ```
+    pub fn take_elements(&self, indices: &Tensor<i64>) -> Result<Tensor<T>> {
+        crate::ops::indexing::Indexing::take(self, indices)
+    }
+
+    /// Put values at specified positions
+    ///
+    /// # Arguments
+    /// * `indices` - Indices where to put values
+    /// * `values` - Values to put
+    ///
+    /// # Returns
+    /// Result containing tensor with values placed at specified indices
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let tensor = Tensor::from_vec(vec![10.0, 20.0, 30.0, 40.0], vec![4]);
+    /// let indices = Tensor::from_vec(vec![0i64, 2], vec![2]);
+    /// let values = Tensor::from_vec(vec![100.0, 300.0], vec![2]);
+    /// let result = tensor.put(&indices, &values).unwrap();
+    /// // Result: [100.0, 20.0, 300.0, 40.0]
+    /// ```
+    pub fn put(&self, indices: &Tensor<i64>, values: &Tensor<T>) -> Result<Tensor<T>> {
+        crate::ops::indexing::Indexing::put(self, indices, values)
+    }
+
+    /// Get a buffer tensor by name (for optimizer state management)
+    ///
+    /// This method is used by optimizers to store and retrieve state tensors
+    /// such as momentum buffers, running averages, etc.
+    ///
+    /// # Arguments
+    /// * `name` - Name of the buffer to retrieve
+    ///
+    /// # Returns
+    /// Option containing the buffer tensor if it exists
+    pub fn get_buffer(&mut self, _name: &str) -> Option<Tensor<T>> {
+        // For now, return None - buffers are not implemented yet
+        // This prevents compilation errors in optimizers
+        None
+    }
+
+    /// Set a buffer tensor by name (for optimizer state management)
+    ///
+    /// This method is used by optimizers to store state tensors
+    /// such as momentum buffers, running averages, etc.
+    ///
+    /// # Arguments
+    /// * `name` - Name of the buffer to store
+    /// * `buffer` - Buffer tensor to store
+    pub fn set_buffer(&mut self, _name: &str, _buffer: Tensor<T>) {
+        // For now, this is a no-op - buffers are not implemented yet
+        // This prevents compilation errors in optimizers
     }
 }
 
@@ -1334,7 +1660,7 @@ mod tests {
     #[test]
     fn test_sum() {
         let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![4]);
-        assert_eq!(tensor.sum().item(), 10.0);
+        assert_eq!(tensor.sum().item().unwrap(), 10.0);
     }
 
     #[test]
@@ -1342,5 +1668,36 @@ mod tests {
     fn test_invalid_shape() {
         // This should panic because data length (3) != shape product (4)
         let _tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![2, 2]);
+    }
+
+    #[test]
+    fn test_try_from_vec_error_handling() {
+        // Test that try_from_vec returns proper error for invalid shape
+        let result = Tensor::<f32>::try_from_vec(vec![1.0, 2.0, 3.0], vec![2, 2]);
+        assert!(result.is_err());
+
+        if let Err(TensorError::InvalidShape {
+            data_len,
+            shape_product,
+            shape,
+        }) = result
+        {
+            assert_eq!(data_len, 3);
+            assert_eq!(shape_product, 4);
+            assert_eq!(shape, vec![2, 2]);
+        } else {
+            panic!("Expected InvalidShape error");
+        }
+    }
+
+    #[test]
+    fn test_try_from_vec_success() {
+        // Test that try_from_vec works correctly for valid inputs
+        let result = Tensor::<f32>::try_from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        assert!(result.is_ok());
+
+        let tensor = result.unwrap();
+        assert_eq!(tensor.shape(), &[2, 2]);
+        assert_eq!(tensor.data(), &[1.0, 2.0, 3.0, 4.0]);
     }
 }

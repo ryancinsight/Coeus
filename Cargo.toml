@@ -9,6 +9,7 @@ members = [
     "utils",
     "fft",
     "hub",
+    "tokenizer",
     "examples",
     "pycoeus",
 ]
@@ -41,9 +42,4 @@ criterion = { version = "0.5", features = ["html_reports"] }
 coeus-dtype = { path = "dtype" }
 coeus-tensor = { path = "tensor" }
 coeus-autograd = { path = "autograd" }
-coeus-backend = { path = "backend" }
 coeus-nn = { path = "nn" }
-coeus-optim = { path = "optim" }
-coeus-utils = { path = "utils" }
-coeus-fft = { path = "fft" }
-coeus-hub = { path = "hub" }

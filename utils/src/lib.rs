@@ -47,13 +47,49 @@ pub mod transforms;
 pub mod utils;
 
 pub use data::{DataLoader, DataLoaderBuilder, Dataset};
-pub use transforms::*;
 pub use utils::tensor_ops;
 pub use utils::*;
 
 // Re-export key types for convenience
 pub use data::{ConcatDataset, Subset, TensorDataset};
-pub use transforms::{Compose, Identity, Normalize, RandomCrop, RandomHorizontalFlip, ToTensor};
+pub use transforms::{
+    ColorJitter,
+    Compose,
+    Identity,
+    InterpolationMode,
+    Lambda,
+    Normalize,
+    RandomAffine,
+    // General transforms
+    RandomApply,
+    RandomChoice,
+    RandomCrop,
+    RandomErasing,
+    RandomHorizontalFlip,
+    RandomOrder,
+    RandomPerspective,
+    RandomRotation,
+    // Vision transforms
+    RandomVerticalFlip,
+    ToTensor,
+    // Core transforms
+    Transform,
+};
+
+// Re-export utilities
+pub use utils::{
+    // Advanced losses
+    advanced_loss::kl_div_loss,
+    // Metrics
+    metrics::{
+        accuracy, auc_roc, classification_report, confusion_matrix, mean_squared_error,
+        top_k_accuracy,
+    },
+    // Structures
+    ClassificationReport,
+    // Loss functions
+    Reduction,
+};
 
 // Type alias for Result
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;

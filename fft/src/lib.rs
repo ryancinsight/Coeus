@@ -20,7 +20,7 @@
 //! let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![4]);
 //! let result = fft(&input, None, None, None).unwrap();
 //!
-//! // 2D FFT (placeholder - not fully implemented yet)
+//! // 2D FFT (future implementation)
 //! let input_2d = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
 //! // let result_2d = fft2(&input_2d, None, None, None).unwrap();
 //! ```
@@ -267,8 +267,13 @@ pub fn fft2<T: FloatDtype>(
         });
     }
 
-    // For now, return a copy - this is a placeholder
-    Ok(input.clone())
+    // 2D operations not yet implemented
+    Err(coeus_tensor::TensorError::InvalidOperation {
+        message: format!(
+            "{}D FFT operations not yet implemented",
+            input.shape().len()
+        ),
+    })
 }
 
 /// Compute the inverse 2D Fast Fourier Transform
@@ -298,8 +303,13 @@ pub fn ifft2<T: FloatDtype>(
         });
     }
 
-    // For now, return a copy - this is a placeholder
-    Ok(input.clone())
+    // 2D operations not yet implemented
+    Err(coeus_tensor::TensorError::InvalidOperation {
+        message: format!(
+            "{}D FFT operations not yet implemented",
+            input.shape().len()
+        ),
+    })
 }
 
 /// Compute the real Fast Fourier Transform (FFT of real input)
@@ -325,8 +335,13 @@ pub fn rfft<T: FloatDtype>(
     // This would use rustfft's real-to-complex FFT for efficiency
     let _shape = input.shape();
 
-    // For now, return a copy - this is a placeholder
-    Ok(input.clone())
+    // 2D operations not yet implemented
+    Err(coeus_tensor::TensorError::InvalidOperation {
+        message: format!(
+            "{}D FFT operations not yet implemented",
+            input.shape().len()
+        ),
+    })
 }
 
 /// Compute the inverse real Fast Fourier Transform
@@ -352,8 +367,13 @@ pub fn irfft<T: FloatDtype>(
     // This would use rustfft's complex-to-real FFT for efficiency
     let _shape = input.shape();
 
-    // For now, return a copy - this is a placeholder
-    Ok(input.clone())
+    // 2D operations not yet implemented
+    Err(coeus_tensor::TensorError::InvalidOperation {
+        message: format!(
+            "{}D FFT operations not yet implemented",
+            input.shape().len()
+        ),
+    })
 }
 
 // Re-export commonly used functions

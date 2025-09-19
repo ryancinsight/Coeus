@@ -141,8 +141,11 @@ impl<T: Dtype + FloatDtype, B: Backend<T> + Clone + Sync> BackendTensor<T, B> {
         self.data.is_scalar()
     }
 
-    /// Get scalar value (panics if not scalar)
-    pub fn item(&self) -> T {
+    /// Get scalar value
+    ///
+    /// # Returns
+    /// Result containing the scalar value or an error if tensor is not scalar
+    pub fn item(&self) -> crate::Result<T> {
         self.data.item()
     }
 
@@ -451,7 +454,7 @@ mod tests {
         assert_eq!(scalar.shape(), &[]);
         assert_eq!(scalar.numel(), 1);
         assert!(scalar.is_scalar());
-        assert_eq!(scalar.item(), 42.0);
+        assert_eq!(scalar.item().unwrap(), 42.0);
     }
 
     #[tokio::test]

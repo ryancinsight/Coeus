@@ -124,32 +124,97 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adagrad<T> {
     }
 
     fn step(&mut self) -> Result<()> {
-        // Collect updates first to avoid borrowing conflicts
+        // Collect all updates first to avoid borrowing conflicts
         let mut state_updates = Vec::new();
+        let mut param_updates = Vec::new();
 
-        // First pass: collect current state and compute updates
-        for group in self.base.param_groups().iter() {
-            for param in group.params.iter() {
-                if let Some(grad) = param.grad() {
-                    let param_key = format!("adagrad_{:p}", param as *const _);
+        // Process each parameter group
+        for group_idx in 0..self.base.param_groups().len() {
+            let group = &self.base.param_groups()[group_idx];
+            let lr = group.lr;
+            let weight_decay = group.weight_decay;
 
-                    // Get or initialize sum of squared gradients
-                    let sum_key = format!("{}_sum", param_key);
+            // Process each parameter in the group
+            for param_idx in 0..group.params.len() {
+                let param_key = format!(
+                    "adagrad_{}_{}_{:p}",
+                    group_idx, param_idx, &group.params[param_idx] as *const _
+                );
 
-                    let sum = self.base.state().get(&sum_key).cloned();
+                // Get gradient for this parameter
+                let Some(grad) = group.params[param_idx].grad() else {
+                    continue; // Skip parameters without gradients
+                };
 
-                    // For now, simplified implementation
-                    let updated_sum = sum.unwrap_or_else(|| Tensor::zeros(grad.shape().to_vec()));
+                // Get or initialize state variables
+                let sum_key = format!("{}_sum", param_key);
 
-                    // Store updates
-                    state_updates.push((sum_key, updated_sum));
+                // Get current sum of squared gradients or initialize to zeros
+                let sum_prev = self
+                    .base
+                    .state()
+                    .get(&sum_key)
+                    .cloned()
+                    .unwrap_or_else(|| Tensor::zeros_like(&grad));
+
+                // Apply weight decay if specified
+                let effective_grad = if weight_decay != T::zero() {
+                    let param_ref = &group.params[param_idx];
+                    let wd_tensor = Tensor::scalar(weight_decay);
+                    (&grad + &(param_ref * &wd_tensor)?)?
+                } else {
+                    grad.clone()
+                };
+
+                // Update sum of squared gradients: s_t = s_{t-1} + g_t²
+                let grad_squared = (&effective_grad * &effective_grad)?;
+                let sum_t = (&sum_prev + &grad_squared)?;
+
+                // Compute adaptive learning rate: η / (√s_t + ε)
+                let eps_tensor = Tensor::scalar(self.eps);
+                let sum_sqrt = sum_t.sqrt();
+                let adaptive_lr_denom = (&sum_sqrt + &eps_tensor)?;
+
+                // Compute parameter update: θ = θ - η * g_t / (√s_t + ε)
+                let lr_tensor = Tensor::scalar(lr);
+                let lr_grad = (&lr_tensor * &effective_grad)?;
+                let update = (&lr_grad / &adaptive_lr_denom)?;
+
+                // Compute new parameter value
+                let param_data = group.params[param_idx].data();
+                let update_data = update.data();
+                let new_param_data: Vec<T> = param_data
+                    .iter()
+                    .zip(update_data.iter())
+                    .map(|(p, u)| *p - *u)
+                    .collect();
+
+                let new_param_shape = group.params[param_idx].shape().to_vec();
+                let mut new_param = Tensor::from_vec(new_param_data, new_param_shape);
+
+                // Preserve gradient tracking
+                if group.params[param_idx].requires_grad() {
+                    new_param.set_requires_grad(true);
                 }
+
+                // Store state updates
+                state_updates.push((sum_key, sum_t));
+                param_updates.push((group_idx, param_idx, new_param));
             }
         }
 
-        // Second pass: apply updates
+        // Apply all state updates
         for (key, tensor) in state_updates {
             self.base.state_mut().insert(key, tensor);
+        }
+
+        // Apply all parameter updates
+        for (group_idx, param_idx, new_param) in param_updates {
+            if let Some(group) = self.base.param_groups_mut().get_mut(group_idx) {
+                if let Some(param) = group.params.get_mut(param_idx) {
+                    *param = new_param;
+                }
+            }
         }
 
         Ok(())
