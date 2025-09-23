@@ -19,11 +19,34 @@ impl Encoding {
     /// Returns `TokenizerError::ModelError` if the model is not supported or not yet implemented.
     /// Returns `TokenizerError::ConfigError` if the model configuration is invalid.
     pub fn new(model_name: &str) -> Result<Self> {
-        // For now, return an error since no model implementations exist yet
-        Err(TokenizerError::model_error(format!(
-            "Model '{model_name}' not yet implemented. Enable features to add model support. Available models: {}",
-            Self::available_models().join(", ")
-        )))
+        match model_name {
+            #[cfg(feature = "gpt2")]
+            "gpt2" => {
+                let tokenizer = crate::gpt2::GPT2Tokenizer::new()?;
+                Ok(Self::from_tokenizer(tokenizer))
+            }
+            #[cfg(feature = "gpt3")]
+            "gpt-3.5-turbo" | "gpt-4" => {
+                // GPT-3/4 tokenizers are not yet implemented
+                Err(TokenizerError::model_error(
+                    "GPT-3/4 tokenizers not yet implemented".to_string(),
+                ))
+            }
+            #[cfg(feature = "clip")]
+            "clip" => {
+                let tokenizer = crate::clip::CLIPTokenizer::new()?;
+                Ok(Self::from_tokenizer(tokenizer))
+            }
+            #[cfg(feature = "bert")]
+            "bert-base" | "bert-large" => {
+                let tokenizer = crate::bert::BERTTokenizer::new(model_name)?;
+                Ok(Self::from_tokenizer(tokenizer))
+            }
+            _ => Err(TokenizerError::model_error(format!(
+                "Model '{model_name}' not supported or feature not enabled. Available models: {}",
+                Self::available_models().join(", ")
+            ))),
+        }
     }
 
     /// Create encoding from an existing tokenizer
@@ -412,7 +435,7 @@ mod tests {
         // Check that it's an error without unwrapping (avoids Debug requirement)
         match result {
             Err(TokenizerError::ModelError { .. }) => {} // Expected error type
-            _ => panic!("Expected ModelError"),
+            _ => panic!("Expected ModelError for unknown model, got different error type"),
         }
     }
 }

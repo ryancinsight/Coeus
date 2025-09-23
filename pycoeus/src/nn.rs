@@ -131,6 +131,15 @@ impl Linear {
     fn bias(&self) -> Option<PyTensor> {
         self.bias.clone()
     }
+
+    /// Get all parameters (PyTorch compatibility)
+    fn parameters(&self) -> Vec<PyTensor> {
+        let mut params = vec![self.weight.clone()];
+        if let Some(bias) = &self.bias {
+            params.push(bias.clone());
+        }
+        params
+    }
 }
 
 /// 2D Convolution layer
@@ -819,7 +828,7 @@ impl Lstm {
             ));
         }
 
-        let lstm = RustLstm::new(input_size, hidden_size, 1, false);
+        let lstm = RustLstm::new(input_size, hidden_size);
 
         // Create combined weight parameters (concatenate gate-specific weights)
         // LSTM weights are organized as: [input_gate, forget_gate, cell_gate, output_gate]
@@ -1064,7 +1073,7 @@ impl Gru {
             ));
         }
 
-        let gru = RustGru::new(input_size, hidden_size, 1, false);
+        let gru = RustGru::new(input_size, hidden_size);
 
         // Create combined weight parameters (concatenate gate-specific weights)
         // GRU weights are organized as: [reset_gate, update_gate, new_gate]

@@ -3,13 +3,12 @@
 //! This module contains element-wise mathematical operations and activation functions
 //! for tensors, including automatic differentiation support.
 
-use crate::{Tensor, Dtype, FloatDtype};
 use crate::with_autograd_context;
+use crate::{Dtype, FloatDtype, Tensor};
 use coeus_autograd::context::Operation;
 use statrs::function::erf;
 
 impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
-
     /// Compute the inverse cosine of each element
     ///
     /// # Example
@@ -25,7 +24,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
         T: FloatDtype,
     {
         let result_data: Vec<T> = self.data.iter().map(|x| x.acos()).collect();
-        let mut result = Tensor::from_vec(result_data, self.shape.clone());
+        let mut result = Tensor::from_vec(result_data, self.shape().to_vec());
 
         // Create computational graph node if input requires gradients
         if self.requires_grad() {
@@ -34,13 +33,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    let node = context.create_node(Operation::Acos, vec![]);
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -50,7 +49,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -82,13 +81,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    let node = context.create_node(Operation::Atan, vec![]);
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -98,7 +97,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -120,11 +119,15 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     where
         T: FloatDtype,
     {
-        let result_data: Vec<T> = self.data.iter().map(|x| {
-            let x_f64 = Dtype::to_f64(x).unwrap_or(0.0);
-            let erf_result = erf::erf(x_f64);
-            T::from_f64(erf_result).unwrap_or(T::zero())
-        }).collect();
+        let result_data: Vec<T> = self
+            .data
+            .iter()
+            .map(|x| {
+                let x_f64 = Dtype::to_f64(x).unwrap_or(0.0);
+                let erf_result = erf::erf(x_f64);
+                T::from_f64(erf_result).unwrap_or(T::zero())
+            })
+            .collect();
         let mut result = Tensor::from_vec(result_data, self.shape.clone());
 
         // Create computational graph node if input requires gradients
@@ -134,13 +137,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    let node = context.create_node(Operation::Erf, vec![]);
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -150,7 +153,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -182,13 +185,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    let node = context.create_node(Operation::Exp2, vec![]);
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -198,7 +201,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -230,13 +233,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    let node = context.create_node(Operation::Log10, vec![]);
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -246,7 +249,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -278,13 +281,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    let node = context.create_node(Operation::Log2, vec![]);
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -294,7 +297,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -343,7 +346,6 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
         result
     }
 
-
     /// Compute the complementary error function of each element
     ///
     /// # Example
@@ -358,11 +360,15 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     where
         T: FloatDtype,
     {
-        let result_data: Vec<T> = self.data.iter().map(|x| {
-            let x_f64 = Dtype::to_f64(x).unwrap_or(0.0);
-            let erfc_result = erf::erfc(x_f64);
-            T::from_f64(erfc_result).unwrap_or(T::one())
-        }).collect();
+        let result_data: Vec<T> = self
+            .data
+            .iter()
+            .map(|x| {
+                let x_f64 = Dtype::to_f64(x).unwrap_or(0.0);
+                let erfc_result = erf::erfc(x_f64);
+                T::from_f64(erfc_result).unwrap_or(T::one())
+            })
+            .collect();
         let mut result = Tensor::from_vec(result_data, self.shape.clone());
 
         // Create computational graph node if input requires gradients
@@ -372,13 +378,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    let node = context.create_node(Operation::Erfc, vec![]);
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -388,7 +394,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -410,13 +416,17 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     where
         T: FloatDtype,
     {
-        let result_data: Vec<T> = self.data.iter().map(|x| {
-            if x.is_sign_negative() {
-                T::one()
-            } else {
-                T::zero()
-            }
-        }).collect();
+        let result_data: Vec<T> = self
+            .data
+            .iter()
+            .map(|x| {
+                if x.is_sign_negative() {
+                    T::one()
+                } else {
+                    T::zero()
+                }
+            })
+            .collect();
         let mut result = Tensor::from_vec(result_data, self.shape.clone());
 
         // Create computational graph node if input requires gradients
@@ -426,13 +436,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    let node = context.create_node(Operation::Signbit, vec![]);
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -442,7 +452,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -474,13 +484,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -490,7 +500,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -522,13 +532,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -538,7 +548,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -570,13 +580,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -586,14 +596,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
 
         result
     }
-
 
     /// Compute exp(x) - 1 for each element
     ///
@@ -619,13 +628,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -635,7 +644,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -657,11 +666,11 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     where
         T: FloatDtype,
     {
-        let result_data: Vec<T> = self.data.iter().map(|x| if *x >= T::zero() {
-            x.floor()
-        } else {
-            x.ceil()
-        }).collect();
+        let result_data: Vec<T> = self
+            .data
+            .iter()
+            .map(|x| if *x >= T::zero() { x.floor() } else { x.ceil() })
+            .collect();
         let mut result = Tensor::from_vec(result_data, self.shape.clone());
 
         // Create computational graph node if input requires gradients
@@ -671,13 +680,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -687,7 +696,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -717,14 +726,19 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
             });
         }
 
-        let result_data: Vec<T> = self.data.iter().zip(divisor.data.iter()).map(|(&x, &y)| {
-            if y == T::zero() {
-                T::nan()
-            } else {
-                let quotient = (x / y).floor();
-                x - quotient * y
-            }
-        }).collect();
+        let result_data: Vec<T> = self
+            .data
+            .iter()
+            .zip(divisor.data.iter())
+            .map(|(&x, &y)| {
+                if y == T::zero() {
+                    T::nan()
+                } else {
+                    let quotient = (x / y).floor();
+                    x - quotient * y
+                }
+            })
+            .collect();
 
         let mut result = Tensor::from_vec(result_data, self.shape.clone());
 
@@ -735,20 +749,20 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
                 let divisor_node = if let Some(node) = divisor.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = divisor
                         .data
                         .iter()
@@ -764,7 +778,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -796,13 +810,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -812,7 +826,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -842,13 +856,12 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
             });
         }
 
-        let result_data: Vec<T> = self.data.iter().zip(divisor.data.iter()).map(|(&x, &y)| {
-            if y == T::zero() {
-                T::nan()
-            } else {
-                x % y
-            }
-        }).collect();
+        let result_data: Vec<T> = self
+            .data
+            .iter()
+            .zip(divisor.data.iter())
+            .map(|(&x, &y)| if y == T::zero() { T::nan() } else { x % y })
+            .collect();
 
         let mut result = Tensor::from_vec(result_data, self.shape.clone());
 
@@ -859,20 +872,20 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
                 let divisor_node = if let Some(node) = divisor.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = divisor
                         .data
                         .iter()
@@ -882,13 +895,14 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     node
                 };
 
-                let node_id = context.create_node(Operation::Remainder, vec![self_node, divisor_node]);
+                let node_id =
+                    context.create_node(Operation::Remainder, vec![self_node, divisor_node]);
                 let result_data_f64: Vec<f64> = result
                     .data
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -920,13 +934,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -936,7 +950,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -962,17 +976,21 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
         let posinf_val = posinf.unwrap_or(T::from(1.0).unwrap());
         let neginf_val = neginf.unwrap_or(T::from(-1.0).unwrap());
 
-        let result_data: Vec<T> = self.data.iter().map(|&x| {
-            if x.is_nan() {
-                nan_val
-            } else if x.is_infinite() && x.is_sign_positive() {
-                posinf_val
-            } else if x.is_infinite() && x.is_sign_negative() {
-                neginf_val
+        let result_data: Vec<T> = self
+            .data
+            .iter()
+            .map(|&x| {
+                if x.is_nan() {
+                    nan_val
+                } else if x.is_infinite() && x.is_sign_positive() {
+                    posinf_val
+                } else if x.is_infinite() && x.is_sign_negative() {
+                    neginf_val
                 } else {
-                x
-            }
-        }).collect();
+                    x
+                }
+            })
+            .collect();
 
         let mut result = Tensor::from_vec(result_data, self.shape.clone());
 
@@ -983,13 +1001,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -999,7 +1017,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
@@ -1021,15 +1039,19 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     where
         T: FloatDtype,
     {
-        let result_data: Vec<T> = self.data.iter().map(|&x| {
-            if x > T::zero() {
-                T::one()
-            } else if x < T::zero() {
-                -T::one()
+        let result_data: Vec<T> = self
+            .data
+            .iter()
+            .map(|&x| {
+                if x > T::zero() {
+                    T::one()
+                } else if x < T::zero() {
+                    -T::one()
                 } else {
-                T::zero()
-            }
-        }).collect();
+                    T::zero()
+                }
+            })
+            .collect();
 
         let mut result = Tensor::from_vec(result_data, self.shape.clone());
 
@@ -1040,13 +1062,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
@@ -1056,14 +1078,13 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
 
         result
     }
-
 
     /// Compute x * log(y) with special handling for x = 0
     ///
@@ -1087,15 +1108,20 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
             });
         }
 
-        let result_data: Vec<T> = self.data.iter().zip(y.data.iter()).map(|(&x, &y_val)| {
-            if x == T::zero() {
+        let result_data: Vec<T> = self
+            .data
+            .iter()
+            .zip(y.data.iter())
+            .map(|(&x, &y_val)| {
+                if x == T::zero() {
                     T::zero()
-            } else if y_val <= T::zero() {
-                T::nan()
+                } else if y_val <= T::zero() {
+                    T::nan()
                 } else {
-                x * y_val.ln()
+                    x * y_val.ln()
                 }
-        }).collect();
+            })
+            .collect();
 
         let mut result = Tensor::from_vec(result_data, self.shape.clone());
 
@@ -1106,20 +1132,20 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = self
                         .data
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().to_vec());
                     node
                 };
 
                 let y_node = if let Some(node) = y.node {
                     node
                 } else {
-                    let node = context.create_node(Operation::Add, vec![]);
+                    let node = context.create_node(Operation::Acos, vec![]);
                     let data_f64: Vec<f64> = y
                         .data
                         .iter()
@@ -1135,14 +1161,14 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().to_vec());
                 result.node = Some(node_id);
             });
         }
 
         Ok(result)
     }
-    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -1209,7 +1235,6 @@ mod tests {
         assert!((result.data[1] - 0.5_f64).abs() < 1e-6); // 1/sqrt(4) = 0.5
         assert!((result.data[2] - (1.0_f64 / 3.0_f64)).abs() < 1e-6); // 1/sqrt(9) = 1/3
     }
-
 
     #[test]
     fn test_acosh() {
@@ -1292,7 +1317,10 @@ mod tests {
 
     #[test]
     fn test_nan_to_num() {
-        let tensor = Tensor::from_vec(vec![f32::NAN, f32::INFINITY, f32::NEG_INFINITY, 1.0], vec![4]);
+        let tensor = Tensor::from_vec(
+            vec![f32::NAN, f32::INFINITY, f32::NEG_INFINITY, 1.0],
+            vec![4],
+        );
         let result = tensor.nan_to_num(Some(0.0), Some(1.0), Some(-1.0));
         assert!((result.data[0] - 0.0_f32).abs() < 1e-6); // NaN -> 0.0
         assert!((result.data[1] - 1.0_f32).abs() < 1e-6); // +inf -> 1.0

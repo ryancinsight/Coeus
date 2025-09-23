@@ -241,7 +241,9 @@ impl<D: FloatDtype, T: Tokenizer + ?Sized> TensorTokenizer<D> for T {
                 let epsilon = 1e-6;
                 let token_id = if (token_id_f64 - token_id_f64.round()).abs() < epsilon {
                     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                    { token_id_f64.round() as usize }
+                    {
+                        token_id_f64.round() as usize
+                    }
                 } else {
                     return Err(TokenizerError::EncodingError {
                         message: format!("Non-integer token ID at position ({batch_idx}, {seq_idx}): {token_id_f64}"),

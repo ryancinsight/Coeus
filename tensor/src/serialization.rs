@@ -29,9 +29,9 @@ pub trait TensorSerializable: Dtype {
 /// Serialization format for tensors
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SerializationFormat {
-    /// Binary format (fast, compact)
+    /// Binary format
     Binary,
-    /// JSON format (human-readable, cross-platform)
+    /// JSON format
     Json,
 }
 

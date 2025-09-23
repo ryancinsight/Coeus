@@ -1,10 +1,16 @@
-//! Data loading utilities with PyTorch-compatible API
+//! Dataset implementations and utilities
 //!
-//! This module provides `Dataset` and `DataLoader` traits and implementations
-//! that mirror PyTorch's data loading functionality for seamless migration.
+//! Provides PyTorch-compatible dataset functionality with automatic differentiation support.
 
+pub mod concat;
 pub mod dataloader;
-pub mod dataset;
+pub mod dataset_trait;
+pub mod subset;
+pub mod tensor_dataset;
 
-pub use dataloader::{Batch, DataLoader, DataLoaderBuilder};
-pub use dataset::{ConcatDataset, Dataset, Subset, TensorDataset};
+// Re-export for convenience
+pub use concat::ConcatDataset;
+pub use dataloader::{DataLoader, DataLoaderBuilder, DataLoaderIter};
+pub use dataset_trait::{Dataset, DatasetIter};
+pub use subset::Subset;
+pub use tensor_dataset::TensorDataset;

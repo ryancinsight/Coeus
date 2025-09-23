@@ -117,7 +117,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
             }
         }
 
-        // For now, implement simple case where one dimension is 1
+        // Handle case where one dimension is 1
         if self.shape.len() == 1 && target_shape.len() == 2 &&
            self.shape[0] == target_shape[1] && target_shape[0] >= 1 {
             // Broadcast [N] to [M, N]

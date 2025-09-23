@@ -1,6 +1,7 @@
 //! Differentiable operations for the autograd system
 
-use super::{Dtype, TensorRef};
+use super::TensorRef;
+use coeus_dtype::Dtype;
 use num_traits::{Float, Zero};
 
 /// Trait for backward operations

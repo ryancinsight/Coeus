@@ -3,7 +3,7 @@
 //! This module contains methods for creating tensors with various initializations,
 //! including zeros, ones, identity matrices, and scalar tensors.
 
-use crate::{Device, Layout, Tensor, TensorError, Dtype, Result};
+use crate::{Device, Layout, Tensor, TensorError, Dtype, FloatDtype, Result};
 
 impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     /// Create a tensor from a vector and shape
@@ -162,5 +162,22 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
         let mut tensor = Self::from_vec(data, shape);
         tensor.device = device;
         tensor
+    }
+
+    /// Create a tensor filled with zeros with the same shape as another tensor
+    ///
+    /// # Arguments
+    /// * `other` - Tensor to match the shape of
+    ///
+    /// # Example
+    /// ```
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+    /// let zeros = Tensor::zeros_like(&a);
+    /// assert_eq!(zeros.shape(), a.shape());
+    /// ```
+    pub fn zeros_like(other: &Tensor<T>) -> Tensor<T> {
+        Tensor::zeros(other.shape.clone())
     }
 }

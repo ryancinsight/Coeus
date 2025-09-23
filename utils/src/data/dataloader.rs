@@ -49,6 +49,7 @@ impl<T: coeus_dtype::Dtype + coeus_tensor::FloatDtype> Batch<T> {
 ///
 /// Provides batching, shuffling, and parallel data loading capabilities
 /// with the same API as PyTorch's DataLoader.
+#[derive(Clone)]
 pub struct DataLoader<D, T>
 where
     D: Dataset<T> + Send + Sync,

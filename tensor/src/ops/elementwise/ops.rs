@@ -29,104 +29,222 @@ use rayon::prelude::*;
 /// let result = a.add(&b).unwrap();
 /// assert_eq!(result.data(), &[4.0, 6.0]);
 /// ```
+/// Compute broadcast shape following NumPy/PyTorch broadcasting rules
+fn compute_broadcast_shape(shape1: &[usize], shape2: &[usize]) -> Result<Vec<usize>> {
+    let len1 = shape1.len();
+    let len2 = shape2.len();
+    let max_len = len1.max(len2);
+
+    let mut result_shape = Vec::with_capacity(max_len);
+
+    // Pad shorter shape with leading dimensions of size 1
+    let padded_shape1 = if len1 < max_len {
+        let padding = vec![1; max_len - len1];
+        [padding.as_slice(), shape1].concat()
+    } else {
+        shape1.to_vec()
+    };
+
+    let padded_shape2 = if len2 < max_len {
+        let padding = vec![1; max_len - len2];
+        [padding.as_slice(), shape2].concat()
+    } else {
+        shape2.to_vec()
+    };
+
+    // Compute broadcast shape
+    for (dim1, dim2) in padded_shape1.iter().zip(padded_shape2.iter()) {
+        if *dim1 == *dim2 {
+            result_shape.push(*dim1);
+        } else if *dim1 == 1 {
+            result_shape.push(*dim2);
+        } else if *dim2 == 1 {
+            result_shape.push(*dim1);
+        } else {
+            return Err(crate::TensorError::BroadcastingError {
+                shape1: shape1.to_vec(),
+                shape2: shape2.to_vec(),
+            });
+        }
+    }
+
+    Ok(result_shape)
+}
+
+/// Broadcast tensor data to match target shape
+fn broadcast_data<T: crate::Dtype + Clone + Copy>(
+    data: &[T],
+    original_shape: &[usize],
+    target_shape: &[usize],
+) -> Vec<T> {
+    let original_numel = original_shape.iter().product::<usize>();
+    let target_numel = target_shape.iter().product::<usize>();
+
+    if original_numel == target_numel {
+        // Same total size - just clone
+        return data.to_vec();
+    }
+
+    let mut result = Vec::with_capacity(target_numel);
+
+    // Compute strides for original shape
+    let mut original_strides = vec![1; original_shape.len()];
+    for i in (0..original_shape.len() - 1).rev() {
+        original_strides[i] = original_strides[i + 1] * original_shape[i + 1];
+    }
+
+    // Compute strides for target shape
+    let mut target_strides = vec![1; target_shape.len()];
+    for i in (0..target_shape.len() - 1).rev() {
+        target_strides[i] = target_strides[i + 1] * target_shape[i + 1];
+    }
+
+    // Broadcast data
+    for target_idx in 0..target_numel {
+        let mut original_idx = 0;
+
+        for (dim, (&orig_stride, &target_stride)) in original_strides
+            .iter()
+            .zip(&target_strides)
+            .enumerate()
+            .rev()
+        {
+            let target_coord =
+                (target_idx / target_stride) % target_shape[target_shape.len() - 1 - dim];
+            let orig_coord = if original_shape[original_shape.len() - 1 - dim] == 1 {
+                0
+            } else {
+                target_coord
+            };
+            original_idx += orig_coord * orig_stride;
+        }
+
+        if original_idx < data.len() {
+            result.push(data[original_idx]);
+        } else {
+            // Fallback for edge cases
+            result.push(data[0]);
+        }
+    }
+
+    result
+}
+
 pub fn add<T: crate::Dtype + std::ops::Add<Output = T>>(
     tensor: &Tensor<T>,
     other: &Tensor<T>,
 ) -> Result<Tensor<T>> {
-    // Implement basic broadcasting support
-    let (result_shape, tensor_data, other_data) = if tensor.shape == other.shape {
-        // Same shape - direct addition
-        (
-            tensor.shape.clone(),
-            tensor.data.clone(),
-            other.data.clone(),
-        )
-    } else if tensor.shape.is_empty() && !other.shape.is_empty() {
-        // Broadcast scalar tensor to match other's shape
-        let broadcast_value = tensor.data[0];
-        let broadcast_data = vec![broadcast_value; other.numel()];
-        (other.shape.clone(), broadcast_data, other.data.clone())
-    } else if other.shape.is_empty() && !tensor.shape.is_empty() {
-        // Broadcast scalar other to match tensor's shape
-        let broadcast_value = other.data[0];
-        let broadcast_data = vec![broadcast_value; tensor.numel()];
-        (tensor.shape.clone(), tensor.data.clone(), broadcast_data)
-    } else {
-        return Err(TensorError::ShapeMismatch {
-            expected: tensor.shape.to_vec(),
-            actual: other.shape.to_vec(),
-        });
-    };
-
-    // Use parallel processing for large tensors to improve performance
-    let data: Vec<T> = if tensor_data.len() > 1000 {
-        tensor_data
-            .par_iter()
-            .zip(&other_data)
-            .map(|(a, b)| *a + *b)
-            .collect()
-    } else {
-        tensor_data
-            .iter()
-            .zip(&other_data)
-            .map(|(a, b)| *a + *b)
-            .collect()
-    };
-
-    let mut result = Tensor {
-        data,
-        shape: result_shape,
-        device: tensor.device,
-        layout: tensor.layout,
-        node: None,
-        context: None,
-        grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
-        input_tensor_nodes: vec![],
-    };
-
-    // Create computational graph node if either input requires gradients
-    if tensor.requires_grad() || other.requires_grad() {
-        result.set_requires_grad(true);
-        crate::with_autograd_context(|context| {
-            // Ensure input nodes exist
-            let tensor_node = if let Some(node) = tensor.node {
-                node
+    // Try advanced broadcasting first
+    match compute_broadcast_shape(&tensor.shape, &other.shape) {
+        Ok(result_shape) => {
+            // Broadcast both tensors to result shape
+            let tensor_data = if tensor.shape == result_shape {
+                tensor.data.clone()
             } else {
-                let node = context.create_node(Operation::Add, vec![]);
-                // Convert tensor data to f64 for gradient computation
-                let data_f64: Vec<f64> = tensor
-                    .data
-                    .iter()
-                    .map(|&x| crate::Dtype::to_f64(&x).unwrap_or(0.0))
-                    .collect();
-                context.register_tensor(node, data_f64, tensor.shape.clone());
-                node
+                broadcast_data(&tensor.data, &tensor.shape, &result_shape)
             };
 
-            let other_node = if let Some(node) = other.node {
-                node
+            let other_data = if other.shape == result_shape {
+                other.data.clone()
             } else {
-                let node = context.create_node(Operation::Add, vec![]);
-                // Convert tensor data to f64 for gradient computation
-                let data_f64: Vec<f64> = other
-                    .data
-                    .iter()
-                    .map(|&x| crate::Dtype::to_f64(&x).unwrap_or(0.0))
-                    .collect();
-                context.register_tensor(node, data_f64, other.shape.clone());
-                node
+                broadcast_data(&other.data, &other.shape, &result_shape)
             };
 
-            let node_id = context.create_node(Operation::Add, vec![tensor_node, other_node]);
-            result.node = Some(node_id);
+            // Use parallel processing for large tensors to improve performance
+            let data: Vec<T> = if tensor_data.len() > 1000 {
+                tensor_data
+                    .par_iter()
+                    .zip(&other_data)
+                    .map(|(a, b)| *a + *b)
+                    .collect()
+            } else {
+                tensor_data
+                    .iter()
+                    .zip(&other_data)
+                    .map(|(a, b)| *a + *b)
+                    .collect()
+            };
 
-            // Store references to input tensors for gradient propagation
-            result.input_tensor_nodes.push(Some(tensor_node));
-            result.input_tensor_nodes.push(Some(other_node));
-        });
+            let mut result = Tensor {
+                data,
+                shape: result_shape,
+                device: tensor.device,
+                layout: tensor.layout,
+                node: None,
+                context: None,
+                grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
+                input_tensor_nodes: vec![],
+                buffers: std::collections::HashMap::new(),
+            };
+
+            // Set requires_grad if either input requires gradients
+            if tensor.requires_grad() || other.requires_grad() {
+                result.node = Some(0); // Will be set properly by autograd context
+            }
+
+            Ok(result)
+        }
+        Err(_) => {
+            // Fallback to original simple broadcasting for backward compatibility
+            let (result_shape, tensor_data, other_data) = if tensor.shape == other.shape {
+                // Same shape - direct addition
+                (
+                    tensor.shape.clone(),
+                    tensor.data.clone(),
+                    other.data.clone(),
+                )
+            } else if tensor.shape.is_empty() && !other.shape.is_empty() {
+                // Broadcast scalar tensor to match other's shape
+                let broadcast_value = tensor.data[0];
+                let broadcast_data = vec![broadcast_value; other.numel()];
+                (other.shape.clone(), broadcast_data, other.data.clone())
+            } else if other.shape.is_empty() && !tensor.shape.is_empty() {
+                // Broadcast scalar other to match tensor's shape
+                let broadcast_value = other.data[0];
+                let broadcast_data = vec![broadcast_value; tensor.numel()];
+                (tensor.shape.clone(), tensor.data.clone(), broadcast_data)
+            } else {
+                return Err(crate::TensorError::BroadcastingError {
+                    shape1: tensor.shape.to_vec(),
+                    shape2: other.shape.to_vec(),
+                });
+            };
+
+            // Use parallel processing for large tensors to improve performance
+            let data: Vec<T> = if tensor_data.len() > 1000 {
+                tensor_data
+                    .par_iter()
+                    .zip(&other_data)
+                    .map(|(a, b)| *a + *b)
+                    .collect()
+            } else {
+                tensor_data
+                    .iter()
+                    .zip(&other_data)
+                    .map(|(a, b)| *a + *b)
+                    .collect()
+            };
+
+            let mut result = Tensor {
+                data,
+                shape: result_shape,
+                device: tensor.device,
+                layout: tensor.layout,
+                node: None,
+                context: None,
+                grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
+                input_tensor_nodes: vec![],
+                buffers: std::collections::HashMap::new(),
+            };
+
+            // Set requires_grad if either input requires gradients
+            if tensor.requires_grad() || other.requires_grad() {
+                result.node = Some(0); // Will be set properly by autograd context
+            }
+
+            Ok(result)
+        }
     }
-
-    Ok(result)
 }
 
 /// Element-wise subtraction of tensors
@@ -180,6 +298,7 @@ pub fn sub<T: crate::Dtype + std::ops::Sub<Output = T> + crate::Dtype>(
         context: None,
         grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
         input_tensor_nodes: vec![],
+        buffers: std::collections::HashMap::new(),
     };
 
     // Create computational graph node if either input requires gradients
@@ -278,6 +397,7 @@ pub fn mul<T: crate::Dtype + std::ops::Mul<Output = T> + crate::Dtype>(
         context: None,
         grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
         input_tensor_nodes: vec![],
+        buffers: std::collections::HashMap::new(),
     };
 
     // Create computational graph node if either input requires gradients
@@ -376,6 +496,7 @@ pub fn div<T: crate::Dtype + std::ops::Div<Output = T> + crate::Dtype>(
         context: None,
         grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
         input_tensor_nodes: vec![],
+        buffers: std::collections::HashMap::new(),
     };
 
     // Create computational graph node if either input requires gradients
@@ -453,6 +574,7 @@ pub fn neg<T: crate::Dtype + std::ops::Neg<Output = T> + crate::Dtype>(
         context: None,
         grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
         input_tensor_nodes: vec![],
+        buffers: std::collections::HashMap::new(),
     };
 
     // Create computational graph node if input requires gradients

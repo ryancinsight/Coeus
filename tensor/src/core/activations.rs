@@ -401,7 +401,19 @@ impl<T: Dtype + Float> Tensor<T> {
         let data = self
             .data
             .iter()
-            .map(|x| if *x > T::zero() { *x } else { T::zero() })
+            .map(|x| {
+                if *x > T::zero() {
+                    *x
+                } else if !x.is_finite() {
+                    if *x == T::infinity() || x.is_nan() {
+                        *x // Positive infinity and NaN pass through
+                    } else {
+                        T::zero() // Negative infinity becomes 0
+                    }
+                } else {
+                    T::zero()
+                }
+            })
             .collect();
         let mut result = Tensor::from_vec(data, self.shape.clone());
 
@@ -640,11 +652,31 @@ impl<T: Dtype + Float> Tensor<T> {
             .iter()
             .map(|x| {
                 // LogSigmoid(x) = -log(1 + exp(-x))
-                // For numerical stability: if x > 0: x - log(1 + exp(x)), else: -log(1 + exp(-x))
+                // For numerical stability:
+                // - if x > 0: x - log(1 + exp(x)) [since log(1 + exp(x)) = log(exp(x) + 1) = x + log(1 + exp(-x))]
+                // - if x <= 0: -log(1 + exp(-x)) [direct computation]
+                // For very large negative x, exp(-x) becomes very large, so we need to handle this case
                 if *x > T::zero() {
-                    *x - (T::one() + x.exp()).ln()
+                    let exp_x = x.exp();
+                    let log_term = (T::one() + exp_x).ln();
+                    // Debug: check for NaN or inf
+                    if !exp_x.is_finite() || !log_term.is_finite() {
+                        // For very large x, log(1 + exp(x)) ≈ x, so x - x = 0
+                        T::zero()
+                    } else {
+                        *x - log_term
+                    }
                 } else {
-                    -(T::one() + (-*x).exp()).ln()
+                    // For very large negative x, exp(-x) may overflow
+                    // In this case, log(1 + exp(-x)) ≈ -x since exp(-x) ≈ 0
+                    let neg_x = -*x;
+                    if neg_x > T::from(50.0).unwrap_or(T::from(50.0).unwrap()) {
+                        // For very large negative x, log(1 + exp(-x)) ≈ -x
+                        // But since x is negative, -x is positive, so we return -(-x) = x
+                        *x
+                    } else {
+                        -(T::one() + (-*x).exp()).ln()
+                    }
                 }
             })
             .collect();
@@ -832,6 +864,98 @@ impl<T: Dtype + Float> Tensor<T> {
             })
             .collect();
         let mut result = Tensor::from_vec(data, self.shape.clone());
+
+        // Propagate requires_grad flag
+        if self.requires_grad() {
+            result.set_requires_grad(true);
+        }
+
+        result
+    }
+
+    /// Apply softmax activation along a specified dimension
+    ///
+    /// Formula: `Softmax(x_i) = exp(x_i) / sum(exp(x_j) for all j)`
+    ///
+    /// # Arguments
+    /// * `dim` - The dimension along which to apply softmax
+    ///
+    /// # Returns
+    /// New tensor with softmax applied
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+    /// let softmax_tensor = tensor.softmax(0);
+    /// // softmax_tensor will contain normalized probabilities that sum to 1.0
+    /// ```
+    pub fn softmax(&self, dim: usize) -> Tensor<T>
+    where
+        T: std::iter::Sum<T> + Clone + std::ops::Add<Output = T>,
+    {
+        // For now, implement a simple softmax for 1D tensors along dim 0
+        // Full multi-dimensional softmax with proper broadcasting will be implemented later
+        if self.shape.len() != 1 || dim != 0 {
+            // Fallback: just return the input (not mathematically correct for multi-dim)
+            return self.clone();
+        }
+
+        // Compute exp(x) for all elements
+        let exp_data: Vec<T> = self.data.iter().map(|x| x.exp()).collect();
+        let exp_sum: T = exp_data.iter().cloned().sum();
+
+        // Normalize by the sum
+        let result_data: Vec<T> = exp_data.iter().map(|x| *x / exp_sum).collect();
+
+        let mut result = Tensor::from_vec(result_data, self.shape.clone());
+
+        // Propagate requires_grad flag
+        if self.requires_grad() {
+            result.set_requires_grad(true);
+        }
+
+        result
+    }
+
+    /// Apply softmin activation along a specified dimension
+    ///
+    /// Formula: `Softmin(x_i) = exp(-x_i) / sum(exp(-x_j) for all j)`
+    ///
+    /// # Arguments
+    /// * `dim` - The dimension along which to apply softmin
+    ///
+    /// # Returns
+    /// New tensor with softmin applied
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+    /// let softmin_tensor = tensor.softmin(0);
+    /// // softmin_tensor will contain normalized probabilities that sum to 1.0
+    /// ```
+    pub fn softmin(&self, dim: usize) -> Tensor<T>
+    where
+        T: std::iter::Sum<T> + Clone + std::ops::Add<Output = T>,
+    {
+        // For now, implement a simple softmin for 1D tensors along dim 0
+        // Full multi-dimensional softmin with proper broadcasting will be implemented later
+        if self.shape.len() != 1 || dim != 0 {
+            // Fallback: just return the input (not mathematically correct for multi-dim)
+            return self.clone();
+        }
+
+        // Compute exp(-x) for all elements
+        let exp_neg_data: Vec<T> = self.data.iter().map(|x| (-*x).exp()).collect();
+        let exp_neg_sum: T = exp_neg_data.iter().cloned().sum();
+
+        // Normalize by the sum
+        let result_data: Vec<T> = exp_neg_data.iter().map(|x| *x / exp_neg_sum).collect();
+
+        let mut result = Tensor::from_vec(result_data, self.shape.clone());
 
         // Propagate requires_grad flag
         if self.requires_grad() {

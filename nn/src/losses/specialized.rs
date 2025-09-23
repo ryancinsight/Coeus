@@ -4,7 +4,7 @@
 //! computer vision, natural language processing, and other specialized tasks.
 
 use super::{utils, Module, NNError, Reduction};
-use coeus_tensor::{Dtype, FloatDtype, Tensor, Mul};
+use coeus_tensor::{Dtype, FloatDtype, Mul, Tensor};
 
 /// Focal Loss
 ///
@@ -597,7 +597,8 @@ impl PoissonNLLLoss {
 impl<T: FloatDtype> Module<T> for PoissonNLLLoss {
     fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
         Err(NNError::InvalidInput {
-            message: "PoissonNLLLoss should be used via forward() method with two inputs".to_string(),
+            message: "PoissonNLLLoss should be used via forward() method with two inputs"
+                .to_string(),
         })
     }
 
@@ -672,7 +673,7 @@ impl GaussianNLLLoss {
         &self,
         pred_mean: &Tensor<T>,
         pred_var: &Tensor<T>,
-        target: &Tensor<T>
+        target: &Tensor<T>,
     ) -> crate::Result<Tensor<T>> {
         // pred_mean and pred_var should have same shape, target can broadcast
         if pred_mean.shape() != pred_var.shape() {

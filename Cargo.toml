@@ -11,9 +11,17 @@ members = [
     "hub",
     "tokenizer",
     "examples",
-    "pycoeus",
+    "pycoeus", "models",
 ]
 resolver = "2"
+
+[profile.test]
+# Enable optimizations for tests to improve performance
+opt-level = 1
+
+[profile.test.package."coeus-nn"]
+# Specific optimizations for NN tests to address performance issues
+opt-level = 2
 
 [workspace.package]
 version = "0.1.0"
@@ -37,9 +45,12 @@ rand = "0.8"
 rand_distr = "0.4"
 rustfft = "6.1"
 criterion = { version = "0.5", features = ["html_reports"] }
+cargo-tarpaulin = "0.27"
 
 # Workspace-local dependencies
 coeus-dtype = { path = "dtype" }
 coeus-tensor = { path = "tensor" }
 coeus-autograd = { path = "autograd" }
 coeus-nn = { path = "nn" }
+coeus-hub = { path = "hub" }
+coeus-models = { path = "models" }

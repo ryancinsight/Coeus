@@ -3,7 +3,9 @@
 //! This module contains the Node struct and related functionality
 //! for representing nodes in the computational graph.
 
-use crate::{AutogradError, Dtype, Operation, TensorRef};
+use crate::{AutogradError, TensorRef};
+use crate::context::Operation;
+use coeus_dtype::Dtype;
 use std::fmt;
 
 /// Node in the computational graph
@@ -16,7 +18,7 @@ pub struct Node<T: Dtype> {
     /// Gradient with respect to this node
     pub grad: Option<TensorRef<T>>,
     /// Operation that produced this node (None for leaf nodes)
-    pub operation: Option<Operation<T>>,
+    pub operation: Option<Operation>,
     /// Reference count for memory management
     pub ref_count: usize,
     /// Whether this node requires gradients
@@ -28,7 +30,7 @@ impl<T: Dtype> Node<T> {
     pub fn new(
         id: NodeId,
         data: TensorRef<T>,
-        operation: Option<Operation<T>>,
+        operation: Option<Operation>,
         requires_grad: bool,
     ) -> Self {
         Self {
@@ -88,7 +90,7 @@ impl<T: Dtype> Node<T> {
     }
 
     /// Get the operation that produced this node
-    pub fn operation(&self) -> Option<&Operation<T>> {
+    pub fn operation(&self) -> Option<&Operation> {
         self.operation.as_ref()
     }
 }

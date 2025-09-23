@@ -8,31 +8,24 @@ a clean Python API that delegates to the Rust implementations.
 
 # Import only what's actually implemented in Rust
 from pycoeus._core import (
-    # Base module
-    NNModule,
-    
     # Actually implemented layers
     Linear,
+    Conv1d,
     Conv2d,
-    Rnn,
-    Lstm,
-    Gru,
-    
+    BatchNorm1d,
+
     # Actually implemented activation functions
     ReLU,
-    
+    Sigmoid,
+    Tanh,
+    Softmax,
+
     # Actually implemented loss functions
     MseLoss,
     CrossEntropyLoss,
-    
-    # Actually implemented models
-    GPT2,
 )
 
 # PyTorch compatibility aliases
-RNN = Rnn
-LSTM = Lstm
-GRU = Gru
 MSELoss = MseLoss
 
 # Import submodules (these also delegate to Rust)
@@ -41,7 +34,6 @@ from . import init
 from . import utils
 
 # PyTorch compatibility aliases
-Module = NNModule
 MSE = MSELoss
 CrossEntropy = CrossEntropyLoss
 
@@ -64,31 +56,28 @@ def parameter(data, requires_grad=True):
 
 # Export only what's actually implemented
 __all__ = [
-    # Base classes
-    "Module",
-    "NNModule",
+    # Classes
     "Parameter",
     "parameter",
-    
+
     # Actually implemented layers
     "Linear",
+    "Conv1d",
     "Conv2d",
-    "Rnn", "RNN",  # Both Rust name and PyTorch alias
-    "Lstm", "LSTM",  # Both Rust name and PyTorch alias
-    "Gru", "GRU",  # Both Rust name and PyTorch alias
-    
+    "BatchNorm1d",
+
     # Actually implemented activation functions
     "ReLU",
-    
+    "Sigmoid",
+    "Tanh",
+    "Softmax",
+
     # Actually implemented loss functions
     "MseLoss", "MSELoss",  # Both Rust name and PyTorch alias
     "MSE",
     "CrossEntropyLoss",
     "CrossEntropy",
-    
-    # Actually implemented models
-    "GPT2",
-    
+
     # Submodules
     "functional",
     "init",

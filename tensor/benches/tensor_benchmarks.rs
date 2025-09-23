@@ -238,22 +238,18 @@ pub fn bench_memory_patterns(c: &mut Criterion) {
 
     // Contiguous memory access
     for &size in &sizes {
-        group.bench_with_input(
-            format!("contiguous_access_{}", size),
-            &size,
-            |b, &size| {
-                let data = vec![1.0f32; size];
-                let tensor = Tensor::from_vec(data, vec![size]);
+        group.bench_with_input(format!("contiguous_access_{}", size), &size, |b, &size| {
+            let data = vec![1.0f32; size];
+            let tensor = Tensor::from_vec(data, vec![size]);
 
-                b.iter(|| {
-                    let mut sum = 0.0;
-                    for i in 0..size {
-                        sum += Dtype::to_f64(&tensor.data()[i]).unwrap_or(0.0);
-                    }
-                    black_box(sum);
-                });
-            },
-        );
+            b.iter(|| {
+                let mut sum = 0.0;
+                for i in 0..size {
+                    sum += Dtype::to_f64(&tensor.data()[i]).unwrap_or(0.0);
+                }
+                black_box(sum);
+            });
+        });
     }
 
     // Non-contiguous memory access (transpose)
@@ -615,7 +611,9 @@ pub fn bench_indexing_operations(c: &mut Criterion) {
                 let data = vec![1.0f32; rows * cols];
                 let tensor = Tensor::from_vec(data, vec![rows, cols]);
                 b.iter(|| {
-                    let _result = black_box(tensor.slice(&[Slice::new(Some(0), Some(10), None), Slice::all()]));
+                    let _result = black_box(
+                        tensor.slice(&[Slice::new(Some(0), Some(10), None), Slice::all()]),
+                    );
                 });
             },
         );
@@ -628,7 +626,9 @@ pub fn bench_indexing_operations(c: &mut Criterion) {
                 let data = vec![1.0f32; rows * cols];
                 let tensor = Tensor::from_vec(data, vec![rows, cols]);
                 b.iter(|| {
-                    let _result = black_box(tensor.slice(&[Slice::all(), Slice::new(Some(0), Some(10), None)]));
+                    let _result = black_box(
+                        tensor.slice(&[Slice::all(), Slice::new(Some(0), Some(10), None)]),
+                    );
                 });
             },
         );
@@ -659,36 +659,28 @@ pub fn bench_parallel_processing(c: &mut Criterion) {
 
     for &size in &sizes {
         // Sequential processing
-        group.bench_with_input(
-            format!("sequential_{}", size),
-            &size,
-            |b, &size| {
-                let data = vec![1.0f32; size];
-                let tensor = Tensor::from_vec(data, vec![size]);
-                b.iter(|| {
-                    let _result = black_box(tensor.exp());
-                });
-            },
-        );
+        group.bench_with_input(format!("sequential_{}", size), &size, |b, &size| {
+            let data = vec![1.0f32; size];
+            let tensor = Tensor::from_vec(data, vec![size]);
+            b.iter(|| {
+                let _result = black_box(tensor.exp());
+            });
+        });
 
         // Parallel processing (simulated through multiple operations)
-        group.bench_with_input(
-            format!("parallel_batch_{}", size),
-            &size,
-            |b, &size| {
-                let data1 = vec![1.0f32; size];
-                let data2 = vec![2.0f32; size];
-                let data3 = vec![3.0f32; size];
-                let tensor1 = Tensor::from_vec(data1, vec![size]);
-                let tensor2 = Tensor::from_vec(data2, vec![size]);
-                let tensor3 = Tensor::from_vec(data3, vec![size]);
-                b.iter(|| {
-                    let _r1 = black_box(tensor1.exp());
-                    let _r2 = black_box(tensor2.log());
-                    let _r3 = black_box(tensor3.sin());
-                });
-            },
-        );
+        group.bench_with_input(format!("parallel_batch_{}", size), &size, |b, &size| {
+            let data1 = vec![1.0f32; size];
+            let data2 = vec![2.0f32; size];
+            let data3 = vec![3.0f32; size];
+            let tensor1 = Tensor::from_vec(data1, vec![size]);
+            let tensor2 = Tensor::from_vec(data2, vec![size]);
+            let tensor3 = Tensor::from_vec(data3, vec![size]);
+            b.iter(|| {
+                let _r1 = black_box(tensor1.exp());
+                let _r2 = black_box(tensor2.log());
+                let _r3 = black_box(tensor3.sin());
+            });
+        });
     }
     group.finish();
 }

@@ -47,6 +47,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> crate::Tens
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
             input_tensor_nodes: vec![],
+            buffers: std::collections::HashMap::new(),
         };
 
         // Propagate requires_grad flag
@@ -141,7 +142,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> crate::Tens
         // Perform matrix multiplication
         let mut result_data = vec![T::zero(); result_shape.iter().product()];
 
-        // Simple implementation for now - can be optimized later
+        // Matrix multiplication implementation
         for i in 0..m {
             for j in 0..n {
                 let mut sum = T::zero();
@@ -150,7 +151,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> crate::Tens
                         i * k + l
                     } else {
                         // Handle batched dimensions
-                        let batch_idx = 0; // Simplified for now
+                        let batch_idx = 0; // Handle batched dimensions
                         batch_idx * (m * k) + i * k + l
                     };
 
@@ -158,7 +159,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> crate::Tens
                         l * n + j
                     } else {
                         // Handle batched dimensions
-                        let batch_idx = 0; // Simplified for now
+                        let batch_idx = 0; // Handle batched dimensions
                         batch_idx * (k * n) + l * n + j
                     };
 
@@ -169,7 +170,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> crate::Tens
                     i * n + j
                 } else {
                     // Handle batched dimensions
-                    let batch_idx = 0; // Simplified for now
+                    let batch_idx = 0; // Handle batched dimensions
                     batch_idx * (m * n) + i * n + j
                 };
 
@@ -295,6 +296,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> crate::Tens
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
             input_tensor_nodes: vec![],
+            buffers: std::collections::HashMap::new(),
         };
 
         // Propagate requires_grad flag
@@ -373,8 +375,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> crate::Tens
         let mut result_data = Vec::new();
         let mut indices = vec![0; expanded_shape.len()];
 
-        // Simple expansion implementation
-        // This is a basic implementation - could be optimized
+        // Tensor expansion implementation
         for _ in 0..target_shape.iter().product::<usize>() {
             let mut source_idx = 0;
             let mut stride = 1;

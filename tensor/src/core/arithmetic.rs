@@ -119,6 +119,7 @@ fn create_result_tensor<T: Dtype>(
         context: None,
         grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
         input_tensor_nodes: vec![],
+        buffers: std::collections::HashMap::new(),
     };
 
     if let Some(node_id) = autograd_node {

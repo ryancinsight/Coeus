@@ -3,7 +3,8 @@
 //! This module contains the Operation struct and related functionality
 //! for representing operations in the computational graph.
 
-use crate::{Dtype, NodeId, TensorRef};
+use crate::{NodeId, TensorRef};
+use coeus_dtype::Dtype;
 use std::sync::Arc;
 
 /// Represents an operation in the computational graph

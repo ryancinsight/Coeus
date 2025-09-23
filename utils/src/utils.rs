@@ -674,6 +674,35 @@ pub struct ClassificationReport {
     pub macro_f1: f64,
 }
 
+impl std::fmt::Display for ClassificationReport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Classification Report")?;
+        writeln!(f, "=====================")?;
+        writeln!(
+            f,
+            "{:<10} {:<10} {:<10} {:<10}",
+            "Class", "Precision", "Recall", "F1-Score"
+        )?;
+        writeln!(f, "{:-<40}", "")?;
+
+        for i in 0..self.precision.len() {
+            writeln!(
+                f,
+                "{:<10} {:<10.4} {:<10.4} {:<10.4}",
+                i, self.precision[i], self.recall[i], self.f1_score[i]
+            )?;
+        }
+
+        writeln!(f)?;
+        writeln!(f, "Macro Average:")?;
+        writeln!(f, "Precision: {:.4}", self.macro_precision)?;
+        writeln!(f, "Recall:    {:.4}", self.macro_recall)?;
+        writeln!(f, "F1-Score:  {:.4}", self.macro_f1)?;
+
+        Ok(())
+    }
+}
+
 pub use loss::*;
 /// Re-export commonly used utilities
 pub use math::*;

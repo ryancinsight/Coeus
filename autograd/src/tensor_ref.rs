@@ -1,6 +1,6 @@
 //! Tensor reference types for the computational graph
 
-use super::Dtype;
+use coeus_dtype::Dtype;
 use std::fmt;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 

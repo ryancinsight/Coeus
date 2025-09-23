@@ -46,7 +46,7 @@ pub mod data;
 pub mod transforms;
 pub mod utils;
 
-pub use data::{DataLoader, DataLoaderBuilder, Dataset};
+pub use data::{DataLoader, DataLoaderBuilder, DataLoaderIter, Dataset};
 pub use utils::tensor_ops;
 pub use utils::*;
 

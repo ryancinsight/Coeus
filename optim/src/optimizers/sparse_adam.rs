@@ -5,7 +5,7 @@
 //! making it efficient for sparse updates common in embedding layers.
 
 use crate::{BaseOptimizer, Optimizer, ParamGroup, Result};
-use coeus_tensor::{Tensor, Mul, Add, Sub, Div};
+use coeus_tensor::{Add, Div, Mul, Sub, Tensor};
 use std::collections::HashMap;
 
 /// Sparse Adam optimizer
@@ -63,10 +63,10 @@ impl<T: coeus_dtype::FloatDtype> SparseAdam<T> {
         Self::with_options(
             params,
             lr,
-            T::from(0.9).unwrap(),    // beta1
-            T::from(0.999).unwrap(),  // beta2
-            T::from(1e-8).unwrap(),   // eps
-            false,                    // amsgrad
+            T::from(0.9).unwrap(),   // beta1
+            T::from(0.999).unwrap(), // beta2
+            T::from(1e-8).unwrap(),  // eps
+            false,                   // amsgrad
         )
     }
 
@@ -132,14 +132,17 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for SparseAdam<T> {
                 let grad = param.grad().unwrap().clone();
 
                 // Get or create moment buffers (sparse - only allocate for non-zero gradients)
-                let exp_avg = param.get_buffer("exp_avg")
+                let exp_avg = param
+                    .get_buffer("exp_avg")
                     .unwrap_or_else(|| Tensor::zeros(param.shape().to_vec()));
 
-                let exp_avg_sq = param.get_buffer("exp_avg_sq")
+                let exp_avg_sq = param
+                    .get_buffer("exp_avg_sq")
                     .unwrap_or_else(|| Tensor::zeros(param.shape().to_vec()));
 
                 // Get step count
-                let step_count_tensor = param.get_buffer("step")
+                let step_count_tensor = param
+                    .get_buffer("step")
                     .unwrap_or_else(|| Tensor::from_vec(vec![T::one()], vec![1]));
                 let step_count = step_count_tensor.data()[0];
 
@@ -177,7 +180,10 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for SparseAdam<T> {
                 // Store buffers
                 param.set_buffer("exp_avg", exp_avg_new);
                 param.set_buffer("exp_avg_sq", exp_avg_sq_new);
-                param.set_buffer("step", Tensor::from_vec(vec![step_count + T::one()], vec![1]));
+                param.set_buffer(
+                    "step",
+                    Tensor::from_vec(vec![step_count + T::one()], vec![1]),
+                );
             }
         }
 
@@ -218,5 +224,262 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for SparseAdam<T> {
 
     fn state_mut(&mut self) -> &mut HashMap<String, Tensor<T>> {
         self.base.state_mut()
+    }
+}
+
+#[cfg(test)]
+mod sparse_adam_tests {
+    use super::*;
+    use coeus_tensor::Tensor;
+
+    /// Test SparseAdam optimizer creation
+    #[test]
+    fn test_sparse_adam_creation() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let optimizer = SparseAdam::new(params, 0.001_f64);
+
+        assert_eq!(optimizer.name(), "SparseAdam");
+        assert_eq!(optimizer.param_groups().len(), 1);
+        assert_eq!(optimizer.get_lr(0), Some(0.001_f64));
+    }
+
+    /// Test SparseAdam with custom options
+    #[test]
+    fn test_sparse_adam_custom_options() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let optimizer = SparseAdam::with_options(
+            params, 0.01_f64, 0.8_f64,  // beta1
+            0.95_f64, // beta2
+            1e-7_f64, // eps
+            true,     // amsgrad
+        );
+
+        assert_eq!(optimizer.name(), "SparseAdam");
+        assert_eq!(optimizer.param_groups().len(), 1);
+        assert_eq!(optimizer.beta1(), 0.8_f64);
+        assert_eq!(optimizer.beta2(), 0.95_f64);
+        assert_eq!(optimizer.eps(), 1e-7_f64);
+        assert!(optimizer.amsgrad());
+    }
+
+    /// Test SparseAdam step functionality
+    #[test]
+    fn test_sparse_adam_step() {
+        let mut params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        params[0].set_requires_grad(true);
+
+        let mut optimizer = SparseAdam::new(params, 0.01_f64);
+
+        // Set gradients
+        let grad = Tensor::from_vec(vec![0.1_f64, -0.2_f64], vec![2]);
+        let _ = optimizer.param_groups_mut()[0].params[0].set_grad(grad);
+
+        // Perform optimization step
+        optimizer.step().unwrap();
+
+        // Check that parameters were updated
+        let updated_param = &optimizer.param_groups()[0].params[0];
+        assert_ne!(updated_param.data()[0], 1.0_f64); // Should have changed
+        assert_ne!(updated_param.data()[1], 2.0_f64); // Should have changed
+    }
+
+    /// Test SparseAdam with multiple parameter groups
+    #[test]
+    fn test_sparse_adam_multiple_param_groups() {
+        let params1 = vec![Tensor::from_vec(vec![1.0_f64], vec![1])];
+        let params2 = vec![Tensor::from_vec(vec![2.0_f64, 3.0_f64], vec![2])];
+
+        let mut optimizer = SparseAdam::new(vec![], 0.001_f64); // Start empty
+        optimizer.add_param_group(ParamGroup::new(params1, 0.001_f64, 0.0_f64));
+        optimizer.add_param_group(ParamGroup::new(params2, 0.002_f64, 0.0_f64));
+
+        assert_eq!(optimizer.param_groups().len(), 3); // 1 empty + 2 added
+        assert_eq!(optimizer.get_lr(0), Some(0.001_f64)); // Default lr for empty group
+        assert_eq!(optimizer.get_lr(1), Some(0.001_f64)); // First added group
+        assert_eq!(optimizer.get_lr(2), Some(0.002_f64)); // Second added group
+    }
+
+    /// Test SparseAdam parameter state management
+    #[test]
+    fn test_sparse_adam_state_management() {
+        let mut params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        params[0].set_requires_grad(true);
+
+        let mut optimizer = SparseAdam::new(params, 0.01_f64);
+
+        // Set gradient and perform step
+        let grad = Tensor::from_vec(vec![0.1_f64, -0.2_f64], vec![2]);
+        let _ = optimizer.param_groups_mut()[0].params[0].set_grad(grad);
+        optimizer.step().unwrap();
+
+        // Check that buffers were created and stored
+        let param = &mut optimizer.param_groups_mut()[0].params[0];
+        assert!(param.get_buffer("exp_avg").is_some());
+        assert!(param.get_buffer("exp_avg_sq").is_some());
+        assert!(param.get_buffer("step").is_some());
+
+        // Verify buffer contents are reasonable
+        let exp_avg = param.get_buffer("exp_avg").unwrap();
+        assert_eq!(exp_avg.shape(), &[2]);
+
+        let exp_avg_sq = param.get_buffer("exp_avg_sq").unwrap();
+        assert_eq!(exp_avg_sq.shape(), &[2]);
+
+        let step = param.get_buffer("step").unwrap();
+        assert_eq!(step.shape(), &[1]);
+        assert!(step.data()[0] > 0.0_f64); // Should be positive step count
+    }
+
+    /// Test SparseAdam gradient zeroing
+    #[test]
+    fn test_sparse_adam_zero_grad() {
+        let mut params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        params[0].set_requires_grad(true);
+
+        let mut optimizer = SparseAdam::new(params, 0.01_f64);
+
+        // Set gradients
+        let grad = Tensor::from_vec(vec![0.1_f64, -0.2_f64], vec![2]);
+        let _ = optimizer.param_groups_mut()[0].params[0].set_grad(grad);
+
+        // Zero gradients
+        optimizer.zero_grad();
+
+        // Check that gradients are zeroed
+        let param = &optimizer.param_groups()[0].params[0];
+        assert!(param.grad().is_some()); // BaseOptimizer sets grad to zero tensor, not None
+        if let Some(grad) = param.grad() {
+            assert!(grad.data().iter().all(|&x| x == 0.0_f64)); // All elements should be zero
+        }
+    }
+
+    /// Test SparseAdam with zero gradients
+    #[test]
+    fn test_sparse_adam_zero_gradients() {
+        let mut params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        params[0].set_requires_grad(true);
+
+        let mut optimizer = SparseAdam::new(params, 0.01_f64);
+
+        // Don't set any gradients (should be None)
+        optimizer.step().unwrap();
+
+        // Parameters should remain unchanged
+        let param = &optimizer.param_groups()[0].params[0];
+        assert_eq!(param.data(), &[1.0_f64, 2.0_f64]);
+    }
+
+    /// Test SparseAdam numerical stability
+    #[test]
+    fn test_sparse_adam_numerical_stability() {
+        let mut params = vec![Tensor::from_vec(vec![1e-10_f64, 1e10_f64], vec![2])];
+        params[0].set_requires_grad(true);
+
+        let mut optimizer = SparseAdam::new(params, 0.01_f64);
+
+        // Set extreme gradients
+        let grad = Tensor::from_vec(vec![1e-15_f64, 1e5_f64], vec![2]);
+        let _ = optimizer.param_groups_mut()[0].params[0].set_grad(grad);
+
+        // Should not panic and should handle extreme values
+        optimizer.step().unwrap();
+
+        // Parameters should be finite
+        let param = &optimizer.param_groups()[0].params[0];
+        assert!(param.data()[0].is_finite());
+        assert!(param.data()[1].is_finite());
+    }
+
+    /// Test SparseAdam convergence behavior
+    #[test]
+    fn test_sparse_adam_convergence() {
+        let mut params = vec![Tensor::from_vec(vec![10.0_f64, -10.0_f64], vec![2])];
+        params[0].set_requires_grad(true);
+
+        let mut optimizer = SparseAdam::new(params, 0.1_f64);
+
+        // Simulate gradient descent toward zero
+        for _ in 0..5 {
+            let param_data = optimizer.param_groups()[0].params[0].data();
+            let grad = Tensor::from_vec(param_data.to_vec(), vec![2]); // Gradient = current value
+            let _ = optimizer.param_groups_mut()[0].params[0].set_grad(grad);
+            optimizer.step().unwrap();
+        }
+
+        // Parameters should move toward zero
+        let final_param = &optimizer.param_groups()[0].params[0];
+        assert!(final_param.data()[0].abs() < 10.0_f64);
+        assert!(final_param.data()[1].abs() < 10.0_f64);
+    }
+
+    /// Test SparseAdam bias correction
+    #[test]
+    fn test_sparse_adam_bias_correction() {
+        let mut params = vec![Tensor::from_vec(vec![1.0_f64], vec![1])];
+        params[0].set_requires_grad(true);
+
+        let mut optimizer = SparseAdam::new(params, 0.01_f64);
+
+        // Perform multiple steps to test bias correction
+        for _ in 0..3 {
+            let grad = Tensor::from_vec(vec![1.0_f64], vec![1]);
+            let _ = optimizer.param_groups_mut()[0].params[0].set_grad(grad);
+            optimizer.step().unwrap();
+        }
+
+        // Check that step count is incremented
+        let param = &mut optimizer.param_groups_mut()[0].params[0];
+        let step = param
+            .get_buffer("step")
+            .unwrap_or_else(|| Tensor::from_vec(vec![0.0_f64], vec![1]));
+        assert!(step.data()[0] > 0.0_f64); // Step count should be positive after optimization
+    }
+
+    /// Test SparseAdam with AMSGrad variant
+    #[test]
+    fn test_sparse_adam_amsgrad() {
+        let mut params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        params[0].set_requires_grad(true);
+
+        let mut optimizer = SparseAdam::with_options(
+            params, 0.01_f64, 0.9_f64, 0.999_f64, 1e-8_f64, true, // Enable AMSGrad
+        );
+
+        // Set gradients and perform step
+        let grad = Tensor::from_vec(vec![0.1_f64, -0.2_f64], vec![2]);
+        let _ = optimizer.param_groups_mut()[0].params[0].set_grad(grad);
+        optimizer.step().unwrap();
+
+        // Verify that AMSGrad buffers are created (same as regular Adam for now)
+        let param = &mut optimizer.param_groups_mut()[0].params[0];
+        assert!(param.get_buffer("exp_avg").is_some());
+        assert!(param.get_buffer("exp_avg_sq").is_some());
+    }
+
+    /// Test SparseAdam parameter updates are mathematically correct
+    #[test]
+    fn test_sparse_adam_mathematical_correctness() {
+        let mut params = vec![Tensor::from_vec(vec![1.0_f64], vec![1])];
+        params[0].set_requires_grad(true);
+
+        let mut optimizer = SparseAdam::new(params, 0.01_f64);
+
+        // Set initial gradient
+        let grad = Tensor::from_vec(vec![1.0_f64], vec![1]);
+        let _ = optimizer.param_groups_mut()[0].params[0].set_grad(grad);
+        optimizer.step().unwrap();
+
+        // Get the updated parameter value
+        let updated_param_value = optimizer.param_groups()[0].params[0].data()[0];
+        assert!(updated_param_value < 1.0_f64); // Should have moved in negative gradient direction
+
+        // Perform second step with same gradient
+        let grad2 = Tensor::from_vec(vec![1.0_f64], vec![1]);
+        let _ = optimizer.param_groups_mut()[0].params[0].set_grad(grad2);
+        optimizer.step().unwrap();
+
+        // Parameter should continue moving
+        let final_param_value = optimizer.param_groups()[0].params[0].data()[0];
+        assert!(final_param_value < updated_param_value);
     }
 }

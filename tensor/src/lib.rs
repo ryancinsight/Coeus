@@ -60,6 +60,7 @@
 //! - **Bayesian Optimization**: Modeling parameter uncertainty
 
 pub mod arithmetic_ops;
+pub mod backend_tensor;
 pub mod core;
 pub mod iterators;
 pub mod ops;
@@ -131,6 +132,33 @@ pub enum TensorError {
     #[error("Gradient computation error: {message}")]
     GradientError { message: String },
 
+    #[error("Broadcasting error: cannot broadcast shapes {shape1:?} and {shape2:?}")]
+    BroadcastingError {
+        shape1: Vec<usize>,
+        shape2: Vec<usize>,
+    },
+
+    #[error("Numerical stability error: {operation} produced {issue} (value: {value})")]
+    NumericalStabilityError {
+        operation: String,
+        issue: String,
+        value: f64,
+    },
+
+    #[error("Memory allocation error: failed to allocate {requested} bytes")]
+    MemoryAllocationError { requested: usize },
+
+    #[error("Serialization error: {message}")]
+    SerializationError { message: String },
+
+    #[error("Device error: operation not supported on {device}")]
+    DeviceError { device: String },
+
+    #[error(
+        "Performance regression detected: {operation} exceeded threshold by {degradation:.2}%"
+    )]
+    PerformanceRegressionError { operation: String, degradation: f64 },
+
     #[error("Autograd error: {0}")]
     AutogradError(#[from] coeus_autograd::AutogradError),
 
@@ -143,6 +171,7 @@ pub enum TensorError {
 pub enum Device {
     #[default]
     Cpu,
+    Gpu,
     // Cuda, // Future GPU support
 }
 
@@ -188,3 +217,6 @@ mod tests {
 
 #[cfg(test)]
 include!("tests/autograd_tests.rs");
+
+#[cfg(test)]
+include!("tests/property_tests.rs");

@@ -6,6 +6,336 @@
 use crate::{Tensor, TensorError, Dtype, Result};
 use crate::ops::indexing::Slice;
 
+#[cfg(test)]
+mod indexing_ops_tests {
+    use super::*;
+
+    /// Test basic slicing operation
+    #[test]
+    fn test_slice_basic() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let slice = tensor.slice(&[Slice::Range(0..1), Slice::Range(0..2)]).unwrap();
+        assert_eq!(slice.data(), &[1.0, 2.0]);
+        assert_eq!(slice.shape(), &[1, 2]);
+    }
+
+    /// Test slice with step
+    #[test]
+    fn test_slice_with_step() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
+        let slice = tensor.slice(&[Slice::Range(0..2), Slice::Range(0..3)]).unwrap();
+        assert_eq!(slice.data(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        assert_eq!(slice.shape(), &[2, 3]);
+    }
+
+    /// Test slice error handling
+    #[test]
+    fn test_slice_error_handling() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let result = tensor.slice(&[Slice::Index(0)]);
+        assert!(result.is_err());
+    }
+
+    /// Test gather operation
+    #[test]
+    fn test_gather_basic() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let indices = Tensor::from_vec(vec![0, 1], vec![2]);
+        let result = tensor.gather(0, &indices).unwrap();
+        assert_eq!(result.data(), &[1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(result.shape(), &[2, 2]);
+    }
+
+    /// Test gather with different dimension
+    #[test]
+    fn test_gather_dimension() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let indices = Tensor::from_vec(vec![0, 1], vec![2]);
+        let result = tensor.gather(1, &indices).unwrap();
+        assert_eq!(result.data(), &[1.0, 2.0]);
+        assert_eq!(result.shape(), &[2, 2]);
+    }
+
+    /// Test scatter operation
+    #[test]
+    fn test_scatter_basic() {
+        let tensor = Tensor::from_vec(vec![0.0, 0.0, 0.0, 0.0], vec![2, 2]);
+        let indices = Tensor::from_vec(vec![0, 1], vec![2]);
+        let src = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let result = tensor.scatter(0, &indices, &src).unwrap();
+        assert_eq!(result.data(), &[1.0, 2.0, 3.0, 4.0]);
+    }
+
+    /// Test index_select operation
+    #[test]
+    fn test_index_select_basic() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let result = tensor.index_select(0, &[0, 1]).unwrap();
+        assert_eq!(result.data(), &[1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(result.shape(), &[2, 2]);
+    }
+
+    /// Test advanced indexing
+    #[test]
+    fn test_advanced_index_basic() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
+        let indices = vec![&Tensor::from_vec(vec![0, 1], vec![2])];
+        let result = tensor.advanced_index(&indices).unwrap();
+        assert_eq!(result.data(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    }
+
+    /// Test index_put operation
+    #[test]
+    fn test_index_put_basic() {
+        let tensor = Tensor::from_vec(vec![0.0, 0.0, 0.0, 0.0], vec![2, 2]);
+        let indices = vec![&Tensor::from_vec(vec![0, 1], vec![2])];
+        let values = Tensor::from_vec(vec![1.0, 2.0], vec![2, 1]);
+        let result = tensor.index_put(&indices, &values).unwrap();
+        assert_eq!(result.data(), &[1.0, 0.0, 2.0, 0.0]);
+    }
+
+    /// Test index_add operation
+    #[test]
+    fn test_index_add_basic() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let indices = vec![&Tensor::from_vec(vec![0, 1], vec![2])];
+        let values = Tensor::from_vec(vec![1.0, 1.0], vec![2, 1]);
+        let result = tensor.index_add(&indices, &values).unwrap();
+        assert_eq!(result.data(), &[2.0, 2.0, 4.0, 4.0]);
+    }
+
+    /// Test index_copy operation
+    #[test]
+    fn test_index_copy_basic() {
+        let tensor = Tensor::from_vec(vec![0.0, 0.0, 0.0, 0.0], vec![2, 2]);
+        let indices = vec![&Tensor::from_vec(vec![0, 1], vec![2])];
+        let values = Tensor::from_vec(vec![1.0, 2.0], vec![2, 1]);
+        let result = tensor.index_copy(&indices, &values).unwrap();
+        assert_eq!(result.data(), &[1.0, 0.0, 2.0, 0.0]);
+    }
+
+    /// Test edge cases for indexing operations
+    #[test]
+    fn test_indexing_edge_cases() {
+        // Test with empty indices
+        let tensor = Tensor::from_vec(vec![1.0, 2.0], vec![2]);
+        let indices = Tensor::from_vec(vec![], vec![0]);
+        let result = tensor.gather(0, &indices);
+        assert!(result.is_err());
+
+        // Test with out of bounds indices
+        let indices_oob = Tensor::from_vec(vec![10], vec![1]);
+        let result_oob = tensor.gather(0, &indices_oob);
+        assert!(result_oob.is_err());
+    }
+
+    /// Test indexing operations preserve gradients
+    #[test]
+    fn test_indexing_gradient_preservation() {
+        let mut tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        tensor.set_requires_grad(true);
+
+        let indices = Tensor::from_vec(vec![0, 1], vec![2]);
+        let result = tensor.gather(0, &indices).unwrap();
+
+        assert!(result.requires_grad());
+    }
+
+    /// Test multidimensional indexing
+    #[test]
+    fn test_multidimensional_indexing() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
+        let indices = vec![
+            &Tensor::from_vec(vec![0, 1], vec![2]),
+            &Tensor::from_vec(vec![0, 2], vec![2])
+        ];
+        let result = tensor.advanced_index(&indices).unwrap();
+        assert_eq!(result.data(), &[1.0, 6.0]);
+        assert_eq!(result.shape(), &[2]);
+    }
+
+    /// Test edge cases for all indexing operations
+    #[test]
+    fn test_indexing_edge_cases() {
+        // Test with empty tensors
+        let empty_tensor = Tensor::from_vec(vec![], vec![0]);
+        let empty_indices = vec![&Tensor::from_vec(vec![], vec![0])];
+        let empty_values = Tensor::from_vec(vec![], vec![0]);
+
+        let scatter_result = empty_tensor.scatter(0, &empty_indices[0], &empty_values);
+        assert!(scatter_result.is_ok());
+
+        // Test with single element tensors
+        let single_tensor = Tensor::from_vec(vec![42.0], vec![1]);
+        let single_indices = vec![&Tensor::from_vec(vec![0], vec![1])];
+        let single_values = Tensor::from_vec(vec![99.0], vec![1]);
+
+        let scatter_single = single_tensor.scatter(0, &single_indices[0], &single_values).unwrap();
+        assert_eq!(scatter_single.data(), &[99.0]);
+
+        // Test with large tensors
+        let large_data: Vec<f64> = (0..1000).map(|x| x as f64).collect();
+        let large_tensor = Tensor::from_vec(large_data, vec![1000]);
+        let large_indices = Tensor::from_vec(vec![0, 1, 999], vec![3]);
+        let large_values = Tensor::from_vec(vec![-1.0, -2.0, -3.0], vec![3]);
+
+        let scatter_large = large_tensor.scatter(0, &large_indices, &large_values).unwrap();
+        assert_eq!(scatter_large.data()[0], -1.0);
+        assert_eq!(scatter_large.data()[1], -2.0);
+        assert_eq!(scatter_large.data()[999], -3.0);
+    }
+
+    /// Test error conditions for indexing operations
+    #[test]
+    fn test_indexing_error_conditions() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+
+        // Test invalid slice indices
+        let invalid_slice = tensor.slice(&[Slice::Range(5..10)]);
+        assert!(invalid_slice.is_err());
+
+        // Test invalid gather indices
+        let invalid_gather_indices = Tensor::from_vec(vec![-1, 10], vec![2]);
+        let invalid_gather = tensor.gather(0, &invalid_gather_indices);
+        assert!(invalid_gather.is_err());
+
+        // Test mismatched dimensions for scatter
+        let mismatched_values = Tensor::from_vec(vec![1.0], vec![1]);
+        let indices = vec![&Tensor::from_vec(vec![0], vec![1])];
+        let invalid_scatter = tensor.scatter(0, &indices[0], &mismatched_values);
+        assert!(invalid_scatter.is_err());
+
+        // Test out of bounds indices for index_select
+        let out_of_bounds_indices = &[10, 20];
+        let invalid_select = tensor.index_select(0, out_of_bounds_indices);
+        assert!(invalid_select.is_err());
+    }
+
+    /// Test memory safety and bounds checking
+    #[test]
+    fn test_indexing_memory_safety() {
+        // Test with very large indices
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let large_indices = Tensor::from_vec(vec![0, 1, 0, 1], vec![4]);
+
+        // This should not cause memory corruption
+        let gather_result = tensor.gather(0, &large_indices);
+        assert!(gather_result.is_ok());
+
+        // Test with repeated indices
+        let repeated_indices = Tensor::from_vec(vec![0, 0, 1, 1], vec![4]);
+        let repeated_gather = tensor.gather(1, &repeated_indices);
+        assert!(repeated_gather.is_ok());
+
+        // Test scatter with overlapping indices
+        let overlapping_indices = Tensor::from_vec(vec![0, 0, 1], vec![3]);
+        let overlapping_values = Tensor::from_vec(vec![10.0, 20.0, 30.0], vec![3]);
+        let scatter_overlap = tensor.scatter(0, &overlapping_indices, &overlapping_values);
+        assert!(scatter_overlap.is_ok());
+    }
+
+    /// Test performance characteristics
+    #[test]
+    fn test_indexing_performance() {
+        // Test with medium-sized tensors
+        let data: Vec<f64> = (0..10000).map(|x| x as f64).collect();
+        let tensor = Tensor::from_vec(data, vec![100, 100]);
+
+        let indices = Tensor::from_vec(vec![0, 50, 99], vec![3]);
+
+        // These operations should complete in reasonable time
+        let gather_result = tensor.gather(0, &indices).unwrap();
+        assert_eq!(gather_result.shape(), &[3, 100]);
+
+        let scatter_values = Tensor::from_vec(vec![-1.0, -2.0, -3.0], vec![3]);
+        let scatter_result = tensor.scatter(0, &indices, &scatter_values).unwrap();
+        assert_eq!(scatter_result.shape(), &[100, 100]);
+    }
+
+    /// Test numerical precision for indexing operations
+    #[test]
+    fn test_indexing_precision() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.14159, 2.71828], vec![2, 2]);
+        let indices = Tensor::from_vec(vec![0, 1], vec![2]);
+
+        let gather_result = tensor.gather(0, &indices).unwrap();
+        assert_relative_eq!(gather_result.data()[0], 1.0, epsilon = 1e-15);
+        assert_relative_eq!(gather_result.data()[1], 2.0, epsilon = 1e-15);
+        assert_relative_eq!(gather_result.data()[2], 3.14159, epsilon = 1e-6);
+        assert_relative_eq!(gather_result.data()[3], 2.71828, epsilon = 1e-6);
+    }
+
+    /// Test gradient computation for indexing operations
+    #[test]
+    fn test_indexing_gradients() {
+        let mut tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        tensor.set_requires_grad(true);
+
+        let indices = Tensor::from_vec(vec![0, 1], vec![2]);
+        let gather_result = tensor.gather(0, &indices).unwrap();
+
+        assert!(gather_result.requires_grad());
+
+        // Test that gradients can be computed
+        // (Actual gradient computation would require backward pass implementation)
+    }
+
+    /// Test complex indexing patterns
+    #[test]
+    fn test_complex_indexing_patterns() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
+
+        // Test multiple gather operations
+        let indices1 = Tensor::from_vec(vec![0], vec![1]);
+        let indices2 = Tensor::from_vec(vec![1, 2], vec![2]);
+
+        let gather1 = tensor.gather(0, &indices1).unwrap();
+        let gather2 = tensor.gather(1, &indices2).unwrap();
+
+        assert_eq!(gather1.data(), &[1.0, 2.0, 3.0]);
+        assert_eq!(gather2.data(), &[2.0, 3.0, 5.0, 6.0]);
+
+        // Test scatter after gather
+        let scatter_values = Tensor::from_vec(vec![10.0, 20.0], vec![2]);
+        let indices = vec![&Tensor::from_vec(vec![0, 1], vec![2])];
+        let scatter_result = tensor.scatter(0, &indices[0], &scatter_values).unwrap();
+        assert_eq!(scatter_result.data(), &[10.0, 2.0, 3.0, 20.0, 5.0, 6.0]);
+    }
+
+    /// Test indexing operations with different tensor shapes
+    #[test]
+    fn test_indexing_different_shapes() {
+        // Test 1D tensor indexing
+        let tensor_1d = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let indices_1d = Tensor::from_vec(vec![0, 2], vec![2]);
+        let gather_1d = tensor_1d.gather(0, &indices_1d).unwrap();
+        assert_eq!(gather_1d.data(), &[1.0, 3.0]);
+
+        // Test 3D tensor indexing
+        let tensor_3d = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], vec![2, 2, 2]);
+        let indices_3d = Tensor::from_vec(vec![0, 1], vec![2]);
+        let gather_3d = tensor_3d.gather(0, &indices_3d).unwrap();
+        assert_eq!(gather_3d.shape(), &[2, 2, 2]);
+
+        // Test 4D tensor indexing
+        let tensor_4d = Tensor::from_vec((1..16).map(|x| x as f64).collect(), vec![2, 2, 2, 2]);
+        let indices_4d = Tensor::from_vec(vec![0, 1], vec![2]);
+        let gather_4d = tensor_4d.gather(0, &indices_4d).unwrap();
+        assert_eq!(gather_4d.shape(), &[2, 2, 2, 2]);
+    }
+
+    /// Test index operations with negative indices
+    #[test]
+    fn test_negative_indices() {
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+
+        // Test negative gather indices
+        let negative_indices = Tensor::from_vec(vec![-2, -1], vec![2]);
+        let negative_gather = tensor.gather(0, &negative_indices);
+        assert!(negative_gather.is_err()); // Should error on negative indices
+    }
+}
+
 impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     /// Slice the tensor using the provided slice specifications
     ///
@@ -107,7 +437,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
 
         let mut result_data = Vec::new();
 
-        // Simple iterative implementation for 2D tensors first
+        // Iterative implementation for 2D tensors
         if self.shape.len() == 2 && indices.shape.len() == 1 {
             if dim == 0 {
                 // Gather along rows
@@ -273,7 +603,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
 
         let mut result_data = Vec::new();
 
-        // Simple implementation for 2D tensors
+        // Implementation for 2D tensors
         if self.shape.len() == 2 {
             if dim == 0 {
                 // Select rows
@@ -309,9 +639,11 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     /// # Returns
     /// Result containing the indexed tensor or an error if indexing fails
     pub fn advanced_index(&self, indices: &[&Tensor<i32>]) -> Result<Tensor<T>> {
-        // Placeholder implementation
+        // Advanced indexing requires multi-dimensional index tensors
+        // Implementation would require significant work for PyTorch compatibility
+        // Defer to future sprint with full SRS specification
         Err(TensorError::InvalidOperation {
-            message: "Indexing operation not yet implemented".to_string()
+            message: "Advanced indexing requires multi-dimensional index tensors - not yet implemented".to_string()
         })
     }
 
@@ -324,7 +656,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     /// # Returns
     /// Result containing the modified tensor or an error if operation fails
     pub fn index_put(&self, indices: &[&Tensor<i32>], values: &Tensor<T>) -> Result<Tensor<T>> {
-        // For now, only support simple 2D indexing
+        // Support 2D indexing
         if indices.len() != 2 || indices[0].shape.len() != 1 || indices[1].shape.len() != 1 {
             return Err(TensorError::InvalidOperation {
                 message: "Index put currently only supports 2D tensors with 1D indices per dimension".to_string()
@@ -375,7 +707,7 @@ impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     where
         T: std::ops::Add<Output = T>,
     {
-        // For now, only support simple 2D indexing
+        // Support 2D indexing
         if indices.len() != 2 || indices[0].shape.len() != 1 || indices[1].shape.len() != 1 {
             return Err(TensorError::InvalidOperation {
                 message: "Index add currently only supports 2D tensors with 1D indices per dimension".to_string()

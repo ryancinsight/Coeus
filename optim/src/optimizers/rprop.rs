@@ -5,7 +5,7 @@
 //! the size of the gradient.
 
 use crate::{BaseOptimizer, Optimizer, ParamGroup, Result};
-use coeus_tensor::{Tensor, Mul, Sub};
+use coeus_tensor::{Mul, Sub, Tensor};
 use std::collections::HashMap;
 
 /// Resilient Backpropagation optimizer
@@ -42,10 +42,10 @@ use std::collections::HashMap;
 ///   on Neural Networks, 586-591.
 pub struct Rprop<T: coeus_dtype::FloatDtype> {
     base: BaseOptimizer<T>,
-    eta_plus: T,   // increase factor (default: 1.2)
-    eta_minus: T,  // decrease factor (default: 0.5)
-    delta_min: T,  // minimum step size (default: 1e-6)
-    delta_max: T,  // maximum step size (default: 50.0)
+    eta_plus: T,  // increase factor (default: 1.2)
+    eta_minus: T, // decrease factor (default: 0.5)
+    delta_min: T, // minimum step size (default: 1e-6)
+    delta_max: T, // maximum step size (default: 50.0)
 }
 
 impl<T: coeus_dtype::FloatDtype> Rprop<T> {
@@ -116,11 +116,13 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rprop<T> {
                 let grad = param.grad().unwrap().clone();
 
                 // Get or create step size buffer (one per parameter element)
-                let mut step_size = param.get_buffer("step_size")
-                    .unwrap_or_else(|| Tensor::from_vec(vec![lr; param.numel()], param.shape().to_vec()));
+                let mut step_size = param.get_buffer("step_size").unwrap_or_else(|| {
+                    Tensor::from_vec(vec![lr; param.numel()], param.shape().to_vec())
+                });
 
                 // Get or create previous gradient sign buffer
-                let prev_grad_sign = param.get_buffer("prev_grad_sign")
+                let prev_grad_sign = param
+                    .get_buffer("prev_grad_sign")
                     .unwrap_or_else(|| Tensor::zeros(param.shape().to_vec()));
 
                 // Compute current gradient sign
@@ -135,10 +137,12 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rprop<T> {
 
                     if sign_prod_val > T::zero() {
                         // Same sign: increase step size
-                        step_size.data_mut()[i] = (step_size.data()[i] * self.eta_plus).min(self.delta_max);
+                        step_size.data_mut()[i] =
+                            (step_size.data()[i] * self.eta_plus).min(self.delta_max);
                     } else if sign_prod_val < T::zero() {
                         // Different sign: decrease step size and reset gradient
-                        step_size.data_mut()[i] = (step_size.data()[i] * self.eta_minus).max(self.delta_min);
+                        step_size.data_mut()[i] =
+                            (step_size.data()[i] * self.eta_minus).max(self.delta_min);
                         // Note: Gradient reset would require setting grad back to parameter
                     }
                     // If sign_prod_val == 0, keep step size unchanged

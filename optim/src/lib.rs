@@ -47,7 +47,7 @@
 //! - **RMSprop**: Root Mean Square Propagation
 //! - **Adagrad**: Adaptive Gradient Algorithm
 //! - **Rprop**: Resilient Backpropagation
-//! - **LBFGS**: Limited-memory BFGS (planned)
+//! - **LBFGS**: Limited-memory BFGS ✅
 //!
 //! ## Learning Rate Schedulers
 //!
@@ -55,6 +55,12 @@
 //! - **ExponentialLR**: Decays learning rate exponentially
 //! - **CosineAnnealingLR**: Cosine annealing learning rate schedule
 //! - **ReduceLROnPlateau**: Reduces LR when metric stops improving
+//! - **CyclicLR**: Cyclical learning rate schedule
+//! - **OneCycleLR**: One-cycle learning rate policy
+//! - **CosineAnnealingWarmRestarts**: Cosine annealing with warm restarts
+//! - **PolynomialLR**: Polynomial learning rate decay
+//! - **LambdaLR**: Custom learning rate scheduling with lambda functions
+//! - **MultiplicativeLR**: Multiplicative learning rate updates
 
 pub mod error;
 pub mod optimizer;
@@ -428,16 +434,16 @@ mod tests {
 
         // Set gradient again for second step
         let grad2 = Tensor::from_vec(vec![1.0], vec![1]);
-        optimizer.param_groups_mut()[0].parameters_mut()[0].set_grad(grad2).unwrap();
+        optimizer.param_groups_mut()[0].parameters_mut()[0]
+            .set_grad(grad2)
+            .unwrap();
         optimizer.step().unwrap();
 
         // Second step with momentum
         // v = 0.9 * 1.0 + 1.0 * 1.0 = 1.9
         // p = 1.99 - 0.01 * 1.9 = 1.971
         let param_after_second = optimizer.param_groups()[0].parameters()[0].data()[0];
-        // Note: The actual result is 1.98, which suggests momentum buffer isn't persisting
-        // This appears to be an implementation issue where momentum buffer is reset each step
-        assert!((param_after_second - 1.98_f64).abs() < 1e-6_f64);
+        assert!((param_after_second - 1.971_f64).abs() < 1e-6_f64);
     }
 
     #[test]

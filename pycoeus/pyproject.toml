@@ -85,6 +85,16 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "gpu: marks tests as requiring GPU",
     "comparison: marks tests that compare with PyTorch",
+    "api: marks tests for API compatibility",
+    "autograd: marks tests for automatic differentiation",
+    "broadcasting: marks tests for tensor broadcasting",
+    "dtype: marks tests for data type compatibility",
+    "edge_case: marks tests for edge cases",
+    "memory: marks tests for memory management",
+    "numerical: marks tests for numerical accuracy",
+    "performance: marks tests for performance benchmarking",
+    "pytorch_compat: marks tests for PyTorch compatibility",
+    "statistical: marks tests for statistical analysis",
 ]
 
 [tool.black]

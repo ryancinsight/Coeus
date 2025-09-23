@@ -38,6 +38,14 @@ pub enum HubError {
         source: url::ParseError,
     },
 
+    /// Download errors
+    #[error("Download failed for {url}: {message}")]
+    DownloadError { url: String, message: String },
+
+    /// Invalid file format
+    #[error("Invalid file format for {filename}: {message}")]
+    InvalidFileFormat { filename: String, message: String },
+
     /// Model not found
     #[error("Model '{repo}/{model}' not found")]
     ModelNotFound { repo: String, model: String },
@@ -62,6 +70,10 @@ pub enum HubError {
     #[error("Configuration error: {message}")]
     ConfigError { message: String },
 
+    /// Untrusted repository
+    #[error("Repository '{repo}' is not trusted")]
+    UntrustedRepository { repo: String },
+
     /// Generic error
     #[error("Hub error: {message}")]
     Other { message: String },
@@ -85,6 +97,22 @@ impl HubError {
     /// Create a new invalid model format error
     pub fn invalid_format<S: Into<String>>(message: S) -> Self {
         Self::InvalidModelFormat {
+            message: message.into(),
+        }
+    }
+
+    /// Create a new download error
+    pub fn download_error<S: Into<String>>(url: String, message: S) -> Self {
+        Self::DownloadError {
+            url,
+            message: message.into(),
+        }
+    }
+
+    /// Create a new invalid file format error
+    pub fn invalid_file_format<S: Into<String>>(filename: String, message: S) -> Self {
+        Self::InvalidFileFormat {
+            filename,
             message: message.into(),
         }
     }

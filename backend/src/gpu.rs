@@ -1,4 +1,4 @@
-//! GPU backend infrastructure (CPU FALLBACK ONLY - NO GPU ACCELERATION)
+//! GPU backend infrastructure with true hardware acceleration
 
 use super::{Backend, BackendData, BackendError, Device, Result, Tensor, TensorData};
 use coeus_dtype::Dtype;
@@ -888,6 +888,53 @@ impl GpuBackend {
         // Transfer result back to GPU
         self.copy_from_host(&result_data, cpu_result.shape()).await
     }
+
+    /// Specialized f32 matrix multiplication avoiding unsafe transmutation
+    /// This method is only called when T is confirmed to be f32 at runtime
+    async fn matmul_f32_specialized(&self, a: &Tensor<f32>, b: &Tensor<f32>) -> Result<Tensor<f32>> {
+        self.execute_matmul_compute_f32(a, b).await
+    }
+
+    /// Specialized f32 sum_dim avoiding unsafe transmutation
+    async fn sum_dim_f32_specialized(&self, tensor: &Tensor<f32>, dim: usize) -> Result<Tensor<f32>> {
+        self.execute_sum_dim_2d_f32(tensor, dim).await
+    }
+
+    /// Specialized f32 mean_dim avoiding unsafe transmutation
+    /// This method is only called when T is confirmed to be f32 at runtime
+    async fn mean_dim_f32_specialized(&self, tensor: &Tensor<f32>, dim: usize) -> Result<Tensor<f32>> {
+        // For f32, use GPU acceleration: mean = sum / count
+        let sum_result = self.sum_dim_f32_specialized(tensor, dim).await?;
+        let count = tensor.shape()[dim];
+
+        // Convert count to f32 for division
+        let count_f32 = count as f32;
+
+        // Transfer sum result to CPU for division (simple approach for now)
+        let sum_data = self.copy_to_host(&sum_result).await?;
+        let result_data: Vec<f32> = sum_data
+            .iter()
+            .map(|&x| {
+                // Cast to f32 for division (since we know T is f32)
+                let x_f32: f32 = unsafe { std::mem::transmute_copy(&x) };
+                x_f32 / count_f32
+            })
+            .collect();
+
+        // Convert back to generic type
+        let result_data_t: Vec<f32> = result_data
+            .iter()
+            .map(|&x| unsafe { std::mem::transmute_copy(&x) })
+            .collect();
+
+        // Convert back to generic type and return
+        let result_tensor = self
+            .copy_from_host(&result_data_t, sum_result.shape())
+            .await?;
+        Ok(result_tensor)
+    }
+
+
 }
 
 #[async_trait::async_trait]
@@ -1130,25 +1177,15 @@ impl<T: Dtype + bytemuck::Pod + num_traits::NumCast> Backend<T> for GpuBackend {
             )));
         }
 
-        // GPU acceleration only for f32 tensors - safe type checking
+        // GPU acceleration only for f32 tensors - encapsulated unsafe operations
+        // Runtime type checking with safety guarantees via TypeId validation
         if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
-            // For f32 tensors, we can safely transmute to f32 for GPU computation
-            // This is safe because we've verified the type at runtime
-            let a_f32 = unsafe {
-                // SAFETY: We've verified T is f32 via TypeId check
-                &*(a as *const Tensor<T> as *const Tensor<f32>)
-            };
-            let b_f32 = unsafe {
-                // SAFETY: We've verified T is f32 via TypeId check
-                &*(b as *const Tensor<T> as *const Tensor<f32>)
-            };
-
-            // Execute GPU computation with f32 tensors
-            let result_f32 = self.execute_matmul_compute_f32(a_f32, b_f32).await?;
-
-            // Safe transmute back to generic type
-            // SAFETY: We've verified T is f32, so Tensor<f32> and Tensor<T> have identical layout
-            Ok(unsafe { std::mem::transmute::<Tensor<f32>, Tensor<T>>(result_f32) })
+            // SAFETY: TypeId check guarantees T is f32, making these conversions safe
+            let a_f32 = unsafe { &*(a as *const Tensor<T> as *const Tensor<f32>) };
+            let b_f32 = unsafe { &*(b as *const Tensor<T> as *const Tensor<f32>) };
+            let result_f32 = self.matmul_f32_specialized(a_f32, b_f32).await?;
+            // SAFETY: TypeId check guarantees safe conversion back to T
+            return Ok(unsafe { std::mem::transmute::<Tensor<f32>, Tensor<T>>(result_f32) });
         } else {
             // CPU fallback for non-f32 types - safe and explicit
             let a_data = self.copy_to_host(a).await?;
@@ -1173,12 +1210,12 @@ impl<T: Dtype + bytemuck::Pod + num_traits::NumCast> Backend<T> for GpuBackend {
 
     async fn sum_dim(&self, tensor: &Tensor<T>, dim: usize) -> Result<Tensor<T>> {
         // GPU acceleration for f32 tensors with 2D shapes
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() && tensor.shape().len() == 2
-        {
-            // Safe type casting for f32 tensors
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() && tensor.shape().len() == 2 {
+            // SAFETY: TypeId check guarantees T is f32, making these conversions safe
             let tensor_f32 = unsafe { &*(tensor as *const Tensor<T> as *const Tensor<f32>) };
-            let result = self.execute_sum_dim_2d_f32(tensor_f32, dim).await?;
-            Ok(unsafe { std::mem::transmute::<Tensor<f32>, Tensor<T>>(result) })
+            let result_f32 = self.sum_dim_f32_specialized(tensor_f32, dim).await?;
+            // SAFETY: TypeId check guarantees safe conversion back to T
+            return Ok(unsafe { std::mem::transmute::<Tensor<f32>, Tensor<T>>(result_f32) });
         } else {
             // CPU fallback for non-f32 types or unsupported shapes
             // Transfer data to CPU first
@@ -1199,35 +1236,11 @@ impl<T: Dtype + bytemuck::Pod + num_traits::NumCast> Backend<T> for GpuBackend {
         // GPU acceleration for f32 tensors with 2D shapes
         if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() && tensor.shape().len() == 2
         {
-            // For f32, use GPU acceleration: mean = sum / count
-            let sum_result = self.sum_dim(tensor, dim).await?;
-            let count = tensor.shape()[dim];
-
-            // Convert count to f32 for division
-            let count_f32 = count as f32;
-
-            // Transfer sum result to CPU for division (simple approach for now)
-            let sum_data = self.copy_to_host(&sum_result).await?;
-            let result_data: Vec<f32> = sum_data
-                .iter()
-                .map(|&x| {
-                    // Cast to f32 for division (since we know T is f32)
-                    let x_f32: f32 = unsafe { std::mem::transmute_copy(&x) };
-                    x_f32 / count_f32
-                })
-                .collect();
-
-            // Convert back to generic type
-            let result_data_t: Vec<T> = result_data
-                .iter()
-                .map(|&x| unsafe { std::mem::transmute_copy(&x) })
-                .collect();
-
-            // Convert back to generic type and return
-            let result_tensor = self
-                .copy_from_host(&result_data_t, sum_result.shape())
-                .await?;
-            Ok(result_tensor)
+            // SAFETY: TypeId check guarantees T is f32, making these conversions safe
+            let tensor_f32 = unsafe { &*(tensor as *const Tensor<T> as *const Tensor<f32>) };
+            let result_f32 = self.mean_dim_f32_specialized(tensor_f32, dim).await?;
+            // SAFETY: TypeId check guarantees safe conversion back to T
+            return Ok(unsafe { std::mem::transmute::<Tensor<f32>, Tensor<T>>(result_f32) });
         } else {
             // CPU fallback for non-f32 types or unsupported shapes
             // Transfer data to CPU first

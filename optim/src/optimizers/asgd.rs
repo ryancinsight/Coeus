@@ -4,7 +4,7 @@
 //! during optimization, often providing better generalization than standard SGD.
 
 use crate::{BaseOptimizer, Optimizer, ParamGroup, Result};
-use coeus_tensor::{Tensor, Add, Sub, Mul};
+use coeus_tensor::{Add, Mul, Sub, Tensor};
 
 /// Averaged Stochastic Gradient Descent optimizer
 ///
@@ -45,8 +45,8 @@ pub struct Asgd<T: coeus_dtype::FloatDtype> {
     momentum: T,
     dampening: T,
     nesterov: bool,
-    alpha: T,  // smoothing parameter for averaging
-    t: usize,  // step count
+    alpha: T, // smoothing parameter for averaging
+    t: usize, // step count
 }
 
 impl<T: coeus_dtype::FloatDtype> Asgd<T> {
@@ -66,7 +66,14 @@ impl<T: coeus_dtype::FloatDtype> Asgd<T> {
     /// let optimizer = Asgd::new(params, 0.01);
     /// ```
     pub fn new(params: Vec<Tensor<T>>, lr: T) -> Self {
-        Self::with_options(params, lr, T::zero(), T::zero(), false, T::from(0.75).unwrap())
+        Self::with_options(
+            params,
+            lr,
+            T::zero(),
+            T::zero(),
+            false,
+            T::from(0.75).unwrap(),
+        )
     }
 
     /// Create ASGD with custom options
@@ -153,7 +160,8 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Asgd<T> {
                 }
 
                 // Get or create momentum buffer
-                let mut momentum_buffer = param.get_buffer("momentum")
+                let mut momentum_buffer = param
+                    .get_buffer("momentum")
                     .unwrap_or_else(|| Tensor::zeros(param.shape().to_vec()));
 
                 // Update momentum buffer
@@ -169,7 +177,9 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Asgd<T> {
 
                 // Apply Nesterov momentum
                 let effective_grad = if self.nesterov && self.momentum != T::zero() {
-                    momentum_buffer.mul(&Tensor::scalar(self.momentum))?.add(&grad)?
+                    momentum_buffer
+                        .mul(&Tensor::scalar(self.momentum))?
+                        .add(&grad)?
                 } else {
                     momentum_buffer.clone()
                 };
@@ -180,8 +190,7 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Asgd<T> {
                 *param = param.sub(&update)?;
 
                 // Update running average
-                let mut avg_buffer = param.get_buffer("average")
-                    .unwrap_or_else(|| param.clone());
+                let mut avg_buffer = param.get_buffer("average").unwrap_or_else(|| param.clone());
 
                 // avg_t = alpha * avg_{t-1} + (1 - alpha) * p_t
                 // This is a different averaging strategy than the original paper

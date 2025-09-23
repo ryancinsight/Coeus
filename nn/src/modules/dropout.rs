@@ -89,9 +89,8 @@ impl<T: FloatDtype> Dropout<T> {
     /// Returns error if dropout operation fails
     pub fn forward_impl(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
         if !self.training {
-            // During evaluation, just scale by (1-p)
-            let scale = T::one() - self.p;
-            return Ok(input.map(|x| *x * scale));
+            // During evaluation, return input unchanged (identity operation)
+            return Ok(input.clone());
         }
 
         // During training, randomly drop elements
@@ -214,9 +213,8 @@ impl<T: FloatDtype> Dropout2d<T> {
         }
 
         if !self.training {
-            // During evaluation, just scale by (1-p)
-            let scale = T::one() - self.p;
-            return Ok(input.map(|x| *x * scale));
+            // During evaluation, return input unchanged (identity operation)
+            return Ok(input.clone());
         }
 
         let batch_size = input.shape()[0];
@@ -297,6 +295,126 @@ impl<T: FloatDtype> Module<T> for Dropout2d<T> {
     }
 }
 
+/// 3D Dropout layer
+///
+/// Applies 3D dropout regularization to input tensors.
+/// Randomly zeros entire channels during training for regularization.
+#[derive(Debug)]
+pub struct Dropout3d {
+    /// Dropout probability (0.0 to 1.0)
+    pub p: f64,
+    /// Training mode flag
+    pub training: bool,
+    /// Random number generator for reproducibility
+    pub seed: Option<u64>,
+}
+
+impl Dropout3d {
+    /// Create a new Dropout3d layer
+    ///
+    /// # Arguments
+    /// * `p` - Dropout probability (0.0 to 1.0)
+    pub fn new(p: f64) -> Self {
+        assert!(
+            (0.0..=1.0).contains(&p),
+            "Dropout probability must be between 0.0 and 1.0"
+        );
+
+        Self {
+            p,
+            training: true,
+            seed: None,
+        }
+    }
+
+    /// Create a new Dropout3d layer with a seed for reproducibility
+    ///
+    /// # Arguments
+    /// * `p` - Dropout probability (0.0 to 1.0)
+    /// * `seed` - Random seed for reproducible dropout
+    pub fn new_with_seed(p: f64, seed: u64) -> Self {
+        assert!(
+            (0.0..=1.0).contains(&p),
+            "Dropout probability must be between 0.0 and 1.0"
+        );
+
+        Self {
+            p,
+            training: true,
+            seed: Some(seed),
+        }
+    }
+
+    /// Set the training mode
+    ///
+    /// # Arguments
+    /// * `training` - Whether the layer is in training mode
+    pub fn set_training(&mut self, training: bool) {
+        self.training = training;
+    }
+
+    /// Forward implementation
+    fn forward_impl(&self, input: &Tensor<f32>) -> Result<Tensor<f32>> {
+        if input.ndim() != 5 {
+            return Err(NNError::InvalidInput {
+                message: format!(
+                    "Dropout3d expects 5D input (batch_size, channels, depth, height, width), got {}D",
+                    input.ndim()
+                ),
+            });
+        }
+
+        if !self.training || self.p == 0.0 {
+            return Ok(input.clone());
+        }
+
+        let batch_size = input.shape()[0];
+        let channels = input.shape()[1];
+        let depth = input.shape()[2];
+        let height = input.shape()[3];
+        let width = input.shape()[4];
+
+        let mut output_data = input.data().to_vec();
+
+        // For 3D dropout, we drop entire channels (spatial dropout)
+        let num_channels = batch_size * channels;
+        let channel_size = depth * height * width;
+
+        for channel_idx in 0..num_channels {
+            if channel_idx < (self.p * num_channels as f64) as usize {
+                // Drop this channel
+                let start_idx = channel_idx * channel_size;
+                let end_idx = start_idx + channel_size;
+                output_data[start_idx..end_idx].fill(0.0);
+            }
+        }
+
+        Ok(Tensor::from_vec(output_data, input.shape().to_vec()))
+    }
+}
+
+impl Module<f32> for Dropout3d {
+    fn forward(&self, input: &Tensor<f32>) -> Result<Tensor<f32>> {
+        self.forward_impl(input)
+    }
+
+    fn parameters(&self) -> Vec<&Tensor<f32>> {
+        vec![] // Dropout3d has no learnable parameters
+    }
+
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<f32>> {
+        vec![] // Dropout3d has no learnable parameters
+    }
+
+    fn train(&mut self) {
+        self.training = true;
+    }
+
+    fn eval(&mut self) {
+        self.training = false;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -319,10 +437,9 @@ mod tests {
             .forward(&input)
             .expect("Dropout eval mode forward should succeed");
 
-        // In eval mode, should scale by (1-p) = 0.5
-        let expected = Tensor::from_vec(vec![0.5, 1.0, 1.5, 2.0], vec![4]);
+        // In eval mode, should return input unchanged (identity operation)
         for i in 0..4 {
-            assert_relative_eq!(output.data()[i], expected.data()[i], epsilon = 1e-6);
+            assert_relative_eq!(output.data()[i], input.data()[i], epsilon = 1e-6);
         }
     }
 
@@ -347,13 +464,9 @@ mod tests {
             .forward(&input)
             .expect("Dropout2d eval mode forward should succeed");
 
-        // In eval mode, should scale all elements by (1-p) = 0.5
-        let expected = Tensor::from_vec(
-            vec![0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0],
-            vec![1, 2, 2, 2],
-        );
+        // In eval mode, should return input unchanged (identity operation)
         for i in 0..8 {
-            assert_relative_eq!(output.data()[i], expected.data()[i], epsilon = 1e-6);
+            assert_relative_eq!(output.data()[i], input.data()[i], epsilon = 1e-6);
         }
     }
 

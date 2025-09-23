@@ -2,7 +2,7 @@
 
 use crate::error::{Result, TokenizerError};
 use crate::vocabulary::Vocabulary;
-use fxhash::FxHashMap;
+use ahash::AHashMap;
 use regex::Regex;
 use std::collections::HashSet;
 
@@ -13,8 +13,8 @@ pub struct BpeTokenizer {
     vocabulary: Vocabulary,
     /// Regex pattern for tokenization
     pattern: Regex,
-    /// Merge rules for BPE
-    merges: FxHashMap<(String, String), usize>,
+    /// Merge rules for BPE (in application order)
+    merges: Vec<(String, String)>,
     /// Special tokens
     special_tokens: HashSet<String>,
     /// Model name
@@ -28,13 +28,25 @@ impl BpeTokenizer {
         &self.model_name
     }
 
+    /// Get the vocabulary
+    #[must_use]
+    pub const fn vocabulary(&self) -> &Vocabulary {
+        &self.vocabulary
+    }
+
+    /// Get mutable access to the vocabulary
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn vocabulary_mut(&mut self) -> &mut Vocabulary {
+        &mut self.vocabulary
+    }
+
     /// Create a new BPE tokenizer
     #[must_use]
     pub fn new(model_name: String) -> Self {
         Self {
             vocabulary: Vocabulary::new(),
             pattern: Self::default_pattern(),
-            merges: FxHashMap::default(),
+            merges: Vec::new(),
             special_tokens: HashSet::new(),
             model_name,
         }
@@ -51,7 +63,7 @@ impl BpeTokenizer {
         Ok(Self {
             vocabulary: Vocabulary::new(),
             pattern,
-            merges: FxHashMap::default(),
+            merges: Vec::new(),
             special_tokens: HashSet::new(),
             model_name,
         })
@@ -82,7 +94,7 @@ impl BpeTokenizer {
     /// Returns `TokenizerError::VocabularyError` if vocabulary integrity is compromised during loading.
     pub fn load_vocab_and_merges(
         &mut self,
-        vocab: FxHashMap<String, usize>,
+        vocab: AHashMap<String, usize>,
         merges: Vec<(String, String)>,
     ) -> Result<()> {
         // Clear existing vocabulary
@@ -104,11 +116,8 @@ impl BpeTokenizer {
         // Set next_id to the highest ID + 1
         self.vocabulary.next_id = self.vocabulary.id_to_token.len();
 
-        // Load merges
-        self.merges.clear();
-        for (i, (token1, token2)) in merges.into_iter().enumerate() {
-            self.merges.insert((token1, token2), i);
-        }
+        // Load merges in the correct application order
+        self.merges = merges;
 
         self.validate()?;
         Ok(())
@@ -133,7 +142,7 @@ impl BpeTokenizer {
         }
 
         // Step 1: Pre-tokenize the corpus
-        let mut word_freqs = FxHashMap::default();
+        let mut word_freqs = AHashMap::default();
         for text in corpus {
             let words = self.pre_tokenize(text);
             for word in words {
@@ -146,7 +155,7 @@ impl BpeTokenizer {
         let mut merges = Vec::new();
 
         // Step 3: Convert words to token sequences
-        let mut word_tokens: FxHashMap<String, Vec<String>> = FxHashMap::default();
+        let mut word_tokens: AHashMap<String, Vec<String>> = AHashMap::default();
         for word in word_freqs.keys() {
             word_tokens.insert(word.clone(), Self::word_to_bytes(word));
         }
@@ -182,11 +191,7 @@ impl BpeTokenizer {
         }
 
         // Step 5: Store the results
-        self.merges = merges
-            .into_iter()
-            .enumerate()
-            .map(|(i, pair)| (pair, i))
-            .collect();
+        self.merges = merges;
         self.vocabulary = vocab;
 
         // Add special tokens if any
@@ -228,10 +233,10 @@ impl BpeTokenizer {
 
     /// Get statistics for all pairs in the current tokenization
     fn get_pair_stats(
-        word_tokens: &FxHashMap<String, Vec<String>>,
-        word_freqs: &FxHashMap<String, u64>,
-    ) -> FxHashMap<(String, String), u64> {
-        let mut pair_stats = FxHashMap::default();
+        word_tokens: &AHashMap<String, Vec<String>>,
+        word_freqs: &AHashMap<String, u64>,
+    ) -> AHashMap<(String, String), u64> {
+        let mut pair_stats = AHashMap::default();
 
         for (word, tokens) in word_tokens {
             let freq = word_freqs.get(word).copied().unwrap_or(0);
@@ -251,7 +256,7 @@ impl BpeTokenizer {
 
     /// Merge a pair in all words
     fn merge_pair(
-        word_tokens: &mut FxHashMap<String, Vec<String>>,
+        word_tokens: &mut AHashMap<String, Vec<String>>,
         pair: &(String, String),
         new_token: &str,
     ) {
@@ -288,14 +293,16 @@ impl BpeTokenizer {
     fn encode_word_bpe(&self, word: &str) -> Vec<String> {
         let mut tokens = Self::word_to_bytes(word);
 
-        // Apply merges in order
-        for pair in self.merges.keys() {
+        // Apply merges in the correct order (most frequent first)
+        for (token1, token2) in &self.merges {
             let mut i = 0;
             while i < tokens.len() - 1 {
-                if tokens[i] == pair.0 && tokens[i + 1] == pair.1 {
-                    let merged = format!("{}{}", pair.0, pair.1);
+                if tokens[i] == *token1 && tokens[i + 1] == *token2 {
+                    let merged = format!("{token1}{token2}");
                     tokens[i] = merged;
                     tokens.remove(i + 1);
+                    // Don't increment i here, check the same position again
+                    // in case we can merge more
                 } else {
                     i += 1;
                 }
@@ -333,15 +340,9 @@ impl BpeTokenizer {
         Ok(text.trim().to_string())
     }
 
-    /// Get the vocabulary
-    #[must_use]
-    pub const fn vocabulary(&self) -> &Vocabulary {
-        &self.vocabulary
-    }
-
     /// Get the merges
     #[must_use]
-    pub const fn merges(&self) -> &FxHashMap<(String, String), usize> {
+    pub const fn merges(&self) -> &Vec<(String, String)> {
         &self.merges
     }
 
@@ -354,7 +355,7 @@ impl BpeTokenizer {
         self.vocabulary.validate()?;
 
         // Validate that all merge pairs exist in vocabulary
-        for (token1, token2) in self.merges.keys() {
+        for (token1, token2) in &self.merges {
             if self.vocabulary.get_token_id(token1).is_none() {
                 return Err(TokenizerError::bpe_merge_error(format!(
                     "Merge token '{token1}' not found in vocabulary"
@@ -488,11 +489,11 @@ mod tests {
             vec!["o".to_string()],
         ];
 
-        let mut word_tokens_map = FxHashMap::default();
+        let mut word_tokens_map = AHashMap::default();
         word_tokens_map.insert("hello".to_string(), word_tokens[0].clone());
         word_tokens_map.insert("o".to_string(), word_tokens[1].clone());
 
-        let mut word_freqs = FxHashMap::default();
+        let mut word_freqs = AHashMap::default();
         word_freqs.insert("hello".to_string(), 5);
         word_freqs.insert("o".to_string(), 3);
 

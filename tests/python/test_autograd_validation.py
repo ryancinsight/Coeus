@@ -6,18 +6,16 @@ import math
 
 
 @pytest.mark.autograd
-def test_chain_rule_basic(pycoeus_available):
-    """Test basic chain rule validation"""
-    if not pycoeus_available:
-        pytest.skip("PyCoeus not available")
+def test_chain_rule_basic(pycoeus_available, pytorch_available):
+    """Test basic chain rule validation using PyCoeus autograd vs PyTorch"""
+    if not pycoeus_available or not pytorch_available:
+        pytest.skip("Required libraries not available")
 
     import pycoeus as pc
+    import torch
 
     # Test chain rule: d/dx[f(g(x))] = f'(g(x)) * g'(x)
     # Example: d/dx[sin(x^2)] = cos(x^2) * 2x
-
-    def f(x):
-        return math.sin(x * x)
 
     def f_prime(x):
         return math.cos(x * x) * 2 * x
@@ -25,17 +23,83 @@ def test_chain_rule_basic(pycoeus_available):
     # Test at several points
     test_points = [0.1, 0.5, 1.0, -0.5]
 
-    for x in test_points:
-        # Analytical derivative
-        analytical = f_prime(x)
+    for x_val in test_points:
+        # PyCoeus autograd computation
+        x_pc = pc.PyTensor([x_val], [1])
+        x_pc.requires_grad_(True)
 
-        # Numerical derivative (central difference)
-        h = 1e-5
-        numerical = (f(x + h) - f(x - h)) / (2 * h)
+        # f(x) = sin(x^2)
+        y_pc = (x_pc * x_pc).sin()
+        y_pc.backward()
 
-        relative_error = abs((analytical - numerical) / (analytical + 1e-12))
-        assert relative_error < 1e-6, \
-            f"Chain rule validation failed at x={x}: analytical={analytical}, numerical={numerical}"
+        pc_grad = x_pc.grad().data()[0]
+
+        # PyTorch autograd computation
+        x_pt = torch.tensor([x_val], requires_grad=True)
+        y_pt = torch.sin(x_pt * x_pt)
+        y_pt.backward()
+
+        pt_grad = x_pt.grad.item()
+
+        # Analytical derivative for reference
+        analytical = f_prime(x_val)
+
+        # Compare PyCoeus vs PyTorch
+        relative_error = abs((pc_grad - pt_grad) / (pt_grad + 1e-12))
+        assert relative_error < 1e-5, \
+            f"PyCoeus vs PyTorch gradient mismatch at x={x_val}: pc={pc_grad}, pt={pt_grad}, analytical={analytical}"
+
+
+@pytest.mark.autograd
+def test_autograd_comprehensive(pycoeus_available, pytorch_available):
+    """Comprehensive autograd validation against PyTorch"""
+    if not pycoeus_available or not pytorch_available:
+        pytest.skip("Required libraries not available")
+
+    import pycoeus as pc
+    import torch
+    import numpy as np
+
+    def test_function(x, y):
+        """Complex function: z = sin(x^2 + y^2) + exp(x * y)"""
+        return (x*x + y*y).sin() + (x * y).exp()
+
+    # Test multiple scenarios
+    test_cases = [
+        ([1.0, 2.0], [0.5, 1.5]),
+        ([0.1, 0.2], [-0.1, 0.3]),
+        ([-1.0, -2.0], [1.0, -1.0]),
+    ]
+
+    for x_vals, y_vals in test_cases:
+        # PyCoeus computation
+        x_pc = pc.PyTensor(x_vals, [len(x_vals)])
+        y_pc = pc.PyTensor(y_vals, [len(y_vals)])
+        x_pc.requires_grad_(True)
+        y_pc.requires_grad_(True)
+
+        z_pc = test_function(x_pc, y_pc)
+        z_pc.backward()
+
+        # PyTorch computation
+        x_pt = torch.tensor(x_vals, requires_grad=True)
+        y_pt = torch.tensor(y_vals, requires_grad=True)
+
+        z_pt = test_function(x_pt, y_pt)
+        z_pt.sum().backward()  # Sum to create scalar for backward pass
+
+        # Compare gradients
+        for i in range(len(x_vals)):
+            pc_grad_x = x_pc.grad().data()[i]
+            pt_grad_x = x_pt.grad[i].item()
+            pc_grad_y = y_pc.grad().data()[i]
+            pt_grad_y = y_pt.grad[i].item()
+
+            # Allow for small numerical differences
+            assert abs(pc_grad_x - pt_grad_x) < 1e-4, \
+                f"X gradient mismatch at {x_vals[i]}, {y_vals[i]}: pc={pc_grad_x}, pt={pt_grad_x}"
+            assert abs(pc_grad_y - pt_grad_y) < 1e-4, \
+                f"Y gradient mismatch at {x_vals[i]}, {y_vals[i]}: pc={pc_grad_y}, pt={pt_grad_y}"
 
 
 @pytest.mark.autograd

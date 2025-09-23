@@ -2,7 +2,7 @@
 //!
 //! This module contains the HessianIter struct for traversing Hessian matrix elements.
 
-use crate::Dtype;
+use coeus_dtype::Dtype;
 
 /// Iterator for traversing Hessian matrix elements
 pub struct HessianIter<T: Dtype> {

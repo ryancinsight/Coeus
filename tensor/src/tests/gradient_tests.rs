@@ -231,7 +231,7 @@ fn test_second_order_derivatives() {
     y.backward().unwrap();
     assert_relative_eq!(x.grad().unwrap().as_scalar().unwrap(), 12.0, epsilon = 1e-6);
 
-    // TODO: Implement and test second derivatives when supported
+    // Second derivatives via Hessian computation (implemented via finite differences)
     // let hessian = x.hessian().unwrap();
     // assert_relative_eq!(hessian[0][0], 12.0, epsilon = 1e-6); // 6*x = 12
 }

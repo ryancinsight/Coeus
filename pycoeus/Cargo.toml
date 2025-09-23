@@ -15,13 +15,13 @@ name = "pycoeus"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.22", features = ["extension-module", "macros"] }
-numpy = "0.22"
+pyo3 = { version = "0.24", features = ["extension-module", "macros", "auto-initialize"] }
+numpy = "0.24"
 coeus-tensor = { path = "../tensor" }
 coeus-dtype = { path = "../dtype" }
 coeus-nn = { path = "../nn" }
 coeus-optim = { path = "../optim" }
-# coeus-utils = { path = "../utils" }  # Temporarily disabled due to compilation errors
+coeus-utils = { path = "../utils" }
 coeus-fft = { path = "../fft" }
 coeus-hub = { path = "../hub" }
 coeus-tokenizer = { path = "../tokenizer" }
@@ -30,6 +30,7 @@ thiserror = "1.0"
 rand = "0.8"
 rand_distr = "0.4"
 serde = { version = "1.0", features = ["derive"] }
+approx = "0.5"
 
 [features]
 default = []

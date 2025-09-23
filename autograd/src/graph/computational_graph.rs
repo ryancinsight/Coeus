@@ -2,7 +2,9 @@
 //!
 //! This module contains the ComputationalGraph struct and core graph operations.
 
-use crate::{AutogradError, Dtype, Node, NodeId, Operation, TensorRef};
+use crate::{AutogradError, Node, NodeId, TensorRef};
+use crate::context::Operation;
+use coeus_dtype::Dtype;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
@@ -59,15 +61,9 @@ where
         let node_id = node.id;
 
         // Update dependencies
-        if let Some(op) = &node.operation {
-            for &input_id in &op.inputs {
-                self.forward_deps.entry(input_id).or_default().push(node_id);
-                self.backward_deps
-                    .entry(node_id)
-                    .or_default()
-                    .push(input_id);
-            }
-        }
+        // TODO: Implement dependency tracking for ComputationalGraph
+        // The Operation enum doesn't contain inputs, so this needs to be redesigned
+        // or the operation inputs need to be tracked separately
 
         self.nodes.insert(node_id, node);
         self.invalidate_cache();
@@ -77,7 +73,7 @@ where
     pub fn create_node(
         &mut self,
         data: TensorRef<T>,
-        operation: Option<Operation<T>>,
+        operation: Option<Operation>,
         requires_grad: bool,
     ) -> NodeId {
         let id = NodeId(self.next_id);
@@ -179,38 +175,12 @@ where
                 continue;
             }
 
-            if let Some(node) = self.nodes.get(&node_id) {
-                if let Some(operation) = &node.operation {
-                    if let Some(output_grad) = &node.grad {
-                        // Get input node data (immutable borrow)
-                        let input_data: Vec<_> = operation
-                            .inputs
-                            .iter()
-                            .filter_map(|&input_id| self.nodes.get(&input_id))
-                            .map(|n| &n.data)
-                            .collect();
-
-                        if input_data.len() == operation.inputs.len() {
-                            // Compute input gradients
-                            let input_grads = operation.backward(&input_data, output_grad);
-
-                            // Collect gradient updates to avoid borrowing conflict
-                            let mut updates = Vec::new();
-                            for (i, grad) in input_grads.into_iter().enumerate() {
-                                if let Some(&input_id) = operation.inputs.get(i) {
-                                    updates.push((input_id, grad));
-                                }
-                            }
-
-                            // Apply gradient updates
-                            for (input_id, grad) in updates {
-                                if let Some(input_node) = self.nodes.get_mut(&input_id) {
-                                    input_node.accumulate_grad(&grad)?;
-                                }
-                            }
-                        }
-                    }
-                }
+            // TODO: Implement backward propagation for ComputationalGraph
+            // This code was broken during modularization and needs to be rewritten
+            // to work with the new Operation enum instead of the Operation struct
+            if let Some(_node) = self.nodes.get(&node_id) {
+                // Backward propagation not implemented for ComputationalGraph
+                // The active autograd system uses AutogradContext
             }
 
             processed.insert(node_id);

@@ -654,9 +654,7 @@ mod tests {
         // For mean mode, output should be average of embeddings 0 and 1
         let expected_mean: Vec<f32> = (0..3)
             .map(|dim| {
-                (embedding_bag.weight.data()[dim]
-                    + embedding_bag.weight.data()[3 + dim])
-                    / 2.0
+                (embedding_bag.weight.data()[dim] + embedding_bag.weight.data()[3 + dim]) / 2.0
             })
             .collect();
 
@@ -729,8 +727,8 @@ mod tests {
 
         // Check weighted sum
         for dim in 0..2 {
-            let expected = embedding_bag.weight.data()[dim] * 2.0
-                + embedding_bag.weight.data()[2 + dim] * 3.0;
+            let expected =
+                embedding_bag.weight.data()[dim] * 2.0 + embedding_bag.weight.data()[2 + dim] * 3.0;
             assert!((output.data()[dim] - expected).abs() < 1e-6);
         }
     }

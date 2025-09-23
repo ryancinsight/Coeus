@@ -39,8 +39,15 @@
 
 pub mod activations;
 pub mod arithmetic;
+pub mod arithmetic_ops;
+pub mod creation;
+pub mod indexing_ops;
+pub mod matrix_ops;
+pub mod reduction_ops;
+pub mod shape_ops;
 pub mod tensor;
 pub mod tensor_ops;
+
 
 pub use tensor::{
     apply_pending_gradients, store_pending_gradient, with_autograd_context, HessianTensorIter,

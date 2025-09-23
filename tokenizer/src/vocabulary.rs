@@ -1,10 +1,9 @@
 //! Vocabulary management for tokenizers
 
 use crate::error::{Result, TokenizerError};
-use fxhash::FxHashMap;
+use ahash::AHashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::hash::BuildHasherDefault;
 
 /// Entry in a vocabulary mapping
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -43,7 +42,7 @@ impl VocabEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Vocabulary {
     /// Mapping from token strings to IDs
-    pub(crate) token_to_id: FxHashMap<String, usize>,
+    pub(crate) token_to_id: AHashMap<String, usize>,
     /// Mapping from IDs to token strings
     pub(crate) id_to_token: Vec<String>,
     /// Special token mappings
@@ -57,7 +56,7 @@ impl Vocabulary {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            token_to_id: FxHashMap::default(),
+            token_to_id: AHashMap::default(),
             id_to_token: Vec::new(),
             special_tokens: HashMap::new(),
             next_id: 0,
@@ -68,10 +67,7 @@ impl Vocabulary {
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            token_to_id: FxHashMap::with_capacity_and_hasher(
-                capacity,
-                BuildHasherDefault::default(),
-            ),
+            token_to_id: AHashMap::with_capacity(capacity),
             id_to_token: Vec::with_capacity(capacity),
             special_tokens: HashMap::new(),
             next_id: 0,
@@ -157,7 +153,7 @@ impl Vocabulary {
 
     /// Get the token-to-ID mapping
     #[must_use]
-    pub const fn token_to_id_map(&self) -> &FxHashMap<String, usize> {
+    pub const fn token_to_id_map(&self) -> &AHashMap<String, usize> {
         &self.token_to_id
     }
 
@@ -427,7 +423,16 @@ mod tests {
 
         vocab.extend(&other_vocab).unwrap();
         assert_eq!(vocab.size(), 5002);
-        assert_eq!(vocab.get_token_id("new_token_1"), Some(5001)); // Adjusted for correct ID assignment
+
+        // Check that both tokens were added with consecutive IDs starting from 5000
+        let token1_id = vocab.get_token_id("new_token_1").unwrap();
+        let token2_id = vocab.get_token_id("new_token_2").unwrap();
+
+        // The IDs should be consecutive and start from 5000
+        let min_id = token1_id.min(token2_id);
+        let max_id = token1_id.max(token2_id);
+        assert_eq!(min_id, 5000);
+        assert_eq!(max_id, 5001);
     }
 
     #[test]

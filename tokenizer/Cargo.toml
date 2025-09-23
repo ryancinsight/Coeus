@@ -25,8 +25,13 @@ coeus-tensor = { path = "../tensor" }
 
 # Performance and utilities
 rayon = "1.8"
-fxhash = "0.2"
+ahash = { version = "0.8", features = ["serde"] }
 itertools = "0.12"
+dirs = "5.0"
+
+# HTTP client for vocabulary downloads
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+tokio = { version = "1.0", features = ["rt", "rt-multi-thread"] }
 
 # Optional features
 base64 = { version = "0.21", optional = true }

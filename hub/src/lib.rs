@@ -1,6 +1,7 @@
 //! # Coeus Hub
 //!
-//! PyTorch Hub-compatible model loading and management for the Coeus tensor library.
+//! PyTorch Hub-compatible model loading and management for the Coeus tensor library,
+//! with comprehensive support for GGUF (llama.cpp) models and quantization.
 //!
 //! This crate provides functionality to load pre-trained models from remote repositories,
 //! similar to PyTorch Hub, enabling users to easily access and use state-of-the-art models.
@@ -9,23 +10,63 @@
 //!
 //! - **Model Loading**: Load pre-trained models from remote repositories
 //! - **PyTorch Compatibility**: Load models saved in PyTorch format (.pth, .pt)
+//! - **GGUF Format Support**: Load and manage GGUF models (llama.cpp format)
+//! - **Quantization Support**: Multiple quantization schemes (Q4_0, Q4_1, Q5_0, Q5_1, Q8_0)
 //! - **State Dict Management**: Load and manage model state dictionaries
-//! - **Model Registry**: Centralized registry of available models
-//! - **Caching**: Automatic caching of downloaded models
-//! - **Verification**: Hash verification for model integrity
+//! - **Model Registry**: Centralized registry of available models with metadata
+//! - **Caching**: Automatic caching of downloaded models with integrity verification
+//! - **Multi-Architecture**: Support for Llama, GPT-2, and other transformer architectures
+//! - **Memory Optimization**: Efficient loading with memory mapping
 //!
-//! ## Example
+//! ## GGUF Model Support
 //!
+//! The hub provides comprehensive support for GGUF models:
+//!
+//! - **Llama Models**: Llama 2, Code Llama, and variants in multiple quantizations
+//! - **GPT Models**: GPT-2 and GPT-Neo models with quantization support
+//! - **Memory Efficient**: Quantized models reduce memory usage by up to 75%
+//! - **Performance**: Optimized inference with SIMD acceleration
+//! - **Metadata**: Rich model metadata including architecture, vocabulary, and licensing
+//!
+//! ## Example Usage
+//!
+//! ### PyTorch Models
 //! ```rust,no_run
 //! use coeus_hub::Hub;
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //!
-//! // Load a pre-trained model's state dict
+//! // Load a pre-trained PyTorch model's state dict
 //! let hub = Hub::new();
-//! let state_dict = hub.load("pytorch/vision", "resnet18", false).await?;
+//! let state_dict = hub.load("pytorch/vision", "resnet18", false, None, false).await?;
 //!
 //! // Apply to your model (assuming you have a model that implements load_state_dict)
 //! // model.load_state_dict(&state_dict)?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### GGUF Models (llama.cpp)
+//! ```rust,no_run
+//! use coeus_hub::{Hub, comprehensive_registry};
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Use the comprehensive registry with GGUF models
+//! let registry = comprehensive_registry();
+//! let hub = Hub::with_registry(registry.clone());
+//!
+//! // List available GGUF models (access registry directly)
+//! let gguf_models = registry.gguf_models();
+//! println!("Available GGUF models: {}", gguf_models.len());
+//!
+//! // Get model information
+//! let llama_info = hub.model_info("meta-llama/Llama-2-7b", "llama-2-7b-q4_0").unwrap();
+//! println!("Model: {}", llama_info.name);
+//! println!("Architecture: {:?}", llama_info.architecture);
+//! println!("Quantization: {:?}", llama_info.quantization);
+//! println!("Memory usage: {} MB", llama_info.estimated_memory_usage().unwrap() / 1024 / 1024);
+//!
+//! // Load a GGUF model
+//! let state_dict = hub.load("meta-llama/Llama-2-7b", "llama-2-7b-q4_0", false, None, false).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -39,7 +80,10 @@ pub mod state_dict;
 pub use error::HubError;
 pub use hub::Hub;
 pub use loader::{load_state_dict, load_state_dict_from_url, save_state_dict};
-pub use registry::{pytorch_registry, ModelRegistry};
+pub use registry::{
+    comprehensive_registry, gguf_registry, pytorch_registry, ModelInfo, ModelRegistry, ModelStats,
+    ModelType, QuantizationScheme,
+};
 pub use state_dict::StateDict;
 
 /// Result type for hub operations
@@ -350,6 +394,61 @@ mod tests {
         // Test pickle loading via URL (will fail with network error, but tests the path)
         // Note: Actual pickle loading tests would require proper pickle data, which is complex
         // For now, we test that the function exists and the error handling works through other paths
+    }
+
+    #[test]
+    fn test_models_hub_integration() {
+        use coeus_models::{ModelConfig, ModelType, QuantizationScheme};
+        use coeus_tensor::Tensor;
+
+        // Test integration between models and hub crates
+        let registry = pytorch_registry();
+        let hub = Hub::with_registry(registry);
+
+        // Verify hub can access model registry
+        assert!(hub.has_model("pytorch/vision", "resnet18"));
+
+        // Test model config integration
+        let config = ModelConfig::new(ModelType::Llama)
+            .with_max_seq_len(1024)
+            .with_hidden_size(4096)
+            .with_quantization(QuantizationScheme::Q4_0);
+
+        assert_eq!(config.model_type, ModelType::Llama);
+        assert_eq!(config.max_seq_len, 1024);
+        assert_eq!(config.quantization, Some(QuantizationScheme::Q4_0));
+
+        // Test state dict operations
+        let mut state_dict = StateDict::new();
+        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        state_dict.insert("test.weight".to_string(), tensor);
+
+        assert_eq!(state_dict.len(), 1);
+        assert!(state_dict.contains_key("test.weight"));
+    }
+
+    #[tokio::test]
+    async fn test_enhanced_error_handling() {
+        use crate::HubError;
+
+        // Test invalid model error
+        let registry = ModelRegistry::new();
+        let hub = Hub::with_registry(registry);
+
+        // Should return ModelNotFound error
+        let result = hub
+            .load("nonexistent/repo", "nonexistent_model", false, None, true)
+            .await;
+        assert!(matches!(result, Err(HubError::ModelNotFound { .. })));
+
+        // Test empty state dict error handling
+        let empty_state_dict = StateDict::new();
+        assert!(empty_state_dict.is_empty());
+
+        // Test URL parsing in error context
+        let invalid_url = "not-a-valid-url";
+        let url_error = HubError::download_error(invalid_url.to_string(), "Invalid URL format");
+        assert!(url_error.to_string().contains("not-a-valid-url"));
     }
 
     #[test]

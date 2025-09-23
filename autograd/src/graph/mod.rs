@@ -13,3 +13,6 @@ pub use computational_graph::ComputationalGraph;
 pub use hessian::HessianIter;
 pub use node::{Node, NodeId};
 pub use operation::Operation;
+
+#[cfg(test)]
+mod tests;

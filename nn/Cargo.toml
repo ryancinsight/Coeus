@@ -10,6 +10,7 @@ description = "PyTorch-like neural network modules for the Coeus tensor library"
 coeus-dtype = { path = "../dtype" }
 coeus-tensor = { path = "../tensor" }
 coeus-autograd = { path = "../autograd" }
+coeus-optim = { path = "../optim" }
 num-traits.workspace = true
 thiserror.workspace = true
 rand = "0.8"

@@ -122,6 +122,8 @@ pub struct Tensor<T: Dtype> {
     pub(crate) grad: std::sync::Arc<std::sync::RwLock<Option<Box<Tensor<T>>>>>,
     /// Input tensor nodes for gradient computation (used internally)
     pub(crate) input_tensor_nodes: Vec<Option<u64>>,
+    /// Named buffers for optimizer state (momentum, running averages, etc.)
+    pub(crate) buffers: std::collections::HashMap<String, Box<Tensor<T>>>,
 }
 
 impl<T: Dtype> Tensor<T> {
@@ -658,6 +660,7 @@ impl<T: Dtype> Tensor<T> {
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
             input_tensor_nodes: vec![],
+            buffers: std::collections::HashMap::new(),
         })
     }
 
@@ -739,6 +742,7 @@ impl<T: Dtype> Tensor<T> {
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
             input_tensor_nodes: vec![],
+            buffers: std::collections::HashMap::new(),
         }
     }
 
@@ -774,6 +778,7 @@ impl<T: Dtype> Tensor<T> {
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
             input_tensor_nodes: vec![],
+            buffers: std::collections::HashMap::new(),
         }
     }
 }
@@ -890,7 +895,7 @@ impl<T: Dtype> Tensor<T> {
             context.set_gradient(node_id, initial_grad.clone());
 
             // Perform backward pass through the computational graph
-            context.backward(node_id, initial_grad);
+            context.backward(node_id, &initial_grad);
         });
 
         // Apply gradient to this tensor
@@ -911,6 +916,7 @@ impl<T: Dtype> Tensor<T> {
                     context: None,
                     grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
                     input_tensor_nodes: vec![],
+                    buffers: std::collections::HashMap::new(),
                 };
                 if let Ok(mut grad_guard) = self.grad.write() {
                     *grad_guard = Some(Box::new(grad_tensor));
@@ -1001,6 +1007,7 @@ impl<T: Dtype> Tensor<T> {
                     context: None,
                     grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
                     input_tensor_nodes: vec![],
+                    buffers: std::collections::HashMap::new(),
                 };
                 // Cache the gradient in the tensor for future access
                 if let Ok(mut grad_guard) = self.grad.write() {
@@ -1062,6 +1069,7 @@ impl<T: Dtype> Tensor<T> {
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
             input_tensor_nodes: vec![],
+            buffers: std::collections::HashMap::new(),
         };
 
         if let Ok(mut grad_guard) = self.grad.write() {

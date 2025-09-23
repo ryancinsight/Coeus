@@ -15,8 +15,8 @@
 //! - [Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf)
 //! - [OpenAI GPT-2](https://github.com/openai/gpt-2)
 
-use crate::attention::{AttentionConfig, Block};
-use crate::dropout::Dropout;
+use crate::modules::attention::{AttentionConfig, Block};
+use crate::modules::dropout::Dropout;
 use crate::{Embedding, LayerNorm, Module, Result};
 use coeus_tensor::{FloatDtype, Tensor};
 use std::fmt;

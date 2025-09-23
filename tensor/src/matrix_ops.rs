@@ -7,6 +7,226 @@ use crate::{Tensor, Dtype};
 use crate::with_autograd_context;
 use coeus_autograd::context::Operation;
 
+#[cfg(test)]
+mod matrix_ops_tests {
+    use super::*;
+    use approx::assert_relative_eq;
+
+    /// Test basic 2D matrix multiplication
+    #[test]
+    fn test_matmul_2d_basic() {
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let b = Tensor::from_vec(vec![5.0, 6.0, 7.0, 8.0], vec![2, 2]);
+        let result = a.matmul(&b).unwrap();
+        // [[1*5 + 2*7, 1*6 + 2*8], [3*5 + 4*7, 3*6 + 4*8]] = [[19, 22], [43, 50]]
+        assert_eq!(result.data(), &[19.0, 22.0, 43.0, 50.0]);
+        assert_eq!(result.shape(), &[2, 2]);
+    }
+
+    /// Test matrix multiplication with different shapes
+    #[test]
+    fn test_matmul_different_shapes() {
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
+        let b = Tensor::from_vec(vec![7.0, 8.0, 9.0, 10.0], vec![3, 2]);
+        let result = a.matmul(&b).unwrap();
+        // [[1*7 + 2*9 + 3*8, 1*8 + 2*10 + 3*9], [4*7 + 5*9 + 6*8, 4*8 + 5*10 + 6*9]] = [[50, 56], [113, 128]]
+        assert_eq!(result.data(), &[50.0, 56.0, 113.0, 128.0]);
+        assert_eq!(result.shape(), &[2, 2]);
+    }
+
+    /// Test matrix multiplication error cases
+    #[test]
+    fn test_matmul_error_cases() {
+        // Test incompatible dimensions
+        let a = Tensor::from_vec(vec![1.0, 2.0], vec![1, 2]);
+        let b = Tensor::from_vec(vec![3.0, 4.0, 5.0, 6.0], vec![2, 2]);
+        let result = a.matmul(&b);
+        assert!(result.is_err());
+
+        // Test 1D tensors (should error)
+        let c = Tensor::from_vec(vec![1.0, 2.0], vec![2]);
+        let d = Tensor::from_vec(vec![3.0, 4.0], vec![2]);
+        let result_1d = c.matmul(&d);
+        assert!(result_1d.is_err());
+    }
+
+    /// Test matrix multiplication with scalar values
+    #[test]
+    fn test_matmul_scalar() {
+        let a = Tensor::from_vec(vec![2.0], vec![1, 1]);
+        let b = Tensor::from_vec(vec![3.0], vec![1, 1]);
+        let result = a.matmul(&b).unwrap();
+        assert_eq!(result.data(), &[6.0]);
+        assert_eq!(result.shape(), &[1, 1]);
+    }
+
+    /// Test matrix multiplication with identity matrix
+    #[test]
+    fn test_matmul_identity() {
+        let identity = Tensor::from_vec(vec![1.0, 0.0, 0.0, 1.0], vec![2, 2]);
+        let matrix = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let result = matrix.matmul(&identity).unwrap();
+        assert_eq!(result.data(), &[1.0, 2.0, 3.0, 4.0]);
+    }
+
+    /// Test matrix multiplication with zero matrix
+    #[test]
+    fn test_matmul_zero() {
+        let zero = Tensor::from_vec(vec![0.0, 0.0, 0.0, 0.0], vec![2, 2]);
+        let matrix = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let result = matrix.matmul(&zero).unwrap();
+        assert_eq!(result.data(), &[0.0, 0.0, 0.0, 0.0]);
+    }
+
+    /// Test matrix multiplication with gradient computation
+    #[test]
+    fn test_matmul_with_gradients() {
+        let mut a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let mut b = Tensor::from_vec(vec![5.0, 6.0, 7.0, 8.0], vec![2, 2]);
+        a.set_requires_grad(true);
+        b.set_requires_grad(true);
+
+        let result = a.matmul(&b).unwrap();
+        assert!(result.requires_grad());
+        assert_eq!(result.data(), &[19.0, 22.0, 43.0, 50.0]);
+    }
+
+    /// Test matrix multiplication numerical precision
+    #[test]
+    fn test_matmul_numerical_precision() {
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let b = Tensor::from_vec(vec![1.0, 0.0, 0.0, 1.0], vec![2, 2]);
+        let result = a.matmul(&b).unwrap();
+
+        // Should be exact match for simple case
+        assert_eq!(result.data(), &[1.0, 2.0, 3.0, 4.0]);
+
+        // Test with floating point precision
+        let a_float = Tensor::from_vec(vec![1.1, 2.2, 3.3, 4.4], vec![2, 2]);
+        let b_float = Tensor::from_vec(vec![1.0, 0.5, 0.0, 1.0], vec![2, 2]);
+        let result_float = a_float.matmul(&b_float).unwrap();
+
+        // Verify computation is correct within tolerance
+        assert_relative_eq!(result_float.data()[0], 1.1, epsilon = 1e-10);
+        assert_relative_eq!(result_float.data()[1], 2.75, epsilon = 1e-10);
+        assert_relative_eq!(result_float.data()[2], 3.3, epsilon = 1e-10);
+        assert_relative_eq!(result_float.data()[3], 6.05, epsilon = 1e-10);
+    }
+
+    /// Test matrix multiplication edge cases
+    #[test]
+    fn test_matmul_edge_cases() {
+        // Test with large matrices
+        let large_a = Tensor::from_vec(vec![1.0; 100], vec![10, 10]);
+        let large_b = Tensor::from_vec(vec![1.0; 100], vec![10, 10]);
+        let large_result = large_a.matmul(&large_b).unwrap();
+        assert_eq!(large_result.shape(), &[10, 10]);
+
+        // Test with minimum size (2x2)
+        let min_a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let min_b = Tensor::from_vec(vec![1.0, 0.0, 0.0, 1.0], vec![2, 2]);
+        let min_result = min_a.matmul(&min_b).unwrap();
+        assert_eq!(min_result.shape(), &[2, 2]);
+    }
+
+    /// Test matrix multiplication associativity
+    #[test]
+    fn test_matmul_associativity() {
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let b = Tensor::from_vec(vec![1.0, 0.0, 0.0, 1.0], vec![2, 2]);
+        let c = Tensor::from_vec(vec![2.0, 0.0, 0.0, 2.0], vec![2, 2]);
+
+        let ab = a.matmul(&b).unwrap();
+        let bc = b.matmul(&c).unwrap();
+        let abc = ab.matmul(&c).unwrap();
+
+        let ac = a.matmul(&c).unwrap();
+        let abc_alt = ac.matmul(&b).unwrap();
+
+        // Matrix multiplication is associative: (AB)C = A(BC)
+        assert_eq!(abc.data(), abc_alt.data());
+    }
+
+    /// Test matrix multiplication distributivity
+    #[test]
+    fn test_matmul_distributivity() {
+        let a = Tensor::from_vec(vec![1.0, 2.0], vec![1, 2]);
+        let b = Tensor::from_vec(vec![3.0, 4.0, 5.0, 6.0], vec![2, 2]);
+        let c = Tensor::from_vec(vec![1.0, 0.0, 0.0, 1.0], vec![2, 2]);
+
+        // Test left distributivity: A(B + C) = AB + AC
+        let b_plus_c = b.add(&c).unwrap();
+        let a_b_plus_c = a.matmul(&b_plus_c).unwrap();
+
+        let a_b = a.matmul(&b).unwrap();
+        let a_c = a.matmul(&c).unwrap();
+        let a_b_plus_a_c = a_b.add(&a_c).unwrap();
+
+        assert_eq!(a_b_plus_c.data(), a_b_plus_a_c.data());
+    }
+
+    /// Test helper function broadcast_shapes
+    #[test]
+    fn test_broadcast_shapes() {
+        // Test compatible shapes
+        let a = vec![2, 3];
+        let b = vec![3];
+        let result = broadcast_shapes(&a, &b).unwrap();
+        assert_eq!(result, &[2, 3]);
+
+        // Test incompatible shapes
+        let c = vec![2, 3];
+        let d = vec![4, 3];
+        let result_err = broadcast_shapes(&c, &d);
+        assert!(result_err.is_err());
+    }
+
+    /// Test helper function unravel_index
+    #[test]
+    fn test_unravel_index() {
+        let shape = vec![2, 3, 4];
+        let flat_index = 5;
+        let coords = unravel_index(flat_index, &shape);
+        assert_eq!(coords, &[0, 1, 1]); // 5 = 0*12 + 1*4 + 1*1
+    }
+
+    /// Test batched matrix multiplication
+    #[test]
+    fn test_matmul_batched() {
+        // Test 3D batched multiplication
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], vec![2, 2, 2]);
+        let b = Tensor::from_vec(vec![1.0, 0.0, 0.0, 1.0, 2.0, 0.0, 0.0, 2.0], vec![2, 2, 2]);
+        let result = a.matmul(&b).unwrap();
+        assert_eq!(result.shape(), &[2, 2, 2]);
+
+        // Verify first batch: [[1, 2], [3, 4]] * [[1, 0], [0, 1]] = [[1, 2], [3, 4]]
+        assert_eq!(result.data()[0], 1.0);
+        assert_eq!(result.data()[1], 2.0);
+        assert_eq!(result.data()[2], 3.0);
+        assert_eq!(result.data()[3], 4.0);
+
+        // Verify second batch: [[5, 6], [7, 8]] * [[2, 0], [0, 2]] = [[10, 12], [14, 16]]
+        assert_eq!(result.data()[4], 10.0);
+        assert_eq!(result.data()[5], 12.0);
+        assert_eq!(result.data()[6], 14.0);
+        assert_eq!(result.data()[7], 16.0);
+    }
+
+    /// Test batched matrix multiplication with broadcasting
+    #[test]
+    fn test_matmul_batched_broadcasting() {
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![1, 2, 2]); // Single batch
+        let b = Tensor::from_vec(vec![1.0, 0.0, 0.0, 1.0, 2.0, 0.0, 0.0, 2.0], vec![2, 2, 2]); // Two batches
+        let result = a.matmul(&b).unwrap();
+        assert_eq!(result.shape(), &[2, 2, 2]);
+
+        // Both batches should have the same result since a is broadcasted
+        for i in 0..4 {
+            assert_eq!(result.data()[i], result.data()[i + 4]);
+        }
+    }
+}
+
 impl<T: Dtype + num_traits::FromPrimitive + num_traits::ToPrimitive> Tensor<T> {
     /// Perform matrix multiplication
     ///

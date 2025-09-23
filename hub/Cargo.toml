@@ -47,3 +47,4 @@ dirs = "5.0"
 [dev-dependencies]
 tempfile = "3.8"
 mockito = "1.2"
+coeus-models = { path = "../models" }

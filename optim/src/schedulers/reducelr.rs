@@ -6,6 +6,320 @@
 use crate::{Optimizer, Result};
 use std::collections::VecDeque;
 
+#[cfg(test)]
+mod reducelr_tests {
+    use super::*;
+    use crate::{ParamGroup, Sgd};
+    use approx::assert_relative_eq;
+    use coeus_tensor::Tensor;
+
+    /// Test ReduceLROnPlateau scheduler creation
+    #[test]
+    fn test_reducelr_creation() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer = Sgd::new(params, 0.1_f64);
+        let scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 10);
+
+        assert_eq!(scheduler.mode(), Mode::Min);
+        assert_eq!(scheduler.factor(), 0.1_f64);
+        assert_eq!(scheduler.patience(), 10);
+        assert_eq!(scheduler.cooldown_counter(), 0);
+        assert_eq!(scheduler.last_epoch(), 0);
+        assert!(scheduler.best_score().is_none());
+    }
+
+    /// Test ReduceLROnPlateau with custom options
+    #[test]
+    fn test_reducelr_custom_options() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer = Sgd::new(params, 0.1_f64);
+        let scheduler = ReduceLROnPlateau::with_options(
+            &mut optimizer,
+            Mode::Max,
+            0.5_f64,
+            5,
+            true,      // verbose
+            0.001_f64, // threshold
+            ThresholdMode::Abs,
+            2,               // cooldown
+            vec![0.001_f64], // min_lr
+            1e-9_f64,        // eps
+        );
+
+        assert_eq!(scheduler.mode(), Mode::Max);
+        assert_eq!(scheduler.factor(), 0.5_f64);
+        assert_eq!(scheduler.patience(), 5);
+        assert!(scheduler.min_lr()[0] > 0.0_f64);
+    }
+
+    /// Test ReduceLROnPlateau step with improving metrics (min mode)
+    #[test]
+    fn test_reducelr_step_improving_min() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer = Sgd::new(params, 0.1_f64);
+        let mut scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 10);
+
+        // First step - improving metric
+        let reduced = scheduler.step(0.5_f64, None).unwrap();
+        assert!(!reduced); // Should not reduce LR
+        assert_eq!(scheduler.num_bad_epochs(), 0);
+        assert_eq!(scheduler.best_score(), Some(0.5_f64));
+
+        // Second step - further improvement
+        let reduced = scheduler.step(0.3_f64, None).unwrap();
+        assert!(!reduced); // Should not reduce LR
+        assert_eq!(scheduler.num_bad_epochs(), 0);
+        assert_eq!(scheduler.best_score(), Some(0.3_f64));
+    }
+
+    /// Test ReduceLROnPlateau step with improving metrics (max mode)
+    #[test]
+    fn test_reducelr_step_improving_max() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer = Sgd::new(params, 0.1_f64);
+        let mut scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Max, 0.1_f64, 10);
+
+        // First step - improving metric
+        let reduced = scheduler.step(0.5_f64, None).unwrap();
+        assert!(!reduced); // Should not reduce LR
+        assert_eq!(scheduler.num_bad_epochs(), 0);
+        assert_eq!(scheduler.best_score(), Some(0.5_f64));
+
+        // Second step - further improvement
+        let reduced = scheduler.step(0.7_f64, None).unwrap();
+        assert!(!reduced); // Should not reduce LR
+        assert_eq!(scheduler.num_bad_epochs(), 0);
+        assert_eq!(scheduler.best_score(), Some(0.7_f64));
+    }
+
+    /// Test ReduceLROnPlateau step with degrading metrics
+    #[test]
+    fn test_reducelr_step_degrading() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer = Sgd::new(params, 0.1_f64);
+        let mut scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 3);
+
+        // Set initial best score
+        let _ = scheduler.step(0.5_f64, None).unwrap();
+
+        // Degrading metrics for patience + 1 steps
+        let _ = scheduler.step(0.6_f64, None).unwrap();
+        let _ = scheduler.step(0.7_f64, None).unwrap();
+        let _ = scheduler.step(0.8_f64, None).unwrap();
+        let _ = scheduler.step(0.9_f64, None).unwrap(); // This should trigger LR reduction
+
+        assert_eq!(scheduler.num_bad_epochs(), 0); // Reset after reduction
+        assert_eq!(scheduler.cooldown_counter(), 0); // No cooldown set
+                                                     // Check that LR was reduced (should be 0.1 * 0.1 = 0.01)
+        assert_relative_eq!(scheduler.get_lr(0).unwrap(), 0.01_f64, epsilon = 1e-10);
+    }
+
+    /// Test ReduceLROnPlateau cooldown functionality
+    #[test]
+    fn test_reducelr_cooldown() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer = Sgd::new(params, 0.1_f64);
+        let mut scheduler = ReduceLROnPlateau::with_options(
+            &mut optimizer,
+            Mode::Min,
+            0.1_f64,
+            3,
+            false,
+            0.001_f64,
+            ThresholdMode::Rel,
+            2, // cooldown
+            vec![0.0_f64],
+            1e-8_f64,
+        );
+
+        // Set initial best score and trigger LR reduction
+        let _ = scheduler.step(0.5_f64, None).unwrap();
+        let _ = scheduler.step(0.6_f64, None).unwrap();
+        let _ = scheduler.step(0.7_f64, None).unwrap();
+        let _ = scheduler.step(0.8_f64, None).unwrap();
+        let _ = scheduler.step(0.9_f64, None).unwrap(); // Triggers reduction
+
+        assert_eq!(scheduler.cooldown_counter(), 2); // Should be in cooldown
+
+        // During cooldown, should not reduce further
+        let _ = scheduler.step(1.0_f64, None).unwrap();
+        assert_eq!(scheduler.cooldown_counter(), 1); // Decremented
+        assert_eq!(scheduler.num_bad_epochs(), 0); // Reset during cooldown
+    }
+
+    /// Test ReduceLROnPlateau threshold functionality
+    #[test]
+    fn test_reducelr_threshold() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer = Sgd::new(params, 0.1_f64);
+        let mut scheduler = ReduceLROnPlateau::with_options(
+            &mut optimizer,
+            Mode::Min,
+            0.1_f64,
+            10,
+            false,
+            0.1_f64, // High threshold
+            ThresholdMode::Abs,
+            0,
+            vec![0.0_f64],
+            1e-8_f64,
+        );
+
+        // Set initial best score
+        let _ = scheduler.step(1.0_f64, None).unwrap();
+
+        // Metric improvement within threshold should not update best score
+        let reduced = scheduler.step(0.95_f64, None).unwrap(); // 1.0 - 0.05 = 0.95, threshold = 0.1
+        assert!(!reduced);
+        assert_eq!(scheduler.best_score(), Some(1.0_f64)); // Best score should not change
+    }
+
+    /// Test ReduceLROnPlateau minimum learning rate
+    #[test]
+    fn test_reducelr_min_lr() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer = Sgd::new(params, 0.1_f64);
+        let mut scheduler = ReduceLROnPlateau::with_options(
+            &mut optimizer,
+            Mode::Min,
+            0.01_f64, // Very small factor
+            1,        // Reduce after 1 bad epoch
+            false,
+            0.001_f64,
+            ThresholdMode::Rel,
+            0,
+            vec![0.005_f64], // Set minimum LR
+            1e-8_f64,
+        );
+
+        // Set initial best score
+        let _ = scheduler.step(0.5_f64, None).unwrap();
+
+        // Trigger multiple LR reductions
+        for _ in 0..10 {
+            let _ = scheduler.step(0.6_f64, None).unwrap();
+        }
+
+        // LR should not go below minimum
+        assert!(scheduler.get_lr(0).unwrap() >= 0.005_f64);
+    }
+
+    /// Test ReduceLROnPlateau with multiple parameter groups
+    #[test]
+    fn test_reducelr_multiple_groups() {
+        let params1 = vec![Tensor::from_vec(vec![1.0_f64], vec![1])];
+        let params2 = vec![Tensor::from_vec(vec![2.0_f64, 3.0_f64], vec![2])];
+
+        let mut optimizer = Sgd::new(vec![], 0.1_f64); // Start empty
+        optimizer.add_param_group(ParamGroup::new(params1, 0.1_f64, 0.0_f64));
+        optimizer.add_param_group(ParamGroup::new(params2, 0.2_f64, 0.0_f64));
+
+        let mut scheduler = ReduceLROnPlateau::with_options(
+            &mut optimizer,
+            Mode::Min,
+            0.1_f64,
+            5,
+            false,
+            0.001_f64,
+            ThresholdMode::Rel,
+            0,
+            vec![0.0_f64, 0.0_f64], // min_lr for both groups
+            1e-8_f64,
+        );
+
+        // Initial LRs
+        assert_eq!(scheduler.get_lr(0), Some(0.1_f64)); // Empty group
+        assert_eq!(scheduler.get_lr(1), Some(0.1_f64)); // First added group
+        assert_eq!(scheduler.get_lr(2), Some(0.2_f64)); // Second added group
+
+        // Trigger LR reduction
+        let _ = scheduler.step(0.5_f64, None).unwrap();
+        for _ in 0..6 {
+            let _ = scheduler.step(0.6_f64, None).unwrap();
+        }
+
+        // Both groups should have reduced LR
+        assert!(scheduler.get_lr(0).unwrap() < 0.1_f64); // Should be reduced
+        assert!(scheduler.get_lr(1).unwrap() < 0.2_f64); // Should be reduced
+    }
+
+    /// Test ReduceLROnPlateau state tracking
+    #[test]
+    fn test_reducelr_state_tracking() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer = Sgd::new(params, 0.1_f64);
+        let mut scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 5);
+
+        // Check initial state
+        assert_eq!(scheduler.last_epoch(), 0);
+        assert!(scheduler.best_score().is_none());
+        assert_eq!(scheduler.num_bad_epochs(), 0);
+
+        // Step with metric
+        let _ = scheduler.step(0.5_f64, Some(10)).unwrap();
+
+        assert_eq!(scheduler.last_epoch(), 10);
+        assert_eq!(scheduler.best_score(), Some(0.5_f64));
+        assert_eq!(scheduler.num_bad_epochs(), 0);
+    }
+
+    /// Test ReduceLROnPlateau getter methods
+    #[test]
+    fn test_reducelr_getters() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer = Sgd::new(params, 0.1_f64);
+        let scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 5);
+
+        assert_eq!(scheduler.mode(), Mode::Min);
+        assert_eq!(scheduler.factor(), 0.1_f64);
+        assert_eq!(scheduler.patience(), 5);
+        assert_eq!(scheduler.cooldown_counter(), 0);
+        assert_eq!(scheduler.last_epoch(), 0);
+        assert_eq!(scheduler.min_lr().len(), 1);
+        assert_eq!(scheduler.min_lr()[0], 0.0_f64);
+    }
+
+    /// Test ReduceLROnPlateau is_better method
+    #[test]
+    fn test_reducelr_is_better() {
+        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer_min = Sgd::new(params.clone(), 0.1_f64);
+        let scheduler_min = ReduceLROnPlateau::new(&mut optimizer_min, Mode::Min, 0.1_f64, 5);
+
+        let params2 = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let mut optimizer_max = Sgd::new(params2, 0.1_f64);
+        let scheduler_max = ReduceLROnPlateau::new(&mut optimizer_max, Mode::Max, 0.1_f64, 5);
+
+        // Test Min mode
+        assert!(scheduler_min.is_better(0.4_f64, Some(0.5_f64))); // 0.4 < 0.5, better
+        assert!(!scheduler_min.is_better(0.6_f64, Some(0.5_f64))); // 0.6 > 0.5, not better
+
+        // Test Max mode
+        assert!(scheduler_max.is_better(0.6_f64, Some(0.5_f64))); // 0.6 > 0.5, better
+        assert!(!scheduler_max.is_better(0.4_f64, Some(0.5_f64))); // 0.4 < 0.5, not better
+
+        // Test with no best score (should always be better)
+        assert!(scheduler_min.is_better(0.5_f64, None));
+        assert!(scheduler_max.is_better(0.5_f64, None));
+    }
+
+    /// Test ReduceLROnPlateau with extreme values
+    #[test]
+    fn test_reducelr_extreme_values() {
+        let params = vec![Tensor::from_vec(vec![1e-10_f64, 1e10_f64], vec![2])];
+        let mut optimizer = Sgd::new(params, 1e-5_f64);
+        let mut scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 1);
+
+        // Test with very small metric values
+        let _ = scheduler.step(1e-15_f64, None).unwrap();
+        assert!(scheduler.best_score().unwrap().is_finite());
+
+        // Test with very large metric values
+        let _ = scheduler.step(1e15_f64, None).unwrap();
+        assert!(scheduler.get_lr(0).unwrap().is_finite());
+    }
+}
+
 /// ReduceLROnPlateau scheduler
 ///
 /// Reduces learning rate when a metric stops improving. The scheduler

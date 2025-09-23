@@ -10,7 +10,6 @@
 //! - **Normalization Layers**: BatchNorm, LayerNorm, GroupNorm
 //! - **Dropout**: Regularization through random neuron deactivation
 //! - **Loss Functions**: MSE, CrossEntropy, NLLLoss, etc.
-//! - **Optimizers**: SGD, Adam, AdamW, RMSprop
 //!
 //! ## Basic Usage
 //!
@@ -95,22 +94,31 @@
 
 pub mod activations;
 pub mod containers;
+pub mod functional;
 pub mod init;
 pub mod losses;
 pub mod modules;
-pub mod optimizers;
 pub mod validation;
 
 pub use activations::{
-    ReLU, Sigmoid, Tanh, Softmax, LeakyReLU, ELU, GELU, Hardtanh, LogSigmoid, SELU, CELU,
-    Hardshrink, Tanhshrink, Threshold, PReLU, RReLU, Softmin, Softmax2d,
+    Hardshrink, Hardtanh, LeakyReLU, LogSigmoid, PReLU, RReLU, ReLU, Sigmoid, Softmax, Softmax2d,
+    Softmin, Tanh, Tanhshrink, Threshold, CELU, ELU, GELU, SELU,
 };
 pub use containers::*;
 pub use init::*;
 pub use losses::*;
 pub use modules::*;
-pub use optimizers::*;
 pub use validation::*;
+
+// Explicit exports to avoid ambiguous glob re-exports
+pub use modules::{
+    AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveAvgPool3d, AdaptiveMaxPool1d, AdaptiveMaxPool2d,
+    AdaptiveMaxPool3d, AttentionConfig, AvgPool1d, AvgPool2d, AvgPool3d, BatchNorm1d, BatchNorm2d,
+    BatchNorm3d, Block, CausalSelfAttention, Conv1d, Conv2d, ConvTranspose2d, Dropout, Dropout2d, Dropout3d, Embedding, EmbeddingBag,
+    GroupNorm, Gru, GruCell, InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, LayerNorm, Linear,
+    Lstm, LstmCell, MaxPool1d, MaxPool2d, MaxPool3d, MultiHeadAttention, Rnn, RnnCell, Transformer,
+    TransformerDecoder, TransformerDecoderLayer, TransformerEncoder, TransformerEncoderLayer, MLP,
+};
 
 /// Result type for neural network operations
 pub type Result<T> = std::result::Result<T, NNError>;
@@ -142,7 +150,7 @@ pub enum NNError {
 
 /// Core trait for neural network modules
 /// Uses FloatDtype to support gradient computation during training
-pub trait Module<T: coeus_dtype::FloatDtype> {
+pub trait Module<T: coeus_dtype::FloatDtype>: Send + Sync {
     /// Forward pass through the module
     fn forward(&self, input: &coeus_tensor::Tensor<T>) -> crate::Result<coeus_tensor::Tensor<T>>;
 

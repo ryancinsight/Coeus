@@ -39,7 +39,9 @@ pub use ranking::{
     HingeEmbeddingLoss, MarginRankingLoss, MultiLabelMarginLoss, MultiMarginLoss, TripletMarginLoss,
 };
 pub use regression::{CosineEmbeddingLoss, MaeLoss, MseLoss};
-pub use specialized::{CTCLoss, DiceLoss, FocalLoss, GaussianNLLLoss, IoULoss, PoissonNLLLoss, SoftMarginLoss};
+pub use specialized::{
+    CTCLoss, DiceLoss, FocalLoss, GaussianNLLLoss, IoULoss, PoissonNLLLoss, SoftMarginLoss,
+};
 
 use crate::{Module, NNError, Result};
 use coeus_tensor::{FloatDtype, Tensor};
