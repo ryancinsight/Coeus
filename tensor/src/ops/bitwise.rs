@@ -34,7 +34,7 @@
 //! - [Rust Integer Types](https://doc.rust-lang.org/std/primitive/index.html)
 
 use crate::{Dtype, Result, Tensor, TensorError};
-use coeus_backend::{Backend, CpuBackend};
+use coeus_backend::Backend;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
 
 // Dispatch impl for Tensor

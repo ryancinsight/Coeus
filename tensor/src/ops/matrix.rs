@@ -1,7 +1,7 @@
 //! Matrix operations with PyTorch-compatible API
 
 use crate::{Dtype, FloatDtype, Result, Tensor, TensorError};
-use coeus_backend::{Backend, CpuBackend};
+use coeus_backend::Backend;
 use num_traits::{Float, Num};
 // use coeus_autograd::context::Operation; // DISABLED - architectural redesign required
 

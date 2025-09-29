@@ -89,6 +89,7 @@ pub trait Indexing<T: Dtype, B: Backend<T> + Clone + Send + Sync> {
 }
 
 impl<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync> Tensor<T, B> {
+    #[allow(dead_code)]
     fn slice_impl(&self, indices: &[Slice]) -> Result<Tensor<T, B>, TensorError> {
         // Basic single-dim slice for now
         if indices.len() != 1 {

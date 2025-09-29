@@ -196,7 +196,7 @@ fn broadcast_binary_op<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync>(
         result.set_requires_grad(true);
 
         // Set up autograd graph for broadcasting case
-        use crate::core::tensor::{with_autograd_context, Operation};
+        use crate::core::tensor::with_autograd_context;
         with_autograd_context(|context| {
             let a_node = if let Some(node) = a.node {
                 node
