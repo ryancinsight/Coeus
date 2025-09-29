@@ -15,48 +15,34 @@
 //! - [Recurrent Neural Networks Tutorial](https://www.deeplearningbook.org/contents/rnn.html)
 //! - [PyTorch RNN Documentation](https://pytorch.org/docs/stable/generated/torch.nn.RNN.html)
 
-use crate::Result;
-use coeus_tensor::{
-    ops::indexing::Slice,
-    ops::reduction::{self},
-    FloatDtype, Tensor,
-};
-use rand::prelude::*;
+use crate::NNError;
+use coeus_backend::CpuBackend;
+use coeus_dtype::Dtype;
+use coeus_tensor::{FloatDtype, Tensor, ops::{indexing::{self}, reduction::cat as tensor_cat}};
+use rand::{distributions::uniform::SampleUniform, Rng};
 
-/// RNN (Recurrent Neural Network) layer
-///
-/// Implements a basic RNN cell with configurable hidden size.
-/// Compatible with PyTorch's `torch.nn.RNN`.
 #[derive(Debug, Clone)]
 pub struct Rnn<T: FloatDtype> {
     /// Input-to-hidden weights, shape (hidden_size, input_size)
-    pub weight_ih: Tensor<T>,
+    pub weight_ih: Tensor<T, CpuBackend>,
     /// Hidden-to-hidden weights, shape (hidden_size, hidden_size)
-    pub weight_hh: Tensor<T>,
+    pub weight_hh: Tensor<T, CpuBackend>,
     /// Input-to-hidden bias, shape (hidden_size,)
-    pub bias_ih: Option<Tensor<T>>,
+    pub bias_ih: Option<Tensor<T, CpuBackend>>,
     /// Hidden-to-hidden bias, shape (hidden_size,)
-    pub bias_hh: Option<Tensor<T>>,
+    pub bias_hh: Option<Tensor<T, CpuBackend>>,
     /// Number of input features
     pub input_size: usize,
     /// Number of hidden features
     pub hidden_size: usize,
 }
 
-impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
+impl<T: FloatDtype + SampleUniform + std::ops::AddAssign + std::iter::Sum> Rnn<T> {
     /// Create a new RNN layer
     ///
     /// # Arguments
     /// * `input_size` - Number of input features
     /// * `hidden_size` - Number of hidden features
-    /// * `num_layers` - Number of RNN layers (default: 1)
-    ///
-    /// # Example
-    /// ```rust
-    /// use coeus_nn::Rnn;
-    ///
-    /// let rnn = Rnn::<f32>::new(10, 20); // Single layer unidirectional RNN
-    /// ```
     pub fn new(input_size: usize, hidden_size: usize) -> Self {
         let mut rng = rand::thread_rng();
 
@@ -67,36 +53,36 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
         let weight_ih_data: Vec<T> = (0..hidden_size * input_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-ih_bound..ih_bound);
-                T::from_f64(val).unwrap()
+                <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
         let weight_hh_data: Vec<T> = (0..hidden_size * hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-hh_bound..hh_bound);
-                T::from_f64(val).unwrap()
+                <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
-        let weight_ih = Tensor::from_vec(weight_ih_data, vec![hidden_size, input_size]);
-        let weight_hh = Tensor::from_vec(weight_hh_data, vec![hidden_size, hidden_size]);
+        let weight_ih = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
+        let weight_hh = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
         let bias_ih_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-ih_bound..ih_bound);
-                T::from_f64(val).unwrap()
+                <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
         let bias_hh_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-hh_bound..hh_bound);
-                T::from_f64(val).unwrap()
+                <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
-        let bias_ih = Some(Tensor::from_vec(bias_ih_data, vec![hidden_size]));
-        let bias_hh = Some(Tensor::from_vec(bias_hh_data, vec![hidden_size]));
+        let bias_ih = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
+        let bias_hh = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
         Self {
             weight_ih,
@@ -112,17 +98,15 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
     ///
     /// # Arguments
     /// * `input` - Input tensor of shape (seq_len, batch_size, input_size)
-    /// * `h_0` - Initial hidden state of shape (batch_size, hidden_size) or (2, batch_size, hidden_size) for bidirectional
+    /// * `h_0` - Initial hidden state of shape (batch_size, hidden_size)
     ///
     /// # Returns
     /// Tuple of (output, final_hidden_state)
-    /// - output: shape (seq_len, batch_size, hidden_size) or (seq_len, batch_size, 2*hidden_size) for bidirectional
-    /// - h_n: shape (batch_size, hidden_size) or (2, batch_size, hidden_size) for bidirectional
     pub fn forward(
         &self,
-        input: &Tensor<T>,
-        h_0: Option<&Tensor<T>>,
-    ) -> Result<(Tensor<T>, Tensor<T>)> {
+        input: &Tensor<T, CpuBackend>,
+        h_0: Option<&Tensor<T, CpuBackend>>,
+    ) -> Result<(Tensor<T, CpuBackend>, Tensor<T, CpuBackend>), NNError> {
         let seq_len = input.shape()[0];
         let batch_size = input.shape()[1];
 
@@ -132,9 +116,9 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
         // Initialize hidden state if not provided
         let h_init = h_0
             .cloned()
-            .unwrap_or_else(|| Tensor::zeros(vec![batch_size, self.hidden_size]));
-
+            .unwrap_or_else(|| Tensor::zeros(vec![batch_size, self.hidden_size]).unwrap_grad());
         let mut h_current = h_init.clone();
+
         let mut outputs = Vec::new();
 
         // Process each timestep in the sequence
@@ -142,9 +126,9 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
             // Extract input at timestep t: shape (batch_size, input_size)
             // Use slice to get the t-th element along the sequence dimension
             let slices = vec![
-                Slice::range(t, t + 1), // Sequence dimension: single timestep
-                Slice::all(),           // Batch dimension: all batches
-                Slice::all(),           // Feature dimension: all features
+                indexing::Slice::Range(t, t + 1), // Sequence dimension: single timestep
+                indexing::Slice::Full,           // Batch dimension: all batches
+                indexing::Slice::Full,           // Feature dimension: all features
             ];
             let sliced = input.slice(&slices)?;
             // After slicing, we have shape (1, batch_size, input_size)
@@ -153,7 +137,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
                 // Squeeze out the sequence dimension
                 sliced.reshape(vec![batch_size, self.input_size])?
             } else {
-                return Err(crate::NNError::ShapeMismatch {
+                return Err(NNError::ShapeMismatch {
                     expected: vec![1, batch_size, self.input_size],
                     actual: sliced.shape().to_vec(),
                 });
@@ -169,22 +153,22 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
             let weight_hh_t = self.weight_hh.t()?;
             let h_contrib = h_current.matmul(&weight_hh_t)?;
 
-            let mut combined = (&x_contrib + &h_contrib)?;
+            let mut combined = (&x_contrib + &h_contrib).unwrap();
 
             // Add biases if present
             if let Some(ref bias_ih) = self.bias_ih {
                 // Bias broadcasting: reshape bias from (hidden_size,) to (1, hidden_size) for broadcasting
                 let bias_ih_broadcast = bias_ih.reshape(vec![1, self.hidden_size])?;
-                combined = (&combined + &bias_ih_broadcast)?;
+                combined = (&x_contrib + &h_contrib).unwrap();
             }
             if let Some(ref bias_hh) = self.bias_hh {
                 // Bias broadcasting: reshape bias from (hidden_size,) to (1, hidden_size) for broadcasting
                 let bias_hh_broadcast = bias_hh.reshape(vec![1, self.hidden_size])?;
-                combined = (&combined + &bias_hh_broadcast)?;
+                combined = (&x_contrib + &h_contrib).unwrap();
             }
 
             // Apply tanh activation
-            h_current = combined.tanh();
+            h_current = combined.tanh()?;
 
             // Store output for this timestep
             outputs.push(h_current.clone());
@@ -193,7 +177,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
         // Stack all timestep outputs to create proper sequence output
         // Each output has shape (batch_size, hidden_size)
         // We want final shape (seq_len, batch_size, hidden_size)
-        let _output_tensors: Vec<&Tensor<T>> = outputs.iter().collect();
+        let _output_tensors: Vec<&Tensor<T, CpuBackend>> = outputs.iter().collect();
 
         // First, add sequence dimension to each output: (batch_size, hidden_size) -> (1, batch_size, hidden_size)
         let mut expanded_outputs = Vec::new();
@@ -203,14 +187,14 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
         }
 
         // Then concatenate along sequence dimension (dim 0)
-        let expanded_refs: Vec<&Tensor<T>> = expanded_outputs.iter().collect();
-        let output = reduction::cat(&expanded_refs, 0)?;
+        let expanded_refs: Vec<&Tensor<T, CpuBackend>> = expanded_outputs.iter().collect();
+        let output = tensor_cat(&expanded_refs, 0)?;
         let h_n = h_current;
 
         Ok((output, h_n))
     }
 
-    pub fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = vec![&self.weight_ih, &self.weight_hh];
         if let Some(ref bias_ih) = self.bias_ih {
             params.push(bias_ih);
@@ -221,7 +205,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
         params
     }
 
-    pub fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = vec![&mut self.weight_ih, &mut self.weight_hh];
         if let Some(ref mut bias_ih) = self.bias_ih {
             params.push(bias_ih);
@@ -233,39 +217,28 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Rnn<T> {
     }
 }
 
-/// RNNCell (Recurrent Neural Network Cell)
-///
-/// A single RNN cell that processes one timestep at a time.
-/// Compatible with PyTorch's `torch.nn.RNNCell`.
 #[derive(Debug, Clone)]
 pub struct RnnCell<T: FloatDtype> {
     /// Input-to-hidden weights, shape (hidden_size, input_size)
-    pub weight_ih: Tensor<T>,
+    pub weight_ih: Tensor<T, CpuBackend>,
     /// Hidden-to-hidden weights, shape (hidden_size, hidden_size)
-    pub weight_hh: Tensor<T>,
+    pub weight_hh: Tensor<T, CpuBackend>,
     /// Input-to-hidden bias, shape (hidden_size,)
-    pub bias_ih: Option<Tensor<T>>,
+    pub bias_ih: Option<Tensor<T, CpuBackend>>,
     /// Hidden-to-hidden bias, shape (hidden_size,)
-    pub bias_hh: Option<Tensor<T>>,
+    pub bias_hh: Option<Tensor<T, CpuBackend>>,
     /// Number of input features
     pub input_size: usize,
     /// Number of hidden features
     pub hidden_size: usize,
 }
 
-impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> RnnCell<T> {
+impl<T: FloatDtype + SampleUniform> RnnCell<T> {
     /// Create a new RNNCell
     ///
     /// # Arguments
     /// * `input_size` - Number of input features
     /// * `hidden_size` - Number of hidden features
-    ///
-    /// # Example
-    /// ```rust
-    /// use coeus_nn::RnnCell;
-    ///
-    /// let rnn_cell = RnnCell::<f32>::new(10, 20);
-    /// ```
     pub fn new(input_size: usize, hidden_size: usize) -> Self {
         let mut rng = rand::thread_rng();
 
@@ -276,36 +249,36 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> RnnCell<T> {
         let weight_ih_data: Vec<T> = (0..hidden_size * input_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-ih_bound..ih_bound);
-                T::from_f64(val).unwrap()
+                <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
         let weight_hh_data: Vec<T> = (0..hidden_size * hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-hh_bound..hh_bound);
-                T::from_f64(val).unwrap()
+                <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
-        let weight_ih = Tensor::from_vec(weight_ih_data, vec![hidden_size, input_size]);
-        let weight_hh = Tensor::from_vec(weight_hh_data, vec![hidden_size, hidden_size]);
+        let weight_ih = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
+        let weight_hh = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
         let bias_ih_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-ih_bound..ih_bound);
-                T::from_f64(val).unwrap()
+                <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
         let bias_hh_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-hh_bound..hh_bound);
-                T::from_f64(val).unwrap()
+                <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
-        let bias_ih = Some(Tensor::from_vec(bias_ih_data, vec![hidden_size]));
-        let bias_hh = Some(Tensor::from_vec(bias_hh_data, vec![hidden_size]));
+        let bias_ih = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
+        let bias_hh = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
         Self {
             weight_ih,
@@ -325,13 +298,13 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> RnnCell<T> {
     ///
     /// # Returns
     /// Hidden state for this timestep, shape (batch_size, hidden_size)
-    pub fn forward(&self, input: &Tensor<T>, hx: Option<&Tensor<T>>) -> Result<Tensor<T>> {
+    pub fn forward(&self, input: &Tensor<T, CpuBackend>, hx: Option<&Tensor<T, CpuBackend>>) -> Result<Tensor<T, CpuBackend>, NNError> {
         let batch_size = input.shape()[0];
 
         // Initialize hidden state if not provided
         let h_prev = hx
             .cloned()
-            .unwrap_or_else(|| Tensor::zeros(vec![batch_size, self.hidden_size]));
+            .unwrap_or_else(|| Tensor::zeros(vec![batch_size, self.hidden_size]).unwrap_grad());
 
         // h_t = tanh(W_ih @ x_t + W_hh @ h_{t-1} + b_ih + b_hh)
         let weight_ih_t = self.weight_ih.t()?;
@@ -340,23 +313,25 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> RnnCell<T> {
         let weight_hh_t = self.weight_hh.t()?;
         let h_contrib = h_prev.matmul(&weight_hh_t)?;
 
-        let mut combined = (&x_contrib + &h_contrib)?;
+        let mut combined = (&x_contrib + &h_contrib).unwrap();
 
         // Add biases if present
         if let Some(ref bias_ih) = self.bias_ih {
+            // Bias broadcasting: reshape bias from (hidden_size,) to (1, hidden_size) for broadcasting
             let bias_ih_broadcast = bias_ih.reshape(vec![1, self.hidden_size])?;
-            combined = (&combined + &bias_ih_broadcast)?;
+            combined = (&x_contrib + &h_contrib).unwrap();
         }
         if let Some(ref bias_hh) = self.bias_hh {
+            // Bias broadcasting: reshape bias from (hidden_size,) to (1, hidden_size) for broadcasting
             let bias_hh_broadcast = bias_hh.reshape(vec![1, self.hidden_size])?;
-            combined = (&combined + &bias_hh_broadcast)?;
+            combined = (&x_contrib + &h_contrib).unwrap();
         }
 
         // Apply tanh activation
-        Ok(combined.tanh())
+        Ok(combined.tanh()?)
     }
 
-    pub fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = vec![&self.weight_ih, &self.weight_hh];
         if let Some(ref bias_ih) = self.bias_ih {
             params.push(bias_ih);
@@ -367,7 +342,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> RnnCell<T> {
         params
     }
 
-    pub fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = vec![&mut self.weight_ih, &mut self.weight_hh];
         if let Some(ref mut bias_ih) = self.bias_ih {
             params.push(bias_ih);
@@ -378,3 +353,5 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> RnnCell<T> {
         params
     }
 }
+
+

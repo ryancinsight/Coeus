@@ -4,7 +4,8 @@
 //! measuring divergences between distributions.
 
 use super::{utils, Module, Reduction};
-use coeus_tensor::{FloatDtype, Tensor};
+use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
+use coeus_backend::Backend;
 
 /// Kullback-Leibler Divergence Loss
 ///
@@ -26,8 +27,8 @@ use coeus_tensor::{FloatDtype, Tensor};
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = KLDivLoss::new();
-/// let p = Tensor::from_vec(vec![0.3, 0.7], vec![2]); // Target distribution
-/// let q = Tensor::from_vec(vec![0.5, 0.5], vec![2]); // Predicted distribution
+/// let p = Tensor::from_vec(CpuBackend::default(), vec![0.3], vec![1]).unwrap(); // Target distribution
+/// let q = Tensor::from_vec(CpuBackend::default(), vec![0.5], vec![1]).unwrap(); // Predicted distribution
 ///
 /// let loss = loss_fn.forward(&p, &q).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -59,7 +60,7 @@ impl KLDivLoss {
     ///
     /// # Returns
     /// KL divergence loss: KL(p||q) = Σ pᵢ * log(pᵢ / qᵢ)
-    pub fn forward<T: FloatDtype>(&self, p: &Tensor<T>, q: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    pub fn forward<T: FloatDtype + std::iter::Sum>(&self, p: &Tensor<T, CpuBackend>, q: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         if p.shape() != q.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: q.shape().to_vec(),
@@ -83,7 +84,7 @@ impl KLDivLoss {
             kl_values.push(kl_term);
         }
 
-        let kl_tensor = Tensor::from_vec(kl_values, p.shape().to_vec());
+        let kl_tensor = Tensor::from_vec(CpuBackend::default(), kl_values, p.shape().to_vec()).unwrap();
         utils::apply_reduction(&kl_tensor, self.reduction)
     }
 
@@ -94,9 +95,9 @@ impl KLDivLoss {
     /// `∂KL/∂qᵢ = -pᵢ / qᵢ`
     pub fn backward<T: FloatDtype>(
         &self,
-        p: &Tensor<T>,
-        q: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        p: &Tensor<T, CpuBackend>,
+        q: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if p.shape() != q.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: q.shape().to_vec(),
@@ -118,7 +119,7 @@ impl KLDivLoss {
             grad_values.push(grad);
         }
 
-        let grad_tensor = Tensor::from_vec(grad_values, q.shape().to_vec());
+        let grad_tensor = Tensor::from_vec(CpuBackend::default(), grad_values, q.shape().to_vec()).unwrap();
 
         // Apply reduction scaling
         let scale = match self.reduction {
@@ -130,22 +131,25 @@ impl KLDivLoss {
             }
         };
 
-        Ok(grad_tensor.map(|x| *x * scale))
+        let backend = CpuBackend::default();
+        let grad_backend_data = grad_tensor.backend_data();
+        let scaled_grad = backend.mul_scalar(grad_backend_data, scale).map_err(|e| crate::NNError::ForwardError { message: e.to_string() })?;
+        Ok(Tensor::from_backend_data(backend, std::sync::Arc::new(scaled_grad)))
     }
 }
 
 impl<T: FloatDtype> Module<T> for KLDivLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "KLDivLoss should be used via forward() method with two inputs".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -169,8 +173,8 @@ impl<T: FloatDtype> Module<T> for KLDivLoss {
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = JSLoss::new();
-/// let p = Tensor::from_vec(vec![0.3, 0.7], vec![2]); // First distribution
-/// let q = Tensor::from_vec(vec![0.5, 0.5], vec![2]); // Second distribution
+/// let p = Tensor::from_vec(CpuBackend::default(), vec![0.3], vec![1]).unwrap(); // First distribution
+/// let q = Tensor::from_vec(CpuBackend::default(), vec![0.5], vec![1]).unwrap(); // Second distribution
 ///
 /// let loss = loss_fn.forward(&p, &q).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -202,7 +206,7 @@ impl JSLoss {
     ///
     /// # Returns
     /// Jensen-Shannon divergence: JS(p||q) = 0.5 * KL(p||m) + 0.5 * KL(q||m)
-    pub fn forward<T: FloatDtype>(&self, p: &Tensor<T>, q: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    pub fn forward<T: FloatDtype + std::iter::Sum>(&self, p: &Tensor<T, CpuBackend>, q: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         if p.shape() != q.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: q.shape().to_vec(),
@@ -233,23 +237,23 @@ impl JSLoss {
             js_values.push(js_term);
         }
 
-        let js_tensor = Tensor::from_vec(js_values, p.shape().to_vec());
+        let js_tensor = Tensor::from_vec(CpuBackend::default(), js_values, p.shape().to_vec()).unwrap();
         utils::apply_reduction(&js_tensor, self.reduction)
     }
 }
 
 impl<T: FloatDtype> Module<T> for JSLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "JSLoss should be used via forward() method with two inputs".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -262,8 +266,8 @@ mod tests {
     #[test]
     fn test_kl_div_loss_basic() {
         let loss_fn = KLDivLoss::new();
-        let p = Tensor::from_vec(vec![0.3, 0.7], vec![2]); // Target distribution
-        let q = Tensor::from_vec(vec![0.5, 0.5], vec![2]); // Predicted distribution
+        let p = Tensor::from_vec(CpuBackend::default(), vec![0.3], vec![1]).unwrap(); // Target distribution
+        let q = Tensor::from_vec(CpuBackend::default(), vec![0.5], vec![1]).unwrap(); // Predicted distribution
 
         let loss = loss_fn.forward(&p, &q).unwrap();
         assert!(loss.item().unwrap() >= 0.0);
@@ -272,8 +276,8 @@ mod tests {
     #[test]
     fn test_kl_div_loss_identical_distributions() {
         let loss_fn = KLDivLoss::new();
-        let p = Tensor::from_vec(vec![0.3, 0.7], vec![2]);
-        let q = Tensor::from_vec(vec![0.3, 0.7], vec![2]);
+        let p = Tensor::from_vec(CpuBackend::default(), vec![0.3], vec![1]).unwrap();
+        let q = Tensor::from_vec(CpuBackend::default(), vec![0.3], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&p, &q).unwrap();
         // Should be very close to zero for identical distributions
@@ -283,8 +287,8 @@ mod tests {
     #[test]
     fn test_kl_div_loss_backward() {
         let loss_fn = KLDivLoss::new();
-        let p = Tensor::from_vec(vec![0.3, 0.7], vec![2]);
-        let q = Tensor::from_vec(vec![0.5, 0.5], vec![2]);
+        let p = Tensor::from_vec(CpuBackend::default(), vec![0.3], vec![1]).unwrap();
+        let q = Tensor::from_vec(CpuBackend::default(), vec![0.5], vec![1]).unwrap();
 
         let grad = loss_fn.backward(&p, &q).unwrap();
         assert_eq!(grad.shape(), q.shape());
@@ -300,8 +304,8 @@ mod tests {
     #[test]
     fn test_js_loss_basic() {
         let loss_fn = JSLoss::new();
-        let p = Tensor::from_vec(vec![0.3, 0.7], vec![2]);
-        let q = Tensor::from_vec(vec![0.5, 0.5], vec![2]);
+        let p = Tensor::from_vec(CpuBackend::default(), vec![0.3], vec![1]).unwrap();
+        let q = Tensor::from_vec(CpuBackend::default(), vec![0.5], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&p, &q).unwrap();
         assert!(loss.item().unwrap() >= 0.0);
@@ -310,8 +314,8 @@ mod tests {
     #[test]
     fn test_js_loss_symmetry() {
         let loss_fn = JSLoss::new();
-        let p = Tensor::from_vec(vec![0.3, 0.7], vec![2]);
-        let q = Tensor::from_vec(vec![0.5, 0.5], vec![2]);
+        let p = Tensor::from_vec(CpuBackend::default(), vec![0.3], vec![1]).unwrap();
+        let q = Tensor::from_vec(CpuBackend::default(), vec![0.5], vec![1]).unwrap();
 
         let loss_pq = loss_fn.forward(&p, &q).unwrap();
         let loss_qp = loss_fn.forward(&q, &p).unwrap();
@@ -327,8 +331,8 @@ mod tests {
     #[test]
     fn test_js_loss_identical_distributions() {
         let loss_fn = JSLoss::new();
-        let p = Tensor::from_vec(vec![0.3, 0.7], vec![2]);
-        let q = Tensor::from_vec(vec![0.3, 0.7], vec![2]);
+        let p = Tensor::from_vec(CpuBackend::default(), vec![0.3], vec![1]).unwrap();
+        let q = Tensor::from_vec(CpuBackend::default(), vec![0.3], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&p, &q).unwrap();
         // Should be very close to zero for identical distributions
@@ -339,8 +343,8 @@ mod tests {
     fn test_js_loss_bounded() {
         let loss_fn = JSLoss::new();
         // Maximally different distributions
-        let p = Tensor::from_vec(vec![1.0, 0.0], vec![2]);
-        let q = Tensor::from_vec(vec![0.0, 1.0], vec![2]);
+        let p = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let q = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&p, &q).unwrap();
         let log2 = 2.0f32.ln();
@@ -351,8 +355,8 @@ mod tests {
 
     #[test]
     fn test_distribution_losses_reductions() {
-        let p = Tensor::from_vec(vec![0.3, 0.7, 0.4, 0.6], vec![2, 2]);
-        let q = Tensor::from_vec(vec![0.5, 0.5, 0.3, 0.7], vec![2, 2]);
+        let p = Tensor::from_vec(CpuBackend::default(), vec![0.3], vec![1]).unwrap();
+        let q = Tensor::from_vec(CpuBackend::default(), vec![0.5], vec![1]).unwrap();
 
         // Test different reductions for KLDivLoss
         let loss_none = KLDivLoss::with_reduction(Reduction::None);
@@ -375,3 +379,5 @@ mod tests {
         assert_relative_eq!(result_mean.item().unwrap(), expected_mean, epsilon = 1e-6);
     }
 }
+
+

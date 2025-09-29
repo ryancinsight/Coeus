@@ -5,7 +5,7 @@
 //! making it efficient for sparse updates common in embedding layers.
 
 use crate::{BaseOptimizer, Optimizer, ParamGroup, Result};
-use coeus_tensor::{Add, Div, Mul, Sub, Tensor};
+use coeus_tensor::{Add, Div, Mul, Sub, Tensor, ops::arithmetic::sqrt};
 use std::collections::HashMap;
 
 /// Sparse Adam optimizer
@@ -119,7 +119,7 @@ impl<T: coeus_dtype::FloatDtype> SparseAdam<T> {
     }
 }
 
-impl<T: coeus_dtype::FloatDtype> Optimizer<T> for SparseAdam<T> {
+impl<T: coeus_dtype::FloatDtype> Optimizer<T, CpuBackend> for SparseAdam<T> {
     fn step(&mut self) -> Result<()> {
         for group in self.base.param_groups_mut() {
             let lr = group.lr;
@@ -134,16 +134,16 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for SparseAdam<T> {
                 // Get or create moment buffers (sparse - only allocate for non-zero gradients)
                 let exp_avg = param
                     .get_buffer("exp_avg")
-                    .unwrap_or_else(|| Tensor::zeros(param.shape().to_vec()));
+                    .unwrap_or_else(|| Tensor::zeros(param.backend().clone(), param.shape().to_vec()).expect("Failed to create zeros tensor"));
 
                 let exp_avg_sq = param
                     .get_buffer("exp_avg_sq")
-                    .unwrap_or_else(|| Tensor::zeros(param.shape().to_vec()));
+                    .unwrap_or_else(|| Tensor::zeros(param.backend().clone(), param.shape().to_vec()).expect("Failed to create zeros tensor"));
 
                 // Get step count
                 let step_count_tensor = param
                     .get_buffer("step")
-                    .unwrap_or_else(|| Tensor::from_vec(vec![T::one()], vec![1]));
+                    .unwrap_or_else(|| Tensor::from_vec(param.backend().clone(), vec![T::one()], vec![1]).unwrap());
                 let step_count = step_count_tensor.data()[0];
 
                 // Update moments only for parameters with non-zero gradients
@@ -152,15 +152,15 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for SparseAdam<T> {
 
                 // Update biased first moment estimate
                 // exp_avg = beta1 * exp_avg + (1 - beta1) * grad
-                let exp_avg_scaled = exp_avg.mul(&Tensor::scalar(self.beta1))?;
-                let grad_term = grad.mul(&Tensor::scalar(T::one() - self.beta1))?;
-                let exp_avg_new = exp_avg_scaled.add(&grad_term)?;
+                let exp_avg_scaled = (&exp_avg * &Tensor::scalar(self.beta1).unwrap()).unwrap();
+                let grad_term = (&grad * &Tensor::scalar(T::one() - self.beta1).unwrap()).unwrap();
+                let exp_avg_new = (&exp_avg_scaled + &grad_term).unwrap();
 
                 // Update biased second moment estimate
-                let grad_sq = grad.mul(&grad)?;
-                let exp_avg_sq_scaled = exp_avg_sq.mul(&Tensor::scalar(self.beta2))?;
-                let grad_sq_term = grad_sq.mul(&Tensor::scalar(T::one() - self.beta2))?;
-                let exp_avg_sq_new = exp_avg_sq_scaled.add(&grad_sq_term)?;
+                let grad_sq = (&grad * &grad).unwrap();
+                let exp_avg_sq_scaled = (&exp_avg_sq * &Tensor::scalar(self.beta2).unwrap()).unwrap();
+                let grad_sq_term = (&grad_sq * &Tensor::scalar(T::one() - self.beta2).unwrap()).unwrap();
+                let exp_avg_sq_new = (&exp_avg_sq_scaled + &grad_sq_term).unwrap();
 
                 // Bias correction
                 let bias_correction1 = T::one() - self.beta1.powf(step_count);
@@ -169,20 +169,20 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for SparseAdam<T> {
                 let step_size = lr * (bias_correction2.sqrt()) / bias_correction1;
 
                 // Compute update
-                let exp_avg_sq_sqrt = exp_avg_sq_new.sqrt();
-                let denom = exp_avg_sq_sqrt.add(&Tensor::scalar(self.eps))?;
-                let exp_avg_scaled = exp_avg_new.mul(&Tensor::scalar(step_size))?;
-                let update = exp_avg_scaled.div(&denom)?;
+                let exp_avg_sq_sqrt = exp_avg_sq_new.sqrt().unwrap();
+                let denom = (&exp_avg_sq_sqrt + &Tensor::scalar(self.eps).unwrap()).unwrap();
+                let exp_avg_scaled = (&exp_avg_new * &Tensor::scalar(step_size).unwrap()).unwrap();
+                let update = (&exp_avg_scaled / &denom).unwrap();
 
                 // Apply update
-                *param = param.sub(&update)?;
+                *param = (&*param - &update).unwrap();
 
                 // Store buffers
-                param.set_buffer("exp_avg", exp_avg_new);
-                param.set_buffer("exp_avg_sq", exp_avg_sq_new);
+                param.set_buffer("exp_avg".to_string(), exp_avg_new);
+                param.set_buffer("exp_avg_sq".to_string(), exp_avg_sq_new);
                 param.set_buffer(
-                    "step",
-                    Tensor::from_vec(vec![step_count + T::one()], vec![1]),
+                    "step".to_string(),
+                    Tensor::from_vec(param.backend().clone(), vec![step_count + T::one()], vec![1]).unwrap(),
                 );
             }
         }

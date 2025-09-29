@@ -1,5 +1,6 @@
 //! Executable example demonstrating automatic differentiation
 
+use coeus_backend::CpuBackend;
 use coeus_tensor::Tensor;
 
 pub fn run_autograd_demo() {
@@ -11,7 +12,7 @@ pub fn run_autograd_demo() {
     println!("-------------------------------");
 
     // f(x) = x², f'(x) = 2x
-    let mut x = Tensor::scalar(3.0);
+    let mut x = Tensor::from_vec(CpuBackend::default(), vec![3.0], vec![1]).unwrap();
     x.set_requires_grad(true);
 
     let y = (&x * &x).unwrap();
@@ -28,11 +29,11 @@ pub fn run_autograd_demo() {
     println!("----------------------");
 
     // f(x) = sin(e^x), f'(x) = cos(e^x) * e^x
-    let mut x2 = Tensor::scalar(0.0);
+    let mut x2 = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
     x2.set_requires_grad(true);
 
-    let exp_x = x2.exp();
-    let sin_exp_x = exp_x.sin();
+    let exp_x = x2.exp().unwrap();
+    let sin_exp_x = exp_x.sin().unwrap();
     sin_exp_x.backward().unwrap();
 
     let x_val: f64 = x2.as_scalar().unwrap();
@@ -48,14 +49,14 @@ pub fn run_autograd_demo() {
     println!("----------------------------");
 
     // f(a,b) = a² * b + sin(a), ∇f = [2*a*b + cos(a), a²]
-    let mut a = Tensor::scalar(2.0);
-    let mut b = Tensor::scalar(3.0);
+    let mut a = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap();
+    let mut b = Tensor::from_vec(CpuBackend::default(), vec![3.0], vec![1]).unwrap();
     a.set_requires_grad(true);
     b.set_requires_grad(true);
 
     let a_squared = (&a * &a).unwrap();
     let a_squared_b = (&a_squared * &b).unwrap();
-    let sin_a = a.sin();
+    let sin_a = a.sin().unwrap();
     let result = (&a_squared_b + &sin_a).unwrap();
 
     result.backward().unwrap();
@@ -81,8 +82,8 @@ pub fn run_autograd_demo() {
     println!("\n🔄 Matrix Operations with Gradients:");
     println!("------------------------------------");
 
-    let mut m1 = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
-    let mut m2 = Tensor::from_vec(vec![5.0, 6.0, 7.0, 8.0], vec![2, 2]);
+    let mut m1 = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]).unwrap();
+    let mut m2 = Tensor::from_vec(CpuBackend::default(), vec![5.0, 6.0, 7.0, 8.0], vec![2, 2]).unwrap();
     m1.set_requires_grad(true);
     m2.set_requires_grad(true);
 

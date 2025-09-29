@@ -4,13 +4,14 @@
 //! that form the foundation of the transformation pipeline.
 
 use crate::Result;
-use coeus_tensor::Tensor;
+use coeus_tensor::{Tensor, CpuBackend};
+use coeus_backend::Backend;
 use rand::Rng;
 
 /// Trait for data transformations
-pub trait Transform<T: coeus_dtype::Dtype> {
+pub trait Transform<T: coeus_dtype::Dtype, B: Backend<T> + Clone + Send + Sync> {
     /// Apply the transformation to the input tensor
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>>;
+    fn transform(&self, input: &Tensor<T, B>) -> Result<Tensor<T, B>>;
 }
 
 /// Normalize transform
@@ -40,8 +41,8 @@ impl<T: coeus_dtype::Dtype + num_traits::Float> Normalize<T> {
     }
 }
 
-impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T> for Normalize<T> {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T, CpuBackend> for Normalize<T> {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // Handle empty mean/std case - return input unchanged
         if self.mean.is_empty() || self.std.is_empty() {
             return Ok(input.clone());
@@ -61,20 +62,24 @@ impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T> for Normalize<T> {
                 let end_idx = (c + 1) * channel_size;
 
                 // Normalize each channel: (channel_data - mean[c]) / std[c]
+                let mut data = result.data().to_vec();
                 for i in start_idx..end_idx {
-                    if let Some(value) = result.data_mut().get_mut(i) {
-                        let normalized = (*value - self.mean[c]) / self.std[c];
-                        *value = normalized;
+                    if i < data.len() {
+                        let normalized = (data[i] - self.mean[c]) / self.std[c];
+                        data[i] = normalized;
                     }
                 }
+                result = Tensor::from_vec(result.backend().clone(), data, result.shape().to_vec())?;
             }
         } else {
             // Simple per-element normalization for non-image tensors
-            for (i, value) in result.data_mut().iter_mut().enumerate() {
+            let mut data = result.data().to_vec();
+            for i in 0..data.len() {
                 let mean_idx = i % self.mean.len();
                 let std_idx = i % self.std.len();
-                *value = (*value - self.mean[mean_idx]) / self.std[std_idx];
+                data[i] = (data[i] - self.mean[mean_idx]) / self.std[std_idx];
             }
+            result = Tensor::from_vec(result.backend().clone(), data, result.shape().to_vec())?;
         }
 
         Ok(result)
@@ -110,8 +115,8 @@ impl RandomCrop {
     }
 }
 
-impl<T: coeus_dtype::Dtype> Transform<T> for RandomCrop {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype> Transform<T, CpuBackend> for RandomCrop {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         let input_shape = input.shape();
         if input_shape.len() < 2 {
             return Err(Box::<dyn std::error::Error + Send + Sync>::from(
@@ -171,7 +176,7 @@ impl<T: coeus_dtype::Dtype> Transform<T> for RandomCrop {
             }
 
             let cropped_shape = vec![crop_height, crop_width];
-            Ok(Tensor::from_vec(cropped_data, cropped_shape))
+            Tensor::from_vec(CpuBackend::new(), cropped_data, cropped_shape).map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(format!("{}", e)))
         } else {
             // Handle multi-dimensional tensors (e.g., batch x channels x height x width)
             // Apply cropping to the last two dimensions (spatial dimensions)
@@ -234,7 +239,7 @@ impl<T: coeus_dtype::Dtype> Transform<T> for RandomCrop {
                 }
             }
 
-            Ok(Tensor::from_vec(output_data, output_shape))
+            Tensor::from_vec(CpuBackend::new(), output_data, output_shape).map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(format!("{}", e)))
         }
     }
 }
@@ -264,7 +269,7 @@ impl RandomHorizontalFlip {
     }
 
     /// Internal function to perform horizontal flip
-    fn flip_horizontal<T: coeus_dtype::Dtype>(input: &Tensor<T>) -> Result<Tensor<T>> {
+    fn flip_horizontal<T: coeus_dtype::Dtype>(input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         let input_shape = input.shape();
         let ndim = input_shape.len();
 
@@ -289,7 +294,7 @@ impl RandomHorizontalFlip {
                 }
             }
 
-            Ok(Tensor::from_vec(flipped_data, input_shape.to_vec()))
+            Tensor::from_vec(CpuBackend::new(), flipped_data, input_shape.to_vec()).map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(format!("{}", e)))
         } else {
             // Multi-dimensional case: [..., height, width]
             let batch_dims: Vec<usize> = input_shape[..ndim - 2].to_vec();
@@ -310,13 +315,13 @@ impl RandomHorizontalFlip {
                 }
             }
 
-            Ok(Tensor::from_vec(flipped_data, input_shape.to_vec()))
+            Tensor::from_vec(CpuBackend::new(), flipped_data, input_shape.to_vec()).map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(format!("{}", e)))
         }
     }
 }
 
-impl<T: coeus_dtype::Dtype> Transform<T> for RandomHorizontalFlip {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype> Transform<T, CpuBackend> for RandomHorizontalFlip {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // Generate random number to decide whether to flip
         let mut rng = rand::thread_rng();
         let rand_val: f64 = rng.gen();
@@ -334,19 +339,19 @@ impl<T: coeus_dtype::Dtype> Transform<T> for RandomHorizontalFlip {
 ///
 /// Applies a sequence of transforms in order
 /// Compatible with PyTorch's `transforms.Compose`
-pub struct Compose<T: coeus_dtype::Dtype> {
-    transforms: Vec<Box<dyn Transform<T>>>,
+pub struct Compose<T: coeus_dtype::Dtype, B: Backend<T> + Clone + Send + Sync> {
+    transforms: Vec<Box<dyn Transform<T, B>>>,
 }
 
-impl<T: coeus_dtype::Dtype> Compose<T> {
+impl<T: coeus_dtype::Dtype, B: Backend<T> + Clone + Send + Sync> Compose<T, B> {
     /// Create a new compose transform
-    pub fn new(transforms: Vec<Box<dyn Transform<T>>>) -> Self {
+    pub fn new(transforms: Vec<Box<dyn Transform<T, B>>>) -> Self {
         Self { transforms }
     }
 }
 
-impl<T: coeus_dtype::Dtype> Transform<T> for Compose<T> {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype> Transform<T, CpuBackend> for Compose<T, CpuBackend> {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         let mut result = input.clone();
 
         for transform in &self.transforms {
@@ -377,8 +382,8 @@ impl Default for ToTensor {
     }
 }
 
-impl<T: coeus_dtype::Dtype> Transform<T> for ToTensor {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype> Transform<T, CpuBackend> for ToTensor {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // ToTensor typically converts various data types to tensors
         // Since input is already a tensor, return a clone
         // In a full implementation, this could handle conversion from other data structures
@@ -391,14 +396,14 @@ impl<T: coeus_dtype::Dtype> Transform<T> for ToTensor {
 /// Applies a custom function to the input tensor
 /// Compatible with PyTorch's `transforms.Lambda`
 #[derive(Clone)]
-pub struct Lambda<F, T: coeus_dtype::Dtype> {
+pub struct Lambda<F, T: coeus_dtype::Dtype, B: Backend<T> + Clone + Send + Sync> {
     func: F,
-    _phantom: std::marker::PhantomData<T>,
+    _phantom: std::marker::PhantomData<(T, B)>,
 }
 
-impl<F, T: coeus_dtype::Dtype> Lambda<F, T>
+impl<F, T: coeus_dtype::Dtype, B: Backend<T> + Clone + Send + Sync> Lambda<F, T, B>
 where
-    F: Fn(&Tensor<T>) -> Result<Tensor<T>>,
+    F: Fn(&Tensor<T, B>) -> Result<Tensor<T, B>>,
 {
     /// Create a new lambda transform
     pub fn new(func: F) -> Self {
@@ -409,11 +414,11 @@ where
     }
 }
 
-impl<F, T: coeus_dtype::Dtype> Transform<T> for Lambda<F, T>
+impl<F, T: coeus_dtype::Dtype, B: Backend<T> + Clone + Send + Sync> Transform<T, CpuBackend> for Lambda<F, T, B>
 where
-    F: Fn(&Tensor<T>) -> Result<Tensor<T>>,
+    F: Fn(&Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>>,
 {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         (self.func)(input)
     }
 }
@@ -438,8 +443,8 @@ impl Default for Identity {
     }
 }
 
-impl<T: coeus_dtype::Dtype> Transform<T> for Identity {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype> Transform<T, CpuBackend> for Identity {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         Ok(input.clone())
     }
 }

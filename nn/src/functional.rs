@@ -24,9 +24,9 @@
 //! use coeus_nn::functional as F;
 //! use coeus_tensor::Tensor;
 //!
-//! let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![1, 4]);
-//! let weight = Tensor::from_vec(vec![1.0, 0.0, -1.0, 2.0], vec![1, 4]);
-//! let bias = Some(Tensor::from_vec(vec![0.0], vec![1]));
+//! let input = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+//! let weight = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+//! let bias = Some(Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap());
 //!
 //! let output = F::linear(&input, &weight, bias.as_ref()).unwrap();
 //! ```
@@ -37,6 +37,7 @@
 //! - [Deep Learning Book](https://www.deeplearningbook.org/)
 
 use crate::{Module, Result};
+use coeus_backend::CpuBackend;
 use coeus_tensor::{FloatDtype, Tensor};
 
 /// Linear transformation
@@ -49,10 +50,10 @@ use coeus_tensor::{FloatDtype, Tensor};
 /// # Returns
 /// Output tensor = input @ weight.T + bias
 pub fn linear<T: FloatDtype + rand::distributions::uniform::SampleUniform>(
-    input: &Tensor<T>,
-    weight: &Tensor<T>,
-    bias: Option<&Tensor<T>>,
-) -> Result<Tensor<T>> {
+    input: &Tensor<T, CpuBackend>,
+    weight: &Tensor<T, CpuBackend>,
+    bias: Option<&Tensor<T, CpuBackend>>,
+) -> Result<Tensor<T, CpuBackend>> {
     let linear = crate::Linear::from_tensors(weight.clone(), bias.cloned())?;
     linear.forward(input)
 }
@@ -64,7 +65,7 @@ pub fn linear<T: FloatDtype + rand::distributions::uniform::SampleUniform>(
 ///
 /// # Returns
 /// Tensor with ReLU applied element-wise: `max(0, x)`
-pub fn relu<T: FloatDtype>(input: &Tensor<T>) -> Result<Tensor<T>> {
+pub fn relu<T: FloatDtype>(input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
     let relu = crate::ReLU::new();
     relu.forward(input)
 }
@@ -77,7 +78,7 @@ pub fn relu<T: FloatDtype>(input: &Tensor<T>) -> Result<Tensor<T>> {
 ///
 /// # Returns
 /// Tensor with Leaky ReLU applied element-wise: `max(αx, x)`
-pub fn leaky_relu<T: FloatDtype>(input: &Tensor<T>, negative_slope: T) -> Result<Tensor<T>> {
+pub fn leaky_relu<T: FloatDtype>(input: &Tensor<T, CpuBackend>, negative_slope: T) -> Result<Tensor<T, CpuBackend>> {
     let leaky_relu =
         crate::LeakyReLU::new_with_slope(coeus_dtype::Dtype::to_f64(&negative_slope).unwrap());
     leaky_relu.forward(input)
@@ -90,7 +91,7 @@ pub fn leaky_relu<T: FloatDtype>(input: &Tensor<T>, negative_slope: T) -> Result
 ///
 /// # Returns
 /// Tensor with GELU applied element-wise
-pub fn gelu<T: FloatDtype>(input: &Tensor<T>) -> Result<Tensor<T>> {
+pub fn gelu<T: FloatDtype>(input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
     let gelu = crate::GELU::new();
     gelu.forward(input)
 }
@@ -102,7 +103,7 @@ pub fn gelu<T: FloatDtype>(input: &Tensor<T>) -> Result<Tensor<T>> {
 ///
 /// # Returns
 /// Tensor with sigmoid applied element-wise: `1 / (1 + exp(-x))`
-pub fn sigmoid<T: FloatDtype>(input: &Tensor<T>) -> Result<Tensor<T>> {
+pub fn sigmoid<T: FloatDtype>(input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
     let sigmoid = crate::Sigmoid::new();
     sigmoid.forward(input)
 }
@@ -114,7 +115,7 @@ pub fn sigmoid<T: FloatDtype>(input: &Tensor<T>) -> Result<Tensor<T>> {
 ///
 /// # Returns
 /// Tensor with tanh applied element-wise: `(exp(x) - exp(-x)) / (exp(x) + exp(-x))`
-pub fn tanh<T: FloatDtype>(input: &Tensor<T>) -> Result<Tensor<T>> {
+pub fn tanh<T: FloatDtype>(input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
     let tanh = crate::Tanh::new();
     tanh.forward(input)
 }
@@ -127,7 +128,7 @@ pub fn tanh<T: FloatDtype>(input: &Tensor<T>) -> Result<Tensor<T>> {
 ///
 /// # Returns
 /// Tensor with softmax applied along specified dimension
-pub fn softmax<T: FloatDtype>(input: &Tensor<T>, dim: isize) -> Result<Tensor<T>> {
+pub fn softmax<T: FloatDtype>(input: &Tensor<T, CpuBackend>, dim: isize) -> Result<Tensor<T, CpuBackend>> {
     let dim = if dim == -1 {
         input.ndim() - 1
     } else {
@@ -145,7 +146,9 @@ pub fn softmax<T: FloatDtype>(input: &Tensor<T>, dim: isize) -> Result<Tensor<T>
 ///
 /// # Returns
 /// Tensor with log softmax applied along specified dimension
-pub fn log_softmax<T: FloatDtype>(input: &Tensor<T>, dim: isize) -> Result<Tensor<T>> {
+pub fn log_softmax<T: FloatDtype>(input: &Tensor<T, CpuBackend>, dim: isize) -> Result<Tensor<T, CpuBackend>> {
     let softmax_result = softmax(input, dim)?;
-    Ok(softmax_result.log())
+    Ok(softmax_result.log()?)
 }
+
+

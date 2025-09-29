@@ -18,4 +18,6 @@
 //! - [Ioffe & Szegedy, 2015 - Batch Normalization](https://arxiv.org/abs/1502.03167)
 
 use crate::Module;
-use coeus_tensor::{FloatDtype, Tensor};
+use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
+
+

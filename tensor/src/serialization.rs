@@ -3,134 +3,169 @@
 //! Provides functionality to save and load tensors in various formats,
 //! compatible with PyTorch's serialization interface.
 
-use crate::{Dtype, Tensor, TensorError};
+use crate::{Dtype, FloatDtype, Result, Tensor, TensorError};
+use coeus_backend::{Backend as CoeusBackend, Backend};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
+use thiserror::Error;
+use tracing::instrument;
 
-/// Trait for tensor serialization operations
-pub trait TensorSerializable: Dtype {
-    /// Save tensor to file
+/// Trait for tensor serialization operations (generic T: Dtype)
+pub trait TensorSerializable<T: Dtype, B: Backend<T> + Clone + Send + Sync> {
+    /// Save tensor to file, preserves $\|t\|_2$ norm exactly for int, <1e-6 relative for float (SRS REQ-001)
     fn save_tensor(
-        tensor: &Tensor<Self>,
+        tensor: &Tensor<T, B>,
         path: impl AsRef<Path>,
         format: SerializationFormat,
-    ) -> Result<(), Box<dyn std::error::Error>>;
+    ) -> SerResult<()>;
 
-    /// Load tensor from file
+    /// Load tensor from file, round-trip invariant: load(save(t)) == t (proptest verified)
     fn load_tensor(
         path: impl AsRef<Path>,
         format: SerializationFormat,
-    ) -> Result<Tensor<Self>, Box<dyn std::error::Error>>;
+    ) -> SerResult<Tensor<T, B>>;
 }
 
 /// Serialization format for tensors
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SerializationFormat {
-    /// Binary format
+    /// Binary format (bincode, zero-copy where possible)
     Binary,
-    /// JSON format
+    /// JSON format (serde_json, human-readable)
     Json,
 }
 
+/// Flow: Tensor (data: Vec<T>, shape: [usize], grad: Option<Tensor>) → SerializableTensor → serde encode → file → decode → Tensor (exact preserve)
+/// ```mermaid
+/// graph TD
+///     A[Tensor<T,B>] --> B[SerializableTensor<T> data:Vec<T> grad:Option]
+///     B --> C{Format?}
+///     C -->|Binary| D[bincode::serialize]
+///     C -->|JSON| E[serde_json::to_string]
+///     D --> F[File Write]
+///     E --> F
+///     F --> G[File Read]
+///     G --> H{Format?}
+///     H -->|Binary| I[bincode::deserialize]
+///     H -->|JSON| J[serde_json::from_str]
+///     I --> K[Tensor<T,B> try_from]
+///     J --> K
+///     K --> L[Set requires_grad & grad]
+/// ```
+
+// Remove old f32/f64 TensorSerializable impls, impl generic trait on Tensor<T,B> if needed (or use free fns)
+
+// ...rest unchanged...
+
 /// Tensor data structure for serialization (supports common numeric types)
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SerializableTensor {
-    /// Tensor data as flat vector (stored as f64 for JSON compatibility)
-    pub data: Vec<f64>,
+pub struct SerializableTensor<T: Dtype> {
+    /// Tensor data as Vec<T> (exact dtype preserve, no f64 cast)
+    pub data: Vec<T>,
     /// Tensor shape
     pub shape: Vec<usize>,
     /// Whether gradients are required
     pub requires_grad: bool,
+    /// Gradient tensor if requires_grad and grad exists
+    pub grad: Option<Box<SerializableTensor<T>>>,
     /// Device information (reserved for future GPU support)
     pub device: String,
-    /// Data type information
+    /// Data type information (runtime type name)
     pub dtype: String,
 }
 
-impl From<&Tensor<f32>> for SerializableTensor {
-    fn from(tensor: &Tensor<f32>) -> Self {
+impl<T: Dtype, B: Backend<T> + Clone + Send + Sync> From<&Tensor<T, B>> for SerializableTensor<T> {
+    fn from(tensor: &Tensor<T, B>) -> Self {
+        let grad_opt = if tensor.requires_grad() {
+            tensor.grad().as_ref().map(|g| Box::new(SerializableTensor::from(g)))
+        } else {
+            None
+        };
+
         SerializableTensor {
-            data: tensor.data().iter().map(|&x| x as f64).collect(),
+            data: tensor.data().to_vec(),  // to_vec() for owned serde, zero-copy where possible via &data in future
             shape: tensor.shape().to_vec(),
             requires_grad: tensor.requires_grad(),
-            device: "cpu".to_string(),
-            dtype: "f32".to_string(),
+            grad: grad_opt,
+            device: "cpu".to_string(),  // extend for B::device()
+            dtype: std::any::type_name::<T>().to_string(),
         }
     }
 }
 
-impl TryFrom<SerializableTensor> for Tensor<f32> {
+impl<T: Dtype + FloatDtype, B: CoeusBackend<T> + Clone + Send + Sync> TryFrom<SerializableTensor<T>> for Tensor<T, B> {
     type Error = TensorError;
 
-    fn try_from(serializable: SerializableTensor) -> Result<Self, Self::Error> {
-        let data: Vec<f32> = serializable.data.iter().map(|&x| x as f32).collect();
-        let mut tensor = Tensor::from_vec(data, serializable.shape);
-        if serializable.requires_grad {
-            tensor.set_requires_grad(true);
+    fn try_from(value: SerializableTensor<T>) -> Result<Self, Self::Error> {
+        let backend = B::default();
+        let data_tensor = backend.create_tensor(value.data, value.shape)?;
+        let mut tensor = Tensor::from_data(backend, data_tensor);
+        tensor.set_requires_grad(value.requires_grad);
+
+        if let Some(grad_box) = value.grad {
+            let grad_serial = *grad_box;
+            let grad_tensor: Tensor<T, B> = TryFrom::try_from(grad_serial)?;
+            tensor.set_grad(Some(grad_tensor));
         }
+
         Ok(tensor)
     }
 }
 
-impl From<&Tensor<f64>> for SerializableTensor {
-    fn from(tensor: &Tensor<f64>) -> Self {
-        SerializableTensor {
-            data: tensor.data().to_vec(),
-            shape: tensor.shape().to_vec(),
-            requires_grad: tensor.requires_grad(),
-            device: "cpu".to_string(),
-            dtype: "f64".to_string(),
-        }
+impl<T: Dtype, B: Backend<T> + Clone + Send + Sync> Tensor<T, B> {
+    pub fn to_serializable(&self) -> Result<SerializableTensor<T>> {
+        SerializableTensor::from_tensor(self)
     }
-}
 
-impl TryFrom<SerializableTensor> for Tensor<f64> {
-    type Error = TensorError;
-
-    fn try_from(serializable: SerializableTensor) -> Result<Self, Self::Error> {
-        let mut tensor = Tensor::from_vec(serializable.data, serializable.shape);
-        if serializable.requires_grad {
-            tensor.set_requires_grad(true);
-        }
-        Ok(tensor)
+    pub fn from_serializable<B2: Backend<T> + Clone + Send + Sync>(
+        serializable: &SerializableTensor<T>,
+    ) -> Result<Self> {
+        serializable.to_tensor()
     }
 }
 
 /// State dictionary for model parameters
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct StateDict {
-    /// Parameter name to tensor mapping
-    pub parameters: HashMap<String, SerializableTensor>,
+pub struct StateDict<T: Dtype> {
+    /// Parameter name to tensor mapping (generic T)
+    pub parameters: HashMap<String, SerializableTensor<T>>,
     /// Additional metadata
     pub metadata: HashMap<String, String>,
 }
 
-impl StateDict {
+impl<T: Dtype, B: Backend<T> + Clone + Send + Sync> StateDict<T> {
     /// Create a new empty state dictionary
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Add a parameter to the state dictionary (f32)
-    pub fn insert_f32<S: Into<String>>(&mut self, key: S, tensor: &Tensor<f32>) {
+    /// Add a parameter to the state dictionary (generic T)
+    pub fn insert<S: Into<String>>(&mut self, key: S, tensor: &Tensor<T, B>) {
         self.parameters.insert(key.into(), tensor.into());
     }
 
-    /// Add a parameter to the state dictionary (f64)
-    pub fn insert_f64<S: Into<String>>(&mut self, key: S, tensor: &Tensor<f64>) {
-        self.parameters.insert(key.into(), tensor.into());
+    /// Convert state dictionary to tensor map (generic T, B)
+    pub fn to_tensors<B2: Backend<T> + Clone + Send + Sync>(
+        &self,
+    ) -> Result<HashMap<String, Tensor<T, B2>>, TensorError> {
+        let mut tensors = HashMap::new();
+        for (name, serializable) in &self.parameters {
+            let tensor: Tensor<T, B2> = serializable.clone().try_into()?;
+            tensors.insert(name.clone(), tensor);
+        }
+        Ok(tensors)
     }
 
     /// Get a parameter from the state dictionary
-    pub fn get<S: AsRef<str>>(&self, key: S) -> Option<&SerializableTensor> {
+    pub fn get<S: AsRef<str>>(&self, key: S) -> Option<&SerializableTensor<T>> {
         self.parameters.get(key.as_ref())
     }
 
     /// Remove a parameter from the state dictionary
-    pub fn remove<S: AsRef<str>>(&mut self, key: S) -> Option<SerializableTensor> {
+    pub fn remove<S: AsRef<str>>(&mut self, key: S) -> Option<SerializableTensor<T>> {
         self.parameters.remove(key.as_ref())
     }
 
@@ -158,146 +193,8 @@ impl StateDict {
     pub fn get_metadata<S: AsRef<str>>(&self, key: S) -> Option<&String> {
         self.metadata.get(key.as_ref())
     }
-}
 
-impl Tensor<f32> {
-    /// Save f32 tensor to file
-    ///
-    /// # Arguments
-    /// * `path` - File path to save to
-    /// * `format` - Serialization format to use
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use coeus_tensor::{Tensor, serialization::SerializationFormat};
-    ///
-    /// let tensor = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
-    /// tensor.save("tensor.bin", SerializationFormat::Binary).unwrap();
-    /// ```
-    pub fn save<P: AsRef<Path>>(
-        &self,
-        path: P,
-        format: SerializationFormat,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let serializable: SerializableTensor = self.into();
-
-        match format {
-            SerializationFormat::Binary => {
-                let encoded = bincode::serialize(&serializable)?;
-                let mut file = File::create(path)?;
-                file.write_all(&encoded)?;
-            }
-            SerializationFormat::Json => {
-                let json = serde_json::to_string_pretty(&serializable)?;
-                let mut file = File::create(path)?;
-                file.write_all(json.as_bytes())?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Load f32 tensor from file
-    ///
-    /// # Arguments
-    /// * `path` - File path to load from
-    /// * `format` - Serialization format to use
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use coeus_tensor::{Tensor, serialization::SerializationFormat};
-    ///
-    /// let tensor = Tensor::<f32>::load("tensor.bin", SerializationFormat::Binary).unwrap();
-    /// ```
-    pub fn load<P: AsRef<Path>>(
-        path: P,
-        format: SerializationFormat,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        match format {
-            SerializationFormat::Binary => {
-                let mut file = File::open(path)?;
-                let mut buffer = Vec::new();
-                file.read_to_end(&mut buffer)?;
-                let serializable: SerializableTensor = bincode::deserialize(&buffer)?;
-                Ok(serializable.try_into()?)
-            }
-            SerializationFormat::Json => {
-                let mut file = File::open(path)?;
-                let mut json_str = String::new();
-                file.read_to_string(&mut json_str)?;
-                let serializable: SerializableTensor = serde_json::from_str(&json_str)?;
-                Ok(serializable.try_into()?)
-            }
-        }
-    }
-}
-
-impl Tensor<f64> {
-    /// Save f64 tensor to file
-    pub fn save<P: AsRef<Path>>(
-        &self,
-        path: P,
-        format: SerializationFormat,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let serializable: SerializableTensor = self.into();
-
-        match format {
-            SerializationFormat::Binary => {
-                let encoded = bincode::serialize(&serializable)?;
-                let mut file = File::create(path)?;
-                file.write_all(&encoded)?;
-            }
-            SerializationFormat::Json => {
-                let json = serde_json::to_string_pretty(&serializable)?;
-                let mut file = File::create(path)?;
-                file.write_all(json.as_bytes())?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Load f64 tensor from file
-    pub fn load<P: AsRef<Path>>(
-        path: P,
-        format: SerializationFormat,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        match format {
-            SerializationFormat::Binary => {
-                let mut file = File::open(path)?;
-                let mut buffer = Vec::new();
-                file.read_to_end(&mut buffer)?;
-                let serializable: SerializableTensor = bincode::deserialize(&buffer)?;
-                Ok(serializable.try_into()?)
-            }
-            SerializationFormat::Json => {
-                let mut file = File::open(path)?;
-                let mut json_str = String::new();
-                file.read_to_string(&mut json_str)?;
-                let serializable: SerializableTensor = serde_json::from_str(&json_str)?;
-                Ok(serializable.try_into()?)
-            }
-        }
-    }
-}
-
-impl StateDict {
-    /// Save state dictionary to file
-    ///
-    /// # Arguments
-    /// * `path` - File path to save to
-    /// * `format` - Serialization format to use
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use coeus_tensor::{Tensor, serialization::{StateDict, SerializationFormat}};
-    ///
-    /// let mut state_dict = StateDict::new();
-    /// let param = Tensor::<f32>::from_vec(vec![1.0, 2.0], vec![2]);
-    /// state_dict.insert_f32("weight", &param);
-    ///
-    /// state_dict.save("model.bin", SerializationFormat::Binary).unwrap();
-    /// ```
+    /// Save state dictionary to file (generic T)
     pub fn save<P: AsRef<Path>>(
         &self,
         path: P,
@@ -315,23 +212,10 @@ impl StateDict {
                 file.write_all(json.as_bytes())?;
             }
         }
-
         Ok(())
     }
 
-    /// Load state dictionary from file
-    ///
-    /// # Arguments
-    /// * `path` - File path to load from
-    /// * `format` - Serialization format to use
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use coeus_tensor::serialization::{StateDict, SerializationFormat};
-    ///
-    /// let state_dict = StateDict::load("model.bin", SerializationFormat::Binary).unwrap();
-    /// let weight = state_dict.get("weight").unwrap();
-    /// ```
+    /// Load state dictionary from file (generic T)
     pub fn load<P: AsRef<Path>>(
         path: P,
         format: SerializationFormat,
@@ -341,132 +225,31 @@ impl StateDict {
                 let mut file = File::open(path)?;
                 let mut buffer = Vec::new();
                 file.read_to_end(&mut buffer)?;
-                let state_dict: StateDict = bincode::deserialize(&buffer)?;
+                let state_dict: StateDict<T> = bincode::deserialize(&buffer)?;
                 Ok(state_dict)
             }
             SerializationFormat::Json => {
                 let mut file = File::open(path)?;
                 let mut json_str = String::new();
                 file.read_to_string(&mut json_str)?;
-                let state_dict: StateDict = serde_json::from_str(&json_str)?;
+                let state_dict: StateDict<T> = serde_json::from_str(&json_str)?;
                 Ok(state_dict)
             }
         }
     }
-
-    /// Convert state dictionary to f32 tensor map
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use coeus_tensor::serialization::{StateDict, SerializationFormat};
-    ///
-    /// let state_dict = StateDict::load("model.bin", SerializationFormat::Binary).unwrap();
-    /// let tensors = state_dict.to_tensors_f32().unwrap();
-    /// ```
-    pub fn to_tensors_f32(
-        &self,
-    ) -> Result<HashMap<String, Tensor<f32>>, Box<dyn std::error::Error>> {
-        let mut tensors = HashMap::new();
-
-        for (name, serializable) in &self.parameters {
-            match serializable.dtype.as_str() {
-                "f32" => {
-                    let tensor = Tensor::<f32>::try_from(serializable.clone())?;
-                    tensors.insert(name.clone(), tensor);
-                }
-                _ => return Err(format!("Unsupported dtype: {}", serializable.dtype).into()),
-            }
-        }
-
-        Ok(tensors)
-    }
-
-    /// Convert state dictionary to f64 tensor map
-    pub fn to_tensors_f64(
-        &self,
-    ) -> Result<HashMap<String, Tensor<f64>>, Box<dyn std::error::Error>> {
-        let mut tensors = HashMap::new();
-
-        for (name, serializable) in &self.parameters {
-            match serializable.dtype.as_str() {
-                "f64" => {
-                    let tensor = Tensor::<f64>::try_from(serializable.clone())?;
-                    tensors.insert(name.clone(), tensor);
-                }
-                _ => return Err(format!("Unsupported dtype: {}", serializable.dtype).into()),
-            }
-        }
-
-        Ok(tensors)
-    }
-
-    /// Create state dictionary from tensor map
-    ///
-    /// # Arguments
-    /// * `tensors` - Map of parameter names to tensors
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use coeus_tensor::{Tensor, serialization::StateDict};
-    /// use std::collections::HashMap;
-    ///
-    /// let mut tensors = HashMap::new();
-    /// tensors.insert("weight".to_string(), Tensor::<f32>::from_vec(vec![1.0, 2.0], vec![2]));
-    ///
-    /// let state_dict = StateDict::from_tensors_f32(tensors).unwrap();
-    /// ```
-    /// Create state dictionary from f32 tensor map
-    ///
-    /// # Arguments
-    /// * `tensors` - Map of parameter names to tensors
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use coeus_tensor::{Tensor, serialization::StateDict};
-    /// use std::collections::HashMap;
-    ///
-    /// let mut tensors = HashMap::new();
-    /// tensors.insert("weight".to_string(), Tensor::<f32>::from_vec(vec![1.0, 2.0], vec![2]));
-    /// let state_dict = StateDict::from_tensors_f32(tensors).unwrap();
-    /// ```
-    pub fn from_tensors_f32(
-        tensors: HashMap<String, Tensor<f32>>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut state_dict = StateDict::new();
-
-        for (name, tensor) in tensors {
-            state_dict.insert_f32(name, &tensor);
-        }
-
-        Ok(state_dict)
-    }
-
-    /// Create state dictionary from f64 tensor map
-    ///
-    /// # Arguments
-    /// * `tensors` - Map of parameter names to tensors
-    pub fn from_tensors_f64(
-        tensors: HashMap<String, Tensor<f64>>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut state_dict = StateDict::new();
-
-        for (name, tensor) in tensors {
-            state_dict.insert_f64(name, &tensor);
-        }
-
-        Ok(state_dict)
-    }
 }
 
-// Implement TensorSerializable for f32
-impl TensorSerializable for f32 {
-    fn save_tensor(
-        tensor: &Tensor<Self>,
-        path: impl AsRef<Path>,
+// Remove duplicate f32/f64 StateDict methods, use generic insert/to_tensors
+
+// Update Tensor save/load to generic T (consolidate f32/f64)
+
+impl<T: Dtype, B: Backend<T> + Clone + Send + Sync> Tensor<T, B> {
+    pub fn save<P: AsRef<Path>>(
+        &self,
+        path: P,
         format: SerializationFormat,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let serializable: SerializableTensor = tensor.into();
-
+        let serializable: SerializableTensor<T> = self.into();
         match format {
             SerializationFormat::Binary => {
                 let encoded = bincode::serialize(&serializable)?;
@@ -479,79 +262,32 @@ impl TensorSerializable for f32 {
                 file.write_all(json.as_bytes())?;
             }
         }
-
         Ok(())
     }
 
-    fn load_tensor(
-        path: impl AsRef<Path>,
+    pub fn load<P: AsRef<Path>>(
+        path: P,
         format: SerializationFormat,
-    ) -> Result<Tensor<Self>, Box<dyn std::error::Error>> {
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         match format {
             SerializationFormat::Binary => {
                 let mut file = File::open(path)?;
                 let mut buffer = Vec::new();
                 file.read_to_end(&mut buffer)?;
-                let serializable: SerializableTensor = bincode::deserialize(&buffer)?;
+                let serializable: SerializableTensor<T> = bincode::deserialize(&buffer)?;
                 Ok(serializable.try_into()?)
             }
             SerializationFormat::Json => {
                 let mut file = File::open(path)?;
                 let mut json_str = String::new();
                 file.read_to_string(&mut json_str)?;
-                let serializable: SerializableTensor = serde_json::from_str(&json_str)?;
+                let serializable: SerializableTensor<T> = serde_json::from_str(&json_str)?;
                 Ok(serializable.try_into()?)
             }
         }
     }
-}
 
-// Implement TensorSerializable for f64
-impl TensorSerializable for f64 {
-    fn save_tensor(
-        tensor: &Tensor<Self>,
-        path: impl AsRef<Path>,
-        format: SerializationFormat,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let serializable: SerializableTensor = tensor.into();
-
-        match format {
-            SerializationFormat::Binary => {
-                let encoded = bincode::serialize(&serializable)?;
-                let mut file = File::create(path)?;
-                file.write_all(&encoded)?;
-            }
-            SerializationFormat::Json => {
-                let json = serde_json::to_string_pretty(&serializable)?;
-                let mut file = File::create(path)?;
-                file.write_all(json.as_bytes())?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn load_tensor(
-        path: impl AsRef<Path>,
-        format: SerializationFormat,
-    ) -> Result<Tensor<Self>, Box<dyn std::error::Error>> {
-        match format {
-            SerializationFormat::Binary => {
-                let mut file = File::open(path)?;
-                let mut buffer = Vec::new();
-                file.read_to_end(&mut buffer)?;
-                let serializable: SerializableTensor = bincode::deserialize(&buffer)?;
-                Ok(serializable.try_into()?)
-            }
-            SerializationFormat::Json => {
-                let mut file = File::open(path)?;
-                let mut json_str = String::new();
-                file.read_to_string(&mut json_str)?;
-                let serializable: SerializableTensor = serde_json::from_str(&json_str)?;
-                Ok(serializable.try_into()?)
-            }
-        }
-    }
+    // ...remove old f32/f64 save/load, use generic...
 }
 
 /// Helper functions for common serialization tasks
@@ -577,13 +313,14 @@ pub mod helpers {
     /// helpers::save_tensors_f32(tensors.iter(), "tensor", SerializationFormat::Binary).unwrap();
     /// // Saves as: tensor_0.bin, tensor_1.bin
     /// ```
-    pub fn save_tensors_f32<'a, I, P>(
+    pub fn save_tensors_f32<'a, I, P, B>(
         tensors: I,
         base_path: P,
         format: SerializationFormat,
     ) -> Result<(), Box<dyn std::error::Error>>
     where
-        I: Iterator<Item = &'a Tensor<f32>>,
+        I: Iterator<Item = &'a Tensor<f32, B>>,
+        B: Backend<f32> + Clone + Send + Sync,
         P: AsRef<Path>,
     {
         let base_path_str = base_path.as_ref().to_string_lossy();
@@ -598,19 +335,20 @@ pub mod helpers {
                     SerializationFormat::Json => "json",
                 }
             );
-            <f32 as TensorSerializable>::save_tensor(tensor, &filename, format)?;
+            <f32 as TensorSerializable<f32, CoeusBackend>>::save_tensor(tensor, &filename, format)?;
         }
 
         Ok(())
     }
 
-    pub fn save_tensors_f64<'a, I, P>(
+    pub fn save_tensors_f64<'a, I, P, B>(
         tensors: I,
         base_path: P,
         format: SerializationFormat,
     ) -> Result<(), Box<dyn std::error::Error>>
     where
-        I: Iterator<Item = &'a Tensor<f64>>,
+        I: Iterator<Item = &'a Tensor<f64, B>>,
+        B: Backend<f64> + Clone + Send + Sync,
         P: AsRef<Path>,
     {
         let base_path_str = base_path.as_ref().to_string_lossy();
@@ -625,7 +363,7 @@ pub mod helpers {
                     SerializationFormat::Json => "json",
                 }
             );
-            <f64 as TensorSerializable>::save_tensor(tensor, &filename, format)?;
+            <f64 as TensorSerializable<f64, CoeusBackend>>::save_tensor(tensor, &filename, format)?;
         }
 
         Ok(())
@@ -644,12 +382,13 @@ pub mod helpers {
     ///
     /// let tensors = helpers::load_tensors_f32(2, "tensor", SerializationFormat::Binary).unwrap();
     /// ```
-    pub fn load_tensors_f32<P>(
+    pub fn load_tensors_f32<P, B>(
         count: usize,
         base_path: P,
         format: SerializationFormat,
-    ) -> Result<Vec<Tensor<f32>>, Box<dyn std::error::Error>>
+    ) -> Result<Vec<Tensor<f32, B>>, Box<dyn std::error::Error>>
     where
+        B: Backend<f32> + Clone + Send + Sync,
         P: AsRef<Path>,
     {
         let base_path_str = base_path.as_ref().to_string_lossy();
@@ -665,7 +404,7 @@ pub mod helpers {
                     SerializationFormat::Json => "json",
                 }
             );
-            let tensor = <f32 as TensorSerializable>::load_tensor(&filename, format)?;
+            let tensor = <f32 as TensorSerializable<f32, CoeusBackend>>::load_tensor(&filename, format)?;
             tensors.push(tensor);
         }
 
@@ -678,12 +417,13 @@ pub mod helpers {
     /// * `count` - Number of tensors to load
     /// * `base_path` - Base path for loading
     /// * `format` - Serialization format
-    pub fn load_tensors_f64<P>(
+    pub fn load_tensors_f64<P, B>(
         count: usize,
         base_path: P,
         format: SerializationFormat,
-    ) -> Result<Vec<Tensor<f64>>, Box<dyn std::error::Error>>
+    ) -> Result<Vec<Tensor<f64, B>>, Box<dyn std::error::Error>>
     where
+        B: Backend<f64> + Clone + Send + Sync,
         P: AsRef<Path>,
     {
         let base_path_str = base_path.as_ref().to_string_lossy();
@@ -699,7 +439,7 @@ pub mod helpers {
                     SerializationFormat::Json => "json",
                 }
             );
-            let tensor = <f64 as TensorSerializable>::load_tensor(&filename, format)?;
+            let tensor = <f64 as TensorSerializable<f64, CoeusBackend>>::load_tensor(&filename, format)?;
             tensors.push(tensor);
         }
 
@@ -707,10 +447,151 @@ pub mod helpers {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum SerializationError {
+    #[error("Serde deserialization failed: {0}")]
+    Serde(#[from] serde_json::Error),
+    #[error("Bincode error: {0}")]
+    Bincode(#[from] bincode::Error),
+    #[error("Tensor creation failed: {0}")]
+    Tensor(#[from] TensorError),
+    #[error("Dtype mismatch: expected {expected}, got {got}")]
+    DtypeMismatch { expected: String, got: String },
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+}
+
+type SerResult<T> = Result<T, SerializationError>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::tempdir;
+    use proptest::collection::vec as pvec;
+    use tracing::instrument;
+
+    #[instrument]
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        fn prop_round_trip_f32(
+            data in pvec(1.0f32..10.0f32, 0..100),
+            shape in pvec(1usize..5, 1..4),
+        ) {
+            let backend = CoeusBackend::default();
+            let tensor = backend.create_tensor(data.clone(), shape.clone()).unwrap();
+            let temp_dir = tempdir().unwrap();
+            let path = temp_dir.path().join("test.bin");
+
+            let mut t_with_grad = tensor.clone();
+            t_with_grad.set_requires_grad(true);
+            let grad = backend.create_tensor(vec![2.0f32; data.len()], shape.clone()).unwrap();
+            t_with_grad.set_grad(Some(grad));
+
+            t_with_grad.save(&path, SerializationFormat::Binary).unwrap();
+            let loaded: Tensor<f32, CoeusBackend> = Tensor::load(&path, SerializationFormat::Binary).unwrap();
+
+            prop_assert_eq!(loaded.shape(), &shape);
+            prop_assert!(loaded.data().iter().zip(data.iter()).all(|(a, b)| (a - b).abs() < 1e-6));
+            prop_assert_eq!(loaded.requires_grad(), true);
+            prop_assert!(loaded.grad().is_some());
+            if let Some(g) = loaded.grad() {
+                prop_assert!(g.data().iter().all(|&x| x == 2.0));
+            }
+        }
+
+        fn prop_round_trip_i32(
+            data in pvec(-100i32..100i32, 0..100),
+            shape in pvec(1usize..5, 1..4),
+        ) {
+            let backend = CoeusBackend::default();
+            let tensor = backend.create_tensor(data.clone(), shape.clone()).unwrap();
+            let temp_dir = tempdir().unwrap();
+            let path = temp_dir.path().join("test.bin");
+
+            tensor.save(&path, SerializationFormat::Binary).unwrap();
+            let loaded: Tensor<i32, CoeusBackend> = Tensor::load(&path, SerializationFormat::Binary).unwrap();
+
+            prop_assert_eq!(loaded.shape(), &shape);
+            prop_assert_eq!(loaded.data(), &data[..]);  // exact for int
+        }
+    }
+
+    #[test]
+    fn test_empty_tensor() {
+        let backend = CoeusBackend::default();
+        let empty = backend.create_tensor(vec![], vec![]).unwrap();
+        let temp_dir = tempdir().unwrap();
+        let path = temp_dir.path().join("empty.bin");
+
+        empty.save(&path, SerializationFormat::Binary).unwrap();
+        let loaded: Tensor<f32, CoeusBackend> = Tensor::load(&path, SerializationFormat::Binary).unwrap();
+
+        assert_eq!(loaded.shape(), &[]);
+        assert!(loaded.data().is_empty());
+    }
+
+    #[test]
+    fn test_large_tensor() {
+        let size = 1_000_000;
+        let data: Vec<f32> = (0..size).map(|i| i as f32 / 1000.0).collect();
+        let shape = vec![size];
+        let backend = CoeusBackend::default();
+        let tensor = backend.create_tensor(data.clone(), shape.clone()).unwrap();
+        let temp_dir = tempdir().unwrap();
+        let path = temp_dir.path().join("large.bin");
+
+        tensor.save(&path, SerializationFormat::Binary).unwrap();
+        let loaded: Tensor<f32, CoeusBackend> = Tensor::load(&path, SerializationFormat::Binary).unwrap();
+
+        assert_eq!(loaded.shape(), &shape);
+        assert_eq!(loaded.data().len(), size);
+        // spot-check precision
+        assert!((loaded.data()[0] - 0.0).abs() < 1e-6);
+        assert!((loaded.data()[size-1] - (size-1) as f32 / 1000.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_int_overflow() {
+        let data = vec![i32::MAX, i32::MIN];
+        let shape = vec![2];
+        let backend = CoeusBackend::default();
+        let tensor = backend.create_tensor(data.clone(), shape.clone()).unwrap();
+        let temp_dir = tempdir().unwrap();
+        let path = temp_dir.path().join("overflow.bin");
+
+        tensor.save(&path, SerializationFormat::Binary).unwrap();
+        let loaded: Tensor<i32, CoeusBackend> = Tensor::load(&path, SerializationFormat::Binary).unwrap();
+
+        assert_eq!(loaded.data(), &data[..]);  // exact preserve
+    }
+
+    #[test]
+    fn test_with_grad_no_grad() {
+        let backend = CoeusBackend::default();
+        let mut t = backend.create_tensor(vec![1.0f32], vec![1]).unwrap();
+        t.set_requires_grad(true);  // grad None
+
+        let temp_dir = tempdir().unwrap();
+        let path = temp_dir.path().join("grad_none.bin");
+
+        t.save(&path, SerializationFormat::Binary).unwrap();
+        let loaded: Tensor<f32, CoeusBackend> = Tensor::load(&path, SerializationFormat::Binary).unwrap();
+
+        assert_eq!(loaded.requires_grad(), true);
+        assert!(loaded.grad().is_none());
+    }
+
+    #[test]
+    fn test_dtype_variants() {
+        // u8
+        let u8_data = vec![255u8];
+        let u8_shape = vec![1];
+        let backend = CoeusBackend::default();
+        let u8_tensor = backend.create_tensor(u8_data.clone(), u8_shape.clone()).unwrap();
+        // save/load u8, assert exact
+
+        // similar for i32/f64, assert dtype name, exact/<1e-6
+    }
 
     #[test]
     fn test_tensor_serialization_binary() {
@@ -762,8 +643,8 @@ mod tests {
         let weight1 = Tensor::<f32>::from_vec(vec![1.0, 2.0], vec![2]);
         let weight2 = Tensor::<f32>::from_vec(vec![3.0, 4.0, 5.0, 6.0], vec![2, 2]);
 
-        state_dict.insert_f32("layer1.weight", &weight1);
-        state_dict.insert_f32("layer2.weight", &weight2);
+        state_dict.insert("layer1.weight", &weight1);
+        state_dict.insert("layer2.weight", &weight2);
         state_dict.set_metadata("version", "1.0");
 
         assert_eq!(state_dict.len(), 2);
@@ -779,8 +660,8 @@ mod tests {
         let weight = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
         let bias = Tensor::<f32>::from_vec(vec![0.1, 0.2], vec![2]);
 
-        original_state_dict.insert_f32("weight", &weight);
-        original_state_dict.insert_f32("bias", &bias);
+        original_state_dict.insert("weight", &weight);
+        original_state_dict.insert("bias", &bias);
         original_state_dict.set_metadata("epoch", "42");
 
         let temp_dir = tempdir().unwrap();

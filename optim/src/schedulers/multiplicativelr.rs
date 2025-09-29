@@ -40,10 +40,10 @@ impl<'a, O: Optimizer<T>, T: coeus_dtype::FloatDtype> MultiplicativeLR<'a, O, T>
     /// # Example
     /// ```rust
     /// use coeus_optim::{Adam, MultiplicativeLR};
-    /// use coeus_tensor::Tensor;
+    /// use coeus_tensor::{Tensor, CpuBackend};
     ///
-    /// let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
-    /// let mut optimizer = Adam::new(params, 0.001);
+    /// let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
+    /// let mut optimizer = Adam::new(params, 0.001).unwrap();
     /// let mut scheduler = MultiplicativeLR::new(&mut optimizer, 0.9);
     /// ```
     pub fn new(optimizer: &'a mut O, lr_lambda: T) -> Self {
@@ -113,13 +113,13 @@ impl<'a, O: Optimizer<T>, T: coeus_dtype::FloatDtype> MultiplicativeLR<'a, O, T>
 mod tests {
     use super::*;
     use crate::{Adam, ParamGroup};
-    use coeus_tensor::Tensor;
+    use coeus_tensor::{Tensor, CpuBackend};
 
     #[test]
     fn test_multiplicative_lr_creation() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let scheduler = MultiplicativeLR::new(&mut optimizer, 0.9);
+        let scheduler: MultiplicativeLR<'_, Adam<f64>, f64> = MultiplicativeLR::new(&mut optimizer, 0.9);
 
         assert_eq!(scheduler.current_step(), 0);
         assert_eq!(scheduler.lr_lambdas(), &[0.9_f64]);
@@ -128,9 +128,9 @@ mod tests {
 
     #[test]
     fn test_multiplicative_lr_step() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = MultiplicativeLR::new(&mut optimizer, 0.9);
+        let mut scheduler: MultiplicativeLR<'_, Adam<f64>, f64> = MultiplicativeLR::new(&mut optimizer, 0.9);
 
         // Initial LR should be base_lr
         assert_eq!(scheduler.optimizer.param_groups()[0].lr, 0.001_f64);
@@ -154,9 +154,9 @@ mod tests {
 
     #[test]
     fn test_multiplicative_lr_no_change() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = MultiplicativeLR::new(&mut optimizer, 1.0);
+        let mut scheduler: MultiplicativeLR<'_, Adam<f64>, f64> = MultiplicativeLR::new(&mut optimizer, 1.0);
 
         // Take several steps with lambda = 1.0 (no change)
         for i in 0..5 {
@@ -168,9 +168,9 @@ mod tests {
 
     #[test]
     fn test_multiplicative_lr_increase() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = MultiplicativeLR::new(&mut optimizer, 1.1);
+        let mut scheduler: MultiplicativeLR<'_, Adam<f64>, f64> = MultiplicativeLR::new(&mut optimizer, 1.1);
 
         // Take steps with lambda > 1.0 (increase)
         for i in 0..3 {
@@ -183,13 +183,13 @@ mod tests {
 
     #[test]
     fn test_multiplicative_lr_multiple_param_groups() {
-        let params1 = vec![Tensor::from_vec(vec![1.0], vec![1])];
-        let params2 = vec![Tensor::from_vec(vec![2.0], vec![1])];
+        let params1 = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
+        let params2 = vec![Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap()];
 
         let mut optimizer = Adam::new(params1, 0.001);
         optimizer.add_param_group(ParamGroup::new(params2, 0.001, 0.0));
 
-        let mut scheduler = MultiplicativeLR::with_lr_lambdas(&mut optimizer, vec![0.9, 0.95]);
+        let mut scheduler: MultiplicativeLR<'_, Adam<f64>, f64> = MultiplicativeLR::with_lr_lambdas(&mut optimizer, vec![0.9, 0.95]);
 
         // Each parameter group should have its own multiplicative factor
         let lr1_initial = scheduler.optimizer.param_groups()[0].lr;
@@ -209,14 +209,14 @@ mod tests {
 
     #[test]
     fn test_multiplicative_lr_default_lambda() {
-        let params1 = vec![Tensor::from_vec(vec![1.0], vec![1])];
-        let params2 = vec![Tensor::from_vec(vec![2.0], vec![1])];
+        let params1 = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
+        let params2 = vec![Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap()];
 
         let mut optimizer = Adam::new(params1, 0.001);
         optimizer.add_param_group(ParamGroup::new(params2, 0.001, 0.0));
 
         // Only provide one lambda - second group should get default (1.0)
-        let mut scheduler = MultiplicativeLR::with_lr_lambdas(&mut optimizer, vec![0.9]);
+        let mut scheduler: MultiplicativeLR<'_, Adam<f64>, f64> = MultiplicativeLR::with_lr_lambdas(&mut optimizer, vec![0.9]);
 
         scheduler.step().unwrap();
 
@@ -231,9 +231,9 @@ mod tests {
 
     #[test]
     fn test_multiplicative_lr_zero_lambda() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = MultiplicativeLR::new(&mut optimizer, 0.0);
+        let mut scheduler: MultiplicativeLR<'_, Adam<f64>, f64> = MultiplicativeLR::new(&mut optimizer, 0.0);
 
         scheduler.step().unwrap();
 
@@ -243,9 +243,9 @@ mod tests {
 
     #[test]
     fn test_multiplicative_lr_negative_lambda() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = MultiplicativeLR::new(&mut optimizer, -1.0);
+        let mut scheduler: MultiplicativeLR<'_, Adam<f64>, f64> = MultiplicativeLR::new(&mut optimizer, -1.0);
 
         scheduler.step().unwrap();
 

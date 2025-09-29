@@ -22,8 +22,16 @@
 //! - [He et al., 2015 - Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](https://arxiv.org/abs/1502.01852)
 
 use crate::{NNError, Result};
-use coeus_tensor::{Dtype, Tensor};
+use coeus_tensor::{Dtype, Tensor, CpuBackend};
 use rand::prelude::*;
+
+/// Helper function to create tensor from vec and return it directly
+/// This unwraps the Result from Tensor::from_vec for convenience in initialization
+pub(crate) fn tensor_from_vec_ok<T: Dtype>(backend: CpuBackend, data: Vec<T>, shape: Vec<usize>) -> crate::Result<Tensor<T, CpuBackend>> {
+    // Propagate TensorError as NNError via `?` (NNError implements `#[from] TensorError`).
+    let t = Tensor::from_vec(backend, data, shape)?;
+    Ok(t)
+}
 
 /// Xavier (Glorot) weight initialization
 ///
@@ -66,7 +74,7 @@ impl Xavier {
     pub fn initialize<T: Dtype + num_traits::Float + num_traits::FromPrimitive>(
         &self,
         shape: &[usize],
-    ) -> Result<Tensor<T>> {
+    ) -> Result<Tensor<T, CpuBackend>> {
         if shape.len() != 2 {
             return Err(NNError::InvalidInput {
                 message: "Xavier initialization requires 2D tensors (weight matrices)".to_string(),
@@ -86,7 +94,7 @@ impl Xavier {
             data.push(T::from(value).unwrap());
         }
 
-        Ok(Tensor::from_vec(data, shape.to_vec()))
+        crate::tensor_from_vec_ok(CpuBackend::default(), data, shape.to_vec())
     }
 
     /// Initialize weights for linear layer
@@ -110,7 +118,7 @@ impl Xavier {
         &self,
         in_features: usize,
         out_features: usize,
-    ) -> Result<Tensor<T>> {
+    ) -> Result<Tensor<T, CpuBackend>> {
         self.initialize(&[out_features, in_features])
     }
 }
@@ -157,7 +165,7 @@ impl Kaiming {
     pub fn initialize_relu<T: Dtype + num_traits::Float + num_traits::FromPrimitive>(
         &self,
         shape: &[usize],
-    ) -> Result<Tensor<T>> {
+    ) -> Result<Tensor<T, CpuBackend>> {
         if shape.len() != 2 {
             return Err(NNError::InvalidInput {
                 message: "Kaiming initialization requires 2D tensors (weight matrices)".to_string(),
@@ -189,7 +197,7 @@ impl Kaiming {
     pub fn initialize_default<T: Dtype + num_traits::Float + num_traits::FromPrimitive>(
         &self,
         shape: &[usize],
-    ) -> Result<Tensor<T>> {
+    ) -> Result<Tensor<T, CpuBackend>> {
         if shape.len() != 2 {
             return Err(NNError::InvalidInput {
                 message: "Kaiming initialization requires 2D tensors (weight matrices)".to_string(),
@@ -223,7 +231,7 @@ impl Kaiming {
         &self,
         in_features: usize,
         out_features: usize,
-    ) -> Result<Tensor<T>> {
+    ) -> Result<Tensor<T, CpuBackend>> {
         self.initialize_relu(&[out_features, in_features])
     }
 
@@ -241,7 +249,7 @@ impl Kaiming {
         shape: &[usize],
         mean: T,
         std: T,
-    ) -> Result<Tensor<T>> {
+    ) -> Result<Tensor<T, CpuBackend>> {
         let mut rng = rand::thread_rng();
         let mut data = Vec::with_capacity(shape.iter().product());
 
@@ -257,7 +265,7 @@ impl Kaiming {
             data.push(T::from(value).unwrap());
         }
 
-        Ok(Tensor::from_vec(data, shape.to_vec()))
+        crate::tensor_from_vec_ok(CpuBackend::default(), data, shape.to_vec())
     }
 }
 
@@ -268,7 +276,7 @@ mod tests {
     #[test]
     fn test_xavier_initialization() {
         let init = Xavier::new();
-        let tensor: Tensor<f64> = init.initialize(&[10, 5]).unwrap();
+        let tensor: Tensor<f64, CpuBackend> = init.initialize(&[10, 5]).unwrap();
 
         assert_eq!(tensor.shape(), &[10, 5]);
         assert_eq!(tensor.numel(), 50);
@@ -284,7 +292,7 @@ mod tests {
     #[test]
     fn test_xavier_linear_initialization() {
         let init = Xavier::new();
-        let tensor: Tensor<f64> = init.initialize_linear(5, 10).unwrap();
+        let tensor: Tensor<f64, CpuBackend> = init.initialize_linear(5, 10).unwrap();
 
         assert_eq!(tensor.shape(), &[10, 5]);
         assert_eq!(tensor.numel(), 50);
@@ -293,7 +301,7 @@ mod tests {
     #[test]
     fn test_kaiming_relu_initialization() {
         let init = Kaiming::new();
-        let tensor: Tensor<f64> = init.initialize_relu(&[10, 5]).unwrap();
+        let tensor: Tensor<f64, CpuBackend> = init.initialize_relu(&[10, 5]).unwrap();
 
         assert_eq!(tensor.shape(), &[10, 5]);
         assert_eq!(tensor.numel(), 50);
@@ -327,7 +335,7 @@ mod tests {
     #[test]
     fn test_kaiming_linear_initialization() {
         let init = Kaiming::new();
-        let tensor: Tensor<f64> = init.initialize_linear_relu(5, 10).unwrap();
+        let tensor: Tensor<f64, CpuBackend> = init.initialize_linear_relu(5, 10).unwrap();
 
         assert_eq!(tensor.shape(), &[10, 5]);
         assert_eq!(tensor.numel(), 50);
@@ -345,3 +353,5 @@ mod tests {
         assert!(kaiming.initialize_default::<f64>(&[10, 5, 2]).is_err());
     }
 }
+
+

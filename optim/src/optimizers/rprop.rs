@@ -103,7 +103,7 @@ impl<T: coeus_dtype::FloatDtype> Rprop<T> {
     }
 }
 
-impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rprop<T> {
+impl<T: coeus_dtype::FloatDtype> Optimizer<T, CpuBackend> for Rprop<T> {
     fn step(&mut self) -> Result<()> {
         for group in self.base.param_groups_mut() {
             let lr = group.lr;
@@ -117,19 +117,19 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rprop<T> {
 
                 // Get or create step size buffer (one per parameter element)
                 let mut step_size = param.get_buffer("step_size").unwrap_or_else(|| {
-                    Tensor::from_vec(vec![lr; param.numel()], param.shape().to_vec())
+                    Tensor::from_vec(param.backend().clone(), vec![lr; param.numel()], param.shape().to_vec()).unwrap()
                 });
 
                 // Get or create previous gradient sign buffer
                 let prev_grad_sign = param
                     .get_buffer("prev_grad_sign")
-                    .unwrap_or_else(|| Tensor::zeros(param.shape().to_vec()));
+                    .unwrap_or_else(|| Tensor::zeros(param.backend().clone(), param.shape().to_vec()).unwrap());
 
                 // Compute current gradient sign
-                let current_grad_sign = grad.sign();
+                let current_grad_sign = grad.sign().unwrap();
 
                 // Compute sign product to determine if consecutive gradients have same sign
-                let sign_product = current_grad_sign.mul(&prev_grad_sign)?;
+                let sign_product = (&*current_grad_sign * &*prev_grad_sign).unwrap();
 
                 // Update step sizes based on gradient sign consistency
                 for i in 0..step_size.numel() {
@@ -149,12 +149,12 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rprop<T> {
                 }
 
                 // Update parameter: p = p - sign(g) * step_size
-                let update = current_grad_sign.mul(&step_size)?;
-                *param = param.sub(&update)?;
+                let update = current_grad_sign.mul(&step_size).unwrap();
+                *param = param.sub(&update).unwrap();
 
                 // Store previous gradient sign for next iteration
-                param.set_buffer("prev_grad_sign", current_grad_sign);
-                param.set_buffer("step_size", step_size);
+                param.set_buffer("prev_grad_sign".to_string(), current_grad_sign.clone());
+                param.set_buffer("step_size".to_string(), step_size.clone());
             }
         }
 

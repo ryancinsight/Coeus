@@ -3,7 +3,7 @@
 //! This module contains activation functions based on the sigmoid function.
 
 use crate::Module;
-use coeus_tensor::{FloatDtype, Tensor};
+use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
 use std::fmt;
 
 /// Sigmoid activation function
@@ -29,15 +29,15 @@ impl Sigmoid {
 }
 
 impl<T: FloatDtype> Module<T> for Sigmoid {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
-        Ok(input.sigmoid())
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
+        Ok(input.sigmoid()?)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -70,15 +70,15 @@ impl LogSigmoid {
 }
 
 impl<T: FloatDtype> Module<T> for LogSigmoid {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
-        Ok(input.logsigmoid())
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
+        Ok(input.logsigmoid()?)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -88,3 +88,5 @@ impl fmt::Display for LogSigmoid {
         write!(f, "LogSigmoid()")
     }
 }
+
+

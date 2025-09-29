@@ -52,9 +52,9 @@ impl<'a, O: Optimizer<T>, T: coeus_dtype::FloatDtype> PolynomialLR<'a, O, T> {
     /// # Example
     /// ```rust
     /// use coeus_optim::{Adam, PolynomialLR};
-    /// use coeus_tensor::Tensor;
+    /// use coeus_tensor::{Tensor, CpuBackend};
     ///
-    /// let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+    /// let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
     /// let mut optimizer = Adam::new(params, 0.001);
     /// let mut scheduler = PolynomialLR::new(&mut optimizer, 0.001, 1e-6, 1000, 1.0);
     /// ```
@@ -166,13 +166,13 @@ impl<'a, O: Optimizer<T>, T: coeus_dtype::FloatDtype> PolynomialLR<'a, O, T> {
 mod tests {
     use super::*;
     use crate::{Adam, ParamGroup};
-    use coeus_tensor::Tensor;
+    use coeus_tensor::{Tensor, CpuBackend};
 
     #[test]
     fn test_polynomial_lr_creation() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let scheduler = PolynomialLR::new(&mut optimizer, 0.001, 1e-6, 1000, 1.0);
+        let scheduler: PolynomialLR<'_, Adam<f64>, f64> = PolynomialLR::new(&mut optimizer, 0.001, 1e-6, 1000, 1.0);
 
         assert_eq!(scheduler.total_steps(), 1000);
         assert_eq!(scheduler.current_step(), 0);
@@ -184,9 +184,9 @@ mod tests {
 
     #[test]
     fn test_polynomial_lr_step() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = PolynomialLR::new(&mut optimizer, 0.001, 1e-6, 5, 1.0);
+        let mut scheduler: PolynomialLR<'_, Adam<f64>, f64> = PolynomialLR::new(&mut optimizer, 0.001, 1e-6, 5, 1.0);
 
         // Initial LR should be eta_max
         assert_eq!(scheduler.optimizer.param_groups()[0].lr, 0.001_f64);
@@ -216,9 +216,9 @@ mod tests {
 
     #[test]
     fn test_polynomial_lr_power() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = PolynomialLR::new(&mut optimizer, 0.001, 0.0, 4, 2.0);
+        let mut scheduler: PolynomialLR<'_, Adam<f64>, f64> = PolynomialLR::new(&mut optimizer, 0.001, 0.0, 4, 2.0);
 
         // Take 2 steps (halfway through)
         for _ in 0..2 {
@@ -241,9 +241,9 @@ mod tests {
 
     #[test]
     fn test_polynomial_lr_progress() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = PolynomialLR::new(&mut optimizer, 0.001, 1e-6, 100, 1.0);
+        let mut scheduler: PolynomialLR<'_, Adam<f64>, f64> = PolynomialLR::new(&mut optimizer, 0.001, 1e-6, 100, 1.0);
 
         assert_eq!(scheduler.progress(), 0.0);
         assert!(!scheduler.is_done());
@@ -272,13 +272,13 @@ mod tests {
 
     #[test]
     fn test_polynomial_lr_multiple_param_groups() {
-        let params1 = vec![Tensor::from_vec(vec![1.0], vec![1])];
-        let params2 = vec![Tensor::from_vec(vec![2.0], vec![1])];
+        let params1 = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
+        let params2 = vec![Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap()];
 
         let mut optimizer = Adam::new(params1, 0.001);
         optimizer.add_param_group(ParamGroup::new(params2, 0.001, 0.0));
 
-        let mut scheduler = PolynomialLR::new(&mut optimizer, 0.001, 1e-6, 10, 1.0);
+        let mut scheduler: PolynomialLR<'_, Adam<f64>, f64> = PolynomialLR::new(&mut optimizer, 0.001, 1e-6, 10, 1.0);
 
         // All parameter groups should have the same learning rate
         let lr1 = scheduler.optimizer.param_groups()[0].lr;
@@ -296,9 +296,9 @@ mod tests {
 
     #[test]
     fn test_polynomial_lr_zero_total_steps() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let scheduler = PolynomialLR::new(&mut optimizer, 0.001, 1e-6, 0, 1.0);
+        let scheduler: PolynomialLR<'_, Adam<f64>, f64> = PolynomialLR::new(&mut optimizer, 0.001, 1e-6, 0, 1.0);
 
         // With zero total steps, should immediately be at eta_min
         assert!(scheduler.is_done());

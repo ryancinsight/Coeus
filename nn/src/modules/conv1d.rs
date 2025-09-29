@@ -18,6 +18,8 @@
 //! ```
 
 use crate::{Module, NNError, Result};
+use coeus_backend::CpuBackend;
+use coeus_dtype::Dtype;
 use coeus_tensor::{FloatDtype, Tensor};
 use rand::Rng;
 
@@ -28,9 +30,9 @@ use rand::Rng;
 #[derive(Debug, Clone)]
 pub struct Conv1d<T: FloatDtype> {
     /// Weight tensor of shape (out_channels, in_channels, kernel_size)
-    pub weight: Tensor<T>,
+    pub weight: Tensor<T, CpuBackend>,
     /// Bias tensor of shape (out_channels,)
-    pub bias: Option<Tensor<T>>,
+    pub bias: Option<Tensor<T, CpuBackend>>,
     /// Number of input channels
     pub in_channels: usize,
     /// Number of output channels
@@ -81,10 +83,10 @@ impl<T: FloatDtype> Conv1d<T> {
 
         for _ in 0..weight_shape.iter().product::<usize>() {
             let value: f64 = rng.sample(rand_distr::Normal::new(0.0, std).unwrap());
-            weight_data.push(T::from_f64(value).unwrap_or(T::zero()));
+            weight_data.push(<T as Dtype>::from_f64(value).unwrap_or(T::zero()));
         }
 
-        let weight = Tensor::from_vec(weight_data, weight_shape);
+        let weight = Tensor::from_vec(CpuBackend::default(), weight_data, weight_shape).unwrap();
 
         // Initialize bias to zeros
         let bias = Some(Tensor::zeros(vec![out_channels]));
@@ -133,7 +135,7 @@ impl<T: FloatDtype> Conv1d<T> {
 }
 
 impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Module<T> for Conv1d<T> {
-    fn forward(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // Input shape validation
         if input.ndim() != 3 {
             return Err(NNError::ShapeMismatch {
@@ -197,10 +199,10 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Module<T> for 
             }
         }
 
-        Ok(Tensor::from_vec(output_data, output_shape))
+        Ok(Tensor::from_vec(CpuBackend::default(), output_data, output_shape).unwrap())
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = vec![&self.weight];
         if let Some(ref bias) = self.bias {
             params.push(bias);
@@ -208,7 +210,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Module<T> for 
         params
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = vec![&mut self.weight];
         if let Some(ref mut bias) = self.bias {
             params.push(bias);
@@ -216,3 +218,5 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Module<T> for 
         params
     }
 }
+
+

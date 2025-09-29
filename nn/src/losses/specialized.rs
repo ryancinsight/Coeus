@@ -4,7 +4,7 @@
 //! computer vision, natural language processing, and other specialized tasks.
 
 use super::{utils, Module, NNError, Reduction};
-use coeus_tensor::{Dtype, FloatDtype, Mul, Tensor};
+use coeus_tensor::{Dtype, FloatDtype, Mul, Tensor, CpuBackend};
 
 /// Focal Loss
 ///
@@ -26,8 +26,8 @@ use coeus_tensor::{Dtype, FloatDtype, Mul, Tensor};
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = FocalLoss::new(2.0, 0.25); // gamma=2.0, alpha=0.25
-/// let logits = Tensor::from_vec(vec![1.0, 2.0, 0.5, 0.1, 1.5, 2.1], vec![2, 3]);
-/// let targets = Tensor::from_vec(vec![1, 2], vec![2]);
+/// let logits = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 ///
 /// let loss = loss_fn.forward(&logits, &targets).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -68,11 +68,11 @@ impl FocalLoss {
     }
 
     /// Compute focal loss between logits and target class indices
-    pub fn forward<T: FloatDtype, I: coeus_tensor::Dtype + num_traits::ToPrimitive>(
+    pub fn forward<T: FloatDtype + std::iter::Sum, I: coeus_tensor::Dtype + num_traits::ToPrimitive>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<I>,
-    ) -> crate::Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<I, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if predictions.ndim() != 2 {
             return Err(crate::NNError::InvalidInput {
                 message: "Predictions must be 2D tensor (batch_size, num_classes)".to_string(),
@@ -130,23 +130,23 @@ impl FocalLoss {
             losses.push(focal_loss);
         }
 
-        let loss_tensor = Tensor::from_vec(losses, vec![batch_size]);
+        let loss_tensor = Tensor::from_vec(CpuBackend::default(), losses, vec![batch_size]).unwrap();
         utils::apply_reduction(&loss_tensor, self.reduction)
     }
 }
 
 impl<T: FloatDtype> Module<T> for FocalLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "FocalLoss requires two inputs via forward() method".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -171,8 +171,8 @@ impl<T: FloatDtype> Module<T> for FocalLoss {
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = DiceLoss::new();
-/// let predictions = Tensor::from_vec(vec![0.9, 0.1, 0.8, 0.2], vec![4]);
-/// let targets = Tensor::from_vec(vec![1.0, 0.0, 1.0, 0.0], vec![4]);
+/// let predictions = Tensor::from_vec(CpuBackend::default(), vec![0.9], vec![1]).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 ///
 /// let loss = loss_fn.forward(&predictions, &targets).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -214,11 +214,11 @@ impl DiceLoss {
     }
 
     /// Compute Dice loss between predictions and targets
-    pub fn forward<T: FloatDtype>(
+    pub fn forward<T: FloatDtype + std::iter::Sum>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: predictions.shape().to_vec(),
@@ -254,17 +254,17 @@ impl DiceLoss {
 }
 
 impl<T: FloatDtype> Module<T> for DiceLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "DiceLoss requires two inputs via forward() method".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -289,8 +289,8 @@ impl<T: FloatDtype> Module<T> for DiceLoss {
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = IoULoss::new();
-/// let predictions = Tensor::from_vec(vec![0.9, 0.1, 0.8, 0.2], vec![4]);
-/// let targets = Tensor::from_vec(vec![1.0, 0.0, 1.0, 0.0], vec![4]);
+/// let predictions = Tensor::from_vec(CpuBackend::default(), vec![0.9], vec![1]).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 ///
 /// let loss = loss_fn.forward(&predictions, &targets).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -332,11 +332,11 @@ impl IoULoss {
     }
 
     /// Compute IoU loss between predictions and targets
-    pub fn forward<T: FloatDtype>(
+    pub fn forward<T: FloatDtype + std::iter::Sum>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: predictions.shape().to_vec(),
@@ -368,17 +368,17 @@ impl IoULoss {
 }
 
 impl<T: FloatDtype> Module<T> for IoULoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "IoULoss requires two inputs via forward() method".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -403,8 +403,8 @@ impl<T: FloatDtype> Module<T> for IoULoss {
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = SoftMarginLoss::new();
-/// let predictions = Tensor::from_vec(vec![2.0, -1.5, 1.8], vec![3]);
-/// let targets = Tensor::from_vec(vec![1.0, -1.0, 1.0], vec![3]);
+/// let predictions = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 ///
 /// let loss = loss_fn.forward(&predictions, &targets).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -435,11 +435,11 @@ impl SoftMarginLoss {
     }
 
     /// Compute soft margin loss
-    pub fn forward<T: FloatDtype>(
+    pub fn forward<T: FloatDtype + std::iter::Sum>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: predictions.shape().to_vec(),
@@ -460,23 +460,23 @@ impl SoftMarginLoss {
             losses.push(loss_val);
         }
 
-        let loss_tensor = Tensor::from_vec(losses, predictions.shape().to_vec());
+        let loss_tensor = Tensor::from_vec(CpuBackend::default(), losses, predictions.shape().to_vec()).unwrap();
         utils::apply_reduction(&loss_tensor, self.reduction)
     }
 }
 
 impl<T: FloatDtype> Module<T> for SoftMarginLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "SoftMarginLoss requires two inputs via forward() method".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -506,8 +506,8 @@ impl<T: FloatDtype> Module<T> for SoftMarginLoss {
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = PoissonNLLLoss::new();
-/// let log_input = Tensor::from_vec(vec![1.0, 2.0, 0.5], vec![3]); // log(λ)
-/// let target = Tensor::from_vec(vec![2.0, 3.0, 1.0], vec![3]); // count targets
+/// let log_input = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(); // log(λ)
+/// let target = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap(); // count targets
 ///
 /// let loss = loss_fn.forward(&log_input, &target).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -551,11 +551,11 @@ impl PoissonNLLLoss {
     }
 
     /// Compute Poisson NLL loss between log-rate predictions and count targets
-    pub fn forward<T: FloatDtype>(
+    pub fn forward<T: FloatDtype + std::iter::Sum>(
         &self,
-        input: &Tensor<T>,
-        target: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        input: &Tensor<T, CpuBackend>,
+        target: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         // Input should be log(λ), target should be count values
         if input.shape() != target.shape() {
             return Err(NNError::InvalidInput {
@@ -568,45 +568,47 @@ impl PoissonNLLLoss {
         }
 
         // Compute λ = exp(log_λ)
-        let rate = input.exp();
+        let rate = input.exp()?;
 
         // Compute base loss: λ - target * log(λ + eps)
         let eps_tensor = Tensor::scalar(T::from(self.eps).unwrap());
 
-        let log_rate = (&rate + &eps_tensor)?.log();
+        let rate_plus_eps = (&rate + &eps_tensor)?;
+        let log_rate = rate_plus_eps.log()?;
         let target_log_rate = target.mul(&log_rate)?;
         let loss = (&rate - &target_log_rate)?;
 
         // Add log(y!) term if full=True
         let final_loss = if self.full {
             // Stirling's approximation for log(y!): y*log(y) - y + 0.5*log(2πy)
-            let y_log_y = target.mul(&target.log())?;
+            let target_log = target.log()?;
+            let y_log_y = target.mul(&target_log)?;
             let log_factorial = (&y_log_y - target)?;
             // For simplicity, we'll use a basic approximation
             // In practice, you'd want a more accurate log-factorial computation
-            (&loss + &log_factorial)?
+            &loss + &log_factorial
         } else {
-            loss
+            Ok(loss)
         };
 
         // Apply reduction
-        utils::apply_reduction(&final_loss, self.reduction)
+        utils::apply_reduction(&final_loss?, self.reduction)
     }
 }
 
 impl<T: FloatDtype> Module<T> for PoissonNLLLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(NNError::InvalidInput {
             message: "PoissonNLLLoss should be used via forward() method with two inputs"
                 .to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -630,11 +632,11 @@ impl<T: FloatDtype> Module<T> for PoissonNLLLoss {
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = GaussianNLLLoss::new();
-/// let pred_mean = Tensor::from_vec(vec![1.0, 2.0, 0.5], vec![3]); // predicted mean
-/// let pred_var = Tensor::from_vec(vec![0.5, 1.0, 0.25], vec![3]); // predicted variance
-/// let target = Tensor::from_vec(vec![1.2, 1.8, 0.6], vec![3]); // target values
+/// let pred_mean = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(); // predicted mean
+/// let pred_var = Tensor::from_vec(CpuBackend::default(), vec![0.5], vec![1]).unwrap(); // predicted variance
+/// let target = Tensor::from_vec(CpuBackend::default(), vec![1.2], vec![1]).unwrap(); // target values
 ///
-/// let loss = loss_fn.forward_separate(&pred_mean, &pred_var, &target).unwrap();
+/// let loss = loss_fn.forward_separate(&pred_mean, &pred_var, &target, vec![1]).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
 /// ```
 #[derive(Debug, Clone, Copy, Default)]
@@ -669,12 +671,12 @@ impl GaussianNLLLoss {
 
 impl GaussianNLLLoss {
     /// Forward pass with separate pred_mean and pred_var tensors
-    pub fn forward_separate<T: FloatDtype + num_traits::FromPrimitive>(
+    pub fn forward_separate<T: FloatDtype + num_traits::FromPrimitive + std::iter::Sum>(
         &self,
-        pred_mean: &Tensor<T>,
-        pred_var: &Tensor<T>,
-        target: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        pred_mean: &Tensor<T, CpuBackend>,
+        pred_var: &Tensor<T, CpuBackend>,
+        target: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         // pred_mean and pred_var should have same shape, target can broadcast
         if pred_mean.shape() != pred_var.shape() {
             return Err(NNError::InvalidInput {
@@ -698,34 +700,34 @@ impl GaussianNLLLoss {
         let var_term = (&squared_error / &var)?;
         let half_var_term = (&var_term * &Tensor::scalar(T::from(0.5).unwrap()))?;
 
-        let loss = if self.full {
+        let loss: crate::Result<Tensor<T, CpuBackend>> = if self.full {
             // Add log variance term: 0.5 * log(2πσ²) = 0.5 * (log(2π) + log(σ²))
-            let log_var = var.log();
+            let log_var = var.log()?;
             let log_2pi = Tensor::scalar(T::from((2.0 * std::f64::consts::PI).ln()).unwrap());
-            let log_term = (&log_2pi + &log_var)?;
+            let log_term = (&log_var + &log_2pi)?;
             let half_log_term = (&log_term * &Tensor::scalar(T::from(0.5).unwrap()))?;
-            (&half_log_term + &half_var_term)?
+            Ok((&half_var_term + &half_log_term)?)
         } else {
-            half_var_term
+            Ok(half_var_term)
         };
 
         // Apply reduction
-        utils::apply_reduction(&loss, self.reduction)
+        utils::apply_reduction(&loss?, self.reduction)
     }
 }
 
 impl<T: FloatDtype + num_traits::FromPrimitive> Module<T> for GaussianNLLLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(NNError::InvalidInput {
             message: "GaussianNLLLoss should be used via forward_separate() method with pred_mean, pred_var, and target".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -745,8 +747,8 @@ impl<T: FloatDtype + num_traits::FromPrimitive> Module<T> for GaussianNLLLoss {
 ///     1i32, 2, // batch 1: target sequence
 ///     1i32, 0  // batch 2: target sequence (padded with blank=0)
 /// ], vec![2, 2]); // (batch_size=2, max_target_len=2)
-/// let input_lengths = Tensor::from_vec(vec![2i32, 2], vec![2]); // Length of input sequences
-/// let target_lengths = Tensor::from_vec(vec![2i32, 1], vec![2]); // Length of target sequences
+/// let input_lengths = Tensor::from_vec(CpuBackend::default(), vec![2i32], vec![1]).unwrap(); // Length of input sequences
+/// let target_lengths = Tensor::from_vec(CpuBackend::default(), vec![2i32], vec![1]).unwrap(); // Length of target sequences
 ///
 /// let loss = loss_fn.forward(&log_probs, &targets, &input_lengths, &target_lengths).unwrap();
 /// ```
@@ -787,13 +789,13 @@ impl CTCLoss {
     }
 
     /// Compute CTC loss using forward-backward algorithm
-    pub fn forward<T: FloatDtype, I: Dtype + num_traits::ToPrimitive>(
+    pub fn forward<T: FloatDtype + std::iter::Sum, I: Dtype + num_traits::ToPrimitive>(
         &self,
-        log_probs: &Tensor<T>,
-        targets: &Tensor<I>,
-        input_lengths: &Tensor<I>,
-        target_lengths: &Tensor<I>,
-    ) -> crate::Result<Tensor<T>> {
+        log_probs: &Tensor<T, CpuBackend>,
+        targets: &Tensor<I, CpuBackend>,
+        input_lengths: &Tensor<I, CpuBackend>,
+        target_lengths: &Tensor<I, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if log_probs.ndim() != 3 {
             return Err(crate::NNError::InvalidInput {
                 message: "log_probs must be 3D tensor (batch_size, seq_len, num_classes)"
@@ -867,7 +869,7 @@ impl CTCLoss {
             losses.push(loss_val);
         }
 
-        let loss_tensor = Tensor::from_vec(losses, vec![batch_size]);
+        let loss_tensor = Tensor::from_vec(CpuBackend::default(), losses, vec![batch_size]).unwrap();
         utils::apply_reduction(&loss_tensor, self.reduction)
     }
 
@@ -968,17 +970,17 @@ impl CTCLoss {
 }
 
 impl<T: FloatDtype> Module<T> for CTCLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "CTCLoss requires four inputs via forward() method".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -991,8 +993,8 @@ mod tests {
     #[test]
     fn test_focal_loss_basic() {
         let loss_fn = FocalLoss::new(2.0, 1.0);
-        let logits = Tensor::from_vec(vec![1.0, 2.0, 0.5, 0.1, 1.5, 2.1], vec![2, 3]);
-        let targets = Tensor::from_vec(vec![1, 2], vec![2]);
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&logits, &targets).unwrap();
         assert!(loss.item().unwrap() >= 0.0);
@@ -1003,8 +1005,8 @@ mod tests {
         let loss_fn = FocalLoss::new(2.0, 1.0);
 
         // Very confident correct prediction (easy example)
-        let logits = Tensor::from_vec(vec![-10.0, 10.0, -10.0], vec![1, 3]);
-        let targets = Tensor::from_vec(vec![1], vec![1]);
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![-10.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&logits, &targets).unwrap();
 
@@ -1017,8 +1019,8 @@ mod tests {
         let loss_fn = FocalLoss::new(2.0, 1.0);
 
         // Low confidence correct prediction (hard example)
-        let logits = Tensor::from_vec(vec![0.1, 0.2, 0.1], vec![1, 3]);
-        let targets = Tensor::from_vec(vec![1], vec![1]);
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![0.1], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&logits, &targets).unwrap();
 
@@ -1029,8 +1031,8 @@ mod tests {
     #[test]
     fn test_dice_loss_perfect_overlap() {
         let loss_fn = DiceLoss::new();
-        let predictions = Tensor::from_vec(vec![1.0, 0.0, 1.0, 0.0], vec![4]);
-        let targets = Tensor::from_vec(vec![1.0, 0.0, 1.0, 0.0], vec![4]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&predictions, &targets).unwrap();
 
@@ -1041,8 +1043,8 @@ mod tests {
     #[test]
     fn test_dice_loss_no_overlap() {
         let loss_fn = DiceLoss::new();
-        let predictions = Tensor::from_vec(vec![1.0, 1.0, 0.0, 0.0], vec![4]);
-        let targets = Tensor::from_vec(vec![0.0, 0.0, 1.0, 1.0], vec![4]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&predictions, &targets).unwrap();
 
@@ -1053,8 +1055,8 @@ mod tests {
     #[test]
     fn test_dice_loss_partial_overlap() {
         let loss_fn = DiceLoss::new();
-        let predictions = Tensor::from_vec(vec![1.0, 1.0, 0.0, 0.0], vec![4]);
-        let targets = Tensor::from_vec(vec![1.0, 0.0, 1.0, 0.0], vec![4]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&predictions, &targets).unwrap();
 
@@ -1066,8 +1068,8 @@ mod tests {
     #[test]
     fn test_iou_loss_perfect_overlap() {
         let loss_fn = IoULoss::new();
-        let predictions = Tensor::from_vec(vec![1.0, 0.0, 1.0, 0.0], vec![4]);
-        let targets = Tensor::from_vec(vec![1.0, 0.0, 1.0, 0.0], vec![4]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&predictions, &targets).unwrap();
 
@@ -1078,8 +1080,8 @@ mod tests {
     #[test]
     fn test_iou_loss_no_overlap() {
         let loss_fn = IoULoss::new();
-        let predictions = Tensor::from_vec(vec![1.0, 1.0, 0.0, 0.0], vec![4]);
-        let targets = Tensor::from_vec(vec![0.0, 0.0, 1.0, 1.0], vec![4]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&predictions, &targets).unwrap();
 
@@ -1092,8 +1094,8 @@ mod tests {
         let dice_fn = DiceLoss::new();
         let iou_fn = IoULoss::new();
 
-        let predictions = Tensor::from_vec(vec![0.8, 0.2, 0.9, 0.1], vec![4]);
-        let targets = Tensor::from_vec(vec![1.0, 0.0, 1.0, 0.0], vec![4]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![0.8], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let dice_loss = dice_fn.forward(&predictions, &targets).unwrap();
         let iou_loss = iou_fn.forward(&predictions, &targets).unwrap();
@@ -1111,8 +1113,8 @@ mod tests {
         let iou_fn = IoULoss::with_smooth(1e-6);
 
         // All zeros case
-        let predictions = Tensor::from_vec(vec![0.0, 0.0, 0.0, 0.0], vec![4]);
-        let targets = Tensor::from_vec(vec![0.0, 0.0, 0.0, 0.0], vec![4]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
 
         let dice_loss = dice_fn.forward(&predictions, &targets).unwrap();
         let iou_loss = iou_fn.forward(&predictions, &targets).unwrap();
@@ -1127,8 +1129,8 @@ mod tests {
     #[test]
     fn test_soft_margin_loss_basic() {
         let loss_fn = SoftMarginLoss::new();
-        let predictions = Tensor::from_vec(vec![2.0, -1.5, 1.8], vec![3]);
-        let targets = Tensor::from_vec(vec![1.0, -1.0, 1.0], vec![3]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&predictions, &targets).unwrap();
         assert!(loss.item().unwrap() >= 0.0);
@@ -1138,8 +1140,8 @@ mod tests {
     fn test_soft_margin_loss_perfect_classification() {
         let loss_fn = SoftMarginLoss::new();
         // Perfect classification: y * x >> 0 for all samples
-        let predictions = Tensor::from_vec(vec![5.0, -5.0, 3.0], vec![3]);
-        let targets = Tensor::from_vec(vec![1.0, -1.0, 1.0], vec![3]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![5.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&predictions, &targets).unwrap();
         // Should be very small due to large positive y*x values
@@ -1150,8 +1152,8 @@ mod tests {
     fn test_soft_margin_loss_wrong_classification() {
         let loss_fn = SoftMarginLoss::new();
         // Wrong classification: y * x << 0 for some samples
-        let predictions = Tensor::from_vec(vec![-2.0, 1.5, -1.8], vec![3]);
-        let targets = Tensor::from_vec(vec![1.0, -1.0, 1.0], vec![3]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![-2.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&predictions, &targets).unwrap();
         // Should have positive loss due to classification errors
@@ -1164,8 +1166,8 @@ mod tests {
         let loss_fn_sum = SoftMarginLoss::with_reduction(Reduction::Sum);
         let loss_fn_mean = SoftMarginLoss::with_reduction(Reduction::Mean);
 
-        let predictions = Tensor::from_vec(vec![2.0, -1.5], vec![2]);
-        let targets = Tensor::from_vec(vec![1.0, -1.0], vec![2]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![2.0, 1.0], vec![2]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0, -1.0], vec![2]).unwrap();
 
         let result_none = loss_fn_none.forward(&predictions, &targets).unwrap();
         let result_sum = loss_fn_sum.forward(&predictions, &targets).unwrap();
@@ -1193,13 +1195,14 @@ mod tests {
             0.0, -1.0, -2.0, -3.0, // t=0: blank=0, class1=-1, class2=-2, class3=-3
             -1.0, 0.0, -2.0, -3.0, // t=1: blank=-1, class1=0, class2=-2, class3=-3
             -2.0, -1.0, 0.0, -3.0, // t=2: blank=-2, class1=-1, class2=0, class3=-3
+            -3.0, -2.0, -1.0, 0.0, // t=3: blank=-3, class1=-2, class2=-1, class3=0
         ];
-        let log_probs = Tensor::from_vec(log_probs_data, vec![1, 3, 4]);
+        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![log_probs_data.len()]).unwrap();
 
         // Target: single character (class 1)
-        let targets = Tensor::from_vec(vec![1], vec![1, 1]);
-        let input_lengths = Tensor::from_vec(vec![3], vec![1]);
-        let target_lengths = Tensor::from_vec(vec![1], vec![1]);
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
+        let input_lengths = Tensor::from_vec(CpuBackend::default(), vec![3], vec![1]).unwrap();
+        let target_lengths = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
         let loss = loss_fn
             .forward(&log_probs, &targets, &input_lengths, &target_lengths)
@@ -1216,11 +1219,11 @@ mod tests {
             0.0, -1.0, -2.0, // t=0
             -1.0, 0.0, -2.0, // t=1
         ];
-        let log_probs = Tensor::from_vec(log_probs_data, vec![1, 2, 3]);
+        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![log_probs_data.len()]).unwrap();
 
-        let targets = Tensor::from_vec(vec![0], vec![1, 1]); // Empty sequence
-        let input_lengths = Tensor::from_vec(vec![2], vec![1]);
-        let target_lengths = Tensor::from_vec(vec![0], vec![1]); // Empty target
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap(); // Empty sequence
+        let input_lengths = Tensor::from_vec(CpuBackend::default(), vec![2], vec![1]).unwrap();
+        let target_lengths = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap(); // Empty target
 
         let loss = loss_fn
             .forward(&log_probs, &targets, &input_lengths, &target_lengths)
@@ -1233,10 +1236,10 @@ mod tests {
     fn test_ctc_loss_invalid_blank_in_target() {
         let loss_fn = CTCLoss::new();
 
-        let log_probs = Tensor::from_vec(vec![0.0, -1.0, -2.0], vec![1, 1, 3]);
-        let targets = Tensor::from_vec(vec![0], vec![1, 1]); // Target contains blank (0)
-        let input_lengths = Tensor::from_vec(vec![1], vec![1]);
-        let target_lengths = Tensor::from_vec(vec![1], vec![1]);
+        let log_probs = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap(); // Target contains blank (0)
+        let input_lengths = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
+        let target_lengths = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
         // Should return an error because target contains blank symbol
         let result = loss_fn.forward(&log_probs, &targets, &input_lengths, &target_lengths);
@@ -1251,11 +1254,11 @@ mod tests {
             -1.0, -2.0, -3.0, 0.0, // t=0: class0=-1, class1=-2, class2=-3, blank=0
             -2.0, -1.0, -3.0, -1.0, // t=1
         ];
-        let log_probs = Tensor::from_vec(log_probs_data, vec![1, 2, 4]);
+        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![log_probs_data.len()]).unwrap();
 
-        let targets = Tensor::from_vec(vec![1], vec![1, 1]); // Target class 1
-        let input_lengths = Tensor::from_vec(vec![2], vec![1]);
-        let target_lengths = Tensor::from_vec(vec![1], vec![1]);
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap(); // Target class 1
+        let input_lengths = Tensor::from_vec(CpuBackend::default(), vec![2], vec![1]).unwrap();
+        let target_lengths = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
         let loss = loss_fn
             .forward(&log_probs, &targets, &input_lengths, &target_lengths)
@@ -1278,11 +1281,11 @@ mod tests {
             -1.0, 0.0, -2.0, // t=0
             -2.0, -1.0, 0.0, // t=1
         ];
-        let log_probs = Tensor::from_vec(log_probs_data, vec![2, 2, 3]);
+        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![log_probs_data.len()]).unwrap();
 
-        let targets = Tensor::from_vec(vec![1, 2], vec![2, 1]); // Different targets
-        let input_lengths = Tensor::from_vec(vec![2, 2], vec![2]);
-        let target_lengths = Tensor::from_vec(vec![1, 1], vec![2]);
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap(); // Different targets
+        let input_lengths = Tensor::from_vec(CpuBackend::default(), vec![2], vec![1]).unwrap();
+        let target_lengths = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
         let result_none = loss_fn_none
             .forward(&log_probs, &targets, &input_lengths, &target_lengths)
@@ -1306,3 +1309,5 @@ mod tests {
         assert_relative_eq!(result_mean.item().unwrap(), expected_mean, epsilon = 1e-6);
     }
 }
+
+

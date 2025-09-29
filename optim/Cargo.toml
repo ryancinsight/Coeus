@@ -10,7 +10,7 @@ description = "PyTorch-style optimization algorithms for Coeus tensor library"
 [dependencies]
 coeus-tensor.workspace = true
 coeus-dtype.workspace = true
-coeus-autograd.workspace = true
+# coeus-autograd.workspace = true  # TEMPORARILY DISABLED - architectural redesign required
 num-traits.workspace = true
 thiserror.workspace = true
 anyhow.workspace = true

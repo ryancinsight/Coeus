@@ -1,5 +1,9 @@
 use coeus_tensor::Tensor as RustTensor;
+use coeus_backend::CpuBackend;
 use pyo3::prelude::*;
+use pyo3::{PyErr, exceptions::PyRuntimeError};
+
+// TensorError to PyErr conversion is handled inline to avoid orphan rule violations
 
 // Suppress PyO3 false positives for useless conversions
 // PyO3 requires explicit Ok() wrapper for PyResult return types
@@ -48,10 +52,10 @@ impl Device {
 /// Note: This is a basic implementation focusing on core functionality.
 /// Full autograd support will be added in future iterations.
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PyTensor {
     /// The underlying Rust tensor (wrapped to avoid thread safety issues)
-    pub tensor: RustTensor<f32>,
+    pub tensor: RustTensor<f32, CpuBackend>,
     /// Whether gradients should be computed (autograd framework ready)
     pub requires_grad: bool,
     /// Device information
@@ -64,7 +68,8 @@ impl PyTensor {
     /// Create a new tensor from data and shape
     #[new]
     pub fn new(data: Vec<f32>, shape: Vec<usize>) -> PyResult<Self> {
-        let tensor = RustTensor::from_vec(data, shape);
+        let backend = CpuBackend::default();
+        let tensor = RustTensor::from_vec(backend, data, shape).map_err(|e| PyErr::new::<PyRuntimeError, _>(format!("{}", e)))?;
 
         Ok(PyTensor {
             tensor,
@@ -76,7 +81,10 @@ impl PyTensor {
     /// Create a tensor filled with zeros
     #[staticmethod]
     pub fn zeros(shape: Vec<usize>) -> PyResult<Self> {
-        let tensor = coeus_tensor::Tensor::<f32>::zeros(shape);
+        let backend = CpuBackend::default();
+        let size = shape.iter().product::<usize>();
+        let data = vec![0.0f32; size];
+        let tensor = RustTensor::<f32, CpuBackend>::from_vec(backend, data, shape).map_err(|e| PyErr::new::<PyRuntimeError, _>(format!("{}", e)))?;
         Ok(PyTensor {
             tensor,
             requires_grad: false,
@@ -87,7 +95,10 @@ impl PyTensor {
     /// Create a tensor filled with ones
     #[staticmethod]
     pub fn ones(shape: Vec<usize>) -> PyResult<Self> {
-        let tensor = coeus_tensor::Tensor::<f32>::ones(shape);
+        let backend = CpuBackend::default();
+        let size = shape.iter().product::<usize>();
+        let data = vec![1.0f32; size];
+        let tensor = RustTensor::<f32, CpuBackend>::from_vec(backend, data, shape).map_err(|e| PyErr::new::<PyRuntimeError, _>(format!("{}", e)))?;
         Ok(PyTensor {
             tensor,
             requires_grad: false,
@@ -186,7 +197,9 @@ impl PyTensor {
         }
 
         // Create a new tensor with the updated data and same shape
-        let new_tensor = RustTensor::from_vec(new_data, self.tensor.shape().to_vec());
+        let backend = CpuBackend::default();
+        let new_tensor = RustTensor::from_vec(backend, new_data, self.tensor.shape().to_vec())
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Tensor creation failed: {}", e)))?;
         self.tensor = new_tensor;
         Ok(())
     }
@@ -223,7 +236,7 @@ impl PyTensor {
 
 impl PyTensor {
     /// Create a PyTensor from an existing Rust tensor
-    pub fn from_rust_tensor(tensor: coeus_tensor::Tensor<f32>) -> Self {
+    pub fn from_rust_tensor(tensor: coeus_tensor::Tensor<f32, CpuBackend>) -> Self {
         PyTensor {
             tensor,
             requires_grad: false,
@@ -231,3 +244,6 @@ impl PyTensor {
         }
     }
 }
+
+// Removed orphan rule violating From implementation
+// Error handling done inline in PyO3 methods

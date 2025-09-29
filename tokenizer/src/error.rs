@@ -257,6 +257,12 @@ impl TokenizerError {
     }
 }
 
+impl From<coeus_tensor::TensorError> for TokenizerError {
+    fn from(error: coeus_tensor::TensorError) -> Self {
+        Self::encoding_error(format!("Tensor operation failed: {error}"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

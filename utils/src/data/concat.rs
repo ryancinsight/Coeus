@@ -3,7 +3,7 @@
 //! Provides dataset concatenation functionality compatible with PyTorch's ConcatDataset.
 
 use super::dataset_trait::Dataset;
-use coeus_tensor::Tensor;
+use coeus_tensor::{Tensor, CpuBackend};
 
 /// Concatenation of multiple datasets
 ///
@@ -61,7 +61,7 @@ impl<T: coeus_dtype::Dtype> Dataset<T> for ConcatDataset<T> {
         self.cumulative_lengths.last().copied().unwrap_or(0)
     }
 
-    fn get(&self, index: usize) -> (Tensor<T>, Tensor<T>) {
+    fn get(&self, index: usize) -> (Tensor<T, CpuBackend>, Tensor<T, CpuBackend>) {
         let (dataset_index, local_index) = self.find_dataset_index(index);
         self.datasets[dataset_index].get(local_index)
     }

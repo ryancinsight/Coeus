@@ -4,7 +4,7 @@
 //! Adaptively adjusts pooling regions to achieve a specific output size.
 
 use crate::{Module, NNError, Result};
-use coeus_tensor::{FloatDtype, Tensor};
+use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
 
 /// 1D Adaptive Max Pooling layer
 ///
@@ -27,7 +27,7 @@ impl AdaptiveMaxPool1d {
 }
 
 impl<T: FloatDtype> Module<T> for AdaptiveMaxPool1d {
-    fn forward(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         if input.ndim() != 3 {
             return Err(NNError::InvalidInput {
                 message: "AdaptiveMaxPool1d requires 3D input (batch_size, channels, length)".to_string(),
@@ -69,16 +69,19 @@ impl<T: FloatDtype> Module<T> for AdaptiveMaxPool1d {
         }
 
         Ok(Tensor::from_vec(
+            CpuBackend::default(),
             output_data,
             vec![batch_size, channels, self.output_size],
-        ))
+        ).unwrap())
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
+
+

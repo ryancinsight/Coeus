@@ -36,7 +36,9 @@
 //! - [GPT-2 Paper](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf)
 
 use crate::Module;
-use coeus_tensor::{FloatDtype, Tensor};
+use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
 
 // Re-export legacy monolithic implementations for backward compatibility
 // These will be removed in a future version
+
+

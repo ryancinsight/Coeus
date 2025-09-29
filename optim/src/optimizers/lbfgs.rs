@@ -130,7 +130,7 @@ impl<T: coeus_dtype::FloatDtype> LBFGS<T> {
                 .iter()
                 .map(|&x| x * T::from(1.0).unwrap())
                 .collect();
-            return Ok(Tensor::from_vec(scaled_data, vector.shape().to_vec()));
+            return Ok(Tensor::from_vec(vector.backend().clone(), scaled_data, vector.shape().to_vec())?);
         }
 
         // Simplified LBFGS: Use the last update to estimate the inverse Hessian
@@ -143,7 +143,7 @@ impl<T: coeus_dtype::FloatDtype> LBFGS<T> {
 
         // Apply the LBFGS update: H * v ≈ γ * v
         let result_data: Vec<T> = vector.data().iter().map(|&x| x * gamma).collect();
-        Ok(Tensor::from_vec(result_data, vector.shape().to_vec()))
+        Ok(Tensor::from_vec(vector.backend().clone(), result_data, vector.shape().to_vec())?)
     }
 
     /// Perform line search using Wolfe conditions
@@ -238,7 +238,7 @@ impl<T: coeus_dtype::FloatDtype> LBFGS<T> {
         for (param, dir) in params.iter().zip(direction.iter()) {
             // Compute step * direction element-wise
             let step_data: Vec<T> = dir.data().iter().map(|&x| x * step).collect();
-            let step_dir = Tensor::from_vec(step_data, dir.shape().to_vec());
+            let step_dir = Tensor::from_vec(dir.backend().clone(), step_data, dir.shape().to_vec())?;
 
             // Compute param - step_dir element-wise
             let new_data: Vec<T> = param
@@ -247,7 +247,7 @@ impl<T: coeus_dtype::FloatDtype> LBFGS<T> {
                 .zip(step_dir.data().iter())
                 .map(|(&p, &s)| p - s)
                 .collect();
-            let mut new_param = Tensor::from_vec(new_data, param.shape().to_vec());
+            let mut new_param = Tensor::from_vec(param.backend().clone(), new_data, param.shape().to_vec())?;
 
             if param.requires_grad() {
                 new_param.set_requires_grad(true);
@@ -265,7 +265,7 @@ impl<T: coeus_dtype::FloatDtype> LBFGS<T> {
         for param in params {
             // For this simplified case, gradient is just the parameter itself
             let grad_data: Vec<T> = param.data().to_vec();
-            let mut grad = Tensor::from_vec(grad_data, param.shape().to_vec());
+            let mut grad = Tensor::from_vec(param.backend().clone(), grad_data, param.shape().to_vec())?;
             if param.requires_grad() {
                 grad.set_requires_grad(true);
             }
@@ -275,7 +275,7 @@ impl<T: coeus_dtype::FloatDtype> LBFGS<T> {
     }
 }
 
-impl<T: coeus_dtype::FloatDtype> Optimizer<T> for LBFGS<T> {
+impl<T: coeus_dtype::FloatDtype> Optimizer<T, CpuBackend> for LBFGS<T> {
     fn step(&mut self) -> Result<()> {
         // Collect current parameters and gradients
         let mut all_params = Vec::new();
@@ -283,9 +283,9 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for LBFGS<T> {
 
         for group in self.base.param_groups().iter() {
             for param in group.params.iter() {
-                if let Some(grad) = param.grad() {
+                if param.grad().is_some() {
                     all_params.push(param.clone());
-                    all_grads.push(grad.clone());
+                    all_grads.push(param.unwrap_grad());
                 }
             }
         }
@@ -300,7 +300,7 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for LBFGS<T> {
         for grad in &all_grads {
             // Compute -gradient as search direction
             let neg_grad_data: Vec<T> = grad.data().iter().map(|&x| T::zero() - x).collect();
-            let neg_grad = Tensor::from_vec(neg_grad_data, grad.shape().to_vec());
+            let neg_grad = Tensor::from_vec(grad.backend().clone(), neg_grad_data, grad.shape().to_vec()).unwrap();
             search_directions.push(neg_grad);
         }
 
@@ -328,8 +328,8 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for LBFGS<T> {
 
         // Update LBFGS history (simplified)
         if all_params.len() == 1 && new_params.len() == 1 {
-            let s = (&new_params[0] - &all_params[0])?;
-            let y = (&all_grads[0] - &self.compute_gradients(&new_params)?[0])?;
+            let s = (&new_params[0] - &all_params[0]).unwrap();
+            let y = (&all_grads[0] - &self.compute_gradients(&new_params).unwrap()[0]).unwrap();
 
             // Simplified rho calculation (skip complex dot product)
             let rho = T::from(1.0).unwrap(); // Simplified

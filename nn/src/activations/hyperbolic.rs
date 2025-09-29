@@ -3,7 +3,7 @@
 //! This module contains activation functions based on hyperbolic functions.
 
 use crate::Module;
-use coeus_tensor::{FloatDtype, Tensor};
+use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
 use std::fmt;
 
 /// Tanh (Hyperbolic Tangent) activation function
@@ -29,15 +29,15 @@ impl Tanh {
 }
 
 impl<T: FloatDtype> Module<T> for Tanh {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
-        Ok(input.tanh())
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
+        Ok(input.tanh()?)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -47,3 +47,5 @@ impl fmt::Display for Tanh {
         write!(f, "Tanh()")
     }
 }
+
+

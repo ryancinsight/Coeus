@@ -3,7 +3,7 @@
 //! This module tests the DataLoader implementation to ensure it properly
 //! stacks tensors and creates batches as expected.
 
-use coeus_tensor::Tensor;
+use coeus_tensor::{Tensor, CpuBackend};
 use coeus_utils::utils::tensor_ops::stack;
 use coeus_utils::{DataLoader, Dataset};
 
@@ -11,8 +11,8 @@ use coeus_utils::{DataLoader, Dataset};
 #[test]
 fn test_tensor_stacking() {
     // Create some sample tensors
-    let tensor1 = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
-    let tensor2 = Tensor::from_vec(vec![4.0, 5.0, 6.0], vec![3]);
+    let tensor1 = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
+    let tensor2 = Tensor::from_vec(CpuBackend::default(), vec![4.0, 5.0, 6.0], vec![3]).unwrap();
 
     // Stack them along dimension 0
     let stacked = stack(&[&tensor1, &tensor2], 0).unwrap();
@@ -32,8 +32,8 @@ fn test_tensor_stacking() {
 #[test]
 fn test_tensor_stacking_different_dims() {
     // Create tensors with different shapes for stacking
-    let tensor1 = Tensor::from_vec(vec![1.0, 2.0], vec![2]);
-    let tensor2 = Tensor::from_vec(vec![3.0, 4.0], vec![2]);
+    let tensor1 = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0], vec![2]).unwrap();
+    let tensor2 = Tensor::from_vec(CpuBackend::default(), vec![3.0, 4.0], vec![2]).unwrap();
 
     // Stack along dimension 0 (batch dimension)
     let stacked = stack(&[&tensor1, &tensor2], 0).unwrap();
@@ -54,8 +54,8 @@ fn test_tensor_stacking_empty() {
 /// Test stacking tensors with mismatched shapes (should fail)
 #[test]
 fn test_tensor_stacking_mismatched_shapes() {
-    let tensor1 = Tensor::from_vec(vec![1.0, 2.0], vec![2]);
-    let tensor2 = Tensor::from_vec(vec![3.0, 4.0, 5.0], vec![3]); // Different shape
+    let tensor1 = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0], vec![2]).unwrap();
+    let tensor2 = Tensor::from_vec(CpuBackend::default(), vec![3.0, 4.0, 5.0], vec![3]).unwrap(); // Different shape
 
     let result = stack(&[&tensor1, &tensor2], 0);
     assert!(result.is_err());
@@ -63,8 +63,8 @@ fn test_tensor_stacking_mismatched_shapes() {
 
 /// Dataset for DataLoader testing
 struct DatasetImpl {
-    data: Vec<Tensor<f32>>,
-    targets: Vec<Tensor<f32>>,
+    data: Vec<Tensor<f32, CpuBackend>>,
+    targets: Vec<Tensor<f32, CpuBackend>>,
 }
 
 impl DatasetImpl {
@@ -75,11 +75,11 @@ impl DatasetImpl {
         for i in 0..size {
             // Create data tensor with shape [3] (e.g., 3 features)
             let data_tensor =
-                Tensor::from_vec(vec![i as f32, (i + 1) as f32, (i + 2) as f32], vec![3]);
+                Tensor::from_vec(CpuBackend::default(), vec![i as f32, (i + 1) as f32, (i + 2) as f32], vec![3]).unwrap();
             data.push(data_tensor);
 
             // Create target tensor with shape [1] (e.g., single target)
-            let target_tensor = Tensor::from_vec(vec![(i % 2) as f32], vec![1]);
+            let target_tensor = Tensor::from_vec(CpuBackend::default(), vec![(i % 2) as f32], vec![1]).unwrap();
             targets.push(target_tensor);
         }
 
@@ -92,7 +92,7 @@ impl Dataset<f32> for DatasetImpl {
         self.data.len()
     }
 
-    fn get(&self, index: usize) -> (Tensor<f32>, Tensor<f32>) {
+    fn get(&self, index: usize) -> (Tensor<f32, CpuBackend>, Tensor<f32, CpuBackend>) {
         (self.data[index].clone(), self.targets[index].clone())
     }
 }
@@ -150,7 +150,7 @@ fn test_dataloader_empty_dataset() {
         fn len(&self) -> usize {
             0
         }
-        fn get(&self, _index: usize) -> (Tensor<f32>, Tensor<f32>) {
+        fn get(&self, _index: usize) -> (Tensor<f32, CpuBackend>, Tensor<f32, CpuBackend>) {
             panic!("Should not be called")
         }
     }
@@ -185,15 +185,15 @@ fn test_dataloader_tensor_operation_errors() {
         fn len(&self) -> usize {
             2
         }
-        fn get(&self, index: usize) -> (Tensor<f32>, Tensor<f32>) {
+        fn get(&self, index: usize) -> (Tensor<f32, CpuBackend>, Tensor<f32, CpuBackend>) {
             match index {
                 0 => (
-                    Tensor::from_vec(vec![1.0, 2.0], vec![2]),
-                    Tensor::from_vec(vec![0.0], vec![1]),
+                    Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0], vec![2]).unwrap(),
+                    Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap(),
                 ),
                 1 => (
-                    Tensor::from_vec(vec![3.0, 4.0, 5.0], vec![3]),
-                    Tensor::from_vec(vec![1.0], vec![1]),
+                    Tensor::from_vec(CpuBackend::default(), vec![3.0, 4.0, 5.0], vec![3]).unwrap(),
+                    Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(),
                 ), // Different shape
                 _ => panic!("Invalid index"),
             }
@@ -237,7 +237,7 @@ fn test_dataloader_parallel_loading_tracking() {
         fn len(&self) -> usize {
             10
         }
-        fn get(&self, index: usize) -> (Tensor<f32>, Tensor<f32>) {
+        fn get(&self, index: usize) -> (Tensor<f32, CpuBackend>, Tensor<f32, CpuBackend>) {
             // Simulate some work
             thread::sleep(Duration::from_millis(1));
 
@@ -245,7 +245,7 @@ fn test_dataloader_parallel_loading_tracking() {
             *count += 1;
 
             (
-                Tensor::from_vec(vec![index as f32], vec![1]),
+                Tensor::from_vec(CpuBackend::default(), vec![index as f32], vec![1]).unwrap(),
                 Tensor::scalar(index as f32),
             )
         }
@@ -273,15 +273,15 @@ fn test_dataloader_mixed_shapes() {
         fn len(&self) -> usize {
             3
         }
-        fn get(&self, index: usize) -> (Tensor<f32>, Tensor<f32>) {
+        fn get(&self, index: usize) -> (Tensor<f32, CpuBackend>, Tensor<f32, CpuBackend>) {
             match index {
-                0 => (Tensor::from_vec(vec![1.0], vec![1]), Tensor::scalar(0.0)),
+                0 => (Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(), Tensor::scalar(0.0)),
                 1 => (
-                    Tensor::from_vec(vec![2.0, 3.0], vec![2]),
+                    Tensor::from_vec(CpuBackend::default(), vec![2.0, 3.0], vec![2]).unwrap(),
                     Tensor::scalar(1.0),
                 ),
                 2 => (
-                    Tensor::from_vec(vec![4.0, 5.0, 6.0], vec![3]),
+                    Tensor::from_vec(CpuBackend::default(), vec![4.0, 5.0, 6.0], vec![3]).unwrap(),
                     Tensor::scalar(2.0),
                 ),
                 _ => panic!("Invalid index"),

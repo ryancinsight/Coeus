@@ -1,20 +1,20 @@
 /// Gradient flow tests
 /// This module contains complex tests for automatic differentiation
-use crate::Tensor;
 use approx::assert_relative_eq;
+use crate::{Tensor, CpuBackend};
+use crate::ops::matrix::matmul;
 
 /// Test gradient computation for complex expressions
 #[test]
 fn test_complex_expression_gradient() {
-    // Test: f(x,y,z) = x² * y + sin(z), ∇f = [2*x*y, x², cos(z)]
-    // At x=2.0, y=3.0, z=0.0: ∇f = [12.0, 4.0, 1.0]
-    let mut x = Tensor::scalar(2.0);
+    let backend = CpuBackend::default();
+    let mut x = Tensor::from_vec(backend.clone(), vec![2.0], vec![]).unwrap();
     x.set_requires_grad(true);
 
-    let mut y = Tensor::scalar(3.0);
+    let mut y = Tensor::from_vec(backend.clone(), vec![3.0], vec![]).unwrap();
     y.set_requires_grad(true);
 
-    let mut z = Tensor::scalar(0.0);
+    let mut z = Tensor::from_vec(backend.clone(), vec![0.0], vec![]).unwrap();
     z.set_requires_grad(true);
 
     // Compute x²
@@ -24,10 +24,10 @@ fn test_complex_expression_gradient() {
     let x_squared_y = (&x_squared * &y).unwrap();
 
     // Compute sin(z)
-    let sin_z = z.sin();
+    let sin_z = z.sin().unwrap();
 
     // Compute final result
-    let result = (&x_squared_y + &sin_z).unwrap();
+    let mut result = (&x_squared_y + &sin_z).unwrap();
 
     // Compute gradients
     result.backward().unwrap();
@@ -41,21 +41,20 @@ fn test_complex_expression_gradient() {
 /// Test gradient computation for chain rule
 #[test]
 fn test_chain_rule_gradient() {
-    // Test chain rule: f(x) = sin(e^x), f'(x) = cos(e^x) * e^x
-    // At x=0.0: f'(x) = cos(1.0) * 1.0 ≈ 0.5403 * 1.0 ≈ 0.5403
-    let mut x = Tensor::scalar(0.0);
+    let backend = CpuBackend::default();
+    let mut x = Tensor::from_vec(backend.clone(), vec![0.0], vec![]).unwrap();
     x.set_requires_grad(true);
 
     // Compute e^x
-    let exp_x = x.exp();
+    let exp_x = x.exp().unwrap();
 
     // Compute sin(e^x)
-    let sin_exp_x = exp_x.sin();
+    let mut sin_exp_x = exp_x.sin().unwrap();
 
     // Compute gradient
     sin_exp_x.backward().unwrap();
 
-    let x_val: f64 = x.item().unwrap();
+    let x_val: f64 = x.as_scalar().unwrap();
     let expected_grad = (x_val.exp()).cos() * x_val.exp(); // cos(e^x) * e^x at x=0
     assert_relative_eq!(x.grad().unwrap().as_scalar().unwrap(), expected_grad, epsilon = 1e-6);
 }
@@ -63,17 +62,12 @@ fn test_chain_rule_gradient() {
 /// Test gradient computation for higher-order derivatives
 #[test]
 fn test_second_order_derivatives() {
-    // Test second derivative: f(x) = x³, f'(x) = 3x², f''(x) = 6x
-    // At x=2.0: f''(x) = 12.0
-
-    // Note: Current implementation may not support second derivatives
-    // This test documents the expected behavior for future implementation
-
-    let mut x = Tensor::scalar(2.0);
+    let backend = CpuBackend::default();
+    let mut x = Tensor::from_vec(backend.clone(), vec![2.0], vec![]).unwrap();
     x.set_requires_grad(true);
 
     // First derivative: y = x³, dy/dx = 3x² = 12
-    let y = x.pow(3.0);
+    let mut y = x.pow(3.0).unwrap();
 
     // For now, just test first derivative
     y.backward().unwrap();
@@ -87,18 +81,18 @@ fn test_second_order_derivatives() {
 /// Test gradient computation with broadcasting
 #[test]
 fn test_broadcasting_gradient() {
-    // Test gradient computation with broadcasting
-    let mut x = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+    let backend = CpuBackend::default();
+    let mut x = Tensor::from_vec(backend.clone(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
     x.set_requires_grad(true);
 
-    let mut y = Tensor::scalar(2.0);
+    let mut y = Tensor::from_vec(backend.clone(), vec![2.0], vec![]).unwrap();
     y.set_requires_grad(true);
 
     // Compute element-wise multiplication with broadcasting
     let z = (&x * &y).unwrap();
 
     // Compute sum to get scalar output
-    let sum_z = z.sum();
+    let mut sum_z = z.sum();
     sum_z.backward().unwrap();
 
     // Validate gradients
@@ -115,28 +109,18 @@ fn test_broadcasting_gradient() {
 /// Test gradient computation for matrix operations
 #[test]
 fn test_matrix_operations_gradient() {
-    // Test gradient computation for matrix multiplication with exact validation
-    // A = [[1, 2], [3, 4]], B = [[5, 6], [7, 8]]
-    // C = A @ B = [[19, 22], [43, 50]]
-    // sum(C) = 19 + 22 + 43 + 50 = 134
-    //
-    // ∂sum(C)/∂A[i,j] = sum over k of B[j,k] (since C[i,j] = sum_k A[i,k] * B[k,j])
-    // ∂sum(C)/∂B[i,j] = sum over k of A[k,i] (since C[k,j] = sum_m A[k,m] * B[m,j])
-    //
-    // For A: ∂sum(C)/∂A = [[5+7, 6+8], [5+7, 6+8]] = [[12, 14], [12, 14]]
-    // For B: ∂sum(C)/∂B = [[1+3, 2+4], [1+3, 2+4]] = [[4, 6], [4, 6]]
-
-    let mut a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+    let backend = CpuBackend::default();
+    let mut a = Tensor::from_vec(backend.clone(), vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]).unwrap();
     a.set_requires_grad(true);
 
-    let mut b = Tensor::from_vec(vec![5.0, 6.0, 7.0, 8.0], vec![2, 2]);
+    let mut b = Tensor::from_vec(backend.clone(), vec![5.0, 6.0, 7.0, 8.0], vec![2, 2]).unwrap();
     b.set_requires_grad(true);
 
     // Compute matrix multiplication
-    let c = a.matmul(&b).unwrap();
+    let c = matmul(&a, &b).unwrap();
 
     // Compute sum for scalar output
-    let sum_c = c.sum();
+    let mut sum_c = c.sum();
     sum_c.backward().unwrap();
 
     // Validate gradients with exact analytical computation
@@ -144,14 +128,14 @@ fn test_matrix_operations_gradient() {
     let b_grad = b.grad().unwrap();
 
     // Expected gradients for A: [[11, 15], [11, 15]]
-    // ∂sum(C)/∂A[i,j] = sum_l B[j,l] (sum over output columns)
+    // ∂sum(C)/∂A[i,j] = sum over k of B[j,k] (sum over output columns)
     assert_relative_eq!(a_grad.data()[0], 11.0, epsilon = 1e-6); // ∂sum(C)/∂A[0,0] = B[0,0] + B[0,1] = 5+6
     assert_relative_eq!(a_grad.data()[1], 15.0, epsilon = 1e-6); // ∂sum(C)/∂A[0,1] = B[1,0] + B[1,1] = 7+8
     assert_relative_eq!(a_grad.data()[2], 11.0, epsilon = 1e-6); // ∂sum(C)/∂A[1,0] = B[0,0] + B[0,1] = 5+6
     assert_relative_eq!(a_grad.data()[3], 15.0, epsilon = 1e-6); // ∂sum(C)/∂A[1,1] = B[1,0] + B[1,1] = 7+8
 
     // Expected gradients for B: [[4, 4], [6, 6]]
-    // ∂sum(C)/∂B[i,j] = sum_k A[k,i] (sum over output rows for fixed column i)
+    // ∂sum(C)/∂B[i,j] = sum over k of A[k,i] (sum over output rows for fixed column i)
     assert_relative_eq!(b_grad.data()[0], 4.0, epsilon = 1e-6); // ∂sum(C)/∂B[0,0] = A[0,0] + A[1,0] = 1+3
     assert_relative_eq!(b_grad.data()[1], 4.0, epsilon = 1e-6); // ∂sum(C)/∂B[0,1] = A[0,0] + A[1,0] = 1+3 (same as B[0,0])
     assert_relative_eq!(b_grad.data()[2], 6.0, epsilon = 1e-6); // ∂sum(C)/∂B[1,0] = A[0,1] + A[1,1] = 2+4
@@ -161,26 +145,22 @@ fn test_matrix_operations_gradient() {
 /// Test edge cases for gradient computation
 #[test]
 fn test_gradient_edge_cases() {
-    // Test gradient computation at special values
-
-    // Test at zero
-    let mut x_zero = Tensor::scalar(0.0);
+    let backend = CpuBackend::default();
+    let mut x_zero = Tensor::from_vec(backend.clone(), vec![0.0], vec![]).unwrap();
     x_zero.set_requires_grad(true);
-    let y_zero = x_zero.exp(); // e^0 = 1
+    let mut y_zero = x_zero.exp().unwrap(); // e^0 = 1
     y_zero.backward().unwrap();
     assert_relative_eq!(x_zero.grad().unwrap().as_scalar().unwrap(), 1.0, epsilon = 1e-6);
 
-    // Test at negative values
-    let mut x_neg = Tensor::scalar(-1.0);
+    let mut x_neg = Tensor::from_vec(backend.clone(), vec![-1.0], vec![]).unwrap();
     x_neg.set_requires_grad(true);
-    let y_neg = x_neg.exp(); // e^(-1) ≈ 0.3679
+    let mut y_neg = x_neg.exp().unwrap(); // e^(-1) ≈ 0.3679
     y_neg.backward().unwrap();
     assert_relative_eq!(x_neg.grad().unwrap().as_scalar().unwrap(), (-1.0f64).exp(), epsilon = 1e-6);
 
-    // Test with very small values
-    let mut x_small = Tensor::scalar(1e-6);
+    let mut x_small = Tensor::from_vec(backend.clone(), vec![1e-6], vec![]).unwrap();
     x_small.set_requires_grad(true);
-    let y_small = x_small.sin();
+    let mut y_small = x_small.sin().unwrap();
     y_small.backward().unwrap();
     assert_relative_eq!(x_small.grad().unwrap().as_scalar().unwrap(), (1e-6f64).cos(), epsilon = 1e-6);
 }
@@ -188,11 +168,11 @@ fn test_gradient_edge_cases() {
 /// Test numerical gradient verification
 #[test]
 fn test_numerical_gradient_verification() {
-    // Test that analytical gradients match numerical gradients
-    let mut x = Tensor::scalar(1.0);
+    let backend = CpuBackend::default();
+    let mut x = Tensor::from_vec(backend.clone(), vec![1.0], vec![]).unwrap();
     x.set_requires_grad(true);
 
-    let y = x.exp();
+    let mut y = x.exp().unwrap();
     y.backward().unwrap();
 
     let analytical_grad = x.grad().unwrap().as_scalar().unwrap();

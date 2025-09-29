@@ -4,6 +4,7 @@
 //! Reduces spatial dimensions by taking the maximum value in each kernel window.
 
 use crate::{Module, NNError, Result};
+use coeus_backend::CpuBackend;
 use coeus_tensor::{FloatDtype, Tensor};
 
 /// 2D Max Pooling layer
@@ -92,8 +93,8 @@ impl MaxPool2d {
     /// Forward pass for 2D max pooling
     fn max_pool2d_forward<T: FloatDtype>(
         &self,
-        input: &Tensor<T>,
-    ) -> Result<(Tensor<T>, Option<Tensor<i32>>)> {
+        input: &Tensor<T, CpuBackend>,
+    ) -> Result<(Tensor<T, CpuBackend>, Option<Tensor<i32, CpuBackend>>)> {
         let batch_size = input.shape()[0];
         let input_height = input.shape()[1];
         let input_width = input.shape()[2];
@@ -160,15 +161,15 @@ impl MaxPool2d {
             }
         }
 
-        let output = Tensor::from_vec(output_data, output_shape.clone());
-        let indices = indices_data.map(|data| Tensor::from_vec(data, output_shape));
+        let output = Tensor::from_vec(CpuBackend::default(), output_data, output_shape.clone()).unwrap();
+        let indices = indices_data.map(|data| Tensor::from_vec(CpuBackend::default(), data, output_shape).unwrap());
 
         Ok((output, indices))
     }
 }
 
 impl<T: FloatDtype> Module<T> for MaxPool2d {
-    fn forward(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         self.max_pool2d_forward(input)
             .map(|(output, _)| output)
             .map_err(|e| NNError::InvalidInput {
@@ -176,11 +177,14 @@ impl<T: FloatDtype> Module<T> for MaxPool2d {
             })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![] // MaxPool2d has no learnable parameters
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![] // MaxPool2d has no learnable parameters
     }
 }
+
+
+

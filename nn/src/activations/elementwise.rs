@@ -3,6 +3,7 @@
 //! This module contains activation functions that operate element-wise on tensors.
 
 use crate::Module;
+use coeus_backend::CpuBackend;
 use coeus_dtype::Dtype;
 use coeus_tensor::{FloatDtype, Tensor};
 use std::fmt;
@@ -30,16 +31,16 @@ impl ReLU {
 }
 
 impl<T: FloatDtype> Module<T> for ReLU {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         // Use the tensor's relu method which has proper autograd integration
-        Ok(input.relu())
+        Ok(input.relu()?)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -81,8 +82,8 @@ impl LeakyReLU {
 }
 
 impl<T: FloatDtype> Module<T> for LeakyReLU {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
-        let alpha = T::from_f64(self.negative_slope).unwrap();
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
+        let alpha = <T as Dtype>::from_f64(self.negative_slope).unwrap();
 
         let data = input
             .data()
@@ -90,7 +91,7 @@ impl<T: FloatDtype> Module<T> for LeakyReLU {
             .map(|&x| if x > T::zero() { x } else { alpha * x })
             .collect();
 
-        let mut result = Tensor::from_vec(data, input.shape().to_vec());
+        let mut result = Tensor::from_vec(CpuBackend::default(), data, input.shape().to_vec()).unwrap();
 
         if input.requires_grad() {
             result.set_requires_grad(true);
@@ -99,11 +100,11 @@ impl<T: FloatDtype> Module<T> for LeakyReLU {
         Ok(result)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -146,15 +147,15 @@ impl<T: FloatDtype> ELU<T> {
 }
 
 impl<T: FloatDtype> Module<T> for ELU<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
-        Ok(input.elu(self.alpha))
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
+        Ok(input.elu(self.alpha)?)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -186,15 +187,15 @@ impl GELU {
 }
 
 impl<T: FloatDtype> Module<T> for GELU {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
-        Ok(input.gelu())
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
+        Ok(input.gelu()?)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -236,8 +237,8 @@ impl Hardshrink {
 }
 
 impl<T: FloatDtype> Module<T> for Hardshrink {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
-        let lambda = T::from_f64(self.lambda).unwrap();
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
+        let lambda = <T as Dtype>::from_f64(self.lambda).unwrap();
 
         let data = input
             .data()
@@ -245,7 +246,7 @@ impl<T: FloatDtype> Module<T> for Hardshrink {
             .map(|&x| if x.abs() > lambda { x } else { T::zero() })
             .collect();
 
-        let mut result = Tensor::from_vec(data, input.shape().to_vec());
+        let mut result = Tensor::from_vec(CpuBackend::default(), data, input.shape().to_vec()).unwrap();
 
         if input.requires_grad() {
             result.set_requires_grad(true);
@@ -254,11 +255,11 @@ impl<T: FloatDtype> Module<T> for Hardshrink {
         Ok(result)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -302,9 +303,9 @@ impl Hardtanh {
 }
 
 impl<T: FloatDtype> Module<T> for Hardtanh {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
-        let min_val = T::from_f64(self.min_val).unwrap();
-        let max_val = T::from_f64(self.max_val).unwrap();
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
+        let min_val = <T as Dtype>::from_f64(self.min_val).unwrap();
+        let max_val = <T as Dtype>::from_f64(self.max_val).unwrap();
 
         let data = input
             .data()
@@ -312,7 +313,7 @@ impl<T: FloatDtype> Module<T> for Hardtanh {
             .map(|&x| x.clamp(min_val, max_val))
             .collect();
 
-        let mut result = Tensor::from_vec(data, input.shape().to_vec());
+        let mut result = Tensor::from_vec(CpuBackend::default(), data, input.shape().to_vec()).unwrap();
 
         if input.requires_grad() {
             result.set_requires_grad(true);
@@ -321,11 +322,11 @@ impl<T: FloatDtype> Module<T> for Hardtanh {
         Ok(result)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -345,7 +346,7 @@ impl fmt::Display for Hardtanh {
 #[derive(Debug, Clone)]
 pub struct PReLU<T: FloatDtype> {
     /// Learnable negative slope parameter
-    a: Tensor<T>,
+    a: Tensor<T, CpuBackend>,
 }
 
 impl<T: FloatDtype> Default for PReLU<T> {
@@ -363,13 +364,13 @@ impl<T: FloatDtype> PReLU<T> {
     /// Create a new PReLU activation with specified slope
     pub fn new_with_slope(slope: T) -> Self {
         Self {
-            a: Tensor::from_vec(vec![slope], vec![1]),
+            a: Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap(),
         }
     }
 }
 
 impl<T: FloatDtype + Clone> Module<T> for PReLU<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         let a = &self.a;
 
         let data = input
@@ -379,7 +380,7 @@ impl<T: FloatDtype + Clone> Module<T> for PReLU<T> {
             .map(|(&x, &slope)| if x > T::zero() { x } else { slope * x })
             .collect();
 
-        let mut result = Tensor::from_vec(data, input.shape().to_vec());
+        let mut result = Tensor::from_vec(CpuBackend::default(), data, input.shape().to_vec()).unwrap();
 
         if input.requires_grad() {
             result.set_requires_grad(true);
@@ -388,11 +389,11 @@ impl<T: FloatDtype + Clone> Module<T> for PReLU<T> {
         Ok(result)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![&self.a]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![&mut self.a]
     }
 }
@@ -436,10 +437,10 @@ impl RReLU {
 }
 
 impl<T: FloatDtype> Module<T> for RReLU {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         // During training, use random slope; during inference, use average
-        let slope = (self.lower + self.upper) / 2.0;
-        let alpha = T::from_f64(slope).unwrap();
+        let _slope = (self.lower + self.upper) / 2.0;
+        let alpha = <T as Dtype>::from_f64(_slope).unwrap();
 
         let data = input
             .data()
@@ -447,7 +448,7 @@ impl<T: FloatDtype> Module<T> for RReLU {
             .map(|&x| if x > T::zero() { x } else { alpha * x })
             .collect();
 
-        let mut result = Tensor::from_vec(data, input.shape().to_vec());
+        let mut result = Tensor::from_vec(CpuBackend::default(), data, input.shape().to_vec()).unwrap();
 
         if input.requires_grad() {
             result.set_requires_grad(true);
@@ -456,11 +457,11 @@ impl<T: FloatDtype> Module<T> for RReLU {
         Ok(result)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -488,16 +489,16 @@ impl Tanhshrink {
 }
 
 impl<T: FloatDtype> Module<T> for Tanhshrink {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         let tanh_result = input.tanh();
-        Ok((input - &tanh_result).unwrap())
+        Ok((input - &tanh_result?).unwrap())
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -541,9 +542,9 @@ impl Threshold {
 }
 
 impl<T: FloatDtype> Module<T> for Threshold {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
-        let threshold = T::from_f64(self.threshold).unwrap();
-        let value = T::from_f64(self.value).unwrap();
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
+        let threshold = <T as Dtype>::from_f64(self.threshold).unwrap();
+        let value = <T as Dtype>::from_f64(self.value).unwrap();
 
         let data = input
             .data()
@@ -551,7 +552,7 @@ impl<T: FloatDtype> Module<T> for Threshold {
             .map(|&x| if x > threshold { x } else { value })
             .collect();
 
-        let mut result = Tensor::from_vec(data, input.shape().to_vec());
+        let mut result = Tensor::from_vec(CpuBackend::default(), data, input.shape().to_vec()).unwrap();
 
         if input.requires_grad() {
             result.set_requires_grad(true);
@@ -560,11 +561,11 @@ impl<T: FloatDtype> Module<T> for Threshold {
         Ok(result)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -607,7 +608,7 @@ impl<T: FloatDtype> CELU<T> {
 }
 
 impl<T: FloatDtype> Module<T> for CELU<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         let alpha = self.alpha;
 
         let data = input
@@ -622,7 +623,7 @@ impl<T: FloatDtype> Module<T> for CELU<T> {
             })
             .collect();
 
-        let mut result = Tensor::from_vec(data, input.shape().to_vec());
+        let mut result = Tensor::from_vec(CpuBackend::default(), data, input.shape().to_vec()).unwrap();
 
         if input.requires_grad() {
             result.set_requires_grad(true);
@@ -631,11 +632,11 @@ impl<T: FloatDtype> Module<T> for CELU<T> {
         Ok(result)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -668,7 +669,7 @@ impl SELU {
 }
 
 impl<T: FloatDtype> Module<T> for SELU {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         let lambda = T::from(1.050_700_987_355_480_5).unwrap(); // λ
         let alpha = T::from(1.673_263_242_354_377_2).unwrap();  // α
 
@@ -684,7 +685,7 @@ impl<T: FloatDtype> Module<T> for SELU {
             })
             .collect();
 
-        let mut result = Tensor::from_vec(data, input.shape().to_vec());
+        let mut result = Tensor::from_vec(CpuBackend::default(), data, input.shape().to_vec()).unwrap();
 
         if input.requires_grad() {
             result.set_requires_grad(true);
@@ -693,11 +694,11 @@ impl<T: FloatDtype> Module<T> for SELU {
         Ok(result)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -707,3 +708,5 @@ impl fmt::Display for SELU {
         write!(f, "SELU()")
     }
 }
+
+

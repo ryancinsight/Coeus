@@ -1,6 +1,6 @@
 //! Integration tests for dataset functionality
 
-use crate::{Tensor, TensorDataset, Dataset};
+use crate::{Tensor, TensorDataset, Dataset, CpuBackend};
 
 #[cfg(test)]
 mod tests {
@@ -9,8 +9,8 @@ mod tests {
     /// Test error handling and edge cases
     #[test]
     fn test_dataset_error_handling() {
-        let data = vec![Tensor::from_vec(vec![1.0], vec![1])];
-        let targets = vec![Tensor::from_vec(vec![0.0], vec![1])];
+        let data = vec![Tensor::from_vec(CpuBackend::new(), vec![1.0], vec![1])];
+        let targets = vec![Tensor::from_vec(CpuBackend::new(), vec![0.0], vec![1])];
         let dataset = TensorDataset::new(data, targets);
 
         // Test out of bounds access
@@ -25,10 +25,10 @@ mod tests {
         // Create a large dataset
         let size = 10000;
         let data: Vec<Tensor<f64>> = (0..size)
-            .map(|i| Tensor::from_vec(vec![i as f64], vec![1]))
+            .map(|i| Tensor::from_vec(CpuBackend::new(), vec![i as f64], vec![1]))
             .collect();
         let targets: Vec<Tensor<f64>> = (0..size)
-            .map(|i| Tensor::from_vec(vec![(i % 2) as f64], vec![1]))
+            .map(|i| Tensor::from_vec(CpuBackend::new(), vec![(i % 2) as f64], vec![1]))
             .collect();
 
         let dataset = TensorDataset::new(data, targets);
@@ -54,10 +54,10 @@ mod tests {
     #[test]
     fn test_dataset_memory_safety() {
         let data: Vec<Tensor<f64>> = (0..1000)
-            .map(|i| Tensor::from_vec(vec![i as f64; 100], vec![100]))
+            .map(|i| Tensor::from_vec(CpuBackend::new(), vec![i as f64; 100], vec![100]))
             .collect();
         let targets: Vec<Tensor<f64>> = (0..1000)
-            .map(|i| Tensor::from_vec(vec![(i % 10) as f64], vec![1]))
+            .map(|i| Tensor::from_vec(CpuBackend::new(), vec![(i % 10) as f64], vec![1]))
             .collect();
 
         let dataset = TensorDataset::new(data, targets);

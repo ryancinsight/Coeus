@@ -42,3 +42,5 @@ pub use crate::modules::adaptive_maxpool3d::AdaptiveMaxPool3d;
 pub use crate::modules::adaptive_avgpool1d::AdaptiveAvgPool1d;
 pub use crate::modules::adaptive_avgpool2d::AdaptiveAvgPool2d;
 pub use crate::modules::adaptive_avgpool3d::AdaptiveAvgPool3d;
+
+

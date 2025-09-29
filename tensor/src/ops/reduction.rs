@@ -1,9 +1,10 @@
 //! Reduction operations
 
-use crate::{FloatDtype, Result, Tensor, TensorError};
+use crate::{Dtype, FloatDtype, Result, Tensor, TensorError};
+use coeus_backend::{Backend, CpuBackend};
 
 /// Sum along specified dimension
-pub fn sum_dim<T: FloatDtype>(tensor: &Tensor<T>, dim: usize) -> Result<Tensor<T>> {
+pub fn sum_dim<T: Dtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>, dim: usize) -> Result<Tensor<T, B>> {
     if dim >= tensor.ndim() {
         return Err(TensorError::InvalidOperation {
             message: format!(
@@ -45,7 +46,8 @@ pub fn sum_dim<T: FloatDtype>(tensor: &Tensor<T>, dim: usize) -> Result<Tensor<T
         }
     }
 
-    let mut result = Tensor::from_vec(result_data, new_shape);
+    let backend = tensor.backend().clone();
+    let mut result = Tensor::from_vec(backend, result_data, new_shape)?;
 
     if tensor.requires_grad() {
         result.set_requires_grad(true);
@@ -58,8 +60,32 @@ pub fn sum_dim<T: FloatDtype>(tensor: &Tensor<T>, dim: usize) -> Result<Tensor<T
     Ok(result)
 }
 
+/// Sum of all elements
+pub fn sum<T: Dtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+    if tensor.numel() == 0 {
+        return Err(TensorError::InvalidOperation {
+            message: "Cannot sum empty tensor".to_string(),
+        });
+    }
+
+    let sum_val = tensor.data().iter().fold(T::zero(), |acc, x| acc + *x);
+    let backend = tensor.backend().clone();
+    let mut result = Tensor::from_vec(backend, vec![sum_val], vec![])?;
+
+    if tensor.requires_grad() {
+        result.set_requires_grad(true);
+        // Note: Graph integration is handled by tensor methods, not free functions
+        // Backward: gradient is ones_like(input) for sum
+    }
+
+    Ok(result)
+}
+
 /// Mean along specified dimension
-pub fn mean_dim<T: FloatDtype>(tensor: &Tensor<T>, dim: usize) -> Result<Tensor<T>> {
+pub fn mean_dim<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>, dim: usize) -> Result<Tensor<T, B>>
+where
+    CpuBackend: Backend<T>,
+{
     let sum = sum_dim(tensor, dim)?;
     let count = tensor.shape()[dim] as f64;
 
@@ -69,7 +95,8 @@ pub fn mean_dim<T: FloatDtype>(tensor: &Tensor<T>, dim: usize) -> Result<Tensor<
         .map(|x| *x / T::from(count).unwrap())
         .collect();
 
-    let mut result = Tensor::from_vec(data, sum.shape().to_vec());
+    let backend = sum.backend().clone();
+    let mut result = Tensor::from_vec(backend, data, sum.shape().to_vec())?;
 
     if tensor.requires_grad() {
         result.set_requires_grad(true);
@@ -83,7 +110,10 @@ pub fn mean_dim<T: FloatDtype>(tensor: &Tensor<T>, dim: usize) -> Result<Tensor<
 }
 
 /// Concatenate tensors along specified dimension
-pub fn cat<T: FloatDtype>(tensors: &[&Tensor<T>], dim: usize) -> Result<Tensor<T>> {
+pub fn cat<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensors: &[&Tensor<T, B>], dim: usize) -> Result<Tensor<T, B>>
+where
+    CpuBackend: Backend<T>,
+{
     if tensors.is_empty() {
         return Err(TensorError::InvalidOperation {
             message: "Cannot concatenate empty tensor list".to_string(),
@@ -118,7 +148,8 @@ pub fn cat<T: FloatDtype>(tensors: &[&Tensor<T>], dim: usize) -> Result<Tensor<T
         offset += size;
     }
 
-    let mut result = Tensor::from_vec(result_data, new_shape);
+    let backend = tensors[0].backend().clone();
+    let mut result = Tensor::from_vec(backend, result_data, new_shape)?;
 
     if tensors.iter().any(|t| t.requires_grad()) {
         result.set_requires_grad(true);

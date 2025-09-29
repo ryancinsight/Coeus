@@ -1,56 +1,51 @@
 [workspace]
 members = [
-    "dtype",
     "backend",
-    "autograd",
-    "tensor",
-    "nn",
-    "optim",
-    "utils",
+    "dtype",
+    "examples",
     "fft",
     "hub",
+    "models",
+    "nn",
+    "optim",
+    "pycoeus",
+    "tensor",
     "tokenizer",
-    "examples",
-    "pycoeus", "models",
+    "utils"
+]
+exclude = [
+    "autograd"  # TEMPORARILY EXCLUDED - needs major refactor
 ]
 resolver = "2"
-
-[profile.test]
-# Enable optimizations for tests to improve performance
-opt-level = 1
-
-[profile.test.package."coeus-nn"]
-# Specific optimizations for NN tests to address performance issues
-opt-level = 2
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["Coeus Team"]
+authors = ["Ryan Clanton <ryancinsight@gmail.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/your-org/coeus"
-description = "PyTorch-like tensor library in Rust with automatic differentiation"
 
 [workspace.dependencies]
-num-traits = "0.2"
-num-complex = "0.4"
-rayon = "1.8"
-thiserror = "1.0"
-anyhow = "1.0"
-parking_lot = "0.12"
-crossbeam = "0.8"
+num-traits = "0.2.18"
+num-complex = "0.4.5"
+thiserror = "1.0.64"
+anyhow = "1.0.86"
+parking_lot = "0.12.3"
+crossbeam = "0.8.4"
+rayon = "1.10.0"
+serde = { version = "1.0.210", features = ["derive"] }
+tracing = "0.1.40"
+tokio = { version = "1.40.0", features = ["full"] }
 approx = "0.5"
+async-trait = "0.1"
 half = { version = "2.1", features = ["num-traits"] }
 rand = "0.8"
 rand_distr = "0.4"
-rustfft = "6.1"
 criterion = { version = "0.5", features = ["html_reports"] }
-cargo-tarpaulin = "0.27"
-
-# Workspace-local dependencies
-coeus-dtype = { path = "dtype" }
-coeus-tensor = { path = "tensor" }
-coeus-autograd = { path = "autograd" }
-coeus-nn = { path = "nn" }
-coeus-hub = { path = "hub" }
-coeus-models = { path = "models" }
+rustfft = "6.1"
+coeus-dtype = { path = "./dtype" }
+coeus-backend = { path = "./backend" }
+coeus-tensor = { path = "./tensor" }
+coeus-nn = { path = "./nn" }
+coeus-hub = { path = "./hub" }
+coeus-models = { path = "./models" }

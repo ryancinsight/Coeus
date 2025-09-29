@@ -3,7 +3,7 @@
 //! This module contains activation functions based on the softmax function.
 
 use crate::Module;
-use coeus_tensor::{FloatDtype, Tensor};
+use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -38,18 +38,18 @@ impl<T: FloatDtype> Softmax<T> {
 }
 
 impl<T: FloatDtype + Clone> Module<T> for Softmax<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         match self.dim {
-            Some(dim) => Ok(input.softmax(dim)),
-            None => Ok(input.softmax(input.ndim() - 1)), // Default to last dimension
+            Some(dim) => Ok(input.softmax(dim)?),
+            None => Ok(input.softmax(input.ndim() - 1)?), // Default to last dimension
         }
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -94,18 +94,18 @@ impl<T: FloatDtype> Softmin<T> {
 }
 
 impl<T: FloatDtype + Clone> Module<T> for Softmin<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         match self.dim {
-            Some(dim) => Ok(input.softmin(dim)),
-            None => Ok(input.softmin(input.ndim() - 1)), // Default to last dimension
+            Some(dim) => Ok(input.softmin(dim)?),
+            None => Ok(input.softmin(input.ndim() - 1)?), // Default to last dimension
         }
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -134,16 +134,16 @@ impl Softmax2d {
 }
 
 impl<T: FloatDtype> Module<T> for Softmax2d {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         // Apply softmax over the channel dimension (dim=1) for (N, C, H, W) tensors
-        Ok(input.softmax(1))
+        Ok(input.softmax(1)?)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -153,3 +153,5 @@ impl fmt::Display for Softmax2d {
         write!(f, "Softmax2d()")
     }
 }
+
+

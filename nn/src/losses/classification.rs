@@ -4,7 +4,7 @@
 //! multi-class and binary classification losses.
 
 use super::{utils, Module, NNError, Reduction, Result};
-use coeus_tensor::{Dtype, FloatDtype, Tensor};
+use coeus_tensor::{Dtype, FloatDtype, Tensor, CpuBackend};
 
 /// Cross-Entropy Loss for multi-class classification
 ///
@@ -24,8 +24,8 @@ use coeus_tensor::{Dtype, FloatDtype, Tensor};
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = CrossEntropyLoss::new();
-/// let logits = Tensor::from_vec(vec![1.0, 2.0, 0.5, 0.1, 1.5, 2.1], vec![2, 3]);
-/// let targets = Tensor::from_vec(vec![1, 2], vec![2]); // Class indices
+/// let logits = Tensor::from_vec(CpuBackend::default(), vec![1.0).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1).unwrap(); // Class indices
 ///
 /// let loss = loss_fn.forward(&logits, &targets).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -50,11 +50,11 @@ impl CrossEntropyLoss {
     }
 
     /// Compute cross-entropy loss between logits and target class indices
-    pub fn forward<T: FloatDtype, I: Dtype + num_traits::ToPrimitive>(
+    pub fn forward<T: FloatDtype + std::iter::Sum, I: Dtype + num_traits::ToPrimitive>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<I>,
-    ) -> Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<I, CpuBackend>,
+    ) -> Result<Tensor<T, CpuBackend>> {
         if predictions.ndim() != 2 {
             return Err(NNError::InvalidInput {
                 message: "Predictions must be 2D tensor (batch_size, num_classes)".to_string(),
@@ -101,7 +101,7 @@ impl CrossEntropyLoss {
             losses.push(-log_prob);
         }
 
-        let loss_tensor = Tensor::from_vec(losses, vec![batch_size]);
+        let loss_tensor = Tensor::from_vec(CpuBackend::default(), losses, vec![batch_size]).unwrap();
         utils::apply_reduction(&loss_tensor, self.reduction)
     }
 
@@ -112,9 +112,9 @@ impl CrossEntropyLoss {
     /// `∂CE/∂ŷᵢ = softmax(ŷᵢ) - δᵢⱼ` where δᵢⱼ is 1 if i=j (target class), 0 otherwise
     pub fn backward<T: FloatDtype>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> Result<Tensor<T, CpuBackend>> {
         if predictions.shape().len() != 2 {
             return Err(NNError::InvalidInput {
                 message: "Predictions must be 2D tensor (batch_size, num_classes)".to_string(),
@@ -166,25 +166,26 @@ impl CrossEntropyLoss {
         let grad_data_scaled: Vec<T> = grad_data.iter().map(|&x| x * scale).collect();
 
         Ok(Tensor::from_vec(
+            CpuBackend::default(),
             grad_data_scaled,
             predictions.shape().to_vec(),
-        ))
+        ).unwrap())
     }
 }
 
 impl<T: FloatDtype> Module<T> for CrossEntropyLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "CrossEntropyLoss should be used via forward() method with two inputs"
                 .to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -207,8 +208,8 @@ impl<T: FloatDtype> Module<T> for CrossEntropyLoss {
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = NLLLoss::new();
-/// let log_probs = Tensor::from_vec(vec![-1.0, -0.5, -2.0, -0.1, -1.5, -0.8], vec![2, 3]);
-/// let targets = Tensor::from_vec(vec![1, 2], vec![2]); // Class indices
+/// let log_probs = Tensor::from_vec(CpuBackend::default(), vec![-1.0).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1).unwrap(); // Class indices
 ///
 /// let loss = loss_fn.forward(&log_probs, &targets).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -233,11 +234,11 @@ impl NLLLoss {
     }
 
     /// Compute negative log likelihood loss between log-probabilities and targets
-    pub fn forward<T: FloatDtype, I: Dtype + num_traits::ToPrimitive>(
+    pub fn forward<T: FloatDtype + std::iter::Sum, I: Dtype + num_traits::ToPrimitive>(
         &self,
-        log_probs: &Tensor<T>,
-        targets: &Tensor<I>,
-    ) -> crate::Result<Tensor<T>> {
+        log_probs: &Tensor<T, CpuBackend>,
+        targets: &Tensor<I, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if log_probs.ndim() != 2 {
             return Err(crate::NNError::InvalidInput {
                 message: format!(
@@ -288,23 +289,23 @@ impl NLLLoss {
             losses.push(-log_prob);
         }
 
-        let loss_tensor = Tensor::from_vec(losses, vec![batch_size]);
+        let loss_tensor = Tensor::from_vec(CpuBackend::default(), losses, vec![batch_size]).unwrap();
         utils::apply_reduction(&loss_tensor, self.reduction)
     }
 }
 
 impl<T: FloatDtype> Module<T> for NLLLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "NLLLoss should be used via forward() method with two inputs".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -327,8 +328,8 @@ impl<T: FloatDtype> Module<T> for NLLLoss {
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = BCELoss::new();
-/// let predictions = Tensor::from_vec(vec![0.9, 0.3, 0.8], vec![3]);
-/// let targets = Tensor::from_vec(vec![1.0, 0.0, 1.0], vec![3]);
+/// let predictions = Tensor::from_vec(CpuBackend::default(), vec![0.9).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0).unwrap();
 ///
 /// let loss = loss_fn.forward(&predictions, &targets).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -353,11 +354,11 @@ impl BCELoss {
     }
 
     /// Compute binary cross entropy loss between predictions and targets
-    pub fn forward<T: FloatDtype>(
+    pub fn forward<T: FloatDtype + std::iter::Sum>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: targets.shape().to_vec(),
@@ -381,23 +382,23 @@ impl BCELoss {
             losses.push(-(term1 + term2));
         }
 
-        let loss_tensor = Tensor::from_vec(losses, predictions.shape().to_vec());
+        let loss_tensor = Tensor::from_vec(CpuBackend::default(), losses, predictions.shape().to_vec()).unwrap();
         utils::apply_reduction(&loss_tensor, self.reduction)
     }
 }
 
 impl<T: FloatDtype> Module<T> for BCELoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "BCELoss should be used via forward() method with two inputs".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -420,8 +421,8 @@ impl<T: FloatDtype> Module<T> for BCELoss {
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = BCEWithLogitsLoss::new();
-/// let logits = Tensor::from_vec(vec![2.0, -1.5, 1.8], vec![3]);
-/// let targets = Tensor::from_vec(vec![1.0, 0.0, 1.0], vec![3]);
+/// let logits = Tensor::from_vec(CpuBackend::default(), vec![2.0).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0).unwrap();
 ///
 /// let loss = loss_fn.forward(&logits, &targets).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -446,11 +447,11 @@ impl BCEWithLogitsLoss {
     }
 
     /// Compute BCE loss with sigmoid applied to logits
-    pub fn forward<T: FloatDtype>(
+    pub fn forward<T: FloatDtype + std::iter::Sum>(
         &self,
-        logits: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        logits: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if logits.shape() != targets.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: targets.shape().to_vec(),
@@ -477,24 +478,24 @@ impl BCEWithLogitsLoss {
             losses.push(-(term1 + term2));
         }
 
-        let loss_tensor = Tensor::from_vec(losses, logits.shape().to_vec());
+        let loss_tensor = Tensor::from_vec(CpuBackend::default(), losses, logits.shape().to_vec()).unwrap();
         utils::apply_reduction(&loss_tensor, self.reduction)
     }
 }
 
 impl<T: FloatDtype> Module<T> for BCEWithLogitsLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "BCEWithLogitsLoss should be used via forward() method with two inputs"
                 .to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -507,8 +508,8 @@ mod tests {
     #[test]
     fn test_cross_entropy_basic() {
         let loss_fn = CrossEntropyLoss::new();
-        let logits = Tensor::from_vec(vec![1.0, 2.0, 0.5, 0.1, 1.5, 2.1], vec![2, 3]);
-        let targets = Tensor::from_vec(vec![1, 2], vec![2]);
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&logits, &targets).unwrap();
         assert!(loss.item().unwrap() >= 0.0);
@@ -518,8 +519,8 @@ mod tests {
     fn test_cross_entropy_perfect_prediction() {
         let loss_fn = CrossEntropyLoss::new();
         // Perfect prediction: very high logit for correct class
-        let logits = Tensor::from_vec(vec![-10.0, 10.0, -10.0], vec![1, 3]);
-        let targets = Tensor::from_vec(vec![1], vec![1]);
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![-10.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&logits, &targets).unwrap();
         assert!(loss.item().unwrap() < 1e-6); // Should be very small
@@ -528,8 +529,8 @@ mod tests {
     #[test]
     fn test_nll_loss_basic() {
         let loss_fn = NLLLoss::new();
-        let log_probs = Tensor::from_vec(vec![-1.0, -0.5, -2.0, -0.1, -1.5, -0.8], vec![2, 3]);
-        let targets = Tensor::from_vec(vec![1, 2], vec![2]);
+        let log_probs = Tensor::from_vec(CpuBackend::default(), vec![-1.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&log_probs, &targets).unwrap();
         assert_relative_eq!(loss.item().unwrap(), 0.65, epsilon = 1e-6);
@@ -538,8 +539,8 @@ mod tests {
     #[test]
     fn test_bce_loss_basic() {
         let loss_fn = BCELoss::new();
-        let predictions = Tensor::from_vec(vec![0.9, 0.3, 0.8], vec![3]);
-        let targets = Tensor::from_vec(vec![1.0, 0.0, 1.0], vec![3]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![0.9], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&predictions, &targets).unwrap();
         assert!(loss.item().unwrap() >= 0.0);
@@ -548,8 +549,8 @@ mod tests {
     #[test]
     fn test_bce_loss_perfect_prediction() {
         let loss_fn = BCELoss::new();
-        let predictions = Tensor::from_vec(vec![1.0, 0.0, 1.0], vec![3]);
-        let targets = Tensor::from_vec(vec![1.0, 0.0, 1.0], vec![3]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&predictions, &targets).unwrap();
         // Should be very small due to epsilon clamping
@@ -559,8 +560,8 @@ mod tests {
     #[test]
     fn test_bce_with_logits_basic() {
         let loss_fn = BCEWithLogitsLoss::new();
-        let logits = Tensor::from_vec(vec![2.0, -1.5, 1.8], vec![3]);
-        let targets = Tensor::from_vec(vec![1.0, 0.0, 1.0], vec![3]);
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&logits, &targets).unwrap();
         assert!(loss.item().unwrap() >= 0.0);
@@ -568,8 +569,8 @@ mod tests {
 
     #[test]
     fn test_classification_losses_reductions() {
-        let logits = Tensor::from_vec(vec![1.0, 0.0, 0.0, 1.0], vec![2, 2]);
-        let targets = Tensor::from_vec(vec![0, 1], vec![2]);
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap();
 
         // Test different reductions for CrossEntropyLoss
         let loss_none = CrossEntropyLoss::with_reduction(Reduction::None);
@@ -592,3 +593,5 @@ mod tests {
         assert_relative_eq!(result_mean.item().unwrap(), expected_mean, epsilon = 1e-6);
     }
 }
+
+

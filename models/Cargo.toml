@@ -9,7 +9,7 @@ description = "Llama.cpp-like model loading, inference, and quantization for Coe
 
 [dependencies]
 # Workspace dependencies
-coeus-tensor = { workspace = true }
+# coeus-tensor = { workspace = true }  # TEMPORARILY DISABLED - architectural redesign required
 coeus-nn = { workspace = true }
 coeus-hub = { workspace = true }
 

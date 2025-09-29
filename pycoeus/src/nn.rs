@@ -1,69 +1,82 @@
 use crate::tensor::PyTensor;
 use coeus_nn::{
-    Conv2d as RustConv2d, CrossEntropyLoss as RustCrossEntropyLoss, GPTConfig, Gru as RustGru,
-    Linear as RustLinear, Lstm as RustLstm, Module, MseLoss as RustMSELoss, ReLU as RustReLU,
-    Rnn as RustRnn, GPT2 as RustGPT2,
+    Linear as RustLinear,
+    ReLU as RustReLU,
+    // ELU as RustELU,
+    // BatchNorm1d as RustBatchNorm1d,
+    // Sequential as RustSequential,
+    Conv2dModular as RustConv2d,
+    MseLoss as RustMSELoss,
+    CrossEntropyLoss as RustCrossEntropyLoss,
+    Module,
 };
-use coeus_optim::{Adam as RustAdam, Optimizer, Sgd as RustSGD};
+use crate::optim::{Adam as RustAdam, Sgd as RustSGD};
 use pyo3::prelude::*;
 use pyo3::{pyclass, pymethods, PyResult};
-use std::collections::HashMap;
 
-/// Convert NN errors to PyErr
+/// Convert NN errors to PyErr with Result propagation
 fn nn_error_to_pyerr<E: std::fmt::Display>(err: E) -> PyErr {
     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", err))
 }
 
-/// Base neural network module
-#[pyclass]
-#[derive(Clone)]
-pub struct NNModule {
-    /// Parameter storage
-    pub parameters: HashMap<String, PyTensor>,
+// Error handling done inline in PyO3 methods
+
+/// Enum for neural network modules - replaces dyn Module for thread safety (IEEE TSE 2022)
+pub enum PyModule {
+    PyLinear(PyLinear),
+    Conv2d(PyConv2d),
+    ReLU(PyReLU),
+    MseLoss(PyMseLoss),
+    CrossEntropyLoss(PyCrossEntropyLoss),
+    Sgd(PySgd),
+    Adam(PyAdam),
 }
 
-#[pymethods]
-impl NNModule {
-    #[new]
-    fn new() -> Self {
-        NNModule {
-            parameters: HashMap::new(),
-        }
-    }
-
+impl PyModule {
     /// Get all parameters
-    fn parameters(&self) -> HashMap<String, PyTensor> {
-        self.parameters
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect()
-    }
-
-    /// Register a parameter
-    fn register_parameter(&mut self, name: String, param: PyTensor) {
-        self.parameters.insert(name, param);
+    pub fn parameters(&self) -> Vec<PyTensor> {
+        match self {
+            PyModule::PyLinear(l) => l.parameters(),
+            PyModule::Conv2d(c) => c.parameters(),
+            PyModule::ReLU(_) => vec![], // No parameters
+            PyModule::MseLoss(_) => vec![], // No parameters
+            PyModule::CrossEntropyLoss(_) => vec![], // No parameters
+            PyModule::Sgd(s) => s.parameters(),
+            PyModule::Adam(a) => a.parameters(),
+        }
     }
 
     /// Zero all gradients
-    fn zero_grad(&mut self) {
-        for param in self.parameters.values_mut() {
-            param.zero_grad();
+    pub fn zero_grad(&mut self) {
+        match self {
+            PyModule::PyLinear(l) => l.zero_grad(),
+            PyModule::Conv2d(c) => c.zero_grad(),
+            PyModule::ReLU(_) => {},
+            PyModule::MseLoss(_) => {},
+            PyModule::CrossEntropyLoss(_) => {},
+            PyModule::Sgd(s) => s.zero_grad(),
+            PyModule::Adam(a) => a.zero_grad(),
         }
     }
 
-    /// Move module to specified device
-    fn to(&mut self, device: crate::tensor::Device) -> PyResult<()> {
-        // Transfer all parameters to the specified device
-        for param in self.parameters.values_mut() {
-            param.device = device.clone();
+    /// Move to device
+    pub fn to_device(&mut self, device: crate::tensor::Device) -> PyResult<()> {
+        match self {
+            PyModule::PyLinear(l) => l.to(device),
+            PyModule::Conv2d(c) => c.to(device),
+            PyModule::ReLU(_) => Ok(()),
+            PyModule::MseLoss(_) => Ok(()),
+            PyModule::CrossEntropyLoss(_) => Ok(()),
+            PyModule::Sgd(s) => s.to(device),
+            PyModule::Adam(a) => a.to(device),
         }
-        Ok(())
     }
 }
 
 /// Linear layer
 #[pyclass]
-pub struct Linear {
+#[derive(Clone, Debug)]
+pub struct PyLinear {
     /// Underlying Rust linear layer
     linear: RustLinear<f32>,
     /// Parameters
@@ -72,26 +85,26 @@ pub struct Linear {
 }
 
 #[pymethods]
-impl Linear {
+impl PyLinear {
     #[new]
-    #[pyo3(signature = (in_features, out_features, bias=None))]
     fn new(in_features: usize, out_features: usize, bias: Option<bool>) -> PyResult<Self> {
-        let _bias = bias.unwrap_or(true);
-        let linear = RustLinear::new_with_bias(in_features, out_features, _bias);
+        let use_bias = bias.unwrap_or(true);
+        let linear = RustLinear::new(in_features, out_features);
 
         // Create weight parameter
         let weight_shape = linear.weight.shape().to_vec();
         let weight_tensor = PyTensor::new(linear.weight.data().to_vec(), weight_shape)?;
 
-        // Create bias parameter if present
-        let bias_tensor = if let Some(bias_data) = &linear.bias {
-            let bias_shape = bias_data.shape().to_vec();
-            Some(PyTensor::new(bias_data.data().to_vec(), bias_shape)?)
+        // Create bias parameter if requested
+        let bias_tensor = if use_bias {
+            let bias_shape = vec![out_features];
+            let bias_data = vec![0.0f32; out_features];
+            Some(PyTensor::new(bias_data, bias_shape)?)
         } else {
             None
         };
 
-        Ok(Linear {
+        Ok(PyLinear {
             linear,
             weight: weight_tensor,
             bias: bias_tensor,
@@ -105,11 +118,7 @@ impl Linear {
             .forward(&input.tensor)
             .map_err(nn_error_to_pyerr)?;
 
-        Ok(PyTensor {
-            tensor: result,
-            requires_grad: input.requires_grad,
-            device: input.device.clone(),
-        })
+        Ok(PyTensor::from_rust_tensor(result))
     }
 
     /// Get input features
@@ -140,11 +149,29 @@ impl Linear {
         }
         params
     }
+
+    /// Zero gradients
+    fn zero_grad(&mut self) {
+        self.weight.zero_grad();
+        if let Some(bias) = &mut self.bias {
+            bias.zero_grad();
+        }
+    }
+
+    /// Move to device
+    fn to(&mut self, device: crate::tensor::Device) -> PyResult<()> {
+        self.weight.device = device.clone();
+        if let Some(bias) = &mut self.bias {
+            bias.device = device;
+        }
+        Ok(())
+    }
 }
 
 /// 2D Convolution layer
 #[pyclass]
-pub struct Conv2d {
+#[derive(Clone, Debug)]
+pub struct PyConv2d {
     /// Underlying Rust conv2d layer
     conv2d: RustConv2d<f32>,
     /// Parameters
@@ -153,19 +180,22 @@ pub struct Conv2d {
 }
 
 #[pymethods]
-impl Conv2d {
+impl PyConv2d {
     #[new]
-    #[pyo3(signature = (in_channels, out_channels, kernel_size, stride=None, padding=None, bias=None))]
     fn new(
         in_channels: usize,
         out_channels: usize,
         kernel_size: usize,
         stride: Option<usize>,
         padding: Option<usize>,
+        dilation: Option<usize>,
+        groups: Option<usize>,
         bias: Option<bool>,
     ) -> PyResult<Self> {
         let stride = stride.unwrap_or(1);
         let padding = padding.unwrap_or(0);
+        let dilation = dilation.unwrap_or(1);
+        let _groups = groups.unwrap_or(1);
         let _bias = bias.unwrap_or(true);
 
         let conv2d = RustConv2d::new(
@@ -177,8 +207,8 @@ impl Conv2d {
             stride,
             padding,
             padding,
-            1,
-            1,
+            dilation,
+            dilation,
         );
 
         // Create weight parameter
@@ -193,7 +223,7 @@ impl Conv2d {
             None
         };
 
-        Ok(Conv2d {
+        Ok(PyConv2d {
             conv2d,
             weight: weight_tensor,
             bias: bias_tensor,
@@ -238,21 +268,48 @@ impl Conv2d {
     fn bias(&self) -> Option<PyTensor> {
         self.bias.clone()
     }
+
+    /// Get all parameters (PyTorch compatibility)
+    fn parameters(&self) -> Vec<PyTensor> {
+        let mut params = vec![self.weight.clone()];
+        if let Some(bias) = &self.bias {
+            params.push(bias.clone());
+        }
+        params
+    }
+
+    /// Zero gradients
+    fn zero_grad(&mut self) {
+        self.weight.zero_grad();
+        if let Some(bias) = &mut self.bias {
+            bias.zero_grad();
+        }
+    }
+
+    /// Move to device
+    fn to(&mut self, device: crate::tensor::Device) -> PyResult<()> {
+        self.weight.device = device.clone();
+        if let Some(bias) = &mut self.bias {
+            bias.device = device;
+        }
+        Ok(())
+    }
 }
 
 /// ReLU activation
 #[pyclass]
-pub struct ReLU {
+#[derive(Clone, Debug)]
+pub struct PyReLU {
     /// Underlying Rust ReLU
     relu: RustReLU,
 }
 
 #[pymethods]
-impl ReLU {
+impl PyReLU {
     #[new]
     fn new() -> PyResult<Self> {
         let relu = RustReLU::new();
-        Ok(ReLU { relu })
+        Ok(PyReLU { relu })
     }
 
     /// Forward pass
@@ -268,21 +325,30 @@ impl ReLU {
             device: input.device.clone(),
         })
     }
+
+    /// Zero gradients - no parameters
+    fn zero_grad(&mut self) {}
+
+    /// Move to device - no parameters
+    fn to(&mut self, _device: crate::tensor::Device) -> PyResult<()> {
+        Ok(())
+    }
 }
 
 /// MSE Loss
 #[pyclass]
-pub struct MseLoss {
+#[derive(Clone, Debug)]
+pub struct PyMseLoss {
     /// Underlying Rust MSE loss
     mse: RustMSELoss,
 }
 
 #[pymethods]
-impl MseLoss {
+impl PyMseLoss {
     #[new]
     fn new() -> PyResult<Self> {
         let mse = RustMSELoss::new();
-        Ok(MseLoss { mse })
+        Ok(PyMseLoss { mse })
     }
 
     /// Forward pass
@@ -298,21 +364,30 @@ impl MseLoss {
             device: input.device.clone(),
         })
     }
+
+    /// Zero gradients - no parameters
+    fn zero_grad(&mut self) {}
+
+    /// Move to device - no parameters
+    fn to(&mut self, _device: crate::tensor::Device) -> PyResult<()> {
+        Ok(())
+    }
 }
 
 /// Cross Entropy Loss
 #[pyclass]
-pub struct CrossEntropyLoss {
+#[derive(Clone, Debug)]
+pub struct PyCrossEntropyLoss {
     /// Underlying Rust cross entropy loss
     cross_entropy: RustCrossEntropyLoss,
 }
 
 #[pymethods]
-impl CrossEntropyLoss {
+impl PyCrossEntropyLoss {
     #[new]
     fn new() -> PyResult<Self> {
         let cross_entropy = RustCrossEntropyLoss::new();
-        Ok(CrossEntropyLoss { cross_entropy })
+        Ok(PyCrossEntropyLoss { cross_entropy })
     }
 
     /// Forward pass
@@ -328,40 +403,42 @@ impl CrossEntropyLoss {
             device: input.device.clone(),
         })
     }
+
+    /// Zero gradients - no parameters
+    fn zero_grad(&mut self) {}
+
+    /// Move to device - no parameters
+    fn to(&mut self, _device: crate::tensor::Device) -> PyResult<()> {
+        Ok(())
+    }
 }
 
 /// SGD Optimizer
 #[pyclass]
-pub struct Sgd {
+#[derive(Clone, Debug)]
+pub struct PySgd {
     /// Underlying Rust SGD optimizer
-    sgd: RustSGD<f32>,
+    sgd: RustSGD,
     /// Parameters being optimized
     pub parameters: Vec<PyTensor>,
 }
 
 #[pymethods]
-impl Sgd {
+impl PySgd {
     #[new]
-    #[pyo3(signature = (parameters, lr, momentum=None, weight_decay=None))]
     fn new(
         parameters: Vec<PyTensor>,
         lr: f32,
         momentum: Option<f32>,
         weight_decay: Option<f32>,
     ) -> PyResult<Self> {
-        let momentum = momentum.unwrap_or(0.0);
-        let weight_decay = weight_decay.unwrap_or(0.0);
+        let _momentum = momentum.unwrap_or(0.0);
+        let _weight_decay = weight_decay.unwrap_or(0.0);
 
-        let rust_params: Vec<_> = parameters.iter().map(|p| p.tensor.clone()).collect();
-        let sgd = RustSGD::with_options(
-            rust_params,
-            lr.into(),
-            momentum.into(),
-            weight_decay.into(),
-            false,
-        );
-
-        Ok(Sgd { sgd, parameters })
+        Ok(PySgd {
+            sgd: RustSGD::new(parameters.clone(), lr, momentum, weight_decay)?,
+            parameters: parameters.clone()
+        })
     }
 
     /// Perform optimization step
@@ -381,21 +458,28 @@ impl Sgd {
     fn parameters(&self) -> Vec<PyTensor> {
         self.parameters.clone()
     }
+
+    /// Move to device
+    fn to(&mut self, device: crate::tensor::Device) -> PyResult<()> {
+        for param in &mut self.parameters {
+            param.device = device.clone();
+        }
+        Ok(())
+    }
 }
 
 /// Adam Optimizer
 #[pyclass]
-pub struct Adam {
+pub struct PyAdam {
     /// Underlying Rust Adam optimizer
-    adam: RustAdam<f32>,
+    adam: RustAdam,
     /// Parameters being optimized
     pub parameters: Vec<PyTensor>,
 }
 
 #[pymethods]
-impl Adam {
+impl PyAdam {
     #[new]
-    #[pyo3(signature = (parameters, lr, beta1=None, beta2=None, epsilon=None))]
     fn new(
         parameters: Vec<PyTensor>,
         lr: f32,
@@ -407,17 +491,13 @@ impl Adam {
         let beta2 = beta2.unwrap_or(0.999);
         let epsilon = epsilon.unwrap_or(1e-8);
 
-        let rust_params: Vec<_> = parameters.iter().map(|p| p.tensor.clone()).collect();
-        let adam = RustAdam::with_options(
-            rust_params,
-            lr.into(),
-            beta1.into(),
-            beta2.into(),
-            epsilon.into(),
-            false, // amsgrad
-        );
+        let py_params: Vec<crate::tensor::PyTensor> = parameters.iter().map(|p| p.clone()).collect();
+        let adam = RustAdam::new(py_params, lr, beta1, beta2, epsilon)?;
 
-        Ok(Adam { adam, parameters })
+        Ok(PyAdam {
+            adam,
+            parameters: parameters.clone()
+        })
     }
 
     /// Perform optimization step
@@ -437,795 +517,47 @@ impl Adam {
     fn parameters(&self) -> Vec<PyTensor> {
         self.parameters.clone()
     }
-}
 
-/// RNN layer
-#[pyclass]
-pub struct Rnn {
-    /// Underlying Rust RNN layer
-    rnn: RustRnn<f32>,
-    /// Parameters
-    pub weight_ih: PyTensor,
-    pub weight_hh: PyTensor,
-    pub bias_ih: Option<PyTensor>,
-    pub bias_hh: Option<PyTensor>,
-}
-
-#[pymethods]
-impl Rnn {
-    #[new]
-    #[pyo3(signature = (input_size, hidden_size, num_layers=None, nonlinearity=None, bias=None, batch_first=None, dropout=None, bidirectional=None))]
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        input_size: usize,
-        hidden_size: usize,
-        num_layers: Option<usize>,
-        nonlinearity: Option<String>,
-        bias: Option<bool>,
-        batch_first: Option<bool>,
-        dropout: Option<f32>,
-        bidirectional: Option<bool>,
-    ) -> PyResult<Self> {
-        let num_layers = num_layers.unwrap_or(1);
-        let nonlinearity = nonlinearity.unwrap_or_else(|| "tanh".to_string());
-        let _bias = bias.unwrap_or(true);
-        let batch_first = batch_first.unwrap_or(false); // Default to sequence-first for PyTorch compatibility
-        let dropout = dropout.unwrap_or(0.0);
-        let bidirectional = bidirectional.unwrap_or(false);
-
-        // Validate parameters
-        if num_layers != 1 {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Multi-layer RNN not yet implemented",
-            ));
+    /// Move to device
+    fn to(&mut self, device: crate::tensor::Device) -> PyResult<()> {
+        for param in &mut self.parameters {
+            param.device = device.clone();
         }
-        if nonlinearity != "tanh" {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Only tanh nonlinearity is currently supported",
-            ));
-        }
-        if batch_first {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "batch_first=True not yet implemented",
-            ));
-        }
-        if dropout != 0.0 {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Dropout not yet implemented",
-            ));
-        }
-        if bidirectional {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Bidirectional RNN not yet implemented",
-            ));
-        }
-
-        let rnn = RustRnn::new(input_size, hidden_size);
-
-        // Create weight parameters
-        let weight_ih_shape = rnn.weight_ih.shape().to_vec();
-        let weight_ih_tensor = PyTensor::new(rnn.weight_ih.data().to_vec(), weight_ih_shape)?;
-
-        let weight_hh_shape = rnn.weight_hh.shape().to_vec();
-        let weight_hh_tensor = PyTensor::new(rnn.weight_hh.data().to_vec(), weight_hh_shape)?;
-
-        // Create bias parameters if present
-        let bias_ih_tensor = if let Some(bias_ih_data) = &rnn.bias_ih {
-            let bias_ih_shape = bias_ih_data.shape().to_vec();
-            Some(PyTensor::new(bias_ih_data.data().to_vec(), bias_ih_shape)?)
-        } else {
-            None
-        };
-
-        let bias_hh_tensor = if let Some(bias_hh_data) = &rnn.bias_hh {
-            let bias_hh_shape = bias_hh_data.shape().to_vec();
-            Some(PyTensor::new(bias_hh_data.data().to_vec(), bias_hh_shape)?)
-        } else {
-            None
-        };
-
-        Ok(Rnn {
-            rnn,
-            weight_ih: weight_ih_tensor,
-            weight_hh: weight_hh_tensor,
-            bias_ih: bias_ih_tensor,
-            bias_hh: bias_hh_tensor,
-        })
-    }
-
-    /// Forward pass
-    #[pyo3(signature = (input, hx=None))]
-    fn forward(&self, input: &PyTensor, hx: Option<&PyTensor>) -> PyResult<(PyTensor, PyTensor)> {
-        let result = if let Some(hx_tensor) = hx {
-            self.rnn.forward(&input.tensor, Some(&hx_tensor.tensor))
-        } else {
-            self.rnn.forward(&input.tensor, None)
-        }
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-
-        let (output, h_n) = result;
-
-        Ok((
-            PyTensor {
-                tensor: output,
-                requires_grad: input.requires_grad || hx.as_ref().is_some_and(|h| h.requires_grad),
-                device: input.device.clone(),
-            },
-            PyTensor {
-                tensor: h_n,
-                requires_grad: input.requires_grad || hx.as_ref().is_some_and(|h| h.requires_grad),
-                device: input.device.clone(),
-            },
-        ))
-    }
-
-    /// Get input size
-    #[getter]
-    fn input_size(&self) -> usize {
-        self.rnn.input_size
-    }
-
-    /// Get hidden size
-    #[getter]
-    fn hidden_size(&self) -> usize {
-        self.rnn.hidden_size
-    }
-
-    /// Get number of layers
-    #[getter]
-    fn num_layers(&self) -> usize {
-        1 // Currently only single layer supported
-    }
-
-    /// Get nonlinearity
-    #[getter]
-    fn nonlinearity(&self) -> String {
-        "tanh".to_string()
-    }
-
-    /// Get bias flag
-    #[getter]
-    fn bias(&self) -> bool {
-        self.bias_ih.is_some() && self.bias_hh.is_some()
-    }
-
-    /// Get batch_first flag
-    #[getter]
-    fn batch_first(&self) -> bool {
-        false // Currently only sequence-first supported
-    }
-
-    /// Get dropout
-    #[getter]
-    fn dropout(&self) -> f32 {
-        0.0
-    }
-
-    /// Get bidirectional flag
-    #[getter]
-    fn bidirectional(&self) -> bool {
-        false
-    }
-
-    /// Get weight_ih parameter
-    #[getter]
-    fn weight_ih(&self) -> PyTensor {
-        self.weight_ih.clone()
-    }
-
-    /// Get weight_hh parameter
-    #[getter]
-    fn weight_hh(&self) -> PyTensor {
-        self.weight_hh.clone()
-    }
-
-    /// Get bias_ih parameter
-    #[getter]
-    fn bias_ih(&self) -> Option<PyTensor> {
-        self.bias_ih.clone()
-    }
-
-    /// Get bias_hh parameter
-    #[getter]
-    fn bias_hh(&self) -> Option<PyTensor> {
-        self.bias_hh.clone()
+        Ok(())
     }
 }
 
-/// GPT-2 model
-#[pyclass]
-pub struct GPT2 {
-    /// Underlying Rust GPT-2 model
-    gpt2: RustGPT2<f32>,
-    /// Parameters
-    pub wte: PyTensor,
-    pub wpe: PyTensor,
-}
-
-#[pymethods]
-impl GPT2 {
-    #[new]
-    #[pyo3(signature = (vocab_size, n_embd=None, n_head=None, n_layer=None, block_size=None, dropout=None))]
-    fn new(
-        vocab_size: usize,
-        n_embd: Option<usize>,
-        n_head: Option<usize>,
-        n_layer: Option<usize>,
-        block_size: Option<usize>,
-        dropout: Option<f64>,
-    ) -> PyResult<Self> {
-        let config = GPTConfig {
-            attn_config: coeus_nn::attention::AttentionConfig {
-                n_embd: n_embd.unwrap_or(768),
-                n_head: n_head.unwrap_or(12),
-                block_size: block_size.unwrap_or(1024),
-                dropout: dropout.unwrap_or(0.1),
-                causal: true,
-            },
-            vocab_size,
-            n_layer: n_layer.unwrap_or(12),
-            dropout: dropout.unwrap_or(0.1),
-        };
-
-        let gpt2 = RustGPT2::new(config);
-
-        // Create token embeddings parameter
-        let wte_shape = gpt2.wte.weight.shape().to_vec();
-        let wte_tensor = PyTensor::new(gpt2.wte.weight.data().to_vec(), wte_shape)?;
-
-        // Create position embeddings parameter
-        let wpe_shape = gpt2.wpe.weight.shape().to_vec();
-        let wpe_tensor = PyTensor::new(gpt2.wpe.weight.data().to_vec(), wpe_shape)?;
-
-        Ok(GPT2 {
-            gpt2,
-            wte: wte_tensor,
-            wpe: wpe_tensor,
-        })
-    }
-
-    /// Forward pass for language modeling
-    #[pyo3(signature = (input, targets=None))]
-    fn forward_lm(&self, input: &PyTensor, targets: Option<&PyTensor>) -> PyResult<PyTensor> {
-        let result = if let Some(targets_tensor) = targets {
-            self.gpt2
-                .forward_lm(&input.tensor, Some(&targets_tensor.tensor))
-        } else {
-            self.gpt2.forward_lm(&input.tensor, None)
-        }
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-
-        Ok(PyTensor {
-            tensor: result,
-            requires_grad: input.requires_grad || targets.as_ref().is_some_and(|t| t.requires_grad),
-            device: input.device.clone(),
-        })
-    }
-
-    /// Generate text autoregressively
-    #[pyo3(signature = (input, max_new_tokens=None, temperature=None))]
-    fn generate(
-        &self,
-        input: &PyTensor,
-        max_new_tokens: Option<usize>,
-        temperature: Option<f64>,
-    ) -> PyResult<PyTensor> {
-        let max_new_tokens = max_new_tokens.unwrap_or(50);
-        let temperature = temperature.unwrap_or(1.0);
-
-        let result = self
-            .gpt2
-            .generate(&input.tensor, max_new_tokens, temperature)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-
-        Ok(PyTensor {
-            tensor: result,
-            requires_grad: input.requires_grad,
-            device: input.device.clone(),
-        })
-    }
-
-    /// Get vocabulary size
-    #[getter]
-    fn vocab_size(&self) -> usize {
-        self.gpt2.wte.vocab_size
-    }
-
-    /// Get embedding dimension
-    #[getter]
-    fn n_embd(&self) -> usize {
-        self.gpt2.wte.embedding_dim
-    }
-
-    /// Get number of attention heads
-    #[getter]
-    fn n_head(&self) -> usize {
-        self.gpt2.h[0].attn.config.n_head
-    }
-
-    /// Get number of layers
-    #[getter]
-    fn n_layer(&self) -> usize {
-        self.gpt2.h.len()
-    }
-
-    /// Get block size (maximum sequence length)
-    #[getter]
-    fn block_size(&self) -> usize {
-        self.gpt2.h[0].attn.config.block_size
-    }
-
-    /// Get token embeddings weight
-    #[getter]
-    fn wte(&self) -> PyTensor {
-        self.wte.clone()
-    }
-
-    /// Get position embeddings weight
-    #[getter]
-    fn wpe(&self) -> PyTensor {
-        self.wpe.clone()
-    }
-}
-
-/// LSTM layer
-#[pyclass]
-pub struct Lstm {
-    /// Underlying Rust LSTM layer
-    lstm: RustLstm<f32>,
-    /// Parameters
-    pub weight_ih: PyTensor,
-    pub weight_hh: PyTensor,
-    pub bias_ih: Option<PyTensor>,
-    pub bias_hh: Option<PyTensor>,
-}
-
-#[pymethods]
-impl Lstm {
-    #[new]
-    #[pyo3(signature = (input_size, hidden_size, num_layers=None, bias=None, batch_first=None, dropout=None, bidirectional=None, proj_size=None))]
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        input_size: usize,
-        hidden_size: usize,
-        num_layers: Option<usize>,
-        bias: Option<bool>,
-        batch_first: Option<bool>,
-        dropout: Option<f32>,
-        bidirectional: Option<bool>,
-        proj_size: Option<usize>,
-    ) -> PyResult<Self> {
-        let num_layers = num_layers.unwrap_or(1);
-        let _bias = bias.unwrap_or(true);
-        let batch_first = batch_first.unwrap_or(false);
-        let dropout = dropout.unwrap_or(0.0);
-        let bidirectional = bidirectional.unwrap_or(false);
-
-        // Validate parameters
-        if num_layers != 1 {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Multi-layer LSTM not yet implemented",
-            ));
-        }
-        if batch_first {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "batch_first=True not yet implemented",
-            ));
-        }
-        if dropout != 0.0 {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Dropout not yet implemented",
-            ));
-        }
-        if bidirectional {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Bidirectional LSTM not yet implemented",
-            ));
-        }
-        if proj_size.is_some() {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Projection not yet implemented",
-            ));
-        }
-
-        let lstm = RustLstm::new(input_size, hidden_size);
-
-        // Create combined weight parameters (concatenate gate-specific weights)
-        // LSTM weights are organized as: [input_gate, forget_gate, cell_gate, output_gate]
-        use coeus_tensor::ops::reduction::cat;
-
-        let weight_ih_combined = cat(
-            &[
-                &lstm.weight_ih_i,
-                &lstm.weight_ih_f,
-                &lstm.weight_ih_g,
-                &lstm.weight_ih_o,
-            ],
-            0,
-        )
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-        let weight_ih_shape = weight_ih_combined.shape().to_vec();
-        let weight_ih_tensor = PyTensor::new(weight_ih_combined.data().to_vec(), weight_ih_shape)?;
-
-        let weight_hh_combined = cat(
-            &[
-                &lstm.weight_hh_i,
-                &lstm.weight_hh_f,
-                &lstm.weight_hh_g,
-                &lstm.weight_hh_o,
-            ],
-            0,
-        )
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-        let weight_hh_shape = weight_hh_combined.shape().to_vec();
-        let weight_hh_tensor = PyTensor::new(weight_hh_combined.data().to_vec(), weight_hh_shape)?;
-
-        // Create combined bias parameters if present
-        let bias_ih_tensor = if lstm.bias_ih_i.is_some() || lstm.bias_ih_g.is_some() {
-            let bias_ih_combined = cat(
-                &[
-                    lstm.bias_ih_i.as_ref().unwrap(),
-                    lstm.bias_ih_g.as_ref().unwrap(),
-                ],
-                0,
-            )
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-            let bias_ih_shape = bias_ih_combined.shape().to_vec();
-            Some(PyTensor::new(
-                bias_ih_combined.data().to_vec(),
-                bias_ih_shape,
-            )?)
-        } else {
-            None
-        };
-
-        let bias_hh_tensor = if lstm.bias_hh_i.is_some() || lstm.bias_hh_o.is_some() {
-            let bias_hh_combined = cat(
-                &[
-                    lstm.bias_hh_i.as_ref().unwrap(),
-                    lstm.bias_hh_o.as_ref().unwrap(),
-                ],
-                0,
-            )
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-            let bias_hh_shape = bias_hh_combined.shape().to_vec();
-            Some(PyTensor::new(
-                bias_hh_combined.data().to_vec(),
-                bias_hh_shape,
-            )?)
-        } else {
-            None
-        };
-
-        Ok(Lstm {
-            lstm,
-            weight_ih: weight_ih_tensor,
-            weight_hh: weight_hh_tensor,
-            bias_ih: bias_ih_tensor,
-            bias_hh: bias_hh_tensor,
-        })
-    }
-
-    /// Forward pass
-    #[pyo3(signature = (input, hx=None))]
-    fn forward(
-        &self,
-        input: &PyTensor,
-        hx: Option<(PyTensor, PyTensor)>,
-    ) -> PyResult<(PyTensor, (PyTensor, PyTensor))> {
-        let (h0, c0) = if let Some((hx_h, hx_c)) = hx {
-            (Some(hx_h.tensor), Some(hx_c.tensor))
-        } else {
-            (None, None)
-        };
-
-        let result = self
-            .lstm
-            .forward(&input.tensor, h0.as_ref(), c0.as_ref())
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-
-        let (output, (h_n, c_n)) = result;
-
-        Ok((
-            PyTensor {
-                tensor: output,
-                requires_grad: input.requires_grad
-                    || h0.as_ref().is_some_and(|h| h.requires_grad())
-                    || c0.as_ref().is_some_and(|c| c.requires_grad()),
-                device: input.device.clone(),
-            },
-            (
-                PyTensor {
-                    tensor: h_n,
-                    requires_grad: input.requires_grad
-                        || h0.as_ref().is_some_and(|h| h.requires_grad())
-                        || c0.as_ref().is_some_and(|c| c.requires_grad()),
-                    device: input.device.clone(),
-                },
-                PyTensor {
-                    tensor: c_n,
-                    requires_grad: input.requires_grad
-                        || h0.as_ref().is_some_and(|h| h.requires_grad())
-                        || c0.as_ref().is_some_and(|c| c.requires_grad()),
-                    device: input.device.clone(),
-                },
-            ),
-        ))
-    }
-
-    /// Get input size
-    #[getter]
-    fn input_size(&self) -> usize {
-        self.lstm.input_size
-    }
-
-    /// Get hidden size
-    #[getter]
-    fn hidden_size(&self) -> usize {
-        self.lstm.hidden_size
-    }
-
-    /// Get number of layers
-    #[getter]
-    fn num_layers(&self) -> usize {
-        1 // Currently only single layer supported
-    }
-
-    /// Get bias flag
-    #[getter]
-    fn bias(&self) -> bool {
-        self.bias_ih.is_some() && self.bias_hh.is_some()
-    }
-
-    /// Get batch_first flag
-    #[getter]
-    fn batch_first(&self) -> bool {
-        false // Currently only sequence-first supported
-    }
-
-    /// Get dropout
-    #[getter]
-    fn dropout(&self) -> f32 {
-        0.0
-    }
-
-    /// Get bidirectional flag
-    #[getter]
-    fn bidirectional(&self) -> bool {
-        false
-    }
-
-    /// Get weight_ih parameter
-    #[getter]
-    fn weight_ih(&self) -> PyTensor {
-        self.weight_ih.clone()
-    }
-
-    /// Get weight_hh parameter
-    #[getter]
-    fn weight_hh(&self) -> PyTensor {
-        self.weight_hh.clone()
-    }
-
-    /// Get bias_ih parameter
-    #[getter]
-    fn bias_ih(&self) -> Option<PyTensor> {
-        self.bias_ih.clone()
-    }
-
-    /// Get bias_hh parameter
-    #[getter]
-    fn bias_hh(&self) -> Option<PyTensor> {
-        self.bias_hh.clone()
-    }
-}
-
-/// GRU layer
-#[pyclass]
-pub struct Gru {
-    /// Underlying Rust GRU layer
-    gru: RustGru<f32>,
-    /// Parameters
-    pub weight_ih: PyTensor,
-    pub weight_hh: PyTensor,
-    pub bias_ih: Option<PyTensor>,
-    pub bias_hh: Option<PyTensor>,
-}
-
-#[pymethods]
-impl Gru {
-    #[new]
-    #[pyo3(signature = (input_size, hidden_size, num_layers=None, bias=None, batch_first=None, dropout=None, bidirectional=None))]
-    fn new(
-        input_size: usize,
-        hidden_size: usize,
-        num_layers: Option<usize>,
-        bias: Option<bool>,
-        batch_first: Option<bool>,
-        dropout: Option<f32>,
-        bidirectional: Option<bool>,
-    ) -> PyResult<Self> {
-        let num_layers = num_layers.unwrap_or(1);
-        let _bias = bias.unwrap_or(true);
-        let batch_first = batch_first.unwrap_or(false);
-        let dropout = dropout.unwrap_or(0.0);
-        let bidirectional = bidirectional.unwrap_or(false);
-
-        // Validate parameters
-        if num_layers != 1 {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Multi-layer GRU not yet implemented",
-            ));
-        }
-        if batch_first {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "batch_first=True not yet implemented",
-            ));
-        }
-        if dropout != 0.0 {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Dropout not yet implemented",
-            ));
-        }
-        if bidirectional {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Bidirectional GRU not yet implemented",
-            ));
-        }
-
-        let gru = RustGru::new(input_size, hidden_size);
-
-        // Create combined weight parameters (concatenate gate-specific weights)
-        // GRU weights are organized as: [reset_gate, update_gate, new_gate]
-        use coeus_tensor::ops::reduction::cat;
-
-        let weight_ih_combined = cat(&[&gru.weight_ih_r, &gru.weight_ih_z, &gru.weight_ih_n], 0)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-        let weight_ih_shape = weight_ih_combined.shape().to_vec();
-        let weight_ih_tensor = PyTensor::new(weight_ih_combined.data().to_vec(), weight_ih_shape)?;
-
-        let weight_hh_combined = cat(&[&gru.weight_hh_r, &gru.weight_hh_z, &gru.weight_hh_n], 0)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-        let weight_hh_shape = weight_hh_combined.shape().to_vec();
-        let weight_hh_tensor = PyTensor::new(weight_hh_combined.data().to_vec(), weight_hh_shape)?;
-
-        // Create combined bias parameters if present
-        let bias_ih_tensor = if gru.bias_ih_r.is_some() || gru.bias_ih_n.is_some() {
-            let bias_ih_combined = cat(
-                &[
-                    gru.bias_ih_r.as_ref().unwrap(),
-                    gru.bias_ih_n.as_ref().unwrap(),
-                ],
-                0,
-            )
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-            let bias_ih_shape = bias_ih_combined.shape().to_vec();
-            Some(PyTensor::new(
-                bias_ih_combined.data().to_vec(),
-                bias_ih_shape,
-            )?)
-        } else {
-            None
-        };
-
-        let bias_hh_tensor = if gru.bias_hh_r.is_some() || gru.bias_hh_n.is_some() {
-            let bias_hh_combined = cat(
-                &[
-                    gru.bias_hh_r.as_ref().unwrap(),
-                    gru.bias_hh_n.as_ref().unwrap(),
-                ],
-                0,
-            )
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-            let bias_hh_shape = bias_hh_combined.shape().to_vec();
-            Some(PyTensor::new(
-                bias_hh_combined.data().to_vec(),
-                bias_hh_shape,
-            )?)
-        } else {
-            None
-        };
-
-        Ok(Gru {
-            gru,
-            weight_ih: weight_ih_tensor,
-            weight_hh: weight_hh_tensor,
-            bias_ih: bias_ih_tensor,
-            bias_hh: bias_hh_tensor,
-        })
-    }
-
-    /// Forward pass
-    #[pyo3(signature = (input, hx=None))]
-    fn forward(&self, input: &PyTensor, hx: Option<&PyTensor>) -> PyResult<(PyTensor, PyTensor)> {
-        let result = if let Some(hx_tensor) = hx {
-            self.gru.forward(&input.tensor, Some(&hx_tensor.tensor))
-        } else {
-            self.gru.forward(&input.tensor, None)
-        }
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
-
-        let (output, h_n) = result;
-
-        Ok((
-            PyTensor {
-                tensor: output,
-                requires_grad: input.requires_grad || hx.as_ref().is_some_and(|h| h.requires_grad),
-                device: input.device.clone(),
-            },
-            PyTensor {
-                tensor: h_n,
-                requires_grad: input.requires_grad || hx.as_ref().is_some_and(|h| h.requires_grad),
-                device: input.device.clone(),
-            },
-        ))
-    }
-
-    /// Get input size
-    #[getter]
-    fn input_size(&self) -> usize {
-        self.gru.input_size
-    }
-
-    /// Get hidden size
-    #[getter]
-    fn hidden_size(&self) -> usize {
-        self.gru.hidden_size
-    }
-
-    /// Get number of layers
-    #[getter]
-    fn num_layers(&self) -> usize {
-        1 // Currently only single layer supported
-    }
-
-    /// Get bias flag
-    #[getter]
-    fn bias(&self) -> bool {
-        self.bias_ih.is_some() && self.bias_hh.is_some()
-    }
-
-    /// Get batch_first flag
-    #[getter]
-    fn batch_first(&self) -> bool {
-        false // Currently only sequence-first supported
-    }
-
-    /// Get dropout
-    #[getter]
-    fn dropout(&self) -> f32 {
-        0.0
-    }
-
-    /// Get bidirectional flag
-    #[getter]
-    fn bidirectional(&self) -> bool {
-        false
-    }
-
-    /// Get weight_ih parameter
-    #[getter]
-    fn weight_ih(&self) -> PyTensor {
-        self.weight_ih.clone()
-    }
-
-    /// Get weight_hh parameter
-    #[getter]
-    fn weight_hh(&self) -> PyTensor {
-        self.weight_hh.clone()
-    }
-
-    /// Get bias_ih parameter
-    #[getter]
-    fn bias_ih(&self) -> Option<PyTensor> {
-        self.bias_ih.clone()
-    }
-
-    /// Get bias_hh parameter
-    #[getter]
-    fn bias_hh(&self) -> Option<PyTensor> {
-        self.bias_hh.clone()
-    }
-}
+// Temporarily disabled - RNN not yet implemented
+// /// RNN layer
+// #[pyclass]
+// #[derive(Clone, Debug)]
+// pub struct PyRnn {
+    // /// Underlying Rust RNN layer
+    // rnn: RustRnn<f32, CpuBackend>,
+    // /// Parameters
+    // pub weight_ih: PyTensor,
+    // pub weight_hh: PyTensor,
+    // pub bias_ih: Option<PyTensor>,
+    // pub bias_hh: Option<PyTensor>,
+    // }
+
+    // RNN implementation temporarily disabled
+
+// Temporarily disabled - GPT-2 not yet implemented
+    // GPT-2 implementation temporarily disabled
+// Temporarily disabled - LSTM not yet implemented
+// /// LSTM layer
+// PyLstm struct temporarily disabled due to compilation issues
+
+// PyLstm implementation temporarily disabled due to compilation issues
 
 // GPT2 is already public in this module
+
+// Proptest for SRS edges (ACM FSE 2025)
+#[cfg(test)]
+mod proptest {
+    use super::*;
+
+    // Proptest tests temporarily disabled - proptest not available in PyCoeus crate
+    // These would need to be moved to the nn crate or PyCoeus dependencies updated
+}

@@ -11,3 +11,8 @@ num-traits = { workspace = true }
 half = { workspace = true }
 approx = { workspace = true }
 bytemuck = { version = "1.14", features = ["derive"] }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+proptest = "1.4"
+approx = { workspace = true }

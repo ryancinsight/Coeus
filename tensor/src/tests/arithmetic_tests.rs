@@ -46,7 +46,7 @@ fn test_addition_gradient() {
     b.set_requires_grad(true);
 
     // Compute c = a + b
-    let c = (&a + &b).unwrap();
+    let c = &a + &b;
 
     // Compute gradients
     c.backward().unwrap();

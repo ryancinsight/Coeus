@@ -4,7 +4,7 @@
 //! compatible with PyTorch's `torch.optim.Adagrad`.
 
 use crate::{BaseOptimizer, Optimizer, ParamGroup, Result};
-use coeus_tensor::Tensor;
+use coeus_tensor::{ops::arithmetic, Tensor};
 
 /// Adagrad optimizer
 ///
@@ -106,20 +106,20 @@ impl<T: coeus_dtype::FloatDtype> Adagrad<T> {
     }
 }
 
-impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adagrad<T> {
+impl<T: coeus_dtype::FloatDtype> Optimizer<T, CpuBackend> for Adagrad<T> {
     fn name(&self) -> &str {
         "Adagrad"
     }
 
-    fn param_groups(&self) -> &[ParamGroup<T>] {
+    fn param_groups(&self) -> &[ParamGroup<T, CpuBackend>] {
         self.base.param_groups()
     }
 
-    fn param_groups_mut(&mut self) -> &mut [ParamGroup<T>] {
+    fn param_groups_mut(&mut self) -> &mut [ParamGroup<T, CpuBackend>] {
         self.base.param_groups_mut()
     }
 
-    fn add_param_group(&mut self, param_group: ParamGroup<T>) {
+    fn add_param_group(&mut self, param_group: ParamGroup<T, CpuBackend>) {
         self.base.add_param_group(param_group);
     }
 
@@ -142,9 +142,7 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adagrad<T> {
                 );
 
                 // Get gradient for this parameter
-                let Some(grad) = group.params[param_idx].grad() else {
-                    continue; // Skip parameters without gradients
-                };
+                let grad = group.params[param_idx].unwrap_grad();
 
                 // Get or initialize state variables
                 let sum_key = format!("{}_sum", param_key);
@@ -155,13 +153,13 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adagrad<T> {
                     .state()
                     .get(&sum_key)
                     .cloned()
-                    .unwrap_or_else(|| Tensor::zeros_like(&grad));
+                    .unwrap_or_else(|| Tensor::zeros_like(&grad).unwrap());
 
                 // Apply weight decay if specified
                 let effective_grad = if weight_decay != T::zero() {
                     let param_ref = &group.params[param_idx];
-                    let wd_tensor = Tensor::scalar(weight_decay);
-                    (&grad + &(param_ref * &wd_tensor)?)?
+                    let wd_tensor = Tensor::from_vec(param_ref.backend().clone(), vec![weight_decay], vec![]).unwrap();
+                    (&grad + &param_ref.mul(&wd_tensor)?)?
                 } else {
                     grad.clone()
                 };
@@ -171,14 +169,14 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adagrad<T> {
                 let sum_t = (&sum_prev + &grad_squared)?;
 
                 // Compute adaptive learning rate: η / (√s_t + ε)
-                let eps_tensor = Tensor::scalar(self.eps);
-                let sum_sqrt = sum_t.sqrt();
+                let eps_tensor = Tensor::from_vec(group.params[param_idx].backend().clone(), vec![self.eps], vec![]).unwrap();
+                let sum_sqrt = arithmetic::sqrt(&sum_t);
                 let adaptive_lr_denom = (&sum_sqrt + &eps_tensor)?;
 
                 // Compute parameter update: θ = θ - η * g_t / (√s_t + ε)
-                let lr_tensor = Tensor::scalar(lr);
+                let lr_tensor = Tensor::from_vec(group.params[param_idx].backend().clone(), vec![lr], vec![]).unwrap();
                 let lr_grad = (&lr_tensor * &effective_grad)?;
-                let update = (&lr_grad / &adaptive_lr_denom)?;
+                let update = lr_grad.div(&adaptive_lr_denom)?;
 
                 // Compute new parameter value
                 let param_data = group.params[param_idx].data();
@@ -190,7 +188,7 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adagrad<T> {
                     .collect();
 
                 let new_param_shape = group.params[param_idx].shape().to_vec();
-                let mut new_param = Tensor::from_vec(new_param_data, new_param_shape);
+                let mut new_param = Tensor::from_vec(group.params[param_idx].backend().clone(), new_param_data, new_param_shape).unwrap();
 
                 // Preserve gradient tracking
                 if group.params[param_idx].requires_grad() {
@@ -232,18 +230,18 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adagrad<T> {
         self.base.set_lr(group_index, lr)
     }
 
-    fn state(&self) -> &std::collections::HashMap<String, Tensor<T>> {
+    fn state(&self) -> &HashMap<String, Tensor<T, CpuBackend>> {
         self.base.state()
     }
 
-    fn state_mut(&mut self) -> &mut std::collections::HashMap<String, Tensor<T>> {
+    fn state_mut(&mut self) -> &mut HashMap<String, Tensor<T, CpuBackend>> {
         self.base.state_mut()
     }
 }
 
 /// Builder pattern for Adagrad optimizer
 pub struct AdagradBuilder<T: coeus_dtype::FloatDtype> {
-    params: Vec<Tensor<T>>,
+    params: Vec<Tensor<T, CpuBackend>>,
     lr: T,
     lr_decay: T,
     weight_decay: T,
@@ -253,7 +251,7 @@ pub struct AdagradBuilder<T: coeus_dtype::FloatDtype> {
 
 impl<T: coeus_dtype::FloatDtype> AdagradBuilder<T> {
     /// Create a new Adagrad builder
-    pub fn new(params: Vec<Tensor<T>>, lr: T) -> Self {
+    pub fn new(params: Vec<Tensor<T, CpuBackend>>, lr: T) -> Self {
         Self {
             params,
             lr,

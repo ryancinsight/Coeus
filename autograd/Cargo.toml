@@ -1,20 +1,18 @@
 [package]
 name = "coeus-autograd"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
-description = "Automatic differentiation engine for Coeus tensor library"
+version = "0.1.0"
+edition = "2021"
 
 [dependencies]
 coeus-dtype = { path = "../dtype" }
-num-traits.workspace = true
-num-complex.workspace = true
-thiserror.workspace = true
-anyhow.workspace = true
-parking_lot.workspace = true
-crossbeam.workspace = true
-rayon.workspace = true
+coeus-backend = { path = "../backend" }
+coeus-tensor = { path = "../tensor" }
+num-traits = "0.2"
+tracing = { version = "0.1", features = ["std"] }
+thiserror = "1.0"
+anyhow = "1.0"
 
 [dev-dependencies]
+proptest = "1.0"
 approx = "0.5"
+tracing-test = "0.2"

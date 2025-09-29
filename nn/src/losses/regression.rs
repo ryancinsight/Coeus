@@ -4,7 +4,7 @@
 //! standard regression losses and their robust variants.
 
 use super::{utils, Module, NNError, Reduction, Result};
-use coeus_tensor::{FloatDtype, Tensor};
+use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
 
 /// Mean Squared Error (MSE) loss function
 ///
@@ -24,8 +24,8 @@ use coeus_tensor::{FloatDtype, Tensor};
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = MseLoss::new();
-/// let predictions = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
-/// let targets = Tensor::from_vec(vec![1.1, 1.9, 3.2], vec![3]);
+/// let predictions = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1.1], vec![1]).unwrap();
 ///
 /// let loss = loss_fn.forward(&predictions, &targets).unwrap();
 /// assert!(loss.item().unwrap() > 0.0);
@@ -50,11 +50,11 @@ impl MseLoss {
     }
 
     /// Compute MSE loss between predictions and targets
-    pub fn forward<T: FloatDtype>(
+    pub fn forward<T: FloatDtype + std::iter::Sum>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(NNError::ShapeMismatch {
                 expected: predictions.shape().to_vec(),
@@ -82,9 +82,9 @@ impl MseLoss {
     /// `∂L/∂ŷᵢ = (2/n) * (ŷᵢ - yᵢ)`
     pub fn backward<T: FloatDtype>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(NNError::ShapeMismatch {
                 expected: predictions.shape().to_vec(),
@@ -106,22 +106,22 @@ impl MseLoss {
             }
         };
 
-        Ok(diff.map(|x| *x * scale))
+        (&diff * &Tensor::scalar(scale)).map_err(Into::into)
     }
 }
 
 impl<T: FloatDtype> Module<T> for MseLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "MSELoss should be used via forward() method with two inputs".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -144,8 +144,8 @@ impl<T: FloatDtype> Module<T> for MseLoss {
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = MaeLoss::new();
-/// let predictions = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
-/// let targets = Tensor::from_vec(vec![1.1, 1.9, 3.2], vec![3]);
+/// let predictions = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1.1], vec![1]).unwrap();
 ///
 /// let loss = loss_fn.forward(&predictions, &targets).unwrap();
 /// assert!(loss.item().unwrap() > 0.0);
@@ -170,11 +170,11 @@ impl MaeLoss {
     }
 
     /// Compute MAE loss between predictions and targets
-    pub fn forward<T: FloatDtype + num_traits::Signed>(
+    pub fn forward<T: FloatDtype + num_traits::Signed + std::iter::Sum>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(NNError::ShapeMismatch {
                 expected: predictions.shape().to_vec(),
@@ -187,7 +187,7 @@ impl MaeLoss {
             message: "Failed to compute prediction-target difference".to_string(),
         })?;
 
-        let abs_diff = diff.abs();
+        let abs_diff = coeus_tensor::ops::arithmetic::abs(&diff);
 
         // Apply reduction
         utils::apply_reduction(&abs_diff, self.reduction)
@@ -200,9 +200,9 @@ impl MaeLoss {
     /// `∂L/∂ŷᵢ = (1/n) * sign(ŷᵢ - yᵢ)`
     pub fn backward<T: FloatDtype + num_traits::Signed>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(NNError::ShapeMismatch {
                 expected: predictions.shape().to_vec(),
@@ -215,7 +215,15 @@ impl MaeLoss {
             message: "Failed to compute prediction-target difference".to_string(),
         })?;
 
-        let sign_diff = diff.sign();
+        let sign_diff = diff.map(|x| {
+            if x > T::zero() {
+                T::one()
+            } else if x < T::zero() {
+                -T::one()
+            } else {
+                T::zero()
+            }
+        });
 
         let scale = match self.reduction {
             Reduction::None => T::one(),
@@ -226,22 +234,22 @@ impl MaeLoss {
             }
         };
 
-        Ok(sign_diff.map(|x| *x * scale))
+        (&sign_diff * &Tensor::scalar(scale)).map_err(Into::into)
     }
 }
 
 impl<T: FloatDtype> Module<T> for MaeLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "MAELoss should be used via forward() method with two inputs".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -270,9 +278,9 @@ impl<T: FloatDtype> Module<T> for MaeLoss {
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = CosineEmbeddingLoss::new(0.5);
-/// let input1 = Tensor::from_vec(vec![1.0, 0.0, 0.0], vec![1, 3]); // Unit vector along x-axis
-/// let input2 = Tensor::from_vec(vec![0.0, 1.0, 0.0], vec![1, 3]); // Unit vector along y-axis
-/// let target = Tensor::from_vec(vec![-1.0], vec![1]); // Dissimilar pair
+/// let input1 = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(); // Unit vector along x-axis
+/// let input2 = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap(); // Unit vector along y-axis
+/// let target = Tensor::from_vec(CpuBackend::default(), vec![-1.0], vec![1]).unwrap(); // Dissimilar pair
 ///
 /// let loss = loss_fn.forward(&input1, &input2, &target).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -306,7 +314,7 @@ impl CosineEmbeddingLoss {
     }
 
     /// Compute cosine similarity between two tensors
-    fn cosine_similarity<T: FloatDtype>(x1: &Tensor<T>, x2: &Tensor<T>) -> crate::Result<T> {
+    fn cosine_similarity<T: FloatDtype>(x1: &Tensor<T, CpuBackend>, x2: &Tensor<T, CpuBackend>) -> crate::Result<T> {
         if x1.shape() != x2.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: x1.shape().to_vec(),
@@ -347,12 +355,12 @@ impl CosineEmbeddingLoss {
     }
 
     /// Compute cosine embedding loss
-    pub fn forward<T: FloatDtype>(
+    pub fn forward<T: FloatDtype + std::iter::Sum>(
         &self,
-        input1: &Tensor<T>,
-        input2: &Tensor<T>,
-        target: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        input1: &Tensor<T, CpuBackend>,
+        input2: &Tensor<T, CpuBackend>,
+        target: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if input1.shape() != input2.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: input1.shape().to_vec(),
@@ -387,8 +395,8 @@ impl CosineEmbeddingLoss {
             let x1_slice = input1.data()[start_idx..end_idx].to_vec();
             let x2_slice = input2.data()[start_idx..end_idx].to_vec();
 
-            let x1_sample = Tensor::from_vec(x1_slice, vec![feature_size]);
-            let x2_sample = Tensor::from_vec(x2_slice, vec![feature_size]);
+            let x1_sample = Tensor::from_vec(CpuBackend::default(), x1_slice, vec![feature_size]).unwrap();
+            let x2_sample = Tensor::from_vec(CpuBackend::default(), x2_slice, vec![feature_size]).unwrap();
 
             // Compute cosine similarity
             let cos_sim = Self::cosine_similarity(&x1_sample, &x2_sample)?;
@@ -407,23 +415,23 @@ impl CosineEmbeddingLoss {
             losses.push(loss_val);
         }
 
-        let loss_tensor = Tensor::from_vec(losses, vec![batch_size]);
+        let loss_tensor = Tensor::from_vec(CpuBackend::default(), losses, vec![batch_size]).unwrap();
         utils::apply_reduction(&loss_tensor, self.reduction)
     }
 }
 
 impl<T: FloatDtype> Module<T> for CosineEmbeddingLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "CosineEmbeddingLoss requires three inputs via forward() method".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -436,8 +444,8 @@ mod tests {
     #[test]
     fn test_mse_loss_basic() {
         let loss_fn = MseLoss::new();
-        let pred = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
-        let target = Tensor::from_vec(vec![1.1, 1.9, 3.2], vec![3]);
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![1.1], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&pred, &target).unwrap();
         assert!(loss.item().unwrap() > 0.0);
@@ -450,7 +458,7 @@ mod tests {
     #[test]
     fn test_mse_loss_perfect_prediction() {
         let loss_fn = MseLoss::new();
-        let pred = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
         let target = pred.clone();
 
         let loss = loss_fn.forward(&pred, &target).unwrap();
@@ -459,8 +467,8 @@ mod tests {
 
     #[test]
     fn test_mse_loss_reductions() {
-        let pred = Tensor::from_vec(vec![1.0, 2.0], vec![2]);
-        let target = Tensor::from_vec(vec![0.0, 0.0], vec![2]);
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
 
         // Test different reductions
         let loss_none = MseLoss::with_reduction(Reduction::None);
@@ -486,8 +494,8 @@ mod tests {
     #[test]
     fn test_mae_loss_basic() {
         let loss_fn = MaeLoss::new();
-        let pred = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
-        let target = Tensor::from_vec(vec![1.1, 1.9, 3.2], vec![3]);
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![1.1], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&pred, &target).unwrap();
         assert!(loss.item().unwrap() > 0.0);
@@ -500,7 +508,7 @@ mod tests {
     #[test]
     fn test_mae_loss_perfect_prediction() {
         let loss_fn = MaeLoss::new();
-        let pred = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
         let target = pred.clone();
 
         let loss = loss_fn.forward(&pred, &target).unwrap();
@@ -510,8 +518,8 @@ mod tests {
     #[test]
     fn test_mae_vs_mse_outlier_robustness() {
         // MAE should be less sensitive to outliers than MSE
-        let pred = Tensor::from_vec(vec![1.0, 2.0, 100.0], vec![3]); // Large outlier
-        let target = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(); // Large outlier
+        let target = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let mse_loss = MseLoss::new();
         let mae_loss = MaeLoss::new();
@@ -527,9 +535,9 @@ mod tests {
     fn test_cosine_embedding_loss_similar_pairs() {
         let loss_fn = CosineEmbeddingLoss::new(0.5);
         // Two identical unit vectors (perfect similarity, cos = 1.0)
-        let input1 = Tensor::from_vec(vec![1.0, 0.0, 0.0], vec![1, 3]);
-        let input2 = Tensor::from_vec(vec![1.0, 0.0, 0.0], vec![1, 3]);
-        let target = Tensor::from_vec(vec![1.0], vec![1]); // Similar pair
+        let input1 = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let input2 = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(); // Similar pair
 
         let loss = loss_fn.forward(&input1, &input2, &target).unwrap();
 
@@ -541,9 +549,9 @@ mod tests {
     fn test_cosine_embedding_loss_dissimilar_pairs() {
         let loss_fn = CosineEmbeddingLoss::new(0.5);
         // Orthogonal unit vectors (cos = 0.0)
-        let input1 = Tensor::from_vec(vec![1.0, 0.0, 0.0], vec![1, 3]);
-        let input2 = Tensor::from_vec(vec![0.0, 1.0, 0.0], vec![1, 3]);
-        let target = Tensor::from_vec(vec![-1.0], vec![1]); // Dissimilar pair
+        let input1 = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let input2 = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![-1.0], vec![1]).unwrap(); // Dissimilar pair
 
         let loss = loss_fn.forward(&input1, &input2, &target).unwrap();
 
@@ -555,9 +563,9 @@ mod tests {
     fn test_cosine_embedding_loss_dissimilar_violation() {
         let loss_fn = CosineEmbeddingLoss::new(0.5);
         // Vectors with high similarity (cos ≈ 0.8)
-        let input1 = Tensor::from_vec(vec![2.0, 1.0, 0.0], vec![1, 3]);
-        let input2 = Tensor::from_vec(vec![2.0, 0.5, 0.0], vec![1, 3]);
-        let target = Tensor::from_vec(vec![-1.0], vec![1]); // Dissimilar pair
+        let input1 = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap();
+        let input2 = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![-1.0], vec![1]).unwrap(); // Dissimilar pair
 
         let loss = loss_fn.forward(&input1, &input2, &target).unwrap();
 
@@ -569,9 +577,9 @@ mod tests {
     fn test_cosine_embedding_loss_zero_vectors() {
         let loss_fn = CosineEmbeddingLoss::new(0.5);
         // Zero vectors (undefined cosine similarity)
-        let input1 = Tensor::from_vec(vec![0.0, 0.0, 0.0], vec![1, 3]);
-        let input2 = Tensor::from_vec(vec![0.0, 0.0, 0.0], vec![1, 3]);
-        let target = Tensor::from_vec(vec![1.0], vec![1]); // Similar pair
+        let input1 = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
+        let input2 = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(); // Similar pair
 
         let loss = loss_fn.forward(&input1, &input2, &target).unwrap();
 
@@ -585,9 +593,9 @@ mod tests {
         let loss_fn_sum = CosineEmbeddingLoss::with_params(0.5, Reduction::Sum);
         let loss_fn_mean = CosineEmbeddingLoss::with_params(0.5, Reduction::Mean);
 
-        let input1 = Tensor::from_vec(vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0], vec![2, 3]);
-        let input2 = Tensor::from_vec(vec![0.0, 1.0, 0.0, 1.0, 0.0, 0.0], vec![2, 3]);
-        let target = Tensor::from_vec(vec![-1.0, 1.0], vec![2]);
+        let input1 = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let input2 = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![-1.0], vec![1]).unwrap();
 
         let result_none = loss_fn_none.forward(&input1, &input2, &target).unwrap();
         let result_sum = loss_fn_sum.forward(&input1, &input2, &target).unwrap();
@@ -605,3 +613,5 @@ mod tests {
         assert_relative_eq!(result_mean.item().unwrap(), expected_mean, epsilon = 1e-6);
     }
 }
+
+

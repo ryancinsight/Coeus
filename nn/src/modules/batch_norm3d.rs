@@ -4,6 +4,7 @@
 //! Normalizes the input across the batch dimension for each feature map.
 
 use crate::{Module, Result};
+use coeus_backend::CpuBackend;
 use coeus_tensor::{FloatDtype, Tensor};
 
 /// 3D Batch Normalization layer
@@ -20,9 +21,9 @@ pub struct BatchNorm3d<T: FloatDtype> {
     pub momentum: T,
 
     /// Learnable scale parameter (γ) of shape (num_features,)
-    pub weight: Tensor<T>,
+    pub weight: Tensor<T, CpuBackend>,
     /// Learnable shift parameter (β) of shape (num_features,)
-    pub bias: Tensor<T>,
+    pub bias: Tensor<T, CpuBackend>,
 }
 
 impl<T: FloatDtype> BatchNorm3d<T> {
@@ -62,7 +63,7 @@ impl<T: FloatDtype> BatchNorm3d<T> {
 }
 
 impl<T: FloatDtype> Module<T> for BatchNorm3d<T> {
-    fn forward(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // Input shape validation for 3D batch norm: (batch_size, channels, depth, height, width)
         if input.ndim() != 5 {
             return Err(crate::NNError::InvalidInput {
@@ -88,11 +89,14 @@ impl<T: FloatDtype> Module<T> for BatchNorm3d<T> {
         Ok(input.clone())
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![&self.weight, &self.bias]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![&mut self.weight, &mut self.bias]
     }
 }
+
+
+

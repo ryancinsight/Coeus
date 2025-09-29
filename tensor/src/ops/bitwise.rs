@@ -34,126 +34,76 @@
 //! - [Rust Integer Types](https://doc.rust-lang.org/std/primitive/index.html)
 
 use crate::{Dtype, Result, Tensor, TensorError};
+use coeus_backend::{Backend, CpuBackend};
+use std::ops::{BitAnd, BitOr, BitXor, Not};
 
-/// Bitwise AND operation on integer tensors
-///
-/// Performs element-wise bitwise AND between corresponding elements of the input tensors.
-///
-/// # Arguments
-/// * `a` - First integer tensor
-/// * `b` - Second integer tensor
-///
-/// # Returns
-/// Integer tensor with the same shape as the inputs
-///
-/// # Example
-/// ```rust,ignore
-/// let a = Tensor::from_vec(vec![5i32, 3], vec![2]);  // Binary: 101, 011
-/// let b = Tensor::from_vec(vec![3i32, 6], vec![2]);  // Binary: 011, 110
-/// let result = bitwise_and(&a, &b);                  // [1, 2] (001, 010)
-/// ```
-pub fn bitwise_and<T>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Tensor<T>>
-where
-    T: Dtype + std::ops::BitAnd<Output = T> + Copy,
-{
-    if a.shape() != b.shape() {
-        return Err(TensorError::ShapeMismatch {
-            expected: a.shape().to_vec(),
-            actual: b.shape().to_vec(),
-        });
+// Dispatch impl for Tensor
+impl<T: Dtype + Clone + BitAnd<Output = T>, B: Backend<T> + Clone> Tensor<T, B> {
+    pub fn bitwise_and(&self, rhs: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+        if self.shape() != rhs.shape() {
+            return Err(TensorError::ShapeMismatch {
+                expected: self.shape().to_vec(),
+                actual: rhs.shape().to_vec(),
+            });
+        }
+        let out_data = self.data()
+            .iter()
+            .zip(rhs.data().iter())
+            .map(|(&a, &b)| a.bitand(b))
+            .collect();
+        let out_shape = self.shape().to_vec();
+        let backend = self.backend().clone();
+        Ok(Tensor::from_vec(backend, out_data, out_shape)?)
     }
-
-    let result_data: Vec<T> = a
-        .data()
-        .iter()
-        .zip(b.data().iter())
-        .map(|(x, y)| *x & *y)
-        .collect();
-
-    Ok(Tensor::from_vec(result_data, a.shape().to_vec()))
 }
 
-/// Bitwise OR operation on integer tensors
-///
-/// Performs element-wise bitwise OR between corresponding elements of the input tensors.
-///
-/// # Arguments
-/// * `a` - First integer tensor
-/// * `b` - Second integer tensor
-///
-/// # Returns
-/// Integer tensor with the same shape as the inputs
-pub fn bitwise_or<T>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Tensor<T>>
-where
-    T: Dtype + std::ops::BitOr<Output = T> + Copy,
-{
-    if a.shape() != b.shape() {
-        return Err(TensorError::ShapeMismatch {
-            expected: a.shape().to_vec(),
-            actual: b.shape().to_vec(),
-        });
+impl<T: Dtype + Clone + BitOr<Output = T>, B: Backend<T> + Clone> Tensor<T, B> {
+    pub fn bitwise_or(&self, rhs: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+        if self.shape() != rhs.shape() {
+            return Err(TensorError::ShapeMismatch {
+                expected: self.shape().to_vec(),
+                actual: rhs.shape().to_vec(),
+            });
+        }
+        let out_data = self.data()
+            .iter()
+            .zip(rhs.data().iter())
+            .map(|(&a, &b)| a.bitor(b))
+            .collect();
+        let out_shape = self.shape().to_vec();
+        let backend = self.backend().clone();
+        Ok(Tensor::from_vec(backend, out_data, out_shape)?)
     }
 
-    let result_data: Vec<T> = a
-        .data()
-        .iter()
-        .zip(b.data().iter())
-        .map(|(x, y)| *x | *y)
-        .collect();
-
-    Ok(Tensor::from_vec(result_data, a.shape().to_vec()))
 }
 
-/// Bitwise XOR operation on integer tensors
-///
-/// Performs element-wise bitwise XOR between corresponding elements of the input tensors.
-///
-/// # Arguments
-/// * `a` - First integer tensor
-/// * `b` - Second integer tensor
-///
-/// # Returns
-/// Integer tensor with the same shape as the inputs
-pub fn bitwise_xor<T>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Tensor<T>>
-where
-    T: Dtype + std::ops::BitXor<Output = T> + Copy,
-{
-    if a.shape() != b.shape() {
-        return Err(TensorError::ShapeMismatch {
-            expected: a.shape().to_vec(),
-            actual: b.shape().to_vec(),
-        });
+impl<T: Dtype + Clone + BitXor<Output = T>, B: Backend<T> + Clone> Tensor<T, B> {
+    pub fn bitwise_xor(&self, rhs: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+        if self.shape() != rhs.shape() {
+            return Err(TensorError::ShapeMismatch {
+                expected: self.shape().to_vec(),
+                actual: rhs.shape().to_vec(),
+            });
+        }
+        let out_data = self.data()
+            .iter()
+            .zip(rhs.data().iter())
+            .map(|(&a, &b)| a.bitxor(b))
+            .collect();
+        let out_shape = self.shape().to_vec();
+        let backend = self.backend().clone();
+        Ok(Tensor::from_vec(backend, out_data, out_shape)?)
     }
 
-    let result_data: Vec<T> = a
-        .data()
-        .iter()
-        .zip(b.data().iter())
-        .map(|(x, y)| *x ^ *y)
-        .collect();
-
-    Ok(Tensor::from_vec(result_data, a.shape().to_vec()))
 }
 
-/// Bitwise NOT operation on integer tensor
-///
-/// Performs element-wise bitwise NOT (one's complement) on each element of the input tensor.
-///
-/// # Arguments
-/// * `tensor` - Integer tensor
-///
-/// # Returns
-/// Integer tensor with the same shape as the input
-///
-/// # Note
-/// For signed integers, this performs two's complement negation minus one.
-/// Use with caution as it may produce unexpected results for signed types.
-pub fn bitwise_not<T>(tensor: &Tensor<T>) -> Tensor<T>
-where
-    T: Dtype + std::ops::Not<Output = T> + Copy,
-{
-    let result_data: Vec<T> = tensor.data().iter().map(|x| !*x).collect();
-    Tensor::from_vec(result_data, tensor.shape().to_vec())
+impl<T: Dtype + Clone + Not<Output = T>, B: Backend<T> + Clone> Tensor<T, B> {
+    pub fn bitwise_not(&self) -> Result<Tensor<T, B>> {
+        let out_data = self.data().iter().map(|&a| a.not()).collect();
+        let out_shape = self.shape().to_vec();
+        let backend = self.backend().clone();
+        Ok(Tensor::from_vec(backend, out_data, out_shape)?)
+    }
 }
 
 #[cfg(test)]
@@ -163,63 +113,62 @@ mod tests {
 
     #[test]
     fn test_bitwise_and() {
-        let a = Tensor::from_vec(vec![5i32, 3, 9, 15], vec![4]); // Binary: 0101, 0011, 1001, 1111
-        let b = Tensor::from_vec(vec![3i32, 6, 10, 15], vec![4]); // Binary: 0011, 0110, 1010, 1111
+        let a = Tensor::from_vec(CpuBackend::default(), vec![5i32, 3, 9, 15], vec![4]).unwrap();
+        let b = Tensor::from_vec(CpuBackend::default(), vec![3i32, 6, 10, 15], vec![4]).unwrap();
 
-        let result = bitwise_and(&a, &b).unwrap();
-        assert_eq!(result.data(), &[1, 2, 8, 15]); // Binary: 0001, 0010, 1000, 1111
+        let result = a.bitwise_and(&b).unwrap();
+        assert_eq!(result.data(), &[1, 2, 8, 15]);
         assert_eq!(result.shape(), &[4]);
     }
 
     #[test]
     fn test_bitwise_or() {
-        let a = Tensor::from_vec(vec![5i32, 3, 9, 1], vec![4]); // Binary: 0101, 0011, 1001, 0001
-        let b = Tensor::from_vec(vec![3i32, 6, 10, 2], vec![4]); // Binary: 0011, 0110, 1010, 0010
+        let a = Tensor::from_vec(CpuBackend::default(), vec![5i32, 3, 9, 1], vec![4]).unwrap();
+        let b = Tensor::from_vec(CpuBackend::default(), vec![3i32, 6, 10, 2], vec![4]).unwrap();
 
-        let result = bitwise_or(&a, &b).unwrap();
-        assert_eq!(result.data(), &[7, 7, 11, 3]); // Binary: 0111, 0111, 1011, 0011
+        let result = a.bitwise_or(&b).unwrap();
+        assert_eq!(result.data(), &[7, 7, 11, 3]);
     }
 
     #[test]
     fn test_bitwise_xor() {
-        let a = Tensor::from_vec(vec![5i32, 3, 9, 15], vec![4]); // Binary: 0101, 0011, 1001, 1111
-        let b = Tensor::from_vec(vec![3i32, 6, 10, 15], vec![4]); // Binary: 0011, 0110, 1010, 1111
+        let a = Tensor::from_vec(CpuBackend::default(), vec![5i32, 3, 9, 15], vec![4]).unwrap();
+        let b = Tensor::from_vec(CpuBackend::default(), vec![3i32, 6, 10, 15], vec![4]).unwrap();
 
-        let result = bitwise_xor(&a, &b).unwrap();
-        assert_eq!(result.data(), &[6, 5, 3, 0]); // Binary: 0110, 0101, 0011, 0000
+        let result = a.bitwise_xor(&b).unwrap();
+        assert_eq!(result.data(), &[6, 5, 3, 0]);
     }
 
     #[test]
     fn test_bitwise_not() {
-        let tensor = Tensor::from_vec(vec![1i32, -1, 0, 15], vec![4]);
+        let tensor = Tensor::from_vec(CpuBackend::default(), vec![1i32, -1, 0, 15], vec![4]).unwrap();
 
-        let result = bitwise_not(&tensor);
-        // Note: Two's complement behavior for signed integers
+        let result = tensor.bitwise_not().unwrap();
         assert_eq!(result.data(), &[-2, 0, -1, -16]);
     }
 
     #[test]
     fn test_bitwise_shape_mismatch() {
-        let a = Tensor::from_vec(vec![1i32, 2], vec![2]);
-        let b = Tensor::from_vec(vec![3i32, 4, 5], vec![3]);
+        let a = Tensor::from_vec(CpuBackend::default(), vec![1i32, 2], vec![2]).unwrap();
+        let b = Tensor::from_vec(CpuBackend::default(), vec![3i32, 4, 5], vec![3]).unwrap();
 
-        assert!(bitwise_and(&a, &b).is_err());
-        assert!(bitwise_or(&a, &b).is_err());
-        assert!(bitwise_xor(&a, &b).is_err());
+        assert!(a.bitwise_and(&b).is_err());
+        assert!(a.bitwise_or(&b).is_err());
+        assert!(a.bitwise_xor(&b).is_err());
     }
 
     #[test]
     fn test_bitwise_u8() {
-        let a = Tensor::from_vec(vec![0x0Fu8, 0xF0u8], vec![2]);
-        let b = Tensor::from_vec(vec![0xFFu8, 0x0Fu8], vec![2]);
+        let a = Tensor::from_vec(CpuBackend::default(), vec![0x0Fu8, 0xF0u8], vec![2]).unwrap();
+        let b = Tensor::from_vec(CpuBackend::default(), vec![0xFFu8, 0x0Fu8], vec![2]).unwrap();
 
-        let and_result = bitwise_and(&a, &b).unwrap();
+        let and_result = a.bitwise_and(&b).unwrap();
         assert_eq!(and_result.data(), &[0x0F, 0x00]);
 
-        let or_result = bitwise_or(&a, &b).unwrap();
+        let or_result = a.bitwise_or(&b).unwrap();
         assert_eq!(or_result.data(), &[0xFF, 0xFF]);
 
-        let xor_result = bitwise_xor(&a, &b).unwrap();
+        let xor_result = a.bitwise_xor(&b).unwrap();
         assert_eq!(xor_result.data(), &[0xF0, 0xFF]);
     }
 }

@@ -4,7 +4,7 @@
 //! torchvision.transforms interface.
 
 use crate::{Result, Transform};
-use coeus_tensor::Tensor;
+use coeus_tensor::{Tensor, CpuBackend};
 use rand::Rng;
 
 /// Random vertical flip transform
@@ -31,7 +31,7 @@ impl RandomVerticalFlip {
     }
 
     /// Internal function to perform vertical flip
-    fn flip_vertical<T: coeus_dtype::Dtype>(input: &Tensor<T>) -> Result<Tensor<T>> {
+    fn flip_vertical<T: coeus_dtype::Dtype>(input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         let input_shape = input.shape();
         let ndim = input_shape.len();
 
@@ -56,7 +56,7 @@ impl RandomVerticalFlip {
                 }
             }
 
-            Ok(Tensor::from_vec(flipped_data, input_shape.to_vec()))
+            Tensor::from_vec(CpuBackend::new(), flipped_data, input_shape.to_vec()).map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(format!("{}", e)))
         } else {
             // Multi-dimensional case: [..., height, width]
             let batch_dims: Vec<usize> = input_shape[..ndim - 2].to_vec();
@@ -77,13 +77,13 @@ impl RandomVerticalFlip {
                 }
             }
 
-            Ok(Tensor::from_vec(flipped_data, input_shape.to_vec()))
+            Tensor::from_vec(CpuBackend::new(), flipped_data, input_shape.to_vec()).map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(format!("{}", e)))
         }
     }
 }
 
-impl<T: coeus_dtype::Dtype> Transform<T> for RandomVerticalFlip {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype> Transform<T, CpuBackend> for RandomVerticalFlip {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // Generate random number to decide whether to flip
         let mut rng = rand::thread_rng();
         let rand_val: f64 = rng.gen();
@@ -153,8 +153,8 @@ impl<T: coeus_dtype::Dtype + num_traits::Float> ColorJitter<T> {
     }
 }
 
-impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T> for ColorJitter<T> {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T, CpuBackend> for ColorJitter<T> {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // For now, return a copy - full implementation would require image processing
         // Color jitter typically operates on RGB images with shape [..., 3, H, W]
         // Implementation would involve converting to HSV, applying transformations, and converting back
@@ -218,8 +218,8 @@ impl<T: coeus_dtype::Dtype + num_traits::Float> RandomRotation<T> {
     }
 }
 
-impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T> for RandomRotation<T> {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T, CpuBackend> for RandomRotation<T> {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // Generate random rotation angle
         let mut rng = rand::thread_rng();
         let angle_range = self.degrees.1 - self.degrees.0;
@@ -294,8 +294,8 @@ impl<T: coeus_dtype::Dtype + num_traits::Float> Default for RandomAffine<T> {
     }
 }
 
-impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T> for RandomAffine<T> {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T, CpuBackend> for RandomAffine<T> {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // For now, return a copy - full implementation would require affine transformations
         // This would involve rotation, translation, scaling, shearing matrices and interpolation
         Ok(input.clone())
@@ -340,8 +340,8 @@ impl<T: coeus_dtype::Dtype + num_traits::Float> RandomPerspective<T> {
     }
 }
 
-impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T> for RandomPerspective<T> {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T, CpuBackend> for RandomPerspective<T> {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // Generate random number to decide whether to apply transform
         let mut rng = rand::thread_rng();
         let rand_val: f64 = rng.gen();
@@ -400,8 +400,8 @@ impl<T: coeus_dtype::Dtype + num_traits::Float> RandomErasing<T> {
     }
 }
 
-impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T> for RandomErasing<T> {
-    fn transform(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+impl<T: coeus_dtype::Dtype + num_traits::Float> Transform<T, CpuBackend> for RandomErasing<T> {
+    fn transform(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // Generate random number to decide whether to apply transform
         let mut rng = rand::thread_rng();
         let rand_val: f64 = rng.gen();

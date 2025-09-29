@@ -4,7 +4,7 @@
 //! compatible with PyTorch's `torch.optim.Adam`.
 
 use crate::{BaseOptimizer, Optimizer, ParamGroup, Result};
-use coeus_tensor::{ops::arithmetic::maximum, Tensor};
+use coeus_tensor::{ops::arithmetic::{maximum, sqrt, sub, div, mul}, Tensor, Backend, CpuBackend};
 
 /// Adam optimizer
 ///
@@ -22,8 +22,8 @@ use coeus_tensor::{ops::arithmetic::maximum, Tensor};
 /// ```
 ///
 /// Compatible with PyTorch's `torch.optim.Adam`.
-pub struct Adam<T: coeus_dtype::FloatDtype> {
-    base: BaseOptimizer<T>,
+pub struct Adam<T: coeus_dtype::FloatDtype, B: Backend<T> = CpuBackend> {
+    base: BaseOptimizer<T, B>,
     beta1: T,
     beta2: T,
     eps: T,
@@ -31,7 +31,7 @@ pub struct Adam<T: coeus_dtype::FloatDtype> {
     step_count: u64,
 }
 
-impl<T: coeus_dtype::FloatDtype> Adam<T> {
+impl<T: coeus_dtype::FloatDtype, B: Backend<T>> Adam<T, B> {
     /// Create a new Adam optimizer with default parameters
     ///
     /// # Arguments
@@ -46,7 +46,7 @@ impl<T: coeus_dtype::FloatDtype> Adam<T> {
     /// let params = vec![Tensor::from_vec(vec![1.0, 2.0], vec![2])];
     /// let optimizer = Adam::new(params, 0.001);
     /// ```
-    pub fn new(params: Vec<Tensor<T>>, lr: T) -> Self {
+    pub fn new(params: Vec<Tensor<T, B>>, lr: T) -> Self {
         Self::with_options(
             params,
             lr,
@@ -67,7 +67,7 @@ impl<T: coeus_dtype::FloatDtype> Adam<T> {
     /// * `eps` - Small constant for numerical stability
     /// * `amsgrad` - Whether to use AMSGrad variant
     pub fn with_options(
-        params: Vec<Tensor<T>>,
+        params: Vec<Tensor<T, B>>,
         lr: T,
         beta1: T,
         beta2: T,
@@ -113,20 +113,20 @@ impl<T: coeus_dtype::FloatDtype> Adam<T> {
     }
 }
 
-impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adam<T> {
+impl<T: coeus_dtype::FloatDtype, B: Backend<T>> Optimizer<T, B> for Adam<T, B> {
     fn name(&self) -> &str {
         "Adam"
     }
 
-    fn param_groups(&self) -> &[ParamGroup<T>] {
+    fn param_groups(&self) -> &[ParamGroup<T, B>] {
         self.base.param_groups()
     }
 
-    fn param_groups_mut(&mut self) -> &mut [ParamGroup<T>] {
+    fn param_groups_mut(&mut self) -> &mut [ParamGroup<T, B>] {
         self.base.param_groups_mut()
     }
 
-    fn add_param_group(&mut self, param_group: ParamGroup<T>) {
+    fn add_param_group(&mut self, param_group: ParamGroup<T, B>) {
         self.base.add_param_group(param_group);
     }
 
@@ -148,13 +148,14 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adam<T> {
 
             // Process each parameter in the group
             for param_idx in 0..group.params.len() {
+                let param = &group.params[param_idx];
                 let param_key = format!(
                     "adam_{}_{}_{:p}",
-                    group_idx, param_idx, &group.params[param_idx] as *const _
+                    group_idx, param_idx, param as *const _
                 );
 
                 // Get gradient for this parameter
-                let Some(grad) = group.params[param_idx].grad() else {
+                let Some(grad) = param.grad() else {
                     continue; // Skip parameters without gradients
                 };
 
@@ -169,37 +170,39 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adam<T> {
                     .state()
                     .get(&m_key)
                     .cloned()
-                    .unwrap_or_else(|| Tensor::zeros_like(&grad));
+                    .unwrap_or_else(|| Tensor::<T, B>::zeros_like(&param.unwrap_grad()));
                 let v_prev = self
                     .base
                     .state()
                     .get(&v_key)
                     .cloned()
-                    .unwrap_or_else(|| Tensor::zeros_like(&grad));
+                    .unwrap_or_else(|| Tensor::<T, B>::zeros_like(&param.unwrap_grad()));
 
                 // Apply weight decay if specified (AdamW style - directly to parameters)
                 let effective_grad = if weight_decay != T::zero() {
-                    let wd_tensor = Tensor::scalar(weight_decay);
+                    let wd_tensor = Tensor::from_vec(param.backend().clone(), vec![weight_decay], vec![]).unwrap();
                     let param_ref = &group.params[param_idx];
-                    (&grad + &(param_ref * &wd_tensor).unwrap()).unwrap()
+                    let grad_tensor = param.unwrap_grad();
+                    let param_wd = (param_ref * &wd_tensor).unwrap();
+                    (&grad_tensor + &param_wd).unwrap()
                 } else {
-                    grad.clone()
+                    param.unwrap_grad()
                 };
 
                 // Update biased first moment estimate: m_t = β₁ * m_{t-1} + (1 - β₁) * g_t
-                let beta1_tensor = Tensor::scalar(self.beta1);
-                let one_minus_beta1_tensor = Tensor::scalar(T::one() - self.beta1);
-                let m_t = (&beta1_tensor * &m_prev).unwrap();
+                let beta1_tensor = Tensor::from_vec(param.backend().clone(), vec![self.beta1], vec![]).unwrap();
+                let one_minus_beta1_tensor = Tensor::from_vec(param.backend().clone(), vec![T::one() - self.beta1], vec![]).unwrap();
+                let mut m_t = (&beta1_tensor * &m_prev).unwrap();
                 let grad_term = (&one_minus_beta1_tensor * &effective_grad).unwrap();
-                let m_t = (&m_t + &grad_term).unwrap();
+                m_t = (&m_t + &grad_term).unwrap();
 
                 // Update biased second moment estimate: v_t = β₂ * v_{t-1} + (1 - β₂) * g_t²
-                let beta2_tensor = Tensor::scalar(self.beta2);
-                let one_minus_beta2_tensor = Tensor::scalar(T::one() - self.beta2);
-                let v_t = (&beta2_tensor * &v_prev).unwrap();
+                let beta2_tensor = Tensor::from_vec(param.backend().clone(), vec![self.beta2], vec![]).unwrap();
+                let one_minus_beta2_tensor = Tensor::from_vec(param.backend().clone(), vec![T::one() - self.beta2], vec![]).unwrap();
+                let mut v_t = (&beta2_tensor * &v_prev).unwrap();
                 let grad_squared = (&effective_grad * &effective_grad).unwrap();
                 let grad_squared_term = (&one_minus_beta2_tensor * &grad_squared).unwrap();
-                let v_t = (&v_t + &grad_squared_term).unwrap();
+                v_t = (&v_t + &grad_squared_term).unwrap();
 
                 // Compute bias-corrected moments
                 // β₁^t and β₂^t using iterative multiplication for integer powers
@@ -213,11 +216,11 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adam<T> {
 
                 let bias_correction1 = T::one() - beta1_pow;
                 let bias_correction2 = T::one() - beta2_pow;
-                let bias_correction1_tensor = Tensor::scalar(bias_correction1);
-                let bias_correction2_tensor = Tensor::scalar(bias_correction2);
+                let bias_correction1_tensor = Tensor::from_vec(param.backend().clone(), vec![bias_correction1], vec![]).unwrap();
+                let bias_correction2_tensor = Tensor::from_vec(param.backend().clone(), vec![bias_correction2], vec![]).unwrap();
 
-                let m_hat = (&m_t / &bias_correction1_tensor)?;
-                let v_hat = (&v_t / &bias_correction2_tensor)?;
+                let m_hat = div(&m_t, &bias_correction1_tensor)?;
+                let v_hat = div(&v_t, &bias_correction2_tensor)?;
 
                 // AMSGrad: take maximum of current and previous v_hat
                 let v_hat_final = if self.amsgrad {
@@ -235,24 +238,15 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adam<T> {
                 };
 
                 // Compute parameter update: θ = θ - η * m̂_t / (√v̂_t + ε)
-                let eps_tensor = Tensor::scalar(self.eps);
-                let v_hat_sqrt = v_hat_final.sqrt();
+                let eps_tensor = Tensor::from_vec(param.backend().clone(), vec![self.eps], vec![]).unwrap();
+                let v_hat_sqrt = sqrt(&v_hat_final);
                 let denominator = (&v_hat_sqrt + &eps_tensor)?;
-                let lr_tensor = Tensor::scalar(lr);
-                let lr_m_hat = (&lr_tensor * &m_hat)?;
-                let update = (&lr_m_hat / &denominator)?;
+                let lr_tensor = Tensor::from_vec(param.backend().clone(), vec![lr], vec![]).unwrap();
+                let lr_m_hat = mul(&lr_tensor, &m_hat)?;
+                let update = div(&lr_m_hat, &denominator)?;
 
                 // Compute new parameter value
-                let param_data = group.params[param_idx].data();
-                let update_data = update.data();
-                let new_param_data: Vec<T> = param_data
-                    .iter()
-                    .zip(update_data.iter())
-                    .map(|(p, u)| *p - *u)
-                    .collect();
-
-                let new_param_shape = group.params[param_idx].shape().to_vec();
-                let mut new_param = Tensor::from_vec(new_param_data, new_param_shape);
+                let mut new_param = sub(&group.params[param_idx], &update).unwrap();
 
                 // Preserve gradient tracking
                 if group.params[param_idx].requires_grad() {
@@ -295,18 +289,18 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Adam<T> {
         self.base.set_lr(group_index, lr)
     }
 
-    fn state(&self) -> &std::collections::HashMap<String, Tensor<T>> {
+    fn state(&self) -> &std::collections::HashMap<String, Tensor<T, B>> {
         self.base.state()
     }
 
-    fn state_mut(&mut self) -> &mut std::collections::HashMap<String, Tensor<T>> {
+    fn state_mut(&mut self) -> &mut std::collections::HashMap<String, Tensor<T, B>> {
         self.base.state_mut()
     }
 }
 
 /// Builder pattern for Adam optimizer
-pub struct AdamBuilder<T: coeus_dtype::FloatDtype> {
-    params: Vec<Tensor<T>>,
+pub struct AdamBuilder<T: coeus_dtype::FloatDtype, B: Backend<T> = CpuBackend> {
+    params: Vec<Tensor<T, B>>,
     lr: T,
     beta1: T,
     beta2: T,
@@ -314,9 +308,9 @@ pub struct AdamBuilder<T: coeus_dtype::FloatDtype> {
     amsgrad: bool,
 }
 
-impl<T: coeus_dtype::FloatDtype> AdamBuilder<T> {
+impl<T: coeus_dtype::FloatDtype, B: Backend<T>> AdamBuilder<T, B> {
     /// Create a new Adam builder
-    pub fn new(params: Vec<Tensor<T>>, lr: T) -> Self {
+    pub fn new(params: Vec<Tensor<T, B>>, lr: T) -> Self {
         Self {
             params,
             lr,
@@ -352,7 +346,7 @@ impl<T: coeus_dtype::FloatDtype> AdamBuilder<T> {
     }
 
     /// Build the Adam optimizer
-    pub fn build(self) -> Adam<T> {
+    pub fn build(self) -> Adam<T, B> {
         Adam::with_options(
             self.params,
             self.lr,
@@ -370,14 +364,14 @@ mod tests {
 
     #[test]
     fn test_adam_creation() {
-        let optimizer = Adam::new(vec![], 0.001);
+        let optimizer: Adam<f64> = Adam::new(vec![], 0.001);
         assert_eq!(optimizer.base.get_lr(0).unwrap(), 0.001);
         // Note: beta1, beta2, epsilon are not yet implemented
     }
 
     #[test]
     fn test_adam_with_custom_options() {
-        let optimizer = Adam::with_options(vec![], 0.001, 0.9, 0.999, 1e-8, false);
+        let optimizer: Adam<f64> = Adam::with_options(vec![], 0.001, 0.9, 0.999, 1e-8, false);
         assert_eq!(optimizer.base.get_lr(0).unwrap(), 0.001);
         assert_eq!(optimizer.beta1, 0.9);
         assert_eq!(optimizer.beta2, 0.999);
@@ -390,7 +384,7 @@ mod tests {
         // Test that the step method can be called without panicking
         // This validates the API contract while documenting current limitations
         let mut optimizer: Adam<f32> = Adam::new(vec![], 0.001);
-        let param = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let param = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).expect("tensor creation");
 
         optimizer
             .base
@@ -419,7 +413,7 @@ mod tests {
     fn test_adam_momentum_state_initialization() {
         // Test that momentum state tensors are initialized (but not used)
         let mut optimizer: Adam<f32> = Adam::new(vec![], 0.001);
-        let param = Tensor::from_vec(vec![1.0], vec![1]);
+        let param = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).expect("tensor creation");
 
         optimizer
             .base
@@ -437,7 +431,7 @@ mod tests {
     #[test]
     fn test_adam_bias_correction_placeholder() {
         // Test bias correction configuration
-        let optimizer = Adam::with_options(vec![], 0.001, 0.9, 0.999, 1e-8, false);
+        let optimizer: Adam<f64> = Adam::with_options(vec![], 0.001, 0.9, 0.999, 1e-8, false);
 
         // Bias correction terms are stored but never computed
         assert_eq!(optimizer.beta1, 0.9);
@@ -450,7 +444,7 @@ mod tests {
     #[test]
     fn test_adam_amsgrad_placeholder() {
         // Test AMSGrad configuration
-        let optimizer = Adam::with_options(vec![], 0.001, 0.9, 0.999, 1e-8, true);
+        let optimizer: Adam<f64> = Adam::with_options(vec![], 0.001, 0.9, 0.999, 1e-8, true);
         assert!(optimizer.amsgrad);
 
         // CRITICAL LIMITATION: AMSGrad variant is not implemented
@@ -463,12 +457,12 @@ mod tests {
         // that should be implemented but currently is not
 
         let mut optimizer: Adam<f32> = Adam::new(vec![], 0.001);
-        let mut param = Tensor::from_vec(vec![1.0], vec![1]);
+        let mut param = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).expect("tensor creation");
         param.set_requires_grad(true);
 
         // Manually set a gradient
-        let grad = Tensor::from_vec(vec![0.1], vec![1]);
-        param.set_grad(grad).unwrap();
+        let grad = Tensor::from_vec(CpuBackend::default(), vec![0.1], vec![1]).expect("tensor creation");
+        param.set_grad(grad).expect("set grad");
 
         optimizer
             .base

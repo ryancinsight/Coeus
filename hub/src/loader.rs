@@ -2,6 +2,7 @@
 
 use crate::{HubError, Result, StateDict};
 use coeus_tensor::Tensor;
+use coeus_backend::cpu::CpuBackend;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -75,7 +76,7 @@ pub fn load_json_state_dict(json: &str) -> Result<StateDict> {
         // Assume 1D tensors for now
         // In a full implementation, this would handle shapes and types properly
         let len = data.len();
-        let tensor = Tensor::from_vec(data, vec![len]);
+        let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![len as usize]).unwrap();
         state_dict.insert(name, tensor);
     }
 

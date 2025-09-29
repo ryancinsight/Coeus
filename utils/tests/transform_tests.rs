@@ -1,6 +1,6 @@
 //! Comprehensive tests for data transformation utilities
 
-use coeus_tensor::Tensor;
+use coeus_tensor::{Tensor, CpuBackend};
 use coeus_utils::transforms::*;
 
 #[cfg(test)]
@@ -9,11 +9,11 @@ mod tests {
 
     #[test]
     fn test_normalize_single_channel() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]).unwrap();
         let transform = Normalize::new(vec![2.0], vec![1.0]);
 
         let result = transform.transform(&input).unwrap();
-        let expected = Tensor::from_vec(vec![-1.0, 0.0, 1.0, 2.0], vec![2, 2]);
+        let expected = Tensor::from_vec(CpuBackend::default(), vec![-1.0, 0.0, 1.0, 2.0], vec![2, 2]).unwrap();
 
         // Check shapes match
         assert_eq!(result.shape(), expected.shape());
@@ -23,7 +23,7 @@ mod tests {
 
     #[test]
     fn test_normalize_multi_channel() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]).unwrap();
         let transform = Normalize::new(vec![2.0, 3.0, 4.0], vec![1.0, 1.0, 1.0]);
 
         let result = transform.transform(&input).unwrap();
@@ -36,7 +36,7 @@ mod tests {
 
     #[test]
     fn test_normalize_empty_params() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
         let transform = Normalize::new(vec![], vec![]);
 
         let result = transform.transform(&input).unwrap();
@@ -46,9 +46,10 @@ mod tests {
     #[test]
     fn test_random_crop_basic() {
         let input = Tensor::from_vec(
+            CpuBackend::default(),
             (0..24).map(|x| x as f32).collect(),
             vec![2, 3, 4], // [batch=2, height=3, width=4]
-        );
+        ).unwrap();
         let transform = RandomCrop::new(vec![2, 2]); // Crop to 2x2
 
         let result = transform.transform(&input).unwrap();
@@ -61,9 +62,10 @@ mod tests {
     #[test]
     fn test_random_crop_2d() {
         let input = Tensor::from_vec(
+            CpuBackend::default(),
             (0..12).map(|x| x as f32).collect(),
             vec![3, 4], // [height=3, width=4]
-        );
+        ).unwrap();
         let transform = RandomCrop::new(vec![2, 2]);
 
         let result = transform.transform(&input).unwrap();
@@ -75,7 +77,7 @@ mod tests {
 
     #[test]
     fn test_random_crop_invalid_size() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]).unwrap();
         let transform = RandomCrop::new(vec![3, 3]); // Larger than input
 
         let result = transform.transform(&input);
@@ -84,7 +86,7 @@ mod tests {
 
     #[test]
     fn test_random_horizontal_flip_2d() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]).unwrap();
         let transform = RandomHorizontalFlip::new(1.0); // Always flip
 
         let result = transform.transform(&input).unwrap();
@@ -95,7 +97,7 @@ mod tests {
         // For a 2x2 matrix:
         // [1, 2]    -> [2, 1]
         // [3, 4]       [4, 3]
-        let expected = Tensor::from_vec(vec![2.0, 1.0, 4.0, 3.0], vec![2, 2]);
+        let expected = Tensor::from_vec(CpuBackend::default(), vec![2.0, 1.0, 4.0, 3.0], vec![2, 2]).unwrap();
 
         for (i, (&actual, &exp)) in result.data().iter().zip(expected.data().iter()).enumerate() {
             assert_eq!(actual, exp, "Mismatch at index {}", i);
@@ -104,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_random_horizontal_flip_3d() {
-        let input = Tensor::from_vec((0..24).map(|x| x as f32).collect(), vec![2, 3, 4]);
+        let input = Tensor::from_vec(CpuBackend::default(), (0..24).map(|x| x as f32).collect(), vec![2, 3, 4]).unwrap();
         let transform = RandomHorizontalFlip::new(1.0); // Always flip
 
         let result = transform.transform(&input).unwrap();
@@ -116,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_random_vertical_flip_2d() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]).unwrap();
         let transform = RandomVerticalFlip::new(1.0); // Always flip
 
         let result = transform.transform(&input).unwrap();
@@ -127,7 +129,7 @@ mod tests {
         // For a 2x2 matrix:
         // [1, 2]    -> [3, 4]
         // [3, 4]       [1, 2]
-        let expected = Tensor::from_vec(vec![3.0, 4.0, 1.0, 2.0], vec![2, 2]);
+        let expected = Tensor::from_vec(CpuBackend::default(), vec![3.0, 4.0, 1.0, 2.0], vec![2, 2]).unwrap();
 
         for (i, (&actual, &exp)) in result.data().iter().zip(expected.data().iter()).enumerate() {
             assert_eq!(actual, exp, "Mismatch at index {}", i);
@@ -136,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_compose_multiple_transforms() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]).unwrap();
 
         let transform1 = Identity::new(); // Identity transform
         let transform2 = ToTensor::new(); // ToTensor transform
@@ -154,7 +156,7 @@ mod tests {
 
     #[test]
     fn test_identity_transform() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
         let transform = Identity::new();
 
         let result = transform.transform(&input).unwrap();
@@ -168,15 +170,15 @@ mod tests {
 
     #[test]
     fn test_lambda_transform() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
-        let transform = Lambda::new(|tensor: &Tensor<f32>| {
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
+        let transform = Lambda::new(|tensor: &Tensor<f32, CpuBackend>| {
             // Double each element
             let doubled_data: Vec<f32> = tensor.data().iter().map(|&x| x * 2.0).collect();
-            Ok(Tensor::from_vec(doubled_data, tensor.shape().to_vec()))
+            Ok(Tensor::from_vec(CpuBackend::default(), doubled_data, tensor.shape().to_vec()).unwrap())
         });
 
         let result = transform.transform(&input).unwrap();
-        let expected = Tensor::from_vec(vec![2.0, 4.0, 6.0], vec![3]);
+        let expected = Tensor::from_vec(CpuBackend::default(), vec![2.0, 4.0, 6.0], vec![3]).unwrap();
 
         for (i, (&actual, &exp)) in result.data().iter().zip(expected.data().iter()).enumerate() {
             assert_eq!(actual, exp, "Mismatch at index {}", i);
@@ -185,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_random_apply_probability() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
 
         // Test with probability 0 (never apply)
         let transform = RandomApply::new(vec![Box::new(Identity::new())], 0.0);
@@ -199,9 +201,9 @@ mod tests {
 
     #[test]
     fn test_random_choice_basic() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
 
-        let transforms: Vec<Box<dyn Transform<f32>>> = vec![Box::new(Identity::new())];
+        let transforms: Vec<Box<dyn Transform<f32, CpuBackend>>> = vec![Box::new(Identity::new())];
 
         let transform = RandomChoice::new(transforms);
         let result = transform.transform(&input).unwrap();
@@ -212,9 +214,9 @@ mod tests {
 
     #[test]
     fn test_random_order_basic() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
 
-        let transforms: Vec<Box<dyn Transform<f32>>> = vec![Box::new(Identity::new())];
+        let transforms: Vec<Box<dyn Transform<f32, CpuBackend>>> = vec![Box::new(Identity::new())];
 
         let transform = RandomOrder::new(transforms);
         let result = transform.transform(&input).unwrap();
@@ -225,7 +227,7 @@ mod tests {
 
     #[test]
     fn test_to_tensor_basic() {
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
         let transform = ToTensor::new();
 
         let result = transform.transform(&input).unwrap();
@@ -275,9 +277,9 @@ mod tests {
     #[test]
     fn test_transform_trait_consistency() {
         // Test that all transforms implement the Transform trait consistently
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]).unwrap();
 
-        let transforms: Vec<Box<dyn Transform<f32>>> = vec![
+        let transforms: Vec<Box<dyn Transform<f32, CpuBackend>>> = vec![
             Box::new(Identity::new()),
             Box::new(ToTensor::new()),
             Box::new(RandomHorizontalFlip::new(0.0)), // p=0 to avoid randomness

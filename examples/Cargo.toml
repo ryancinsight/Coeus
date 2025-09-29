@@ -8,7 +8,7 @@ description = "Examples for the Coeus tensor library"
 
 [dependencies]
 coeus-tensor = { path = "../tensor" }
-coeus-autograd = { path = "../autograd" }
+coeus-backend = { path = "../backend" }
 coeus-nn = { path = "../nn" }
 coeus-optim = { path = "../optim" }
 num-traits.workspace = true

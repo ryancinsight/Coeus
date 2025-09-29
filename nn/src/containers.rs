@@ -23,7 +23,7 @@
 //!     Box::new(Linear::<f32>::new(128, 10)),
 //! ]);
 //!
-//! let input = Tensor::from_vec(vec![0.0; 784], vec![784]);
+//! let input = Tensor::from_vec(CpuBackend::default(), vec![0.0; 784], vec![784]).unwrap();
 //! let output = model.forward(&input);
 //! ```
 //!
@@ -33,7 +33,7 @@
 //! - [Design Patterns: Composite Pattern](https://en.wikipedia.org/wiki/Composite_pattern)
 
 use crate::Module;
-use coeus_tensor::{FloatDtype, Tensor};
+use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -87,7 +87,7 @@ impl<T: FloatDtype> Sequential<T> {
 }
 
 impl<T: FloatDtype> Module<T> for Sequential<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         // Chain the modules while maintaining the autograd graph
         // We need to keep ownership of intermediate results
         if self.modules.is_empty() {
@@ -108,7 +108,7 @@ impl<T: FloatDtype> Module<T> for Sequential<T> {
         Ok(current)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         for module in &self.modules {
             params.extend(module.parameters());
@@ -116,7 +116,7 @@ impl<T: FloatDtype> Module<T> for Sequential<T> {
         params
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         for module in &mut self.modules {
             params.extend(module.parameters_mut());
@@ -216,13 +216,13 @@ impl<T: FloatDtype> ModuleList<T> {
 }
 
 impl<T: FloatDtype> Module<T> for ModuleList<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         // ModuleList doesn't define a forward pass by itself
         // It's primarily used for organizing modules
         Ok(input.clone())
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         for module in &self.modules {
             params.extend(module.parameters());
@@ -230,7 +230,7 @@ impl<T: FloatDtype> Module<T> for ModuleList<T> {
         params
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         for module in &mut self.modules {
             params.extend(module.parameters_mut());
@@ -339,12 +339,12 @@ impl<T: FloatDtype> ModuleDict<T> {
 }
 
 impl<T: FloatDtype> Module<T> for ModuleDict<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         // ModuleDict doesn't define a forward pass by itself
         Ok(input.clone())
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         for module in self.modules.values() {
             params.extend(module.parameters());
@@ -352,7 +352,7 @@ impl<T: FloatDtype> Module<T> for ModuleDict<T> {
         params
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         for module in self.modules.values_mut() {
             params.extend(module.parameters_mut());
@@ -398,7 +398,7 @@ mod tests {
             Box::new(Linear::<f32>::new(5, 2)),
         ]);
 
-        let input = Tensor::from_vec(vec![1.0; 10], vec![10]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0; 10], vec![10]).unwrap();
         let output = model
             .forward(&input)
             .expect("Sequential forward should succeed");
@@ -462,3 +462,5 @@ mod tests {
         assert!(!params.is_empty());
     }
 }
+
+

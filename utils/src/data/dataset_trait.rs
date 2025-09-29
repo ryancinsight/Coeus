@@ -2,7 +2,7 @@
 //!
 //! Core abstractions for dataset functionality compatible with PyTorch's Dataset interface.
 
-use coeus_tensor::Tensor;
+use coeus_tensor::{Tensor, CpuBackend};
 
 /// Core trait for datasets, compatible with PyTorch's Dataset interface
 pub trait Dataset<T: coeus_dtype::Dtype>: Send + Sync {
@@ -10,7 +10,7 @@ pub trait Dataset<T: coeus_dtype::Dtype>: Send + Sync {
     fn len(&self) -> usize;
 
     /// Returns the sample at the given index
-    fn get(&self, index: usize) -> (Tensor<T>, Tensor<T>);
+    fn get(&self, index: usize) -> (Tensor<T, CpuBackend>, Tensor<T, CpuBackend>);
 
     /// Returns true if the dataset is empty
     fn is_empty(&self) -> bool {
@@ -36,7 +36,7 @@ pub struct DatasetIter<'a, T: coeus_dtype::Dtype> {
 }
 
 impl<'a, T: coeus_dtype::Dtype> Iterator for DatasetIter<'a, T> {
-    type Item = (Tensor<T>, Tensor<T>);
+    type Item = (Tensor<T, CpuBackend>, Tensor<T, CpuBackend>);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.dataset.len() {

@@ -4,7 +4,7 @@
 //! during optimization, often providing better generalization than standard SGD.
 
 use crate::{BaseOptimizer, Optimizer, ParamGroup, Result};
-use coeus_tensor::{Add, Mul, Sub, Tensor};
+use coeus_tensor::{ops::arithmetic::sub, Tensor, CpuBackend};
 
 /// Averaged Stochastic Gradient Descent optimizer
 ///
@@ -41,7 +41,7 @@ use coeus_tensor::{Add, Mul, Sub, Tensor};
 /// - Polyak, B. T., & Juditsky, A. B. (1992). Acceleration of stochastic approximation
 ///   by averaging. SIAM Journal on Control and Optimization, 30(4), 838-855.
 pub struct Asgd<T: coeus_dtype::FloatDtype> {
-    base: BaseOptimizer<T>,
+    base: BaseOptimizer<T, CpuBackend>,
     momentum: T,
     dampening: T,
     nesterov: bool,
@@ -65,7 +65,7 @@ impl<T: coeus_dtype::FloatDtype> Asgd<T> {
     /// let params = vec![Tensor::from_vec(vec![1.0, 2.0], vec![2])];
     /// let optimizer = Asgd::new(params, 0.01);
     /// ```
-    pub fn new(params: Vec<Tensor<T>>, lr: T) -> Self {
+    pub fn new(params: Vec<Tensor<T, CpuBackend>>, lr: T) -> Self {
         Self::with_options(
             params,
             lr,
@@ -86,7 +86,7 @@ impl<T: coeus_dtype::FloatDtype> Asgd<T> {
     /// * `nesterov` - Whether to use Nesterov momentum
     /// * `alpha` - Smoothing parameter for averaging (default: 0.75)
     pub fn with_options(
-        params: Vec<Tensor<T>>,
+        params: Vec<Tensor<T, CpuBackend>>,
         lr: T,
         momentum: T,
         weight_decay: T,
@@ -108,7 +108,7 @@ impl<T: coeus_dtype::FloatDtype> Asgd<T> {
     ///
     /// Returns the running average of parameters, which typically provides
     /// better generalization than the current parameters.
-    pub fn averaged_parameters(&self) -> Vec<&Tensor<T>> {
+    pub fn averaged_parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         self.base
             .param_groups()
             .iter()
@@ -137,7 +137,7 @@ impl<T: coeus_dtype::FloatDtype> Asgd<T> {
     }
 }
 
-impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Asgd<T> {
+impl<T: coeus_dtype::FloatDtype> Optimizer<T, CpuBackend> for Asgd<T> {
     fn step(&mut self) -> Result<()> {
         self.t += 1;
 
@@ -155,8 +155,9 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Asgd<T> {
                 // Apply weight decay
                 if weight_decay != T::zero() {
                     // Apply weight decay: grad = grad + weight_decay * param
-                    let weight_decay_term = param.mul(&Tensor::scalar(weight_decay))?;
-                    grad = grad.add(&weight_decay_term)?;
+                    let weight_decay_tensor = Tensor::scalar(weight_decay);
+                    let weight_decay_term = (&*param * &weight_decay_tensor).unwrap();
+                    grad = (&grad + &weight_decay_term).unwrap();
                 }
 
                 // Get or create momentum buffer
@@ -166,28 +167,31 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Asgd<T> {
 
                 // Update momentum buffer
                 if self.momentum != T::zero() {
-                    momentum_buffer = momentum_buffer.mul(&Tensor::scalar(self.momentum))?;
+                    let momentum_tensor = Tensor::from_vec(param.backend().clone(), vec![self.momentum], vec![]).unwrap();
+                    momentum_buffer = (&momentum_buffer * &momentum_tensor).unwrap();
                     // Update momentum buffer: momentum_buffer = momentum_buffer + (1 - dampening) * grad
                     let dampening_factor = T::one() - self.dampening;
-                    let grad_term = grad.mul(&Tensor::scalar(dampening_factor))?;
-                    momentum_buffer = momentum_buffer.add(&grad_term)?;
+                    let dampening_tensor = Tensor::from_vec(param.backend().clone(), vec![dampening_factor], vec![]).unwrap();
+                    let grad_term = (&grad * &dampening_tensor).unwrap();
+                    momentum_buffer = (&momentum_buffer + &grad_term).unwrap();
                 } else {
                     momentum_buffer = grad.clone();
                 }
 
                 // Apply Nesterov momentum
                 let effective_grad = if self.nesterov && self.momentum != T::zero() {
-                    momentum_buffer
-                        .mul(&Tensor::scalar(self.momentum))?
-                        .add(&grad)?
+                    let momentum_tensor = Tensor::scalar(self.momentum);
+                    let momentum_scaled = (&momentum_buffer * &momentum_tensor).unwrap();
+                    (&momentum_scaled + &grad).unwrap()
                 } else {
                     momentum_buffer.clone()
                 };
 
                 // Update parameter
                 // Update parameter: param = param - lr * effective_grad
-                let update = effective_grad.mul(&Tensor::scalar(lr))?;
-                *param = param.sub(&update)?;
+                let lr_tensor = Tensor::scalar(lr);
+                let update = (&effective_grad * &lr_tensor).unwrap();
+                *param = sub(&*param, &update).unwrap();
 
                 // Update running average
                 let mut avg_buffer = param.get_buffer("average").unwrap_or_else(|| param.clone());
@@ -195,15 +199,17 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Asgd<T> {
                 // avg_t = alpha * avg_{t-1} + (1 - alpha) * p_t
                 // This is a different averaging strategy than the original paper
                 // but is commonly used in practice
-                avg_buffer = avg_buffer.mul(&Tensor::scalar(self.alpha))?;
+                let alpha_tensor = Tensor::scalar(self.alpha);
+                avg_buffer = (&avg_buffer * &alpha_tensor).unwrap();
                 let one_minus_alpha = T::one() - self.alpha;
                 // Update average buffer: avg_buffer = avg_buffer + (1 - alpha) * param
-                let param_term = param.mul(&Tensor::scalar(one_minus_alpha))?;
-                avg_buffer = avg_buffer.add(&param_term)?;
+                let one_minus_alpha_tensor = Tensor::scalar(one_minus_alpha);
+                let param_term = (&*param * &one_minus_alpha_tensor).unwrap();
+                avg_buffer = (&avg_buffer + &param_term).unwrap();
 
                 // Store buffers
-                param.set_buffer("momentum", momentum_buffer);
-                param.set_buffer("average", avg_buffer);
+                param.set_buffer("momentum", momentum_buffer.clone());
+                param.set_buffer("average", avg_buffer.clone());
             }
         }
 
@@ -238,11 +244,11 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Asgd<T> {
         self.base.set_lr(group_index, lr)
     }
 
-    fn state(&self) -> &std::collections::HashMap<String, Tensor<T>> {
+    fn state(&self) -> &std::collections::HashMap<String, Tensor<T, CpuBackend>> {
         self.base.state()
     }
 
-    fn state_mut(&mut self) -> &mut std::collections::HashMap<String, Tensor<T>> {
+    fn state_mut(&mut self) -> &mut std::collections::HashMap<String, Tensor<T, CpuBackend>> {
         self.base.state_mut()
     }
 }

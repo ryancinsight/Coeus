@@ -22,6 +22,7 @@
 //! - [PyTorch Embedding Layer](https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html)
 
 use crate::Module;
+use coeus_backend::CpuBackend;
 use coeus_dtype::Dtype;
 use coeus_tensor::{FloatDtype, Tensor};
 use rand::prelude::*;
@@ -43,7 +44,7 @@ pub enum EmbeddingBagMode {
 #[derive(Debug, Clone)]
 pub struct Embedding<T: FloatDtype> {
     /// Embedding matrix of shape (vocab_size, embedding_dim)
-    pub weight: Tensor<T>,
+    pub weight: Tensor<T, CpuBackend>,
     /// Vocabulary size (number of unique tokens)
     pub vocab_size: usize,
     /// Embedding dimension (size of each token vector)
@@ -74,11 +75,11 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Embedding<T> {
         let weight_data: Vec<T> = (0..vocab_size * embedding_dim)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
-                T::from_f64(val).unwrap()
+                <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
-        let mut weight = Tensor::from_vec(weight_data, vec![vocab_size, embedding_dim]);
+        let mut weight = Tensor::from_vec(CpuBackend::default(), weight_data, vec![vocab_size, embedding_dim]).unwrap();
         weight.set_requires_grad(true); // Embeddings need gradients for training
 
         Self {
@@ -98,10 +99,10 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Embedding<T> {
     /// use coeus_nn::Embedding;
     /// use coeus_tensor::Tensor;
     ///
-    /// let weight = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+    /// let weight = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
     /// let embedding = Embedding::from_weight(weight);
     /// ```
-    pub fn from_weight(weight: Tensor<T>) -> Self {
+    pub fn from_weight(weight: Tensor<T, CpuBackend>) -> Self {
         let vocab_size = weight.shape()[0];
         let embedding_dim = weight.shape()[1];
 
@@ -114,7 +115,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Embedding<T> {
 }
 
 impl<T: FloatDtype> Module<T> for Embedding<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         // Input should be token indices of shape (batch_size, seq_len)
         // Output will be embeddings of shape (batch_size, seq_len, embedding_dim)
 
@@ -153,7 +154,7 @@ impl<T: FloatDtype> Module<T> for Embedding<T> {
         }
 
         let output_shape = vec![batch_size, seq_len, self.embedding_dim];
-        let mut output = Tensor::from_vec(output_data, output_shape);
+        let mut output = Tensor::from_vec(CpuBackend::default(), output_data, output_shape).unwrap();
 
         // Propagate requires_grad flag
         if self.weight.requires_grad() || input.requires_grad() {
@@ -163,11 +164,11 @@ impl<T: FloatDtype> Module<T> for Embedding<T> {
         Ok(output)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![&self.weight]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![&mut self.weight]
     }
 }
@@ -208,7 +209,7 @@ impl<T: FloatDtype> fmt::Display for Embedding<T> {
 #[derive(Debug, Clone)]
 pub struct EmbeddingBag<T: FloatDtype> {
     /// Embedding matrix of shape (vocab_size, embedding_dim)
-    pub weight: Tensor<T>,
+    pub weight: Tensor<T, CpuBackend>,
     /// Vocabulary size (number of unique tokens)
     pub vocab_size: usize,
     /// Embedding dimension (size of each token vector)
@@ -260,11 +261,11 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> EmbeddingBag<T
         let weight_data: Vec<T> = (0..vocab_size * embedding_dim)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
-                T::from_f64(val).unwrap()
+                <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
-        let mut weight = Tensor::from_vec(weight_data, vec![vocab_size, embedding_dim]);
+        let mut weight = Tensor::from_vec(CpuBackend::default(), weight_data, vec![vocab_size, embedding_dim]).unwrap();
         weight.set_requires_grad(true); // Embeddings need gradients for training
 
         Self {
@@ -284,7 +285,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> EmbeddingBag<T
     /// # Arguments
     /// * `weight` - Pre-trained embedding matrix of shape (vocab_size, embedding_dim)
     /// * `mode` - Aggregation mode
-    pub fn from_weight(weight: Tensor<T>, mode: EmbeddingBagMode) -> Self {
+    pub fn from_weight(weight: Tensor<T, CpuBackend>, mode: EmbeddingBagMode) -> Self {
         let vocab_size = weight.shape()[0];
         let embedding_dim = weight.shape()[1];
 
@@ -302,7 +303,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> EmbeddingBag<T
 }
 
 impl<T: FloatDtype> Module<T> for EmbeddingBag<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         // Input should be token indices of shape (batch_size, seq_len) or flattened (total_indices,)
         // For EmbeddingBag, we typically expect flattened indices with offsets
         // But for simplicity, we'll handle (batch_size, seq_len) format
@@ -320,7 +321,7 @@ impl<T: FloatDtype> Module<T> for EmbeddingBag<T> {
             let offsets = (0..batch_size)
                 .map(|i| T::from((i * seq_len) as f64).unwrap())
                 .collect::<Vec<T>>();
-            let offsets_tensor = Tensor::from_vec(offsets, vec![batch_size]);
+            let offsets_tensor = Tensor::from_vec(CpuBackend::default(), offsets, vec![batch_size]).unwrap();
 
             // Flatten input
             let input_flat = input.reshape(vec![batch_size * seq_len])?;
@@ -334,11 +335,11 @@ impl<T: FloatDtype> Module<T> for EmbeddingBag<T> {
         }
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![&self.weight]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![&mut self.weight]
     }
 }
@@ -355,10 +356,10 @@ impl<T: FloatDtype> EmbeddingBag<T> {
     /// Tensor of shape (batch_size, embedding_dim)
     pub fn forward_bag(
         &self,
-        input: &Tensor<T>,
-        offsets: Option<&Tensor<T>>,
-        per_sample_weights: Option<&Tensor<T>>,
-    ) -> crate::Result<Tensor<T>> {
+        input: &Tensor<T, CpuBackend>,
+        offsets: Option<&Tensor<T, CpuBackend>>,
+        per_sample_weights: Option<&Tensor<T, CpuBackend>>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if input.shape().len() != 1 {
             return Err(crate::NNError::ShapeMismatch {
                 expected: vec![0], // 1D tensor
@@ -485,7 +486,7 @@ impl<T: FloatDtype> EmbeddingBag<T> {
                     let weight_idx = token_idx * self.embedding_dim + emb_dim;
                     let embedding_val = weight_data[weight_idx];
                     let weighted_val =
-                        T::from_f64(Dtype::to_f64(&embedding_val).unwrap_or(0.0) * sample_weight)
+                        <T as Dtype>::from_f64(Dtype::to_f64(&embedding_val).unwrap_or(0.0) * sample_weight)
                             .unwrap();
 
                     let output_idx = bag_idx * self.embedding_dim + emb_dim;
@@ -494,7 +495,7 @@ impl<T: FloatDtype> EmbeddingBag<T> {
                         EmbeddingBagMode::Sum => {
                             // Add to accumulator
                             let current_val = output_data[output_idx];
-                            output_data[output_idx] = T::from_f64(
+                            output_data[output_idx] = <T as Dtype>::from_f64(
                                 Dtype::to_f64(&current_val).unwrap_or(0.0)
                                     + Dtype::to_f64(&weighted_val).unwrap_or(0.0),
                             )
@@ -503,7 +504,7 @@ impl<T: FloatDtype> EmbeddingBag<T> {
                         EmbeddingBagMode::Mean => {
                             // Add to accumulator (will be normalized later)
                             let current_val = output_data[output_idx];
-                            output_data[output_idx] = T::from_f64(
+                            output_data[output_idx] = <T as Dtype>::from_f64(
                                 Dtype::to_f64(&current_val).unwrap_or(0.0)
                                     + Dtype::to_f64(&weighted_val).unwrap_or(0.0),
                             )
@@ -528,13 +529,13 @@ impl<T: FloatDtype> EmbeddingBag<T> {
                     let output_idx = bag_idx * self.embedding_dim + emb_dim;
                     let current_val = output_data[output_idx];
                     output_data[output_idx] =
-                        T::from_f64(Dtype::to_f64(&current_val).unwrap_or(0.0) / weight_sum)
+                        <T as Dtype>::from_f64(Dtype::to_f64(&current_val).unwrap_or(0.0) / weight_sum)
                             .unwrap();
                 }
             }
         }
 
-        let mut output = Tensor::from_vec(output_data, vec![batch_size, self.embedding_dim]);
+        let mut output = Tensor::from_vec(CpuBackend::default(), output_data, vec![batch_size, self.embedding_dim]).unwrap();
 
         // Propagate requires_grad flag
         if self.weight.requires_grad() {
@@ -573,11 +574,11 @@ mod tests {
         let embedding: Embedding<f32> = Embedding::new(10, 5);
 
         // Create input with token indices [0, 1, 2]
-        let input = Tensor::from_vec(vec![0.0, 1.0, 2.0], vec![1, 3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0, 1.0, 2.0], vec![3]).unwrap();
         let output = embedding.forward(&input).unwrap();
 
-        // Output should be shape (1, 3, 5)
-        assert_eq!(output.shape(), &[1, 3, 5]);
+        // Output should be shape (3, 5)
+        assert_eq!(output.shape(), &[3, 5]);
     }
 
     #[test]
@@ -596,7 +597,7 @@ mod tests {
         let embedding: Embedding<f32> = Embedding::new(10, 5);
 
         // Token index out of vocabulary
-        let input = Tensor::from_vec(vec![15.0], vec![1, 1]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![15.0], vec![1]).unwrap();
         let result = embedding.forward(&input);
 
         assert!(result.is_err());
@@ -619,7 +620,7 @@ mod tests {
             EmbeddingBag::new(10, 3, EmbeddingBagMode::Sum, None, 2.0, false, false);
 
         // Input: bag with indices [0, 1, 2]
-        let input = Tensor::from_vec(vec![0.0, 1.0, 2.0], vec![3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0, 1.0, 2.0], vec![3]).unwrap();
         let output = embedding_bag.forward_bag(&input, None, None).unwrap();
 
         // Output should be shape (1, 3) - single bag
@@ -645,7 +646,7 @@ mod tests {
             EmbeddingBag::new(10, 3, EmbeddingBagMode::Mean, None, 2.0, false, false);
 
         // Input: bag with indices [0, 1]
-        let input = Tensor::from_vec(vec![0.0, 1.0], vec![2]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0, 1.0], vec![2]).unwrap();
         let output = embedding_bag.forward_bag(&input, None, None).unwrap();
 
         // Output should be shape (1, 3) - single bag
@@ -666,17 +667,19 @@ mod tests {
     #[test]
     fn test_embedding_bag_max_mode() {
         // Create a simple embedding matrix with known values
+        let vocab_size = 3;
+        let embed_dim = 3;
         let weight_data = vec![
             1.0, 2.0, 3.0, // index 0
             4.0, 1.0, 6.0, // index 1
             2.0, 5.0, 1.0, // index 2
         ];
-        let weight = Tensor::from_vec(weight_data, vec![3, 3]);
+        let weight = Tensor::from_vec(CpuBackend::default(), weight_data, vec![vocab_size, embed_dim]).unwrap();
 
         let embedding_bag = EmbeddingBag::from_weight(weight, EmbeddingBagMode::Max);
 
         // Input: bag with indices [0, 1, 2]
-        let input = Tensor::from_vec(vec![0.0, 1.0, 2.0], vec![3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0, 1.0, 2.0], vec![3]).unwrap();
         let output = embedding_bag.forward_bag(&input, None, None).unwrap();
 
         // Output should be shape (1, 3) - single bag
@@ -697,8 +700,8 @@ mod tests {
             EmbeddingBag::new(10, 2, EmbeddingBagMode::Sum, None, 2.0, false, false);
 
         // Two bags: [0, 1] and [2]
-        let input = Tensor::from_vec(vec![0.0, 1.0, 2.0], vec![3]);
-        let offsets = Tensor::from_vec(vec![0.0, 2.0], vec![2]); // offsets at 0 and 2
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0, 1.0, 2.0], vec![3]).unwrap();
+        let offsets = Tensor::from_vec(CpuBackend::default(), vec![0.0, 2.0], vec![2]).unwrap(); // offsets at 0 and 2
 
         let output = embedding_bag
             .forward_bag(&input, Some(&offsets), None)
@@ -714,9 +717,9 @@ mod tests {
             EmbeddingBag::new(10, 2, EmbeddingBagMode::Sum, None, 2.0, false, false);
 
         // Input: bag with indices [0, 1]
-        let input = Tensor::from_vec(vec![0.0, 1.0], vec![2]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0, 1.0], vec![2]).unwrap();
         // Weights: [2.0, 3.0]
-        let weights = Tensor::from_vec(vec![2.0, 3.0], vec![2]);
+        let weights = Tensor::from_vec(CpuBackend::default(), vec![2.0, 3.0], vec![2]).unwrap();
 
         let output = embedding_bag
             .forward_bag(&input, None, Some(&weights))
@@ -748,9 +751,12 @@ mod tests {
             EmbeddingBag::new(10, 3, EmbeddingBagMode::Sum, None, 2.0, false, false);
 
         // Token index out of vocabulary
-        let input = Tensor::from_vec(vec![15.0], vec![1]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![15.0], vec![1]).unwrap();
         let result = embedding_bag.forward_bag(&input, None, None);
 
         assert!(result.is_err());
     }
 }
+
+
+

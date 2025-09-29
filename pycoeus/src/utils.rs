@@ -1,5 +1,6 @@
 use crate::tensor::PyTensor;
 use coeus_tensor::Tensor;
+use coeus_backend::CpuBackend;
 use coeus_utils::{
     data::{ConcatDataset, DataLoader, Dataset, Subset, TensorDataset},
     metrics::{
@@ -175,7 +176,7 @@ impl PySubset {
 #[pyclass(subclass)]
 #[allow(dead_code)]
 pub struct PyTransform {
-    transform: Box<dyn Transform<f32> + Send + Sync>,
+    transform: Box<dyn Transform<f32, CpuBackend> + Send + Sync>,
 }
 
 #[pymethods]
@@ -200,7 +201,7 @@ impl PyTransform {
 #[pyclass]
 #[allow(dead_code)]
 pub struct PyCompose {
-    transforms: Vec<Box<dyn Transform<f32> + Send + Sync>>,
+    transforms: Vec<Box<dyn Transform<f32, CpuBackend> + Send + Sync>>,
 }
 
 #[pymethods]
@@ -295,10 +296,12 @@ impl PyColorJitter {
 #[pyfunction]
 pub fn py_accuracy(predictions: &PyTensor, targets: &PyTensor) -> PyResult<f32> {
     // Convert targets to i64 for metrics functions
-    let targets_i64: Tensor<i64> = Tensor::from_vec(
+    let backend = CpuBackend::default();
+    let targets_i64: Tensor<i64, CpuBackend> = Tensor::from_vec(
+        backend.clone(),
         targets.tensor.data().iter().map(|&x| x as i64).collect(),
         targets.tensor.shape().to_vec(),
-    );
+    ).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Tensor creation failed: {}", e)))?;
     accuracy(&predictions.tensor, &targets_i64)
         .map(|result| result as f32)
         .map_err(|e| {
@@ -311,10 +314,12 @@ pub fn py_accuracy(predictions: &PyTensor, targets: &PyTensor) -> PyResult<f32> 
 #[pyo3(signature = (predictions, targets, k=1))]
 pub fn py_top_k_accuracy(predictions: &PyTensor, targets: &PyTensor, k: usize) -> PyResult<f32> {
     // Convert targets to i64 for metrics functions
-    let targets_i64: Tensor<i64> = Tensor::from_vec(
+    let backend = CpuBackend::default();
+    let targets_i64: Tensor<i64, CpuBackend> = Tensor::from_vec(
+        backend.clone(),
         targets.tensor.data().iter().map(|&x| x as i64).collect(),
         targets.tensor.shape().to_vec(),
-    );
+    ).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Tensor creation failed: {}", e)))?;
     top_k_accuracy(&predictions.tensor, &targets_i64, k)
         .map(|result| result as f32)
         .map_err(|e| {
@@ -333,7 +338,9 @@ pub fn py_confusion_matrix(
     num_classes: usize,
 ) -> PyResult<Vec<Vec<i32>>> {
     // Convert predictions and targets to i64 for metrics functions
-    let predictions_i64: Tensor<i64> = Tensor::from_vec(
+    let backend = CpuBackend::default();
+    let predictions_i64: Tensor<i64, CpuBackend> = Tensor::from_vec(
+        backend.clone(),
         predictions
             .tensor
             .data()
@@ -341,11 +348,12 @@ pub fn py_confusion_matrix(
             .map(|&x| x as i64)
             .collect(),
         predictions.tensor.shape().to_vec(),
-    );
-    let targets_i64: Tensor<i64> = Tensor::from_vec(
+    ).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Tensor creation failed: {}", e)))?;
+    let targets_i64: Tensor<i64, CpuBackend> = Tensor::from_vec(
+        backend.clone(),
         targets.tensor.data().iter().map(|&x| x as i64).collect(),
         targets.tensor.shape().to_vec(),
-    );
+    ).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Tensor creation failed: {}", e)))?;
     confusion_matrix(&predictions_i64, &targets_i64, num_classes)
         .map(|tensor| {
             // Convert Tensor<i64> to Vec<Vec<i32>>
@@ -377,7 +385,9 @@ pub fn py_classification_report(
     num_classes: usize,
 ) -> PyResult<String> {
     // Convert predictions and targets to i64 for metrics functions
-    let predictions_i64: Tensor<i64> = Tensor::from_vec(
+    let backend = CpuBackend::default();
+    let predictions_i64: Tensor<i64, CpuBackend> = Tensor::from_vec(
+        backend.clone(),
         predictions
             .tensor
             .data()
@@ -385,11 +395,12 @@ pub fn py_classification_report(
             .map(|&x| x as i64)
             .collect(),
         predictions.tensor.shape().to_vec(),
-    );
-    let targets_i64: Tensor<i64> = Tensor::from_vec(
+    ).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Tensor creation failed: {}", e)))?;
+    let targets_i64: Tensor<i64, CpuBackend> = Tensor::from_vec(
+        backend.clone(),
         targets.tensor.data().iter().map(|&x| x as i64).collect(),
         targets.tensor.shape().to_vec(),
-    );
+    ).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Tensor creation failed: {}", e)))?;
     classification_report(&predictions_i64, &targets_i64, num_classes)
         .map(|report| report.to_string())
         .map_err(|e| {
@@ -415,10 +426,12 @@ pub fn py_mean_squared_error(predictions: &PyTensor, targets: &PyTensor) -> PyRe
 #[pyfunction]
 pub fn py_auc_roc(predictions: &PyTensor, targets: &PyTensor) -> PyResult<f32> {
     // Convert targets to i64 for AUC-ROC function
-    let targets_i64: Tensor<i64> = Tensor::from_vec(
+    let backend = CpuBackend::default();
+    let targets_i64: Tensor<i64, CpuBackend> = Tensor::from_vec(
+        backend.clone(),
         targets.tensor.data().iter().map(|&x| x as i64).collect(),
         targets.tensor.shape().to_vec(),
-    );
+    ).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Tensor creation failed: {}", e)))?;
     auc_roc(&predictions.tensor, &targets_i64)
         .map(|result| result as f32)
         .map_err(|e| {

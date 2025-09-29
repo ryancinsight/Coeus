@@ -3,14 +3,14 @@
 //! This module provides comprehensive benchmarks using the criterion crate
 //! to measure and track performance of critical tensor operations.
 
-use coeus_tensor::{ops::indexing::Slice, Dtype, Tensor};
+use coeus_tensor::{ops::indexing::Slice, CpuBackend, Dtype, Tensor};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 /// Benchmark scalar tensor creation
 pub fn bench_scalar_creation(c: &mut Criterion) {
     c.bench_function("scalar_creation", |b| {
         b.iter(|| {
-            let _tensor = Tensor::scalar(black_box(42.0));
+            let _tensor: Tensor<f64, CpuBackend> = Tensor::scalar(black_box(42.0));
         });
     });
 }
@@ -24,7 +24,7 @@ pub fn bench_vector_creation(c: &mut Criterion) {
         group.bench_with_input(format!("size_{}", size), &size, |b, &size| {
             let data = vec![1.0; size];
             b.iter(|| {
-                let _tensor = Tensor::from_vec(black_box(data.clone()), black_box(vec![size]));
+                let _tensor = Tensor::from_vec(CpuBackend::default(), black_box(data.clone()), black_box(vec![size])).unwrap();
             });
         });
     }
@@ -44,7 +44,7 @@ pub fn bench_matrix_creation(c: &mut Criterion) {
                 let data = vec![1.0; rows * cols];
                 b.iter(|| {
                     let _tensor =
-                        Tensor::from_vec(black_box(data.clone()), black_box(vec![rows, cols]));
+                        Tensor::from_vec(CpuBackend::default(), black_box(data.clone()), black_box(vec![rows, cols])).unwrap();
                 });
             },
         );
@@ -60,8 +60,8 @@ pub fn bench_elementwise_addition(c: &mut Criterion) {
     for &size in &sizes {
         group.bench_with_input(format!("size_{}", size), &size, |b, &size| {
             let data = vec![1.0; size];
-            let tensor_a = Tensor::from_vec(data.clone(), vec![size]);
-            let tensor_b = Tensor::from_vec(data, vec![size]);
+            let tensor_a = Tensor::from_vec(CpuBackend::default(), data.clone(), vec![size]).unwrap();
+            let tensor_b = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
 
             b.iter(|| {
                 let _result = black_box(&tensor_a + &tensor_b).unwrap();
@@ -79,8 +79,8 @@ pub fn bench_elementwise_multiplication(c: &mut Criterion) {
     for &size in &sizes {
         group.bench_with_input(format!("size_{}", size), &size, |b, &size| {
             let data = vec![2.0; size];
-            let tensor_a = Tensor::from_vec(data.clone(), vec![size]);
-            let tensor_b = Tensor::from_vec(data, vec![size]);
+            let tensor_a = Tensor::from_vec(CpuBackend::default(), data.clone(), vec![size]).unwrap();
+            let tensor_b = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
 
             b.iter(|| {
                 let _result = black_box(&tensor_a * &tensor_b).unwrap();
@@ -110,8 +110,8 @@ pub fn bench_matrix_multiplication(c: &mut Criterion) {
             |b, &(m, n, p)| {
                 let data_a = vec![1.0f32; m * n];
                 let data_b = vec![2.0f32; n * p];
-                let tensor_a = Tensor::from_vec(data_a, vec![m, n]);
-                let tensor_b = Tensor::from_vec(data_b, vec![n, p]);
+                let tensor_a = Tensor::from_vec(CpuBackend::default(), data_a, vec![m, n]).unwrap();
+                let tensor_b = Tensor::from_vec(CpuBackend::default(), data_b, vec![n, p]).unwrap();
 
                 b.iter(|| {
                     let _result = black_box(tensor_a.matmul(&tensor_b)).unwrap();
@@ -142,8 +142,8 @@ pub fn bench_large_matrix_multiplication(c: &mut Criterion) {
 
                 let data_a = vec![0.1f32; small_m * small_n];
                 let data_b = vec![0.1f32; small_n * small_p];
-                let tensor_a = Tensor::from_vec(data_a, vec![small_m, small_n]);
-                let tensor_b = Tensor::from_vec(data_b, vec![small_n, small_p]);
+                let tensor_a = Tensor::from_vec(CpuBackend::default(), data_a, vec![small_m, small_n]).unwrap();
+                let tensor_b = Tensor::from_vec(CpuBackend::default(), data_b, vec![small_n, small_p]).unwrap();
 
                 b.iter(|| {
                     let _result = black_box(tensor_a.matmul(&tensor_b)).unwrap();
@@ -169,8 +169,8 @@ pub fn bench_gpu_cpu_comparison(c: &mut Criterion) {
             |b, &(m, n, p)| {
                 let data_a = vec![1.0f32; m * n];
                 let data_b = vec![2.0f32; n * p];
-                let tensor_a = Tensor::from_vec(data_a, vec![m, n]);
-                let tensor_b = Tensor::from_vec(data_b, vec![n, p]);
+                let tensor_a = Tensor::from_vec(CpuBackend::default(), data_a, vec![m, n]).unwrap();
+                let tensor_b = Tensor::from_vec(CpuBackend::default(), data_b, vec![n, p]).unwrap();
 
                 b.iter(|| {
                     let _result = black_box(tensor_a.matmul(&tensor_b)).unwrap();
@@ -185,8 +185,8 @@ pub fn bench_gpu_cpu_comparison(c: &mut Criterion) {
             |b, &(m, n, p)| {
                 let data_a = vec![1.0f32; m * n];
                 let data_b = vec![2.0f32; n * p];
-                let tensor_a = Tensor::from_vec(data_a, vec![m, n]);
-                let tensor_b = Tensor::from_vec(data_b, vec![n, p]);
+                let tensor_a = Tensor::from_vec(CpuBackend::default(), data_a, vec![m, n]).unwrap();
+                let tensor_b = Tensor::from_vec(CpuBackend::default(), data_b, vec![n, p]).unwrap();
 
                 // Note: GPU acceleration would be enabled here when available
                 // For now, this falls back to CPU but measures the path
@@ -217,8 +217,8 @@ pub fn bench_batch_processing(c: &mut Criterion) {
                     let input_data = vec![0.1f32; batch_size * feature_size];
                     let weight_data = vec![0.01f32; feature_size * feature_size];
 
-                    let input = Tensor::from_vec(input_data, vec![batch_size, feature_size]);
-                    let weights = Tensor::from_vec(weight_data, vec![feature_size, feature_size]);
+                    let input = Tensor::from_vec(CpuBackend::default(), input_data, vec![batch_size, feature_size]).unwrap();
+                    let weights = Tensor::from_vec(CpuBackend::default(), weight_data, vec![feature_size, feature_size]).unwrap();
 
                     b.iter(|| {
                         let _output = black_box(input.matmul(&weights)).unwrap();
@@ -240,7 +240,7 @@ pub fn bench_memory_patterns(c: &mut Criterion) {
     for &size in &sizes {
         group.bench_with_input(format!("contiguous_access_{}", size), &size, |b, &size| {
             let data = vec![1.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
 
             b.iter(|| {
                 let mut sum = 0.0;
@@ -259,7 +259,7 @@ pub fn bench_memory_patterns(c: &mut Criterion) {
             &size,
             |b, &size| {
                 let data = vec![1.0f32; size * size];
-                let tensor = Tensor::from_vec(data, vec![size, size]);
+                let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size, size]).unwrap();
                 let transposed = tensor.t().unwrap();
 
                 b.iter(|| {
@@ -301,9 +301,9 @@ pub fn bench_neural_network_gradients(c: &mut Criterion) {
                 let w1_data = vec![0.01f32; input_size * hidden_size];
                 let w2_data = vec![0.01f32; hidden_size * input_size];
 
-                let mut input = Tensor::from_vec(input_data, vec![batch_size, input_size]);
-                let mut w1 = Tensor::from_vec(w1_data, vec![input_size, hidden_size]);
-                let mut w2 = Tensor::from_vec(w2_data, vec![hidden_size, input_size]);
+                let mut input = Tensor::from_vec(CpuBackend::default(), input_data, vec![batch_size, input_size]).unwrap();
+                let mut w1 = Tensor::from_vec(CpuBackend::default(), w1_data, vec![input_size, hidden_size]).unwrap();
+                let mut w2 = Tensor::from_vec(CpuBackend::default(), w2_data, vec![hidden_size, input_size]).unwrap();
 
                 input.set_requires_grad(true);
                 w1.set_requires_grad(true);
@@ -311,7 +311,7 @@ pub fn bench_neural_network_gradients(c: &mut Criterion) {
 
                 b.iter(|| {
                     // Forward pass
-                    let hidden = input.matmul(&w1).unwrap().relu();
+                    let hidden = input.matmul(&w1).unwrap().relu().unwrap();
                     let output = hidden.matmul(&w2).unwrap();
 
                     // Backward pass
@@ -332,7 +332,7 @@ pub fn bench_simple_gradient(c: &mut Criterion) {
     for &size in &sizes {
         group.bench_with_input(format!("size_{}", size), &size, |b, &size| {
             let data = vec![1.0; size];
-            let mut tensor = Tensor::from_vec(data, vec![size]);
+            let mut tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             tensor.set_requires_grad(true);
 
             let result = (&tensor * &tensor).unwrap(); // x²
@@ -354,9 +354,9 @@ pub fn bench_complex_gradient(c: &mut Criterion) {
     for &size in &sizes {
         group.bench_with_input(format!("size_{}", size), &size, |b, &size| {
             let data = vec![1.0; size];
-            let mut x = Tensor::from_vec(data.clone(), vec![size]);
-            let mut y = Tensor::from_vec(data.clone(), vec![size]);
-            let mut z = Tensor::from_vec(data, vec![size]);
+            let mut x = Tensor::from_vec(CpuBackend::default(), data.clone(), vec![size]).unwrap();
+            let mut y = Tensor::from_vec(CpuBackend::default(), data.clone(), vec![size]).unwrap();
+            let mut z = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
 
             x.set_requires_grad(true);
             y.set_requires_grad(true);
@@ -365,7 +365,7 @@ pub fn bench_complex_gradient(c: &mut Criterion) {
             // Complex expression: x² * y + sin(z)
             let x_squared = (&x * &x).unwrap();
             let x_squared_y = (&x_squared * &y).unwrap();
-            let sin_z = z.sin();
+            let sin_z = z.sin().unwrap();
             let result = (&x_squared_y + &sin_z).unwrap();
 
             b.iter(|| {
@@ -388,7 +388,7 @@ pub fn bench_transpose(c: &mut Criterion) {
             &(rows, cols),
             |b, &(rows, cols)| {
                 let data = vec![1.0; rows * cols];
-                let tensor = Tensor::from_vec(data, vec![rows, cols]);
+                let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![rows, cols]).unwrap();
 
                 b.iter(|| {
                     let _result = black_box(tensor.t().unwrap());
@@ -407,7 +407,7 @@ pub fn bench_reshape(c: &mut Criterion) {
     for &size in &sizes {
         group.bench_with_input(format!("size_{}", size), &size, |b, &size| {
             let data = vec![1.0; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
 
             b.iter(|| {
                 let _result = black_box(tensor.reshape(vec![size / 10, 10]));
@@ -425,7 +425,7 @@ pub fn bench_sum_reduction(c: &mut Criterion) {
     for &size in &sizes {
         group.bench_with_input(format!("size_{}", size), &size, |b, &size| {
             let data = vec![1.0; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
 
             b.iter(|| {
                 let _result = black_box(tensor.sum());
@@ -443,7 +443,7 @@ pub fn bench_mean_reduction(c: &mut Criterion) {
     for &size in &sizes {
         group.bench_with_input(format!("size_{}", size), &size, |b, &size| {
             let data = vec![1.0; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
 
             b.iter(|| {
                 let _result = black_box(tensor.mean().unwrap());
@@ -462,7 +462,7 @@ pub fn bench_memory_allocation(c: &mut Criterion) {
         group.bench_with_input(format!("size_{}", size), &size, |b, &size| {
             b.iter(|| {
                 let data = vec![0.0; size];
-                let _tensor = Tensor::from_vec(data, vec![size]);
+                let _tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             });
         });
     }
@@ -479,7 +479,7 @@ pub fn bench_activation_functions(c: &mut Criterion) {
         // ReLU and variants
         group.bench_with_input(format!("relu_{}", size), &size, |b, &size| {
             let data = vec![1.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(tensor.relu());
             });
@@ -488,7 +488,7 @@ pub fn bench_activation_functions(c: &mut Criterion) {
         // Sigmoid
         group.bench_with_input(format!("sigmoid_{}", size), &size, |b, &size| {
             let data = vec![0.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(tensor.sigmoid());
             });
@@ -497,7 +497,7 @@ pub fn bench_activation_functions(c: &mut Criterion) {
         // Tanh
         group.bench_with_input(format!("tanh_{}", size), &size, |b, &size| {
             let data = vec![0.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(tensor.tanh());
             });
@@ -506,7 +506,7 @@ pub fn bench_activation_functions(c: &mut Criterion) {
         // GELU (common in transformers)
         group.bench_with_input(format!("gelu_{}", size), &size, |b, &size| {
             let data = vec![0.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(tensor.gelu());
             });
@@ -515,7 +515,7 @@ pub fn bench_activation_functions(c: &mut Criterion) {
         // ELU - exponential linear unit
         group.bench_with_input(format!("elu_{}", size), &size, |b, &size| {
             let data = vec![0.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(tensor.elu(1.0));
             });
@@ -534,7 +534,7 @@ pub fn bench_advanced_math(c: &mut Criterion) {
         // Exponential functions
         group.bench_with_input(format!("exp_{}", size), &size, |b, &size| {
             let data = vec![0.5f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(tensor.exp());
             });
@@ -543,7 +543,7 @@ pub fn bench_advanced_math(c: &mut Criterion) {
         // Logarithmic functions
         group.bench_with_input(format!("log_{}", size), &size, |b, &size| {
             let data = vec![1.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(tensor.log());
             });
@@ -552,7 +552,7 @@ pub fn bench_advanced_math(c: &mut Criterion) {
         // Power operations (scalar exponent)
         group.bench_with_input(format!("pow_{}", size), &size, |b, &size| {
             let base_data = vec![2.0f32; size];
-            let base = Tensor::from_vec(base_data, vec![size]);
+            let base = Tensor::from_vec(CpuBackend::default(), base_data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(base.pow(3.0));
             });
@@ -561,7 +561,7 @@ pub fn bench_advanced_math(c: &mut Criterion) {
         // Trigonometric functions
         group.bench_with_input(format!("sin_{}", size), &size, |b, &size| {
             let data = vec![1.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(tensor.sin());
             });
@@ -569,7 +569,7 @@ pub fn bench_advanced_math(c: &mut Criterion) {
 
         group.bench_with_input(format!("cos_{}", size), &size, |b, &size| {
             let data = vec![1.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(tensor.cos());
             });
@@ -578,18 +578,19 @@ pub fn bench_advanced_math(c: &mut Criterion) {
         // Square root
         group.bench_with_input(format!("sqrt_{}", size), &size, |b, &size| {
             let data = vec![4.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(tensor.sqrt());
             });
         });
 
-        // Reciprocal
-        group.bench_with_input(format!("reciprocal_{}", size), &size, |b, &size| {
+        // Division (reciprocal not implemented, using scalar division instead)
+        group.bench_with_input(format!("scalar_div_{}", size), &size, |b, &size| {
             let data = vec![2.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
+            let divisor = Tensor::from_vec(CpuBackend::default(), vec![2.0f32; size], vec![size]).unwrap();
             b.iter(|| {
-                let _result = black_box(tensor.reciprocal());
+                let _result = black_box(&tensor / &divisor);
             });
         });
     }
@@ -609,10 +610,10 @@ pub fn bench_indexing_operations(c: &mut Criterion) {
             &(rows, cols),
             |b, &(rows, cols)| {
                 let data = vec![1.0f32; rows * cols];
-                let tensor = Tensor::from_vec(data, vec![rows, cols]);
+                let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![rows, cols]).unwrap();
                 b.iter(|| {
                     let _result = black_box(
-                        tensor.slice(&[Slice::new(Some(0), Some(10), None), Slice::all()]),
+                        tensor.slice(&[Slice::Range(0, 10), Slice::Full]).unwrap(),
                     );
                 });
             },
@@ -624,10 +625,10 @@ pub fn bench_indexing_operations(c: &mut Criterion) {
             &(rows, cols),
             |b, &(rows, cols)| {
                 let data = vec![1.0f32; rows * cols];
-                let tensor = Tensor::from_vec(data, vec![rows, cols]);
+                let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![rows, cols]).unwrap();
                 b.iter(|| {
                     let _result = black_box(
-                        tensor.slice(&[Slice::all(), Slice::new(Some(0), Some(10), None)]),
+                        tensor.slice(&[Slice::Full, Slice::Range(0, 10)]).unwrap(),
                     );
                 });
             },
@@ -639,11 +640,10 @@ pub fn bench_indexing_operations(c: &mut Criterion) {
             &(rows, cols),
             |b, &(rows, cols)| {
                 let data = vec![1.0f32; rows * cols];
-                let tensor = Tensor::from_vec(data, vec![rows, cols]);
-                let indices_data = vec![0i32; 10];
-                let indices = Tensor::from_vec(indices_data, vec![10]);
+                let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![rows, cols]).unwrap();
+                let indices_data: Vec<i64> = vec![0i64; 10];
                 b.iter(|| {
-                    let _result = black_box(tensor.gather(0, &indices)).unwrap();
+                    let _result = black_box(tensor.gather(0, &indices_data)).unwrap();
                 });
             },
         );
@@ -661,7 +661,7 @@ pub fn bench_parallel_processing(c: &mut Criterion) {
         // Sequential processing
         group.bench_with_input(format!("sequential_{}", size), &size, |b, &size| {
             let data = vec![1.0f32; size];
-            let tensor = Tensor::from_vec(data, vec![size]);
+            let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![size]).unwrap();
             b.iter(|| {
                 let _result = black_box(tensor.exp());
             });
@@ -672,9 +672,9 @@ pub fn bench_parallel_processing(c: &mut Criterion) {
             let data1 = vec![1.0f32; size];
             let data2 = vec![2.0f32; size];
             let data3 = vec![3.0f32; size];
-            let tensor1 = Tensor::from_vec(data1, vec![size]);
-            let tensor2 = Tensor::from_vec(data2, vec![size]);
-            let tensor3 = Tensor::from_vec(data3, vec![size]);
+            let tensor1 = Tensor::from_vec(CpuBackend::default(), data1, vec![size]).unwrap();
+            let tensor2 = Tensor::from_vec(CpuBackend::default(), data2, vec![size]).unwrap();
+            let tensor3 = Tensor::from_vec(CpuBackend::default(), data3, vec![size]).unwrap();
             b.iter(|| {
                 let _r1 = black_box(tensor1.exp());
                 let _r2 = black_box(tensor2.log());

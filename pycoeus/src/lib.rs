@@ -1,5 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, Bound, PyResult};
+use std::ops::{Add, Mul};
+
 
 mod fft;
 mod functional;
@@ -14,7 +16,7 @@ mod utils;
 // Import optimizers from optim module
 use crate::optim::{Adagrad, Adam, AdamW, Sgd};
 // Import neural network modules
-use crate::nn::{Linear, ReLU};
+use crate::nn::{PyLinear as Linear, PyReLU as ReLU};
 
 #[cfg(test)]
 mod tests;
@@ -30,7 +32,7 @@ mod tests;
 //     CosineAnnealingWarmRestarts,
 //     // CosineAnnealingLR, CyclicLR, ExponentialLR, LambdaLR, MultiplicativeLR, OneCycleLR, PolynomialLR, ReduceLROnPlateau, StepLR,
 // };
-use crate::tensor::{Device, PyTensor};
+use crate::tensor::Device;
 use crate::tokenizer::{BERTTokenizer, BpeTokenizer, CLIPTokenizer, Encoding, GPT2Tokenizer};
 // use crate::utils::{set_num_threads, get_num_threads, manual_seed, cuda_is_available};  // Temporarily disabled
 use crate::fft::{FFT, IFFT};
@@ -88,6 +90,7 @@ fn _core(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     // Neural Network Layers
     m.add_class::<Linear>()?;
     m.add_class::<ReLU>()?;
+    // Conv1dPy and ConvTranspose1dPy not yet implemented
 
     // Optimizers - actually implemented ones only
     m.add_class::<Sgd>()?;
@@ -112,10 +115,12 @@ fn _core(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::functional::selu, m)?)?;
     m.add_function(wrap_pyfunction!(crate::functional::hardshrink, m)?)?;
     m.add_function(wrap_pyfunction!(crate::functional::hardtanh, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::prelu, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::rrelu, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::tanhshrink, m)?)?;
+    // TODO: Implement PReLU, RReLU, Tanhshrink
+    // m.add_function(wrap_pyfunction!(crate::functional::prelu, m)?)?;
+    // m.add_function(wrap_pyfunction!(crate::functional::rrelu, m)?)?;
+    // m.add_function(wrap_pyfunction!(crate::functional::tanhshrink, m)?)?;
     m.add_function(wrap_pyfunction!(crate::functional::threshold, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::functional::conv1d, m)?)?;
 
     // Tokenizers
     m.add_class::<Encoding>()?;
@@ -163,11 +168,42 @@ fn _core(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::utils::py_mean_squared_error, m)?)?;
     m.add_function(wrap_pyfunction!(crate::utils::py_auc_roc, m)?)?;
 
-    // Legacy utility functions
-    m.add_function(wrap_pyfunction!(crate::utils::set_num_threads, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::utils::get_num_threads, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::utils::manual_seed, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::utils::cuda_is_available, m)?)?;
+    // Remove redundant utilities - already added above
 
     Ok(())
+}
+
+use coeus_tensor::{Tensor, CpuBackend};
+
+type CpuTensor = Tensor<f32, CpuBackend>;
+
+#[pyclass]
+struct PyTensor {
+    inner: CpuTensor,
+}
+
+#[pymethods]
+impl PyTensor {
+    #[new]
+    fn new(data: Vec<f32>, shape: Vec<usize>) -> PyResult<Self> {
+        let backend = CpuBackend::default();
+        let inner = CpuTensor::from_vec(backend, data, shape).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Tensor creation failed: {}", e)))?;
+        Ok(Self { inner })
+    }
+
+    fn add(&self, other: &PyTensor) -> PyResult<Self> {
+        let result = self.inner.add(&other.inner).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Tensor addition failed: {}", e))
+        })?;
+        Ok(Self { inner: result })
+    }
+
+    fn mul(&self, other: &PyTensor) -> PyResult<Self> {
+        let result = self.inner.mul(&other.inner).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Tensor multiplication failed: {}", e))
+        })?;
+        Ok(Self { inner: result })
+    }
+
+    // Add more ops as needed
 }

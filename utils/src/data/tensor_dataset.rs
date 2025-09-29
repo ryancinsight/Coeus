@@ -3,14 +3,14 @@
 //! A simple dataset that wraps tensors directly, compatible with PyTorch's TensorDataset.
 
 use super::dataset_trait::Dataset;
-use coeus_tensor::Tensor;
+use coeus_tensor::{Tensor, CpuBackend};
 
 /// A simple dataset that wraps tensors directly
 ///
 /// Compatible with PyTorch's `TensorDataset`
 pub struct TensorDataset<T: coeus_dtype::Dtype> {
-    data: Vec<Tensor<T>>,
-    targets: Vec<Tensor<T>>,
+    data: Vec<Tensor<T, CpuBackend>>,
+    targets: Vec<Tensor<T, CpuBackend>>,
 }
 
 impl<T: coeus_dtype::Dtype> TensorDataset<T> {
@@ -22,7 +22,7 @@ impl<T: coeus_dtype::Dtype> TensorDataset<T> {
     ///
     /// # Panics
     /// Panics if data and targets have different lengths
-    pub fn new(data: Vec<Tensor<T>>, targets: Vec<Tensor<T>>) -> Self {
+    pub fn new(data: Vec<Tensor<T, CpuBackend>>, targets: Vec<Tensor<T, CpuBackend>>) -> Self {
         assert_eq!(
             data.len(),
             targets.len(),
@@ -32,7 +32,7 @@ impl<T: coeus_dtype::Dtype> TensorDataset<T> {
     }
 
     /// Create a TensorDataset from arrays
-    pub fn from_arrays(data: &[Tensor<T>], targets: &[Tensor<T>]) -> Self {
+    pub fn from_arrays(data: &[Tensor<T, CpuBackend>], targets: &[Tensor<T, CpuBackend>]) -> Self {
         Self::new(data.to_vec(), targets.to_vec())
     }
 }
@@ -42,7 +42,7 @@ impl<T: coeus_dtype::Dtype> Dataset<T> for TensorDataset<T> {
         self.data.len()
     }
 
-    fn get(&self, index: usize) -> (Tensor<T>, Tensor<T>) {
+    fn get(&self, index: usize) -> (Tensor<T, CpuBackend>, Tensor<T, CpuBackend>) {
         // Return references to avoid cloning - zero-copy operations
         (self.data[index].clone(), self.targets[index].clone())
     }

@@ -4,7 +4,7 @@
 //! compatible with PyTorch's `torch.optim.SGD`.
 
 use crate::{BaseOptimizer, Optimizer, ParamGroup, Result};
-use coeus_tensor::Tensor;
+use coeus_tensor::{ops::arithmetic::{mul, add}, Tensor, CpuBackend};
 
 /// Stochastic Gradient Descent optimizer
 ///
@@ -47,7 +47,7 @@ impl<T: coeus_dtype::FloatDtype> Sgd<T> {
     /// let params = vec![Tensor::from_vec(vec![1.0, 2.0], vec![2])];
     /// let optimizer = Sgd::new(params, 0.01);
     /// ```
-    pub fn new(params: Vec<Tensor<T>>, lr: T) -> Self {
+    pub fn new(params: Vec<Tensor<T, CpuBackend>>, lr: T) -> Self {
         Self::with_options(params, lr, T::zero(), T::zero(), false)
     }
 
@@ -66,7 +66,7 @@ impl<T: coeus_dtype::FloatDtype> Sgd<T> {
     /// let params = vec![Tensor::from_vec(vec![1.0, 2.0], vec![2])];
     /// let optimizer = Sgd::with_momentum(params, 0.01, 0.9);
     /// ```
-    pub fn with_momentum(params: Vec<Tensor<T>>, lr: T, momentum: T) -> Self {
+    pub fn with_momentum(params: Vec<Tensor<T, CpuBackend>>, lr: T, momentum: T) -> Self {
         Self::with_options(params, lr, momentum, T::zero(), false)
     }
 
@@ -79,7 +79,7 @@ impl<T: coeus_dtype::FloatDtype> Sgd<T> {
     /// * `weight_decay` - Weight decay (L2 penalty)
     /// * `nesterov` - Whether to use Nesterov momentum
     pub fn with_options(
-        params: Vec<Tensor<T>>,
+        params: Vec<Tensor<T, CpuBackend>>,
         lr: T,
         momentum: T,
         weight_decay: T,
@@ -153,36 +153,33 @@ impl<T: coeus_dtype::FloatDtype> Sgd<T> {
                     // Apply weight decay if specified
                     let weight_decay_term = if weight_decay != T::zero() {
                         let wd_tensor = Tensor::scalar(weight_decay);
-                        let param_ref = param;
-                        (param_ref * &wd_tensor).unwrap()
+                        mul(param, &wd_tensor)?
                     } else {
                         Tensor::zeros_like(&grad)
                     };
-                    let effective_grad = (&grad + &weight_decay_term).unwrap();
+                    let effective_grad = add(&grad, &weight_decay_term)?;
 
                     // Update momentum: momentum_buffer = momentum * momentum_buffer + (1-dampening) * effective_grad
                     let dampening_factor = Tensor::scalar(T::one() - self.dampening);
-                    let grad_term = (&effective_grad * &dampening_factor).unwrap();
+                    let grad_term = mul(&effective_grad, &dampening_factor)?;
 
                     let momentum_factor = Tensor::scalar(self.momentum);
-                    let momentum_term = (&momentum_buffer * &momentum_factor).unwrap();
+                    let momentum_term = mul(&momentum_buffer, &momentum_factor)?;
 
-                    let updated_momentum = (&momentum_term + &grad_term).unwrap();
+                    let updated_momentum = add(&momentum_term, &grad_term)?;
 
                     // Apply Nesterov momentum if enabled
                     let final_momentum = if self.nesterov {
-                        let nesterov_term = (&updated_momentum * &momentum_factor).unwrap();
-                        let nesterov_grad = (&effective_grad * &dampening_factor).unwrap();
-                        (&nesterov_term + &nesterov_grad).unwrap()
+                        let nesterov_term = mul(&updated_momentum, &momentum_factor)?;
+                        let nesterov_grad = mul(&effective_grad, &dampening_factor)?;
+                        add(&nesterov_term, &nesterov_grad)?
                     } else {
                         updated_momentum.clone()
                     };
 
                     // Compute parameter update: lr * final_momentum
                     let lr_tensor = Tensor::scalar(lr);
-                    let update = (&lr_tensor * &final_momentum).unwrap();
-
-                    // Apply update: param = param - update
+                    let update = mul(&lr_tensor, &final_momentum)?;
                     let new_param_data: Vec<T> = param
                         .data()
                         .iter()
@@ -191,7 +188,7 @@ impl<T: coeus_dtype::FloatDtype> Sgd<T> {
                         .collect();
 
                     // Create new tensor with updated data
-                    let mut new_param = Tensor::from_vec(new_param_data, param.shape().to_vec());
+                    let mut new_param = Tensor::from_vec(param.backend().clone(), new_param_data, param.shape().to_vec()).unwrap();
 
                     // Preserve gradient tracking
                     if param.requires_grad() {
@@ -239,16 +236,15 @@ impl<T: coeus_dtype::FloatDtype> Sgd<T> {
                     // Apply weight decay if specified
                     let weight_decay_term = if weight_decay != T::zero() {
                         let wd_tensor = Tensor::scalar(weight_decay);
-                        let param_ref = &*param; // Create immutable reference
-                        (param_ref * &wd_tensor).unwrap()
+                        mul(&*param, &wd_tensor)?
                     } else {
                         Tensor::zeros_like(&grad)
                     };
-                    let effective_grad = (&grad + &weight_decay_term).unwrap();
+                    let effective_grad = add(&grad, &weight_decay_term)?;
 
                     // Compute update: lr * effective_grad
                     let lr_tensor = Tensor::scalar(lr);
-                    let update = (&lr_tensor * &effective_grad).unwrap();
+                    let update = mul(&lr_tensor, &effective_grad)?;
 
                     // Apply update: param = param - update
                     let new_param_data: Vec<T> = param
@@ -259,7 +255,7 @@ impl<T: coeus_dtype::FloatDtype> Sgd<T> {
                         .collect();
 
                     // Create new tensor with updated data
-                    let mut new_param = Tensor::from_vec(new_param_data, param.shape().to_vec());
+                    let mut new_param = Tensor::from_vec(param.backend().clone(), new_param_data, param.shape().to_vec()).unwrap();
 
                     // Preserve gradient tracking
                     if param.requires_grad() {
@@ -312,11 +308,11 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Sgd<T> {
         self.base.set_lr(group_index, lr)
     }
 
-    fn state(&self) -> &std::collections::HashMap<String, Tensor<T>> {
+    fn state(&self) -> &std::collections::HashMap<String, Tensor<T, CpuBackend>> {
         self.base.state()
     }
 
-    fn state_mut(&mut self) -> &mut std::collections::HashMap<String, Tensor<T>> {
+    fn state_mut(&mut self) -> &mut std::collections::HashMap<String, Tensor<T, CpuBackend>> {
         self.base.state_mut()
     }
 }
@@ -325,7 +321,7 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Sgd<T> {
 ///
 /// Provides a fluent API for configuring SGD parameters.
 pub struct SgdBuilder<T: coeus_dtype::FloatDtype> {
-    params: Vec<Tensor<T>>,
+    params: Vec<Tensor<T, CpuBackend>>,
     lr: T,
     momentum: T,
     weight_decay: T,
@@ -335,7 +331,7 @@ pub struct SgdBuilder<T: coeus_dtype::FloatDtype> {
 
 impl<T: coeus_dtype::FloatDtype> SgdBuilder<T> {
     /// Create a new SGD builder
-    pub fn new(params: Vec<Tensor<T>>, lr: T) -> Self {
+    pub fn new(params: Vec<Tensor<T, CpuBackend>>, lr: T) -> Self {
         Self {
             params,
             lr,
@@ -396,7 +392,7 @@ mod tests {
     #[test]
     fn test_optimizer_register_parameter() {
         let mut optimizer: Sgd<f32> = Sgd::new(vec![], 0.01);
-        let param = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let param = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
 
         optimizer
             .base
@@ -412,7 +408,7 @@ mod tests {
         // Test that the step method can be called without panicking
         // This validates the API contract while documenting current limitations
         let mut optimizer = Sgd::new(vec![], 0.01);
-        let param = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let param = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
 
         optimizer
             .base
@@ -474,11 +470,11 @@ mod tests {
     fn test_sgd_mathematical_correctness_validation() {
         // This test validates the actual mathematical behavior of SGD
 
-        let mut param = Tensor::from_vec(vec![2.0], vec![1]);
+        let mut param = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap();
         param.set_requires_grad(true);
 
         // Manually set a gradient
-        let grad = Tensor::from_vec(vec![1.0], vec![1]);
+        let grad = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
         param.set_grad(grad).unwrap();
 
         let mut optimizer: Sgd<f32> = Sgd::new(vec![param], 0.01);
@@ -510,11 +506,11 @@ mod tests {
     fn test_sgd_with_weight_decay() {
         // Test SGD with weight decay (L2 regularization)
 
-        let mut param = Tensor::from_vec(vec![2.0], vec![1]);
+        let mut param = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap();
         param.set_requires_grad(true);
 
         // Manually set a gradient
-        let grad = Tensor::from_vec(vec![1.0], vec![1]);
+        let grad = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
         param.set_grad(grad).unwrap();
 
         let mut optimizer: Sgd<f32> = Sgd::new(vec![param], 0.01);
@@ -548,11 +544,11 @@ mod tests {
     fn test_sgd_with_momentum() {
         // Test SGD with momentum
 
-        let mut param = Tensor::from_vec(vec![2.0], vec![1]);
+        let mut param = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap();
         param.set_requires_grad(true);
 
         // Manually set a gradient
-        let grad = Tensor::from_vec(vec![1.0], vec![1]);
+        let grad = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
         param.set_grad(grad.clone()).unwrap();
 
         let mut optimizer: Sgd<f32> = Sgd::with_momentum(vec![param], 0.01, 0.9);

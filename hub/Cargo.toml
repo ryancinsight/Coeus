@@ -9,6 +9,7 @@ description = "PyTorch Hub-compatible model loading and management for Coeus"
 
 [dependencies]
 coeus-tensor = { workspace = true }
+coeus-backend = { workspace = true }
 coeus-nn = { workspace = true }
 coeus-dtype = { workspace = true }
 

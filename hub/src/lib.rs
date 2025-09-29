@@ -114,6 +114,7 @@ mod tests {
     use crate::hub::global_hub;
     use crate::loader::{load_json_state_dict, save_json_state_dict};
     use crate::registry::ModelInfo;
+    use coeus_backend::CpuBackend;
     use coeus_tensor::Tensor;
 
     #[test]
@@ -125,7 +126,7 @@ mod tests {
         assert_eq!(state_dict.len(), 0);
 
         // Add a parameter
-        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let tensor = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
         state_dict.insert("layer.weight".to_string(), tensor);
 
         assert!(!state_dict.is_empty());
@@ -159,9 +160,9 @@ mod tests {
 
         // Test subset creation
         let mut state_dict = StateDict::new();
-        state_dict.insert("param1".to_string(), Tensor::from_vec(vec![1.0], vec![1]));
-        state_dict.insert("param2".to_string(), Tensor::from_vec(vec![2.0], vec![1]));
-        state_dict.insert("param3".to_string(), Tensor::from_vec(vec![3.0], vec![1]));
+        state_dict.insert("param1".to_string(), Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap());
+        state_dict.insert("param2".to_string(), Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap());
+        state_dict.insert("param3".to_string(), Tensor::from_vec(CpuBackend::default(), vec![3.0], vec![1]).unwrap());
 
         let subset = state_dict.subset(&["param1", "param3"]);
         assert_eq!(subset.len(), 2);
@@ -290,11 +291,11 @@ mod tests {
         let mut state_dict = StateDict::new();
         state_dict.insert(
             "param1".to_string(),
-            Tensor::from_vec(vec![1.0, 2.0], vec![2]),
+            Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0], vec![2]).unwrap(),
         );
         state_dict.insert(
             "param2".to_string(),
-            Tensor::from_vec(vec![3.0, 4.0, 5.0], vec![3]),
+            Tensor::from_vec(CpuBackend::default(), vec![3.0, 4.0, 5.0], vec![3]).unwrap(),
         );
 
         // Serialize to JSON
@@ -420,7 +421,7 @@ mod tests {
 
         // Test state dict operations
         let mut state_dict = StateDict::new();
-        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let tensor = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
         state_dict.insert("test.weight".to_string(), tensor);
 
         assert_eq!(state_dict.len(), 1);
@@ -466,7 +467,7 @@ mod tests {
 
         // Test state dict with empty tensors
         let mut state_dict = StateDict::new();
-        let empty_tensor = Tensor::from_vec(Vec::<f32>::new(), vec![0]);
+        let empty_tensor = Tensor::from_vec(CpuBackend::default(), Vec::<f32>::new(), vec![0]).unwrap();
         state_dict.insert("empty".to_string(), empty_tensor);
         assert_eq!(state_dict.len(), 1);
         let retrieved = state_dict.get("empty").unwrap();

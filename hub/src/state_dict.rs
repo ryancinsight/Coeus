@@ -1,5 +1,6 @@
 //! State dictionary management for model parameters
 
+use coeus_backend::CpuBackend;
 use coeus_tensor::Tensor;
 use std::collections::HashMap;
 use std::fmt;
@@ -8,7 +9,7 @@ use std::fmt;
 #[derive(Clone, Debug)]
 pub struct StateDict {
     /// Parameter name to tensor mapping
-    pub parameters: HashMap<String, Tensor<f32>>,
+    pub parameters: HashMap<String, Tensor<f32, CpuBackend>>,
 }
 
 impl StateDict {
@@ -20,27 +21,27 @@ impl StateDict {
     }
 
     /// Create a state dictionary from a parameter map
-    pub fn from_parameters(parameters: HashMap<String, Tensor<f32>>) -> Self {
+    pub fn from_parameters(parameters: HashMap<String, Tensor<f32, CpuBackend>>) -> Self {
         Self { parameters }
     }
 
     /// Get a parameter by name
-    pub fn get(&self, name: &str) -> Option<&Tensor<f32>> {
+    pub fn get(&self, name: &str) -> Option<&Tensor<f32, CpuBackend>> {
         self.parameters.get(name)
     }
 
     /// Get a mutable reference to a parameter by name
-    pub fn get_mut(&mut self, name: &str) -> Option<&mut Tensor<f32>> {
+    pub fn get_mut(&mut self, name: &str) -> Option<&mut Tensor<f32, CpuBackend>> {
         self.parameters.get_mut(name)
     }
 
     /// Insert a parameter
-    pub fn insert(&mut self, name: String, tensor: Tensor<f32>) -> Option<Tensor<f32>> {
+    pub fn insert(&mut self, name: String, tensor: Tensor<f32, CpuBackend>) -> Option<Tensor<f32, CpuBackend>> {
         self.parameters.insert(name, tensor)
     }
 
     /// Remove a parameter
-    pub fn remove(&mut self, name: &str) -> Option<Tensor<f32>> {
+    pub fn remove(&mut self, name: &str) -> Option<Tensor<f32, CpuBackend>> {
         self.parameters.remove(name)
     }
 
@@ -65,17 +66,17 @@ impl StateDict {
     }
 
     /// Get all parameters
-    pub fn values(&self) -> impl Iterator<Item = &Tensor<f32>> {
+    pub fn values(&self) -> impl Iterator<Item = &Tensor<f32, CpuBackend>> {
         self.parameters.values()
     }
 
     /// Get all parameter name-value pairs
-    pub fn iter(&self) -> impl Iterator<Item = (&String, &Tensor<f32>)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Tensor<f32, CpuBackend>)> {
         self.parameters.iter()
     }
 
     /// Get mutable parameter name-value pairs
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&String, &mut Tensor<f32>)> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&String, &mut Tensor<f32, CpuBackend>)> {
         self.parameters.iter_mut()
     }
 
@@ -106,7 +107,7 @@ impl StateDict {
     /// Apply a transformation function to all parameters
     pub fn transform<F>(&mut self, f: F)
     where
-        F: Fn(&Tensor<f32>) -> Tensor<f32>,
+        F: Fn(&Tensor<f32, CpuBackend>) -> Tensor<f32, CpuBackend>,
     {
         for tensor in self.parameters.values_mut() {
             *tensor = f(tensor);
@@ -131,8 +132,8 @@ impl fmt::Display for StateDict {
 }
 
 impl IntoIterator for StateDict {
-    type Item = (String, Tensor<f32>);
-    type IntoIter = std::collections::hash_map::IntoIter<String, Tensor<f32>>;
+    type Item = (String, Tensor<f32, CpuBackend>);
+    type IntoIter = std::collections::hash_map::IntoIter<String, Tensor<f32, CpuBackend>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.parameters.into_iter()
@@ -140,8 +141,8 @@ impl IntoIterator for StateDict {
 }
 
 impl<'a> IntoIterator for &'a StateDict {
-    type Item = (&'a String, &'a Tensor<f32>);
-    type IntoIter = std::collections::hash_map::Iter<'a, String, Tensor<f32>>;
+    type Item = (&'a String, &'a Tensor<f32, CpuBackend>);
+    type IntoIter = std::collections::hash_map::Iter<'a, String, Tensor<f32, CpuBackend>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.parameters.iter()
@@ -149,8 +150,8 @@ impl<'a> IntoIterator for &'a StateDict {
 }
 
 impl<'a> IntoIterator for &'a mut StateDict {
-    type Item = (&'a String, &'a mut Tensor<f32>);
-    type IntoIter = std::collections::hash_map::IterMut<'a, String, Tensor<f32>>;
+    type Item = (&'a String, &'a mut Tensor<f32, CpuBackend>);
+    type IntoIter = std::collections::hash_map::IterMut<'a, String, Tensor<f32, CpuBackend>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.parameters.iter_mut()

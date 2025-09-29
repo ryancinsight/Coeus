@@ -4,6 +4,7 @@
 //! Provides an alternative to batch normalization that doesn't depend on batch size.
 
 use crate::{Module, Result};
+use coeus_backend::CpuBackend;
 use coeus_tensor::{FloatDtype, Tensor};
 
 /// Group Normalization layer
@@ -19,9 +20,9 @@ pub struct GroupNorm<T: FloatDtype> {
     /// Small constant for numerical stability
     pub eps: T,
     /// Learnable scale parameter (γ) of shape (num_channels,)
-    pub weight: Option<Tensor<T>>,
+    pub weight: Option<Tensor<T, CpuBackend>>,
     /// Learnable shift parameter (β) of shape (num_channels,)
-    pub bias: Option<Tensor<T>>,
+    pub bias: Option<Tensor<T, CpuBackend>>,
 }
 
 impl<T: FloatDtype> GroupNorm<T> {
@@ -76,7 +77,7 @@ impl<T: FloatDtype> GroupNorm<T> {
 }
 
 impl<T: FloatDtype> Module<T> for GroupNorm<T> {
-    fn forward(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // Input shape validation: (batch_size, channels, ...)
         let input_shape = input.shape();
         if input_shape.len() < 3 {
@@ -101,7 +102,7 @@ impl<T: FloatDtype> Module<T> for GroupNorm<T> {
         Ok(input.clone())
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         if let Some(ref w) = self.weight {
             params.push(w);
@@ -112,7 +113,7 @@ impl<T: FloatDtype> Module<T> for GroupNorm<T> {
         params
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         if let Some(ref mut w) = self.weight {
             params.push(w);
@@ -123,3 +124,6 @@ impl<T: FloatDtype> Module<T> for GroupNorm<T> {
         params
     }
 }
+
+
+

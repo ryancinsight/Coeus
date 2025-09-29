@@ -4,7 +4,7 @@
 //! compatible with PyTorch's `torch.optim.AdamW`.
 
 use crate::{BaseOptimizer, Optimizer, ParamGroup, Result};
-use coeus_tensor::{ops::arithmetic::maximum, Tensor};
+use coeus_tensor::{ops::arithmetic::{maximum, sqrt, sub, div, mul, add}, Tensor, Backend, CpuBackend};
 
 /// AdamW optimizer
 ///
@@ -23,8 +23,8 @@ use coeus_tensor::{ops::arithmetic::maximum, Tensor};
 /// ```
 ///
 /// Compatible with PyTorch's `torch.optim.AdamW`.
-pub struct AdamW<T: coeus_dtype::FloatDtype> {
-    base: BaseOptimizer<T>,
+pub struct AdamW<T: coeus_dtype::FloatDtype, B: Backend<T> + Clone = CpuBackend> {
+    base: BaseOptimizer<T, B>,
     beta1: T,
     beta2: T,
     eps: T,
@@ -33,7 +33,7 @@ pub struct AdamW<T: coeus_dtype::FloatDtype> {
     step_count: u64,
 }
 
-impl<T: coeus_dtype::FloatDtype> AdamW<T> {
+impl<T: coeus_dtype::FloatDtype, B: Backend<T> + Clone> AdamW<T, B> {
     /// Create a new AdamW optimizer with default parameters
     ///
     /// # Arguments
@@ -48,7 +48,7 @@ impl<T: coeus_dtype::FloatDtype> AdamW<T> {
     /// let params = vec![Tensor::from_vec(vec![1.0, 2.0], vec![2])];
     /// let optimizer = AdamW::new(params, 0.001);
     /// ```
-    pub fn new(params: Vec<Tensor<T>>, lr: T) -> Self {
+    pub fn new(params: Vec<Tensor<T, B>>, lr: T) -> Self {
         Self::with_options(
             params,
             lr,
@@ -71,7 +71,7 @@ impl<T: coeus_dtype::FloatDtype> AdamW<T> {
     /// * `amsgrad` - Whether to use AMSGrad variant
     /// * `weight_decay` - Weight decay (L2 penalty) coefficient
     pub fn with_options(
-        params: Vec<Tensor<T>>,
+        params: Vec<Tensor<T, B>>,
         lr: T,
         beta1: T,
         beta2: T,
@@ -124,20 +124,20 @@ impl<T: coeus_dtype::FloatDtype> AdamW<T> {
     }
 }
 
-impl<T: coeus_dtype::FloatDtype> Optimizer<T> for AdamW<T> {
+impl<T: coeus_dtype::FloatDtype, B: Backend<T> + Clone> Optimizer<T, B> for AdamW<T, B> {
     fn name(&self) -> &str {
         "AdamW"
     }
 
-    fn param_groups(&self) -> &[ParamGroup<T>] {
+    fn param_groups(&self) -> &[ParamGroup<T, B>] {
         self.base.param_groups()
     }
 
-    fn param_groups_mut(&mut self) -> &mut [ParamGroup<T>] {
+    fn param_groups_mut(&mut self) -> &mut [ParamGroup<T, B>] {
         self.base.param_groups_mut()
     }
 
-    fn add_param_group(&mut self, param_group: ParamGroup<T>) {
+    fn add_param_group(&mut self, param_group: ParamGroup<T, B>) {
         self.base.add_param_group(param_group);
     }
 
@@ -159,13 +159,14 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for AdamW<T> {
 
             // Process each parameter in the group
             for param_idx in 0..group.params.len() {
+                let param = &group.params[param_idx];
                 let param_key = format!(
                     "adamw_{}_{}_{:p}",
-                    group_idx, param_idx, &group.params[param_idx] as *const _
+                    group_idx, param_idx, param as *const _
                 );
 
                 // Get gradient for this parameter
-                let Some(grad) = group.params[param_idx].grad() else {
+                let Some(grad) = param.grad() else {
                     continue; // Skip parameters without gradients
                 };
 
@@ -180,32 +181,32 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for AdamW<T> {
                     .state()
                     .get(&m_key)
                     .cloned()
-                    .unwrap_or_else(|| Tensor::zeros_like(&grad));
+                    .unwrap_or_else(|| Tensor::<T, B>::zeros_like(&param.unwrap_grad()));
                 let v_prev = self
                     .base
                     .state()
                     .get(&v_key)
                     .cloned()
-                    .unwrap_or_else(|| Tensor::zeros_like(&grad));
+                    .unwrap_or_else(|| Tensor::<T, B>::zeros_like(&param.unwrap_grad()));
 
                 // AdamW: Weight decay is applied directly to parameters (decoupled from gradients)
                 // The gradient used for optimization remains unchanged
-                let effective_grad = grad.clone();
+                let effective_grad = param.grad().unwrap();
 
                 // Update biased first moment estimate: m_t = β₁ * m_{t-1} + (1 - β₁) * g_t
                 let beta1_tensor = Tensor::scalar(self.beta1);
                 let one_minus_beta1_tensor = Tensor::scalar(T::one() - self.beta1);
-                let m_t = (&beta1_tensor * &m_prev)?;
-                let grad_term = (&one_minus_beta1_tensor * &effective_grad)?;
-                let m_t = (&m_t + &grad_term)?;
+                let m_t_scaled = (&beta1_tensor * &m_prev).unwrap();
+                let grad_term = (&one_minus_beta1_tensor * &effective_grad).unwrap();
+                let m_t = (&m_t_scaled + &grad_term).unwrap();
 
                 // Update biased second moment estimate: v_t = β₂ * v_{t-1} + (1 - β₂) * g_t²
                 let beta2_tensor = Tensor::scalar(self.beta2);
                 let one_minus_beta2_tensor = Tensor::scalar(T::one() - self.beta2);
-                let v_t = (&beta2_tensor * &v_prev)?;
-                let grad_squared = (&effective_grad * &effective_grad)?;
-                let grad_squared_term = (&one_minus_beta2_tensor * &grad_squared)?;
-                let v_t = (&v_t + &grad_squared_term)?;
+                let v_t_scaled = (&beta2_tensor * &v_prev).unwrap();
+                let grad_squared = (&effective_grad * &effective_grad).unwrap();
+                let grad_squared_term = (&one_minus_beta2_tensor * &grad_squared).unwrap();
+                let v_t = (&v_t_scaled + &grad_squared_term).unwrap();
 
                 // Compute bias-corrected moments
                 // β₁^t and β₂^t using iterative multiplication for integer powers
@@ -219,11 +220,11 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for AdamW<T> {
 
                 let bias_correction1 = T::one() - beta1_pow;
                 let bias_correction2 = T::one() - beta2_pow;
-                let bias_correction1_tensor = Tensor::scalar(bias_correction1);
-                let bias_correction2_tensor = Tensor::scalar(bias_correction2);
+                let bias_correction1_tensor = Tensor::from_vec(param.backend().clone(), vec![bias_correction1], vec![]).unwrap();
+                let bias_correction2_tensor = Tensor::from_vec(param.backend().clone(), vec![bias_correction2], vec![]).unwrap();
 
-                let m_hat = (&m_t / &bias_correction1_tensor)?;
-                let v_hat = (&v_t / &bias_correction2_tensor)?;
+                let m_hat = div(&m_t, &bias_correction1_tensor)?;
+                let v_hat = div(&v_t, &bias_correction2_tensor)?;
 
                 // AMSGrad: take maximum of current and previous v_hat
                 let v_hat_final = if self.amsgrad {
@@ -242,29 +243,23 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for AdamW<T> {
 
                 // Compute parameter update: θ = θ - η * m̂_t / (√v̂_t + ε)
                 let eps_tensor = Tensor::scalar(self.eps);
-                let v_hat_sqrt = v_hat_final.sqrt();
-                let denominator = (&v_hat_sqrt + &eps_tensor)?;
+                let v_hat_sqrt = sqrt(&v_hat_final);
+                let denominator = add(&v_hat_sqrt, &eps_tensor)?;
                 let lr_tensor = Tensor::scalar(lr);
-                let lr_m_hat = (&lr_tensor * &m_hat)?;
-                let update = (&lr_m_hat / &denominator)?;
-
-                // Apply weight decay directly to parameters (AdamW style)
-                let param_data = group.params[param_idx].data();
-                let update_data = update.data();
-                let mut new_param_data: Vec<T> = param_data
-                    .iter()
-                    .zip(update_data.iter())
-                    .map(|(p, u)| *p - *u)
-                    .collect();
+                let lr_m_hat = mul(&lr_tensor, &m_hat)?;
+                let update = div(&lr_m_hat, &denominator)?;
 
                 // Apply decoupled weight decay: θ = θ * (1 - η * λ)
-                if weight_decay != T::zero() {
+                let mut new_param = if weight_decay != T::zero() {
                     let wd_factor = T::one() - lr * weight_decay;
-                    new_param_data.iter_mut().for_each(|p| *p = *p * wd_factor);
-                }
+                    let wd_tensor = Tensor::from_vec(param.backend().clone(), vec![wd_factor], vec![]).unwrap();
+                    (&group.params[param_idx] * &wd_tensor).unwrap()
+                } else {
+                    group.params[param_idx].clone()
+                };
 
-                let new_param_shape = group.params[param_idx].shape().to_vec();
-                let mut new_param = Tensor::from_vec(new_param_data, new_param_shape);
+                // Apply gradient update
+                new_param = sub(&new_param, &update).unwrap();
 
                 // Preserve gradient tracking
                 if group.params[param_idx].requires_grad() {
@@ -307,18 +302,18 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for AdamW<T> {
         self.base.set_lr(group_index, lr)
     }
 
-    fn state(&self) -> &std::collections::HashMap<String, Tensor<T>> {
+    fn state(&self) -> &std::collections::HashMap<String, Tensor<T, B>> {
         self.base.state()
     }
 
-    fn state_mut(&mut self) -> &mut std::collections::HashMap<String, Tensor<T>> {
+    fn state_mut(&mut self) -> &mut std::collections::HashMap<String, Tensor<T, B>> {
         self.base.state_mut()
     }
 }
 
 /// Builder pattern for AdamW optimizer
-pub struct AdamWBuilder<T: coeus_dtype::FloatDtype> {
-    params: Vec<Tensor<T>>,
+pub struct AdamWBuilder<T: coeus_dtype::FloatDtype, B: Backend<T> + Clone = CpuBackend> {
+    params: Vec<Tensor<T, B>>,
     lr: T,
     beta1: T,
     beta2: T,
@@ -327,9 +322,9 @@ pub struct AdamWBuilder<T: coeus_dtype::FloatDtype> {
     weight_decay: T,
 }
 
-impl<T: coeus_dtype::FloatDtype> AdamWBuilder<T> {
+impl<T: coeus_dtype::FloatDtype, B: Backend<T> + Clone> AdamWBuilder<T, B> {
     /// Create a new AdamW builder
-    pub fn new(params: Vec<Tensor<T>>, lr: T) -> Self {
+    pub fn new(params: Vec<Tensor<T, B>>, lr: T) -> Self {
         Self {
             params,
             lr,
@@ -372,7 +367,7 @@ impl<T: coeus_dtype::FloatDtype> AdamWBuilder<T> {
     }
 
     /// Build the AdamW optimizer
-    pub fn build(self) -> AdamW<T> {
+    pub fn build(self) -> AdamW<T, B> {
         AdamW::with_options(
             self.params,
             self.lr,

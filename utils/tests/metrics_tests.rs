@@ -1,6 +1,6 @@
 //! Comprehensive tests for advanced metrics functionality
 
-use coeus_tensor::Tensor;
+use coeus_tensor::{Tensor, CpuBackend};
 use coeus_utils::utils::metrics::*;
 
 #[cfg(test)]
@@ -10,8 +10,8 @@ mod tests {
     #[test]
     fn test_top_k_accuracy() {
         // Create simple predictions and targets
-        let predictions = Tensor::from_vec(vec![0.1, 0.9, 0.8, 0.2], vec![2, 2]); // 2 samples, 2 classes
-        let targets = Tensor::from_vec(vec![1, 0], vec![2]); // Target classes
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![0.1, 0.9, 0.8, 0.2], vec![2, 2]).unwrap(); // 2 samples, 2 classes
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1, 0], vec![2]).unwrap(); // Target classes
 
         let accuracy = top_k_accuracy(&predictions, &targets, 1).unwrap();
         // Should be 1.0 since top-1 prediction is correct for both samples
@@ -20,8 +20,8 @@ mod tests {
 
     #[test]
     fn test_confusion_matrix() {
-        let predictions = Tensor::from_vec(vec![0, 1, 1, 0], vec![4]);
-        let targets = Tensor::from_vec(vec![0, 0, 1, 1], vec![4]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![0, 1, 1, 0], vec![4]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0, 0, 1, 1], vec![4]).unwrap();
 
         let cm = confusion_matrix(&predictions, &targets, 2).unwrap();
 
@@ -40,8 +40,8 @@ mod tests {
 
     #[test]
     fn test_classification_report() {
-        let predictions = Tensor::from_vec(vec![0, 1, 1, 0], vec![4]);
-        let targets = Tensor::from_vec(vec![0, 0, 1, 1], vec![4]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![0, 1, 1, 0], vec![4]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0, 0, 1, 1], vec![4]).unwrap();
 
         let report = classification_report(&predictions, &targets, 2).unwrap();
 
@@ -58,8 +58,8 @@ mod tests {
 
     #[test]
     fn test_mean_squared_error() {
-        let predictions = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
-        let targets = Tensor::from_vec(vec![1.0, 2.0, 4.0], vec![3]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 4.0], vec![3]).unwrap();
 
         let mse = mean_squared_error(&predictions, &targets).unwrap();
 
@@ -70,15 +70,15 @@ mod tests {
     #[test]
     fn test_auc_roc_edge_cases() {
         // Test with no positives
-        let predictions = Tensor::from_vec(vec![0.1, 0.2], vec![2]);
-        let targets = Tensor::from_vec(vec![0, 0], vec![2]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![0.1, 0.2], vec![2]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0, 0], vec![2]).unwrap();
 
         let auc = auc_roc(&predictions, &targets).unwrap();
         assert!((auc - 0.5).abs() < 1e-6); // Should be 0.5 (random classifier)
 
         // Test with no negatives
-        let predictions = Tensor::from_vec(vec![0.8, 0.9], vec![2]);
-        let targets = Tensor::from_vec(vec![1, 1], vec![2]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![0.8, 0.9], vec![2]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1, 1], vec![2]).unwrap();
 
         let auc = auc_roc(&predictions, &targets).unwrap();
         assert!((auc - 0.5).abs() < 1e-6); // Should be 0.5 (random classifier)
@@ -87,8 +87,8 @@ mod tests {
     #[test]
     fn test_metrics_edge_cases() {
         // Test with single sample
-        let predictions = Tensor::from_vec(vec![0.9, 0.1], vec![1, 2]);
-        let targets = Tensor::from_vec(vec![0], vec![1]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![0.9, 0.1], vec![1, 2]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap();
 
         let accuracy = top_k_accuracy(&predictions, &targets, 1).unwrap();
         assert_eq!(accuracy, 1.0);
@@ -100,15 +100,15 @@ mod tests {
 
     #[test]
     fn test_confusion_matrix_edge_cases() {
-        let predictions = Tensor::from_vec(vec![0], vec![1]);
-        let targets = Tensor::from_vec(vec![0], vec![1]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap();
 
         let cm = confusion_matrix(&predictions, &targets, 2).unwrap();
         assert_eq!(cm.shape(), &[2, 2]);
 
         // Test with out-of-range class
-        let predictions = Tensor::from_vec(vec![2], vec![1]);
-        let targets = Tensor::from_vec(vec![0], vec![1]);
+        let predictions = Tensor::from_vec(CpuBackend::default(), vec![2], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap();
 
         let result = confusion_matrix(&predictions, &targets, 2);
         assert!(result.is_err());
@@ -117,8 +117,8 @@ mod tests {
     #[test]
     fn test_metrics_with_different_dtypes() {
         // Test with f64 tensors
-        let predictions_f64 = Tensor::from_vec(vec![0.1f64, 0.9f64], vec![1, 2]);
-        let targets = Tensor::from_vec(vec![1i64], vec![1]);
+        let predictions_f64 = Tensor::from_vec(CpuBackend::default(), vec![0.1f64, 0.9f64], vec![1, 2]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1i64], vec![1]).unwrap();
 
         let accuracy = top_k_accuracy(&predictions_f64, &targets, 1).unwrap();
         assert_eq!(accuracy, 1.0); // Correct prediction (class 1 has highest probability 0.9)

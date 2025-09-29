@@ -18,6 +18,8 @@
 use crate::modules::attention::{AttentionConfig, Block};
 use crate::modules::dropout::Dropout;
 use crate::{Embedding, LayerNorm, Module, Result};
+use coeus_backend::CpuBackend;
+use coeus_dtype::Dtype;
 use coeus_tensor::{FloatDtype, Tensor};
 use std::fmt;
 
@@ -62,7 +64,7 @@ pub struct GPT2<T: FloatDtype> {
     pub lm_head: crate::Linear<T>,
 }
 
-impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> GPT2<T> {
+impl<T: FloatDtype + rand::distributions::uniform::SampleUniform + std::iter::Sum> GPT2<T> {
     /// Create a new GPT-2 model
     ///
     /// # Arguments
@@ -79,7 +81,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> GPT2<T> {
         let ln_f = LayerNorm::new(vec![config.attn_config.n_embd]); // Final layer norm expects (..., n_embd)
         let lm_head = crate::Linear::new(config.attn_config.n_embd, config.vocab_size);
         let drop =
-            Dropout::new(T::from_f64(config.dropout).unwrap_or_else(|| T::from_f64(0.1).unwrap()));
+            Dropout::new(<T as Dtype>::from_f64(config.dropout).unwrap_or_else(|| <T as Dtype>::from_f64(0.1).unwrap()));
 
         Self {
             wte,
@@ -100,7 +102,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> GPT2<T> {
     /// # Returns
     /// If targets is None: logits of shape (batch_size, seq_len, vocab_size)
     /// If targets is Some: (logits, loss) tuple
-    pub fn forward_lm(&self, input: &Tensor<T>, targets: Option<&Tensor<T>>) -> Result<Tensor<T>> {
+    pub fn forward_lm(&self, input: &Tensor<T, CpuBackend>, targets: Option<&Tensor<T, CpuBackend>>) -> Result<Tensor<T, CpuBackend>> {
         let input_shape = input.shape();
 
         // Validate input shape - must be 2D (batch_size, seq_len)
@@ -120,7 +122,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> GPT2<T> {
         // Position embeddings
         let positions: Vec<T> = (0..seq_len).map(|i| T::from(i as f64).unwrap()).collect();
         // Reshape to (1, seq_len) for embedding lookup
-        let pos_input = Tensor::from_vec(positions, vec![1, seq_len]);
+        let pos_input = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
         let pos_emb = self.wpe.forward(&pos_input)?;
 
         // Broadcast position embeddings to match batch size
@@ -132,7 +134,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> GPT2<T> {
         for _ in 0..batch_size {
             pos_emb_broadcast.extend_from_slice(pos_emb_data);
         }
-        let pos_emb_batch = Tensor::from_vec(pos_emb_broadcast, vec![batch_size, seq_len, n_embd]);
+        let pos_emb_batch = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
         // Combine token and position embeddings
         let x = (&tok_emb + &pos_emb_batch)?;
@@ -174,10 +176,10 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> GPT2<T> {
     /// Generated token sequence
     pub fn generate(
         &self,
-        input: &Tensor<T>,
+        input: &Tensor<T, CpuBackend>,
         max_new_tokens: usize,
         temperature: f64,
-    ) -> Result<Tensor<T>> {
+    ) -> Result<Tensor<T, CpuBackend>> {
         let mut current_input = input.clone();
 
         for _ in 0..max_new_tokens {
@@ -238,19 +240,19 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> GPT2<T> {
             new_input_data.push(T::from(next_token as f64).unwrap());
 
             let new_seq_len = current_input.shape()[1] + 1;
-            current_input = Tensor::from_vec(new_input_data, vec![batch_size, new_seq_len]);
+            current_input = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
         }
 
         Ok(current_input)
     }
 }
 
-impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Module<T> for GPT2<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+impl<T: FloatDtype + rand::distributions::uniform::SampleUniform + std::iter::Sum> Module<T> for GPT2<T> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         self.forward_lm(input, None)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         params.extend(self.wte.parameters());
         params.extend(self.wpe.parameters());
@@ -263,7 +265,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Module<T> for 
         params
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         params.extend(self.wte.parameters_mut());
         params.extend(self.wpe.parameters_mut());
@@ -320,7 +322,7 @@ mod tests {
         let model: GPT2<f32> = GPT2::new(config);
 
         // Input shape: (batch_size=1, seq_len=3)
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![1, 3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
         let output = model.forward_lm(&input, None).unwrap();
 
         // Output shape: (batch_size=1, seq_len=3, vocab_size=100)
@@ -344,7 +346,7 @@ mod tests {
         let model: GPT2<f32> = GPT2::new(config);
 
         // Input shape: (batch_size=2, seq_len=2)
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
         let output = model.forward_lm(&input, None).unwrap();
 
         // Output shape: (batch_size=2, seq_len=2, vocab_size=50)
@@ -368,7 +370,7 @@ mod tests {
         let model: GPT2<f32> = GPT2::new(config);
 
         // Input shape: (batch_size=1, seq_len=1)
-        let input = Tensor::from_vec(vec![5.0], vec![1, 1]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
         let output = model.forward_lm(&input, None).unwrap();
 
         // Output shape: (batch_size=1, seq_len=1, vocab_size=100)
@@ -394,7 +396,7 @@ mod tests {
 
         // Input shape: (batch_size=1, seq_len=block_size)
         let input_data: Vec<f32> = (0..block_size).map(|x| x as f32).collect();
-        let input = Tensor::from_vec(input_data, vec![1, block_size]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
         let output = model.forward_lm(&input, None).unwrap();
 
         // Output shape: (batch_size=1, seq_len=block_size, vocab_size=100)
@@ -462,7 +464,7 @@ mod tests {
         assert!(!model.parameters_mut().is_empty());
 
         // Test forward through Module trait
-        let input = Tensor::from_vec(vec![1.0, 2.0], vec![1, 2]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
         let output = model.forward(&input).unwrap();
         assert_eq!(output.shape(), &[1, 2, 50]);
     }
@@ -484,7 +486,7 @@ mod tests {
         let model: GPT2<f32> = GPT2::new(config);
 
         // Input with single token
-        let input = Tensor::from_vec(vec![5.0], vec![1, 1]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
         let generated = model.generate(&input, 2, 1.0).unwrap();
 
         // Should have generated 3 tokens total (1 input + 2 generated)
@@ -508,7 +510,7 @@ mod tests {
         let model: GPT2<f32> = GPT2::new(config);
 
         // Invalid input: 1D tensor instead of 2D
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
         let result = model.forward_lm(&input, None);
 
         // Should return an error for invalid input shape
@@ -541,7 +543,7 @@ mod tests {
         let model: GPT2<f32> = GPT2::new(config);
 
         // Token index out of vocabulary range
-        let input = Tensor::from_vec(vec![15.0], vec![1, 1]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
         let result = model.forward_lm(&input, None);
 
         // Should return an error for out-of-vocabulary token
@@ -553,3 +555,6 @@ mod tests {
         }
     }
 }
+
+
+

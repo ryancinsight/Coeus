@@ -65,9 +65,9 @@ impl<'a, O: Optimizer<T>, T: coeus_dtype::FloatDtype> OneCycleLR<'a, O, T> {
     /// # Example
     /// ```rust
     /// use coeus_optim::{Adam, OneCycleLR};
-    /// use coeus_tensor::Tensor;
+    /// use coeus_tensor::{Tensor, CpuBackend};
     ///
-    /// let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+    /// let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
     /// let mut optimizer = Adam::new(params, 0.001);
     /// let mut scheduler = OneCycleLR::new(&mut optimizer, 0.01, 1000);
     /// ```
@@ -233,13 +233,13 @@ impl<'a, O: Optimizer<T>, T: coeus_dtype::FloatDtype> OneCycleLR<'a, O, T> {
 mod tests {
     use super::*;
     use crate::{Adam, ParamGroup};
-    use coeus_tensor::Tensor;
+    use coeus_tensor::{Tensor, CpuBackend};
 
     #[test]
     fn test_onecycle_lr_creation() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let scheduler = OneCycleLR::new(&mut optimizer, 0.01, 100);
+        let scheduler: OneCycleLR<'_, Adam<f64>, f64> = OneCycleLR::new(&mut optimizer, 0.01, 100);
 
         assert_eq!(scheduler.total_steps(), 100);
         assert_eq!(scheduler.current_step(), 0);
@@ -249,9 +249,9 @@ mod tests {
 
     #[test]
     fn test_onecycle_lr_with_options() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let scheduler = OneCycleLR::with_options(
+        let scheduler: OneCycleLR<'_, Adam<f64>, f64> = OneCycleLR::with_options(
             &mut optimizer,
             0.01,
             100,
@@ -266,9 +266,9 @@ mod tests {
 
     #[test]
     fn test_onecycle_lr_step() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = OneCycleLR::new(&mut optimizer, 0.01, 10);
+        let mut scheduler: OneCycleLR<'_, Adam<f64>, f64> = OneCycleLR::new(&mut optimizer, 0.01, 10);
 
         // Initial LR should be max_lr / div_factor = 0.01 / 25 = 0.0004
         assert!((scheduler.optimizer.param_groups()[0].lr - 0.0004_f64).abs() < 1e-6_f64);
@@ -297,9 +297,9 @@ mod tests {
 
     #[test]
     fn test_onecycle_lr_linear_annealing() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = OneCycleLR::with_options(
+        let mut scheduler: OneCycleLR<'_, Adam<f64>, f64> = OneCycleLR::with_options(
             &mut optimizer,
             0.01,
             4, // 4 steps total
@@ -336,9 +336,9 @@ mod tests {
 
     #[test]
     fn test_onecycle_lr_progress() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = OneCycleLR::new(&mut optimizer, 0.01, 100);
+        let mut scheduler: OneCycleLR<'_, Adam<f64>, f64> = OneCycleLR::new(&mut optimizer, 0.01, 100);
 
         assert_eq!(scheduler.progress(), 0.0);
         assert!(!scheduler.is_done());
@@ -367,13 +367,13 @@ mod tests {
 
     #[test]
     fn test_onecycle_lr_multiple_param_groups() {
-        let params1 = vec![Tensor::from_vec(vec![1.0], vec![1])];
-        let params2 = vec![Tensor::from_vec(vec![2.0], vec![1])];
+        let params1 = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
+        let params2 = vec![Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap()];
 
         let mut optimizer = Adam::new(params1, 0.001);
         optimizer.add_param_group(ParamGroup::new(params2, 0.001, 0.0));
 
-        let mut scheduler = OneCycleLR::new(&mut optimizer, 0.01, 10);
+        let mut scheduler: OneCycleLR<'_, Adam<f64>, f64> = OneCycleLR::new(&mut optimizer, 0.01, 10);
 
         // All parameter groups should have the same learning rate
         let lr1 = scheduler.optimizer.param_groups()[0].lr;

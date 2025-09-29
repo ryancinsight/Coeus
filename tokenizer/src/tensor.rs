@@ -7,6 +7,7 @@
 use crate::error::{Result, TokenizerError};
 use crate::tokenizer::{TokenizationResult, TokenizeOptions, Tokenizer};
 use coeus_tensor::{Dtype, FloatDtype, Tensor};
+use coeus_backend::CpuBackend;
 
 /// Tensor conversion trait for tokenizers
 ///
@@ -31,7 +32,7 @@ pub trait TensorTokenizer<T: FloatDtype> {
         token_ids: &[&[usize]],
         pad_token_id: Option<usize>,
         max_length: Option<usize>,
-    ) -> Result<(Tensor<T>, Tensor<T>)>;
+    ) -> Result<(Tensor<T, CpuBackend>, Tensor<T, CpuBackend>)>;
 
     /// Convert a single token sequence to tensor
     ///
@@ -46,7 +47,7 @@ pub trait TensorTokenizer<T: FloatDtype> {
     fn convert_single_tokens_to_tensor(
         &self,
         token_ids: &[usize],
-    ) -> Result<(Tensor<T>, Tensor<T>)> {
+    ) -> Result<(Tensor<T, CpuBackend>, Tensor<T, CpuBackend>)> {
         self.convert_tokens_to_tensor(&[token_ids], None, None)
     }
 
@@ -64,7 +65,8 @@ pub trait TensorTokenizer<T: FloatDtype> {
     fn convert_result_to_tensor(
         &self,
         result: &TokenizationResult,
-    ) -> Result<(Tensor<T>, Tensor<T>, Option<Tensor<T>>)>;
+    ) -> Result<(Tensor<T, CpuBackend>, Tensor<T, CpuBackend>, Option<Tensor<T, CpuBackend>>)>;
+
 
     /// Convert tensor back to token IDs
     ///
@@ -76,7 +78,7 @@ pub trait TensorTokenizer<T: FloatDtype> {
     ///
     /// # Errors
     /// Returns `TokenizerError` if tensor conversion fails
-    fn convert_tensor_to_tokens(&self, tensor: &Tensor<T>) -> Result<Vec<Vec<usize>>>;
+    fn convert_tensor_to_tokens(&self, tensor: &Tensor<T, CpuBackend>) -> Result<Vec<Vec<usize>>>;
 
     /// Encode text and convert to tensor in one operation
     ///
@@ -93,7 +95,7 @@ pub trait TensorTokenizer<T: FloatDtype> {
         &self,
         text: &str,
         options: &TokenizeOptions,
-    ) -> Result<(Tensor<T>, Tensor<T>)>;
+    ) -> Result<(Tensor<T, CpuBackend>, Tensor<T, CpuBackend>)>;
 
     /// Encode batch of texts and convert to tensors
     ///
@@ -110,7 +112,7 @@ pub trait TensorTokenizer<T: FloatDtype> {
         &self,
         texts: &[&str],
         options: &TokenizeOptions,
-    ) -> Result<(Tensor<T>, Tensor<T>)>;
+    ) -> Result<(Tensor<T, CpuBackend>, Tensor<T, CpuBackend>)>;
 }
 
 /// Blanket implementation of `TensorTokenizer` for any type implementing Tokenizer
@@ -120,7 +122,7 @@ impl<D: FloatDtype, T: Tokenizer + ?Sized> TensorTokenizer<D> for T {
         token_ids: &[&[usize]],
         pad_token_id: Option<usize>,
         max_length: Option<usize>,
-    ) -> Result<(Tensor<D>, Tensor<D>)> {
+    ) -> Result<(Tensor<D, CpuBackend>, Tensor<D, CpuBackend>)> {
         if token_ids.is_empty() {
             return Err(TokenizerError::InvalidInput {
                 message: "Empty token sequences provided".to_string(),
@@ -178,8 +180,9 @@ impl<D: FloatDtype, T: Tokenizer + ?Sized> TensorTokenizer<D> for T {
         let input_ids_shape = vec![batch_size, max_seq_len];
         let attention_mask_shape = vec![batch_size, max_seq_len];
 
-        let input_ids = Tensor::from_vec(input_ids_data, input_ids_shape);
-        let attention_mask = Tensor::from_vec(attention_mask_data, attention_mask_shape);
+        let backend = CpuBackend::new();
+        let input_ids = Tensor::from_vec(backend.clone(), input_ids_data, input_ids_shape)?;
+        let attention_mask = Tensor::from_vec(backend.clone(), attention_mask_data, attention_mask_shape)?;
 
         Ok((input_ids, attention_mask))
     }
@@ -187,7 +190,7 @@ impl<D: FloatDtype, T: Tokenizer + ?Sized> TensorTokenizer<D> for T {
     fn convert_result_to_tensor(
         &self,
         result: &TokenizationResult,
-    ) -> Result<(Tensor<D>, Tensor<D>, Option<Tensor<D>>)> {
+    ) -> Result<(Tensor<D, CpuBackend>, Tensor<D, CpuBackend>, Option<Tensor<D, CpuBackend>>)> {
         // Convert token_ids to tensor
         let (input_ids, attention_mask) =
             self.convert_tokens_to_tensor(&[&result.token_ids], None, None)?;
@@ -203,7 +206,8 @@ impl<D: FloatDtype, T: Tokenizer + ?Sized> TensorTokenizer<D> for T {
                 })
                 .collect();
 
-            Some(Tensor::from_vec(type_ids_data, vec![1, type_ids.len()]))
+            let backend = CpuBackend::new();
+            Some(Tensor::from_vec(backend.clone(), type_ids_data, vec![1, type_ids.len()])?)
         } else {
             None
         };
@@ -211,7 +215,7 @@ impl<D: FloatDtype, T: Tokenizer + ?Sized> TensorTokenizer<D> for T {
         Ok((input_ids, attention_mask, token_type_ids))
     }
 
-    fn convert_tensor_to_tokens(&self, tensor: &Tensor<D>) -> Result<Vec<Vec<usize>>> {
+    fn convert_tensor_to_tokens(&self, tensor: &Tensor<D, CpuBackend>) -> Result<Vec<Vec<usize>>> {
         if tensor.ndim() != 2 {
             return Err(TokenizerError::InvalidInput {
                 message: "Tensor must be 2D with shape (batch_size, seq_len)".to_string(),
@@ -263,7 +267,7 @@ impl<D: FloatDtype, T: Tokenizer + ?Sized> TensorTokenizer<D> for T {
         &self,
         text: &str,
         options: &TokenizeOptions,
-    ) -> Result<(Tensor<D>, Tensor<D>)> {
+    ) -> Result<(Tensor<D, CpuBackend>, Tensor<D, CpuBackend>)> {
         let token_ids = self.encode_with_options(text, options)?;
         self.convert_tokens_to_tensor(&[&token_ids], None, None)
     }
@@ -272,7 +276,7 @@ impl<D: FloatDtype, T: Tokenizer + ?Sized> TensorTokenizer<D> for T {
         &self,
         texts: &[&str],
         options: &TokenizeOptions,
-    ) -> Result<(Tensor<D>, Tensor<D>)> {
+    ) -> Result<(Tensor<D, CpuBackend>, Tensor<D, CpuBackend>)> {
         let token_sequences: Vec<Vec<usize>> = texts
             .iter()
             .map(|text| self.encode_with_options(text, options))
@@ -313,10 +317,10 @@ pub trait TensorExt<T: FloatDtype> {
     fn from_token_ids(
         token_ids: &[&[usize]],
         pad_token_id: Option<usize>,
-    ) -> Result<(Tensor<T>, Tensor<T>)>;
+    ) -> Result<(Tensor<T, CpuBackend>, Tensor<T, CpuBackend>)>;
 }
 
-impl<T: FloatDtype> TensorExt<T> for Tensor<T> {
+impl<T: FloatDtype> TensorExt<T> for Tensor<T, CpuBackend> {
     fn to_token_ids(&self, tokenizer: &impl Tokenizer) -> Result<Vec<Vec<usize>>> {
         // Use the tokenizer's tensor conversion method
         tokenizer.convert_tensor_to_tokens(self)
@@ -352,7 +356,7 @@ mod tests {
 
         // Test single sequence
         let token_ids = &[0, 1];
-        let (input_ids, attention_mask): (Tensor<f32>, Tensor<f32>) = tokenizer
+        let (input_ids, attention_mask): (Tensor<f32, CpuBackend>, Tensor<f32, CpuBackend>) = tokenizer
             .convert_single_tokens_to_tensor(token_ids)
             .unwrap();
 
@@ -374,7 +378,8 @@ mod tests {
 
         // Create tensor from token IDs
         let data = vec![0.0f32, 1.0];
-        let tensor = Tensor::from_vec(data, vec![1, 2]);
+        let backend = CpuBackend::new();
+        let tensor = Tensor::from_vec(backend.clone(), data, vec![1, 2]).unwrap();
 
         let token_ids = tokenizer.convert_tensor_to_tokens(&tensor).unwrap();
         assert_eq!(token_ids, vec![vec![0, 1]]);
@@ -393,7 +398,7 @@ mod tests {
         let seq1 = &[0, 1]; // length 2
         let seq2 = &[0]; // length 1
 
-        let (input_ids, attention_mask): (Tensor<f32>, Tensor<f32>) = tokenizer
+        let (input_ids, attention_mask): (Tensor<f32, CpuBackend>, Tensor<f32, CpuBackend>) = tokenizer
             .convert_tokens_to_tensor(&[seq1, seq2], Some(2), Some(3))
             .unwrap();
 
@@ -424,7 +429,7 @@ mod tests {
         let vocab = Vocabulary::new();
         let tokenizer = BaseTokenizer::with_vocabulary("test".to_string(), vocab);
 
-        let result: Result<(Tensor<f32>, Tensor<f32>)> =
+        let result: Result<(Tensor<f32, CpuBackend>, Tensor<f32, CpuBackend>)> =
             tokenizer.convert_tokens_to_tensor(&[], None, None);
         assert!(result.is_err());
     }
@@ -437,7 +442,7 @@ mod tests {
         let seq1 = &[0, 1]; // length 2
         let seq2 = &[0]; // length 1
 
-        let result: Result<(Tensor<f32>, Tensor<f32>)> =
+        let result: Result<(Tensor<f32, CpuBackend>, Tensor<f32, CpuBackend>)> =
             tokenizer.convert_tokens_to_tensor(&[seq1, seq2], None, None);
         assert!(result.is_err());
     }
@@ -466,7 +471,7 @@ mod tests {
         let batch_refs: Vec<&[usize]> = batch_tokens.iter().map(Vec::as_slice).collect();
 
         // Convert to tensors with padding
-        let (input_ids, attention_mask): (Tensor<f32>, Tensor<f32>) = tokenizer
+        let (input_ids, attention_mask): (Tensor<f32, CpuBackend>, Tensor<f32, CpuBackend>) = tokenizer
             .convert_tokens_to_tensor(&batch_refs, Some(6), Some(6))
             .unwrap();
 
@@ -507,7 +512,7 @@ mod tests {
         assert!(!input_ids.requires_grad()); // Default state
 
         // Test f64 compatibility
-        let (input_ids_f64, attention_mask_f64): (Tensor<f64>, Tensor<f64>) = tokenizer
+        let (input_ids_f64, attention_mask_f64): (Tensor<f64, CpuBackend>, Tensor<f64, CpuBackend>) = tokenizer
             .convert_tokens_to_tensor(&batch_refs, Some(6), Some(6))
             .unwrap();
 

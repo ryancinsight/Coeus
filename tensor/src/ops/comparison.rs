@@ -43,6 +43,7 @@
 //! - [NumPy Comparison Operations](https://numpy.org/doc/stable/reference/routines.logic.html)
 
 use crate::{Dtype, Result, Tensor, TensorError};
+use coeus_backend::{Backend, CpuBackend};
 
 /// Element-wise equality comparison
 ///
@@ -62,7 +63,10 @@ use crate::{Dtype, Result, Tensor, TensorError};
 /// let b = Tensor::from_vec(vec![1.0, 3.0, 3.0], vec![3]);
 /// let result = eq(&a, &b); // [true, false, true]
 /// ```
-pub fn eq<T: Dtype + PartialEq>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Vec<bool>> {
+pub fn eq<T: Dtype + PartialEq, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Vec<bool>>
+where
+    CpuBackend: Backend<T>,
+{
     if a.shape() != b.shape() {
         return Err(TensorError::ShapeMismatch {
             expected: a.shape().to_vec(),
@@ -91,7 +95,10 @@ pub fn eq<T: Dtype + PartialEq>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Vec<bool
 ///
 /// # Returns
 /// Boolean tensor with the same shape as the broadcasted inputs
-pub fn ne<T: Dtype + PartialEq>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Vec<bool>> {
+pub fn ne<T: Dtype + PartialEq, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Vec<bool>>
+where
+    CpuBackend: Backend<T>,
+{
     if a.shape() != b.shape() {
         return Err(TensorError::ShapeMismatch {
             expected: a.shape().to_vec(),
@@ -120,7 +127,10 @@ pub fn ne<T: Dtype + PartialEq>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Vec<bool
 ///
 /// # Returns
 /// Boolean tensor with the same shape as the broadcasted inputs
-pub fn lt<T: Dtype + PartialOrd>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Vec<bool>> {
+pub fn lt<T: Dtype + PartialOrd, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Vec<bool>>
+where
+    CpuBackend: Backend<T>,
+{
     if a.shape() != b.shape() {
         return Err(TensorError::ShapeMismatch {
             expected: a.shape().to_vec(),
@@ -149,7 +159,10 @@ pub fn lt<T: Dtype + PartialOrd>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Vec<boo
 ///
 /// # Returns
 /// Boolean tensor with the same shape as the broadcasted inputs
-pub fn le<T: Dtype + PartialOrd>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Vec<bool>> {
+pub fn le<T: Dtype + PartialOrd, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Vec<bool>>
+where
+    CpuBackend: Backend<T>,
+{
     if a.shape() != b.shape() {
         return Err(TensorError::ShapeMismatch {
             expected: a.shape().to_vec(),
@@ -178,7 +191,10 @@ pub fn le<T: Dtype + PartialOrd>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Vec<boo
 ///
 /// # Returns
 /// Boolean tensor with the same shape as the broadcasted inputs
-pub fn gt<T: Dtype + PartialOrd>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Vec<bool>> {
+pub fn gt<T: Dtype + PartialOrd, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Vec<bool>>
+where
+    CpuBackend: Backend<T>,
+{
     if a.shape() != b.shape() {
         return Err(TensorError::ShapeMismatch {
             expected: a.shape().to_vec(),
@@ -207,7 +223,10 @@ pub fn gt<T: Dtype + PartialOrd>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Vec<boo
 ///
 /// # Returns
 /// Boolean tensor with the same shape as the broadcasted inputs
-pub fn ge<T: Dtype + PartialOrd>(a: &Tensor<T>, b: &Tensor<T>) -> Result<Vec<bool>> {
+pub fn ge<T: Dtype + PartialOrd, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Vec<bool>>
+where
+    CpuBackend: Backend<T>,
+{
     if a.shape() != b.shape() {
         return Err(TensorError::ShapeMismatch {
             expected: a.shape().to_vec(),
@@ -323,11 +342,14 @@ pub fn logical_not(tensor: &[bool]) -> Vec<bool> {
 ///
 /// # Returns
 /// Tensor with the same shape as the inputs, containing selected values
-pub fn where_cond<T: Dtype + Clone>(
+pub fn where_cond<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync>(
     mask: &[bool],
-    on_true: &Tensor<T>,
-    on_false: &Tensor<T>,
-) -> Result<Tensor<T>> {
+    on_true: &Tensor<T, B>,
+    on_false: &Tensor<T, B>,
+) -> Result<Tensor<T, B>>
+where
+    CpuBackend: Backend<T>,
+{
     if mask.len() != on_true.numel() || mask.len() != on_false.numel() {
         return Err(TensorError::ShapeMismatch {
             expected: vec![mask.len()],
@@ -342,7 +364,7 @@ pub fn where_cond<T: Dtype + Clone>(
         .map(|((m, t), f)| if *m { *t } else { *f })
         .collect();
 
-    Ok(Tensor::from_vec(result_data, on_true.shape().to_vec()))
+    Tensor::from_vec(on_true.backend().clone(), result_data, on_true.shape().to_vec())
 }
 
 /// Test if any element is true

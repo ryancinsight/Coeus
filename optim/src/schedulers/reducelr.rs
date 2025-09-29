@@ -11,12 +11,12 @@ mod reducelr_tests {
     use super::*;
     use crate::{ParamGroup, Sgd};
     use approx::assert_relative_eq;
-    use coeus_tensor::Tensor;
+    use coeus_tensor::{CpuBackend, Tensor};
 
     /// Test ReduceLROnPlateau scheduler creation
     #[test]
     fn test_reducelr_creation() {
-        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.1_f64);
         let scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 10);
 
@@ -31,7 +31,7 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau with custom options
     #[test]
     fn test_reducelr_custom_options() {
-        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.1_f64);
         let scheduler = ReduceLROnPlateau::with_options(
             &mut optimizer,
@@ -55,7 +55,7 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau step with improving metrics (min mode)
     #[test]
     fn test_reducelr_step_improving_min() {
-        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.1_f64);
         let mut scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 10);
 
@@ -75,7 +75,7 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau step with improving metrics (max mode)
     #[test]
     fn test_reducelr_step_improving_max() {
-        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.1_f64);
         let mut scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Max, 0.1_f64, 10);
 
@@ -95,7 +95,7 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau step with degrading metrics
     #[test]
     fn test_reducelr_step_degrading() {
-        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.1_f64);
         let mut scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 3);
 
@@ -117,7 +117,7 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau cooldown functionality
     #[test]
     fn test_reducelr_cooldown() {
-        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.1_f64);
         let mut scheduler = ReduceLROnPlateau::with_options(
             &mut optimizer,
@@ -150,7 +150,7 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau threshold functionality
     #[test]
     fn test_reducelr_threshold() {
-        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.1_f64);
         let mut scheduler = ReduceLROnPlateau::with_options(
             &mut optimizer,
@@ -177,7 +177,7 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau minimum learning rate
     #[test]
     fn test_reducelr_min_lr() {
-        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.1_f64);
         let mut scheduler = ReduceLROnPlateau::with_options(
             &mut optimizer,
@@ -207,8 +207,8 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau with multiple parameter groups
     #[test]
     fn test_reducelr_multiple_groups() {
-        let params1 = vec![Tensor::from_vec(vec![1.0_f64], vec![1])];
-        let params2 = vec![Tensor::from_vec(vec![2.0_f64, 3.0_f64], vec![2])];
+        let params1 = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64], vec![1]).unwrap()];
+        let params2 = vec![Tensor::from_vec(CpuBackend::default(), vec![2.0_f64, 3.0_f64], vec![2]).unwrap()];
 
         let mut optimizer = Sgd::new(vec![], 0.1_f64); // Start empty
         optimizer.add_param_group(ParamGroup::new(params1, 0.1_f64, 0.0_f64));
@@ -246,7 +246,7 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau state tracking
     #[test]
     fn test_reducelr_state_tracking() {
-        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.1_f64);
         let mut scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 5);
 
@@ -266,7 +266,7 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau getter methods
     #[test]
     fn test_reducelr_getters() {
-        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.1_f64);
         let scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 5);
 
@@ -282,11 +282,11 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau is_better method
     #[test]
     fn test_reducelr_is_better() {
-        let params = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer_min = Sgd::new(params.clone(), 0.1_f64);
         let scheduler_min = ReduceLROnPlateau::new(&mut optimizer_min, Mode::Min, 0.1_f64, 5);
 
-        let params2 = vec![Tensor::from_vec(vec![1.0_f64, 2.0_f64], vec![2])];
+        let params2 = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0_f64, 2.0_f64], vec![2]).unwrap()];
         let mut optimizer_max = Sgd::new(params2, 0.1_f64);
         let scheduler_max = ReduceLROnPlateau::new(&mut optimizer_max, Mode::Max, 0.1_f64, 5);
 
@@ -306,7 +306,7 @@ mod reducelr_tests {
     /// Test ReduceLROnPlateau with extreme values
     #[test]
     fn test_reducelr_extreme_values() {
-        let params = vec![Tensor::from_vec(vec![1e-10_f64, 1e10_f64], vec![2])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1e-10_f64, 1e10_f64], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 1e-5_f64);
         let mut scheduler = ReduceLROnPlateau::new(&mut optimizer, Mode::Min, 0.1_f64, 1);
 
@@ -392,10 +392,10 @@ where
     /// ```rust
     /// use coeus_optim::{ReduceLROnPlateau, Sgd};
     /// use coeus_optim::reducelr::Mode;
-    /// use coeus_tensor::Tensor;
+    /// use coeus_tensor::{Tensor, CpuBackend};
     ///
-    /// let params = vec![Tensor::from_vec(vec![1.0, 2.0], vec![2])];
-    /// let mut optimizer = Sgd::new(params, 0.1);
+    /// let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0], vec![2]).unwrap()];
+    /// let mut optimizer = Sgd::new(params, 0.1).unwrap();
     /// let scheduler = ReduceLROnPlateau::new(
     ///     &mut optimizer,
     ///     Mode::Min,

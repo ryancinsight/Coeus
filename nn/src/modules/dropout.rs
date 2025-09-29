@@ -24,6 +24,7 @@
 //! - [Deep Learning Book - Regularization](https://www.deeplearningbook.org/contents/regularization.html)
 
 use crate::{Module, NNError, Result};
+use coeus_backend::CpuBackend;
 use coeus_tensor::{FloatDtype, Tensor};
 use rand::prelude::*;
 
@@ -87,7 +88,7 @@ impl<T: FloatDtype> Dropout<T> {
     ///
     /// # Errors
     /// Returns error if dropout operation fails
-    pub fn forward_impl(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+    pub fn forward_impl(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         if !self.training {
             // During evaluation, return input unchanged (identity operation)
             return Ok(input.clone());
@@ -123,23 +124,23 @@ impl<T: FloatDtype> Dropout<T> {
             }
         }
 
-        Ok(Tensor::from_vec(output_data, input.shape().to_vec()))
+        Ok(Tensor::from_vec(CpuBackend::default(), output_data, input.shape().to_vec()).unwrap())
     }
 }
 
 impl<T: FloatDtype> Module<T> for Dropout<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         self.forward_impl(input)
             .map_err(|e| crate::NNError::InvalidInput {
                 message: format!("Dropout forward pass failed: {}", e),
             })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![] // Dropout has no learnable parameters
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![] // Dropout has no learnable parameters
     }
 
@@ -204,7 +205,7 @@ impl<T: FloatDtype> Dropout2d<T> {
     ///
     /// # Errors
     /// Returns error if input shape is invalid or dropout operation fails
-    pub fn forward_impl(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+    pub fn forward_impl(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         if input.shape().len() != 4 {
             return Err(NNError::InvalidInput {
                 message: "Dropout2d expects 4D input tensor (batch_size, height, width, channels)"
@@ -266,23 +267,23 @@ impl<T: FloatDtype> Dropout2d<T> {
             }
         }
 
-        Ok(Tensor::from_vec(output_data, input.shape().to_vec()))
+        Ok(Tensor::from_vec(CpuBackend::default(), output_data, input.shape().to_vec()).unwrap())
     }
 }
 
 impl<T: FloatDtype> Module<T> for Dropout2d<T> {
-    fn forward(&self, input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         self.forward_impl(input)
             .map_err(|e| crate::NNError::InvalidInput {
                 message: format!("Dropout2d forward pass failed: {}", e),
             })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![] // Dropout2d has no learnable parameters
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![] // Dropout2d has no learnable parameters
     }
 
@@ -300,16 +301,17 @@ impl<T: FloatDtype> Module<T> for Dropout2d<T> {
 /// Applies 3D dropout regularization to input tensors.
 /// Randomly zeros entire channels during training for regularization.
 #[derive(Debug)]
-pub struct Dropout3d {
+pub struct Dropout3d<T: FloatDtype> {
     /// Dropout probability (0.0 to 1.0)
     pub p: f64,
     /// Training mode flag
     pub training: bool,
     /// Random number generator for reproducibility
     pub seed: Option<u64>,
+    _marker: std::marker::PhantomData<T>,
 }
 
-impl Dropout3d {
+impl<T: FloatDtype> Dropout3d<T> {
     /// Create a new Dropout3d layer
     ///
     /// # Arguments
@@ -324,6 +326,7 @@ impl Dropout3d {
             p,
             training: true,
             seed: None,
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -342,6 +345,7 @@ impl Dropout3d {
             p,
             training: true,
             seed: Some(seed),
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -354,7 +358,7 @@ impl Dropout3d {
     }
 
     /// Forward implementation
-    fn forward_impl(&self, input: &Tensor<f32>) -> Result<Tensor<f32>> {
+    fn forward_impl(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         if input.ndim() != 5 {
             return Err(NNError::InvalidInput {
                 message: format!(
@@ -385,24 +389,24 @@ impl Dropout3d {
                 // Drop this channel
                 let start_idx = channel_idx * channel_size;
                 let end_idx = start_idx + channel_size;
-                output_data[start_idx..end_idx].fill(0.0);
+                output_data[start_idx..end_idx].fill(T::zero());
             }
         }
 
-        Ok(Tensor::from_vec(output_data, input.shape().to_vec()))
+        Ok(Tensor::from_vec(CpuBackend::default(), output_data, input.shape().to_vec()).unwrap())
     }
 }
 
-impl Module<f32> for Dropout3d {
-    fn forward(&self, input: &Tensor<f32>) -> Result<Tensor<f32>> {
+impl<T: FloatDtype> Module<T> for Dropout3d<T> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         self.forward_impl(input)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<f32>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![] // Dropout3d has no learnable parameters
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<f32>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![] // Dropout3d has no learnable parameters
     }
 
@@ -432,7 +436,7 @@ mod tests {
         let mut dropout = Dropout::new(0.5);
         dropout.set_training(false);
 
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![4]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
         let output = dropout
             .forward(&input)
             .expect("Dropout eval mode forward should succeed");
@@ -457,9 +461,10 @@ mod tests {
 
         // Input: 2x2x2 (batch_size=1, height=2, width=2, channels=2)
         let input = Tensor::from_vec(
+            CpuBackend::default(),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
             vec![1, 2, 2, 2],
-        );
+        ).unwrap();
         let output = dropout
             .forward(&input)
             .expect("Dropout2d eval mode forward should succeed");
@@ -491,9 +496,12 @@ mod tests {
     #[test]
     fn test_dropout2d_invalid_input() {
         let dropout = Dropout2d::new(0.5);
-        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]); // 1D tensor
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(); // 1D tensor
 
         let result = dropout.forward_impl(&input);
         assert!(result.is_err());
     }
 }
+
+
+

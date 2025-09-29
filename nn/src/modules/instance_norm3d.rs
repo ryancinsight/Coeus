@@ -4,6 +4,7 @@
 //! Normalizes each channel independently across spatial dimensions.
 
 use crate::{Module, Result};
+use coeus_backend::CpuBackend;
 use coeus_tensor::{FloatDtype, Tensor};
 
 /// 3D Instance Normalization layer
@@ -17,9 +18,9 @@ pub struct InstanceNorm3d<T: FloatDtype> {
     /// Small constant for numerical stability
     pub eps: T,
     /// Learnable scale parameter (γ) of shape (num_features,)
-    pub weight: Option<Tensor<T>>,
+    pub weight: Option<Tensor<T, CpuBackend>>,
     /// Learnable shift parameter (β) of shape (num_features,)
-    pub bias: Option<Tensor<T>>,
+    pub bias: Option<Tensor<T, CpuBackend>>,
 }
 
 impl<T: FloatDtype> InstanceNorm3d<T> {
@@ -40,7 +41,7 @@ impl<T: FloatDtype> InstanceNorm3d<T> {
 }
 
 impl<T: FloatDtype> Module<T> for InstanceNorm3d<T> {
-    fn forward(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // Input shape validation for 3D instance norm: (batch_size, channels, depth, height, width)
         if input.ndim() != 5 {
             return Err(crate::NNError::InvalidInput {
@@ -65,7 +66,7 @@ impl<T: FloatDtype> Module<T> for InstanceNorm3d<T> {
         Ok(input.clone())
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         if let Some(ref w) = self.weight {
             params.push(w);
@@ -76,7 +77,7 @@ impl<T: FloatDtype> Module<T> for InstanceNorm3d<T> {
         params
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         if let Some(ref mut w) = self.weight {
             params.push(w);
@@ -87,3 +88,6 @@ impl<T: FloatDtype> Module<T> for InstanceNorm3d<T> {
         params
     }
 }
+
+
+

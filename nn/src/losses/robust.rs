@@ -4,7 +4,7 @@
 //! better stability in the presence of noisy data.
 
 use super::{utils, Module, Reduction};
-use coeus_tensor::{FloatDtype, Tensor};
+use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
 
 /// Smooth L1 Loss (Huber Loss)
 ///
@@ -31,8 +31,8 @@ use coeus_tensor::{FloatDtype, Tensor};
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = SmoothL1Loss::new();
-/// let predictions = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
-/// let targets = Tensor::from_vec(vec![1.1, 1.5, 4.0], vec![3]);
+/// let predictions = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1.1], vec![1]).unwrap();
 ///
 /// let loss = loss_fn.forward(&predictions, &targets).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -74,11 +74,11 @@ impl SmoothL1Loss {
     }
 
     /// Compute Smooth L1 loss between predictions and targets
-    pub fn forward<T: FloatDtype>(
+    pub fn forward<T: FloatDtype + std::iter::Sum>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: predictions.shape().to_vec(),
@@ -108,7 +108,7 @@ impl SmoothL1Loss {
             losses.push(loss_val);
         }
 
-        let loss_tensor = Tensor::from_vec(losses, predictions.shape().to_vec());
+        let loss_tensor = Tensor::from_vec(CpuBackend::default(), losses, predictions.shape().to_vec()).unwrap();
         utils::apply_reduction(&loss_tensor, self.reduction)
     }
 
@@ -124,9 +124,9 @@ impl SmoothL1Loss {
     /// ```
     pub fn backward<T: FloatDtype>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: predictions.shape().to_vec(),
@@ -159,7 +159,7 @@ impl SmoothL1Loss {
             gradients.push(grad_val);
         }
 
-        let grad_tensor = Tensor::from_vec(gradients, predictions.shape().to_vec());
+        let grad_tensor = Tensor::from_vec(CpuBackend::default(), gradients, predictions.shape().to_vec()).unwrap();
 
         // Apply reduction scaling
         let scale = match self.reduction {
@@ -171,22 +171,22 @@ impl SmoothL1Loss {
             }
         };
 
-        Ok(grad_tensor.map(|x| *x * scale))
+        (&grad_tensor * &Tensor::scalar(scale)).map_err(Into::into)
     }
 }
 
 impl<T: FloatDtype> Module<T> for SmoothL1Loss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "SmoothL1Loss should be used via forward() method with two inputs".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -217,8 +217,8 @@ pub type HuberLoss = SmoothL1Loss;
 /// use coeus_tensor::Tensor;
 ///
 /// let loss_fn = LogCoshLoss::new();
-/// let predictions = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
-/// let targets = Tensor::from_vec(vec![1.1, 1.9, 3.2], vec![3]);
+/// let predictions = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+/// let targets = Tensor::from_vec(CpuBackend::default(), vec![1.1], vec![1]).unwrap();
 ///
 /// let loss = loss_fn.forward(&predictions, &targets).unwrap();
 /// assert!(loss.item().unwrap() >= 0.0);
@@ -243,11 +243,11 @@ impl LogCoshLoss {
     }
 
     /// Compute Log-Cosh loss between predictions and targets
-    pub fn forward<T: FloatDtype>(
+    pub fn forward<T: FloatDtype + std::iter::Sum>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: predictions.shape().to_vec(),
@@ -281,7 +281,7 @@ impl LogCoshLoss {
             losses.push(log_cosh);
         }
 
-        let loss_tensor = Tensor::from_vec(losses, predictions.shape().to_vec());
+        let loss_tensor = Tensor::from_vec(CpuBackend::default(), losses, predictions.shape().to_vec()).unwrap();
         utils::apply_reduction(&loss_tensor, self.reduction)
     }
 
@@ -292,9 +292,9 @@ impl LogCoshLoss {
     /// `dL/dx = tanh(x)`
     pub fn backward<T: FloatDtype>(
         &self,
-        predictions: &Tensor<T>,
-        targets: &Tensor<T>,
-    ) -> crate::Result<Tensor<T>> {
+        predictions: &Tensor<T, CpuBackend>,
+        targets: &Tensor<T, CpuBackend>,
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         if predictions.shape() != targets.shape() {
             return Err(crate::NNError::ShapeMismatch {
                 expected: predictions.shape().to_vec(),
@@ -314,7 +314,7 @@ impl LogCoshLoss {
             gradients.push(grad_val);
         }
 
-        let grad_tensor = Tensor::from_vec(gradients, predictions.shape().to_vec());
+        let grad_tensor = Tensor::from_vec(CpuBackend::default(), gradients, predictions.shape().to_vec()).unwrap();
 
         // Apply reduction scaling
         let scale = match self.reduction {
@@ -326,22 +326,22 @@ impl LogCoshLoss {
             }
         };
 
-        Ok(grad_tensor.map(|x| *x * scale))
+        (&grad_tensor * &Tensor::scalar(scale)).map_err(Into::into)
     }
 }
 
 impl<T: FloatDtype> Module<T> for LogCoshLoss {
-    fn forward(&self, _input: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    fn forward(&self, _input: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         Err(crate::NNError::InvalidInput {
             message: "LogCoshLoss should be used via forward() method with two inputs".to_string(),
         })
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         vec![]
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         vec![]
     }
 }
@@ -356,8 +356,8 @@ mod tests {
         let loss_fn = SmoothL1Loss::new();
 
         // Test quadratic region (|x| < 1)
-        let pred = Tensor::from_vec(vec![1.0, 2.0], vec![2]);
-        let target = Tensor::from_vec(vec![1.5, 2.3], vec![2]); // Differences: -0.5, -0.3
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![1.5], vec![1]).unwrap(); // Differences: -0.5, -0.3
 
         let loss = loss_fn.forward(&pred, &target).unwrap();
 
@@ -370,8 +370,8 @@ mod tests {
         let loss_fn = SmoothL1Loss::new();
 
         // Test linear region (|x| >= 1)
-        let pred = Tensor::from_vec(vec![1.0, 2.0], vec![2]);
-        let target = Tensor::from_vec(vec![3.0, 0.5], vec![2]); // Differences: -2.0, 1.5
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![3.0], vec![1]).unwrap(); // Differences: -2.0, 1.5
 
         let loss = loss_fn.forward(&pred, &target).unwrap();
 
@@ -384,8 +384,8 @@ mod tests {
         let loss_fn = SmoothL1Loss::with_beta(2.0);
 
         // With beta=2.0, differences of 1.0 should be in quadratic region
-        let pred = Tensor::from_vec(vec![1.0], vec![1]);
-        let target = Tensor::from_vec(vec![2.0], vec![1]); // Difference: -1.0
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap(); // Difference: -1.0
 
         let loss = loss_fn.forward(&pred, &target).unwrap();
 
@@ -396,8 +396,8 @@ mod tests {
     #[test]
     fn test_smooth_l1_loss_backward() {
         let loss_fn = SmoothL1Loss::new();
-        let pred = Tensor::from_vec(vec![1.0, 3.0], vec![2]);
-        let target = Tensor::from_vec(vec![1.5, 1.0], vec![2]); // Differences: -0.5, 2.0
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![1.5], vec![1]).unwrap(); // Differences: -0.5, 2.0
 
         let grad = loss_fn.backward(&pred, &target).unwrap();
 
@@ -411,8 +411,8 @@ mod tests {
     #[test]
     fn test_log_cosh_loss_basic() {
         let loss_fn = LogCoshLoss::new();
-        let pred = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
-        let target = Tensor::from_vec(vec![1.1, 1.9, 3.2], vec![3]);
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![1.1], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&pred, &target).unwrap();
         assert!(loss.item().unwrap() >= 0.0);
@@ -425,8 +425,8 @@ mod tests {
     #[test]
     fn test_log_cosh_loss_small_errors() {
         let loss_fn = LogCoshLoss::new();
-        let pred = Tensor::from_vec(vec![1.0], vec![1]);
-        let target = Tensor::from_vec(vec![1.01], vec![1]); // Small error: -0.01
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![1.01], vec![1]).unwrap(); // Small error: -0.01
 
         let loss = loss_fn.forward(&pred, &target).unwrap();
 
@@ -438,8 +438,8 @@ mod tests {
     #[test]
     fn test_log_cosh_loss_backward() {
         let loss_fn = LogCoshLoss::new();
-        let pred = Tensor::from_vec(vec![1.0], vec![1]);
-        let target = Tensor::from_vec(vec![0.0], vec![1]); // Difference: 1.0
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap(); // Difference: 1.0
 
         let grad = loss_fn.backward(&pred, &target).unwrap();
 
@@ -451,8 +451,8 @@ mod tests {
     #[test]
     fn test_robust_losses_outlier_handling() {
         // Compare how different losses handle outliers
-        let pred = Tensor::from_vec(vec![1.0, 2.0, 100.0], vec![3]); // Large outlier
-        let target = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(); // Large outlier
+        let target = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
 
         let smooth_l1 = SmoothL1Loss::new();
         let log_cosh = LogCoshLoss::new();
@@ -467,8 +467,8 @@ mod tests {
 
     #[test]
     fn test_robust_losses_reductions() {
-        let pred = Tensor::from_vec(vec![1.0, 2.0], vec![2]);
-        let target = Tensor::from_vec(vec![0.0, 0.0], vec![2]);
+        let pred = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let target = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
 
         // Test different reductions for SmoothL1Loss
         let loss_none = SmoothL1Loss::with_params(Reduction::None, 1.0);
@@ -491,3 +491,5 @@ mod tests {
         assert_relative_eq!(result_mean.item().unwrap(), expected_mean, epsilon = 1e-6);
     }
 }
+
+

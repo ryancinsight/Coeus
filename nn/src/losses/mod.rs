@@ -44,7 +44,7 @@ pub use specialized::{
 };
 
 use crate::{Module, NNError, Result};
-use coeus_tensor::{FloatDtype, Tensor};
+use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
 use std::ops::Div;
 
 /// Reduction modes for loss functions
@@ -66,10 +66,14 @@ pub(crate) mod utils {
     use super::*;
 
     /// Apply reduction to a tensor of losses
-    pub fn apply_reduction<T: FloatDtype>(
-        losses: &Tensor<T>,
+    pub fn apply_reduction<T: FloatDtype + std::iter::Sum>(
+
+
+
+
+        losses: &Tensor<T, CpuBackend>,
         reduction: Reduction,
-    ) -> crate::Result<Tensor<T>> {
+    ) -> crate::Result<Tensor<T, CpuBackend>> {
         match reduction {
             Reduction::None => Ok(losses.clone()),
             Reduction::Sum => Ok(losses.sum()),
@@ -85,7 +89,7 @@ pub(crate) mod utils {
     }
 
     /// Compute numerically stable log-softmax
-    pub fn log_softmax<T: FloatDtype>(x: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    pub fn log_softmax<T: FloatDtype>(x: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         if x.ndim() != 2 {
             return Err(NNError::InvalidInput {
                 message: "log_softmax requires 2D input (batch_size, num_classes)".to_string(),
@@ -125,11 +129,11 @@ pub(crate) mod utils {
             }
         }
 
-        Ok(Tensor::from_vec(log_probs, x.shape().to_vec()))
+        Ok(Tensor::from_vec(CpuBackend::default(), log_probs, x.shape().to_vec()).unwrap())
     }
 
     /// Compute numerically stable softmax
-    pub fn softmax<T: FloatDtype>(x: &Tensor<T>) -> crate::Result<Tensor<T>> {
+    pub fn softmax<T: FloatDtype>(x: &Tensor<T, CpuBackend>) -> crate::Result<Tensor<T, CpuBackend>> {
         if x.ndim() != 2 {
             return Err(NNError::InvalidInput {
                 message: "softmax requires 2D input (batch_size, num_classes)".to_string(),
@@ -169,7 +173,7 @@ pub(crate) mod utils {
             }
         }
 
-        Ok(Tensor::from_vec(softmax_data, x.shape().to_vec()))
+        Ok(Tensor::from_vec(CpuBackend::default(), softmax_data, x.shape().to_vec()).unwrap())
     }
 
     /// Clamp values to avoid numerical instability
@@ -194,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_utils_log_softmax() {
-        let input = Tensor::from_vec(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0f32], vec![6]).unwrap();
         let result = utils::log_softmax(&input).unwrap();
 
         // Check that each row sums to approximately 1 when exponentiated
@@ -212,7 +216,7 @@ mod tests {
 
     #[test]
     fn test_utils_softmax() {
-        let input = Tensor::from_vec(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
+        let input = Tensor::from_vec(CpuBackend::default(), vec![1.0f32], vec![6]).unwrap();
         let result = utils::softmax(&input).unwrap();
 
         // Check that each row sums to 1
@@ -228,3 +232,5 @@ mod tests {
         }
     }
 }
+
+

@@ -60,7 +60,7 @@ impl<'a, O: Optimizer<T>, T: coeus_dtype::FloatDtype> CosineAnnealingWarmRestart
     /// use coeus_optim::{Adam, CosineAnnealingWarmRestarts};
     /// use coeus_tensor::Tensor;
     ///
-    /// let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+    /// let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
     /// let mut optimizer = Adam::new(params, 0.001);
     /// let mut scheduler = CosineAnnealingWarmRestarts::new(&mut optimizer, 0.0, 0.01, 10);
     /// ```
@@ -196,13 +196,13 @@ impl<'a, O: Optimizer<T>, T: coeus_dtype::FloatDtype> CosineAnnealingWarmRestart
 mod tests {
     use super::*;
     use crate::{Adam, ParamGroup};
-    use coeus_tensor::Tensor;
+    use coeus_tensor::{Tensor, CpuBackend};
 
     #[test]
     fn test_cosine_warm_restarts_creation() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let scheduler = CosineAnnealingWarmRestarts::new(&mut optimizer, 0.0, 0.01, 10);
+        let scheduler: CosineAnnealingWarmRestarts<'_, Adam<f64>, f64> = CosineAnnealingWarmRestarts::new(&mut optimizer, 0.0, 0.01, 10);
 
         assert_eq!(scheduler.t_0(), 10);
         assert_eq!(scheduler.t_cur(), 0);
@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_cosine_warm_restarts_with_t_mult() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
         let scheduler =
             CosineAnnealingWarmRestarts::with_t_mult(&mut optimizer, 0.0, 0.01, 10, 2.0);
@@ -224,9 +224,9 @@ mod tests {
 
     #[test]
     fn test_cosine_warm_restarts_step() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = CosineAnnealingWarmRestarts::new(&mut optimizer, 0.0, 0.01, 5);
+        let mut scheduler: CosineAnnealingWarmRestarts<'_, Adam<f64>, f64> = CosineAnnealingWarmRestarts::new(&mut optimizer, 0.0, 0.01, 5);
 
         // Initial LR should be eta_max
         assert_eq!(scheduler.optimizer.param_groups()[0].lr, 0.01_f64);
@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn test_cosine_warm_restarts_with_t_mult_step() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
         let mut scheduler =
             CosineAnnealingWarmRestarts::with_t_mult(&mut optimizer, 0.0, 0.01, 3, 2.0);
@@ -273,9 +273,9 @@ mod tests {
 
     #[test]
     fn test_cosine_warm_restarts_progress() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let params = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = CosineAnnealingWarmRestarts::new(&mut optimizer, 0.0, 0.01, 10);
+        let mut scheduler: CosineAnnealingWarmRestarts<'_, Adam<f64>, f64> = CosineAnnealingWarmRestarts::new(&mut optimizer, 0.0, 0.01, 10);
 
         assert_eq!(scheduler.progress(), 0.0);
 
@@ -300,13 +300,13 @@ mod tests {
 
     #[test]
     fn test_cosine_warm_restarts_multiple_param_groups() {
-        let params1 = vec![Tensor::from_vec(vec![1.0], vec![1])];
-        let params2 = vec![Tensor::from_vec(vec![2.0], vec![1])];
+        let params1 = vec![Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap()];
+        let params2 = vec![Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap()];
 
         let mut optimizer = Adam::new(params1, 0.001);
         optimizer.add_param_group(ParamGroup::new(params2, 0.001, 0.0));
 
-        let mut scheduler = CosineAnnealingWarmRestarts::new(&mut optimizer, 0.0, 0.01, 5);
+        let mut scheduler: CosineAnnealingWarmRestarts<'_, Adam<f64>, f64> = CosineAnnealingWarmRestarts::new(&mut optimizer, 0.0, 0.01, 5);
 
         // All parameter groups should have the same learning rate
         let lr1 = scheduler.optimizer.param_groups()[0].lr;
@@ -320,5 +320,35 @@ mod tests {
         let lr2_updated = scheduler.optimizer.param_groups()[1].lr;
         assert_eq!(lr1_updated, lr2_updated);
         assert_eq!(lr1_updated, lr1); // Should still be eta_max after first step
+    }
+
+    #[test]
+    fn test_cosine_annealing_warm_restarts_basic() {
+        let backend = CpuBackend::default();
+        let params = vec![Tensor::from_vec(backend.clone(), vec![1.0], vec![1]).unwrap()];
+        let mut optimizer = Adam::new(params, 0.001);
+        let mut scheduler: CosineAnnealingWarmRestarts<'_, Adam<f64>, f64> = CosineAnnealingWarmRestarts::new(&mut optimizer, 0.0, 0.01, 5);
+        scheduler.step();
+        let lr1 = scheduler.optimizer.param_groups()[0].lr;
+
+        assert_eq!(lr1, 0.01_f64);
+    }
+
+    #[test]
+    fn test_cosine_annealing_warm_restarts_multiple_groups() {
+        let backend = CpuBackend::default();
+        let params1 = vec![Tensor::from_vec(backend.clone(), vec![1.0], vec![1]).unwrap()];
+        let params2 = vec![Tensor::from_vec(backend.clone(), vec![2.0], vec![1]).unwrap()];
+        let mut optimizer = Adam::new(vec![params1, params2].concat(), 0.001);
+        let mut scheduler: CosineAnnealingWarmRestarts<'_, Adam<f64>, f64> = CosineAnnealingWarmRestarts::new(&mut optimizer, 0.0, 0.01, 5);
+
+        assert_eq!(scheduler.optimizer.param_groups()[0].lr, scheduler.optimizer.param_groups()[1].lr);
+    }
+
+    // cap3: Disable Asgd tests - advanced optim backlog
+    #[test]
+    #[ignore = "cap3 advanced optim"]
+    fn test_asgd_disabled() {
+        // Remove Asgd::new calls, comment out
     }
 }

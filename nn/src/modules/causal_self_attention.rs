@@ -4,6 +4,7 @@
 //! Ensures each position can only attend to previous positions.
 
 use crate::{Module, Result};
+use coeus_backend::CpuBackend;
 use coeus_tensor::{FloatDtype, Tensor};
 use crate::modules::attention_config::AttentionConfig;
 
@@ -20,7 +21,7 @@ pub struct CausalSelfAttention<T: FloatDtype> {
     /// Attention configuration
     pub config: AttentionConfig,
     /// Causal mask for autoregressive attention
-    pub bias: Option<Tensor<T>>,
+    pub bias: Option<Tensor<T, CpuBackend>>,
 }
 
 impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> CausalSelfAttention<T> {
@@ -55,9 +56,10 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> CausalSelfAtte
             }
 
             Some(Tensor::from_vec(
+                CpuBackend::default(),
                 bias_data,
                 vec![1, 1, config.block_size, config.block_size],
-            ))
+            ).unwrap())
         } else {
             None
         };
@@ -72,21 +74,21 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> CausalSelfAtte
 }
 
 impl<T: FloatDtype> Module<T> for CausalSelfAttention<T> {
-    fn forward(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // Simplified implementation - delegate to basic Module forward
         // In practice, this should use the full causal attention logic
         // but for now we use the self-attention path
         Ok(input.clone())
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         params.extend(self.c_attn.parameters());
         params.extend(self.c_proj.parameters());
         params
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         params.extend(self.c_attn.parameters_mut());
         params.extend(self.c_proj.parameters_mut());
@@ -100,3 +102,5 @@ impl<T: FloatDtype> std::fmt::Display for CausalSelfAttention<T> {
                self.config.n_head, self.config.n_embd, self.config.block_size)
     }
 }
+
+

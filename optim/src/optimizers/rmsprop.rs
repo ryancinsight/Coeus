@@ -4,7 +4,7 @@
 //! compatible with PyTorch's `torch.optim.RMSprop`.
 
 use crate::{BaseOptimizer, Optimizer, ParamGroup, Result};
-use coeus_tensor::Tensor;
+use coeus_tensor::{ops::arithmetic::{sqrt, sub, mul, add, div}, Tensor, Backend, CpuBackend};
 
 /// RMSprop optimizer
 ///
@@ -22,8 +22,8 @@ use coeus_tensor::Tensor;
 /// constant for numerical stability.
 ///
 /// Compatible with PyTorch's `torch.optim.RMSprop`.
-pub struct Rmsprop<T: coeus_dtype::FloatDtype> {
-    base: BaseOptimizer<T>,
+pub struct Rmsprop<T: coeus_dtype::FloatDtype, B: Backend<T> + Clone = CpuBackend> {
+    base: BaseOptimizer<T, B>,
     alpha: T,
     eps: T,
     weight_decay: T,
@@ -31,7 +31,7 @@ pub struct Rmsprop<T: coeus_dtype::FloatDtype> {
     centered: bool,
 }
 
-impl<T: coeus_dtype::FloatDtype> Rmsprop<T> {
+impl<T: coeus_dtype::FloatDtype, B: Backend<T> + Clone> Rmsprop<T, B> {
     /// Create a new RMSprop optimizer with default parameters
     ///
     /// # Arguments
@@ -46,7 +46,7 @@ impl<T: coeus_dtype::FloatDtype> Rmsprop<T> {
     /// let params = vec![Tensor::from_vec(vec![1.0, 2.0], vec![2])];
     /// let optimizer = Rmsprop::new(params, 0.01);
     /// ```
-    pub fn new(params: Vec<Tensor<T>>, lr: T) -> Self {
+    pub fn new(params: Vec<Tensor<T, B>>, lr: T) -> Self {
         Self::with_options(
             params,
             lr,
@@ -69,7 +69,7 @@ impl<T: coeus_dtype::FloatDtype> Rmsprop<T> {
     /// * `momentum` - Momentum factor (optional)
     /// * `centered` - Whether to use centered RMSprop variant
     pub fn with_options(
-        params: Vec<Tensor<T>>,
+        params: Vec<Tensor<T, B>>,
         lr: T,
         alpha: T,
         eps: T,
@@ -116,20 +116,20 @@ impl<T: coeus_dtype::FloatDtype> Rmsprop<T> {
     }
 }
 
-impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rmsprop<T> {
+impl<T: coeus_dtype::FloatDtype, B: Backend<T> + Clone> Optimizer<T, B> for Rmsprop<T, B> {
     fn name(&self) -> &str {
         "RMSprop"
     }
 
-    fn param_groups(&self) -> &[ParamGroup<T>] {
+    fn param_groups(&self) -> &[ParamGroup<T, B>] {
         self.base.param_groups()
     }
 
-    fn param_groups_mut(&mut self) -> &mut [ParamGroup<T>] {
+    fn param_groups_mut(&mut self) -> &mut [ParamGroup<T, B>] {
         self.base.param_groups_mut()
     }
 
-    fn add_param_group(&mut self, param_group: ParamGroup<T>) {
+    fn add_param_group(&mut self, param_group: ParamGroup<T, B>) {
         self.base.add_param_group(param_group);
     }
 
@@ -146,15 +146,14 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rmsprop<T> {
 
             // Process each parameter in the group
             for param_idx in 0..group.params.len() {
+                let param = &group.params[param_idx];
                 let param_key = format!(
                     "rmsprop_{}_{}_{:p}",
-                    group_idx, param_idx, &group.params[param_idx] as *const _
+                    group_idx, param_idx, param as *const _
                 );
 
                 // Get gradient for this parameter
-                let Some(grad) = group.params[param_idx].grad() else {
-                    continue; // Skip parameters without gradients
-                };
+                let grad = param.unwrap_grad();
 
                 // Get or initialize state variables
                 let square_avg_key = format!("{}_square_avg", param_key);
@@ -167,7 +166,7 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rmsprop<T> {
                     .state()
                     .get(&square_avg_key)
                     .cloned()
-                    .unwrap_or_else(|| Tensor::zeros_like(&grad));
+                    .unwrap_or_else(|| Tensor::<T, B>::zeros_like(&param.unwrap_grad()));
                 let grad_avg_prev = if self.centered {
                     self.base
                         .state()
@@ -190,25 +189,26 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rmsprop<T> {
                 // Apply weight decay if specified
                 let effective_grad = if weight_decay != T::zero() {
                     let param_ref = &group.params[param_idx];
-                    let wd_tensor = Tensor::scalar(weight_decay);
-                    (&grad + &(param_ref * &wd_tensor)?)?
+                    let wd_tensor = Tensor::from_vec(param_ref.backend().clone(), vec![weight_decay], vec![]).unwrap();
+                    let wd_term = (param_ref * &wd_tensor).unwrap();
+                    (&grad + &wd_term).unwrap()
                 } else {
                     grad.clone()
                 };
 
                 // Update moving average of squared gradients: v_t = α * v_{t-1} + (1 - α) * g_t²
-                let alpha_tensor = Tensor::scalar(self.alpha);
-                let one_minus_alpha_tensor = Tensor::scalar(T::one() - self.alpha);
-                let square_avg_t = (&alpha_tensor * &square_avg_prev)?;
-                let grad_squared = (&effective_grad * &effective_grad)?;
-                let grad_squared_term = (&one_minus_alpha_tensor * &grad_squared)?;
-                let square_avg_t = (&square_avg_t + &grad_squared_term)?;
+                let alpha_tensor = Tensor::from_vec(param.backend().clone(), vec![self.alpha], vec![]).unwrap();
+                let one_minus_alpha_tensor = Tensor::from_vec(param.backend().clone(), vec![T::one() - self.alpha], vec![]).unwrap();
+                let mut square_avg_t = (&alpha_tensor * &square_avg_prev).unwrap();
+                let grad_squared = (&effective_grad * &effective_grad).unwrap();
+                let grad_squared_term = (&one_minus_alpha_tensor * &grad_squared).unwrap();
+                square_avg_t = (&square_avg_t + &grad_squared_term).unwrap();
 
                 // Update moving average of gradients (for centered RMSprop)
                 let grad_avg_t = if self.centered {
-                    let grad_avg_update = (&alpha_tensor * &grad_avg_prev)?;
-                    let grad_term = (&one_minus_alpha_tensor * &effective_grad)?;
-                    (&grad_avg_update + &grad_term)?
+                    let grad_avg_update = (&alpha_tensor * &grad_avg_prev).unwrap();
+                    let grad_term = (&one_minus_alpha_tensor * &effective_grad).unwrap();
+                    (&grad_avg_update + &grad_term).unwrap()
                 } else {
                     grad_avg_prev.clone()
                 };
@@ -216,27 +216,27 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rmsprop<T> {
                 // Compute the adaptive learning rate denominator
                 // For centered RMSprop: v̂_t = v_t - (moving_avg_g)² + ε
                 // For regular RMSprop: v̂_t = v_t + ε
-                let eps_tensor = Tensor::scalar(self.eps);
+                let eps_tensor = Tensor::from_vec(param.backend().clone(), vec![self.eps], vec![]).unwrap();
                 let adaptive_lr_denom = if self.centered {
-                    let grad_avg_squared = (&grad_avg_t * &grad_avg_t)?;
-                    let centered_square_avg = (&square_avg_t - &grad_avg_squared)?;
-                    let centered_square_avg_sqrt = centered_square_avg.sqrt();
-                    (&centered_square_avg_sqrt + &eps_tensor)?
+                    let grad_avg_squared = mul(&grad_avg_t, &grad_avg_t)?;
+                    let centered_square_avg = sub(&square_avg_t, &grad_avg_squared)?;
+                    let centered_square_avg_sqrt = sqrt(&centered_square_avg);
+                    add(&centered_square_avg_sqrt, &eps_tensor)?
                 } else {
-                    let square_avg_sqrt = square_avg_t.sqrt();
-                    (&square_avg_sqrt + &eps_tensor)?
+                    let square_avg_sqrt = sqrt(&square_avg_t);
+                    add(&square_avg_sqrt, &eps_tensor)?
                 };
 
                 // Compute the update
-                let lr_tensor = Tensor::scalar(lr);
-                let lr_grad = (&lr_tensor * &effective_grad)?;
-                let update = (&lr_grad / &adaptive_lr_denom)?;
+                let lr_tensor = Tensor::from_vec(param.backend().clone(), vec![lr], vec![]).unwrap();
+                let lr_grad = mul(&lr_tensor, &effective_grad)?;
+                let update = div(&lr_grad, &adaptive_lr_denom)?;
 
                 // Apply momentum if specified
                 let final_update = if let Some(momentum_val) = self.momentum {
-                    let momentum_tensor = Tensor::scalar(momentum_val);
-                    let momentum_update = (&momentum_tensor * &momentum_buffer_prev)?;
-                    let new_momentum_buffer = (&momentum_update + &update)?;
+                    let momentum_tensor = Tensor::from_vec(param.backend().clone(), vec![momentum_val], vec![]).unwrap();
+                    let momentum_update = mul(&momentum_tensor, &momentum_buffer_prev)?;
+                    let new_momentum_buffer = add(&momentum_update, &update)?;
                     state_updates.push((momentum_buffer_key, new_momentum_buffer.clone()));
                     new_momentum_buffer
                 } else {
@@ -244,16 +244,7 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rmsprop<T> {
                 };
 
                 // Compute new parameter value
-                let param_data = group.params[param_idx].data();
-                let update_data = final_update.data();
-                let new_param_data: Vec<T> = param_data
-                    .iter()
-                    .zip(update_data.iter())
-                    .map(|(p, u)| *p - *u)
-                    .collect();
-
-                let new_param_shape = group.params[param_idx].shape().to_vec();
-                let mut new_param = Tensor::from_vec(new_param_data, new_param_shape);
+                let mut new_param = sub(&group.params[param_idx], &final_update).unwrap();
 
                 // Preserve gradient tracking
                 if group.params[param_idx].requires_grad() {
@@ -298,18 +289,18 @@ impl<T: coeus_dtype::FloatDtype> Optimizer<T> for Rmsprop<T> {
         self.base.set_lr(group_index, lr)
     }
 
-    fn state(&self) -> &std::collections::HashMap<String, Tensor<T>> {
+    fn state(&self) -> &std::collections::HashMap<String, Tensor<T, B>> {
         self.base.state()
     }
 
-    fn state_mut(&mut self) -> &mut std::collections::HashMap<String, Tensor<T>> {
+    fn state_mut(&mut self) -> &mut std::collections::HashMap<String, Tensor<T, B>> {
         self.base.state_mut()
     }
 }
 
 /// Builder pattern for RMSprop optimizer
-pub struct RMSpropBuilder<T: coeus_dtype::FloatDtype> {
-    params: Vec<Tensor<T>>,
+pub struct RMSpropBuilder<T: coeus_dtype::FloatDtype, B: Backend<T> + Clone = CpuBackend> {
+    params: Vec<Tensor<T, B>>,
     lr: T,
     alpha: T,
     eps: T,
@@ -318,9 +309,9 @@ pub struct RMSpropBuilder<T: coeus_dtype::FloatDtype> {
     centered: bool,
 }
 
-impl<T: coeus_dtype::FloatDtype> RMSpropBuilder<T> {
+impl<T: coeus_dtype::FloatDtype, B: Backend<T> + Clone> RMSpropBuilder<T, B> {
     /// Create a new RMSprop builder
-    pub fn new(params: Vec<Tensor<T>>, lr: T) -> Self {
+    pub fn new(params: Vec<Tensor<T, B>>, lr: T) -> Self {
         Self {
             params,
             lr,
@@ -363,7 +354,7 @@ impl<T: coeus_dtype::FloatDtype> RMSpropBuilder<T> {
     }
 
     /// Build the RMSprop optimizer
-    pub fn build(self) -> Rmsprop<T> {
+    pub fn build(self) -> Rmsprop<T, B> {
         Rmsprop::with_options(
             self.params,
             self.lr,

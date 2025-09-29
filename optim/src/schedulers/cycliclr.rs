@@ -274,11 +274,12 @@ where
 mod tests {
     use super::*;
     use crate::Sgd;
-    use coeus_tensor::Tensor;
+    use coeus_tensor::{Tensor, CpuBackend};
 
     #[test]
     fn test_cyclic_lr_creation() {
-        let params = vec![Tensor::from_vec(vec![1.0, 2.0], vec![2])];
+        let backend = CpuBackend::default();
+        let params = vec![Tensor::from_vec(backend, vec![1.0, 2.0], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.001);
 
         let scheduler = CyclicLR::new(
@@ -296,7 +297,8 @@ mod tests {
 
     #[test]
     fn test_cyclic_lr_step() {
-        let params = vec![Tensor::from_vec(vec![1.0, 2.0], vec![2])];
+        let backend = CpuBackend::default();
+        let params = vec![Tensor::from_vec(backend, vec![1.0, 2.0], vec![2]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.001);
 
         let mut scheduler = CyclicLR::new(
@@ -338,7 +340,8 @@ mod tests {
 
     #[test]
     fn test_cyclic_lr_triangular2_mode() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let backend = CpuBackend::default();
+        let params = vec![Tensor::from_vec(backend, vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.001);
 
         let scheduler = CyclicLR::new(
@@ -356,7 +359,8 @@ mod tests {
 
     #[test]
     fn test_cyclic_lr_exp_range_mode() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let backend = CpuBackend::default();
+        let params = vec![Tensor::from_vec(backend, vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.001);
 
         let scheduler = CyclicLR::new(
@@ -374,7 +378,8 @@ mod tests {
 
     #[test]
     fn test_cyclic_lr_cycle_position() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let backend = CpuBackend::default();
+        let params = vec![Tensor::from_vec(backend, vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Sgd::new(params, 0.001);
 
         let scheduler = CyclicLR::new(
@@ -397,8 +402,9 @@ mod tests {
 
     #[test]
     fn test_cyclic_lr_multiple_param_groups() {
-        let params1 = vec![Tensor::from_vec(vec![1.0, 2.0], vec![2])];
-        let params2 = vec![Tensor::from_vec(vec![3.0], vec![1])];
+        let backend = CpuBackend::default();
+        let params1 = vec![Tensor::from_vec(backend.clone(), vec![1.0, 2.0], vec![2]).unwrap()];
+        let params2 = vec![Tensor::from_vec(backend.clone(), vec![3.0], vec![1]).unwrap()];
         let mut optimizer = Sgd::new(params1, 0.001);
         optimizer.add_param_group(crate::ParamGroup::new(params2, 0.001, 0.0));
 

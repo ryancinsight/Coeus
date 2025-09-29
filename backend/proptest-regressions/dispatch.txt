@@ -1,0 +1,15 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc a186cd659eeb71dba982d72ae5f2a6d9fc64273f48ed42677ea45100494761ef # shrinks to base_len = 1, base_elems = [2]
+cc ab69e0c4bf7362ba2782414d53ec87f0bf67fa84b6ee6836618f4e28f73fc00e # shrinks to base_len = 1, base_elems = [4]
+cc ba52cc7b69505f05522bf5463d1f815e319ef5d47ab277c2c7f143518ce5b35e # shrinks to base_len = 1, base_elems = [1, 3]
+cc 52c8f62266b6195f36adb3fe14dc7f0f767d3275e6e4c15402e9f6a2308e9382 # shrinks to base_len = 3, base_elems = [2, 1]
+cc e33cca362a835d788d5064f99c4ac2e67ec532541ea590320f3226a3274141fa # shrinks to base_len = 3, base_elems = [1, 3, 1]
+cc 67c05f8af3b02b12777d29fd92f5ba2c98e2e26aa2181551093fd53e051a2c16 # shrinks to base_len = 2, base_elems = [3]
+cc 8ca0d411ac4e2723d8f44880e16d109d0675a963c6a3376940cf7c58232d5354 # shrinks to base_len = 2, base_elems = [4]
+cc a2bb82dbebf95e7e4064eb400e7bd1b98fd1bc293bc9b528327c788cf5a61e63 # shrinks to base_len = 3, base_elems = [4, 2]
+cc 6eec8965c213e719891c9de369e4ba388b3fa75bb765906e0b765f8fefd28f68 # shrinks to base_len = 2, base_elems = [4, 2, 3]

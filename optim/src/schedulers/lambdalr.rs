@@ -155,22 +155,24 @@ impl<'a, O: Optimizer<T>, T: coeus_dtype::FloatDtype> LambdaLR<'a, O, T> {
 mod tests {
     use super::*;
     use crate::{Adam, ParamGroup};
-    use coeus_tensor::Tensor;
+    use coeus_tensor::{Tensor, CpuBackend};
 
     #[test]
     fn test_lambda_lr_creation() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let backend = CpuBackend::default();
+        let params = vec![Tensor::from_vec(backend, vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let scheduler = LambdaLR::new(&mut optimizer, |step| 0.9_f64.powi(step as i32));
+        let scheduler: LambdaLR<'_, Adam<f64>, f64> = LambdaLR::new(&mut optimizer, |step| 0.9_f64.powi(step as i32));
 
         assert_eq!(scheduler.current_step, 0);
     }
 
     #[test]
     fn test_lambda_lr_step() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let backend = CpuBackend::default();
+        let params = vec![Tensor::from_vec(backend, vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.001);
-        let mut scheduler = LambdaLR::new(&mut optimizer, |step| 0.9_f64.powi(step as i32));
+        let mut scheduler: LambdaLR<'_, Adam<f64>, f64> = LambdaLR::new(&mut optimizer, |step| 0.9_f64.powi(step as i32));
 
         // Initial LR should be base_lr
         assert_eq!(scheduler.optimizer.param_groups()[0].lr, 0.001_f64);
@@ -202,9 +204,10 @@ mod tests {
 
     #[test]
     fn test_lambda_lr_exponential_decay() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let backend = CpuBackend::default();
+        let params = vec![Tensor::from_vec(backend, vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.01);
-        let mut scheduler = LambdaLR::new(&mut optimizer, |step| (-0.1_f64 * step as f64).exp());
+        let mut scheduler: LambdaLR<'_, Adam<f64>, f64> = LambdaLR::new(&mut optimizer, |step| (-0.1_f64 * step as f64).exp());
 
         // Take 5 steps
         for i in 0..5 {
@@ -217,9 +220,10 @@ mod tests {
 
     #[test]
     fn test_lambda_lr_linear_decay() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let backend = CpuBackend::default();
+        let params = vec![Tensor::from_vec(backend, vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.01);
-        let mut scheduler = LambdaLR::new(&mut optimizer, |step| 1.0_f64 - 0.1_f64 * step as f64);
+        let mut scheduler: LambdaLR<'_, Adam<f64>, f64> = LambdaLR::new(&mut optimizer, |step| 1.0_f64 - 0.1_f64 * step as f64);
 
         // Take 5 steps
         for i in 0..5 {
@@ -232,8 +236,9 @@ mod tests {
 
     #[test]
     fn test_lambda_lr_multiple_param_groups() {
-        let params1 = vec![Tensor::from_vec(vec![1.0], vec![1])];
-        let params2 = vec![Tensor::from_vec(vec![2.0], vec![1])];
+        let backend = CpuBackend::default();
+        let params1 = vec![Tensor::from_vec(backend.clone(), vec![1.0], vec![1]).unwrap()];
+        let params2 = vec![Tensor::from_vec(backend.clone(), vec![2.0], vec![1]).unwrap()];
 
         let mut optimizer = Adam::new(params1, 0.001);
         optimizer.add_param_group(ParamGroup::new(params2, 0.001, 0.0));
@@ -241,7 +246,7 @@ mod tests {
         let lambda1 = |step: usize| 0.9_f64.powi(step as i32);
         let lambda2 = |step: usize| 0.95_f64.powi(step as i32);
 
-        let mut scheduler = LambdaLR::with_lambda_functions(
+        let mut scheduler: LambdaLR<'_, Adam<f64>, f64> = LambdaLR::with_lambda_functions(
             &mut optimizer,
             vec![Box::new(lambda1), Box::new(lambda2)],
         );
@@ -271,8 +276,9 @@ mod tests {
 
     #[test]
     fn test_lambda_lr_default_lambda() {
-        let params1 = vec![Tensor::from_vec(vec![1.0], vec![1])];
-        let params2 = vec![Tensor::from_vec(vec![2.0], vec![1])];
+        let backend = CpuBackend::default();
+        let params1 = vec![Tensor::from_vec(backend.clone(), vec![1.0], vec![1]).unwrap()];
+        let params2 = vec![Tensor::from_vec(backend.clone(), vec![2.0], vec![1]).unwrap()];
 
         let mut optimizer = Adam::new(params1, 0.001);
         optimizer.add_param_group(ParamGroup::new(params2, 0.001, 0.0));
@@ -303,11 +309,12 @@ mod tests {
 
     #[test]
     fn test_lambda_lr_complex_schedule() {
-        let params = vec![Tensor::from_vec(vec![1.0], vec![1])];
+        let backend = CpuBackend::default();
+        let params = vec![Tensor::from_vec(backend, vec![1.0], vec![1]).unwrap()];
         let mut optimizer = Adam::new(params, 0.01);
 
         // Create a complex schedule: linear increase then exponential decay
-        let mut scheduler = LambdaLR::new(&mut optimizer, |step| {
+        let mut scheduler: LambdaLR<'_, Adam<f64>, f64> = LambdaLR::new(&mut optimizer, |step| {
             if step < 10 {
                 // Linear increase for first 10 steps
                 1.0_f64 + 0.1_f64 * step as f64

@@ -10,6 +10,7 @@ description = "PyTorch-style utility functions and data loading for Coeus tensor
 [dependencies]
 coeus-tensor.workspace = true
 coeus-dtype.workspace = true
+coeus-backend.workspace = true
 num-traits.workspace = true
 rand.workspace = true
 rand_distr.workspace = true

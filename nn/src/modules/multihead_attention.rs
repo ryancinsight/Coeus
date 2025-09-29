@@ -4,6 +4,7 @@
 //! Supports both self-attention and cross-attention modes.
 
 use crate::{Module, NNError, Result};
+use coeus_backend::CpuBackend;
 use coeus_tensor::{FloatDtype, Tensor};
 
 /// Multi-Head Attention layer (PyTorch-compatible)
@@ -11,7 +12,7 @@ use coeus_tensor::{FloatDtype, Tensor};
 /// Implements the standard multi-head attention mechanism used in transformers.
 /// Supports both self-attention and cross-attention modes.
 #[derive(Debug, Clone)]
-pub struct MultiHeadAttention<T: FloatDtype> {
+pub struct MultiHeadAttention<T: FloatDtype + std::iter::Sum> {
     /// Query projection matrix
     pub q_proj: crate::Linear<T>,
     /// Key projection matrix
@@ -33,12 +34,12 @@ pub struct MultiHeadAttention<T: FloatDtype> {
     /// Whether to use bias in projections
     pub bias: bool,
     /// Whether to add bias for causal masking
-    pub add_bias_kv: Option<Tensor<T>>,
+    pub add_bias_kv: Option<Tensor<T, CpuBackend>>,
     /// Whether to add zero key/value for incremental decoding
     pub add_zero_attn: bool,
 }
 
-impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> MultiHeadAttention<T> {
+impl<T: FloatDtype + rand::distributions::uniform::SampleUniform + std::iter::Sum> MultiHeadAttention<T> {
     /// Create a new MultiHeadAttention layer
     ///
     /// # Arguments
@@ -113,14 +114,14 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> MultiHeadAtten
     #[allow(clippy::too_many_arguments)]
     pub fn forward_mha(
         &self,
-        query: &Tensor<T>,
-        key: &Tensor<T>,
-        value: &Tensor<T>,
-        key_padding_mask: Option<&Tensor<T>>,
+        query: &Tensor<T, CpuBackend>,
+        key: &Tensor<T, CpuBackend>,
+        value: &Tensor<T, CpuBackend>,
+        key_padding_mask: Option<&Tensor<T, CpuBackend>>,
         need_weights: bool,
-        attn_mask: Option<&Tensor<T>>,
+        attn_mask: Option<&Tensor<T, CpuBackend>>,
         average_attn_weights: bool,
-    ) -> Result<(Tensor<T>, Option<Tensor<T>>)> {
+    ) -> Result<(Tensor<T, CpuBackend>, Option<Tensor<T, CpuBackend>>)> {
         let tgt_len = query.shape()[1];
         let src_len = key.shape()[1];
         let batch_size = query.shape()[0];
@@ -173,12 +174,12 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> MultiHeadAtten
     /// Reshape tensor for multi-head attention computation
     fn _reshape_for_attention(
         &self,
-        tensor: &Tensor<T>,
+        tensor: &Tensor<T, CpuBackend>,
         batch_size: usize,
         seq_len: usize,
         num_heads: usize,
         head_dim: usize,
-    ) -> Result<Tensor<T>> {
+    ) -> Result<Tensor<T, CpuBackend>> {
         // Input: (batch_size, seq_len, embed_dim)
         // Output: (batch_size, num_heads, seq_len, head_dim)
 
@@ -197,19 +198,20 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> MultiHeadAtten
         }
 
         Ok(Tensor::from_vec(
+            CpuBackend::default(),
             reshaped_data,
             vec![batch_size, num_heads, seq_len, head_dim],
-        ))
+        ).unwrap())
     }
 
     /// Reshape tensor back from multi-head attention computation
     fn _reshape_from_attention(
         &self,
-        tensor: &Tensor<T>,
+        tensor: &Tensor<T, CpuBackend>,
         batch_size: usize,
         seq_len: usize,
         embed_dim: usize,
-    ) -> Result<Tensor<T>> {
+    ) -> Result<Tensor<T, CpuBackend>> {
         // Input: (batch_size, num_heads, seq_len, head_dim)
         // Output: (batch_size, seq_len, embed_dim)
 
@@ -230,21 +232,22 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> MultiHeadAtten
         }
 
         Ok(Tensor::from_vec(
+            CpuBackend::default(),
             reshaped_data,
             vec![batch_size, seq_len, embed_dim],
-        ))
+        ).unwrap())
     }
 
     /// Scaled dot-product attention implementation
     fn _scaled_dot_product_attention(
         &self,
-        query: &Tensor<T>,
-        key: &Tensor<T>,
-        value: &Tensor<T>,
-        attn_mask: Option<&Tensor<T>>,
-        key_padding_mask: Option<&Tensor<T>>,
+        query: &Tensor<T, CpuBackend>,
+        key: &Tensor<T, CpuBackend>,
+        value: &Tensor<T, CpuBackend>,
+        attn_mask: Option<&Tensor<T, CpuBackend>>,
+        key_padding_mask: Option<&Tensor<T, CpuBackend>>,
         need_weights: bool,
-    ) -> Result<(Tensor<T>, Option<Tensor<T>>)> {
+    ) -> Result<(Tensor<T, CpuBackend>, Option<Tensor<T, CpuBackend>>)> {
         let batch_size = query.shape()[0];
         let num_heads = query.shape()[1];
         let tgt_len = query.shape()[2];
@@ -360,13 +363,18 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> MultiHeadAtten
             }
         }
 
-        let output = Tensor::from_vec(output_data, vec![batch_size, num_heads, tgt_len, head_dim]);
+        let output = Tensor::from_vec(
+            CpuBackend::default(),
+            output_data,
+            vec![batch_size, num_heads, tgt_len, head_dim],
+        ).unwrap();
 
         let attn_weights = if need_weights {
             Some(Tensor::from_vec(
+                CpuBackend::default(),
                 softmax_scores,
                 vec![batch_size, num_heads, tgt_len, src_len],
-            ))
+            ).unwrap())
         } else {
             None
         };
@@ -375,10 +383,10 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> MultiHeadAtten
     }
 }
 
-impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Module<T>
+impl<T: FloatDtype + rand::distributions::uniform::SampleUniform + std::iter::Sum> Module<T>
     for MultiHeadAttention<T>
 {
-    fn forward(&self, input: &Tensor<T>) -> Result<Tensor<T>> {
+    fn forward(&self, input: &Tensor<T, CpuBackend>) -> Result<Tensor<T, CpuBackend>> {
         // For self-attention, query = key = value = input
         let (output, _) = self
             .forward_mha(input, input, input, None, false, None, true)
@@ -388,7 +396,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Module<T>
         Ok(output)
     }
 
-    fn parameters(&self) -> Vec<&Tensor<T>> {
+    fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         params.extend(self.q_proj.parameters());
         params.extend(self.k_proj.parameters());
@@ -397,7 +405,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Module<T>
         params
     }
 
-    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T>> {
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = Vec::new();
         params.extend(self.q_proj.parameters_mut());
         params.extend(self.k_proj.parameters_mut());
@@ -406,3 +414,5 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> Module<T>
         params
     }
 }
+
+

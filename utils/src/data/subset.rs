@@ -3,7 +3,7 @@
 //! Provides subset functionality compatible with PyTorch's Subset.
 
 use super::dataset_trait::Dataset;
-use coeus_tensor::Tensor;
+use coeus_tensor::{Tensor, CpuBackend};
 
 /// Subset of a dataset
 ///
@@ -43,7 +43,7 @@ where
         self.indices.len()
     }
 
-    fn get(&self, index: usize) -> (Tensor<T>, Tensor<T>) {
+    fn get(&self, index: usize) -> (Tensor<T, CpuBackend>, Tensor<T, CpuBackend>) {
         let actual_index = self.indices[index];
         self.dataset.get(actual_index)
     }

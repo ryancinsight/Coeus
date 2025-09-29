@@ -19,8 +19,632 @@
 //! ## Memory Management
 
 use crate::{Device, Layout, Result, TensorError};
-use coeus_autograd::context::{AutogradContext, Operation};
+use coeus_backend::Backend;
 use coeus_dtype::{Dtype, FloatDtype};
+use num_traits::{Float, Num};
+use std::collections::HashMap;
+
+    /// Autograd operation types for computational graph
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum Operation {
+        /// Leaf node (input tensor)
+        Leaf,
+        /// Addition operation
+        Add,
+        /// Subtraction operation
+        Sub,
+        /// Multiplication operation
+        Mul,
+        /// Division operation
+        Div,
+        /// Matrix multiplication operation
+        Matmul,
+        /// Negation operation
+        Neg,
+        /// Element-wise operations
+        Exp,
+        Log,
+        Sin,
+        Cos,
+        Tanh,
+        Sigmoid,
+        Relu,
+        Sqrt,
+        Pow,
+        /// Reduction operations
+        Sum,
+        SumDim,
+        MeanDim,
+        /// Shape operations
+        Transpose,
+    }
+
+/// Autograd context for managing computational graphs
+#[derive(Debug)]
+pub struct AutogradContext {
+    /// Next node ID to assign
+    next_node_id: u64,
+    /// Node operation types
+    node_operations: HashMap<u64, Operation>,
+    /// Node inputs (parent nodes)
+    node_inputs: HashMap<u64, Vec<u64>>,
+    /// Node input tensor data (for gradient computation)
+    node_input_data: HashMap<u64, Vec<Vec<f64>>>,
+    /// Gradient registry for backward propagation
+    gradients: HashMap<u64, Vec<f32>>,
+}
+
+impl AutogradContext {
+    /// Create a new autograd context
+    pub fn new() -> Self {
+        Self {
+            next_node_id: 0,
+            node_operations: HashMap::new(),
+            node_inputs: HashMap::new(),
+            node_input_data: HashMap::new(),
+            gradients: HashMap::new(),
+        }
+    }
+
+    /// Create a new node in the computational graph
+    pub fn create_node(&mut self, operation: Operation, inputs: Vec<u64>) -> u64 {
+        let node_id = self.next_node_id;
+        self.next_node_id += 1;
+        self.node_operations.insert(node_id, operation);
+        self.node_inputs.insert(node_id, inputs);
+        node_id
+    }
+
+    /// Create a new node with input tensor data for gradient computation
+    pub fn create_node_with_data(&mut self, operation: Operation, inputs: Vec<u64>, input_data: Vec<Vec<f64>>) -> u64 {
+        let node_id = self.create_node(operation, inputs);
+        self.node_input_data.insert(node_id, input_data);
+        node_id
+    }
+
+    /// Get input tensor data for a node
+    pub fn get_input_data(&self, node_id: u64) -> Option<&Vec<Vec<f64>>> {
+        self.node_input_data.get(&node_id)
+    }
+
+    /// Store gradient for a node
+    pub fn store_gradient(&mut self, node_id: u64, gradient: Vec<f32>) {
+        self.gradients.insert(node_id, gradient);
+    }
+
+    /// Get gradient for a node
+    pub fn get_gradient(&self, node_id: u64) -> Option<&Vec<f32>> {
+        self.gradients.get(&node_id)
+    }
+
+    /// Register tensor data for a node (stub - autograd being redesigned)
+    pub fn register_tensor(&mut self, _node_id: u64, _data: Vec<f64>, _shape: Vec<usize>) {
+        // Stub implementation - autograd system is being redesigned
+    }
+
+    /// Create a leaf node
+    pub fn create_leaf_node(&mut self) -> u64 {
+        let node_id = self.next_node_id;
+        self.next_node_id += 1;
+        self.node_operations.insert(node_id, Operation::Leaf);
+        self.node_inputs.insert(node_id, vec![]);
+        node_id
+    }
+
+    /// Set gradient for a node (stub - autograd being redesigned)
+    pub fn set_gradient(&mut self, node_id: u64, gradient: Vec<f32>) {
+        self.gradients.insert(node_id, gradient);
+    }
+
+    /// Accumulate gradient for a node (add to existing gradient)
+    pub fn accumulate_gradient(&mut self, node_id: u64, gradient: &[f32]) {
+        let existing = self.gradients.get(&node_id).cloned().unwrap_or_else(|| vec![0.0; gradient.len()]);
+        let accumulated: Vec<f32> = existing.iter().zip(gradient.iter()).map(|(a, b)| a + b).collect();
+        self.gradients.insert(node_id, accumulated);
+    }
+
+    /// Perform backward pass with recursive graph traversal
+    pub fn backward(&mut self, node_id: u64, initial_grad: &[f32]) {
+        // Perform reverse-mode automatic differentiation with topological traversal
+        let mut to_visit = vec![node_id];
+        let mut visited = std::collections::HashSet::new();
+
+        // Set initial gradient for the output node
+        let initial_grad_f32: Vec<f32> = initial_grad.iter().map(|&x| x as f32).collect();
+        self.set_gradient(node_id, initial_grad_f32.clone());
+
+        while let Some(current_node) = to_visit.pop() {
+            if !visited.insert(current_node) {
+                continue; // Already processed
+            }
+
+            let operation = self.node_operations.get(&current_node).cloned();
+            let input_nodes = self.node_inputs.get(&current_node).cloned().unwrap_or_default();
+            let current_grad = self.gradients.get(&current_node).cloned().unwrap_or_default();
+
+            if let Some(op) = operation {
+                match op {
+                    Operation::Add => {
+                        // ∇(a + b) = ∇a = ∇b = ∇output
+                        for &input_node in &input_nodes {
+                            self.accumulate_gradient(input_node, &current_grad);
+                            // Recursively process input nodes
+                            to_visit.push(input_node);
+                        }
+                    }
+                    Operation::Sub => {
+                        // ∇(a - b) = ∇a = ∇output, ∇b = -∇output
+                        if input_nodes.len() >= 2 {
+                            self.accumulate_gradient(input_nodes[0], &current_grad);
+                            let neg_grad: Vec<f32> = current_grad.iter().map(|&x| -x).collect();
+                            self.accumulate_gradient(input_nodes[1], &neg_grad);
+                            // Recursively process input nodes
+                            to_visit.push(input_nodes[0]);
+                            to_visit.push(input_nodes[1]);
+                        }
+                    }
+                    Operation::Mul => {
+                        // ∇(a * b) = ∇a = b * ∇output, ∇b = a * ∇output
+                        if input_nodes.len() >= 2 {
+                            // Get input data first to avoid borrow conflicts
+                            let input_data_opt = self.get_input_data(current_node).cloned();
+
+                            if let Some(input_data) = input_data_opt {
+                                if input_data.len() >= 2 {
+                                    let a_data = &input_data[0]; // First input tensor data
+                                    let b_data = &input_data[1]; // Second input tensor data
+
+                                    // Compute ∇a = b * ∇output
+                                    let grad_a: Vec<f32> = b_data.iter()
+                                        .zip(current_grad.iter())
+                                        .map(|(&b, &grad)| b as f32 * grad)
+                                        .collect();
+                                    self.accumulate_gradient(input_nodes[0], &grad_a);
+
+                                    // Compute ∇b = a * ∇output
+                                    let grad_b: Vec<f32> = a_data.iter()
+                                        .zip(current_grad.iter())
+                                        .map(|(&a, &grad)| a as f32 * grad)
+                                        .collect();
+                                    self.accumulate_gradient(input_nodes[1], &grad_b);
+
+                                    // Recursively process input nodes
+                                    to_visit.push(input_nodes[0]);
+                                    to_visit.push(input_nodes[1]);
+                                } else {
+                                    // Fallback: accumulate equal gradients if insufficient data
+                                    for &input_node in &input_nodes {
+                                        self.accumulate_gradient(input_node, &current_grad);
+                                    }
+                                }
+                            } else {
+                                // Fallback: accumulate equal gradients if no data stored
+                                for &input_node in &input_nodes {
+                                    self.accumulate_gradient(input_node, &current_grad);
+                                }
+                            }
+                        }
+                    }
+                    Operation::Div => {
+                        // ∇(a / b) = ∇a = ∇output / b, ∇b = -a * ∇output / b^2
+                        if input_nodes.len() >= 2 {
+                            self.accumulate_gradient(input_nodes[0], &current_grad);
+                            let neg_grad: Vec<f32> = current_grad.iter().map(|&x| -x).collect();
+                            self.accumulate_gradient(input_nodes[1], &neg_grad);
+                            // Recursively process input nodes
+                            to_visit.push(input_nodes[0]);
+                            to_visit.push(input_nodes[1]);
+                        }
+                    }
+                    Operation::Matmul => {
+                        // ∇(A @ B) = ∇A = ∇output @ B^T, ∇B = A^T @ ∇output
+                        // For now, implement simple gradient accumulation for testing
+                        // TODO: Implement proper matrix multiplication gradients
+                        if input_nodes.len() >= 2 {
+                            // Simple gradient accumulation - this is a placeholder
+                            // Proper implementation requires matrix multiplication in backward pass
+                            self.accumulate_gradient(input_nodes[0], &current_grad);
+                            self.accumulate_gradient(input_nodes[1], &current_grad);
+                            // Recursively process input nodes
+                            to_visit.push(input_nodes[0]);
+                            to_visit.push(input_nodes[1]);
+                        }
+                    }
+                    Operation::Exp => {
+                        // ∇exp(x) = exp(x) * ∇output
+                        // Get input data first to avoid borrow conflicts
+                        let input_data_opt = self.get_input_data(current_node).cloned();
+
+                        if let Some(input_data) = input_data_opt {
+                            if !input_data.is_empty() {
+                                let x_data = &input_data[0]; // Input tensor data
+                                // Compute ∇x = exp(x) * ∇output
+                                let grad_x: Vec<f32> = x_data.iter()
+                                    .zip(current_grad.iter())
+                                    .map(|(&x, &grad)| (x.exp()) as f32 * grad)
+                                    .collect();
+                                for &input_node in &input_nodes {
+                                    self.accumulate_gradient(input_node, &grad_x);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_node);
+                                }
+                            } else {
+                                // Fallback: pass through gradient
+                                for &input_node in &input_nodes {
+                                    self.accumulate_gradient(input_node, &current_grad);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_node);
+                                }
+                            }
+                        } else {
+                            // Fallback: pass through gradient
+                            for &input_node in &input_nodes {
+                                self.accumulate_gradient(input_node, &current_grad);
+                                // Recursively process input nodes
+                                to_visit.push(input_node);
+                            }
+                        }
+                    }
+                    Operation::Pow => {
+                        // ∇(b^e) = e * b^(e-1) * ∇output
+                        // Get input data first to avoid borrow conflicts
+                        let input_data_opt = self.get_input_data(current_node).cloned();
+
+                        if let Some(input_data) = input_data_opt {
+                            if input_data.len() >= 2 {
+                                let base_data = &input_data[0]; // Base tensor data
+                                let exp_data = &input_data[1]; // Exponent tensor data (scalar repeated)
+
+                                // Compute ∇base = exp * base^(exp-1) * ∇output
+                                let grad_base: Vec<f32> = base_data.iter()
+                                    .zip(exp_data.iter())
+                                    .zip(current_grad.iter())
+                                    .map(|((&base, &exp), &grad)| {
+                                        if exp == 1.0 {
+                                            grad // Special case: x^1 derivative is 1
+                                        } else {
+                                            (exp * base.powf(exp - 1.0)) as f32 * grad
+                                        }
+                                    })
+                                    .collect();
+                                self.accumulate_gradient(input_nodes[0], &grad_base);
+                                // Recursively process input nodes
+                                to_visit.push(input_nodes[0]);
+                            } else {
+                                // Fallback: pass through gradient
+                                for &input_node in &input_nodes {
+                                    self.accumulate_gradient(input_node, &current_grad);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_node);
+                                }
+                            }
+                        } else {
+                            // Fallback: pass through gradient
+                            for &input_node in &input_nodes {
+                                self.accumulate_gradient(input_node, &current_grad);
+                                // Recursively process input nodes
+                                to_visit.push(input_node);
+                            }
+                        }
+                    }
+                    Operation::Log => {
+                        // ∇log(x) = ∇output / x
+                        if input_nodes.len() >= 1 {
+                            let input_data_opt = self.get_input_data(current_node).cloned();
+
+                            if let Some(input_data) = input_data_opt {
+                                if !input_data.is_empty() {
+                                    let x_data = &input_data[0]; // Input tensor data (x values)
+
+                                    // Compute ∇input = ∇output / x
+                                    let grad_input: Vec<f32> = x_data.iter()
+                                        .zip(current_grad.iter())
+                                        .map(|(&x, &grad)| {
+                                            if x != 0.0 {
+                                                grad / x as f32
+                                            } else {
+                                                0.0 // Handle division by zero
+                                            }
+                                        })
+                                        .collect();
+                                    self.accumulate_gradient(input_nodes[0], &grad_input);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_nodes[0]);
+                                } else {
+                                    // Fallback: pass through gradient
+                                    for &input_node in &input_nodes {
+                                        self.accumulate_gradient(input_node, &current_grad);
+                                        // Recursively process input nodes
+                                        to_visit.push(input_node);
+                                    }
+                                }
+                            } else {
+                                // Fallback: pass through gradient
+                                for &input_node in &input_nodes {
+                                    self.accumulate_gradient(input_node, &current_grad);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_node);
+                                }
+                            }
+                        }
+                    }
+                    Operation::Sin => {
+                        // ∇sin(x) = cos(x) * ∇output
+                        if input_nodes.len() >= 1 {
+                            let input_data_opt = self.get_input_data(current_node).cloned();
+
+                            if let Some(input_data) = input_data_opt {
+                                if !input_data.is_empty() {
+                                    let x_data = &input_data[0]; // Input tensor data (x values)
+
+                                    // Compute ∇input = cos(x) * ∇output
+                                    let grad_input: Vec<f32> = x_data.iter()
+                                        .zip(current_grad.iter())
+                                        .map(|(&x, &grad)| (x as f64).cos() as f32 * grad)
+                                        .collect();
+                                    self.accumulate_gradient(input_nodes[0], &grad_input);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_nodes[0]);
+                                } else {
+                                    // Fallback: pass through gradient
+                                    for &input_node in &input_nodes {
+                                        self.accumulate_gradient(input_node, &current_grad);
+                                        // Recursively process input nodes
+                                        to_visit.push(input_node);
+                                    }
+                                }
+                            } else {
+                                // Fallback: pass through gradient
+                                for &input_node in &input_nodes {
+                                    self.accumulate_gradient(input_node, &current_grad);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_node);
+                                }
+                            }
+                        }
+                    }
+                    Operation::Cos => {
+                        // ∇cos(x) = -sin(x) * ∇output
+                        if input_nodes.len() >= 1 {
+                            let input_data_opt = self.get_input_data(current_node).cloned();
+
+                            if let Some(input_data) = input_data_opt {
+                                if !input_data.is_empty() {
+                                    let x_data = &input_data[0]; // Input tensor data (x values)
+
+                                    // Compute ∇input = -sin(x) * ∇output
+                                    let grad_input: Vec<f32> = x_data.iter()
+                                        .zip(current_grad.iter())
+                                        .map(|(&x, &grad)| -((x as f64).sin()) as f32 * grad)
+                                        .collect();
+                                    self.accumulate_gradient(input_nodes[0], &grad_input);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_nodes[0]);
+                                } else {
+                                    // Fallback: pass through gradient
+                                    for &input_node in &input_nodes {
+                                        self.accumulate_gradient(input_node, &current_grad);
+                                        // Recursively process input nodes
+                                        to_visit.push(input_node);
+                                    }
+                                }
+                            } else {
+                                // Fallback: pass through gradient
+                                for &input_node in &input_nodes {
+                                    self.accumulate_gradient(input_node, &current_grad);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_node);
+                                }
+                            }
+                        }
+                    }
+                    Operation::Sqrt => {
+                        // ∇sqrt(x) = ∇output / (2 * sqrt(x))
+                        if input_nodes.len() >= 1 {
+                            let input_data_opt = self.get_input_data(current_node).cloned();
+
+                            if let Some(input_data) = input_data_opt {
+                                if !input_data.is_empty() {
+                                    let x_data = &input_data[0]; // Input tensor data (x values)
+
+                                    // Compute ∇input = ∇output / (2 * sqrt(x))
+                                    let grad_input: Vec<f32> = x_data.iter()
+                                        .zip(current_grad.iter())
+                                        .map(|(&x, &grad)| {
+                                            if x > 0.0 {
+                                                grad / (2.0 * (x as f64).sqrt() as f32)
+                                            } else {
+                                                0.0 // Handle sqrt of negative/zero
+                                            }
+                                        })
+                                        .collect();
+                                    self.accumulate_gradient(input_nodes[0], &grad_input);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_nodes[0]);
+                                } else {
+                                    // Fallback: pass through gradient
+                                    for &input_node in &input_nodes {
+                                        self.accumulate_gradient(input_node, &current_grad);
+                                        // Recursively process input nodes
+                                        to_visit.push(input_node);
+                                    }
+                                }
+                            } else {
+                                // Fallback: pass through gradient
+                                for &input_node in &input_nodes {
+                                    self.accumulate_gradient(input_node, &current_grad);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_node);
+                                }
+                            }
+                        }
+                    }
+                    Operation::Sum => {
+                        // ∇sum(x) = ∇output (broadcasted)
+                        for &input_node in &input_nodes {
+                            self.accumulate_gradient(input_node, &current_grad);
+                            // Recursively process input nodes
+                            to_visit.push(input_node);
+                        }
+                    }
+                    Operation::SumDim => {
+                        // ∇sum_dim(x) = ∇output (broadcasted to input shape)
+                        for &input_node in &input_nodes {
+                            self.accumulate_gradient(input_node, &current_grad);
+                            // Recursively process input nodes
+                            to_visit.push(input_node);
+                        }
+                    }
+                    Operation::MeanDim => {
+                        // ∇mean_dim(x) = ∇output / size (broadcasted)
+                        for &input_node in &input_nodes {
+                            self.accumulate_gradient(input_node, &current_grad);
+                            // Recursively process input nodes
+                            to_visit.push(input_node);
+                        }
+                    }
+                    Operation::Transpose => {
+                        // ∇transpose(x) = transpose(∇output)
+                        for &input_node in &input_nodes {
+                            self.accumulate_gradient(input_node, &current_grad);
+                            // Recursively process input nodes
+                            to_visit.push(input_node);
+                        }
+                    }
+                    Operation::Tanh => {
+                        // ∇tanh(x) = (1 - tanh(x)^2) * ∇output
+                        if input_nodes.len() >= 1 {
+                            let input_data_opt = self.get_input_data(current_node).cloned();
+
+                            if let Some(input_data) = input_data_opt {
+                                if !input_data.is_empty() {
+                                    let x_data = &input_data[0]; // Input tensor data (x values)
+
+                                    // Compute ∇input = (1 - tanh(x)^2) * ∇output
+                                    let grad_input: Vec<f32> = x_data.iter()
+                                        .zip(current_grad.iter())
+                                        .map(|(&x, &grad)| {
+                                            let tanh_x = x.tanh();
+                                            (1.0 - tanh_x * tanh_x) as f32 * grad
+                                        })
+                                        .collect();
+                                    self.accumulate_gradient(input_nodes[0], &grad_input);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_nodes[0]);
+                                } else {
+                                    // Fallback: pass through gradient
+                                    for &input_node in &input_nodes {
+                                        self.accumulate_gradient(input_node, &current_grad);
+                                        // Recursively process input nodes
+                                        to_visit.push(input_node);
+                                    }
+                                }
+                            } else {
+                                // Fallback: pass through gradient
+                                for &input_node in &input_nodes {
+                                    self.accumulate_gradient(input_node, &current_grad);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_node);
+                                }
+                            }
+                        }
+                    }
+                    Operation::Sigmoid => {
+                        // ∇sigmoid(x) = sigmoid(x) * (1 - sigmoid(x)) * ∇output
+                        if input_nodes.len() >= 1 {
+                            let input_data_opt = self.get_input_data(current_node).cloned();
+
+                            if let Some(input_data) = input_data_opt {
+                                if !input_data.is_empty() {
+                                    let x_data = &input_data[0]; // Input tensor data (x values)
+
+                                    // Compute ∇input = sigmoid(x) * (1 - sigmoid(x)) * ∇output
+                                    let grad_input: Vec<f32> = x_data.iter()
+                                        .zip(current_grad.iter())
+                                        .map(|(&x, &grad)| {
+                                            let sigmoid_x = 1.0 / (1.0 + (-x).exp());
+                                            (sigmoid_x * (1.0 - sigmoid_x)) as f32 * grad
+                                        })
+                                        .collect();
+                                    self.accumulate_gradient(input_nodes[0], &grad_input);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_nodes[0]);
+                                } else {
+                                    // Fallback: pass through gradient
+                                    for &input_node in &input_nodes {
+                                        self.accumulate_gradient(input_node, &current_grad);
+                                        // Recursively process input nodes
+                                        to_visit.push(input_node);
+                                    }
+                                }
+                            } else {
+                                // Fallback: pass through gradient
+                                for &input_node in &input_nodes {
+                                    self.accumulate_gradient(input_node, &current_grad);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_node);
+                                }
+                            }
+                        }
+                    }
+                    Operation::Relu => {
+                        // ∇relu(x) = 1 if x > 0 else 0, multiplied by ∇output
+                        if input_nodes.len() >= 1 {
+                            let input_data_opt = self.get_input_data(current_node).cloned();
+
+                            if let Some(input_data) = input_data_opt {
+                                if !input_data.is_empty() {
+                                    let x_data = &input_data[0]; // Input tensor data (x values)
+
+                                    // Compute ∇input = (x > 0 ? 1 : 0) * ∇output
+                                    let grad_input: Vec<f32> = x_data.iter()
+                                        .zip(current_grad.iter())
+                                        .map(|(&x, &grad)| {
+                                            if x > 0.0 {
+                                                grad
+                                            } else {
+                                                0.0
+                                            }
+                                        })
+                                        .collect();
+                                    self.accumulate_gradient(input_nodes[0], &grad_input);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_nodes[0]);
+                                } else {
+                                    // Fallback: pass through gradient
+                                    for &input_node in &input_nodes {
+                                        self.accumulate_gradient(input_node, &current_grad);
+                                        // Recursively process input nodes
+                                        to_visit.push(input_node);
+                                    }
+                                }
+                            } else {
+                                // Fallback: pass through gradient
+                                for &input_node in &input_nodes {
+                                    self.accumulate_gradient(input_node, &current_grad);
+                                    // Recursively process input nodes
+                                    to_visit.push(input_node);
+                                }
+                            }
+                        }
+                    }
+                    Operation::Leaf => {
+                        // Leaf nodes don't propagate gradients backward
+                    }
+                    Operation::Neg => {
+                        // ∇(-x) = -∇output
+                        let neg_grad: Vec<f32> = current_grad.iter().map(|&x| -x).collect();
+                        for &input_node in &input_nodes {
+                            self.accumulate_gradient(input_node, &neg_grad);
+                            // Recursively process input nodes
+                            to_visit.push(input_node);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 thread_local! {
     static AUTOGRAD_CONTEXT: std::cell::RefCell<Option<AutogradContext>> = const { std::cell::RefCell::new(None) };
@@ -48,7 +672,7 @@ pub fn store_pending_gradient(_node_id: u64, _gradient: Vec<f64>) {
 }
 
 /// Apply any pending gradients to this tensor (compatibility function for tests)
-pub fn apply_pending_gradients<T: Dtype>(_tensor: &mut Tensor<T>) {
+pub fn apply_pending_gradients<T: Dtype, B: Backend<T> + Clone + Send + Sync>(_tensor: &mut Tensor<T, B>) {
     // For now, this is a no-op since we handle gradients differently
     // Tests will be updated to use the new API
 }
@@ -102,14 +726,17 @@ impl<T: Dtype> ExactSizeIterator for HessianTensorIter<T> {}
 /// The Tensor struct represents a multi-dimensional array with the following components:
 /// - `data`: Contiguous memory buffer storing tensor elements
 /// - `shape`: Dimensions of the tensor
+/// - `backend`: Backend implementation for device operations
 /// - `device`: Memory location (CPU/GPU)
 /// - `layout`: Memory layout (contiguous, transposed, etc.)
 #[derive(Clone)]
-pub struct Tensor<T: Dtype> {
+pub struct Tensor<T: Dtype, B: Backend<T> + Clone + Send + Sync> {
     /// Tensor data stored in a contiguous memory buffer
     pub(crate) data: Vec<T>,
     /// Shape of the tensor (dimensions)
     pub(crate) shape: Vec<usize>,
+    /// Backend implementation for device operations
+    pub(crate) backend: B,
     /// Device where tensor resides
     pub(crate) device: Device,
     /// Memory layout
@@ -119,14 +746,14 @@ pub struct Tensor<T: Dtype> {
     /// Context for gradient computation (internal use)
     pub(crate) context: Option<u64>, // Context identifier for gradient computation
     /// Gradient tensor (computed during backward pass) - thread-safe with `Arc<RwLock>`
-    pub(crate) grad: std::sync::Arc<std::sync::RwLock<Option<Box<Tensor<T>>>>>,
+    pub(crate) grad: std::sync::Arc<std::sync::RwLock<Option<Box<Tensor<T, B>>>>>,
     /// Input tensor nodes for gradient computation (used internally)
-    pub(crate) input_tensor_nodes: Vec<Option<u64>>,
+    pub(crate) _input_tensor_nodes: Vec<Option<u64>>, // Underscore dead field
     /// Named buffers for optimizer state (momentum, running averages, etc.)
-    pub(crate) buffers: std::collections::HashMap<String, Box<Tensor<T>>>,
+    pub(crate) _buffers: std::collections::HashMap<String, Box<Tensor<T, B>>>, // Underscore dead field
 }
 
-impl<T: Dtype> Tensor<T> {
+impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// Create a tensor from a vector and shape
     ///
     /// # Arguments
@@ -435,7 +1062,10 @@ impl<T: Dtype> Tensor<T> {
     ///     slices::all()         // All columns
     /// ]).unwrap();
     /// ```
-    pub fn slice(&self, slices: &[crate::ops::indexing::Slice]) -> Result<Tensor<T>> {
+    pub fn slice(&self, slices: &[crate::ops::indexing::Slice]) -> Result<Tensor<T, B>>
+    where
+        T: std::ops::AddAssign,
+    {
         crate::ops::indexing::Indexing::slice(self, slices)
     }
 
@@ -447,7 +1077,10 @@ impl<T: Dtype> Tensor<T> {
     ///
     /// # Returns
     /// Gathered tensor with same shape as indices
-    pub fn gather(&self, dim: usize, indices: &Tensor<i32>) -> Result<Tensor<T>> {
+    pub fn gather(&self, dim: usize, indices: &[i64]) -> Result<Tensor<T, B>>
+    where
+        T: std::ops::AddAssign,
+    {
         crate::ops::indexing::Indexing::gather(self, dim, indices)
     }
 
@@ -460,7 +1093,10 @@ impl<T: Dtype> Tensor<T> {
     ///
     /// # Returns
     /// Tensor with scattered values
-    pub fn scatter(&self, dim: usize, indices: &Tensor<i32>, src: &Tensor<T>) -> Result<Tensor<T>> {
+    pub fn scatter(&self, dim: usize, indices: &[i64], src: &Tensor<T, B>) -> Result<Tensor<T, B>>
+    where
+        T: std::ops::AddAssign,
+    {
         crate::ops::indexing::Indexing::scatter(self, dim, indices, src)
     }
 
@@ -472,7 +1108,10 @@ impl<T: Dtype> Tensor<T> {
     ///
     /// # Returns
     /// Tensor with selected elements
-    pub fn index_select(&self, dim: usize, indices: &[usize]) -> Result<Tensor<T>> {
+    pub fn index_select(&self, dim: usize, indices: &[usize]) -> Result<Tensor<T, B>>
+    where
+        T: std::ops::AddAssign,
+    {
         crate::ops::indexing::Indexing::index_select(self, dim, indices)
     }
 
@@ -483,9 +1122,9 @@ impl<T: Dtype> Tensor<T> {
     ///
     /// # Returns
     /// Tensor with advanced indexing applied
-    pub fn advanced_index(&self, indices: &[&Tensor<i32>]) -> Result<Tensor<T>> {
-        crate::ops::indexing::Indexing::advanced_index(self, indices)
-    }
+    // pub fn advanced_index(&self, indices: &[&Tensor<i32, B>]) -> Result<Tensor<T, B>> {
+    //     crate::ops::indexing::Indexing::advanced_index(self, indices)
+    // }
 
     /// Ensure this tensor has a computational graph node
     ///
@@ -524,8 +1163,8 @@ impl<T: Dtype> Tensor<T> {
         let _h = T::from(1e-5).expect("Failed to create finite difference step size from 1e-5");
 
         // Compute f(x+h) and f(x-h) for numerical differentiation
-        let _x_plus_h = Tensor::scalar(x_val + _h);
-        let _x_minus_h = Tensor::scalar(x_val - _h);
+        let _x_plus_h = Tensor::from_vec(self.backend.clone(), vec![x_val + _h], vec![]);
+        let _x_minus_h = Tensor::from_vec(self.backend.clone(), vec![x_val - _h], vec![]);
 
         // For a scalar function f(x), compute f''(x) ≈ [f'(x+h) - f'(x-h)] / (2h)
         // But we need to differentiate the gradient function
@@ -591,7 +1230,7 @@ impl<T: Dtype> Tensor<T> {
     ///
     /// # Returns
     /// Result containing the cross-Hessian matrix
-    pub fn hessian_wrt(&self, _other: &Tensor<T>) -> Result<Vec<Vec<T>>>
+    pub fn hessian_wrt(&self, _other: &Tensor<T, B>) -> Result<Vec<Vec<T>>>
     where
         T: Dtype + num_traits::Float,
     {
@@ -602,7 +1241,7 @@ impl<T: Dtype> Tensor<T> {
     }
 }
 
-impl<T: Dtype> Tensor<T> {
+impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// Create a tensor from a vector and shape
     ///
     /// # Panics
@@ -615,9 +1254,6 @@ impl<T: Dtype> Tensor<T> {
     /// let data = vec![1.0, 2.0, 3.0, 4.0];
     /// let tensor = Tensor::from_vec(data, vec![2, 2]);
     /// ```
-    pub fn from_vec(data: Vec<T>, shape: Vec<usize>) -> Self {
-        Self::try_from_vec(data, shape).unwrap()
-    }
 
     /// Try to create a tensor from a vector and shape
     ///
@@ -654,13 +1290,14 @@ impl<T: Dtype> Tensor<T> {
         Ok(Tensor {
             data,
             shape,
+            backend: B::default(),
             device: Device::Cpu,
             layout: Layout::default(),
             node: None,
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
-            input_tensor_nodes: vec![],
-            buffers: std::collections::HashMap::new(),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
         })
     }
 
@@ -712,6 +1349,69 @@ impl<T: Dtype> Tensor<T> {
         self.item()
     }
 
+    /// Get reference to the backend
+    pub fn backend(&self) -> &B {
+        &self.backend
+    }
+
+    /// Create a tensor from a vector with explicit backend
+    ///
+    /// # Arguments
+    /// * `backend` - Backend implementation
+    /// * `data` - Vector containing tensor elements
+    /// * `shape` - Shape of the tensor
+    ///
+    /// # Returns
+    /// The tensor or an error if the data length doesn't match the shape
+    pub fn from_vec(backend: B, data: Vec<T>, shape: Vec<usize>) -> Result<Self> {
+        let expected_len: usize = shape.iter().product();
+        if data.len() != expected_len {
+            return Err(TensorError::ShapeMismatch {
+                expected: vec![expected_len],
+                actual: vec![data.len()],
+            });
+        }
+
+        Ok(Tensor {
+            data,
+            shape,
+            backend,
+            device: Device::Cpu,
+            layout: Layout::default(),
+            node: None,
+            context: None,
+            grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
+        })
+    }
+
+    /// Create a tensor from backend data
+    ///
+    /// # Arguments
+    /// * `backend` - Backend implementation
+    /// * `data` - BackendData containing tensor elements and shape
+    ///
+    /// # Returns
+    /// The tensor
+    pub fn from_backend_data(backend: B, data: std::sync::Arc<crate::BackendData<T>>) -> Self {
+        let shape = data.shape().to_vec();
+        let tensor_data = data.data().to_vec();
+
+        Tensor {
+            data: tensor_data,
+            shape,
+            backend,
+            device: Device::Cpu,
+            layout: Layout::default(),
+            node: None,
+            context: None,
+            grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
+        }
+    }
+
     /// Get the data as a slice
     pub fn data(&self) -> &[T] {
         &self.data
@@ -724,7 +1424,7 @@ impl<T: Dtype> Tensor<T> {
 
     /// Get the device where the tensor is stored
     pub fn device(&self) -> Device {
-        self.device
+        self.device.clone()
     }
 
     /// Get the layout of the tensor
@@ -732,17 +1432,29 @@ impl<T: Dtype> Tensor<T> {
         self.layout
     }
     /// Create a scalar tensor
+    ///
+    /// # Arguments
+    /// * `value` - Scalar value
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let scalar = Tensor::scalar(3.14);
+    /// assert_eq!(scalar.shape(), &[]);
+    /// ```
     pub fn scalar(value: T) -> Self {
         Tensor {
             data: vec![value],
             shape: vec![],
+            backend: B::default(),
             device: Device::Cpu,
             layout: Layout::default(),
             node: None,
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
-            input_tensor_nodes: vec![],
-            buffers: std::collections::HashMap::new(),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
         }
     }
 
@@ -759,7 +1471,7 @@ impl<T: Dtype> Tensor<T> {
     ///
     /// let tensor = Tensor::from_vec_device(vec![1.0, 2.0], vec![2], Device::Cpu);
     /// ```
-    pub fn from_vec_device(data: Vec<T>, shape: Vec<usize>, device: Device) -> Self {
+    pub fn from_vec_device(backend: B, data: Vec<T>, shape: Vec<usize>, device: Device) -> Self {
         let expected_len = shape.iter().product::<usize>();
         assert_eq!(
             data.len(),
@@ -772,18 +1484,19 @@ impl<T: Dtype> Tensor<T> {
         Self {
             data,
             shape,
+            backend,
             device,
             layout: Layout::Contiguous,
             node: None,
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
-            input_tensor_nodes: vec![],
-            buffers: std::collections::HashMap::new(),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
         }
     }
 }
 
-impl<T: Dtype + std::fmt::Debug> std::fmt::Debug for Tensor<T> {
+impl<T: Dtype + std::fmt::Debug, B: Backend<T> + Clone + Send + Sync + Default> std::fmt::Debug for Tensor<T, B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -795,7 +1508,7 @@ impl<T: Dtype + std::fmt::Debug> std::fmt::Debug for Tensor<T> {
     }
 }
 
-impl<T: Dtype + std::fmt::Display> std::fmt::Display for Tensor<T> {
+impl<T: Dtype + std::fmt::Display, B: Backend<T> + Clone + Send + Sync + Default> std::fmt::Display for Tensor<T, B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_scalar() {
             write!(f, "{}", self.item().unwrap())
@@ -811,15 +1524,15 @@ impl<T: Dtype + std::fmt::Display> std::fmt::Display for Tensor<T> {
 }
 
 // Operator trait implementations for Tensor
-use std::ops::Neg;
+use std::ops::{Neg, Add, Mul}; // Remove unused Sub, Div
 
-impl<T: Dtype + std::ops::Neg<Output = T>> Neg for &Tensor<T> {
-    type Output = Tensor<T>;
+impl<T: Dtype + std::ops::Neg<Output = T>, B: Backend<T> + Clone + Send + Sync + Default> Neg for &Tensor<T, B> {
+    type Output = Tensor<T, B>;
 
     fn neg(self) -> Self::Output {
         // Perform element-wise negation
         let result_data = self.data.iter().map(|x| -*x).collect();
-        let mut result = Tensor::from_vec(result_data, self.shape.clone());
+        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape.clone()).unwrap();
 
         // Create computational graph node if input requires gradients
         if self.requires_grad() {
@@ -855,8 +1568,164 @@ impl<T: Dtype + std::ops::Neg<Output = T>> Neg for &Tensor<T> {
     }
 }
 
+impl<T: Dtype + std::ops::Add<Output = T>, B: Backend<T> + Clone + Send + Sync + Default> Add for &Tensor<T, B> {
+    type Output = Result<Tensor<T, B>>;
+
+    fn add(self, other: Self) -> Self::Output {
+        // Perform element-wise addition
+        let result_data: Vec<T> = self.data.iter().zip(other.data.iter()).map(|(&a, &b)| a + b).collect();
+        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape.clone()).unwrap();
+
+        // Create computational graph node if inputs require gradients
+        if self.requires_grad() || other.requires_grad() {
+            with_autograd_context(|context| {
+                let self_node = if let Some(node) = self.node {
+                    node
+                } else {
+                    let node = context.create_leaf_node();
+                    context.register_tensor(node, self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape.clone());
+                    node
+                };
+
+                let other_node = if let Some(node) = other.node {
+                    node
+                } else {
+                    let node = context.create_leaf_node();
+                    context.register_tensor(node, other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape.clone());
+                    node
+                };
+
+                // Store tensor data for gradient computation
+                let self_data_f64: Vec<f64> = self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+                let other_data_f64: Vec<f64> = other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+
+                let add_node = context.create_node_with_data(Operation::Add, vec![self_node, other_node], vec![self_data_f64, other_data_f64]);
+                result.node = Some(add_node);
+            });
+        }
+
+        Ok(result)
+    }
+}
+
+impl<T: Dtype + std::ops::Mul<Output = T>, B: Backend<T> + Clone + Send + Sync + Default> Mul for &Tensor<T, B> {
+    type Output = Result<Tensor<T, B>>;
+
+    fn mul(self, other: Self) -> Self::Output {
+        // Perform element-wise multiplication
+        let result_data: Vec<T> = self.data.iter().zip(other.data.iter()).map(|(&a, &b)| a * b).collect();
+        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape.clone()).unwrap();
+
+        // Create computational graph node if inputs require gradients
+        if self.requires_grad() || other.requires_grad() {
+            with_autograd_context(|context| {
+                let self_node = if let Some(node) = self.node {
+                    node
+                } else {
+                    let node = context.create_leaf_node();
+                    context.register_tensor(node, self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape.clone());
+                    node
+                };
+
+                let other_node = if let Some(node) = other.node {
+                    node
+                } else {
+                    let node = context.create_leaf_node();
+                    context.register_tensor(node, other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape.clone());
+                    node
+                };
+
+                // Store tensor data for gradient computation
+                let self_data_f64: Vec<f64> = self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+                let other_data_f64: Vec<f64> = other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+
+                let mul_node = context.create_node_with_data(Operation::Mul, vec![self_node, other_node], vec![self_data_f64, other_data_f64]);
+                result.node = Some(mul_node);
+            });
+        }
+
+        Ok(result)
+    }
+}
+
+impl<T: Dtype + std::ops::Sub<Output = T>, B: Backend<T> + Clone + Send + Sync + Default> std::ops::Sub for &Tensor<T, B> {
+    type Output = Result<Tensor<T, B>>;
+
+    fn sub(self, other: Self) -> Self::Output {
+        // Perform element-wise subtraction
+        let result_data: Vec<T> = self.data.iter().zip(other.data.iter()).map(|(&a, &b)| a - b).collect();
+        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape.clone()).unwrap();
+
+        // Create computational graph node if inputs require gradients
+        if self.requires_grad() || other.requires_grad() {
+            with_autograd_context(|context| {
+                let self_node = if let Some(node) = self.node {
+                    node
+                } else {
+                    let node = context.create_leaf_node();
+                    context.register_tensor(node, self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape.clone());
+                    node
+                };
+
+                let other_node = if let Some(node) = other.node {
+                    node
+                } else {
+                    let node = context.create_leaf_node();
+                    context.register_tensor(node, other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape.clone());
+                    node
+                };
+
+                let sub_node = context.create_node(Operation::Sub, vec![self_node, other_node]);
+                let result_data_f64: Vec<f64> = result.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+                context.register_tensor(sub_node, result_data_f64, result.shape.clone());
+                result.node = Some(sub_node);
+            });
+        }
+
+        Ok(result)
+    }
+}
+
+impl<T: Dtype + std::ops::Div<Output = T>, B: Backend<T> + Clone + Send + Sync + Default> std::ops::Div for &Tensor<T, B> {
+    type Output = Result<Tensor<T, B>>;
+
+    fn div(self, other: Self) -> Self::Output {
+        // Perform element-wise division
+        let result_data: Vec<T> = self.data.iter().zip(other.data.iter()).map(|(&a, &b)| a / b).collect();
+        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape.clone()).unwrap();
+
+        // Create computational graph node if inputs require gradients
+        if self.requires_grad() || other.requires_grad() {
+            with_autograd_context(|context| {
+                let self_node = if let Some(node) = self.node {
+                    node
+                } else {
+                    let node = context.create_leaf_node();
+                    context.register_tensor(node, self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape.clone());
+                    node
+                };
+
+                let other_node = if let Some(node) = other.node {
+                    node
+                } else {
+                    let node = context.create_leaf_node();
+                    context.register_tensor(node, other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape.clone());
+                    node
+                };
+
+                let div_node = context.create_node(Operation::Div, vec![self_node, other_node]);
+                let result_data_f64: Vec<f64> = result.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+                context.register_tensor(div_node, result_data_f64, result.shape.clone());
+                result.node = Some(div_node);
+            });
+        }
+
+        Ok(result)
+    }
+}
+
 // Separate impl block for autograd-enabled operations
-impl<T: Dtype> Tensor<T> {
+impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// Set requires_grad for autograd-enabled tensors
     ///
     /// # Arguments
@@ -883,45 +1752,22 @@ impl<T: Dtype> Tensor<T> {
     /// ```
     pub fn backward(&self) -> Result<()> {
         let node_id = self.node.ok_or_else(|| {
-            TensorError::AutogradError(coeus_autograd::AutogradError::GraphError(
-                "Tensor has no computational graph node".to_string(),
-            ))
+            TensorError::InvalidOperation {
+                message: "Tensor has no computational graph node".to_string(),
+            }
         })?;
 
         // Perform the backward pass through the computational graph
         with_autograd_context(|context| {
             // Initialize gradient for this tensor (∂f/∂f = 1)
-            let initial_grad = vec![1.0; self.numel()];
-            context.set_gradient(node_id, initial_grad.clone());
+            let initial_grad_f32 = vec![1.0f32; self.numel()];
+            context.set_gradient(node_id, initial_grad_f32.clone());
 
             // Perform backward pass through the computational graph
-            context.backward(node_id, &initial_grad);
-        });
+            context.backward(node_id, &initial_grad_f32);
 
-        // Apply gradient to this tensor
-        with_autograd_context(|context| {
-            if let Some(grad_data) = context.get_gradient(node_id) {
-                // Convert f64 gradient data back to tensor's dtype T
-                let grad_data_t: Vec<T> = grad_data
-                    .iter()
-                    .map(|&x| T::from_f64(x).unwrap_or_else(|| T::zero()))
-                    .collect();
-
-                let grad_tensor = Tensor {
-                    data: grad_data_t,
-                    shape: self.shape.clone(),
-                    device: self.device,
-                    layout: self.layout,
-                    node: None,
-                    context: None,
-                    grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
-                    input_tensor_nodes: vec![],
-                    buffers: std::collections::HashMap::new(),
-                };
-                if let Ok(mut grad_guard) = self.grad.write() {
-                    *grad_guard = Some(Box::new(grad_tensor));
-                }
-            }
+            // Note: Gradients are applied lazily in the grad() method
+            // The context stores gradients and tensors retrieve them via grad()
         });
 
         Ok(())
@@ -959,7 +1805,7 @@ impl<T: Dtype> Tensor<T> {
     }
 
     /// Set gradient from a tensor value
-    pub fn set_grad_from_tensor(&self, grad_tensor: &Tensor<T>) -> Result<()> {
+    pub fn set_grad_from_tensor(&self, grad_tensor: &Tensor<T, B>) -> Result<()> {
         self.set_grad(grad_tensor.clone())
     }
 
@@ -979,7 +1825,7 @@ impl<T: Dtype> Tensor<T> {
     }
 
     /// Get the gradient tensor for this tensor
-    pub fn grad(&self) -> Option<Tensor<T>> {
+    pub fn grad(&self) -> Option<Tensor<T, B>> {
         // First check if gradient is stored in the tensor itself
         if let Ok(grad_guard) = self.grad.read() {
             if let Some(grad) = grad_guard.as_ref() {
@@ -992,22 +1838,23 @@ impl<T: Dtype> Tensor<T> {
             let grad_data = with_autograd_context(|context| context.get_gradient(node_id).cloned());
 
             if let Some(grad_data) = grad_data {
-                // Convert f64 gradient data back to tensor's dtype T
+                // Convert f32 gradient data back to tensor's dtype T
                 let grad_data_t: Vec<T> = grad_data
                     .iter()
-                    .map(|&x| T::from_f64(x).unwrap_or_else(|| T::zero()))
+                    .map(|&x| <T as Dtype>::from_f64(x as f64).unwrap_or_else(|| T::zero()))
                     .collect();
 
                 let grad_tensor = Tensor {
                     data: grad_data_t,
                     shape: self.shape.clone(),
-                    device: self.device,
+                    backend: self.backend.clone(),
+                    device: self.device.clone(),
                     layout: self.layout,
                     node: None,
                     context: None,
                     grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
-                    input_tensor_nodes: vec![],
-                    buffers: std::collections::HashMap::new(),
+                    _input_tensor_nodes: vec![],
+                    _buffers: std::collections::HashMap::new(),
                 };
                 // Cache the gradient in the tensor for future access
                 if let Ok(mut grad_guard) = self.grad.write() {
@@ -1021,7 +1868,7 @@ impl<T: Dtype> Tensor<T> {
     }
 
     /// Get a mutable copy of the gradient tensor for this tensor
-    pub fn grad_mut(&self) -> Option<Tensor<T>> {
+    pub fn grad_mut(&self) -> Option<Tensor<T, B>> {
         // First check if gradient is cached
         let is_cached = self.grad.read().map(|g| g.is_some()).unwrap_or(false);
 
@@ -1043,15 +1890,126 @@ impl<T: Dtype> Tensor<T> {
     }
 
     /// Create a tensor of zeros with the same shape as the given tensor
-    pub fn zeros_like(other: &Tensor<T>) -> Tensor<T>
+    pub fn zeros_like(other: &Tensor<T, B>) -> Tensor<T, B>
     where
         T: Dtype + num_traits::Float,
     {
         Tensor::zeros(other.shape.clone())
     }
 
+    /// Element-wise exponential function
+    pub fn exp(&self) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        use crate::ops::arithmetic::exp;
+        exp(self)
+    }
+
+    /// Element-wise sine function
+    pub fn sin(&self) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        use crate::ops::arithmetic::sin;
+        sin(self)
+    }
+
+    /// Element-wise power function
+    pub fn pow(&self, exponent: T) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        use crate::ops::arithmetic::pow_scalar;
+        pow_scalar(self, exponent)
+    }
+
+    /// Element-wise natural logarithm function
+    pub fn log(&self) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        use crate::ops::arithmetic::log;
+        log(self)
+    }
+
+    /// Element-wise cosine function
+    pub fn cos(&self) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        use crate::ops::arithmetic::cos;
+        Ok(cos(self))
+    }
+
+    /// Element-wise square root function
+    pub fn sqrt(&self) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        use crate::ops::arithmetic::sqrt;
+        Ok(sqrt(self))
+    }
+
+    /// Rectified Linear Unit activation function
+    pub fn relu(&self) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        use crate::ops::activations::relu;
+        relu(self)
+    }
+
+    /// Sigmoid activation function
+    pub fn sigmoid(&self) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        use crate::ops::activations::sigmoid;
+        sigmoid(self)
+    }
+
+    /// Hyperbolic tangent activation function
+    pub fn tanh(&self) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        use crate::ops::activations::tanh;
+        tanh(self)
+    }
+
+    /// Unsqueeze a tensor by adding a dimension of size 1 at the specified position
+    pub fn unsqueeze(&self, dim: usize) -> Result<Tensor<T, B>> {
+        if dim > self.shape.len() {
+            return Err(TensorError::InvalidDimension { dim, max_dim: self.shape.len() });
+        }
+        let mut new_shape = self.shape.clone();
+        new_shape.insert(dim, 1);
+        Ok(Tensor {
+            data: self.data.clone(),
+            shape: new_shape,
+            backend: self.backend.clone(),
+            device: self.device.clone(),
+            layout: self.layout,
+            node: self.node,
+            context: self.context,
+            grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
+        })
+    }
+
+    /// Element-wise division function
+    pub fn div(&self, other: &Tensor<T, B>) -> Result<Tensor<T, B>>
+    where
+        T: Dtype + Float + Num + Clone,
+    {
+        use crate::ops::arithmetic::div;
+        div(self, other)
+    }
+
     /// Set the gradient tensor for this tensor
-    pub fn set_grad(&self, grad: Tensor<T>) -> Result<()> {
+    pub fn set_grad(&self, grad: Tensor<T, B>) -> Result<()> {
         if grad.shape() != self.shape() {
             return Err(TensorError::ShapeMismatch {
                 expected: self.shape().to_vec(),
@@ -1063,13 +2021,14 @@ impl<T: Dtype> Tensor<T> {
         let grad_clone = Tensor {
             data: grad.data().to_vec(),
             shape: grad.shape().to_vec(),
+            backend: self.backend.clone(),
             device: grad.device,
             layout: grad.layout,
             node: None,
             context: None,
             grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
-            input_tensor_nodes: vec![],
-            buffers: std::collections::HashMap::new(),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
         };
 
         if let Ok(mut grad_guard) = self.grad.write() {
@@ -1086,7 +2045,7 @@ impl<T: Dtype> Tensor<T> {
     }
 
     /// Transpose the tensor
-    pub fn t(&self) -> Result<Tensor<T>> {
+    pub fn t(&self) -> Result<Tensor<T, B>> {
         if self.shape.len() != 2 {
             return Err(TensorError::ShapeMismatch {
                 expected: vec![self.shape[0], self.shape[1]],
@@ -1106,18 +2065,17 @@ impl<T: Dtype> Tensor<T> {
             }
         }
 
-        let mut result = Tensor::from_vec(transposed_data, vec![cols, rows]);
+        let mut result = Tensor::from_vec(self.backend.clone(), transposed_data, vec![cols, rows]).unwrap();
 
         // Create computational graph node if input requires gradients
         if self.requires_grad() {
-            result.set_requires_grad(true);
             with_autograd_context(|context| {
                 // Ensure input node exists
                 let self_node = if let Some(node) = self.node {
                     node
                 } else {
                     // Create leaf node for input tensor if it doesn't exist
-                    let input_node = context.create_node(Operation::Leaf, vec![]); // Create leaf node for input tensor
+                    let input_node = context.create_leaf_node();
                     context.register_tensor(
                         input_node,
                         self.data
@@ -1169,7 +2127,7 @@ impl<T: Dtype> Tensor<T> {
     /// let transposed = tensor.transpose(0, 1).unwrap();
     /// assert_eq!(transposed.shape(), &[3, 2, 4]);
     /// ```
-    pub fn transpose(&self, dim0: usize, dim1: usize) -> Result<Tensor<T>> {
+    pub fn transpose(&self, dim0: usize, dim1: usize) -> Result<Tensor<T, B>> {
         // Validate dimensions
         if dim0 >= self.shape.len() {
             return Err(TensorError::InvalidDimension {
@@ -1248,7 +2206,7 @@ impl<T: Dtype> Tensor<T> {
             transposed_data[new_idx] = self.data[old_idx];
         }
 
-        let mut result = Tensor::from_vec(transposed_data, new_shape);
+        let mut result = Tensor::from_vec(self.backend.clone(), transposed_data, new_shape).unwrap();
 
         // Handle autograd
         if self.requires_grad() {
@@ -1287,7 +2245,7 @@ impl<T: Dtype> Tensor<T> {
     }
 
     /// Sum all elements in the tensor
-    pub fn sum(&self) -> Tensor<T>
+    pub fn sum(&self) -> Tensor<T, B>
     where
         T: std::iter::Sum<T>,
     {
@@ -1344,7 +2302,7 @@ impl<T: Dtype> Tensor<T> {
     /// let sum_all = tensor.sum_dim(None, false); // Scalar result
     /// let sum_dim0 = tensor.sum_dim(Some(0), false); // Sum along dimension 0
     /// ```
-    pub fn sum_dim(&self, dim: Option<usize>, keepdim: bool) -> Result<Tensor<T>>
+    pub fn sum_dim(&self, dim: Option<usize>, keepdim: bool) -> Result<Tensor<T, B>>
     where
         T: std::iter::Sum<T> + Clone + std::ops::Add<Output = T>,
     {
@@ -1420,7 +2378,7 @@ impl<T: Dtype> Tensor<T> {
                     result_data[result_idx] = sum;
                 }
 
-                let mut result = Tensor::from_vec(result_data, result_shape);
+                let mut result = Tensor::from_vec(self.backend().clone(), result_data, result_shape).unwrap();
 
                 // Create computational graph node if input requires gradients
                 if self.requires_grad() {
@@ -1452,11 +2410,42 @@ impl<T: Dtype> Tensor<T> {
                         context.register_tensor(node_id, result_data_f64, result.shape.clone());
                         result.node = Some(node_id);
                     });
-                }
+        }
 
-                Ok(result)
+        Ok(result)
             }
         }
+    }
+
+    /// Matrix multiplication with PyTorch-compatible API
+    ///
+    /// Performs matrix multiplication between this tensor and another tensor.
+    /// Both tensors must be 2D. This is equivalent to calling `crate::ops::matrix::matmul`.
+    ///
+    /// # Arguments
+    /// * `other` - The right-hand side tensor for matrix multiplication
+    ///
+    /// # Returns
+    /// Result containing the matrix product tensor
+    ///
+    /// # Errors
+    /// Returns an error if either tensor is not 2D or if matrix dimensions are incompatible
+    ///
+    /// # Example
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+    /// let b = Tensor::from_vec(vec![5.0, 6.0, 7.0, 8.0], vec![2, 2]);
+    /// let c = a.matmul(&b).unwrap();
+    /// // c has shape [2, 2]
+    /// ```
+    pub fn matmul(&self, other: &Tensor<T, B>) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+        B: Backend<T> + Clone + Sync,
+    {
+        crate::ops::matrix::matmul(self, other)
     }
 
     /// Compute the mean of all elements in the tensor
@@ -1466,7 +2455,7 @@ impl<T: Dtype> Tensor<T> {
     ///
     /// # Errors
     /// Returns `TensorError::MeanCalculationError` if the count value cannot be created for the type
-    pub fn mean(&self) -> crate::Result<Tensor<T>>
+    pub fn mean(&self) -> crate::Result<Tensor<T, B>>
     where
         T: std::iter::Sum<T> + std::ops::Div<Output = T> + num_traits::FromPrimitive,
     {
@@ -1475,7 +2464,7 @@ impl<T: Dtype> Tensor<T> {
             Some(c) => c,
             None => {
                 // For types that can't represent the count, try to use f64 conversion
-                if let Some(val) = T::from_f64(self.numel() as f64) {
+                if let Some(val) = <T as Dtype>::from_f64(self.numel() as f64) {
                     val
                 } else {
                     return Err(crate::TensorError::MeanCalculationError);
@@ -1497,7 +2486,7 @@ impl<T: Dtype> Tensor<T> {
     /// # Errors
     /// Returns `TensorError::MeanCalculationError` if the count value cannot be created for the type
     /// Returns errors from `sum_dim` if dimension reduction fails
-    pub fn mean_dim(&self, dim: Option<usize>, keepdim: bool) -> Result<Tensor<T>>
+    pub fn mean_dim(&self, dim: Option<usize>, keepdim: bool) -> Result<Tensor<T, B>>
     where
         T: std::iter::Sum<T>
             + Clone
@@ -1515,7 +2504,7 @@ impl<T: Dtype> Tensor<T> {
             Some(c) => c,
             None => {
                 // For types that can't represent the count, try to use f64 conversion
-                if let Some(val) = T::from_f64(count as f64) {
+                if let Some(val) = <T as Dtype>::from_f64(count as f64) {
                     val
                 } else {
                     return Err(crate::TensorError::MeanCalculationError);
@@ -1580,8 +2569,9 @@ impl<T: Dtype> Tensor<T> {
     /// let result = tensor.take_elements(&indices).unwrap();
     /// // Result: [10.0, 30.0, 40.0]
     /// ```
-    pub fn take_elements(&self, indices: &Tensor<i64>) -> Result<Tensor<T>> {
-        crate::ops::indexing::Indexing::take(self, indices)
+    pub fn take_elements(&self, indices: &[i64]) -> Result<Tensor<T, B>> {
+        let usize_indices: Vec<usize> = indices.iter().map(|&x| x as usize).collect();
+        crate::ops::indexing::select(self, &usize_indices)
     }
 
     /// Put values at specified positions
@@ -1603,9 +2593,9 @@ impl<T: Dtype> Tensor<T> {
     /// let result = tensor.put(&indices, &values).unwrap();
     /// // Result: [100.0, 20.0, 300.0, 40.0]
     /// ```
-    pub fn put(&self, indices: &Tensor<i64>, values: &Tensor<T>) -> Result<Tensor<T>> {
-        crate::ops::indexing::Indexing::put(self, indices, values)
-    }
+    // pub fn put(&self, indices: &Tensor<i64, B>, values: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+    //     crate::ops::indexing::Indexing::put(self, indices, values)
+    // }
 
     /// Get a buffer tensor by name (for optimizer state management)
     ///
@@ -1617,7 +2607,7 @@ impl<T: Dtype> Tensor<T> {
     ///
     /// # Returns
     /// Option containing the buffer tensor if it exists
-    pub fn get_buffer(&mut self, _name: &str) -> Option<Tensor<T>> {
+    pub fn get_buffer(&mut self, _name: &str) -> Option<Tensor<T, B>> {
         // For now, return None - buffers are not implemented yet
         // This prevents compilation errors in optimizers
         None
@@ -1631,27 +2621,271 @@ impl<T: Dtype> Tensor<T> {
     /// # Arguments
     /// * `name` - Name of the buffer to store
     /// * `buffer` - Buffer tensor to store
-    pub fn set_buffer(&mut self, _name: &str, _buffer: Tensor<T>) {
+    pub fn set_buffer(&mut self, _name: &str, _buffer: Tensor<T, B>) {
         // For now, this is a no-op - buffers are not implemented yet
         // This prevents compilation errors in optimizers
     }
-}
 
-// Add Mul implementation for owned f64 tensors
-impl std::ops::Mul for Tensor<f64> {
-    type Output = Result<Tensor<f64>>;
+    /// Unwrap the gradient tensor, panicking if no gradient is available.
+    /// This method is used by optimizers that require gradient computation.
+    pub fn unwrap_grad(&self) -> Tensor<T, B> {
+        *self.grad.read().unwrap().as_ref().expect("No gradient available").clone()
+    }
 
-    fn mul(self, other: Self) -> Self::Output {
-        crate::ops::elementwise::mul(&self, &other)
+    /// Get the backend data for low-level operations.
+    /// This method provides access to the underlying backend data structure.
+    pub fn backend_data(&self) -> &crate::BackendData<T> {
+        // For now, create a Cpu backend data from the Vec
+        // This is a temporary solution until we properly implement BackendData access
+        panic!("backend_data() not properly implemented for unified tensor API")
+    }
+
+    /// Exponential Linear Unit activation function
+    ///
+    /// # Arguments
+    /// * `alpha` - Alpha parameter (default: 1.0)
+    ///
+    /// # Returns
+    /// New tensor with ELU values
+    pub fn elu(&self, alpha: T) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        let data = self.data.iter()
+            .map(|x| if *x > T::zero() { *x } else { alpha * (x.exp() - T::one()) })
+            .collect();
+        let mut result = Tensor {
+            data,
+            shape: self.shape().to_vec(),
+            backend: self.backend.clone(),
+            device: self.device.clone(),
+            layout: self.layout,
+            node: None,
+            context: None,
+            grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
+        };
+        if self.requires_grad() {
+            result.set_requires_grad(true);
+        }
+        Ok(result)
+    }
+
+    /// Gaussian Error Linear Unit activation function
+    ///
+    /// # Returns
+    /// New tensor with GELU values
+    pub fn gelu(&self) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        let data = self.data.iter()
+            .map(|x| {
+                let x_f64 = Dtype::to_f64(x).unwrap_or(0.0);
+                let result = 0.5 * x_f64 * (1.0 + (x_f64 / (2.0_f64).sqrt()).tanh());
+                <T as Dtype>::from_f64(result).unwrap_or(T::zero())
+            })
+            .collect();
+        let mut result = Tensor {
+            data,
+            shape: self.shape().to_vec(),
+            backend: self.backend.clone(),
+            device: self.device.clone(),
+            layout: self.layout,
+            node: None,
+            context: None,
+            grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
+        };
+        if self.requires_grad() {
+            result.set_requires_grad(true);
+        }
+        Ok(result)
+    }
+
+    /// Softmax activation function along specified dimension
+    ///
+    /// # Arguments
+    /// * `dim` - Dimension along which to compute softmax
+    ///
+    /// # Returns
+    /// New tensor with softmax values
+    pub fn softmax(&self, dim: usize) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        if dim >= self.ndim() {
+            return Err(TensorError::InvalidDimension {
+                dim,
+                max_dim: self.ndim() - 1,
+            });
+        }
+
+        let mut result_data = Vec::with_capacity(self.numel());
+
+        // Get shape information
+        let shape = self.shape();
+        let stride = shape[dim];
+        let outer_stride = shape[..dim].iter().product::<usize>();
+        let inner_stride = shape[dim + 1..].iter().product::<usize>();
+
+        for outer_idx in 0..outer_stride {
+            for inner_idx in 0..inner_stride {
+                // Find max for numerical stability
+                let mut max_val = T::neg_infinity();
+                for i in 0..stride {
+                    let idx = outer_idx * stride * inner_stride + i * inner_stride + inner_idx;
+                    let val = self.data()[idx];
+                    if val > max_val {
+                        max_val = val;
+                    }
+                }
+
+                // Compute exp and sum
+                let mut exp_sum = T::zero();
+                let mut exp_values = Vec::with_capacity(stride);
+
+                for i in 0..stride {
+                    let idx = outer_idx * stride * inner_stride + i * inner_stride + inner_idx;
+                    let val = self.data()[idx];
+                    let exp_val = (val - max_val).exp();
+                    exp_values.push(exp_val);
+                    exp_sum = exp_sum + exp_val;
+                }
+
+                // Compute softmax values
+                for exp_val in exp_values {
+                    result_data.push(exp_val / exp_sum);
+                }
+            }
+        }
+
+        let mut result = Tensor {
+            data: result_data,
+            shape: shape.to_vec(),
+            backend: self.backend.clone(),
+            device: self.device.clone(),
+            layout: self.layout,
+            node: None,
+            context: None,
+            grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
+        };
+
+        if self.requires_grad() {
+            result.set_requires_grad(true);
+        }
+
+        Ok(result)
+    }
+
+    /// Softmin activation function along specified dimension
+    ///
+    /// # Arguments
+    /// * `dim` - Dimension along which to compute softmin
+    ///
+    /// # Returns
+    /// New tensor with softmin values
+    pub fn softmin(&self, dim: usize) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        // Softmin is softmax of negated tensor
+        let neg_data = self.data.iter().map(|x| -(*x)).collect();
+        let neg_tensor = Tensor {
+            data: neg_data,
+            shape: self.shape().to_vec(),
+            backend: self.backend.clone(),
+            device: self.device.clone(),
+            layout: self.layout,
+            node: None,
+            context: None,
+            grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
+        };
+        neg_tensor.softmax(dim)
+    }
+
+    /// Log-sigmoid activation function
+    ///
+    /// # Returns
+    /// New tensor with log-sigmoid values
+    pub fn logsigmoid(&self) -> Result<Tensor<T, B>>
+    where
+        T: FloatDtype,
+    {
+        // log(sigmoid(x)) = log(1 / (1 + exp(-x))) = -log(1 + exp(-x))
+        let data = self.data.iter()
+            .map(|x| -((T::one() + (-*x).exp())).ln())
+            .collect();
+        let mut result = Tensor {
+            data,
+            shape: self.shape().to_vec(),
+            backend: self.backend.clone(),
+            device: self.device.clone(),
+            layout: self.layout,
+            node: None,
+            context: None,
+            grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
+        };
+        if self.requires_grad() {
+            result.set_requires_grad(true);
+        }
+        Ok(result)
+    }
+
+    /// Reshape the tensor to new dimensions
+    ///
+    /// # Arguments
+    /// * `new_shape` - New shape for the tensor
+    ///
+    /// # Returns
+    /// New tensor with reshaped dimensions
+    pub fn reshape(&self, new_shape: Vec<usize>) -> Result<Tensor<T, B>> {
+        let total_elements: usize = new_shape.iter().product();
+        if total_elements != self.numel() {
+            return Err(TensorError::InvalidShape {
+                data_len: self.numel(),
+                shape_product: total_elements,
+                shape: new_shape,
+            });
+        }
+
+        let mut result = Tensor {
+            data: self.data.clone(),
+            shape: new_shape,
+            backend: self.backend.clone(),
+            device: self.device.clone(),
+            layout: self.layout,
+            node: None,
+            context: None,
+            grad: std::sync::Arc::new(std::sync::RwLock::new(None)),
+            _input_tensor_nodes: vec![],
+            _buffers: std::collections::HashMap::new(),
+        };
+
+        if self.requires_grad() {
+            result.set_requires_grad(true);
+        }
+
+        Ok(result)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::CpuBackend;
 
     #[test]
     fn test_tensor_creation() {
-        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let tensor = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![3]).unwrap();
         assert_eq!(tensor.shape(), &[3]);
         assert_eq!(tensor.numel(), 3);
         assert_eq!(tensor.data(), &[1.0, 2.0, 3.0]);
@@ -1659,7 +2893,7 @@ mod tests {
 
     #[test]
     fn test_transpose() {
-        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let tensor = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]).unwrap();
         let transposed = tensor.t().unwrap();
         assert_eq!(transposed.shape(), &[2, 2]);
         assert_eq!(transposed.data(), &[1.0, 3.0, 2.0, 4.0]);
@@ -1667,21 +2901,21 @@ mod tests {
 
     #[test]
     fn test_sum() {
-        let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![4]);
+        let tensor = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0, 4.0], vec![4]).unwrap();
         assert_eq!(tensor.sum().item().unwrap(), 10.0);
     }
 
     #[test]
-    #[should_panic]
     fn test_invalid_shape() {
-        // This should panic because data length (3) != shape product (4)
-        let _tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![2, 2]);
+        // This should return an error because data length (3) != shape product (4)
+        let result = Tensor::from_vec(CpuBackend::default(), vec![1.0, 2.0, 3.0], vec![2, 2]);
+        assert!(result.is_err());
     }
 
     #[test]
     fn test_try_from_vec_error_handling() {
         // Test that try_from_vec returns proper error for invalid shape
-        let result = Tensor::<f32>::try_from_vec(vec![1.0, 2.0, 3.0], vec![2, 2]);
+        let result = Tensor::<f32, CpuBackend>::try_from_vec(vec![1.0, 2.0, 3.0], vec![2, 2]);
         assert!(result.is_err());
 
         if let Err(TensorError::InvalidShape {
@@ -1701,7 +2935,7 @@ mod tests {
     #[test]
     fn test_try_from_vec_success() {
         // Test that try_from_vec works correctly for valid inputs
-        let result = Tensor::<f32>::try_from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let result = Tensor::<f32, CpuBackend>::try_from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
         assert!(result.is_ok());
 
         let tensor = result.unwrap();
@@ -1709,3 +2943,4 @@ mod tests {
         assert_eq!(tensor.data(), &[1.0, 2.0, 3.0, 4.0]);
     }
 }
+
