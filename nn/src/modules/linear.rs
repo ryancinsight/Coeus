@@ -216,10 +216,53 @@ impl<T: FloatDtype> Module<T> for Linear<T> {
         // Reshape output back to original batch dimensions plus output features
         let mut output_shape: Vec<usize> = input_shape.to_vec();
         output_shape[input_shape.len() - 1] = self.out_features;
-        let output = output_reshaped.reshape(output_shape)?;
+        let mut output = output_reshaped.reshape(output_shape.clone())?;
 
-        // TODO: Add bias support - currently simplified to skip bias for compilation
-        // Bias addition requires proper broadcasting operations to be implemented in tensor API
+        // Add bias if present
+        if let Some(ref bias) = self.bias {
+            // Use broadcasting addition from arithmetic module
+            use coeus_tensor::ops::arithmetic;
+            output = arithmetic::add(&output, bias)?;
+        }
+
+        // Set up autograd graph if any input requires gradients
+        if input.requires_grad() || self.weight.requires_grad() || (self.bias.is_some() && self.bias.as_ref().unwrap().requires_grad()) {
+            output.set_requires_grad(true);
+
+            // Create a custom operation for Linear backward pass
+            use coeus_tensor::core::tensor::{with_autograd_context, Operation};
+            with_autograd_context(|context| {
+                let input_node = input.node_id().unwrap_or_else(|| {
+                    context.create_leaf_node()
+                });
+                let weight_node = self.weight.node_id().unwrap_or_else(|| {
+                    context.create_leaf_node()
+                });
+
+                let mut input_nodes = vec![input_node, weight_node];
+                let mut input_data = vec![
+                    input.data().iter().map(|&x| <T as Dtype>::to_f64(&x).unwrap_or(0.0)).collect::<Vec<f64>>(),
+                    self.weight.data().iter().map(|&x| <T as Dtype>::to_f64(&x).unwrap_or(0.0)).collect::<Vec<f64>>(),
+                ];
+                let mut input_shapes = vec![input.shape().to_vec(), self.weight.shape().to_vec()];
+
+                if let Some(ref bias) = self.bias {
+                    input_nodes.push(bias.node_id().unwrap_or_else(|| {
+                        context.create_leaf_node()
+                    }));
+                    input_data.push(bias.data().iter().map(|&x| <T as Dtype>::to_f64(&x).unwrap_or(0.0)).collect::<Vec<f64>>());
+                    input_shapes.push(bias.shape().to_vec());
+                }
+
+                let result_node = context.create_node_with_data_and_shapes(
+                    Operation::Linear,
+                    input_nodes,
+                    input_data,
+                    input_shapes
+                );
+                output.set_node_id(result_node);
+            });
+        }
 
         Ok(output)
     }
@@ -313,7 +356,7 @@ mod tests {
         let mut layer = Linear::<f32>::new(3, 2);
         layer.requires_grad(true);
 
-        let input = Tensor::from_vec_with_grad(vec![1.0, 2.0, 3.0], vec![1, 3]).unwrap_grad();
+        let mut input = Tensor::from_vec_with_grad(vec![1.0, 2.0, 3.0], vec![1, 3]);
         let output = layer
             .forward(&input)
             .expect("Linear gradient flow forward should succeed");
@@ -327,6 +370,8 @@ mod tests {
         // Debug output
         println!("Weight requires_grad: {}", layer.weight.requires_grad());
         println!("Weight grad: {:?}", layer.weight.grad().is_some());
+        println!("Input grad: {:?}", input.grad().is_some());
+        println!("Loss grad: {:?}", loss.grad().is_some());
 
         // Check that gradients exist and flow properly
         assert!(loss.grad().is_some(), "Loss tensor should have gradients");
@@ -339,6 +384,9 @@ mod tests {
         if let Some(ref bias) = layer.bias {
             assert!(bias.grad().is_some(), "Bias tensor should have gradients");
         }
+
+        // Input gradients should also flow
+        assert!(input.grad().is_some(), "Input tensor should have gradients");
 
         // For now, just ensure the weight still requires gradients (setup is correct)
         assert!(

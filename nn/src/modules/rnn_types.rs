@@ -50,14 +50,14 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign + std::iter::Sum> Rnn<T
         let ih_bound = (6.0 / (input_size + hidden_size) as f64).sqrt();
         let hh_bound = (6.0 / (hidden_size + hidden_size) as f64).sqrt();
 
-        let weight_ih_data: Vec<T> = (0..hidden_size * input_size)
+        let _weight_ih_data: Vec<T> = (0..hidden_size * input_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-ih_bound..ih_bound);
                 <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
-        let weight_hh_data: Vec<T> = (0..hidden_size * hidden_size)
+        let _weight_hh_data: Vec<T> = (0..hidden_size * hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-hh_bound..hh_bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -67,14 +67,14 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign + std::iter::Sum> Rnn<T
         let weight_ih = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
         let weight_hh = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let bias_ih_data: Vec<T> = (0..hidden_size)
+        let _bias_ih_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-ih_bound..ih_bound);
                 <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
-        let bias_hh_data: Vec<T> = (0..hidden_size)
+        let _bias_hh_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-hh_bound..hh_bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -158,12 +158,12 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign + std::iter::Sum> Rnn<T
             // Add biases if present
             if let Some(ref bias_ih) = self.bias_ih {
                 // Bias broadcasting: reshape bias from (hidden_size,) to (1, hidden_size) for broadcasting
-                let bias_ih_broadcast = bias_ih.reshape(vec![1, self.hidden_size])?;
+                let _bias_ih_broadcast = bias_ih.reshape(vec![1, self.hidden_size])?;
                 combined = (&x_contrib + &h_contrib).unwrap();
             }
             if let Some(ref bias_hh) = self.bias_hh {
                 // Bias broadcasting: reshape bias from (hidden_size,) to (1, hidden_size) for broadcasting
-                let bias_hh_broadcast = bias_hh.reshape(vec![1, self.hidden_size])?;
+                let _bias_hh_broadcast = bias_hh.reshape(vec![1, self.hidden_size])?;
                 combined = (&x_contrib + &h_contrib).unwrap();
             }
 
@@ -194,6 +194,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign + std::iter::Sum> Rnn<T
         Ok((output, h_n))
     }
 
+    #[allow(dead_code)]
     fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = vec![&self.weight_ih, &self.weight_hh];
         if let Some(ref bias_ih) = self.bias_ih {
@@ -205,6 +206,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign + std::iter::Sum> Rnn<T
         params
     }
 
+    #[allow(dead_code)]
     fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = vec![&mut self.weight_ih, &mut self.weight_hh];
         if let Some(ref mut bias_ih) = self.bias_ih {
@@ -246,14 +248,14 @@ impl<T: FloatDtype + SampleUniform> RnnCell<T> {
         let ih_bound = (6.0 / (input_size + hidden_size) as f64).sqrt();
         let hh_bound = (6.0 / (hidden_size + hidden_size) as f64).sqrt();
 
-        let weight_ih_data: Vec<T> = (0..hidden_size * input_size)
+        let _weight_ih_data: Vec<T> = (0..hidden_size * input_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-ih_bound..ih_bound);
                 <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
-        let weight_hh_data: Vec<T> = (0..hidden_size * hidden_size)
+        let _weight_hh_data: Vec<T> = (0..hidden_size * hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-hh_bound..hh_bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -263,14 +265,14 @@ impl<T: FloatDtype + SampleUniform> RnnCell<T> {
         let weight_ih = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
         let weight_hh = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let bias_ih_data: Vec<T> = (0..hidden_size)
+        let _bias_ih_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-ih_bound..ih_bound);
                 <T as Dtype>::from_f64(val).unwrap()
             })
             .collect();
 
-        let bias_hh_data: Vec<T> = (0..hidden_size)
+        let _bias_hh_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-hh_bound..hh_bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -318,12 +320,12 @@ impl<T: FloatDtype + SampleUniform> RnnCell<T> {
         // Add biases if present
         if let Some(ref bias_ih) = self.bias_ih {
             // Bias broadcasting: reshape bias from (hidden_size,) to (1, hidden_size) for broadcasting
-            let bias_ih_broadcast = bias_ih.reshape(vec![1, self.hidden_size])?;
+            let _bias_ih_broadcast = bias_ih.reshape(vec![1, self.hidden_size])?;
             combined = (&x_contrib + &h_contrib).unwrap();
         }
         if let Some(ref bias_hh) = self.bias_hh {
             // Bias broadcasting: reshape bias from (hidden_size,) to (1, hidden_size) for broadcasting
-            let bias_hh_broadcast = bias_hh.reshape(vec![1, self.hidden_size])?;
+            let _bias_hh_broadcast = bias_hh.reshape(vec![1, self.hidden_size])?;
             combined = (&x_contrib + &h_contrib).unwrap();
         }
 
@@ -331,6 +333,7 @@ impl<T: FloatDtype + SampleUniform> RnnCell<T> {
         Ok(combined.tanh()?)
     }
 
+    #[allow(dead_code)]
     fn parameters(&self) -> Vec<&Tensor<T, CpuBackend>> {
         let mut params = vec![&self.weight_ih, &self.weight_hh];
         if let Some(ref bias_ih) = self.bias_ih {
@@ -342,6 +345,7 @@ impl<T: FloatDtype + SampleUniform> RnnCell<T> {
         params
     }
 
+    #[allow(dead_code)]
     fn parameters_mut(&mut self) -> Vec<&mut Tensor<T, CpuBackend>> {
         let mut params = vec![&mut self.weight_ih, &mut self.weight_hh];
         if let Some(ref mut bias_ih) = self.bias_ih {

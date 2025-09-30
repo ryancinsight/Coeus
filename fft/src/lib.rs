@@ -262,16 +262,21 @@ pub fn fft<T: FloatDtype>(
     let fft = planner.plan_fft_forward(n);
 
     // Get total number of FFTs to perform (product of all dimensions except the FFT dimension)
+    let is_input_complex = input.shape().len() > 1 && input.shape().last() == Some(&2);
+    let logical_shape = if is_input_complex { &input.shape()[..input.shape().len()-1] } else { input.shape() };
+    
     let mut prefix_size = 1;
     let mut suffix_size = 1;
 
-    for (i, &size) in input.shape().iter().enumerate() {
+    for (i, &size) in logical_shape.iter().enumerate() {
         if i < dim_pos {
             prefix_size *= size;
         } else if i > dim_pos {
             suffix_size *= size;
         }
     }
+
+    // For complex input, suffix_size is already correct (doesn't include complex dim)
 
     // Prepare output buffer
     let mut output_data = Vec::with_capacity(prefix_size * n * suffix_size);
@@ -355,9 +360,15 @@ pub fn fft<T: FloatDtype>(
         }
     }
 
-    // Create output shape (append complex dim)
+    // Create output shape (append complex dim if input is real)
     let mut output_shape = input.shape().to_vec();
     output_shape[dim_pos] = n;
+    
+    // Only add complex dimension if input is not already complex
+    let is_input_complex = input.shape().len() > 1 && input.shape().last() == Some(&2);
+    if !is_input_complex {
+        output_shape.push(2);
+    }
 
     complex_to_tensor(&output_data, &output_shape)
 }
@@ -399,16 +410,21 @@ pub fn ifft<T: FloatDtype>(
     let n = n.unwrap_or(input_size);
 
     // Get total number of FFTs to perform
+    let is_input_complex = input.shape().len() > 1 && input.shape().last() == Some(&2);
+    let logical_shape = if is_input_complex { &input.shape()[..input.shape().len()-1] } else { input.shape() };
+    
     let mut prefix_size = 1;
     let mut suffix_size = 1;
 
-    for (i, &size) in input.shape().iter().enumerate() {
+    for (i, &size) in logical_shape.iter().enumerate() {
         if i < dim_pos {
             prefix_size *= size;
         } else if i > dim_pos {
             suffix_size *= size;
         }
     }
+
+    // For complex input, suffix_size is already correct (doesn't include complex dim)
 
     // Prepare output buffer
     let mut output_data = Vec::with_capacity(prefix_size * n * suffix_size);
@@ -480,10 +496,22 @@ pub fn ifft<T: FloatDtype>(
         }
     }
 
-    // Create output shape (append complex dim)
+    // Create output shape and tensor
     let mut output_shape = input.shape().to_vec();
     output_shape[dim_pos] = n;
-    complex_to_tensor(&output_data, &output_shape)
+    
+    // Only add complex dimension if input is not already complex
+    if !is_input_complex {
+        output_shape.push(2);
+    }
+    
+    // Convert complex data directly to tensor data
+    let mut raw: Vec<T> = Vec::with_capacity(output_data.len() * 2);
+    for c in output_data.iter() {
+        raw.push(T::from(c.re).unwrap_or_else(|| T::zero()));
+        raw.push(T::from(c.im).unwrap_or_else(|| T::zero()));
+    }
+    Tensor::from_vec(CpuBackend::new(), raw, output_shape)
 }
 
 /// Compute the 2D Fast Fourier Transform
@@ -971,7 +999,7 @@ mod tests {
 
         // The result should be close to the original (within numerical precision)
         // Note: This would require proper complex tensor handling for full validation
-        assert_eq!(ifft_result.shape(), &[4]);
+        assert_eq!(ifft_result.shape(), &[4, 2]);
     }
 
     #[test]
@@ -1034,7 +1062,7 @@ mod tests {
         let ifft_result = ifft2(&fft_result, None, None, Some(Norm::None)).unwrap();
 
         // The result should be close to the original (within numerical precision)
-        assert_eq!(ifft_result.shape(), &[2, 4]);
+        assert_eq!(ifft_result.shape(), &[2, 4, 2]);
     }
 
     #[test]
@@ -1106,7 +1134,7 @@ mod tests {
         for norm in [Norm::None, Norm::Forward, Norm::Backward, Norm::Ortho] {
             let fft_result = fft(&input, None, None, Some(norm)).unwrap();
             let ifft_result = ifft(&fft_result, None, None, Some(norm)).unwrap();
-            assert_eq!(ifft_result.shape(), input.shape());
+            assert_eq!(ifft_result.shape(), &[4, 2]);
         }
     }
 

@@ -4,6 +4,7 @@
 //! select, gather, scatter, and advanced indexing capabilities.
 
 use crate::{Tensor, TensorError, Dtype, Backend, BackendData, Result as TensorResult};
+use coeus_storage::TensorStorage;
 use std::sync::Arc;
 
 // Define ReduceOp for scatter_reduce operations
@@ -36,10 +37,10 @@ pub enum Slice {
 /// let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![4]);
 /// let result = select(&tensor, &[0, 2])?;  // [1.0, 3.0]
 /// ```
-pub fn select<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync>(
-    tensor: &Tensor<T, B>,
+pub fn select<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(
+    tensor: &Tensor<T, B, S>,
     indices: &[usize],
-) -> TensorResult<Tensor<T, B>> {
+) -> TensorResult<Tensor<T, B, S>> {
     let data: Vec<T> = indices
         .iter()
         .map(|&i| {
@@ -59,38 +60,38 @@ pub fn select<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync>(
 }
 
 /// Trait for advanced indexing operations on tensors
-pub trait Indexing<T: Dtype, B: Backend<T> + Clone + Send + Sync> {
+pub trait Indexing<T: Dtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync> {
     /// Create a slice with the given indices
-    fn slice(&self, indices: &[Slice]) -> Result<Tensor<T, B>, TensorError>;
+    fn slice(&self, indices: &[Slice]) -> Result<Tensor<T, B, S>, TensorError>;
 
     /// Select elements along a dimension using indices
-    fn index_select(&self, dim: usize, indices: &[usize]) -> Result<Tensor<T, B>, TensorError>;
+    fn index_select(&self, dim: usize, indices: &[usize]) -> Result<Tensor<T, B, S>, TensorError>;
 
     /// Gather values from specific positions along a dimension
-    fn gather(&self, dim: usize, indices: &[i64]) -> Result<Tensor<T, B>, TensorError>;
+    fn gather(&self, dim: usize, indices: &[i64]) -> Result<Tensor<T, B, S>, TensorError>;
 
     /// Scatter values to specific positions along a dimension
-    fn scatter(&self, dim: usize, indices: &[i64], src: &Tensor<T, B>) -> Result<Tensor<T, B>, TensorError>;
+    fn scatter(&self, dim: usize, indices: &[i64], src: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>, TensorError>;
 
     /// Scatter and add values to specific positions along a dimension
-    fn scatter_add(&self, dim: usize, indices: &[i64], src: &Tensor<T, B>) -> Result<Tensor<T, B>, TensorError>;
+    fn scatter_add(&self, dim: usize, indices: &[i64], src: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>, TensorError>;
 
     /// Scatter and reduce values to specific positions along a dimension
     fn scatter_reduce(
         &self,
         dim: usize,
         indices: &[i64],
-        src: &Tensor<T, B>,
+        src: &Tensor<T, B, S>,
         reduce: ReduceOp,
-    ) -> Result<Tensor<T, B>, TensorError>;
+    ) -> Result<Tensor<T, B, S>, TensorError>;
 
     /// Scatter values to positions specified by a mask
-    fn masked_scatter(&self, mask: &[bool], src: &Tensor<T, B>) -> Result<Tensor<T, B>, TensorError>;
+    fn masked_scatter(&self, mask: &[bool], src: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>, TensorError>;
 }
 
-impl<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync> Tensor<T, B> {
+impl<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S> {
     #[allow(dead_code)]
-    fn slice_impl(&self, indices: &[Slice]) -> Result<Tensor<T, B>, TensorError> {
+    fn slice_impl(&self, indices: &[Slice]) -> Result<Tensor<T, B, S>, TensorError> {
         // Basic single-dim slice for now
         if indices.len() != 1 {
             return Err(TensorError::InvalidOperation { message: "Multi-dim slice stubbed".to_string() });
@@ -112,7 +113,7 @@ impl<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync> Tensor<T, B> {
         Ok(Tensor::from_backend_data(self.backend().clone(), Arc::new(backend_data)))
     }
 
-    fn index_select_impl(&self, dim: usize, indices: &[usize]) -> Result<Tensor<T, B>, TensorError> {
+    fn index_select_impl(&self, dim: usize, indices: &[usize]) -> Result<Tensor<T, B, S>, TensorError> {
         if dim >= self.ndim() {
             return Err(TensorError::InvalidDimension { dim, max_dim: self.ndim() });
         }
@@ -137,7 +138,7 @@ impl<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync> Tensor<T, B> {
         Ok(Tensor::from_backend_data(self.backend().clone(), Arc::new(backend_data)))
     }
 
-    fn gather_impl(&self, dim: usize, indices: &[i64]) -> Result<Tensor<T, B>, TensorError> {
+    fn gather_impl(&self, dim: usize, indices: &[i64]) -> Result<Tensor<T, B, S>, TensorError> {
         if dim >= self.ndim() {
             return Err(TensorError::InvalidDimension { dim, max_dim: self.ndim() });
         }
@@ -163,7 +164,7 @@ impl<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync> Tensor<T, B> {
     }
 }
 
-impl<T: Dtype + Clone + std::ops::AddAssign, B: Backend<T> + Clone + Send + Sync> Indexing<T, B> for Tensor<T, B> {
+impl<T: Dtype + Clone + std::ops::AddAssign, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync> Indexing<T, B, S> for Tensor<T, B, S> {
     #[tracing::instrument]
     fn slice(&self, indices: &[Slice]) -> Result<Self, TensorError> {
         // Assume single dim for basic impl, multi-dim future
@@ -182,15 +183,15 @@ impl<T: Dtype + Clone + std::ops::AddAssign, B: Backend<T> + Clone + Send + Sync
         Ok(Self::from_backend_data(self.backend().clone(), view_data))
     }
 
-    fn index_select(&self, dim: usize, indices: &[usize]) -> Result<Tensor<T, B>, TensorError> {
+    fn index_select(&self, dim: usize, indices: &[usize]) -> Result<Tensor<T, B, S>, TensorError> {
         self.index_select_impl(dim, indices)
     }
 
-    fn gather(&self, dim: usize, indices: &[i64]) -> Result<Tensor<T, B>, TensorError> {
+    fn gather(&self, dim: usize, indices: &[i64]) -> Result<Tensor<T, B, S>, TensorError> {
         self.gather_impl(dim, indices)
     }
 
-    fn scatter(&self, dim: usize, indices: &[i64], src: &Tensor<T, B>) -> Result<Tensor<T, B>, TensorError> {
+    fn scatter(&self, dim: usize, indices: &[i64], src: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>, TensorError> {
         if dim >= self.ndim() {
             return Err(TensorError::InvalidOperation {
                 message: format!(
@@ -247,7 +248,7 @@ impl<T: Dtype + Clone + std::ops::AddAssign, B: Backend<T> + Clone + Send + Sync
         Ok(Tensor::from_vec(self.backend().clone(), result_data, result_shape)?)
     }
 
-    fn scatter_add(&self, dim: usize, indices: &[i64], src: &Tensor<T, B>) -> Result<Tensor<T, B>, TensorError> {
+    fn scatter_add(&self, dim: usize, indices: &[i64], src: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>, TensorError> {
         if dim >= self.ndim() {
             return Err(TensorError::InvalidOperation {
                 message: format!(
@@ -308,9 +309,9 @@ impl<T: Dtype + Clone + std::ops::AddAssign, B: Backend<T> + Clone + Send + Sync
         &self,
         dim: usize,
         indices: &[i64],
-        src: &Tensor<T, B>,
+        src: &Tensor<T, B, S>,
         reduce: ReduceOp,
-    ) -> Result<Tensor<T, B>, TensorError> {
+    ) -> Result<Tensor<T, B, S>, TensorError> {
         if dim >= self.ndim() {
             return Err(TensorError::InvalidOperation {
                 message: format!(
@@ -374,7 +375,7 @@ impl<T: Dtype + Clone + std::ops::AddAssign, B: Backend<T> + Clone + Send + Sync
         Ok(Tensor::from_vec(self.backend().clone(), result_data, result_shape)?)
     }
 
-    fn masked_scatter(&self, mask: &[bool], src: &Tensor<T, B>) -> Result<Tensor<T, B>, TensorError> {
+    fn masked_scatter(&self, mask: &[bool], src: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>, TensorError> {
         if mask.len() != self.data().len() {
             return Err(TensorError::ShapeMismatch {
                 expected: self.shape().to_vec(),

@@ -1,0 +1,17 @@
+[package]
+name = "coeus-storage"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+coeus-dtype = { workspace = true }
+num-traits.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+proptest = "1.5.0"
+criterion.workspace = true

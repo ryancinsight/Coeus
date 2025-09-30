@@ -535,8 +535,8 @@ mod tests {
     fn test_cosine_embedding_loss_similar_pairs() {
         let loss_fn = CosineEmbeddingLoss::new(0.5);
         // Two identical unit vectors (perfect similarity, cos = 1.0)
-        let input1 = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
-        let input2 = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
+        let input1 = Tensor::from_vec(CpuBackend::default(), vec![1.0, 0.0], vec![1, 2]).unwrap();
+        let input2 = Tensor::from_vec(CpuBackend::default(), vec![1.0, 0.0], vec![1, 2]).unwrap();
         let target = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(); // Similar pair
 
         let loss = loss_fn.forward(&input1, &input2, &target).unwrap();
@@ -549,8 +549,8 @@ mod tests {
     fn test_cosine_embedding_loss_dissimilar_pairs() {
         let loss_fn = CosineEmbeddingLoss::new(0.5);
         // Orthogonal unit vectors (cos = 0.0)
-        let input1 = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
-        let input2 = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
+        let input1 = Tensor::from_vec(CpuBackend::default(), vec![1.0, 0.0], vec![1, 2]).unwrap();
+        let input2 = Tensor::from_vec(CpuBackend::default(), vec![0.0, 1.0], vec![1, 2]).unwrap();
         let target = Tensor::from_vec(CpuBackend::default(), vec![-1.0], vec![1]).unwrap(); // Dissimilar pair
 
         let loss = loss_fn.forward(&input1, &input2, &target).unwrap();
@@ -563,8 +563,8 @@ mod tests {
     fn test_cosine_embedding_loss_dissimilar_violation() {
         let loss_fn = CosineEmbeddingLoss::new(0.5);
         // Vectors with high similarity (cos ≈ 0.8)
-        let input1 = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap();
-        let input2 = Tensor::from_vec(CpuBackend::default(), vec![2.0], vec![1]).unwrap();
+        let input1 = Tensor::from_vec(CpuBackend::default(), vec![2.0, 1.0], vec![1, 2]).unwrap();
+        let input2 = Tensor::from_vec(CpuBackend::default(), vec![2.0, 1.0], vec![1, 2]).unwrap();
         let target = Tensor::from_vec(CpuBackend::default(), vec![-1.0], vec![1]).unwrap(); // Dissimilar pair
 
         let loss = loss_fn.forward(&input1, &input2, &target).unwrap();
@@ -577,8 +577,8 @@ mod tests {
     fn test_cosine_embedding_loss_zero_vectors() {
         let loss_fn = CosineEmbeddingLoss::new(0.5);
         // Zero vectors (undefined cosine similarity)
-        let input1 = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
-        let input2 = Tensor::from_vec(CpuBackend::default(), vec![0.0], vec![1]).unwrap();
+        let input1 = Tensor::from_vec(CpuBackend::default(), vec![0.0, 0.0], vec![1, 2]).unwrap();
+        let input2 = Tensor::from_vec(CpuBackend::default(), vec![0.0, 0.0], vec![1, 2]).unwrap();
         let target = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap(); // Similar pair
 
         let loss = loss_fn.forward(&input1, &input2, &target).unwrap();

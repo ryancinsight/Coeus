@@ -993,8 +993,8 @@ mod tests {
     #[test]
     fn test_focal_loss_basic() {
         let loss_fn = FocalLoss::new(2.0, 1.0);
-        let logits = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
-        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1, 1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&logits, &targets).unwrap();
         assert!(loss.item().unwrap() >= 0.0);
@@ -1005,8 +1005,8 @@ mod tests {
         let loss_fn = FocalLoss::new(2.0, 1.0);
 
         // Very confident correct prediction (easy example)
-        let logits = Tensor::from_vec(CpuBackend::default(), vec![-10.0], vec![1]).unwrap();
-        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![-10.0], vec![1, 1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&logits, &targets).unwrap();
 
@@ -1019,8 +1019,8 @@ mod tests {
         let loss_fn = FocalLoss::new(2.0, 1.0);
 
         // Low confidence correct prediction (hard example)
-        let logits = Tensor::from_vec(CpuBackend::default(), vec![0.1], vec![1]).unwrap();
-        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![0.1], vec![1, 1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&logits, &targets).unwrap();
 
@@ -1195,12 +1195,11 @@ mod tests {
             0.0, -1.0, -2.0, -3.0, // t=0: blank=0, class1=-1, class2=-2, class3=-3
             -1.0, 0.0, -2.0, -3.0, // t=1: blank=-1, class1=0, class2=-2, class3=-3
             -2.0, -1.0, 0.0, -3.0, // t=2: blank=-2, class1=-1, class2=0, class3=-3
-            -3.0, -2.0, -1.0, 0.0, // t=3: blank=-3, class1=-2, class2=-1, class3=0
         ];
-        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![log_probs_data.len()]).unwrap();
+        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![1, 3, 4]).unwrap();
 
         // Target: single character (class 1)
-        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1, 1]).unwrap();
         let input_lengths = Tensor::from_vec(CpuBackend::default(), vec![3], vec![1]).unwrap();
         let target_lengths = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
@@ -1219,7 +1218,7 @@ mod tests {
             0.0, -1.0, -2.0, // t=0
             -1.0, 0.0, -2.0, // t=1
         ];
-        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![log_probs_data.len()]).unwrap();
+        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![2, 2, 3]).unwrap();
 
         let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap(); // Empty sequence
         let input_lengths = Tensor::from_vec(CpuBackend::default(), vec![2], vec![1]).unwrap();
@@ -1254,9 +1253,9 @@ mod tests {
             -1.0, -2.0, -3.0, 0.0, // t=0: class0=-1, class1=-2, class2=-3, blank=0
             -2.0, -1.0, -3.0, -1.0, // t=1
         ];
-        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![log_probs_data.len()]).unwrap();
+        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![2, 2, 3]).unwrap();
 
-        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap(); // Target class 1
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap(); // Target class 1
         let input_lengths = Tensor::from_vec(CpuBackend::default(), vec![2], vec![1]).unwrap();
         let target_lengths = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
@@ -1281,9 +1280,9 @@ mod tests {
             -1.0, 0.0, -2.0, // t=0
             -2.0, -1.0, 0.0, // t=1
         ];
-        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![log_probs_data.len()]).unwrap();
+        let log_probs = Tensor::from_vec(CpuBackend::default(), log_probs_data.clone(), vec![2, 2, 3]).unwrap();
 
-        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap(); // Different targets
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap(); // Different targets
         let input_lengths = Tensor::from_vec(CpuBackend::default(), vec![2], vec![1]).unwrap();
         let target_lengths = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 

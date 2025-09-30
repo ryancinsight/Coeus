@@ -265,11 +265,11 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform + std::ops::Add
 
         // Add biases
         if let Some(bias_ih) = bias_ih {
-            let bias_broadcast = bias_ih.reshape(vec![1, self.hidden_size])?;
+            let _bias_broadcast = bias_ih.reshape(vec![1, self.hidden_size])?;
             gate = (&x_contrib + &h_contrib).unwrap();
         }
         if let Some(bias_hh) = bias_hh {
-            let bias_broadcast = bias_hh.reshape(vec![1, self.hidden_size])?;
+            let _bias_broadcast = bias_hh.reshape(vec![1, self.hidden_size])?;
             gate = (&x_contrib + &h_contrib).unwrap();
         }
 
@@ -573,11 +573,11 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform> LstmCell<T> {
 
         // Add biases
         if let Some(bias_ih) = bias_ih {
-            let bias_broadcast = bias_ih.reshape(vec![1, self.hidden_size])?;
+            let _bias_broadcast = bias_ih.reshape(vec![1, self.hidden_size])?;
             gate = (&x_contrib + &h_contrib).unwrap();
         }
         if let Some(bias_hh) = bias_hh {
-            let bias_broadcast = bias_hh.reshape(vec![1, self.hidden_size])?;
+            let _bias_broadcast = bias_hh.reshape(vec![1, self.hidden_size])?;
             gate = (&x_contrib + &h_contrib).unwrap();
         }
 

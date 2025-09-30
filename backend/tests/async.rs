@@ -2,13 +2,12 @@
 #[tokio::test]
 async fn concurrent_add() {
     use coeus_backend::{CpuBackend, Backend};
-    let rt = tokio::runtime::Runtime::new().unwrap();
     let handles: Vec<_> = (0..10).map(|_| {
-        let a = vec![1.0f32; 64];
-        let b = vec![1.0f32; 64];
-        rt.spawn(async move {
+        tokio::spawn(async move {
+            let a = vec![1.0f32; 64];
+            let b = vec![1.0f32; 64];
             // Stub async dispatch - use CPU backend for now
-            let backend = coeus_backend::CpuBackend::default();
+            let backend = CpuBackend::default();
             let a_data = backend.create_tensor_data(a.clone(), vec![64]).unwrap();
             let b_data = backend.create_tensor_data(b.clone(), vec![64]).unwrap();
             let result = backend.add(&a_data, &b_data).unwrap();

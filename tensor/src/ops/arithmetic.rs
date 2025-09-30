@@ -3,11 +3,12 @@
 use crate::{Dtype, FloatDtype, Result, Tensor, TensorError};
 use num_traits::{Float, Num};
 use coeus_backend::Backend;
+use coeus_storage::TensorStorage;
 use super::matrix::Broadcast;
 use crate::core::tensor::Operation;
 
 /// Element-wise addition with broadcasting support
-pub fn add<T: Dtype + std::ops::Add<Output = T> + Clone + Copy, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn add<T: Dtype + std::ops::Add<Output = T> + Clone + Copy, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(a: &Tensor<T, B, S>, b: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     if a.shape() == b.shape() {
         // Direct computation for matching shapes
         let data = a
@@ -54,7 +55,7 @@ pub fn add<T: Dtype + std::ops::Add<Output = T> + Clone + Copy, B: Backend<T> + 
 }
 
 /// Element-wise multiplication with broadcasting support
-pub fn mul<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn mul<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(a: &Tensor<T, B, S>, b: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     if a.shape() == b.shape() {
         // Direct computation for matching shapes
         let data = a
@@ -101,7 +102,7 @@ pub fn mul<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(
 }
 
 /// Element-wise division with broadcasting support
-pub fn div<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn div<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(a: &Tensor<T, B, S>, b: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     if a.shape() == b.shape() {
         // Direct computation for matching shapes
         let data = a
@@ -125,7 +126,7 @@ pub fn div<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(
 }
 
 /// Element-wise subtraction with broadcasting support
-pub fn sub<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn sub<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(a: &Tensor<T, B, S>, b: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     if a.shape() == b.shape() {
         // Direct computation for matching shapes
         let data = a
@@ -149,7 +150,7 @@ pub fn sub<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(
 }
 
 /// Element-wise negation
-pub fn neg<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn neg<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     let data = tensor
         .data()
         .iter()
@@ -166,12 +167,12 @@ pub fn neg<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(
 }
 
 /// Generic broadcasting for binary operations
-fn broadcast_binary_op<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync>(
-    a: &Tensor<T, B>,
-    b: &Tensor<T, B>,
+fn broadcast_binary_op<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(
+    a: &Tensor<T, B, S>,
+    b: &Tensor<T, B, S>,
     op: impl Fn(T, T) -> T,
     operation: Operation,
-) -> Result<Tensor<T, B>> {
+) -> Result<Tensor<T, B, S>> {
     if !Broadcast::can_broadcast(a.shape(), b.shape()) {
         return Err(TensorError::BroadcastingError {
             shape1: a.shape().to_vec(),
@@ -223,7 +224,7 @@ fn broadcast_binary_op<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync>(
 }
 
 /// Pad tensor to target shape for broadcasting
-fn pad_tensor_to_shape<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>, target_shape: &[usize]) -> Tensor<T, B> {
+fn pad_tensor_to_shape<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>, target_shape: &[usize]) -> Tensor<T, B, S> {
     let num_elements = tensor.numel();
     let padding_factor = target_shape.iter().product::<usize>() / num_elements;
     let mut padded_data = Vec::with_capacity(target_shape.iter().product());
@@ -238,7 +239,7 @@ fn pad_tensor_to_shape<T: Dtype + Clone, B: Backend<T> + Clone + Send + Sync>(te
 }
 
 /// Element-wise maximum
-pub fn maximum<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn maximum<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(a: &Tensor<T, B, S>, b: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     if a.shape() != b.shape() {
         return Err(TensorError::ShapeMismatch {
             expected: a.shape().to_vec(),
@@ -263,7 +264,7 @@ pub fn maximum<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sy
 }
 
 /// Element-wise minimum
-pub fn minimum<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn minimum<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(a: &Tensor<T, B, S>, b: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     if a.shape() != b.shape() {
         return Err(TensorError::ShapeMismatch {
             expected: a.shape().to_vec(),
@@ -288,7 +289,7 @@ pub fn minimum<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sy
 }
 
 /// Element-wise power
-pub fn pow<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(base: &Tensor<T, B>, exponent: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn pow<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(base: &Tensor<T, B, S>, exponent: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     if base.shape() != exponent.shape() {
         return Err(TensorError::ShapeMismatch {
             expected: base.shape().to_vec(),
@@ -325,7 +326,7 @@ pub fn pow<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(
 }
 
 /// Element-wise absolute value
-pub fn abs<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Tensor<T, B> {
+pub fn abs<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Tensor<T, B, S> {
     let data = tensor.data().iter().map(|x| x.abs()).collect();
     let mut result = Tensor::from_vec(tensor.backend().clone(), data, tensor.shape().to_vec()).unwrap();
 
@@ -338,7 +339,7 @@ pub fn abs<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T
 }
 
 /// Element-wise exponential
-pub fn exp<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn exp<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     let data = tensor.data().iter().map(|x| x.exp()).collect();
     let mut result = Tensor::from_vec(tensor.backend().clone(), data, tensor.shape().to_vec()).unwrap();
 
@@ -365,7 +366,7 @@ pub fn exp<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T
 }
 
 /// Element-wise natural logarithm
-pub fn log<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn log<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     use crate::core::tensor::{with_autograd_context, Operation};
 
     let data = tensor.data().iter().map(|x| x.ln()).collect();
@@ -395,7 +396,7 @@ pub fn log<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T
 }
 
 /// Element-wise sine
-pub fn sin<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn sin<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     use crate::core::tensor::{with_autograd_context, Operation};
 
     let data = tensor.data().iter().map(|x| x.sin()).collect();
@@ -422,11 +423,11 @@ pub fn sin<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T
 }
 
 /// Element-wise cosine
-pub fn cos<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Tensor<T, B> {
+pub fn cos<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     use crate::core::tensor::{with_autograd_context, Operation};
 
     let data = tensor.data().iter().map(|x| x.cos()).collect();
-    let mut result = Tensor::from_vec(tensor.backend().clone(), data, tensor.shape().to_vec()).unwrap();
+    let mut result = Tensor::from_vec(tensor.backend().clone(), data, tensor.shape().to_vec())?;
 
     if tensor.requires_grad() {
         result.set_requires_grad(true);
@@ -445,11 +446,11 @@ pub fn cos<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T
         });
     }
 
-    result
+    Ok(result)
 }
 
 /// Element-wise inverse cosine
-pub fn acos<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Tensor<T, B> {
+pub fn acos<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Tensor<T, B, S> {
     let data = tensor.data().iter().map(|x| x.acos()).collect();
     let mut result = Tensor::from_vec(tensor.backend().clone(), data, tensor.shape().to_vec()).unwrap();
 
@@ -462,7 +463,7 @@ pub fn acos<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<
 }
 
 /// Element-wise inverse tangent
-pub fn atan<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Tensor<T, B> {
+pub fn atan<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Tensor<T, B, S> {
     let data = tensor.data().iter().map(|x| x.atan()).collect();
     let mut result = Tensor::from_vec(tensor.backend().clone(), data, tensor.shape().to_vec()).unwrap();
 
@@ -475,7 +476,7 @@ pub fn atan<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<
 }
 
 /// Element-wise error function
-pub fn erf<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Tensor<T, B> {
+pub fn erf<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Tensor<T, B, S> {
     let data = tensor.data().iter().map(|&x| {
         let x_f64 = num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0);
         let erf_f64 = statrs::function::erf::erf(x_f64);
@@ -492,7 +493,7 @@ pub fn erf<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T
 }
 
 /// Element-wise base-2 exponential
-pub fn exp2<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Tensor<T, B> {
+pub fn exp2<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Tensor<T, B, S> {
     let data = tensor.data().iter().map(|x| x.exp2()).collect();
     let mut result = Tensor::from_vec(tensor.backend().clone(), data, tensor.shape().to_vec()).unwrap();
 
@@ -505,7 +506,7 @@ pub fn exp2<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<
 }
 
 /// Element-wise base-10 logarithm
-pub fn log10<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Tensor<T, B> {
+pub fn log10<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Tensor<T, B, S> {
     let data = tensor.data().iter().map(|x| x.log10()).collect();
     let mut result = Tensor::from_vec(tensor.backend().clone(), data, tensor.shape().to_vec()).unwrap();
 
@@ -518,7 +519,7 @@ pub fn log10<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor
 }
 
 /// Element-wise base-2 logarithm
-pub fn log2<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Tensor<T, B> {
+pub fn log2<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Tensor<T, B, S> {
     let data = tensor.data().iter().map(|x| x.log2()).collect();
     let mut result = Tensor::from_vec(tensor.backend().clone(), data, tensor.shape().to_vec()).unwrap();
 
@@ -531,7 +532,7 @@ pub fn log2<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<
 }
 
 /// Element-wise reciprocal square root
-pub fn rsqrt<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Tensor<T, B> {
+pub fn rsqrt<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Tensor<T, B, S> {
     let data = tensor.data().iter().map(|x| T::one() / x.sqrt()).collect();
     let mut result = Tensor::from_vec(tensor.backend().clone(), data, tensor.shape().to_vec()).unwrap();
 
@@ -544,7 +545,7 @@ pub fn rsqrt<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor
 }
 
 /// Element-wise square root
-pub fn sqrt<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>) -> Tensor<T, B> {
+pub fn sqrt<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Tensor<T, B, S> {
     use crate::core::tensor::{with_autograd_context, Operation};
 
     let data = tensor.data().iter().map(|x| x.sqrt()).collect();
@@ -571,7 +572,7 @@ pub fn sqrt<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<
 }
 
 /// Element-wise power with scalar exponent
-pub fn pow_scalar<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync>(base: &Tensor<T, B>, exponent: T) -> Result<Tensor<T, B>> {
+pub fn pow_scalar<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(base: &Tensor<T, B, S>, exponent: T) -> Result<Tensor<T, B, S>> {
     let data = base
         .data()
         .iter()

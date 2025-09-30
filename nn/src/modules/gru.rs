@@ -17,7 +17,7 @@
 //! - [Cho et al., 2014 - Learning Phrase Representations using RNN Encoder-Decoder](https://arxiv.org/abs/1406.1078)
 //! - [PyTorch GRU Documentation](https://pytorch.org/docs/stable/generated/torch.nn.GRU.html)
 
-use coeus_backend::{Backend, CpuBackend};
+use coeus_backend::CpuBackend;
 use coeus_dtype::Dtype;
 use coeus_tensor::{FloatDtype, Tensor};
 use rand::{distributions::uniform::SampleUniform, Rng};
@@ -67,7 +67,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
         let bound = (6.0 / (input_size + hidden_size) as f64).sqrt();
 
         // Create weights sequentially to avoid borrowing conflicts
-        let weight_ih_r_data: Vec<T> = (0..hidden_size * input_size)
+        let _weight_ih_r_data: Vec<T> = (0..hidden_size * input_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -75,7 +75,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
             .collect();
         let weight_ih_r = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let weight_hh_r_data: Vec<T> = (0..hidden_size * hidden_size)
+        let _weight_hh_r_data: Vec<T> = (0..hidden_size * hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -83,7 +83,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
             .collect();
         let weight_hh_r = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let weight_ih_z_data: Vec<T> = (0..hidden_size * input_size)
+        let _weight_ih_z_data: Vec<T> = (0..hidden_size * input_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -91,7 +91,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
             .collect();
         let weight_ih_z = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let weight_hh_z_data: Vec<T> = (0..hidden_size * hidden_size)
+        let _weight_hh_z_data: Vec<T> = (0..hidden_size * hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -99,7 +99,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
             .collect();
         let weight_hh_z = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let weight_ih_n_data: Vec<T> = (0..hidden_size * input_size)
+        let _weight_ih_n_data: Vec<T> = (0..hidden_size * input_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -107,7 +107,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
             .collect();
         let weight_ih_n = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let weight_hh_n_data: Vec<T> = (0..hidden_size * hidden_size)
+        let _weight_hh_n_data: Vec<T> = (0..hidden_size * hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -116,7 +116,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
         let weight_hh_n = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
         // Create biases sequentially
-        let bias_ih_r_data: Vec<T> = (0..hidden_size)
+        let _bias_ih_r_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -124,7 +124,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
             .collect();
         let bias_ih_r = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
-        let bias_hh_r_data: Vec<T> = (0..hidden_size)
+        let _bias_hh_r_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -132,7 +132,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
             .collect();
         let bias_hh_r = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
-        let bias_ih_z_data: Vec<T> = (0..hidden_size)
+        let _bias_ih_z_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -140,7 +140,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
             .collect();
         let bias_ih_z = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
-        let bias_hh_z_data: Vec<T> = (0..hidden_size)
+        let _bias_hh_z_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -148,7 +148,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
             .collect();
         let bias_hh_z = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
-        let bias_ih_n_data: Vec<T> = (0..hidden_size)
+        let _bias_ih_n_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -156,7 +156,7 @@ impl<T: FloatDtype + SampleUniform> Gru<T> {
             .collect();
         let bias_ih_n = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
-        let bias_hh_n_data: Vec<T> = (0..hidden_size)
+        let _bias_hh_n_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -229,7 +229,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
         let bound = (6.0 / (input_size + hidden_size) as f64).sqrt();
 
         // Create weights sequentially to avoid borrowing conflicts
-        let weight_ih_r_data: Vec<T> = (0..hidden_size * input_size)
+        let _weight_ih_r_data: Vec<T> = (0..hidden_size * input_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -237,7 +237,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
             .collect();
         let weight_ih_r = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let weight_hh_r_data: Vec<T> = (0..hidden_size * hidden_size)
+        let _weight_hh_r_data: Vec<T> = (0..hidden_size * hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -245,7 +245,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
             .collect();
         let weight_hh_r = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let weight_ih_z_data: Vec<T> = (0..hidden_size * input_size)
+        let _weight_ih_z_data: Vec<T> = (0..hidden_size * input_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -253,7 +253,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
             .collect();
         let weight_ih_z = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let weight_hh_z_data: Vec<T> = (0..hidden_size * hidden_size)
+        let _weight_hh_z_data: Vec<T> = (0..hidden_size * hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -261,7 +261,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
             .collect();
         let weight_hh_z = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let weight_ih_n_data: Vec<T> = (0..hidden_size * input_size)
+        let _weight_ih_n_data: Vec<T> = (0..hidden_size * input_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -269,7 +269,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
             .collect();
         let weight_ih_n = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
-        let weight_hh_n_data: Vec<T> = (0..hidden_size * hidden_size)
+        let _weight_hh_n_data: Vec<T> = (0..hidden_size * hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -278,7 +278,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
         let weight_hh_n = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 
         // Create biases sequentially
-        let bias_ih_r_data: Vec<T> = (0..hidden_size)
+        let _bias_ih_r_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -286,7 +286,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
             .collect();
         let bias_ih_r = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
-        let bias_hh_r_data: Vec<T> = (0..hidden_size)
+        let _bias_hh_r_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -294,7 +294,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
             .collect();
         let bias_hh_r = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
-        let bias_ih_z_data: Vec<T> = (0..hidden_size)
+        let _bias_ih_z_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -302,7 +302,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
             .collect();
         let bias_ih_z = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
-        let bias_hh_z_data: Vec<T> = (0..hidden_size)
+        let _bias_hh_z_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -310,7 +310,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
             .collect();
         let bias_hh_z = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
-        let bias_ih_n_data: Vec<T> = (0..hidden_size)
+        let _bias_ih_n_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()
@@ -318,7 +318,7 @@ impl<T: FloatDtype + SampleUniform + std::ops::AddAssign> GruCell<T> {
             .collect();
         let bias_ih_n = Some(Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap());
 
-        let bias_hh_n_data: Vec<T> = (0..hidden_size)
+        let _bias_hh_n_data: Vec<T> = (0..hidden_size)
             .map(|_| {
                 let val: f64 = rng.gen_range(-bound..bound);
                 <T as Dtype>::from_f64(val).unwrap()

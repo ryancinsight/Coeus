@@ -5,6 +5,7 @@
 
 use crate::{Dtype, FloatDtype, Result, Tensor, TensorError};
 use coeus_backend::Backend;
+use coeus_storage::TensorStorage;
 
 /// Compute the hyperbolic tangent of each element
 ///
@@ -22,7 +23,7 @@ use coeus_backend::Backend;
 /// let tanh_tensor = tensor.tanh().unwrap();
 /// assert_eq!(tanh_tensor.item().unwrap(), 0.0);
 /// ```
-pub fn tanh<T: FloatDtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn tanh<T: FloatDtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     use crate::core::tensor::{with_autograd_context, Operation};
 
     let data = tensor
@@ -70,7 +71,7 @@ pub fn tanh<T: FloatDtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>) -> Resu
 /// let sigmoid_tensor = tensor.sigmoid().unwrap();
 /// assert_eq!(sigmoid_tensor.item().unwrap(), 0.5);
 /// ```
-pub fn sigmoid<T: FloatDtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn sigmoid<T: FloatDtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     use crate::core::tensor::{with_autograd_context, Operation};
 
     let data = tensor
@@ -109,7 +110,7 @@ pub fn sigmoid<T: FloatDtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>) -> R
 ///
 /// # Returns
 /// New tensor with ReLU values
-pub fn relu<T: FloatDtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn relu<T: FloatDtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     use crate::core::tensor::{with_autograd_context, Operation};
 
     let data = tensor
@@ -148,10 +149,10 @@ pub fn relu<T: FloatDtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>) -> Resu
 ///
 /// # Returns
 /// New tensor with Leaky ReLU values
-pub fn leaky_relu<T: FloatDtype, B: Backend<T> + Clone>(
-    tensor: &Tensor<T, B>,
+pub fn leaky_relu<T: FloatDtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
+    tensor: &Tensor<T, B, S>,
     negative_slope: T
-) -> Result<Tensor<T, B>> {
+) -> Result<Tensor<T, B, S>> {
     let data = tensor
         .data()
         .iter()
@@ -175,10 +176,10 @@ pub fn leaky_relu<T: FloatDtype, B: Backend<T> + Clone>(
 ///
 /// # Returns
 /// New tensor with ELU values
-pub fn elu<T: FloatDtype, B: Backend<T> + Clone>(
-    tensor: &Tensor<T, B>,
+pub fn elu<T: FloatDtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
+    tensor: &Tensor<T, B, S>,
     alpha: T
-) -> Result<Tensor<T, B>> {
+) -> Result<Tensor<T, B, S>> {
     let data = tensor
         .data()
         .iter()
@@ -201,7 +202,7 @@ pub fn elu<T: FloatDtype, B: Backend<T> + Clone>(
 ///
 /// # Returns
 /// New tensor with GELU values
-pub fn gelu<T: FloatDtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn gelu<T: FloatDtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     let data = tensor
         .data()
         .iter()
@@ -229,10 +230,10 @@ pub fn gelu<T: FloatDtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>) -> Resu
 ///
 /// # Returns
 /// New tensor with softmax values
-pub fn softmax<T: FloatDtype, B: Backend<T> + Clone>(
-    tensor: &Tensor<T, B>,
+pub fn softmax<T: FloatDtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
+    tensor: &Tensor<T, B, S>,
     dim: usize
-) -> Result<Tensor<T, B>> {
+) -> Result<Tensor<T, B, S>> {
     if dim >= tensor.ndim() {
         return Err(TensorError::InvalidDimension {
             dim,
@@ -296,10 +297,10 @@ pub fn softmax<T: FloatDtype, B: Backend<T> + Clone>(
 ///
 /// # Returns
 /// New tensor with log-softmax values
-pub fn log_softmax<T: FloatDtype, B: Backend<T> + Clone>(
-    tensor: &Tensor<T, B>,
+pub fn log_softmax<T: FloatDtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
+    tensor: &Tensor<T, B, S>,
     dim: usize
-) -> Result<Tensor<T, B>> {
+) -> Result<Tensor<T, B, S>> {
     let softmax_tensor = softmax(tensor, dim)?;
     let data = softmax_tensor
         .data()

@@ -58,13 +58,13 @@ pub mod ops {
     pub mod matrix;
     pub mod reduction;
     pub mod bitwise;
-    pub mod sparse;
 }
+pub mod traits;
 
 pub mod iterators;
 pub mod performance; // Prune/move to utils if unused (YAGNI)
 
-pub use core::tensor::Tensor;
+pub use core::tensor::{Tensor, DenseTensor, SparseTensor};
 
 // PyTorch-like flat API re-exports (clean, no deep nesting)
 
@@ -83,11 +83,15 @@ pub use ops::reduction::{sum, sum_dim, mean_dim};
 pub use ops::creation;
 
 // Full modules available for advanced usage
-pub use ops::{indexing};
+pub use ops::indexing;
+
+// Tensor traits for zero-cost polymorphism
+pub use traits::*;
 
 // Re-export dtype traits for convenience
 pub use coeus_dtype::{Dtype, FloatDtype};
 pub use coeus_backend::{Backend, BackendData, BackendError, CpuBackend, Device};
+pub use coeus_storage::{TensorStorage, DenseStorage, SparseStorageCSR, SparseStorageCOO, StorageDtype};
 
 // Re-export standard library traits for convenience
 pub use std::ops::{Add, Div, Mul, Neg, Sub};
@@ -112,7 +116,7 @@ pub type Result<T> = std::result::Result<T, TensorError>;
 
 /// Simplified tensor type alias using CpuBackend as default
 /// This provides a convenient interface for CPU-based tensor operations
-pub type CpuTensor<T> = Tensor<T, CpuBackend>;
+pub type CpuTensor<T> = Tensor<T, CpuBackend, DenseStorage<T>>;
 
 /// Errors that can occur during tensor operations
 #[derive(Debug, thiserror::Error)]
@@ -135,6 +139,15 @@ pub enum TensorError {
         lhs_shape: Vec<usize>,
         rhs_shape: Vec<usize>,
     },
+
+    #[error("Storage error: {0}")]
+    StorageError(String),
+
+    #[error("Sparse operation not supported: {0}")]
+    SparseOperationNotSupported(String),
+
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
 
     #[error(
         "Incompatible matrix dimensions for multiplication: {lhs_m}x{lhs_k} vs {rhs_k}x{rhs_n}"
@@ -273,6 +286,12 @@ mod tests {
     }
 }
 
+impl From<coeus_storage::StorageError> for TensorError {
+    fn from(err: coeus_storage::StorageError) -> Self {
+        TensorError::StorageError(err.to_string())
+    }
+}
+
 #[cfg(test)]
 include!("tests/autograd_tests.rs");
 
@@ -287,7 +306,7 @@ include!("tests/autograd/numerical_gradient_tests.rs");
 // Tests are included via include! macros above
 
 /// Const generics/Cow full (example in Tensor impl if not, but for ops in submods)
-impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
+impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S> {
     pub fn view_cow(&self) -> Cow<'_, [T]> {
         Cow::Borrowed(self.data())
     }

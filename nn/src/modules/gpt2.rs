@@ -120,7 +120,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform + std::iter::Su
         let tok_emb = self.wte.forward(input)?;
 
         // Position embeddings
-        let positions: Vec<T> = (0..seq_len).map(|i| T::from(i as f64).unwrap()).collect();
+        let _positions: Vec<T> = (0..seq_len).map(|i| T::from(i as f64).unwrap()).collect();
         // Reshape to (1, seq_len) for embedding lookup
         let pos_input = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
         let pos_emb = self.wpe.forward(&pos_input)?;
@@ -128,7 +128,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform + std::iter::Su
         // Broadcast position embeddings to match batch size
         // pos_emb has shape [1, seq_len, n_embd], we need [batch_size, seq_len, n_embd]
         let pos_emb_data = pos_emb.data();
-        let n_embd = pos_emb.shape()[2];
+        let _n_embd = pos_emb.shape()[2];
         let mut pos_emb_broadcast = Vec::new();
 
         for _ in 0..batch_size {
@@ -239,7 +239,7 @@ impl<T: FloatDtype + rand::distributions::uniform::SampleUniform + std::iter::Su
             let mut new_input_data = current_input.data().to_vec();
             new_input_data.push(T::from(next_token as f64).unwrap());
 
-            let new_seq_len = current_input.shape()[1] + 1;
+            let _new_seq_len = current_input.shape()[1] + 1;
             current_input = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
         }
 
@@ -322,7 +322,7 @@ mod tests {
         let model: GPT2<f32> = GPT2::new(config);
 
         // Input shape: (batch_size=1, seq_len=3)
-        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32, 1.0f32, 2.0f32], vec![1, 3]).unwrap();
         let output = model.forward_lm(&input, None).unwrap();
 
         // Output shape: (batch_size=1, seq_len=3, vocab_size=100)
@@ -346,7 +346,7 @@ mod tests {
         let model: GPT2<f32> = GPT2::new(config);
 
         // Input shape: (batch_size=2, seq_len=2)
-        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32, 1.0f32, 2.0f32, 3.0f32], vec![2, 2]).unwrap();
         let output = model.forward_lm(&input, None).unwrap();
 
         // Output shape: (batch_size=2, seq_len=2, vocab_size=50)
@@ -370,7 +370,7 @@ mod tests {
         let model: GPT2<f32> = GPT2::new(config);
 
         // Input shape: (batch_size=1, seq_len=1)
-        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
+        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1, 1]).unwrap();
         let output = model.forward_lm(&input, None).unwrap();
 
         // Output shape: (batch_size=1, seq_len=1, vocab_size=100)
@@ -396,7 +396,7 @@ mod tests {
 
         // Input shape: (batch_size=1, seq_len=block_size)
         let input_data: Vec<f32> = (0..block_size).map(|x| x as f32).collect();
-        let input = Tensor::from_vec(CpuBackend::default(), vec![0.0f32], vec![1]).unwrap();
+        let input = Tensor::from_vec(CpuBackend::default(), input_data, vec![1, block_size]).unwrap();
         let output = model.forward_lm(&input, None).unwrap();
 
         // Output shape: (batch_size=1, seq_len=block_size, vocab_size=100)

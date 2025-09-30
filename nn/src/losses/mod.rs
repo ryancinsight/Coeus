@@ -45,7 +45,6 @@ pub use specialized::{
 
 use crate::{Module, NNError, Result};
 use coeus_tensor::{FloatDtype, Tensor, CpuBackend};
-use std::ops::Div;
 
 /// Reduction modes for loss functions
 ///

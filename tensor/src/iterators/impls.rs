@@ -5,12 +5,13 @@
 
 use crate::{Result, Tensor};
 use coeus_backend::{Backend, CpuBackend};
+use coeus_storage::{TensorStorage, DenseStorage};
 use rayon::iter::IntoParallelRefIterator;
 
 /// Iterator implementation for tensors
 ///
 /// Provides standard iterator functionality over tensor elements.
-impl<T: crate::Dtype, B: Backend<T> + Clone + Send + Sync> Tensor<T, B>
+impl<T: crate::Dtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S>
 where
     CpuBackend: Backend<T>,
 {
@@ -105,11 +106,12 @@ where
     /// let squared = tensor.map(|x| x * x);
     /// assert_eq!(squared.data(), &[1.0, 4.0, 9.0]);
     /// ```
-    pub fn map<F, U, BackendU>(&self, f: F) -> Tensor<U, BackendU>
+    pub fn map<F, U, BackendU, SU>(&self, f: F) -> Tensor<U, BackendU, SU>
     where
         F: Fn(T) -> U + Clone,
         U: crate::Dtype + Clone,
         BackendU: Backend<U> + Clone + Default,
+        SU: TensorStorage<U> + Clone + Send + Sync + Default,
     {
         let new_data: Vec<U> = self.iter().map(|x| f(x.clone())).collect();
         let backend_u = BackendU::default();
@@ -304,7 +306,7 @@ where
     /// let chained: Vec<f64> = a.chain(&b).cloned().collect();
     /// assert_eq!(chained, vec![1.0, 2.0, 3.0, 4.0]);
     /// ```
-    pub fn chain<'a>(&'a self, other: &'a Tensor<T, B>) -> impl Iterator<Item = &'a T> + 'a {
+    pub fn chain<'a>(&'a self, other: &'a Tensor<T, B, S>) -> impl Iterator<Item = &'a T> + 'a {
         self.data().iter().chain(other.data().iter())
     }
 
@@ -325,7 +327,7 @@ where
     /// let zipped: Vec<(f64, f64)> = a.zip(&b).map(|(x, y)| (*x, *y)).collect();
     /// assert_eq!(zipped, vec![(1.0, 3.0), (2.0, 4.0)]);
     /// ```
-    pub fn zip<'a>(&'a self, other: &'a Tensor<T, B>) -> impl Iterator<Item = (&'a T, &'a T)> + 'a {
+    pub fn zip<'a>(&'a self, other: &'a Tensor<T, B, S>) -> impl Iterator<Item = (&'a T, &'a T)> + 'a {
         self.data().iter().zip(other.data().iter())
     }
 
@@ -431,7 +433,7 @@ where
     /// assert_eq!(even.data(), &[2.0, 4.0]);
     /// assert_eq!(even.shape(), &[2]);
     /// ```
-    pub fn filter<F>(&self, predicate: F) -> crate::Result<Tensor<T, CpuBackend>>
+    pub fn filter<F>(&self, predicate: F) -> crate::Result<Tensor<T, CpuBackend, DenseStorage<T>>>
     where
         F: Fn(&T) -> bool,
         T: Clone,
@@ -449,7 +451,7 @@ where
 
 // IntoIterator implementations
 
-impl<T: crate::Dtype> IntoIterator for Tensor<T, CpuBackend>
+impl<T: crate::Dtype> IntoIterator for Tensor<T, CpuBackend, DenseStorage<T>>
 where
     CpuBackend: Backend<T>,
 {
@@ -462,7 +464,7 @@ where
 }
 
 impl<'a, T: crate::Dtype + std::ops::Neg<Output = T> + num_traits::FromPrimitive> IntoIterator
-    for &'a Tensor<T, CpuBackend>
+    for &'a Tensor<T, CpuBackend, DenseStorage<T>>
 where
     CpuBackend: Backend<T>,
 {

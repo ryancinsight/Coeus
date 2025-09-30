@@ -35,11 +35,12 @@
 
 use crate::{Dtype, Result, Tensor, TensorError};
 use coeus_backend::Backend;
+use coeus_storage::TensorStorage;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
 
 // Dispatch impl for Tensor
-impl<T: Dtype + Clone + BitAnd<Output = T>, B: Backend<T> + Clone> Tensor<T, B> {
-    pub fn bitwise_and(&self, rhs: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+impl<T: Dtype + Clone + BitAnd<Output = T>, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S> {
+    pub fn bitwise_and(&self, rhs: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
         if self.shape() != rhs.shape() {
             return Err(TensorError::ShapeMismatch {
                 expected: self.shape().to_vec(),
@@ -57,8 +58,8 @@ impl<T: Dtype + Clone + BitAnd<Output = T>, B: Backend<T> + Clone> Tensor<T, B> 
     }
 }
 
-impl<T: Dtype + Clone + BitOr<Output = T>, B: Backend<T> + Clone> Tensor<T, B> {
-    pub fn bitwise_or(&self, rhs: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+impl<T: Dtype + Clone + BitOr<Output = T>, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S> {
+    pub fn bitwise_or(&self, rhs: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
         if self.shape() != rhs.shape() {
             return Err(TensorError::ShapeMismatch {
                 expected: self.shape().to_vec(),
@@ -77,8 +78,8 @@ impl<T: Dtype + Clone + BitOr<Output = T>, B: Backend<T> + Clone> Tensor<T, B> {
 
 }
 
-impl<T: Dtype + Clone + BitXor<Output = T>, B: Backend<T> + Clone> Tensor<T, B> {
-    pub fn bitwise_xor(&self, rhs: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+impl<T: Dtype + Clone + BitXor<Output = T>, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S> {
+    pub fn bitwise_xor(&self, rhs: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
         if self.shape() != rhs.shape() {
             return Err(TensorError::ShapeMismatch {
                 expected: self.shape().to_vec(),
@@ -97,8 +98,8 @@ impl<T: Dtype + Clone + BitXor<Output = T>, B: Backend<T> + Clone> Tensor<T, B> 
 
 }
 
-impl<T: Dtype + Clone + Not<Output = T>, B: Backend<T> + Clone> Tensor<T, B> {
-    pub fn bitwise_not(&self) -> Result<Tensor<T, B>> {
+impl<T: Dtype + Clone + Not<Output = T>, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S> {
+    pub fn bitwise_not(&self) -> Result<Tensor<T, B, S>> {
         let out_data = self.data().iter().map(|&a| a.not()).collect();
         let out_shape = self.shape().to_vec();
         let backend = self.backend().clone();
@@ -109,7 +110,7 @@ impl<T: Dtype + Clone + Not<Output = T>, B: Backend<T> + Clone> Tensor<T, B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Tensor;
+    use crate::{Tensor, CpuBackend};
 
     #[test]
     fn test_bitwise_and() {

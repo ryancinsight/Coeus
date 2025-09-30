@@ -88,7 +88,7 @@ impl<T: FloatDtype> ConvTranspose2d<T> {
         // For transpose convolution, weight shape is (in_channels, out_channels, kernel_height, kernel_width)
         let weight_shape = vec![in_channels, out_channels, kernel_height, kernel_width];
         // For now, use zero initialization due to type conversion issues
-        let weight_data = vec![T::zero(); weight_shape.iter().product::<usize>()];
+        let _weight_data = vec![T::zero(); weight_shape.iter().product::<usize>()];
 
         let weight = Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap();
 

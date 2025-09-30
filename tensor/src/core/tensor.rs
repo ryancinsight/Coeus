@@ -21,7 +21,9 @@
 use crate::{Device, Layout, Result, TensorError};
 use coeus_backend::Backend;
 use coeus_dtype::{Dtype, FloatDtype};
+use coeus_storage::{TensorStorage, DenseStorage};
 use num_traits::{Float, Num};
+use std::any;
 use std::collections::HashMap;
 
     /// Autograd operation types for computational graph
@@ -672,7 +674,7 @@ pub fn store_pending_gradient(_node_id: u64, _gradient: Vec<f64>) {
 }
 
 /// Apply any pending gradients to this tensor (compatibility function for tests)
-pub fn apply_pending_gradients<T: Dtype, B: Backend<T> + Clone + Send + Sync>(_tensor: &mut Tensor<T, B>) {
+pub fn apply_pending_gradients<T: Dtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(_tensor: &mut Tensor<T, B, S>) {
     // For now, this is a no-op since we handle gradients differently
     // Tests will be updated to use the new API
 }
@@ -691,12 +693,12 @@ impl<T: Dtype> HessianTensorIter<T> {
 
     /// Get the number of elements in the Hessian matrix
     pub fn len(&self) -> usize {
-        self.data.len()
+        self.data().len()
     }
 
     /// Check if the iterator is empty
     pub fn is_empty(&self) -> bool {
-        self.data.is_empty()
+        self.data().is_empty()
     }
 }
 
@@ -704,8 +706,8 @@ impl<T: Dtype> Iterator for HessianTensorIter<T> {
     type Item = ((usize, usize), T);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.data.len() {
-            let (row, col, value) = self.data[self.index];
+        if self.index < self.data().len() {
+            let (row, col, value) = self.data()[self.index];
             self.index += 1;
             Some(((row, col), value))
         } else {
@@ -714,7 +716,7 @@ impl<T: Dtype> Iterator for HessianTensorIter<T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.data.len() - self.index;
+        let remaining = self.data().len() - self.index;
         (remaining, Some(remaining))
     }
 }
@@ -726,15 +728,21 @@ impl<T: Dtype> ExactSizeIterator for HessianTensorIter<T> {}
 /// The Tensor struct represents a multi-dimensional array with the following components:
 /// - `data`: Contiguous memory buffer storing tensor elements
 /// - `shape`: Dimensions of the tensor
-/// - `backend`: Backend implementation for device operations
-/// - `device`: Memory location (CPU/GPU)
-/// - `layout`: Memory layout (contiguous, transposed, etc.)
+/// Generic tensor with pluggable dtype, backend, and storage format
+///
+/// This struct provides zero-cost polymorphism across:
+/// - **T**: Data types (f32, f64, i32, etc.) via `Dtype` trait
+/// - **B**: Backends (CPU, GPU, NPU, TPU, etc.) via `Backend<T>` trait
+/// - **S**: Storage formats (dense, sparse CSR, sparse COO) via `TensorStorage<T>` trait
+///
+/// # Type Parameters
+/// - `T`: Element data type implementing `Dtype`
+/// - `B`: Backend implementation for device operations
+/// - `S`: Storage format for tensor data layout
 #[derive(Clone)]
-pub struct Tensor<T: Dtype, B: Backend<T> + Clone + Send + Sync> {
-    /// Tensor data stored in a contiguous memory buffer
-    pub(crate) data: Vec<T>,
-    /// Shape of the tensor (dimensions)
-    pub(crate) shape: Vec<usize>,
+pub struct Tensor<T: Dtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync> {
+    /// Tensor storage abstraction (dense/sparse)
+    pub(crate) storage: S,
     /// Backend implementation for device operations
     pub(crate) backend: B,
     /// Device where tensor resides
@@ -746,14 +754,25 @@ pub struct Tensor<T: Dtype, B: Backend<T> + Clone + Send + Sync> {
     /// Context for gradient computation (internal use)
     pub(crate) context: Option<u64>, // Context identifier for gradient computation
     /// Gradient tensor (computed during backward pass) - thread-safe with `Arc<RwLock>`
-    pub(crate) grad: std::sync::Arc<std::sync::RwLock<Option<Box<Tensor<T, B>>>>>,
+    pub(crate) grad: std::sync::Arc<std::sync::RwLock<Option<Box<Tensor<T, B, S>>>>>,
     /// Input tensor nodes for gradient computation (used internally)
     pub(crate) _input_tensor_nodes: Vec<Option<u64>>, // Underscore dead field
     /// Named buffers for optimizer state (momentum, running averages, etc.)
-    pub(crate) _buffers: std::collections::HashMap<String, Box<Tensor<T, B>>>, // Underscore dead field
+    pub(crate) _buffers: std::collections::HashMap<String, Box<Tensor<T, B, S>>>, // Underscore dead field
 }
 
-impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
+/// Concrete tensor type alias for dense storage (ergonomic API)
+pub type DenseTensor<T, B> = Tensor<T, B, crate::DenseStorage<T>>;
+
+/// Concrete tensor type for sparse storage (future extension)
+pub type SparseTensor<T, B> = Tensor<T, B, crate::SparseStorageCSR<T>>; // For now, same as dense - will specialize when sparse storage is implemented
+
+/// Concrete tensor types with fixed backends for common use cases
+pub type CpuTensor<T> = Tensor<T, crate::CpuBackend, crate::DenseStorage<T>>;
+pub type CpuDenseTensor<T> = DenseTensor<T, crate::CpuBackend>;
+pub type CpuSparseTensor<T> = SparseTensor<T, crate::CpuBackend>; // Future sparse specialization
+
+impl<T: Dtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S> {
     /// Create a tensor from a vector and shape
     ///
     /// # Arguments
@@ -909,7 +928,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// assert_eq!(tensor.ndim(), 2);
     /// ```
     pub fn ndim(&self) -> usize {
-        self.shape.len()
+        self.shape().len()
     }
 
     /// Get the total number of elements
@@ -1062,7 +1081,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///     slices::all()         // All columns
     /// ]).unwrap();
     /// ```
-    pub fn slice(&self, slices: &[crate::ops::indexing::Slice]) -> Result<Tensor<T, B>>
+    pub fn slice(&self, slices: &[crate::ops::indexing::Slice]) -> Result<Tensor<T, B, S>>
     where
         T: std::ops::AddAssign,
     {
@@ -1077,7 +1096,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// Gathered tensor with same shape as indices
-    pub fn gather(&self, dim: usize, indices: &[i64]) -> Result<Tensor<T, B>>
+    pub fn gather(&self, dim: usize, indices: &[i64]) -> Result<Tensor<T, B, S>>
     where
         T: std::ops::AddAssign,
     {
@@ -1093,7 +1112,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// Tensor with scattered values
-    pub fn scatter(&self, dim: usize, indices: &[i64], src: &Tensor<T, B>) -> Result<Tensor<T, B>>
+    pub fn scatter(&self, dim: usize, indices: &[i64], src: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>>
     where
         T: std::ops::AddAssign,
     {
@@ -1108,7 +1127,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// Tensor with selected elements
-    pub fn index_select(&self, dim: usize, indices: &[usize]) -> Result<Tensor<T, B>>
+    pub fn index_select(&self, dim: usize, indices: &[usize]) -> Result<Tensor<T, B, S>>
     where
         T: std::ops::AddAssign,
     {
@@ -1122,7 +1141,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// Tensor with advanced indexing applied
-    // pub fn advanced_index(&self, indices: &[&Tensor<i32, B>]) -> Result<Tensor<T, B>> {
+    // pub fn advanced_index(&self, indices: &[&Tensor<i32, B>]) -> Result<Tensor<T, B, S>> {
     //     crate::ops::indexing::Indexing::advanced_index(self, indices)
     // }
 
@@ -1230,7 +1249,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// Result containing the cross-Hessian matrix
-    pub fn hessian_wrt(&self, _other: &Tensor<T, B>) -> Result<Vec<Vec<T>>>
+    pub fn hessian_wrt(&self, _other: &Tensor<T, B, S>) -> Result<Vec<Vec<T>>>
     where
         T: Dtype + num_traits::Float,
     {
@@ -1241,7 +1260,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 }
 
-impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
+impl<T: Dtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S> {
     /// Create a tensor from a vector and shape
     ///
     /// # Panics
@@ -1303,17 +1322,17 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
 
     /// Get the shape of the tensor
     pub fn shape(&self) -> &[usize] {
-        &self.shape
+        self.storage.shape()
     }
 
     /// Get the number of elements in the tensor
     pub fn numel(&self) -> usize {
-        self.shape.iter().product()
+        self.storage.numel()
     }
 
     /// Check if the tensor is a scalar (shape = [])
     pub fn is_scalar(&self) -> bool {
-        self.shape.is_empty()
+        self.storage.shape().is_empty()
     }
 
     /// Get the scalar value of a tensor
@@ -1329,10 +1348,10 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     {
         if !self.is_scalar() {
             return Err(crate::TensorError::NotScalar {
-                shape: self.shape.clone(),
+                shape: self.shape().clone(),
             });
         }
-        Ok(self.data[0])
+        Ok(self.data()[0])
     }
 
     /// Get the scalar value (alias for item() for PyTorch compatibility)
@@ -1364,17 +1383,10 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// # Returns
     /// The tensor or an error if the data length doesn't match the shape
     pub fn from_vec(backend: B, data: Vec<T>, shape: Vec<usize>) -> Result<Self> {
-        let expected_len: usize = shape.iter().product();
-        if data.len() != expected_len {
-            return Err(TensorError::ShapeMismatch {
-                expected: vec![expected_len],
-                actual: vec![data.len()],
-            });
-        }
+        let storage = DenseStorage::from_vec(data, shape.clone());
 
         Ok(Tensor {
-            data,
-            shape,
+            storage,
             backend,
             device: Device::Cpu,
             layout: Layout::default(),
@@ -1414,12 +1426,12 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
 
     /// Get the data as a slice
     pub fn data(&self) -> &[T] {
-        &self.data
+        self.storage.data()
     }
 
     /// Get mutable access to the data
     pub fn data_mut(&mut self) -> &mut [T] {
-        &mut self.data
+        self.storage.data_mut()
     }
 
     /// Get the device where the tensor is stored
@@ -1481,9 +1493,10 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
             expected_len
         );
 
+        let storage = DenseStorage::from_vec(data, shape.clone()).unwrap();
+
         Self {
-            data,
-            shape,
+            storage,
             backend,
             device,
             layout: Layout::Contiguous,
@@ -1496,19 +1509,19 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 }
 
-impl<T: Dtype + std::fmt::Debug, B: Backend<T> + Clone + Send + Sync + Default> std::fmt::Debug for Tensor<T, B> {
+impl<T: Dtype + std::fmt::Debug, B: Backend<T> + Clone + Send + Sync + Default, S: TensorStorage<T> + Clone + Send + Sync + Default> std::fmt::Debug for Tensor<T, B, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "Tensor {{ shape: {:?}, data: {:?}, requires_grad: {} }}",
-            self.shape,
-            self.data,
+            self.shape(),
+            self.data(),
             self.context.is_some()
         )
     }
 }
 
-impl<T: Dtype + std::fmt::Display, B: Backend<T> + Clone + Send + Sync + Default> std::fmt::Display for Tensor<T, B> {
+impl<T: Dtype + std::fmt::Display, B: Backend<T> + Clone + Send + Sync + Default, S: TensorStorage<T> + Clone + Send + Sync + Default> std::fmt::Display for Tensor<T, B, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_scalar() {
             write!(f, "{}", self.item().unwrap())
@@ -1516,7 +1529,7 @@ impl<T: Dtype + std::fmt::Display, B: Backend<T> + Clone + Send + Sync + Default
             write!(
                 f,
                 "Tensor(shape={:?}, dtype={})",
-                self.shape,
+                self.shape(),
                 std::any::type_name::<T>()
             )
         }
@@ -1526,13 +1539,13 @@ impl<T: Dtype + std::fmt::Display, B: Backend<T> + Clone + Send + Sync + Default
 // Operator trait implementations for Tensor
 use std::ops::{Neg, Add, Mul}; // Remove unused Sub, Div
 
-impl<T: Dtype + std::ops::Neg<Output = T>, B: Backend<T> + Clone + Send + Sync + Default> Neg for &Tensor<T, B> {
-    type Output = Tensor<T, B>;
+impl<T: Dtype + std::ops::Neg<Output = T>, B: Backend<T> + Clone + Send + Sync + Default, S: TensorStorage<T> + Clone + Send + Sync + Default> Neg for &Tensor<T, B, S> {
+    type Output = Tensor<T, B, S>;
 
     fn neg(self) -> Self::Output {
         // Perform element-wise negation
-        let result_data = self.data.iter().map(|x| -*x).collect();
-        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape.clone()).unwrap();
+        let result_data = self.data().iter().map(|x| -*x).collect();
+        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape().clone()).unwrap();
 
         // Create computational graph node if input requires gradients
         if self.requires_grad() {
@@ -1544,22 +1557,22 @@ impl<T: Dtype + std::ops::Neg<Output = T>, B: Backend<T> + Clone + Send + Sync +
                 } else {
                     let node = context.create_node(Operation::Add, vec![]);
                     let data_f64: Vec<f64> = self
-                        .data
+                        .data()
                         .iter()
                         .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                         .collect();
-                    context.register_tensor(node, data_f64, self.shape.clone());
+                    context.register_tensor(node, data_f64, self.shape().clone());
                     node
                 };
 
                 // Create negation operation node
                 let neg_node = context.create_node(Operation::Neg, vec![self_node]);
                 let result_data_f64: Vec<f64> = result
-                    .data
+                    .data()
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(neg_node, result_data_f64, result.shape.clone());
+                context.register_tensor(neg_node, result_data_f64, result.shape().clone());
                 result.node = Some(neg_node);
             });
         }
@@ -1568,13 +1581,13 @@ impl<T: Dtype + std::ops::Neg<Output = T>, B: Backend<T> + Clone + Send + Sync +
     }
 }
 
-impl<T: Dtype + std::ops::Add<Output = T>, B: Backend<T> + Clone + Send + Sync + Default> Add for &Tensor<T, B> {
-    type Output = Result<Tensor<T, B>>;
+impl<T: Dtype + std::ops::Add<Output = T>, B: Backend<T> + Clone + Send + Sync + Default, S: TensorStorage<T> + Clone + Send + Sync + Default> Add for &Tensor<T, B, S> {
+    type Output = Result<Tensor<T, B, S>>;
 
     fn add(self, other: Self) -> Self::Output {
         // Perform element-wise addition
-        let result_data: Vec<T> = self.data.iter().zip(other.data.iter()).map(|(&a, &b)| a + b).collect();
-        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape.clone()).unwrap();
+        let result_data: Vec<T> = self.data().iter().zip(other.data().iter()).map(|(&a, &b)| a + b).collect();
+        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape().clone()).unwrap();
 
         // Create computational graph node if inputs require gradients
         if self.requires_grad() || other.requires_grad() {
@@ -1583,7 +1596,7 @@ impl<T: Dtype + std::ops::Add<Output = T>, B: Backend<T> + Clone + Send + Sync +
                     node
                 } else {
                     let node = context.create_leaf_node();
-                    context.register_tensor(node, self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape.clone());
+                    context.register_tensor(node, self.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape().clone());
                     node
                 };
 
@@ -1591,13 +1604,13 @@ impl<T: Dtype + std::ops::Add<Output = T>, B: Backend<T> + Clone + Send + Sync +
                     node
                 } else {
                     let node = context.create_leaf_node();
-                    context.register_tensor(node, other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape.clone());
+                    context.register_tensor(node, other.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape()().clone());
                     node
                 };
 
                 // Store tensor data for gradient computation
-                let self_data_f64: Vec<f64> = self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
-                let other_data_f64: Vec<f64> = other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+                let self_data_f64: Vec<f64> = self.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+                let other_data_f64: Vec<f64> = other.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
 
                 let add_node = context.create_node_with_data(Operation::Add, vec![self_node, other_node], vec![self_data_f64, other_data_f64]);
                 result.node = Some(add_node);
@@ -1608,13 +1621,13 @@ impl<T: Dtype + std::ops::Add<Output = T>, B: Backend<T> + Clone + Send + Sync +
     }
 }
 
-impl<T: Dtype + std::ops::Mul<Output = T>, B: Backend<T> + Clone + Send + Sync + Default> Mul for &Tensor<T, B> {
-    type Output = Result<Tensor<T, B>>;
+impl<T: Dtype + std::ops::Mul<Output = T>, B: Backend<T> + Clone + Send + Sync + Default, S: TensorStorage<T> + Clone + Send + Sync + Default> Mul for &Tensor<T, B, S> {
+    type Output = Result<Tensor<T, B, S>>;
 
     fn mul(self, other: Self) -> Self::Output {
         // Perform element-wise multiplication
-        let result_data: Vec<T> = self.data.iter().zip(other.data.iter()).map(|(&a, &b)| a * b).collect();
-        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape.clone()).unwrap();
+        let result_data: Vec<T> = self.data().iter().zip(other.data().iter()).map(|(&a, &b)| a * b).collect();
+        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape().clone()).unwrap();
 
         // Create computational graph node if inputs require gradients
         if self.requires_grad() || other.requires_grad() {
@@ -1623,7 +1636,7 @@ impl<T: Dtype + std::ops::Mul<Output = T>, B: Backend<T> + Clone + Send + Sync +
                     node
                 } else {
                     let node = context.create_leaf_node();
-                    context.register_tensor(node, self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape.clone());
+                    context.register_tensor(node, self.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape().clone());
                     node
                 };
 
@@ -1631,13 +1644,13 @@ impl<T: Dtype + std::ops::Mul<Output = T>, B: Backend<T> + Clone + Send + Sync +
                     node
                 } else {
                     let node = context.create_leaf_node();
-                    context.register_tensor(node, other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape.clone());
+                    context.register_tensor(node, other.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape()().clone());
                     node
                 };
 
                 // Store tensor data for gradient computation
-                let self_data_f64: Vec<f64> = self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
-                let other_data_f64: Vec<f64> = other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+                let self_data_f64: Vec<f64> = self.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+                let other_data_f64: Vec<f64> = other.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
 
                 let mul_node = context.create_node_with_data(Operation::Mul, vec![self_node, other_node], vec![self_data_f64, other_data_f64]);
                 result.node = Some(mul_node);
@@ -1648,13 +1661,13 @@ impl<T: Dtype + std::ops::Mul<Output = T>, B: Backend<T> + Clone + Send + Sync +
     }
 }
 
-impl<T: Dtype + std::ops::Sub<Output = T>, B: Backend<T> + Clone + Send + Sync + Default> std::ops::Sub for &Tensor<T, B> {
-    type Output = Result<Tensor<T, B>>;
+impl<T: Dtype + std::ops::Sub<Output = T>, B: Backend<T> + Clone + Send + Sync + Default, S: TensorStorage<T> + Clone + Send + Sync + Default> std::ops::Sub for &Tensor<T, B, S> {
+    type Output = Result<Tensor<T, B, S>>;
 
     fn sub(self, other: Self) -> Self::Output {
         // Perform element-wise subtraction
-        let result_data: Vec<T> = self.data.iter().zip(other.data.iter()).map(|(&a, &b)| a - b).collect();
-        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape.clone()).unwrap();
+        let result_data: Vec<T> = self.data().iter().zip(other.data().iter()).map(|(&a, &b)| a - b).collect();
+        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape().clone()).unwrap();
 
         // Create computational graph node if inputs require gradients
         if self.requires_grad() || other.requires_grad() {
@@ -1663,7 +1676,7 @@ impl<T: Dtype + std::ops::Sub<Output = T>, B: Backend<T> + Clone + Send + Sync +
                     node
                 } else {
                     let node = context.create_leaf_node();
-                    context.register_tensor(node, self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape.clone());
+                    context.register_tensor(node, self.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape().clone());
                     node
                 };
 
@@ -1671,13 +1684,13 @@ impl<T: Dtype + std::ops::Sub<Output = T>, B: Backend<T> + Clone + Send + Sync +
                     node
                 } else {
                     let node = context.create_leaf_node();
-                    context.register_tensor(node, other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape.clone());
+                    context.register_tensor(node, other.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape()().clone());
                     node
                 };
 
                 let sub_node = context.create_node(Operation::Sub, vec![self_node, other_node]);
-                let result_data_f64: Vec<f64> = result.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
-                context.register_tensor(sub_node, result_data_f64, result.shape.clone());
+                let result_data_f64: Vec<f64> = result.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+                context.register_tensor(sub_node, result_data_f64, result.shape().clone());
                 result.node = Some(sub_node);
             });
         }
@@ -1686,13 +1699,13 @@ impl<T: Dtype + std::ops::Sub<Output = T>, B: Backend<T> + Clone + Send + Sync +
     }
 }
 
-impl<T: Dtype + std::ops::Div<Output = T>, B: Backend<T> + Clone + Send + Sync + Default> std::ops::Div for &Tensor<T, B> {
-    type Output = Result<Tensor<T, B>>;
+impl<T: Dtype + std::ops::Div<Output = T>, B: Backend<T> + Clone + Send + Sync + Default, S: TensorStorage<T> + Clone + Send + Sync + Default> std::ops::Div for &Tensor<T, B, S> {
+    type Output = Result<Tensor<T, B, S>>;
 
     fn div(self, other: Self) -> Self::Output {
         // Perform element-wise division
-        let result_data: Vec<T> = self.data.iter().zip(other.data.iter()).map(|(&a, &b)| a / b).collect();
-        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape.clone()).unwrap();
+        let result_data: Vec<T> = self.data().iter().zip(other.data().iter()).map(|(&a, &b)| a / b).collect();
+        let mut result = Tensor::from_vec(self.backend.clone(), result_data, self.shape().clone()).unwrap();
 
         // Create computational graph node if inputs require gradients
         if self.requires_grad() || other.requires_grad() {
@@ -1701,7 +1714,7 @@ impl<T: Dtype + std::ops::Div<Output = T>, B: Backend<T> + Clone + Send + Sync +
                     node
                 } else {
                     let node = context.create_leaf_node();
-                    context.register_tensor(node, self.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape.clone());
+                    context.register_tensor(node, self.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), self.shape().clone());
                     node
                 };
 
@@ -1709,13 +1722,13 @@ impl<T: Dtype + std::ops::Div<Output = T>, B: Backend<T> + Clone + Send + Sync +
                     node
                 } else {
                     let node = context.create_leaf_node();
-                    context.register_tensor(node, other.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape.clone());
+                    context.register_tensor(node, other.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default(), other.shape()().clone());
                     node
                 };
 
                 let div_node = context.create_node(Operation::Div, vec![self_node, other_node]);
-                let result_data_f64: Vec<f64> = result.data.iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
-                context.register_tensor(div_node, result_data_f64, result.shape.clone());
+                let result_data_f64: Vec<f64> = result.data().iter().map(|&x| Dtype::to_f64(&x)).collect::<Option<Vec<f64>>>().unwrap_or_default();
+                context.register_tensor(div_node, result_data_f64, result.shape().clone());
                 result.node = Some(div_node);
             });
         }
@@ -1725,7 +1738,7 @@ impl<T: Dtype + std::ops::Div<Output = T>, B: Backend<T> + Clone + Send + Sync +
 }
 
 // Separate impl block for autograd-enabled operations
-impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
+impl<T: Dtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S> {
     /// Set requires_grad for autograd-enabled tensors
     ///
     /// # Arguments
@@ -1780,12 +1793,12 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
             with_autograd_context(|context| {
                 let node_id = context.create_leaf_node();
                 if let Some(data_f64) = self
-                    .data
+                    .data()
                     .iter()
                     .map(|&x| Dtype::to_f64(&x))
                     .collect::<Option<Vec<f64>>>()
                 {
-                    context.register_tensor(node_id, data_f64, self.shape.clone());
+                    context.register_tensor(node_id, data_f64, self.shape().clone());
                 }
                 self.node = Some(node_id);
             });
@@ -1805,7 +1818,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Set gradient from a tensor value
-    pub fn set_grad_from_tensor(&self, grad_tensor: &Tensor<T, B>) -> Result<()> {
+    pub fn set_grad_from_tensor(&self, grad_tensor: &Tensor<T, B, S>) -> Result<()> {
         self.set_grad(grad_tensor.clone())
     }
 
@@ -1825,7 +1838,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Get the gradient tensor for this tensor
-    pub fn grad(&self) -> Option<Tensor<T, B>> {
+    pub fn grad(&self) -> Option<Tensor<T, B, S>> {
         // First check if gradient is stored in the tensor itself
         if let Ok(grad_guard) = self.grad.read() {
             if let Some(grad) = grad_guard.as_ref() {
@@ -1846,7 +1859,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
 
                 let grad_tensor = Tensor {
                     data: grad_data_t,
-                    shape: self.shape.clone(),
+                    shape: self.shape().clone(),
                     backend: self.backend.clone(),
                     device: self.device.clone(),
                     layout: self.layout,
@@ -1868,7 +1881,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Get a mutable copy of the gradient tensor for this tensor
-    pub fn grad_mut(&self) -> Option<Tensor<T, B>> {
+    pub fn grad_mut(&self) -> Option<Tensor<T, B, S>> {
         // First check if gradient is cached
         let is_cached = self.grad.read().map(|g| g.is_some()).unwrap_or(false);
 
@@ -1890,15 +1903,15 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Create a tensor of zeros with the same shape as the given tensor
-    pub fn zeros_like(other: &Tensor<T, B>) -> Tensor<T, B>
+    pub fn zeros_like(other: &Tensor<T, B, S>) -> Tensor<T, B, S>
     where
         T: Dtype + num_traits::Float,
     {
-        Tensor::zeros(other.shape.clone())
+        Tensor::zeros(other.shape()().clone())
     }
 
     /// Element-wise exponential function
-    pub fn exp(&self) -> Result<Tensor<T, B>>
+    pub fn exp(&self) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
@@ -1907,7 +1920,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Element-wise sine function
-    pub fn sin(&self) -> Result<Tensor<T, B>>
+    pub fn sin(&self) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
@@ -1916,7 +1929,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Element-wise power function
-    pub fn pow(&self, exponent: T) -> Result<Tensor<T, B>>
+    pub fn pow(&self, exponent: T) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
@@ -1925,7 +1938,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Element-wise natural logarithm function
-    pub fn log(&self) -> Result<Tensor<T, B>>
+    pub fn log(&self) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
@@ -1934,7 +1947,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Element-wise cosine function
-    pub fn cos(&self) -> Result<Tensor<T, B>>
+    pub fn cos(&self) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
@@ -1943,7 +1956,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Element-wise square root function
-    pub fn sqrt(&self) -> Result<Tensor<T, B>>
+    pub fn sqrt(&self) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
@@ -1952,7 +1965,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Rectified Linear Unit activation function
-    pub fn relu(&self) -> Result<Tensor<T, B>>
+    pub fn relu(&self) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
@@ -1961,7 +1974,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Sigmoid activation function
-    pub fn sigmoid(&self) -> Result<Tensor<T, B>>
+    pub fn sigmoid(&self) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
@@ -1970,7 +1983,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Hyperbolic tangent activation function
-    pub fn tanh(&self) -> Result<Tensor<T, B>>
+    pub fn tanh(&self) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
@@ -1979,14 +1992,14 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Unsqueeze a tensor by adding a dimension of size 1 at the specified position
-    pub fn unsqueeze(&self, dim: usize) -> Result<Tensor<T, B>> {
-        if dim > self.shape.len() {
-            return Err(TensorError::InvalidDimension { dim, max_dim: self.shape.len() });
+    pub fn unsqueeze(&self, dim: usize) -> Result<Tensor<T, B, S>> {
+        if dim > self.shape().len() {
+            return Err(TensorError::InvalidDimension { dim, max_dim: self.shape().len() });
         }
-        let mut new_shape = self.shape.clone();
+        let mut new_shape = self.shape().clone();
         new_shape.insert(dim, 1);
         Ok(Tensor {
-            data: self.data.clone(),
+            data: self.data().clone(),
             shape: new_shape,
             backend: self.backend.clone(),
             device: self.device.clone(),
@@ -2000,7 +2013,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Element-wise division function
-    pub fn div(&self, other: &Tensor<T, B>) -> Result<Tensor<T, B>>
+    pub fn div(&self, other: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>>
     where
         T: Dtype + Float + Num + Clone,
     {
@@ -2009,7 +2022,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Set the gradient tensor for this tensor
-    pub fn set_grad(&self, grad: Tensor<T, B>) -> Result<()> {
+    pub fn set_grad(&self, grad: Tensor<T, B, S>) -> Result<()> {
         if grad.shape() != self.shape() {
             return Err(TensorError::ShapeMismatch {
                 expected: self.shape().to_vec(),
@@ -2045,23 +2058,23 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Transpose the tensor
-    pub fn t(&self) -> Result<Tensor<T, B>> {
-        if self.shape.len() != 2 {
+    pub fn t(&self) -> Result<Tensor<T, B, S>> {
+        if self.shape().len() != 2 {
             return Err(TensorError::ShapeMismatch {
-                expected: vec![self.shape[0], self.shape[1]],
-                actual: self.shape.clone(),
+                expected: vec![self.shape()[0], self.shape()[1]],
+                actual: self.shape().to_vec(),
             });
         }
 
         let mut transposed_data = vec![T::zero(); self.numel()];
-        let rows = self.shape[0];
-        let cols = self.shape[1];
+        let rows = self.shape()[0];
+        let cols = self.shape()[1];
 
         for i in 0..rows {
             for j in 0..cols {
                 let src_idx = i * cols + j;
                 let dst_idx = j * rows + i;
-                transposed_data[dst_idx] = self.data[src_idx];
+                transposed_data[dst_idx] = self.data()[src_idx];
             }
         }
 
@@ -2078,22 +2091,22 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
                     let input_node = context.create_leaf_node();
                     context.register_tensor(
                         input_node,
-                        self.data
+                        self.data()
                             .iter()
                             .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                             .collect(),
-                        self.shape.clone(),
+                        self.shape().clone(),
                     );
                     input_node
                 };
 
                 let node_id = context.create_node(Operation::Transpose, vec![self_node]);
                 let result_data_f64: Vec<f64> = result
-                    .data
+                    .data()
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().clone());
                 result.node = Some(node_id);
             });
         }
@@ -2127,18 +2140,18 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// let transposed = tensor.transpose(0, 1).unwrap();
     /// assert_eq!(transposed.shape(), &[3, 2, 4]);
     /// ```
-    pub fn transpose(&self, dim0: usize, dim1: usize) -> Result<Tensor<T, B>> {
+    pub fn transpose(&self, dim0: usize, dim1: usize) -> Result<Tensor<T, B, S>> {
         // Validate dimensions
-        if dim0 >= self.shape.len() {
+        if dim0 >= self.shape().len() {
             return Err(TensorError::InvalidDimension {
                 dim: dim0,
-                max_dim: self.shape.len() - 1,
+                max_dim: self.shape().len() - 1,
             });
         }
-        if dim1 >= self.shape.len() {
+        if dim1 >= self.shape().len() {
             return Err(TensorError::InvalidDimension {
                 dim: dim1,
-                max_dim: self.shape.len() - 1,
+                max_dim: self.shape().len() - 1,
             });
         }
         if dim0 == dim1 {
@@ -2147,12 +2160,12 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
         }
 
         // For 2D tensors with dimensions 0 and 1, use the optimized .t() method
-        if self.shape.len() == 2 && dim0 == 0 && dim1 == 1 {
+        if self.shape().len() == 2 && dim0 == 0 && dim1 == 1 {
             return self.t();
         }
 
         // Create new shape with transposed dimensions
-        let mut new_shape = self.shape.clone();
+        let mut new_shape = self.shape().clone();
         new_shape.swap(dim0, dim1);
 
         // Create transposed data
@@ -2160,10 +2173,10 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
 
         // Calculate strides for original shape (row-major order)
         // stride[d] = product of all dimension sizes after dimension d
-        let mut old_strides = vec![0usize; self.shape.len()];
-        old_strides[self.shape.len() - 1] = 1;
-        for i in (0..self.shape.len() - 1).rev() {
-            old_strides[i] = old_strides[i + 1] * self.shape[i + 1];
+        let mut old_strides = vec![0usize; self.shape().len()];
+        old_strides[self.shape().len() - 1] = 1;
+        for i in (0..self.shape().len() - 1).rev() {
+            old_strides[i] = old_strides[i + 1] * self.shape()[i + 1];
         }
 
         // Calculate strides for new shape (row-major order)
@@ -2176,9 +2189,9 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
         // Perform the transpose
         for old_idx in 0..self.numel() {
             // Convert flat index to multi-dimensional coordinates in original shape
-            let mut coords = vec![0usize; self.shape.len()];
+            let mut coords = vec![0usize; self.shape().len()];
             let mut temp_idx = old_idx;
-            for d in 0..self.shape.len() {
+            for d in 0..self.shape().len() {
                 coords[d] = temp_idx / old_strides[d];
                 temp_idx %= old_strides[d];
             }
@@ -2203,7 +2216,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
                 });
             }
 
-            transposed_data[new_idx] = self.data[old_idx];
+            transposed_data[new_idx] = self.data()[old_idx];
         }
 
         let mut result = Tensor::from_vec(self.backend.clone(), transposed_data, new_shape).unwrap();
@@ -2219,11 +2232,11 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
                     let input_node = context.create_node(Operation::Leaf, vec![]);
                     context.register_tensor(
                         input_node,
-                        self.data
+                        self.data()
                             .iter()
                             .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                             .collect(),
-                        self.shape.clone(),
+                        self.shape().clone(),
                     );
                     input_node
                 };
@@ -2232,11 +2245,11 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
                 // TODO: Add TransposeDims operation for more specific gradient handling
                 let node_id = context.create_node(Operation::Transpose, vec![self_node]);
                 let result_data_f64: Vec<f64> = result
-                    .data
+                    .data()
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().clone());
                 result.node = Some(node_id);
             });
         }
@@ -2245,11 +2258,11 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     }
 
     /// Sum all elements in the tensor
-    pub fn sum(&self) -> Tensor<T, B>
+    pub fn sum(&self) -> Tensor<T, B, S>
     where
         T: std::iter::Sum<T>,
     {
-        let sum_value: T = self.data.iter().cloned().sum();
+        let sum_value: T = self.data().iter().cloned().sum();
         let mut result = Tensor::scalar(sum_value); // Return scalar tensor for consistency
 
         // Create computational graph node if input requires gradients
@@ -2264,11 +2277,11 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
                     let input_node = context.create_leaf_node();
                     context.register_tensor(
                         input_node,
-                        self.data
+                        self.data()
                             .iter()
                             .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                             .collect(),
-                        self.shape.clone(),
+                        self.shape().clone(),
                     );
                     input_node
                 };
@@ -2302,22 +2315,22 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// let sum_all = tensor.sum_dim(None, false); // Scalar result
     /// let sum_dim0 = tensor.sum_dim(Some(0), false); // Sum along dimension 0
     /// ```
-    pub fn sum_dim(&self, dim: Option<usize>, keepdim: bool) -> Result<Tensor<T, B>>
+    pub fn sum_dim(&self, dim: Option<usize>, keepdim: bool) -> Result<Tensor<T, B, S>>
     where
         T: std::iter::Sum<T> + Clone + std::ops::Add<Output = T>,
     {
         match dim {
             None => Ok(self.sum()), // Sum all elements
             Some(d) => {
-                if d >= self.shape.len() {
+                if d >= self.shape().len() {
                     return Err(TensorError::InvalidDimension {
                         dim: d,
-                        max_dim: self.shape.len() - 1,
+                        max_dim: self.shape().len() - 1,
                     });
                 }
 
                 // Calculate result shape
-                let mut result_shape = self.shape.clone();
+                let mut result_shape = self.shape().clone();
                 if !keepdim {
                     result_shape.remove(d);
                 } else {
@@ -2325,9 +2338,9 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
                 }
 
                 // Calculate strides for indexing
-                let mut strides = vec![1; self.shape.len()];
-                for i in (0..self.shape.len() - 1).rev() {
-                    strides[i] = strides[i + 1] * self.shape[i + 1];
+                let mut strides = vec![1; self.shape().len()];
+                for i in (0..self.shape().len() - 1).rev() {
+                    strides[i] = strides[i + 1] * self.shape()[i + 1];
                 }
 
                 let result_size = result_shape.iter().product();
@@ -2344,10 +2357,10 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
                     }
 
                     // Build original tensor coordinates by inserting the summed dimension
-                    let mut orig_coords = vec![0; self.shape.len()];
+                    let mut orig_coords = vec![0; self.shape().len()];
                     let mut result_coord_idx = 0;
 
-                    for (orig_dim, _) in (0..self.shape.len()).enumerate() {
+                    for (orig_dim, _) in (0..self.shape().len()).enumerate() {
                         if orig_dim == d {
                             // This is the dimension we're summing over
                             if keepdim {
@@ -2365,14 +2378,14 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
 
                     // Sum over the specified dimension
                     let mut sum = T::zero();
-                    for i in 0..self.shape[d] {
+                    for i in 0..self.shape()[d] {
                         orig_coords[d] = i; // Set the current index in the summed dimension
                         let flat_idx = orig_coords
                             .iter()
                             .zip(strides.iter())
                             .map(|(c, s)| c * s)
                             .sum::<usize>();
-                        sum = sum + self.data[flat_idx];
+                        sum = sum + self.data()[flat_idx];
                     }
 
                     result_data[result_idx] = sum;
@@ -2392,22 +2405,22 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
                             let input_node = context.create_node(Operation::Leaf, vec![]); // Create leaf node for input tensor
                             context.register_tensor(
                                 input_node,
-                                self.data
+                                self.data()
                                     .iter()
                                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                                     .collect(),
-                                self.shape.clone(),
+                                self.shape().clone(),
                             );
                             input_node
                         };
 
                         let node_id = context.create_node(Operation::SumDim, vec![self_node]);
                         let result_data_f64: Vec<f64> = result
-                            .data
+                            .data()
                             .iter()
                             .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                             .collect();
-                        context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                        context.register_tensor(node_id, result_data_f64, result.shape().clone());
                         result.node = Some(node_id);
                     });
         }
@@ -2440,7 +2453,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// let c = a.matmul(&b).unwrap();
     /// // c has shape [2, 2]
     /// ```
-    pub fn matmul(&self, other: &Tensor<T, B>) -> Result<Tensor<T, B>>
+    pub fn matmul(&self, other: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
         B: Backend<T> + Clone + Sync,
@@ -2455,11 +2468,11 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Errors
     /// Returns `TensorError::MeanCalculationError` if the count value cannot be created for the type
-    pub fn mean(&self) -> crate::Result<Tensor<T, B>>
+    pub fn mean(&self) -> crate::Result<Tensor<T, B, S>>
     where
         T: std::iter::Sum<T> + std::ops::Div<Output = T> + num_traits::FromPrimitive,
     {
-        let sum_value: T = self.data.iter().cloned().sum();
+        let sum_value: T = self.data().iter().cloned().sum();
         let count = match T::from_usize(self.numel()) {
             Some(c) => c,
             None => {
@@ -2486,7 +2499,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// # Errors
     /// Returns `TensorError::MeanCalculationError` if the count value cannot be created for the type
     /// Returns errors from `sum_dim` if dimension reduction fails
-    pub fn mean_dim(&self, dim: Option<usize>, keepdim: bool) -> Result<Tensor<T, B>>
+    pub fn mean_dim(&self, dim: Option<usize>, keepdim: bool) -> Result<Tensor<T, B, S>>
     where
         T: std::iter::Sum<T>
             + Clone
@@ -2497,7 +2510,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
         let sum_result = self.sum_dim(dim, keepdim)?;
         let count = match dim {
             None => self.numel(),
-            Some(d) => self.shape[d],
+            Some(d) => self.shape()[d],
         };
 
         let count_t = match T::from_usize(count) {
@@ -2527,22 +2540,22 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
                     let input_node = context.create_node(Operation::Leaf, vec![]); // Create leaf node for input tensor
                     context.register_tensor(
                         input_node,
-                        self.data
+                        self.data()
                             .iter()
                             .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                             .collect(),
-                        self.shape.clone(),
+                        self.shape().clone(),
                     );
                     input_node
                 };
 
                 let node_id = context.create_node(Operation::MeanDim, vec![self_node]);
                 let result_data_f64: Vec<f64> = result
-                    .data
+                    .data()
                     .iter()
                     .map(|&x| num_traits::ToPrimitive::to_f64(&x).unwrap_or(0.0))
                     .collect();
-                context.register_tensor(node_id, result_data_f64, result.shape.clone());
+                context.register_tensor(node_id, result_data_f64, result.shape().clone());
                 result.node = Some(node_id);
             });
         }
@@ -2569,7 +2582,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// let result = tensor.take_elements(&indices).unwrap();
     /// // Result: [10.0, 30.0, 40.0]
     /// ```
-    pub fn take_elements(&self, indices: &[i64]) -> Result<Tensor<T, B>> {
+    pub fn take_elements(&self, indices: &[i64]) -> Result<Tensor<T, B, S>> {
         let usize_indices: Vec<usize> = indices.iter().map(|&x| x as usize).collect();
         crate::ops::indexing::select(self, &usize_indices)
     }
@@ -2593,7 +2606,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// let result = tensor.put(&indices, &values).unwrap();
     /// // Result: [100.0, 20.0, 300.0, 40.0]
     /// ```
-    // pub fn put(&self, indices: &Tensor<i64, B>, values: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+    // pub fn put(&self, indices: &Tensor<i64, B>, values: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     //     crate::ops::indexing::Indexing::put(self, indices, values)
     // }
 
@@ -2607,7 +2620,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// Option containing the buffer tensor if it exists
-    pub fn get_buffer(&mut self, _name: &str) -> Option<Tensor<T, B>> {
+    pub fn get_buffer(&mut self, _name: &str) -> Option<Tensor<T, B, S>> {
         // For now, return None - buffers are not implemented yet
         // This prevents compilation errors in optimizers
         None
@@ -2621,14 +2634,14 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     /// # Arguments
     /// * `name` - Name of the buffer to store
     /// * `buffer` - Buffer tensor to store
-    pub fn set_buffer(&mut self, _name: &str, _buffer: Tensor<T, B>) {
+    pub fn set_buffer(&mut self, _name: &str, _buffer: Tensor<T, B, S>) {
         // For now, this is a no-op - buffers are not implemented yet
         // This prevents compilation errors in optimizers
     }
 
     /// Unwrap the gradient tensor, panicking if no gradient is available.
     /// This method is used by optimizers that require gradient computation.
-    pub fn unwrap_grad(&self) -> Tensor<T, B> {
+    pub fn unwrap_grad(&self) -> Tensor<T, B, S> {
         *self.grad.read().unwrap().as_ref().expect("No gradient available").clone()
     }
 
@@ -2647,11 +2660,11 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// New tensor with ELU values
-    pub fn elu(&self, alpha: T) -> Result<Tensor<T, B>>
+    pub fn elu(&self, alpha: T) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
-        let data = self.data.iter()
+        let data = self.data().iter()
             .map(|x| if *x > T::zero() { *x } else { alpha * (x.exp() - T::one()) })
             .collect();
         let mut result = Tensor {
@@ -2676,11 +2689,11 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// New tensor with GELU values
-    pub fn gelu(&self) -> Result<Tensor<T, B>>
+    pub fn gelu(&self) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
-        let data = self.data.iter()
+        let data = self.data().iter()
             .map(|x| {
                 let x_f64 = Dtype::to_f64(x).unwrap_or(0.0);
                 let result = 0.5 * x_f64 * (1.0 + (x_f64 / (2.0_f64).sqrt()).tanh());
@@ -2712,7 +2725,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// New tensor with softmax values
-    pub fn softmax(&self, dim: usize) -> Result<Tensor<T, B>>
+    pub fn softmax(&self, dim: usize) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
@@ -2789,12 +2802,12 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// New tensor with softmin values
-    pub fn softmin(&self, dim: usize) -> Result<Tensor<T, B>>
+    pub fn softmin(&self, dim: usize) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
         // Softmin is softmax of negated tensor
-        let neg_data = self.data.iter().map(|x| -(*x)).collect();
+        let neg_data = self.data().iter().map(|x| -(*x)).collect();
         let neg_tensor = Tensor {
             data: neg_data,
             shape: self.shape().to_vec(),
@@ -2814,12 +2827,12 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// New tensor with log-sigmoid values
-    pub fn logsigmoid(&self) -> Result<Tensor<T, B>>
+    pub fn logsigmoid(&self) -> Result<Tensor<T, B, S>>
     where
         T: FloatDtype,
     {
         // log(sigmoid(x)) = log(1 / (1 + exp(-x))) = -log(1 + exp(-x))
-        let data = self.data.iter()
+        let data = self.data().iter()
             .map(|x| -((T::one() + (-*x).exp())).ln())
             .collect();
         let mut result = Tensor {
@@ -2847,7 +2860,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
     ///
     /// # Returns
     /// New tensor with reshaped dimensions
-    pub fn reshape(&self, new_shape: Vec<usize>) -> Result<Tensor<T, B>> {
+    pub fn reshape(&self, new_shape: Vec<usize>) -> Result<Tensor<T, B, S>> {
         let total_elements: usize = new_shape.iter().product();
         if total_elements != self.numel() {
             return Err(TensorError::InvalidShape {
@@ -2858,7 +2871,7 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default> Tensor<T, B> {
         }
 
         let mut result = Tensor {
-            data: self.data.clone(),
+            data: self.data().clone(),
             shape: new_shape,
             backend: self.backend.clone(),
             device: self.device.clone(),

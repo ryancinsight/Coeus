@@ -74,18 +74,25 @@ Coeus is a PyTorch-like tensor library implemented in Rust, providing automatic 
 ### Crate Structure
 ```
 coeus/
+├── dtype/        # Generic data type system and quantization
+├── backend/      # Device-agnostic backend abstraction (CPU/GPU)
+├── storage/      # Generic tensor storage abstractions (dense/sparse)
+├── tensor/       # Core tensor implementation with Tensor<T, B, S>
 ├── autograd/     # Automatic differentiation engine
-├── tensor/       # Core tensor implementation
+├── nn/          # Neural network layers and modules
+├── optim/       # Optimization algorithms and schedulers
+├── utils/       # Data loading and preprocessing utilities
 ├── examples/     # Usage examples
-└── docs/         # Documentation
+└── docs/        # Documentation
 ```
 
 ### Key Components
-1. **Dtype Trait**: Unified interface for all numeric types
-2. **Tensor Struct**: Main tensor container with metadata
-3. **Computational Graph**: DAG for tracking operations and gradients
-4. **Operation Traits**: Extensible operation system
-5. **Context System**: Thread-local computation context
+1. **Dtype Trait**: Unified interface for all numeric types with quantization support
+2. **Backend Trait**: Device-agnostic interface for CPU/GPU operations
+3. **Storage Trait**: Generic storage abstractions (dense/sparse formats)
+4. **Tensor<T, B, S>**: Generic tensor with pluggable dtype, backend, and storage
+5. **Computational Graph**: DAG for tracking operations and gradients
+6. **Operation Traits**: Extensible operation system with zero-cost polymorphism
 
 ## Quality Assurance
 

@@ -12,6 +12,7 @@ half = { workspace = true }
 approx = { workspace = true }
 bytemuck = { version = "1.14", features = ["derive"] }
 async-trait = { workspace = true }
+# Removed coeus-storage dependency to maintain separation of concerns
 
 [dev-dependencies]
 proptest = "1.4"

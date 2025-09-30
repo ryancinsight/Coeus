@@ -59,6 +59,11 @@ use std::fmt;
 // Public modules
 pub mod quantization;
 pub mod schemes;
+pub mod fp16;
+pub mod quant;
+
+// Re-export storage types for convenience
+// NOTE: Removed re-exports to maintain separation of concerns between dtype and storage crates
 
 /// Trait for all supported data types in tensors
 pub trait Dtype:
@@ -778,3 +783,4 @@ mod tests {
         assert!((0.0 / 0.0).is_nan());
     }
 }
+

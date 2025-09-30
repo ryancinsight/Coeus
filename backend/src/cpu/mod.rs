@@ -609,18 +609,71 @@ impl<T: Dtype> Backend<T> for CpuBackend {
         Ok(BackendData::cpu(data, input.shape().to_vec()))
     }
 
-    #[allow(unused_variables)]
     fn conv1d(
         &self,
-        _input: &BackendData<T>,
-        _weight: &BackendData<T>,
-        _bias: Option<&BackendData<T>>,
-        _stride: usize,
-        _padding: usize,
-        _dilation: usize,
-        _groups: usize,
+        input: &BackendData<T>,
+        weight: &BackendData<T>,
+        bias: Option<&BackendData<T>>,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        groups: usize,
     ) -> Result<BackendData<T>> {
-        todo!("Implement conv1d")
+        // Basic 1D convolution implementation with groups=1 support
+        if groups != 1 {
+            return Err(BackendError::NotImplemented("Groups > 1 not yet implemented for conv1d".to_string()));
+        }
+
+        let input_shape = input.shape();
+        let weight_shape = weight.shape();
+
+        if input_shape.len() != 3 || weight_shape.len() != 3 {
+            return Err(BackendError::invalid_operation("Conv1d requires 3D tensors [batch, channels, length]"));
+        }
+
+        let batch_size = input_shape[0];
+        let in_channels = input_shape[1];
+        let input_length = input_shape[2];
+        let out_channels = weight_shape[0];
+        let kernel_size = weight_shape[2];
+
+        // Calculate output length
+        let output_length = ((input_length + 2 * padding - dilation * (kernel_size - 1) - 1) / stride) + 1;
+
+        let mut output_data = Vec::with_capacity(batch_size * out_channels * output_length);
+
+        // Simple convolution implementation
+        for b in 0..batch_size {
+            for oc in 0..out_channels {
+                for ol in 0..output_length {
+                    let mut sum = T::zero();
+
+                    for kc in 0..kernel_size {
+                        let input_idx = ol * stride + kc * dilation;
+                        if input_idx >= padding && input_idx < input_length + padding {
+                            let actual_input_idx = input_idx - padding;
+                            if actual_input_idx < input_length {
+                                // Sum over input channels
+                                for ic in 0..in_channels {
+                                    let input_val = input.data()[b * in_channels * input_length + ic * input_length + actual_input_idx];
+                                    let weight_val = weight.data()[oc * in_channels * kernel_size + ic * kernel_size + kc];
+                                    sum = sum + input_val * weight_val;
+                                }
+                            }
+                        }
+                    }
+
+                    // Add bias if provided
+                    if let Some(bias_data) = bias {
+                        sum = sum + bias_data.data()[oc];
+                    }
+
+                    output_data.push(sum);
+                }
+            }
+        }
+
+        Ok(BackendData::cpu(output_data, vec![batch_size, out_channels, output_length]))
     }
 
     #[allow(unused_variables)]
@@ -661,14 +714,81 @@ impl<T: Dtype> Backend<T> for CpuBackend {
 
     fn layernorm_backward(
         &self,
-        _grad_out: &BackendData<T>,
-        _input: &BackendData<T>,
-        _mean: f32,
-        _var: f32,
-        _gamma: Option<&BackendData<T>>,
-        _eps: f32,
+        grad_out: &BackendData<T>,
+        input: &BackendData<T>,
+        mean: f32,
+        var: f32,
+        gamma: Option<&BackendData<T>>,
+        eps: f32,
     ) -> Result<BackendData<T>> {
-        Err(BackendError::NotImplemented("layernorm_backward not implemented for CPU backend".to_string()))
+        // Layer normalization backward pass implemented using available operations
+        // grad_input = gamma * (grad_out - mean(grad_out) - input * mean(grad_out * input)) / sqrt(var + eps)
+
+        let n = input.len();
+        if n == 0 {
+            return Ok(BackendData::cpu(vec![], input.shape().to_vec()));
+        }
+
+        let n_f64 = n as f64;
+
+        // Compute sum of grad_out for mean
+        let mut grad_out_sum = 0.0f64;
+        for &val in grad_out.data() {
+            if let Some(f64_val) = Dtype::to_f64(&val) {
+                grad_out_sum += f64_val;
+            } else {
+                return Err(BackendError::NotImplemented(
+                    "layernorm_backward requires types convertible to f64".to_string()
+                ));
+            }
+        }
+        let grad_out_mean = grad_out_sum / n_f64;
+
+        // Compute sum of grad_out * input for cross term
+        let mut cross_sum = 0.0f64;
+        for (&g, &x) in grad_out.data().iter().zip(input.data().iter()) {
+            if let (Some(g_f64), Some(x_f64)) = (Dtype::to_f64(&g), Dtype::to_f64(&x)) {
+                cross_sum += g_f64 * x_f64;
+            } else {
+                return Err(BackendError::NotImplemented(
+                    "layernorm_backward requires types convertible to f64".to_string()
+                ));
+            }
+        }
+        let cross_mean = cross_sum / n_f64;
+
+        // Compute denominator: sqrt(var + eps)
+        let denom = (var as f64 + eps as f64).sqrt();
+
+        // Compute gradients
+        let mut grad_input_data = Vec::with_capacity(n);
+        for i in 0..n {
+            let grad_out_i = Dtype::to_f64(&grad_out.data()[i]).unwrap();
+            let input_i = Dtype::to_f64(&input.data()[i]).unwrap();
+
+            // grad = (grad_out - grad_out_mean) - (input - mean) * cross_mean
+            let grad = (grad_out_i - grad_out_mean) - (input_i - mean as f64) * cross_mean;
+            let normalized_grad = grad / denom;
+
+            // Apply gamma if provided
+            let final_grad_f64 = if let Some(gamma_data) = gamma {
+                let gamma_i = Dtype::to_f64(&gamma_data.data()[i]).unwrap();
+                normalized_grad * gamma_i
+            } else {
+                normalized_grad
+            };
+
+            // Convert back to T
+            if let Some(final_grad) = <T as Dtype>::from_f64(final_grad_f64) {
+                grad_input_data.push(final_grad);
+            } else {
+                return Err(BackendError::NotImplemented(
+                    "layernorm_backward result cannot be converted back to target type".to_string()
+                ));
+            }
+        }
+
+        Ok(BackendData::cpu(grad_input_data, input.shape().to_vec()))
     }
 
     fn attention_backward(
@@ -681,9 +801,17 @@ impl<T: Dtype> Backend<T> for CpuBackend {
         Err(BackendError::NotImplemented("attention_backward not implemented for CPU backend".to_string()))
     }
 
-    fn gelu(&self, _input: &BackendData<T>) -> Result<BackendData<T>>
+    fn gelu(&self, input: &BackendData<T>) -> Result<BackendData<T>>
     where T: Float + Clone {
-        Err(BackendError::NotImplemented("gelu not implemented for CPU backend".to_string()))
+        // GELU(x) = 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
+        let data: Vec<T> = input.data().iter().map(|&x| {
+            let x3 = x * x * x;
+            let inner = T::from(0.7978845608028654).unwrap() * (x + T::from(0.044715).unwrap() * x3);
+            let tanh_inner = inner.tanh();
+            T::from(0.5).unwrap() * x * (T::one() + tanh_inner)
+        }).collect();
+
+        Ok(BackendData::cpu(data, input.shape().to_vec()))
     }
 
     fn attention(&self, query: &BackendData<T>, key: &BackendData<T>, value: &BackendData<T>) -> Result<BackendData<T>> {
@@ -815,16 +943,38 @@ impl<T: Dtype> Backend<T> for CpuBackend {
         Ok(BackendData::cpu(result_data, shape.to_vec()))
     }
 
-    fn fused_batchnorm(&self, _input: &BackendData<T>, _mean: f32, _var: f32, _gamma: f32, _beta: f32, _eps: f32) -> Result<BackendData<T>> {
-        Err(BackendError::NotImplemented("fused_batchnorm not implemented for CPU backend".to_string()))
+    fn fused_batchnorm(&self, input: &BackendData<T>, mean: f32, var: f32, gamma: f32, beta: f32, eps: f32) -> Result<BackendData<T>> {
+        // fused_batchnorm requires floating point operations
+        if !T::is_float() {
+            return Err(BackendError::NotImplemented("fused_batchnorm requires floating point types".to_string()));
+        }
+
+        // Batch normalization: (x - mean) / sqrt(var + eps) * gamma + beta
+        let mean_t = <T as Dtype>::from_f64(mean as f64).ok_or_else(|| BackendError::NotImplemented("Type conversion failed".to_string()))?;
+        let var_t = <T as Dtype>::from_f64(var as f64).ok_or_else(|| BackendError::NotImplemented("Type conversion failed".to_string()))?;
+        let gamma_t = <T as Dtype>::from_f64(gamma as f64).ok_or_else(|| BackendError::NotImplemented("Type conversion failed".to_string()))?;
+        let beta_t = <T as Dtype>::from_f64(beta as f64).ok_or_else(|| BackendError::NotImplemented("Type conversion failed".to_string()))?;
+        let eps_t = <T as Dtype>::from_f64(eps as f64).ok_or_else(|| BackendError::NotImplemented("Type conversion failed".to_string()))?;
+
+        // For now, return NotImplemented as proper fused_batchnorm requires Float trait
+        // A full implementation would need to handle sqrt operations on generic types
+        Err(BackendError::NotImplemented("fused_batchnorm requires Float trait support for sqrt operations".to_string()))
     }
 
-    fn adam_step(&self, _m: &BackendData<T>, _v: &BackendData<T>, _grad: &BackendData<T>, _lr: f32, _beta1: f32, _beta2: f32, _eps: f32, _t: f32) -> Result<BackendData<T>> {
-        Err(BackendError::NotImplemented("adam_step not implemented for CPU backend".to_string()))
+    fn adam_step(&self, m: &BackendData<T>, v: &BackendData<T>, grad: &BackendData<T>, lr: f32, beta1: f32, beta2: f32, eps: f32, t: f32) -> Result<BackendData<T>> {
+        // adam_step requires floating point operations for bias correction and exponentiation
+        if !T::is_float() {
+            return Err(BackendError::NotImplemented("adam_step requires floating point types".to_string()));
+        }
+
+        // For non-Float types, we can't perform the complex Adam calculations
+        // This would need a different approach for integer types
+        Err(BackendError::NotImplemented("adam_step requires Float trait support".to_string()))
     }
 
-    fn fused_adam(&self, _m: &BackendData<T>, _v: &BackendData<T>, _grad: &BackendData<T>, _lr: f32, _beta1: f32, _beta2: f32, _eps: f32, _t: f32) -> Result<BackendData<T>> {
-        Err(BackendError::NotImplemented("fused_adam not implemented for CPU backend".to_string()))
+    fn fused_adam(&self, m: &BackendData<T>, v: &BackendData<T>, grad: &BackendData<T>, lr: f32, beta1: f32, beta2: f32, eps: f32, t: f32) -> Result<BackendData<T>> {
+        // fused_adam delegates to adam_step for now
+        self.adam_step(m, v, grad, lr, beta1, beta2, eps, t)
     }
 
     fn rmsprop(&self, v: &BackendData<T>, grad: &BackendData<T>, lr: f32, eps: f32) -> Result<BackendData<T>>

@@ -6,6 +6,7 @@
 
 use coeus_dtype::Dtype;
 use coeus_backend::Backend;
+use coeus_storage::TensorStorage;
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
@@ -350,11 +351,11 @@ impl PerformanceContext {
     }
 
     /// Record tensor-aware measurement with memory tracking
-    pub fn record_tensor_measurement<T: Dtype, B: Backend<T> + Clone>(
+    pub fn record_tensor_measurement<T: Dtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
         &self,
         operation: &str,
         duration: Duration,
-        tensor: &super::Tensor<T, B>,
+        tensor: &super::Tensor<T, B, S>,
     ) -> RegressionResult {
         let mut metrics = PerformanceMetrics::new(operation.to_string()).with_duration(duration);
 

@@ -152,7 +152,7 @@ mod tests {
             let a_numel: usize = a_shape.iter().product();
             let b_numel: usize = b_shape.iter().product();
             let a_data: Vec<f32> = (0..a_numel).map(|i| i as f32).collect();
-            let b_data: Vec<f32> = if b_numel == 0 { vec![0.0f32] } else { (0..b_numel).map(|i| 1.0f32).collect() };
+            let b_data: Vec<f32> = if b_numel == 0 { vec![0.0f32] } else { (0..b_numel).map(|_i| 1.0f32).collect() };
 
             let lhs_bd = Arc::new(BackendData::cpu(a_data.clone(), a_shape.clone()));
             let rhs_bd = Arc::new(BackendData::cpu(b_data.clone(), b_shape.clone()));

@@ -9,6 +9,7 @@ members = [
     "nn",
     "optim",
     "pycoeus",
+    "storage",
     "tensor",
     "tokenizer",
     "utils"
@@ -45,6 +46,7 @@ criterion = { version = "0.5", features = ["html_reports"] }
 rustfft = "6.1"
 coeus-dtype = { path = "./dtype" }
 coeus-backend = { path = "./backend" }
+coeus-storage = { path = "./storage" }
 coeus-tensor = { path = "./tensor" }
 coeus-nn = { path = "./nn" }
 coeus-hub = { path = "./hub" }

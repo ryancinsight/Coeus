@@ -26,12 +26,12 @@ impl NumericalGradientChecker {
     pub fn check_gradients<F>(
         &self,
         f: F,
-        x: &Tensor<f64, CpuBackend>,
-        expected_grad: &Tensor<f64, CpuBackend>,
+        x: &Tensor<f64, CpuBackend, DenseStorage<f64>>,
+        expected_grad: &Tensor<f64, CpuBackend, DenseStorage<f64>>,
         tolerance: f64,
     ) -> std::result::Result<(), Box<dyn std::error::Error>>
     where
-        F: Fn(&Tensor<f64, CpuBackend>) -> Tensor<f64, CpuBackend>,
+        F: Fn(&Tensor<f64, CpuBackend, DenseStorage<f64>>) -> Tensor<f64, CpuBackend, DenseStorage<f64>>,
     {
         let backend = CpuBackend::default();
 
@@ -76,10 +76,10 @@ impl NumericalGradientChecker {
     fn compute_numerical_gradient<F>(
         &self,
         f: &F,
-        x: &Tensor<f64, CpuBackend>,
-    ) -> std::result::Result<Tensor<f64, CpuBackend>, Box<dyn std::error::Error>>
+        x: &Tensor<f64, CpuBackend, DenseStorage<f64>>,
+    ) -> std::result::Result<Tensor<f64, CpuBackend, DenseStorage<f64>>, Box<dyn std::error::Error>>
     where
-        F: Fn(&Tensor<f64, CpuBackend>) -> Tensor<f64, CpuBackend>,
+        F: Fn(&Tensor<f64, CpuBackend, DenseStorage<f64>>) -> Tensor<f64, CpuBackend, DenseStorage<f64>>,
     {
         let backend = CpuBackend::default();
         let x_data = x.data();
@@ -135,7 +135,7 @@ fn test_numerical_gradient_checker() {
     let analytical_grad = x.grad().unwrap();
 
     // Define the function for numerical checking
-    let f = |t: &Tensor<f64, CpuBackend>| {
+    let f = |t: &Tensor<f64, CpuBackend, DenseStorage<f64>>| {
         t.pow(2.0).unwrap()
     };
 
@@ -159,7 +159,7 @@ fn test_numerical_gradient_vector_input() {
     let analytical_grad = x.grad().unwrap();
 
     // Define the function for numerical checking
-    let f = |t: &Tensor<f64, CpuBackend>| {
+    let f = |t: &Tensor<f64, CpuBackend, DenseStorage<f64>>| {
         t.clone() // Identity function
     };
 
@@ -172,23 +172,23 @@ fn test_activation_function_gradients() {
     let checker = NumericalGradientChecker::new();
 
     // Test exp function: f(x) = e^x, f'(x) = e^x
-    let mut x: Tensor<f64, CpuBackend> = Tensor::scalar(1.0);
+    let mut x: Tensor<f64, CpuBackend, DenseStorage<f64>> = Tensor::scalar(1.0);
     x.set_requires_grad(true);
     let mut y = x.exp().unwrap();
     y.backward().unwrap();
     let analytical_grad = x.grad().unwrap();
 
-    let f_exp = |t: &Tensor<f64, CpuBackend>| t.exp().unwrap();
+    let f_exp = |t: &Tensor<f64, CpuBackend, DenseStorage<f64>>| t.exp().unwrap();
     checker.check_gradients(f_exp, &x, &analytical_grad, 1e-6).unwrap();
 
     // Test sin function: f(x) = sin(x), f'(x) = cos(x)
-    let mut x_sin: Tensor<f64, CpuBackend> = Tensor::scalar(std::f64::consts::PI / 4.0);
+    let mut x_sin: Tensor<f64, CpuBackend, DenseStorage<f64>> = Tensor::scalar(std::f64::consts::PI / 4.0);
     x_sin.set_requires_grad(true);
     let mut y_sin = x_sin.sin().unwrap();
     y_sin.backward().unwrap();
     let analytical_grad_sin = x_sin.grad().unwrap();
 
-    let f_sin = |t: &Tensor<f64, CpuBackend>| t.sin().unwrap();
+    let f_sin = |t: &Tensor<f64, CpuBackend, DenseStorage<f64>>| t.sin().unwrap();
     checker.check_gradients(f_sin, &x_sin, &analytical_grad_sin, 1e-6).unwrap();
 }
 

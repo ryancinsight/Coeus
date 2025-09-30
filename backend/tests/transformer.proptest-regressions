@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc d4e5f5136ff041d6105a637788f14c6fc32f83fd50480b529053f5db709bb680 # shrinks to values = [0.0], mean = 0.0, var = 0.0
+cc 833e3f6c440b9e5455c731d3dac00bd6d9fa7723b626b888ad99d5980359f64e # shrinks to values = [0.29003993, 0.9505844, 0.10698716, 0.24736933, 0.2834837, 0.38921872, 0.7680239, 0.8474504, 0.27978444, 0.8176038, 0.53787005, 0.21292014, 0.26631048], p = 0.20732395

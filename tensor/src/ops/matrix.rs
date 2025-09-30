@@ -2,6 +2,7 @@
 
 use crate::{Dtype, FloatDtype, Result, Tensor, TensorError};
 use coeus_backend::Backend;
+use coeus_storage::TensorStorage;
 use num_traits::{Float, Num};
 // use coeus_autograd::context::Operation; // DISABLED - architectural redesign required
 
@@ -32,7 +33,7 @@ use num_traits::{Float, Num};
 /// let c = matmul(&a, &b).unwrap();
 /// // c.shape() == [2, 2]
 /// ```
-pub fn matmul<T: Dtype + FloatDtype, B: Backend<T> + Clone + Sync>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn matmul<T: Dtype + FloatDtype, B: Backend<T> + Clone + Sync, S: TensorStorage<T> + Clone + Send + Sync>(a: &Tensor<T, B, S>, b: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     // Validate input dimensions
     if a.ndim() != 2 || b.ndim() != 2 {
         return Err(TensorError::MatrixMulRequires2D {
@@ -91,7 +92,7 @@ pub fn matmul<T: Dtype + FloatDtype, B: Backend<T> + Clone + Sync>(a: &Tensor<T,
 }
 
 /// CPU implementation of matrix multiplication
-fn cpu_matmul<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> Tensor<T, B> {
+fn cpu_matmul<T: Dtype + Float + Num + Clone, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(a: &Tensor<T, B, S>, b: &Tensor<T, B, S>) -> Tensor<T, B, S> {
     let m = a.shape()[0];
     let k = a.shape()[1];
     let n = b.shape()[1];
@@ -362,7 +363,7 @@ mod tests {
 // Matrix multiplication implementation removed - now in core/tensor.rs
 
 /// Matrix multiplication implementation for Tensor (direct)
-pub fn matmul_impl<T: Dtype + Float + Num + Clone, B: Backend<T>>(lhs: &Tensor<T, B>, rhs: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn matmul_impl<T: Dtype + Float + Num + Clone, B: Backend<T>, S: TensorStorage<T> + Clone + Send + Sync>(lhs: &Tensor<T, B, S>, rhs: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     // Existing cpu_matmul logic, broadcasting if needed
     let m = lhs.shape()[0]; let k = lhs.shape()[1]; let n = rhs.shape()[1];
     if k != rhs.shape()[0] { return Err(TensorError::IncompatibleMatrixDims { lhs_m: m, lhs_k: k, rhs_k: rhs.shape()[0], rhs_n: n }); }

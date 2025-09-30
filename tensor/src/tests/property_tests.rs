@@ -23,8 +23,8 @@ proptest! {
     /// ∀a,b ∈ ℝ: a + b = b + a
     #[test]
     fn test_addition_commutative(a in finite_f64(), b in finite_f64()) {
-        let tensor_a = Tensor::<f64, CpuBackend>::scalar(a);
-        let tensor_b = Tensor::<f64, CpuBackend>::scalar(b);
+        let tensor_a = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(a);
+        let tensor_b = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(b);
 
         let result_ab = (&tensor_a + &tensor_b).unwrap();
         let result_ba = (&tensor_b + &tensor_a).unwrap();
@@ -43,9 +43,9 @@ proptest! {
     /// ∀a,b,c ∈ ℝ: (a + b) + c = a + (b + c)
     #[test]
     fn test_addition_associative(a in finite_f64(), b in finite_f64(), c in finite_f64()) {
-        let tensor_a = Tensor::<f64, CpuBackend>::scalar(a);
-        let tensor_b = Tensor::<f64, CpuBackend>::scalar(b);
-        let tensor_c = Tensor::<f64, CpuBackend>::scalar(c);
+        let tensor_a = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(a);
+        let tensor_b = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(b);
+        let tensor_c = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(c);
 
         let temp1 = (&tensor_a + &tensor_b).unwrap();
         let result1 = (&temp1 + &tensor_c).unwrap();
@@ -68,8 +68,8 @@ proptest! {
     /// ∀a,b ∈ ℝ: a × b = b × a
     #[test]
     fn test_multiplication_commutative(a in finite_f64(), b in finite_f64()) {
-        let tensor_a = Tensor::<f64, CpuBackend>::scalar(a);
-        let tensor_b = Tensor::<f64, CpuBackend>::scalar(b);
+        let tensor_a = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(a);
+        let tensor_b = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(b);
 
         let result_ab = (&tensor_a * &tensor_b).unwrap();
         let result_ba = (&tensor_b * &tensor_a).unwrap();
@@ -87,9 +87,9 @@ proptest! {
     /// ∀a,b,c ∈ ℝ: (a × b) × c = a × (b × c)
     #[test]
     fn test_multiplication_associative(a in finite_f64(), b in finite_f64(), c in finite_f64()) {
-        let tensor_a = Tensor::<f64, CpuBackend>::scalar(a);
-        let tensor_b = Tensor::<f64, CpuBackend>::scalar(b);
-        let tensor_c = Tensor::<f64, CpuBackend>::scalar(c);
+        let tensor_a = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(a);
+        let tensor_b = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(b);
+        let tensor_c = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(c);
 
         let temp1 = (&tensor_a * &tensor_b).unwrap();
         let result1 = (&temp1 * &tensor_c).unwrap();
@@ -111,9 +111,9 @@ proptest! {
     /// ∀a,b,c ∈ ℝ: a × (b + c) = a × b + a × c
     #[test]
     fn test_distributive_law(a in finite_f64(), b in finite_f64(), c in finite_f64()) {
-        let tensor_a = Tensor::<f64, CpuBackend>::scalar(a);
-        let tensor_b = Tensor::<f64, CpuBackend>::scalar(b);
-        let tensor_c = Tensor::<f64, CpuBackend>::scalar(c);
+        let tensor_a = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(a);
+        let tensor_b = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(b);
+        let tensor_c = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(c);
 
         let temp1 = (&tensor_b + &tensor_c).unwrap();
         let result1 = (&tensor_a * &temp1).unwrap();
@@ -135,7 +135,7 @@ proptest! {
     /// ∀x ∈ ℝ: d/dx(x) = 1
     #[test]
     fn test_identity_gradient(x in finite_f64()) {
-        let mut tensor_x = Tensor::<f64, CpuBackend>::scalar(x);
+        let mut tensor_x = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(x);
         tensor_x.set_requires_grad(true);
 
         tensor_x.backward().unwrap(); // Identity function
@@ -152,10 +152,10 @@ proptest! {
     /// ∀c ∈ ℝ: d/dc(c) = 0
     #[test]
     fn test_constant_gradient(c in finite_f64()) {
-        let mut tensor_x = Tensor::<f64, CpuBackend>::scalar(1.0); // Dummy variable
+        let mut tensor_x = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(1.0); // Dummy variable
         tensor_x.set_requires_grad(true);
 
-        let y = Tensor::<f64, CpuBackend>::scalar(c); // Constant function
+        let y = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(c); // Constant function
         // Constants don't have gradients - this test validates that
         // trying to compute gradients on constants returns None
         if y.grad().is_some() {
@@ -172,7 +172,7 @@ proptest! {
         x in -10.0..10.0f64,
         n in 1..4u32
     ) {
-        let mut tensor_x = Tensor::<f64, CpuBackend>::scalar(x);
+        let mut tensor_x = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(x);
         tensor_x.set_requires_grad(true);
 
         // Compute x^n using built-in pow operation
@@ -196,7 +196,7 @@ proptest! {
     /// ∀f,g: d/dx(f(g(x))) = f'(g(x)) × g'(x)
     #[test]
     fn test_chain_rule(x in -5.0..5.0f64) {
-        let mut tensor_x = Tensor::<f64, CpuBackend>::scalar(x);
+        let mut tensor_x = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(x);
         tensor_x.set_requires_grad(true);
 
         // f(g(x)) = sin(x²)
@@ -225,15 +225,15 @@ proptest! {
         a in -2.0..2.0f64,
         b in -2.0..2.0f64
     ) {
-        let mut tensor_x = Tensor::<f64, CpuBackend>::scalar(x);
+        let mut tensor_x = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(x);
         tensor_x.set_requires_grad(true);
 
         // f(x) = x, g(x) = x²
         let g_x = (&tensor_x * &tensor_x).unwrap();
 
         // h(x) = a × f(x) + b × g(x) = a × x + b × x²
-        let temp1 = (&Tensor::<f64, CpuBackend>::scalar(a) * &tensor_x).unwrap();
-        let temp2 = (&Tensor::<f64, CpuBackend>::scalar(b) * &g_x).unwrap();
+        let temp1 = (&Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(a) * &tensor_x).unwrap();
+        let temp2 = (&Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(b) * &g_x).unwrap();
         let mut h_x = (&temp1 + &temp2).unwrap();
 
         h_x.backward().unwrap();
@@ -254,7 +254,7 @@ proptest! {
     /// If a tensor is used multiple times in computation, gradients should accumulate
     #[test]
     fn test_gradient_accumulation(x in finite_f64()) {
-        let mut tensor_x = Tensor::<f64, CpuBackend>::scalar(x);
+        let mut tensor_x = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(x);
         tensor_x.set_requires_grad(true);
 
         // y = x + x = 2x
@@ -274,7 +274,7 @@ proptest! {
     #[test]
     fn test_broadcasting_mathematical_correctness(scalar in finite_f64(), vector_len in 1usize..100) {
         let backend = coeus_backend::CpuBackend::new();
-        let scalar_tensor = Tensor::<f64, CpuBackend>::scalar(scalar);
+        let scalar_tensor = Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(scalar);
 
         // Create a vector of ones
         let vector_data = vec![1.0; vector_len];

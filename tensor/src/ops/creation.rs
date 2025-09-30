@@ -3,7 +3,8 @@
 //! This module contains functions for creating tensors with various initializations,
 //! including zeros, ones, identity matrices, and scalar tensors for the unified architecture.
 
-use crate::{Dtype, FloatDtype, Result, Tensor, TensorError};
+use crate::{Dtype, FloatDtype, Result, Tensor, TensorError, DenseStorage};
+use coeus_storage::TensorStorage;
 use coeus_backend::Backend;
 
 /// Create a tensor from a vector and shape using a specific backend
@@ -24,11 +25,11 @@ use coeus_backend::Backend;
 /// let data = vec![1.0, 2.0, 3.0, 4.0];
 /// let tensor = Tensor::from_vec(backend, data, vec![2, 2]).unwrap();
 /// ```
-pub fn from_vec<T: Dtype, B: Backend<T> + Clone>(
+pub fn from_vec<T: Dtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
     backend: B,
     data: Vec<T>,
     shape: Vec<usize>
-) -> Result<Tensor<T, B>> {
+) -> Result<Tensor<T, B, S>> {
     let expected_len: usize = shape.iter().product();
     if data.len() != expected_len {
         return Err(TensorError::InvalidShape {
@@ -62,11 +63,11 @@ pub fn from_vec<T: Dtype, B: Backend<T> + Clone>(
 /// let data = vec![1.0, 2.0, 3.0];
 /// let tensor = Tensor::from_vec_with_grad(backend, data, vec![3]).unwrap();
 /// ```
-pub fn from_vec_with_grad<T: FloatDtype, B: Backend<T> + Clone>(
+pub fn from_vec_with_grad<T: FloatDtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
     backend: B,
     data: Vec<T>,
     shape: Vec<usize>
-) -> Result<Tensor<T, B>> {
+) -> Result<Tensor<T, B, S>> {
     let mut tensor = from_vec(backend, data, shape)?;
     tensor.set_requires_grad(true);
     Ok(tensor)
@@ -86,7 +87,7 @@ pub fn from_vec_with_grad<T: FloatDtype, B: Backend<T> + Clone>(
 /// let zeros = Tensor::zeros(backend, vec![2, 3]).unwrap();
 /// assert_eq!(zeros.shape(), &[2, 3]);
 /// ```
-pub fn zeros<T: Dtype, B: Backend<T> + Clone>(backend: B, shape: Vec<usize>) -> Result<Tensor<T, B>> {
+pub fn zeros<T: Dtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(backend: B, shape: Vec<usize>) -> Result<Tensor<T, B, S>> {
     let numel = shape.iter().product();
     let data = vec![T::zero(); numel];
     from_vec(backend, data, shape)
@@ -105,7 +106,7 @@ pub fn zeros<T: Dtype, B: Backend<T> + Clone>(backend: B, shape: Vec<usize>) -> 
 /// let backend = CpuBackend::new();
 /// let ones = Tensor::ones(backend, vec![2, 3]).unwrap();
 /// ```
-pub fn ones<T: Dtype, B: Backend<T> + Clone>(backend: B, shape: Vec<usize>) -> Result<Tensor<T, B>> {
+pub fn ones<T: Dtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(backend: B, shape: Vec<usize>) -> Result<Tensor<T, B, S>> {
     let numel = shape.iter().product();
     let data = vec![T::one(); numel];
     from_vec(backend, data, shape)
@@ -125,7 +126,7 @@ pub fn ones<T: Dtype, B: Backend<T> + Clone>(backend: B, shape: Vec<usize>) -> R
 /// let scalar = Tensor::scalar(backend, 3.14).unwrap();
 /// assert_eq!(scalar.shape(), &[]);
 /// ```
-pub fn scalar<T: Dtype, B: Backend<T> + Clone>(backend: B, value: T) -> Result<Tensor<T, B>> {
+pub fn scalar<T: Dtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(backend: B, value: T) -> Result<Tensor<T, B, S>> {
     from_vec(backend, vec![value], vec![])
 }
 
@@ -143,7 +144,7 @@ pub fn scalar<T: Dtype, B: Backend<T> + Clone>(backend: B, value: T) -> Result<T
 /// let backend = CpuBackend::new();
 /// let filled = Tensor::full(backend, vec![2, 2], 5.0).unwrap();
 /// ```
-pub fn full<T: Dtype, B: Backend<T> + Clone>(backend: B, shape: Vec<usize>, value: T) -> Result<Tensor<T, B>> {
+pub fn full<T: Dtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(backend: B, shape: Vec<usize>, value: T) -> Result<Tensor<T, B, S>> {
     let numel = shape.iter().product();
     let data = vec![value; numel];
     from_vec(backend, data, shape)
@@ -162,10 +163,10 @@ pub fn full<T: Dtype, B: Backend<T> + Clone>(backend: B, shape: Vec<usize>, valu
 /// let backend = CpuBackend::new();
 /// let identity = Tensor::eye(backend, 3).unwrap();
 /// ```
-pub fn eye<T: Dtype + num_traits::FromPrimitive, B: Backend<T> + Clone>(
+pub fn eye<T: Dtype + num_traits::FromPrimitive, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
     backend: B,
     n: usize
-) -> Result<Tensor<T, B>> {
+) -> Result<Tensor<T, B, S>> {
     let mut data = vec![T::zero(); n * n];
     for i in 0..n {
         data[i * n + i] = T::one();
@@ -187,10 +188,10 @@ pub fn eye<T: Dtype + num_traits::FromPrimitive, B: Backend<T> + Clone>(
 /// let arange = Tensor::arange(backend, 5).unwrap();
 /// // Creates [0, 1, 2, 3, 4]
 /// ```
-pub fn arange<T: Dtype + num_traits::FromPrimitive, B: Backend<T> + Clone>(
+pub fn arange<T: Dtype + num_traits::FromPrimitive, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
     backend: B,
     n: usize
-) -> Result<Tensor<T, B>> {
+) -> Result<Tensor<T, B, S>> {
     let data: Vec<T> = (0..n).map(|i| T::from_usize(i).unwrap_or(T::zero())).collect();
     from_vec(backend, data, vec![n])
 }
@@ -211,12 +212,12 @@ pub fn arange<T: Dtype + num_traits::FromPrimitive, B: Backend<T> + Clone>(
 /// let linspace = Tensor::linspace(backend, 0.0, 1.0, 5).unwrap();
 /// // Creates [0.0, 0.25, 0.5, 0.75, 1.0]
 /// ```
-pub fn linspace<T: FloatDtype, B: Backend<T> + Clone>(
+pub fn linspace<T: FloatDtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
     backend: B,
     start: T,
     end: T,
     steps: usize
-) -> Result<Tensor<T, B>> {
+) -> Result<Tensor<T, B, S>> {
     if steps == 0 {
         return from_vec(backend, vec![], vec![0]);
     }
@@ -251,13 +252,13 @@ pub fn linspace<T: FloatDtype, B: Backend<T> + Clone>(
 /// let logspace = Tensor::logspace(backend, 0.0, 2.0, 5, 10.0).unwrap();
 /// // Creates [1.0, 10^(0.5), 10^1, 10^(1.5), 10^2]
 /// ```
-pub fn logspace<T: FloatDtype, B: Backend<T> + Clone>(
+pub fn logspace<T: FloatDtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
     backend: B,
     start: T,
     end: T,
     steps: usize,
     base: T
-) -> Result<Tensor<T, B>> {
+) -> Result<Tensor<T, B, S>> {
     let data: Vec<T> = (0..steps)
         .map(|i| {
             let ratio = T::from_usize(i).unwrap_or(T::zero()) / T::from_usize(steps - 1).unwrap_or(T::one());
@@ -278,7 +279,7 @@ mod tests {
     fn test_from_vec() {
         let backend = CpuBackend::new();
         let data = vec![1.0, 2.0, 3.0, 4.0];
-        let tensor = from_vec(backend, data, vec![2, 2]).unwrap();
+        let tensor = from_vec::<f32, CpuBackend, DenseStorage<f32>>(backend, data, vec![2, 2]).unwrap();
         assert_eq!(tensor.shape(), &[2, 2]);
         assert_eq!(tensor.data(), &[1.0, 2.0, 3.0, 4.0]);
     }
@@ -286,7 +287,7 @@ mod tests {
     #[test]
     fn test_zeros() {
         let backend = CpuBackend::new();
-        let tensor = zeros::<f32, CpuBackend>(backend, vec![2, 3]).unwrap();
+        let tensor = zeros::<f32, CpuBackend, DenseStorage<f32>>(backend, vec![2, 3]).unwrap();
         assert_eq!(tensor.shape(), &[2, 3]);
         assert_eq!(tensor.numel(), 6);
         assert!(tensor.data().iter().all(|&x: &f32| x == 0.0));
@@ -295,7 +296,7 @@ mod tests {
     #[test]
     fn test_ones() {
         let backend = CpuBackend::new();
-        let tensor = ones::<f32, CpuBackend>(backend, vec![2, 2]).unwrap();
+        let tensor = ones::<f32, CpuBackend, DenseStorage<f32>>(backend, vec![2, 2]).unwrap();
         assert_eq!(tensor.shape(), &[2, 2]);
         assert!(tensor.data().iter().all(|&x: &f32| x == 1.0));
     }
@@ -303,7 +304,7 @@ mod tests {
     #[test]
     fn test_scalar() {
         let backend = CpuBackend::new();
-        let tensor = scalar::<f64, CpuBackend>(backend, 3.14f64).unwrap();
+        let tensor = scalar::<f64, CpuBackend, DenseStorage<f64>>(backend, 3.14f64).unwrap();
         assert_eq!(tensor.shape(), &[] as &[usize]);
         assert_eq!(tensor.numel(), 1);
         assert_eq!(tensor.data()[0], 3.14);
@@ -312,7 +313,7 @@ mod tests {
     #[test]
     fn test_full() {
         let backend = CpuBackend::new();
-        let tensor = full(backend, vec![2, 2], 5.0).unwrap();
+        let tensor = full::<f32, CpuBackend, DenseStorage<f32>>(backend, vec![2, 2], 5.0).unwrap();
         assert_eq!(tensor.shape(), &[2, 2]);
         assert!(tensor.data().iter().all(|&x| x == 5.0));
     }
@@ -320,7 +321,7 @@ mod tests {
     #[test]
     fn test_eye() {
         let backend = CpuBackend::new();
-        let tensor = eye::<f32, CpuBackend>(backend, 3).unwrap();
+        let tensor = eye::<f32, CpuBackend, DenseStorage<f32>>(backend, 3).unwrap();
         assert_eq!(tensor.shape(), &[3, 3]);
 
         // Check diagonal is 1s
@@ -336,7 +337,7 @@ mod tests {
     #[test]
     fn test_arange() {
         let backend = CpuBackend::new();
-        let tensor = arange::<f32, CpuBackend>(backend, 5).unwrap();
+        let tensor = arange::<f32, CpuBackend, DenseStorage<f32>>(backend, 5).unwrap();
         assert_eq!(tensor.shape(), &[5]);
         assert_eq!(tensor.data(), &[0.0, 1.0, 2.0, 3.0, 4.0]);
     }

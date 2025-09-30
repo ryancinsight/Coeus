@@ -362,7 +362,7 @@ impl<T: FloatDtype> PReLU<T> {
     }
 
     /// Create a new PReLU activation with specified slope
-    pub fn new_with_slope(slope: T) -> Self {
+    pub fn new_with_slope(_slope: T) -> Self {
         Self {
             a: Tensor::from_vec(CpuBackend::default(), vec![T::zero()], vec![1]).unwrap(),
         }

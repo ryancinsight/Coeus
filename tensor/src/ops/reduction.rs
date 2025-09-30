@@ -2,9 +2,10 @@
 
 use crate::{Dtype, FloatDtype, Result, Tensor, TensorError};
 use coeus_backend::{Backend, CpuBackend};
+use coeus_storage::TensorStorage;
 
 /// Sum along specified dimension
-pub fn sum_dim<T: Dtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>, dim: usize) -> Result<Tensor<T, B>> {
+pub fn sum_dim<T: Dtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>, dim: usize) -> Result<Tensor<T, B, S>> {
     if dim >= tensor.ndim() {
         return Err(TensorError::InvalidOperation {
             message: format!(
@@ -61,7 +62,7 @@ pub fn sum_dim<T: Dtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>, dim: usiz
 }
 
 /// Sum of all elements
-pub fn sum<T: Dtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>) -> Result<Tensor<T, B>> {
+pub fn sum<T: Dtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
     if tensor.numel() == 0 {
         return Err(TensorError::InvalidOperation {
             message: "Cannot sum empty tensor".to_string(),
@@ -81,8 +82,35 @@ pub fn sum<T: Dtype, B: Backend<T> + Clone>(tensor: &Tensor<T, B>) -> Result<Ten
     Ok(result)
 }
 
+/// Mean of all elements
+pub fn mean<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>>
+where
+    CpuBackend: Backend<T>,
+{
+    if tensor.numel() == 0 {
+        return Err(TensorError::InvalidOperation {
+            message: "Cannot mean empty tensor".to_string(),
+        });
+    }
+
+    let sum = sum(tensor)?;
+    let count = tensor.numel() as f64;
+
+    let data = vec![sum.data()[0] / T::from(count).unwrap()];
+    let backend = tensor.backend().clone();
+    let mut result = Tensor::from_vec(backend, data, vec![])?;
+
+    if tensor.requires_grad() {
+        result.set_requires_grad(true);
+        // Note: Graph integration is handled by tensor methods, not free functions
+        // Backward: gradient is ones_like(input) / numel for mean
+    }
+
+    Ok(result)
+}
+
 /// Mean along specified dimension
-pub fn mean_dim<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensor: &Tensor<T, B>, dim: usize) -> Result<Tensor<T, B>>
+pub fn mean_dim<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>, dim: usize) -> Result<Tensor<T, B, S>>
 where
     CpuBackend: Backend<T>,
 {
@@ -110,7 +138,7 @@ where
 }
 
 /// Concatenate tensors along specified dimension
-pub fn cat<T: FloatDtype, B: Backend<T> + Clone + Send + Sync>(tensors: &[&Tensor<T, B>], dim: usize) -> Result<Tensor<T, B>>
+pub fn cat<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensors: &[&Tensor<T, B, S>], dim: usize) -> Result<Tensor<T, B, S>>
 where
     CpuBackend: Backend<T>,
 {

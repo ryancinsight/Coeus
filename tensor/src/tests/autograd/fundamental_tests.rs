@@ -88,7 +88,7 @@ fn test_scalar_tensor_operations() {
     x.set_requires_grad(true);
 
     // Test scalar addition: f(x) = x + 5, f'(x) = 1
-    let mut y = (&x + &Tensor::<f64, CpuBackend>::scalar(5.0)).unwrap();
+    let mut y = (&x + &Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(5.0)).unwrap();
     y.backward().expect("backward y");
 
     assert_relative_eq!(x.grad().expect("grad x").as_scalar().expect("scalar grad x"), 1.0, epsilon = 1e-6);
@@ -98,7 +98,7 @@ fn test_scalar_tensor_operations() {
     x2.set_requires_grad(true);
 
     // Test scalar multiplication: f(x) = x * 4, f'(x) = 4
-    let mut y2 = (&x2 * &Tensor::<f64, CpuBackend>::scalar(4.0)).unwrap();
+    let mut y2 = (&x2 * &Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(4.0)).unwrap();
     y2.backward().expect("backward y2");
 
     assert_relative_eq!(x2.grad().expect("grad x2").as_scalar().expect("scalar grad x2"), 4.0, epsilon = 1e-6);
@@ -121,7 +121,7 @@ fn test_gradient_reset() {
     let mut x2: Tensor<f64, CpuBackend> = Tensor::scalar(2.0);
     x2.set_requires_grad(true);
 
-    let mut y2 = (&x2 + &Tensor::<f64, CpuBackend>::scalar(1.0)).unwrap(); // y2 = x + 1
+    let mut y2 = (&x2 + &Tensor::<f64, CpuBackend, DenseStorage<f64>>::scalar(1.0)).unwrap(); // y2 = x + 1
     y2.backward().expect("backward y2");
 
     let grad2 = x2.grad().expect("grad x2").as_scalar().expect("scalar grad x2");

@@ -13,6 +13,7 @@ parallel = []
 [dependencies]
 coeus-dtype = { path = "../dtype" }
 coeus-backend = { path = "../backend" }
+coeus-storage = { path = "../storage" }
 num-traits.workspace = true
 num-complex.workspace = true
 rayon.workspace = true

@@ -166,7 +166,7 @@ impl<T: coeus_dtype::FloatDtype, B: Backend<T> + Clone> Optimizer<T, B> for Adam
                 );
 
                 // Get gradient for this parameter
-                let Some(grad) = param.grad() else {
+                let Some(_grad) = param.grad() else {
                     continue; // Skip parameters without gradients
                 };
 

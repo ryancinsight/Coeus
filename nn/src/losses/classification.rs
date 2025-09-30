@@ -508,8 +508,9 @@ mod tests {
     #[test]
     fn test_cross_entropy_basic() {
         let loss_fn = CrossEntropyLoss::new();
-        let logits = Tensor::from_vec(CpuBackend::default(), vec![1.0], vec![1]).unwrap();
-        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
+        // Predictions should be (batch_size, num_classes), targets should be (batch_size,)
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![1.0, 0.5], vec![1, 2]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&logits, &targets).unwrap();
         assert!(loss.item().unwrap() >= 0.0);
@@ -518,8 +519,8 @@ mod tests {
     #[test]
     fn test_cross_entropy_perfect_prediction() {
         let loss_fn = CrossEntropyLoss::new();
-        // Perfect prediction: very high logit for correct class
-        let logits = Tensor::from_vec(CpuBackend::default(), vec![-10.0], vec![1]).unwrap();
+        // Perfect prediction: very high logit for correct class (index 1)
+        let logits = Tensor::from_vec(CpuBackend::default(), vec![-10.0, 10.0], vec![1, 2]).unwrap();
         let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&logits, &targets).unwrap();
@@ -529,11 +530,11 @@ mod tests {
     #[test]
     fn test_nll_loss_basic() {
         let loss_fn = NLLLoss::new();
-        let log_probs = Tensor::from_vec(CpuBackend::default(), vec![-1.0], vec![1]).unwrap();
-        let targets = Tensor::from_vec(CpuBackend::default(), vec![1], vec![1]).unwrap();
+        let log_probs = Tensor::from_vec(CpuBackend::default(), vec![-1.0], vec![1, 1]).unwrap();
+        let targets = Tensor::from_vec(CpuBackend::default(), vec![0], vec![1]).unwrap();
 
         let loss = loss_fn.forward(&log_probs, &targets).unwrap();
-        assert_relative_eq!(loss.item().unwrap(), 0.65, epsilon = 1e-6);
+        assert_relative_eq!(loss.item().unwrap(), 1.0, epsilon = 1e-6);
     }
 
     #[test]

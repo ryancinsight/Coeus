@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use std::sync::Arc;
 use std::borrow::Cow;
 use coeus_backend::BackendData;
+use coeus_storage::TensorStorage;
 
 /// Compute broadcast shape following NumPy/PyTorch broadcasting rules
 fn compute_broadcast_shape(shape1: &[usize], shape2: &[usize]) -> Result<Vec<usize>> {
@@ -74,10 +75,10 @@ fn compute_broadcast_shape(shape1: &[usize], shape2: &[usize]) -> Result<Vec<usi
 /// let result = a.add(&b).unwrap();
 /// assert_eq!(result.data(), &[4.0, 6.0]);
 /// ```
-pub fn add<T: crate::Dtype + std::ops::Add<Output = T> + num_traits::NumCast, B: Backend<T> + Clone>(
-    tensor: &Tensor<T, B>,
-    other: &Tensor<T, B>,
-) -> Result<Tensor<T, B>>
+pub fn add<T: crate::Dtype + std::ops::Add<Output = T> + num_traits::NumCast, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
+    tensor: &Tensor<T, B, S>,
+    other: &Tensor<T, B, S>,
+) -> Result<Tensor<T, B, S>>
 where
     CpuBackend: Backend<T>,
 {
@@ -203,10 +204,10 @@ where
 /// let result = a.sub(&b).unwrap();
 /// assert_eq!(result.data(), &[2.0, 3.0]);
 /// ```
-pub fn sub<T: crate::Dtype + std::ops::Sub<Output = T> + crate::Dtype + num_traits::NumCast, B: Backend<T> + Clone>(
-    tensor: &Tensor<T, B>,
-    other: &Tensor<T, B>,
-) -> Result<Tensor<T, B>>
+pub fn sub<T: crate::Dtype + std::ops::Sub<Output = T> + crate::Dtype + num_traits::NumCast, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
+    tensor: &Tensor<T, B, S>,
+    other: &Tensor<T, B, S>,
+) -> Result<Tensor<T, B, S>>
 where
     CpuBackend: Backend<T>,
 {
@@ -273,10 +274,10 @@ where
 /// let result = a.mul(b).unwrap();
 /// assert_eq!(result.data(), &[8.0, 15.0]);
 /// ```
-pub fn mul<T: crate::Dtype + std::ops::Mul<Output = T> + crate::Dtype + num_traits::NumCast, B: Backend<T> + Clone>(
-    tensor: &Tensor<T, B>,
-    other: &Tensor<T, B>,
-) -> Result<Tensor<T, B>>
+pub fn mul<T: crate::Dtype + std::ops::Mul<Output = T> + crate::Dtype + num_traits::NumCast, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
+    tensor: &Tensor<T, B, S>,
+    other: &Tensor<T, B, S>,
+) -> Result<Tensor<T, B, S>>
 where
     CpuBackend: Backend<T>,
 {
@@ -354,10 +355,10 @@ where
 /// let result = a.div(&b).unwrap();
 /// assert_eq!(result.data(), &[2.0, 3.0]);
 /// ```
-pub fn div<T: crate::Dtype + std::ops::Div<Output = T> + crate::Dtype + num_traits::NumCast, B: Backend<T> + Clone>(
-    tensor: &Tensor<T, B>,
-    other: &Tensor<T, B>,
-) -> Result<Tensor<T, B>>
+pub fn div<T: crate::Dtype + std::ops::Div<Output = T> + crate::Dtype + num_traits::NumCast, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
+    tensor: &Tensor<T, B, S>,
+    other: &Tensor<T, B, S>,
+) -> Result<Tensor<T, B, S>>
 where
     CpuBackend: Backend<T>,
 {
@@ -429,9 +430,9 @@ where
 /// let result = a.neg();
 /// assert_eq!(result.data(), &[-1.0, 2.0, -3.0]);
 /// ```
-pub fn neg<T: crate::Dtype + std::ops::Neg<Output = T> + Clone, B: Backend<T> + Clone>(
-    tensor: &Tensor<T, B>,
-) -> Result<Tensor<T, B>>
+pub fn neg<T: crate::Dtype + std::ops::Neg<Output = T> + Clone, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(
+    tensor: &Tensor<T, B, S>,
+) -> Result<Tensor<T, B, S>>
 where
     CpuBackend: Backend<T>,
 {

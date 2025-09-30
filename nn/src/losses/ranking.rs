@@ -550,7 +550,7 @@ impl MultiMarginLoss {
 
         // Apply reduction
         let num_samples = T::from(batch_size as f64).unwrap();
-        let num_classes_float = T::from(num_classes as f64).unwrap();
+        let _num_classes_float = T::from(num_classes as f64).unwrap();
 
         match self.reduction {
             Reduction::None => {
