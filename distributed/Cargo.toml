@@ -1,0 +1,39 @@
+[package]
+name = "distributed"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+description = "Distributed training support for Coeus deep learning framework"
+readme = "README.md"
+keywords = ["deep-learning", "distributed", "data-parallelism", "pytorch"]
+categories = ["science", "algorithms"]
+
+[dependencies]
+# Workspace dependencies
+coeus-tensor = { path = "../tensor" }
+coeus-nn = { path = "../nn" }
+coeus-backend = { path = "../backend" }
+coeus-storage = { path = "../storage" }
+coeus-dtype = { path = "../dtype" }
+coeus-optim = { path = "../optim" }
+# coeus-autograd = { path = "../autograd" }  # Temporarily disabled for NN decoupling testing
+
+# Async runtime for distributed operations
+tokio = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+[dev-dependencies]
+# For testing async code
+futures = "0.3"
+
+# Safe casting
+bytemuck = { workspace = true }

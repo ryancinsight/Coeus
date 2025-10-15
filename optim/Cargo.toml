@@ -2,18 +2,25 @@
 name = "coeus-optim"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
+authors.workspace = true
 repository.workspace = true
-description = "PyTorch-style optimization algorithms for Coeus tensor library"
+homepage.workspace = true
+rust-version.workspace = true
+description = "Optimization algorithms for Coeus neural networks"
+readme = "README.md"
+keywords = ["machine-learning", "optimization", "adam", "sgd", "rmsprop", "rust"]
+categories = ["science", "algorithms"]
 
 [dependencies]
-coeus-tensor.workspace = true
-coeus-dtype.workspace = true
-# coeus-autograd.workspace = true  # TEMPORARILY DISABLED - architectural redesign required
-num-traits.workspace = true
-thiserror.workspace = true
-anyhow.workspace = true
+coeus-autograd = { path = "../autograd" }
+coeus-dtype = { path = "../dtype" }
+coeus-tensor = { path = "../tensor" }
+coeus-backend = { path = "../backend" }
+coeus-storage = { path = "../storage" }
+num-traits = { workspace = true }
+thiserror = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
-approx.workspace = true
+approx = { workspace = true }

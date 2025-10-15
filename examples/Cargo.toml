@@ -2,14 +2,88 @@
 name = "coeus-examples"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
-description = "Examples for the Coeus tensor library"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+description = "Examples demonstrating Coeus usage across all major features"
+readme = "README.md"
+keywords = ["examples", "tutorials", "machine-learning", "deep-learning"]
+categories = ["development-tools::examples"]
+
+[[bin]]
+name = "basic_usage"
+path = "basic_usage.rs"
+
+[[bin]]
+name = "autograd_demo"
+path = "autograd_demo.rs"
+
+[[bin]]
+name = "neural_network"
+path = "neural_network.rs"
+
+[[bin]]
+name = "tracing"
+path = "tracing.rs"
+
+[[bin]]
+name = "tutorial_validation"
+path = "tutorial_validation.rs"
+
+[[bin]]
+name = "advanced_training"
+path = "advanced_training.rs"
+
+[[bin]]
+name = "custom_layer"
+path = "custom_layer.rs"
+
+[[bin]]
+name = "parallel_training"
+path = "parallel_training.rs"
+
+[[bin]]
+name = "distributed_training"
+path = "distributed_training.rs"
+
+[[bin]]
+name = "generic_abstraction_test"
+path = "generic_abstraction_test.rs"
+
+[[bin]]
+name = "sparse_integration_test"
+path = "sparse_integration_test.rs"
+
+[[bin]]
+name = "gpu_basic"
+path = "gpu_basic.rs"
+
+[[bin]]
+name = "advanced_features"
+path = "advanced_features.rs"
 
 [dependencies]
-coeus-tensor = { path = "../tensor" }
+# Workspace dependencies
+coeus-dtype = { path = "../dtype" }
+coeus-storage = { path = "../storage" }
 coeus-backend = { path = "../backend" }
+coeus-tensor = { path = "../tensor" }
+# coeus-autograd = { path = "../autograd" }  # Temporarily disabled for NN decoupling testing
 coeus-nn = { path = "../nn" }
 coeus-optim = { path = "../optim" }
-num-traits.workspace = true
-approx.workspace = true
+distributed = { path = "../distributed" }
+
+# Command line argument parsing
+clap = { version = "4.0", features = ["derive"] }
+
+# Async runtime for distributed examples
+tokio.workspace = true
+
+# Tracing for observability
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# Random number generation for examples
+rand = "0.8"

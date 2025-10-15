@@ -1,0 +1,165 @@
+# Prometheus configuration for Coeus Framework Enterprise Monitoring
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+rule_files:
+  - "alert_rules.yml"
+  - "recording_rules.yml"
+
+scrape_configs:
+  # Coeus Framework Application Metrics
+  - job_name: 'coeus-app'
+    static_configs:
+      - targets: ['coeus-deployment.ml-platform.svc.cluster.local:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    tls_config:
+      ca_file: /etc/prometheus/certs/ca.crt
+      cert_file: /etc/prometheus/certs/tls.crt
+      key_file: /etc/prometheus/certs/tls.key
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '(.+):9090'
+        replacement: '${1}'
+
+  # Kubernetes Metrics
+  - job_name: 'kubernetes-apiservers'
+    kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+            - default
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      cert_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+  # Kubernetes Pods
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - ml-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+
+  # Kubernetes Services
+  - job_name: 'kubernetes-service-endpoints'
+    kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+            - ml-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+        action: replace
+        target_label: __scheme__
+        regex: (https?)
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        action: replace
+        target_label: kubernetes_service_name
+      - source_labels: [__meta_kubernetes_service_name]
+        action: replace
+        target_label: job
+        regex: (.+)
+        replacement: '${1}-endpoints'
+
+  # Node Exporter for system metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter.ml-platform.svc.cluster.local:9100']
+    scrape_interval: 30s
+
+  # GPU Metrics (if available)
+  - job_name: 'nvidia-gpu'
+    static_configs:
+      - targets: ['nvidia-dcgm-exporter.ml-platform.svc.cluster.local:9400']
+    scrape_interval: 15s
+
+  # Model Registry Metrics
+  - job_name: 'model-registry'
+    static_configs:
+      - targets: ['model-registry.ml-platform.svc.cluster.local:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Training Job Metrics
+  - job_name: 'training-jobs'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - ml-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: training-job
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: job_name
+
+# Remote write configuration for long-term storage
+remote_write:
+  - url: "http://victoriametrics.ml-platform.svc.cluster.local:8428/api/v1/write"
+    remote_timeout: 30s
+    queue_config:
+      capacity: 10000
+      max_shards: 30
+      min_shards: 1
+      max_samples_per_send: 1000
+      batch_send_deadline: 5s
+      min_backoff: 30ms
+      max_backoff: 5s
+
+# Remote read configuration
+remote_read:
+  - url: "http://victoriametrics.ml-platform.svc.cluster.local:8428/api/v1/read"
+    remote_timeout: 30s

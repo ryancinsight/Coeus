@@ -1,398 +1,174 @@
-//! High-level encoding interface for tokenizers
+//! Encoding structures for tokenized text.
 
-use crate::error::{Result, TokenizerError};
-use crate::tokenizer::{DecodeOptions, TokenizeOptions, Tokenizer};
-use crate::vocabulary::Vocabulary;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-/// High-level tokenizer interface providing tiktoken-compatible API
+/// Single text encoding result.
+///
+/// Contains the tokenized representation of input text with all necessary metadata
+/// for downstream processing in transformer models.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Encoding {
-    /// The underlying tokenizer implementation
-    tokenizer: Box<dyn Tokenizer + Send + Sync>,
+    /// Token IDs for model input.
+    pub ids: Vec<u32>,
+    /// Original token strings.
+    pub tokens: Vec<String>,
+    /// Character offsets (start, end) for each token.
+    pub offsets: Vec<(usize, usize)>,
+    /// Attention mask (1 for real tokens, 0 for padding).
+    pub attention_mask: Vec<u32>,
+    /// Token type IDs for multi-sequence inputs.
+    pub token_type_ids: Vec<u32>,
+    /// Special tokens mask (1 for special tokens, 0 for regular tokens).
+    pub special_tokens_mask: Vec<u32>,
+    /// Original input text length.
+    pub length: usize,
 }
 
 impl Encoding {
-    /// Create a new encoding for a specific model
-    ///
-    /// # Errors
-    /// Returns `TokenizerError::ModelError` if the model is not supported or not yet implemented.
-    /// Returns `TokenizerError::ConfigError` if the model configuration is invalid.
-    pub fn new(model_name: &str) -> Result<Self> {
-        match model_name {
-            #[cfg(feature = "gpt2")]
-            "gpt2" => {
-                let tokenizer = crate::gpt2::GPT2Tokenizer::new()?;
-                Ok(Self::from_tokenizer(tokenizer))
-            }
-            #[cfg(feature = "gpt3")]
-            "gpt-3.5-turbo" | "gpt-4" => {
-                // GPT-3/4 tokenizers are not yet implemented
-                Err(TokenizerError::model_error(
-                    "GPT-3/4 tokenizers not yet implemented".to_string(),
-                ))
-            }
-            #[cfg(feature = "clip")]
-            "clip" => {
-                let tokenizer = crate::clip::CLIPTokenizer::new()?;
-                Ok(Self::from_tokenizer(tokenizer))
-            }
-            #[cfg(feature = "bert")]
-            "bert-base" | "bert-large" => {
-                let tokenizer = crate::bert::BERTTokenizer::new(model_name)?;
-                Ok(Self::from_tokenizer(tokenizer))
-            }
-            _ => Err(TokenizerError::model_error(format!(
-                "Model '{model_name}' not supported or feature not enabled. Available models: {}",
-                Self::available_models().join(", ")
-            ))),
-        }
-    }
-
-    /// Create encoding from an existing tokenizer
-    pub fn from_tokenizer<T: Tokenizer + Send + Sync + 'static>(tokenizer: T) -> Self {
+    /// Create a new encoding.
+    #[must_use]
+    pub fn new(
+        ids: Vec<u32>,
+        tokens: Vec<String>,
+        offsets: Vec<(usize, usize)>,
+        attention_mask: Vec<u32>,
+        token_type_ids: Vec<u32>,
+        special_tokens_mask: Vec<u32>,
+        length: usize,
+    ) -> Self {
         Self {
-            tokenizer: Box::new(tokenizer),
+            ids,
+            tokens,
+            offsets,
+            attention_mask,
+            token_type_ids,
+            special_tokens_mask,
+            length,
         }
     }
 
-    /// Create encoding for encoding only (no decoding capability)
-    ///
-    /// # Errors
-    /// Returns `TokenizerError::ModelError` since no model implementations exist yet
-    pub fn for_encoding_only(model_name: &str) -> Result<Self> {
-        // For now, return an error since no model implementations exist yet
-        Err(TokenizerError::model_error(format!(
-            "Model '{model_name}' not yet implemented. Enable features to add model support."
-        )))
-    }
-
-    /// Get list of available models
+    /// Create a basic encoding with defaults.
     #[must_use]
-    pub fn available_models() -> Vec<String> {
-        let mut models = Vec::new();
-
-        #[cfg(feature = "gpt2")]
-        models.push("gpt2".to_string());
-
-        #[cfg(feature = "gpt3")]
-        {
-            models.push("gpt-3.5-turbo".to_string());
-            models.push("gpt-4".to_string());
-        }
-
-        #[cfg(feature = "clip")]
-        models.push("clip".to_string());
-
-        #[cfg(feature = "bert")]
-        {
-            models.push("bert-base".to_string());
-            models.push("bert-large".to_string());
-        }
-
-        if models.is_empty() {
-            models.push("none (enable features to add models)".to_string());
-        }
-
-        models
-    }
-
-    /// Get the underlying tokenizer
-    #[must_use]
-    pub fn tokenizer(&self) -> &dyn Tokenizer {
-        self.tokenizer.as_ref()
-    }
-
-    /// Get the model name
-    #[must_use]
-    pub fn model_name(&self) -> &str {
-        self.tokenizer.name()
-    }
-
-    /// Get vocabulary size
-    #[must_use]
-    pub fn vocab_size(&self) -> usize {
-        self.tokenizer.vocab_size()
-    }
-
-    /// Encode text to token IDs (tiktoken-compatible API)
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if encoding fails
-    pub fn encode(&self, text: &str) -> Result<Vec<usize>> {
-        self.tokenizer.encode(text, false)
-    }
-
-    /// Encode text with special tokens (tiktoken-compatible API)
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if encoding fails
-    pub fn encode_with_special_tokens(&self, text: &str) -> Result<Vec<usize>> {
-        self.tokenizer.encode(text, true)
-    }
-
-    /// Encode text with options
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if encoding fails
-    pub fn encode_with_options(&self, text: &str, options: &TokenizeOptions) -> Result<Vec<usize>> {
-        self.tokenizer.encode_with_options(text, options)
-    }
-
-    /// Encode a batch of texts
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if encoding fails
-    pub fn encode_batch(&self, texts: &[&str]) -> Result<Vec<Vec<usize>>> {
-        self.tokenizer.encode_batch(texts, false)
-    }
-
-    /// Encode a batch with special tokens
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if encoding fails
-    pub fn encode_batch_with_special_tokens(&self, texts: &[&str]) -> Result<Vec<Vec<usize>>> {
-        self.tokenizer.encode_batch(texts, true)
-    }
-
-    /// Encode a batch with options
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if encoding fails
-    pub fn encode_batch_with_options(
-        &self,
-        texts: &[&str],
-        options: &TokenizeOptions,
-    ) -> Result<Vec<Vec<usize>>> {
-        self.tokenizer.encode_batch_with_options(texts, options)
-    }
-
-    /// Decode token IDs to text (tiktoken-compatible API)
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if decoding fails
-    pub fn decode(&self, token_ids: &[usize]) -> Result<String> {
-        self.tokenizer.decode(token_ids, false)
-    }
-
-    /// Decode with special token handling
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if decoding fails
-    pub fn decode_with_special_tokens(&self, token_ids: &[usize]) -> Result<String> {
-        self.tokenizer.decode(token_ids, true)
-    }
-
-    /// Decode with options
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if decoding fails
-    pub fn decode_with_options(
-        &self,
-        token_ids: &[usize],
-        options: &DecodeOptions,
-    ) -> Result<String> {
-        self.tokenizer.decode_with_options(token_ids, options)
-    }
-
-    /// Decode a batch of token sequences
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if decoding fails
-    pub fn decode_batch(&self, batch_token_ids: &[&[usize]]) -> Result<Vec<String>> {
-        self.tokenizer.decode_batch(batch_token_ids, false)
-    }
-
-    /// Decode a batch with special token handling
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if decoding fails
-    pub fn decode_batch_with_special_tokens(
-        &self,
-        batch_token_ids: &[&[usize]],
-    ) -> Result<Vec<String>> {
-        self.tokenizer.decode_batch(batch_token_ids, true)
-    }
-
-    /// Decode a batch with options
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if decoding fails
-    pub fn decode_batch_with_options(
-        &self,
-        batch_token_ids: &[&[usize]],
-        options: &DecodeOptions,
-    ) -> Result<Vec<String>> {
-        self.tokenizer
-            .decode_batch_with_options(batch_token_ids, options)
-    }
-
-    /// Convert token IDs to tokens
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if conversion fails
-    pub fn convert_ids_to_tokens(&self, token_ids: &[usize]) -> Result<Vec<String>> {
-        self.tokenizer.convert_ids_to_tokens(token_ids)
-    }
-
-    /// Convert tokens to token IDs
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if conversion fails
-    pub fn convert_tokens_to_ids(&self, tokens: &[&str]) -> Result<Vec<usize>> {
-        self.tokenizer.convert_tokens_to_ids(tokens)
-    }
-
-    /// Get special token IDs
-    #[must_use]
-    pub fn special_tokens(&self) -> &HashMap<String, usize> {
-        self.tokenizer.special_tokens()
-    }
-
-    /// Get BOS token ID
-    #[must_use]
-    pub fn bos_token_id(&self) -> Option<usize> {
-        self.tokenizer.bos_token_id()
-    }
-
-    /// Get EOS token ID
-    #[must_use]
-    pub fn eos_token_id(&self) -> Option<usize> {
-        self.tokenizer.eos_token_id()
-    }
-
-    /// Get PAD token ID
-    #[must_use]
-    pub fn pad_token_id(&self) -> Option<usize> {
-        self.tokenizer.pad_token_id()
-    }
-
-    /// Get UNK token ID
-    #[must_use]
-    pub fn unk_token_id(&self) -> Option<usize> {
-        self.tokenizer.unk_token_id()
-    }
-
-    /// Get CLS token ID
-    #[must_use]
-    pub fn cls_token_id(&self) -> Option<usize> {
-        self.tokenizer.cls_token_id()
-    }
-
-    /// Get SEP token ID
-    #[must_use]
-    pub fn sep_token_id(&self) -> Option<usize> {
-        self.tokenizer.sep_token_id()
-    }
-
-    /// Get MASK token ID
-    #[must_use]
-    pub fn mask_token_id(&self) -> Option<usize> {
-        self.tokenizer.mask_token_id()
-    }
-
-    /// Validate the encoding
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if validation fails
-    pub fn validate(&self) -> Result<()> {
-        self.tokenizer.validate()
-    }
-
-    /// Get encoding information
-    #[must_use]
-    pub fn info(&self) -> EncodingInfo {
-        EncodingInfo {
-            model_name: self.model_name().to_string(),
-            vocab_size: self.vocab_size(),
-            special_tokens: self.special_tokens().clone(),
-            max_sequence_length: crate::MAX_SEQUENCE_LENGTH,
-        }
-    }
-}
-
-/// Information about an encoding
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EncodingInfo {
-    /// Model name
-    pub model_name: String,
-    /// Vocabulary size
-    pub vocab_size: usize,
-    /// Special tokens mapping
-    pub special_tokens: HashMap<String, usize>,
-    /// Maximum sequence length
-    pub max_sequence_length: usize,
-}
-
-/// Configuration for creating encodings
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EncodingConfig {
-    /// Model name
-    pub model_name: String,
-    /// Custom vocabulary (optional)
-    pub vocabulary: Option<Vocabulary>,
-    /// Additional special tokens
-    pub additional_special_tokens: Vec<String>,
-    /// Maximum sequence length
-    pub max_sequence_length: Option<usize>,
-}
-
-impl EncodingConfig {
-    /// Create a new encoding configuration
-    #[must_use]
-    pub const fn new(model_name: String) -> Self {
+    pub fn from_tokens(ids: Vec<u32>, tokens: Vec<String>, length: usize) -> Self {
+        let n_tokens = ids.len();
         Self {
-            model_name,
-            vocabulary: None,
-            additional_special_tokens: Vec::new(),
-            max_sequence_length: None,
+            ids,
+            tokens,
+            offsets: vec![(0, 0); n_tokens], // Placeholder offsets
+            attention_mask: vec![1; n_tokens],
+            token_type_ids: vec![0; n_tokens],
+            special_tokens_mask: vec![0; n_tokens],
+            length,
         }
     }
 
-    /// Set custom vocabulary
+    /// Get the number of tokens.
     #[must_use]
-    pub fn with_vocabulary(mut self, vocabulary: Vocabulary) -> Self {
-        self.vocabulary = Some(vocabulary);
-        self
+    pub fn len(&self) -> usize {
+        self.ids.len()
     }
 
-    /// Add special tokens
+    /// Check if encoding is empty.
     #[must_use]
-    pub fn with_special_tokens(mut self, tokens: Vec<String>) -> Self {
-        self.additional_special_tokens = tokens;
-        self
+    pub fn is_empty(&self) -> bool {
+        self.ids.is_empty()
     }
 
-    /// Set maximum sequence length
-    #[must_use]
-    pub const fn with_max_length(mut self, max_length: usize) -> Self {
-        self.max_sequence_length = Some(max_length);
-        self
+    /// Truncate encoding to maximum length.
+    pub fn truncate(&mut self, max_len: usize) {
+        if self.len() > max_len {
+            self.ids.truncate(max_len);
+            self.tokens.truncate(max_len);
+            self.offsets.truncate(max_len);
+            self.attention_mask.truncate(max_len);
+            self.token_type_ids.truncate(max_len);
+            self.special_tokens_mask.truncate(max_len);
+        }
+    }
+
+    /// Pad encoding to specified length.
+    pub fn pad(&mut self, target_len: usize, pad_token_id: u32) {
+        let pad_len = target_len.saturating_sub(self.len());
+        if pad_len > 0 {
+            self.ids
+                .extend(std::iter::repeat(pad_token_id).take(pad_len));
+            self.tokens
+                .extend(std::iter::repeat("[PAD]".to_string()).take(pad_len));
+            self.offsets.extend(std::iter::repeat((0, 0)).take(pad_len));
+            self.attention_mask
+                .extend(std::iter::repeat(0).take(pad_len));
+            self.token_type_ids
+                .extend(std::iter::repeat(0).take(pad_len));
+            self.special_tokens_mask
+                .extend(std::iter::repeat(1).take(pad_len));
+        }
     }
 }
 
-impl Encoding {
-    /// Create encoding from configuration
-    ///
-    /// # Errors
-    /// Returns `TokenizerError` if configuration is invalid or model creation fails
-    pub fn from_config(config: EncodingConfig) -> Result<Self> {
-        let mut encoding = Self::new(&config.model_name)?;
+/// Batch encoding result for multiple texts.
+///
+/// Contains encodings for a batch of texts with consistent padding/truncation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BatchEncoding {
+    /// Individual encodings for each text in the batch.
+    pub encodings: Vec<Encoding>,
+    /// Maximum sequence length in the batch.
+    pub max_len: usize,
+    /// Padding token ID used.
+    pub pad_token_id: u32,
+    /// Whether padding was applied.
+    pub padded: bool,
+    /// Whether truncation was applied.
+    pub truncated: bool,
+}
 
-        // Add custom vocabulary if provided
-        if let Some(vocab) = config.vocabulary {
-            *encoding.tokenizer.vocabulary_mut() = vocab;
+impl BatchEncoding {
+    /// Create a new batch encoding.
+    #[must_use]
+    pub fn new(
+        encodings: Vec<Encoding>,
+        max_len: usize,
+        pad_token_id: u32,
+        padded: bool,
+        truncated: bool,
+    ) -> Self {
+        Self {
+            encodings,
+            max_len,
+            pad_token_id,
+            padded,
+            truncated,
         }
+    }
 
-        // Add additional special tokens
-        for token in config.additional_special_tokens {
-            encoding.tokenizer.vocabulary_mut().add_special_token(token);
-        }
+    /// Get batch size.
+    #[must_use]
+    pub fn batch_size(&self) -> usize {
+        self.encodings.len()
+    }
 
-        // Validate the configuration
-        encoding.validate()?;
+    /// Get all token IDs as a 2D vector [`batch_size`][seq_len].
+    #[must_use]
+    pub fn input_ids(&self) -> Vec<Vec<u32>> {
+        self.encodings.iter().map(|e| e.ids.clone()).collect()
+    }
 
-        Ok(encoding)
+    /// Get all attention masks as a 2D vector [`batch_size`][seq_len].
+    #[must_use]
+    pub fn attention_mask(&self) -> Vec<Vec<u32>> {
+        self.encodings
+            .iter()
+            .map(|e| e.attention_mask.clone())
+            .collect()
+    }
+
+    /// Get all token type IDs as a 2D vector [`batch_size`][seq_len].
+    #[must_use]
+    pub fn token_type_ids(&self) -> Vec<Vec<u32>> {
+        self.encodings
+            .iter()
+            .map(|e| e.token_type_ids.clone())
+            .collect()
     }
 }
 
@@ -401,41 +177,45 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_available_models() {
-        let models = Encoding::available_models();
-        assert!(!models.is_empty());
+    fn test_encoding_creation() {
+        let encoding = Encoding::from_tokens(
+            vec![1, 2, 3],
+            vec!["hello".to_string(), "world".to_string(), "!".to_string()],
+            12,
+        );
+        assert_eq!(encoding.len(), 3);
+        assert_eq!(encoding.ids, vec![1, 2, 3]);
+        assert_eq!(encoding.tokens, vec!["hello", "world", "!"]);
+        assert_eq!(encoding.length, 12);
     }
 
     #[test]
-    fn test_encoding_config_creation() {
-        let config = EncodingConfig::new("test".to_string());
-        assert_eq!(config.model_name, "test");
-        assert!(config.vocabulary.is_none());
-        assert!(config.additional_special_tokens.is_empty());
-        assert!(config.max_sequence_length.is_none());
+    fn test_encoding_truncate() {
+        let mut encoding = Encoding::from_tokens(
+            vec![1, 2, 3, 4],
+            vec![
+                "a".to_string(),
+                "b".to_string(),
+                "c".to_string(),
+                "d".to_string(),
+            ],
+            10,
+        );
+        encoding.truncate(2);
+        assert_eq!(encoding.len(), 2);
+        assert_eq!(encoding.ids, vec![1, 2]);
     }
 
     #[test]
-    fn test_encoding_config_with_options() {
-        let vocab = Vocabulary::new();
-        let config = EncodingConfig::new("test".to_string())
-            .with_vocabulary(vocab)
-            .with_special_tokens(vec!["[TEST]".to_string()])
-            .with_max_length(512);
-
-        assert!(config.vocabulary.is_some());
-        assert_eq!(config.additional_special_tokens, vec!["[TEST]"]);
-        assert_eq!(config.max_sequence_length, Some(512));
-    }
-
-    #[test]
-    fn test_unknown_model_error() {
-        let result = Encoding::new("unknown-model");
-        assert!(result.is_err());
-        // Check that it's an error without unwrapping (avoids Debug requirement)
-        match result {
-            Err(TokenizerError::ModelError { .. }) => {} // Expected error type
-            _ => panic!("Expected ModelError for unknown model, got different error type"),
-        }
+    fn test_encoding_pad() {
+        let mut encoding = Encoding::from_tokens(
+            vec![1, 2],
+            vec!["hello".to_string(), "world".to_string()],
+            10,
+        );
+        encoding.pad(4, 0);
+        assert_eq!(encoding.len(), 4);
+        assert_eq!(encoding.ids, vec![1, 2, 0, 0]);
+        assert_eq!(encoding.attention_mask, vec![1, 1, 0, 0]);
     }
 }

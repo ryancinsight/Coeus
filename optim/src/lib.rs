@@ -62,10 +62,14 @@
 //! - **LambdaLR**: Custom learning rate scheduling with lambda functions
 //! - **MultiplicativeLR**: Multiplicative learning rate updates
 
+pub mod adam;
 pub mod error;
 pub mod optimizer;
+pub mod optimizer_core;
 pub mod optimizers;
+pub mod rmsprop;
 pub mod schedulers;
+pub mod sgd;
 
 /// Result type alias for optimization operations
 pub type Result<T> = std::result::Result<T, error::OptimError>;

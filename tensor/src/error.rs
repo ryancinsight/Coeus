@@ -1,0 +1,132 @@
+//! Error types for tensor operations
+
+use core::fmt;
+use std::string::String;
+
+/// Errors that can occur during tensor operations
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub enum TensorError {
+    /// Error from storage layer
+    StorageError(coeus_storage::StorageError),
+
+    /// Shape mismatch in operations
+    ShapeMismatch {
+        /// Expected shape
+        expected: std::vec::Vec<usize>,
+        /// Actual shape
+        actual: std::vec::Vec<usize>,
+        /// Operation that failed
+        operation: &'static str,
+    },
+
+    /// Shape error in reshape/transpose operations
+    ShapeError {
+        /// Expected value (if applicable)
+        expected: usize,
+        /// Actual value (if applicable)
+        actual: usize,
+        /// Error message
+        message: std::string::String,
+    },
+
+    /// Autograd-related error
+    AutogradError(std::string::String),
+
+    /// Invalid operation for given dtype
+    InvalidOperation {
+        /// Operation name
+        operation: &'static str,
+        /// Dtype that doesn't support it
+        dtype: coeus_dtype::Dtype,
+        /// Reason for failure
+        reason: &'static str,
+    },
+
+    /// Error from backend layer
+    BackendError(std::string::String),
+
+    /// Unsupported operation for storage type
+    UnsupportedOperation {
+        /// Operation name
+        operation: std::string::String,
+        /// Storage type
+        storage_type: std::string::String,
+    },
+
+    /// Broadcasting error between tensors
+    BroadcastError {
+        /// Left-hand side shape
+        lhs_shape: std::vec::Vec<usize>,
+        /// Right-hand side shape
+        rhs_shape: std::vec::Vec<usize>,
+    },
+
+    /// Operation on empty tensor
+    EmptyTensor,
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for TensorError {}
+
+impl fmt::Display for TensorError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::StorageError(e) => write!(f, "Storage error: {e}"),
+            Self::ShapeMismatch {
+                expected,
+                actual,
+                operation,
+            } => {
+                write!(
+                    f,
+                    "Shape mismatch in {operation}: expected {expected:?}, got {actual:?}"
+                )
+            }
+            Self::ShapeError { message, .. } => {
+                write!(f, "Shape error: {message}")
+            }
+            Self::AutogradError(msg) => {
+                write!(f, "Autograd error: {msg}")
+            }
+            Self::InvalidOperation {
+                operation,
+                dtype,
+                reason,
+            } => {
+                write!(f, "Invalid {operation} for {dtype}: {reason}")
+            }
+            Self::BackendError(msg) => {
+                write!(f, "Backend error: {msg}")
+            }
+            Self::BroadcastError { lhs_shape, rhs_shape } => {
+                write!(f, "Incompatible shapes for broadcasting")
+            }
+            Self::UnsupportedOperation { operation, storage_type } => {
+                write!(f, "Unsupported {operation} operation for {storage_type} storage type")
+            }
+            Self::EmptyTensor => {
+                write!(f, "Operation on empty tensor")
+            }
+        }
+    }
+}
+
+impl From<coeus_storage::StorageError> for TensorError {
+    fn from(error: coeus_storage::StorageError) -> Self {
+        Self::StorageError(error)
+    }
+}
+
+impl From<coeus_backend::BackendError> for TensorError {
+    fn from(error: coeus_backend::BackendError) -> Self {
+        match error {
+            coeus_backend::BackendError::UnsupportedOperation { operation, backend } => {
+                Self::BackendError(std::format!("Unsupported {operation} operation for {backend} backend"))
+            }
+            coeus_backend::BackendError::InvalidInput(msg) => {
+                Self::BackendError(std::format!("Invalid input: {msg}"))
+            }
+        }
+    }
+}

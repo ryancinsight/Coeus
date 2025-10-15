@@ -1,0 +1,1148 @@
+warning: unused import: `boxed::Box`
+  --> storage\src\distributed.rs:22:13
+   |
+22 | use alloc::{boxed::Box, vec, vec::Vec};
+   |             ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `core::fmt`
+  --> storage\src\distributed.rs:23:5
+   |
+23 | use core::fmt;
+   |     ^^^^^^^^^
+
+warning: unused import: `core::cmp::Ordering`
+ --> storage\src\sparse_arithmetic.rs:8:5
+  |
+8 | use core::cmp::Ordering;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `vec`
+ --> storage\src\sparse_indexing.rs:7:13
+  |
+7 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: unused import: `string::ToString`
+ --> storage\src\strided.rs:7:28
+  |
+7 | use alloc::{vec, vec::Vec, string::ToString};
+  |                            ^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::fmt`
+ --> storage\src\strided.rs:8:5
+  |
+8 | use core::fmt;
+  |     ^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> storage\src\distributed.rs:413:13
+    |
+413 |         let mut result = vec![T::default(); total_elements];
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `k`
+   --> storage\src\sparse_arithmetic.rs:194:13
+    |
+194 |         let k = self.shape().dims()[1];
+    |             ^
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+help: if this is intentional, prefix it with an underscore
+    |
+194 |         let _k = self.shape().dims()[1];
+    |             +
+help: you might have meant to pattern match on the similarly named constant `BLOCK_SIZE`
+    |
+194 -         let k = self.shape().dims()[1];
+194 +         let <sparse::CsrStorage<T> as sparse_arithmetic::SparseMatMul<T>>::matvec_mul::BLOCK_SIZE = self.shape().dims()[1];
+    |
+
+warning: unused variable: `result_format`
+   --> storage\src\sparse_arithmetic.rs:184:43
+    |
+184 | ...&self, other: &Self, result_format: SparseFormat) -> Result<CooStor...
+    |                         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_result_format`
+
+warning: unused variable: `result_format`
+   --> storage\src\sparse_arithmetic.rs:344:43
+    |
+344 | ...&self, other: &Self, result_format: SparseFormat) -> Result<CooStor...
+    |                         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_result_format`
+
+warning: unused variable: `result_format`
+   --> storage\src\sparse_arithmetic.rs:369:43
+    |
+369 | ...&self, other: &Self, result_format: SparseFormat) -> Result<CooStor...
+    |                         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_result_format`
+
+warning: unused variable: `rows`
+   --> storage\src\sparse_indexing.rs:106:13
+    |
+106 |         let rows = self.shape().dims()[0];
+    |             ^^^^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+106 |         let _rows = self.shape().dims()[0];
+    |             +
+help: you might have meant to pattern match on the similarly named constant `BLOCK_SIZE`
+    |
+106 -         let rows = self.shape().dims()[0];
+106 +         let <sparse::CsrStorage<T> as sparse_arithmetic::SparseMatMul<T>>::matvec_mul::BLOCK_SIZE = self.shape().dims()[0];
+    |
+
+warning: unused variable: `rows`
+   --> storage\src\sparse_indexing.rs:145:13
+    |
+145 |         let rows = self.shape().dims()[0];
+    |             ^^^^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+145 |         let _rows = self.shape().dims()[0];
+    |             +
+help: you might have meant to pattern match on the similarly named constant `BLOCK_SIZE`
+    |
+145 -         let rows = self.shape().dims()[0];
+145 +         let <sparse::CsrStorage<T> as sparse_arithmetic::SparseMatMul<T>>::matvec_mul::BLOCK_SIZE = self.shape().dims()[0];
+    |
+
+warning: unused variable: `rows`
+   --> storage\src\sparse_indexing.rs:199:13
+    |
+199 |         let rows = self.shape().dims()[0];
+    |             ^^^^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+199 |         let _rows = self.shape().dims()[0];
+    |             +
+help: you might have meant to pattern match on the similarly named constant `BLOCK_SIZE`
+    |
+199 -         let rows = self.shape().dims()[0];
+199 +         let <sparse::CsrStorage<T> as sparse_arithmetic::SparseMatMul<T>>::matvec_mul::BLOCK_SIZE = self.shape().dims()[0];
+    |
+
+warning: missing documentation for a struct field
+  --> storage\src\distributed.rs:39:17
+   |
+39 |     BlockWise { block_rows: usize, block_cols: usize },
+   |                 ^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> storage\src\lib.rs:49:9
+   |
+49 | #![warn(missing_docs, clippy::all, clippy::pedantic)]
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> storage\src\distributed.rs:39:36
+   |
+39 |     BlockWise { block_rows: usize, block_cols: usize },
+   |                                    ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `string::ToString`
+ --> tensor\src\matrix.rs:5:31
+  |
+5 | use alloc::{format, vec::Vec, string::ToString};
+  |                               ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `StorageToDense`
+ --> tensor\src\matrix.rs:7:22
+  |
+7 | use crate::{Storage, StorageToDense};
+  |                      ^^^^^^^^^^^^^^
+
+warning: unused imports: `MatMulStorage`, `SparseFormat`, `SparseMatMul`, and `TransposeStorage`
+ --> tensor\src\matrix.rs:8:21
+  |
+8 | ...ge::{SparseMatMul, SparseFormat, MatMulStorage, TransposeStorage};
+  |         ^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\matrix.rs:7:13
+  |
+7 | use crate::{Storage, StorageToDense};
+  |             ^^^^^^^
+
+warning: method `resolve_reshape_dims` is never used
+  --> tensor\src\shape_ops.rs:97:8
+   |
+11 | / impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
+12 | | where
+13 | |     B: crate::Backend + Default,
+14 | |     T: crate::DataType,
+   | |_______________________- method in this implementation
+...
+97 |       fn resolve_reshape_dims(&self, dims: &[isize]) -> crate::Result<V...
+   |          ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: missing documentation for a trait
+  --> tensor\src\lib.rs:78:1
+   |
+78 | pub trait DifferentiableFunction<B, S, T>: Send + Sync + core::fmt::Debug + AsAny
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> tensor\src\lib.rs:57:9
+   |
+57 | #![warn(missing_docs, clippy::all, clippy::pedantic)]
+   |         ^^^^^^^^^^^^
+
+warning: unused import: `Function`
+  --> autograd\src\computation_graph.rs:14:48
+   |
+14 | use crate::functions::{DifferentiableFunction, Function};
+   |                                                ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `StorageFromVec`
+  --> autograd\src\ops.rs:17:30
+   |
+17 | use coeus_storage::{Storage, StorageFromVec};
+   |                              ^^^^^^^^^^^^^^
+
+warning: unused variable: `parent_grad_fn`
+   --> autograd\src\computation_graph.rs:101:25
+    |
+101 |             if let Some(parent_grad_fn) = input_tensor_ref.grad_fn() {
+    |                         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_parent_grad_fn`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `tensor`
+   --> autograd\src\computation_graph.rs:115:9
+    |
+115 |         tensor: &coeus_tensor::Tensor<B, S, T>,
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_tensor`
+
+warning: unused variable: `add_fn`
+  --> autograd\src\ops.rs:43:13
+   |
+43 |         let add_fn = Arc::new(AddFunction::new(Arc::new(lhs.clone()), A...
+   |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_add_fn`
+
+warning: unused variable: `tensor`
+   --> autograd\src\ops.rs:281:5
+    |
+281 |     tensor: &coeus_tensor::Tensor<B, S, T>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_tensor`
+
+warning: unused variable: `input_tensor`
+   --> autograd\src\ops.rs:427:13
+    |
+427 |     for (i, input_tensor) in inputs.iter().enumerate() {
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_input_tensor`
+
+warning: method `get_accumulated_gradient` is never used
+   --> autograd\src\computation_graph.rs:136:8
+    |
+ 27 | impl GradientEngine {
+    | ------------------- method in this implementation
+...
+136 |     fn get_accumulated_gradient<B, S, T>(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `accumulate_gradients` is never used
+   --> autograd\src\ops.rs:401:4
+    |
+401 | fn accumulate_gradients<B, S, T>(
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `CheckpointFunction` is never constructed
+  --> autograd\src\checkpointing.rs:59:8
+   |
+59 | struct CheckpointFunction<F, B, S, T>
+   |        ^^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `forward`, and `backward` are never used
+  --> autograd\src\checkpointing.rs:80:8
+   |
+71 | / impl<F, B, S, T> CheckpointFunction<F, B, S, T>
+72 | | where
+73 | |     B: Backend + Clone,
+74 | |     S: Storage<T> + Clone + 'static,
+...  |
+77 | |         -> Result<coeus_tensor::Tensor<B, S, T>>
+78 | |         + Send + Sync + 'static,
+   | |________________________________- associated items in this implementation
+79 |   {
+80 |       fn new(
+   |          ^^^
+...
+90 |       fn forward(
+   |          ^^^^^^^
+...
+96 |       fn backward(
+   |          ^^^^^^^^
+
+warning: struct `CheckpointState` is never constructed
+   --> autograd\src\checkpointing.rs:228:8
+    |
+228 | struct CheckpointState {
+    |        ^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+   --> autograd\src\checkpointing.rs:236:8
+    |
+235 | impl CheckpointState {
+    | -------------------- associated function in this implementation
+236 |     fn new() -> Self {
+    |        ^^^
+
+warning: missing documentation for a method
+   --> autograd\src\functions.rs:230:5
+    |
+230 | /     pub fn backward(&self, grad_output: &coeus_tensor::Tensor<B, S, ...
+231 | |     where
+232 | |         B: Backend + Default + Clone,
+233 | |         S: Storage<T> + StorageFromVec<T> + Clone + StorageToDense<T...
+234 | |         T: DataType + Add<Output = T> + Mul<Output = T> + Clone,
+    | |________________________________________________________________^
+    |
+note: the lint level is defined here
+   --> autograd\src\lib.rs:41:9
+    |
+ 41 | #![warn(missing_docs, clippy::all, clippy::pedantic)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a method
+   --> autograd\src\functions.rs:326:5
+    |
+326 |     pub fn backward(&self, _grad_output: &coeus_tensor::Tensor<B, S, T>) -> Result<Vec<coeus_tensor::Tensor<B, S, T>>> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+   --> autograd\src\functions.rs:366:5
+    |
+366 | /     pub fn backward(&self, grad_output: &coeus_tensor::Tensor<B, S, ...
+367 | |     where
+368 | |         B: Backend + Clone + Default,
+369 | |         S: Storage<T> + StorageFromVec<T> + Clone + StorageToDense<T...
+370 | |         T: DataType + Clone,
+    | |____________________________^
+
+warning: missing documentation for a method
+   --> autograd\src\functions.rs:433:5
+    |
+433 | /     pub fn backward(&self, grad_output: &coeus_tensor::Tensor<B, S, ...
+434 | |     where
+435 | |         B: Backend + Clone + Default,
+436 | |         S: Storage<T> + StorageFromVec<T> + Clone + StorageToDense<T...
+437 | |         T: DataType + Div<Output = T> + Clone,
+    | |______________________________________________^
+
+warning: missing documentation for a method
+   --> autograd\src\functions.rs:510:5
+    |
+510 | /     pub fn backward(&self, grad_output: &coeus_tensor::Tensor<B, S, ...
+511 | |     where
+512 | |         B: Backend + Clone + Default,
+513 | |         S: Storage<T> + StorageFromVec<T> + Clone + StorageToDense<T...
+514 | |         T: DataType + FloatExt + Mul<Output = T> + Clone,
+    | |_________________________________________________________^
+
+warning: missing documentation for a method
+   --> autograd\src\functions.rs:591:5
+    |
+591 |     pub fn backward(&self, _grad_output: &coeus_tensor::Tensor<B, S, T>) -> Result<Vec<coeus_tensor::Tensor<B, S, T>>> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+   --> autograd\src\functions.rs:631:5
+    |
+631 |     pub fn backward(&self, _grad_output: &coeus_tensor::Tensor<B, S, T>) -> Result<Vec<coeus_tensor::Tensor<B, S, T>>> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+   --> autograd\src\functions.rs:671:5
+    |
+671 |     pub fn backward(&self, _grad_output: &coeus_tensor::Tensor<B, S, T>) -> Result<Vec<coeus_tensor::Tensor<B, S, T>>> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> optim\src\lib.rs:27:13
+   |
+27 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `name` is never read
+   --> optim\src\lib.rs:221:5
+    |
+214 | struct AdamParameterState<B, S, T>
+    |        ------------------ field in this struct
+...
+221 |     name: String,
+    |     ^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `RMSpropParameterState` is never constructed
+   --> optim\src\lib.rs:228:8
+    |
+228 | struct RMSpropParameterState<B, S, T>
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AdagradParameterState` is never constructed
+   --> optim\src\lib.rs:240:8
+    |
+240 | struct AdagradParameterState<B, S, T>
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `AdamParameterStateCpu` is never used
+   --> optim\src\lib.rs:303:6
+    |
+303 | type AdamParameterStateCpu<T> = AdamParameterState<CpuBackend, DenseSt...
+    |      ^^^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `RMSpropParameterStateCpu` is never used
+   --> optim\src\lib.rs:304:6
+    |
+304 | type RMSpropParameterStateCpu<T> = RMSpropParameterState<CpuBackend, D...
+    |      ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `AdagradParameterStateCpu` is never used
+   --> optim\src\lib.rs:305:6
+    |
+305 | type AdagradParameterStateCpu<T> = AdagradParameterState<CpuBackend, D...
+    |      ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::marker::PhantomData`
+ --> nn\src\linear.rs:4:5
+  |
+4 | use std::marker::PhantomData;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::ops::Add`
+ --> nn\src\linear.rs:5:5
+  |
+5 | use std::ops::Add;
+  |     ^^^^^^^^^^^^^
+
+warning: unused import: `float::Float32`
+ --> nn\src\linear.rs:8:47
+  |
+8 | use coeus_dtype::{traits::FloatExt, DataType, float::Float32};
+  |                                               ^^^^^^^^^^^^^^
+
+warning: unused imports: `CsrStorage`, `SparseFormat`, and `SparseMatMul`
+ --> nn\src\linear.rs:9:76
+  |
+9 | ... DenseStorage, CsrStorage, SparseFormat, SparseMatMul};
+  |                   ^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^
+
+warning: unused import: `alloc::sync::Arc`
+  --> nn\src\linear.rs:13:5
+   |
+13 | use alloc::sync::Arc;
+   |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `CpuBackend`
+ --> nn\src\module.rs:5:30
+  |
+5 | use coeus_backend::{Backend, CpuBackend};
+  |                              ^^^^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> nn\src\module.rs:7:21
+  |
+7 | use coeus_storage::{DenseStorage, Storage};
+  |                     ^^^^^^^^^^^^
+
+warning: unused import: `StorageFromVec`
+ --> nn\src\parameter.rs:7:30
+  |
+7 | use coeus_storage::{Storage, StorageFromVec};
+  |                              ^^^^^^^^^^^^^^
+
+warning: unused import: `AutoGradTensor`
+ --> nn\src\parameter.rs:8:20
+  |
+8 | use coeus_tensor::{AutoGradTensor, Tensor};
+  |                    ^^^^^^^^^^^^^^
+
+warning: unused imports: `StorageFromVec` and `StorageToDense`
+ --> nn\src\sequential.rs:7:44
+  |
+7 | use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+  |                                            ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `float::Float32`
+ --> nn\src\conv1d.rs:9:47
+  |
+9 | use coeus_dtype::{traits::FloatExt, DataType, float::Float32};
+  |                                               ^^^^^^^^^^^^^^
+
+warning: unused import: `std::ops::Neg`
+  --> nn\src\conv1d.rs:14:5
+   |
+14 | use std::ops::Neg;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `float::Float32`
+ --> nn\src\conv2d.rs:9:47
+  |
+9 | use coeus_dtype::{traits::FloatExt, DataType, float::Float32};
+  |                                               ^^^^^^^^^^^^^^
+
+warning: unused import: `float::Float32`
+ --> nn\src\conv3d.rs:9:47
+  |
+9 | use coeus_dtype::{traits::FloatExt, DataType, float::Float32};
+  |                                               ^^^^^^^^^^^^^^
+
+warning: unused import: `std::ops::Neg`
+  --> nn\src\conv3d.rs:14:5
+   |
+14 | use std::ops::Neg;
+   |     ^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around assigned value
+   --> nn\src\conv3d.rs:303:66
+    |
+303 | ... = ((((oc * in_channels + ic) * kernel_depth + kd) * kernel_height + kh) * kernel_width + kw);
+    |       ^                                                                                        ^
+    |
+    = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+    |
+303 -                                                 let weight_idx = ((((oc * in_channels + ic) * kernel_depth + kd) * kernel_height + kh) * kernel_width + kw);
+303 +                                                 let weight_idx = (((oc * in_channels + ic) * kernel_depth + kd) * kernel_height + kh) * kernel_width + kw;
+    |
+
+warning: unused import: `CpuBackend`
+ --> nn\src\conv_functional.rs:7:30
+  |
+7 | use coeus_backend::{Backend, CpuBackend};
+  |                              ^^^^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> nn\src\conv_functional.rs:9:30
+  |
+9 | use coeus_storage::{Storage, DenseStorage, StorageFromVec};
+  |                              ^^^^^^^^^^^^
+
+warning: unnecessary parentheses around assigned value
+   --> nn\src\conv_functional.rs:431:62
+    |
+431 | ... = ((((oc * in_channels + ic) * kernel_depth + kd) * kernel_height + kh) * kernel_width + kw);
+    |       ^                                                                                        ^
+    |
+help: remove these parentheses
+    |
+431 -                                             let weight_idx = ((((oc * in_channels + ic) * kernel_depth + kd) * kernel_height + kh) * kernel_width + kw);
+431 +                                             let weight_idx = (((oc * in_channels + ic) * kernel_depth + kd) * kernel_height + kh) * kernel_width + kw;
+    |
+
+warning: unused import: `float::Float32`
+ --> nn\src\embedding.rs:7:47
+  |
+7 | use coeus_dtype::{traits::FloatExt, DataType, float::Float32};
+  |                                               ^^^^^^^^^^^^^^
+
+warning: unused import: `StorageToDense`
+  --> nn\src\rnn.rs:15:60
+   |
+15 | ..., Storage, StorageFromVec, StorageToDense};
+   |                               ^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around assigned value
+   --> nn\src\rnn.rs:165:37
+    |
+165 |                 let weight_ih_var = (w_ih);
+    |                                     ^    ^
+    |
+help: remove these parentheses
+    |
+165 -                 let weight_ih_var = (w_ih);
+165 +                 let weight_ih_var = w_ih;
+    |
+
+warning: unnecessary parentheses around assigned value
+   --> nn\src\rnn.rs:166:37
+    |
+166 |                 let weight_hh_var = (w_hh);
+    |                                     ^    ^
+    |
+help: remove these parentheses
+    |
+166 -                 let weight_hh_var = (w_hh);
+166 +                 let weight_hh_var = w_hh;
+    |
+
+warning: unnecessary parentheses around assigned value
+   --> nn\src\rnn.rs:181:39
+    |
+181 |                     let bias_ih_var = (b_ih);
+    |                                       ^    ^
+    |
+help: remove these parentheses
+    |
+181 -                     let bias_ih_var = (b_ih);
+181 +                     let bias_ih_var = b_ih;
+    |
+
+warning: unnecessary parentheses around assigned value
+   --> nn\src\rnn.rs:182:39
+    |
+182 |                     let bias_hh_var = (b_hh);
+    |                                       ^    ^
+    |
+help: remove these parentheses
+    |
+182 -                     let bias_hh_var = (b_hh);
+182 +                     let bias_hh_var = b_hh;
+    |
+
+warning: unnecessary parentheses around assigned value
+    --> nn\src\rnn.rs:1166:37
+     |
+1166 |                 let weight_ih_var = (w_ih);
+     |                                     ^    ^
+     |
+help: remove these parentheses
+     |
+1166 -                 let weight_ih_var = (w_ih);
+1166 +                 let weight_ih_var = w_ih;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> nn\src\rnn.rs:1167:37
+     |
+1167 |                 let weight_hh_var = (w_hh);
+     |                                     ^    ^
+     |
+help: remove these parentheses
+     |
+1167 -                 let weight_hh_var = (w_hh);
+1167 +                 let weight_hh_var = w_hh;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> nn\src\rnn.rs:1182:39
+     |
+1182 |                     let bias_ih_var = (b_ih);
+     |                                       ^    ^
+     |
+help: remove these parentheses
+     |
+1182 -                     let bias_ih_var = (b_ih);
+1182 +                     let bias_ih_var = b_ih;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> nn\src\rnn.rs:1183:39
+     |
+1183 |                     let bias_hh_var = (b_hh);
+     |                                       ^    ^
+     |
+help: remove these parentheses
+     |
+1183 -                     let bias_hh_var = (b_hh);
+1183 +                     let bias_hh_var = b_hh;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> nn\src\rnn.rs:2063:37
+     |
+2063 |                 let weight_ih_var = (w_ih);
+     |                                     ^    ^
+     |
+help: remove these parentheses
+     |
+2063 -                 let weight_ih_var = (w_ih);
+2063 +                 let weight_ih_var = w_ih;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> nn\src\rnn.rs:2064:37
+     |
+2064 |                 let weight_hh_var = (w_hh);
+     |                                     ^    ^
+     |
+help: remove these parentheses
+     |
+2064 -                 let weight_hh_var = (w_hh);
+2064 +                 let weight_hh_var = w_hh;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> nn\src\rnn.rs:2079:39
+     |
+2079 |                     let bias_ih_var = (b_ih);
+     |                                       ^    ^
+     |
+help: remove these parentheses
+     |
+2079 -                     let bias_ih_var = (b_ih);
+2079 +                     let bias_ih_var = b_ih;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> nn\src\rnn.rs:2080:39
+     |
+2080 |                     let bias_hh_var = (b_hh);
+     |                                       ^    ^
+     |
+help: remove these parentheses
+     |
+2080 -                     let bias_hh_var = (b_hh);
+2080 +                     let bias_hh_var = b_hh;
+     |
+
+warning: unused import: `float::Float32`
+  --> nn\src\transformer.rs:13:47
+   |
+13 | use coeus_dtype::{traits::FloatExt, DataType, float::Float32};
+   |                                               ^^^^^^^^^^^^^^
+
+warning: unused import: `StorageToDense`
+  --> nn\src\transformer.rs:14:46
+   |
+14 | use coeus_storage::{Storage, StorageFromVec, StorageToDense, DenseStora...
+   |                                              ^^^^^^^^^^^^^^
+
+warning: unused import: `rand::distributions::Distribution`
+  --> nn\src\conv2d.rs:13:5
+   |
+13 | use rand::distributions::Distribution;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `rand::distributions::Distribution`
+  --> nn\src\conv3d.rs:13:5
+   |
+13 | use rand::distributions::Distribution;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `rand::distributions::Distribution`
+  --> nn\src\conv1d.rs:13:5
+   |
+13 | use rand::distributions::Distribution;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> nn\src\sequential.rs:7:35
+  |
+7 | use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+  |                                   ^^^^^^^
+
+warning: unused variable: `data`
+   --> nn\src\module.rs:418:25
+    |
+418 |             if let Some(data) = state_dict.get(&full_name) {
+    |                         ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `scaled_logits`
+   --> nn\src\attention.rs:231:17
+    |
+231 |             let scaled_logits = Tensor::<B, S, T>::from_vec(
+    |                 ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_scaled_logits`
+
+warning: unused variable: `batch_size`
+   --> nn\src\conv1d.rs:558:13
+    |
+558 |         let batch_size = input_shape[0];
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_batch_size`
+
+warning: unused variable: `input_length`
+   --> nn\src\conv1d.rs:560:13
+    |
+560 |         let input_length = input_shape[2];
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_input_length`
+
+warning: unused variable: `output_height`
+   --> nn\src\conv2d.rs:354:14
+    |
+354 |         let (output_height, output_width) = self.output_size(input_hei...
+    |              ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_output_height`
+
+warning: unused variable: `output_width`
+   --> nn\src\conv2d.rs:354:29
+    |
+354 | ... let (output_height, output_width) = self.output_size(input_height,...
+    |                         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_output_width`
+
+warning: unused variable: `batch_size`
+   --> nn\src\conv3d.rs:348:13
+    |
+348 |         let batch_size = input_shape[0];
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_batch_size`
+
+warning: unused variable: `input_depth`
+   --> nn\src\conv3d.rs:350:13
+    |
+350 |         let input_depth = input_shape[2];
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_input_depth`
+
+warning: unused variable: `input_height`
+   --> nn\src\conv3d.rs:351:13
+    |
+351 |         let input_height = input_shape[3];
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_input_height`
+
+warning: unused variable: `input_width`
+   --> nn\src\conv3d.rs:352:13
+    |
+352 |         let input_width = input_shape[4];
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_input_width`
+
+warning: unused variable: `hidden`
+   --> nn\src\rnn.rs:586:17
+    |
+586 |         let mut hidden: Tensor<B, DenseStorage<T>, T> = Tensor::zeros(...
+    |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_hidden`
+
+warning: variable does not need to be mutable
+   --> nn\src\rnn.rs:586:13
+    |
+586 | ...   let mut hidden: Tensor<B, DenseStorage<T>, T> = Tensor::zeros(&[...
+    |           ----^^^^^^
+    |           |
+    |           help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> nn\src\rnn.rs:602:13
+    |
+602 |         let mut output = Tensor::zeros(&output_shape)?;
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: method `softmax_rows` is never used
+   --> nn\src\attention.rs:255:8
+    |
+ 77 | / impl<B, S, T> MultiHeadAttention<B, S, T>
+ 78 | | where
+ 79 | |     B: Backend + Clone + Default,
+ 80 | |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+ 81 | |     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
+    | |________________________________________________________________________- method in this implementation
+...
+255 |       fn softmax_rows(
+    |          ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `create_dense_projection` is never used
+   --> nn\src\attention.rs:777:8
+    |
+668 | / impl<B, S, T> SparseAttention<B, S, T>
+669 | | where
+670 | |     B: Backend + Clone + Default,
+671 | |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+672 | |     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::Zero,
+    | |___________________________________________________________________________________________- associated function in this implementation
+...
+777 |       fn create_dense_projection(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `out_channels` and `kernel_size` are never read
+  --> nn\src\conv1d.rs:60:5
+   |
+47 | pub struct Conv1D<B, S, T>
+   |            ------ fields in this struct
+...
+60 |     out_channels: usize,
+   |     ^^^^^^^^^^^^
+61 |     /// Kernel size
+62 |     kernel_size: usize,
+   |     ^^^^^^^^^^^
+   |
+   = note: `Conv1D` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `out_channels` is never read
+   --> nn\src\conv1d.rs:381:5
+    |
+367 | pub struct ConvTranspose1d<B, S, T>
+    |            --------------- field in this struct
+...
+381 |     out_channels: usize,
+    |     ^^^^^^^^^^^^
+    |
+    = note: `ConvTranspose1d` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `pad_input` is never used
+   --> nn\src\conv2d.rs:171:8
+    |
+ 63 | / impl<B, S, T> Conv2D<B, S, T>
+ 64 | | where
+ 65 | |     B: Backend + Clone + Default,
+ 66 | |     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+ 67 | |     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
+    | |______________________________________________________________________________________________- method in this implementation
+...
+171 |       fn pad_input(
+    |          ^^^^^^^^^
+
+warning: field `out_channels` is never read
+  --> nn\src\conv3d.rs:47:5
+   |
+34 | pub struct Conv3D<B, S, T>
+   |            ------ field in this struct
+...
+47 |     out_channels: usize,
+   |     ^^^^^^^^^^^^
+   |
+   = note: `Conv3D` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `pad_input` is never used
+   --> nn\src\conv3d.rs:180:8
+    |
+ 69 | / impl<B, S, T> Conv3D<B, S, T>
+ 70 | | where
+ 71 | |     B: Backend + Clone + Default,
+ 72 | |     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+ 73 | |     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
+    | |______________________________________________________________________________________________- method in this implementation
+...
+180 |       fn pad_input(
+    |          ^^^^^^^^^
+
+warning: function `linear_dense` is never used
+   --> nn\src\functional.rs:685:4
+    |
+685 | fn linear_dense<T: DataType + FloatExt>(
+    |    ^^^^^^^^^^^^
+
+warning: function `add_bias_simd` is never used
+  --> nn\src\functional.rs:90:12
+   |
+90 |     pub fn add_bias_simd<T: DataType + FloatExt>(
+   |            ^^^^^^^^^^^^^
+
+warning: function `accumulate_gradients_simd` is never used
+   --> nn\src\functional.rs:137:12
+    |
+137 |     pub fn accumulate_gradients_simd<T: DataType + FloatExt>(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> nn\benches\neural_networks.rs:239:13
+    |
+239 |         let mut batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 1e-5, 0.1).unwrap();
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> nn\benches\neural_networks.rs:257:13
+    |
+257 |         let mut layernorm = LayerNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(vec![512], 1e-5);
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+Gnuplot not found, using plotters backend
+Benchmarking linear_forward/small_784_128
+Benchmarking linear_forward/small_784_128: Warming up for 3.0000 s
+Benchmarking linear_forward/small_784_128: Collecting 100 samples in estimated 5.0625 s (2400 iterations)
+Benchmarking linear_forward/small_784_128: Analyzing
+linear_forward/small_784_128
+                        time:   [1.9736 ms 2.0026 ms 2.0317 ms]
+                        change: [-4.8196% -2.7388% -0.6834%] (p = 0.01 < 0.05)
+                        Change within noise threshold.
+Benchmarking linear_forward/medium_2048_512
+Benchmarking linear_forward/medium_2048_512: Warming up for 3.0000 s
+Benchmarking linear_forward/medium_2048_512: Collecting 100 samples in estimated 5.2694 s (200 iterations)
+Benchmarking linear_forward/medium_2048_512: Analyzing
+linear_forward/medium_2048_512
+                        time:   [25.319 ms 26.950 ms 28.633 ms]
+                        change: [-39.063% -34.973% -30.723%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Benchmarking linear_forward/large_4096_1024
+Benchmarking linear_forward/large_4096_1024: Warming up for 3.0000 s
+
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 14.6s, or reduce sample count to 30.
+Benchmarking linear_forward/large_4096_1024: Collecting 100 samples in estimated 14.553 s (100 iterations)
+Benchmarking linear_forward/large_4096_1024: Analyzing
+linear_forward/large_4096_1024
+                        time:   [143.30 ms 146.14 ms 148.99 ms]
+                        change: [+14.762% +16.979% +19.402%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+
+Benchmarking linear_backward/small_784_128
+Benchmarking linear_backward/small_784_128: Warming up for 3.0000 s
+Benchmarking linear_backward/small_784_128: Collecting 100 samples in estimated 5.0927 s (2500 iterations)
+Benchmarking linear_backward/small_784_128: Analyzing
+linear_backward/small_784_128
+                        time:   [2.0116 ms 2.0407 ms 2.0730 ms]
+                        change: [-4.0934% -2.3316% -0.6355%] (p = 0.01 < 0.05)
+                        Change within noise threshold.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+Benchmarking linear_backward/medium_2048_512
+Benchmarking linear_backward/medium_2048_512: Warming up for 3.0000 s
+Benchmarking linear_backward/medium_2048_512: Collecting 100 samples in estimated 5.1617 s (200 iterations)
+Benchmarking linear_backward/medium_2048_512: Analyzing
+linear_backward/medium_2048_512
+                        time:   [24.304 ms 25.682 ms 27.105 ms]
+                        change: [-40.962% -37.638% -34.310%] (p = 0.00 < 0.05)
+                        Performance has improved.
+
+Benchmarking conv2d_forward/small_32x32_3_64
+Benchmarking conv2d_forward/small_32x32_3_64: Warming up for 3.0000 s
+Benchmarking conv2d_forward/small_32x32_3_64: Collecting 100 samples in estimated 5.5316 s (600 iterations)
+Benchmarking conv2d_forward/small_32x32_3_64: Analyzing
+conv2d_forward/small_32x32_3_64
+                        time:   [8.5157 ms 8.7672 ms 9.0230 ms]
+                        change: [+14.294% +18.000% +21.385%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Benchmarking conv2d_forward/medium_64x64_64_128
+Benchmarking conv2d_forward/medium_64x64_64_128: Warming up for 3.0000 s
+
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 63.4s, or reduce sample count to 10.
+Benchmarking conv2d_forward/medium_64x64_64_128: Collecting 100 samples in estimated 63.396 s (100 iterations)
+Benchmarking conv2d_forward/medium_64x64_64_128: Analyzing
+conv2d_forward/medium_64x64_64_128
+                        time:   [626.97 ms 636.55 ms 646.21 ms]
+                        change: [+10.830% +13.734% +16.741%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+
+Benchmarking attention_forward/small_embed256_heads8_seq32
+Benchmarking attention_forward/small_embed256_heads8_seq32: Warming up for 3.0000 s
+Benchmarking attention_forward/small_embed256_heads8_seq32: Collecting 100 samples in estimated 6.1048 s (300 iterations)
+Benchmarking attention_forward/small_embed256_heads8_seq32: Analyzing
+attention_forward/small_embed256_heads8_seq32
+                        time:   [20.178 ms 20.452 ms 20.732 ms]
+                        change: [-3.0306% -1.1368% +0.8187%] (p = 0.24 > 0.05)
+                        No change in performance detected.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+Benchmarking attention_forward/medium_embed512_heads16_seq64
+Benchmarking attention_forward/medium_embed512_heads16_seq64: Warming up for 3.0000 s
+
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 9.5s, or reduce sample count to 50.
+Benchmarking attention_forward/medium_embed512_heads16_seq64: Collecting 100 samples in estimated 9.4886 s (100 iterations)
+Benchmarking attention_forward/medium_embed512_heads16_seq64: Analyzing
+attention_forward/medium_embed512_heads16_seq64
+                        time:   [90.871 ms 91.945 ms 92.987 ms]
+                        change: [-8.1678% -6.1006% -4.0725%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) low mild
+
+Benchmarking sequential_forward/small_mlp_784_512_256_128_10
+Benchmarking sequential_forward/small_mlp_784_512_256_128_10: Warming up for 3.0000 s
+Benchmarking sequential_forward/small_mlp_784_512_256_128_10: Collecting 100 samples in estimated 5.1259 s (400 iterations)
+Benchmarking sequential_forward/small_mlp_784_512_256_128_10: Analyzing
+sequential_forward/small_mlp_784_512_256_128_10
+                        time:   [12.618 ms 12.769 ms 12.920 ms]
+                        change: [-4.8279% -2.9757% -1.1686%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+
+Benchmarking sequential_backward/small_mlp_backward
+Benchmarking sequential_backward/small_mlp_backward: Warming up for 3.0000 s
+Benchmarking sequential_backward/small_mlp_backward: Collecting 100 samples in estimated 5.2016 s (2300 iterations)
+Benchmarking sequential_backward/small_mlp_backward: Analyzing
+sequential_backward/small_mlp_backward
+                        time:   [2.2474 ms 2.2741 ms 2.3022 ms]
+                        change: [-0.0474% +1.7447% +3.6624%] (p = 0.06 > 0.05)
+                        No change in performance detected.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+
+Benchmarking batchnorm_forward/small_64ch_32x32
+Benchmarking batchnorm_forward/small_64ch_32x32: Warming up for 3.0000 s
+Benchmarking batchnorm_forward/small_64ch_32x32: Collecting 100 samples in estimated 5.1541 s (2600 iterations)
+Benchmarking batchnorm_forward/small_64ch_32x32: Analyzing
+batchnorm_forward/small_64ch_32x32
+                        time:   [1.9717 ms 1.9944 ms 2.0169 ms]
+                        change: [+0.7825% +2.5533% +4.3949%] (p = 0.01 < 0.05)
+                        Change within noise threshold.
+
+Benchmarking layernorm_forward/small_512_features
+Benchmarking layernorm_forward/small_512_features: Warming up for 3.0000 s
+Benchmarking layernorm_forward/small_512_features: Collecting 100 samples in estimated 6.7534 s (10k iterations)
+Benchmarking layernorm_forward/small_512_features: Analyzing
+layernorm_forward/small_512_features
+                        time:   [629.91 ┬╡s 650.41 ┬╡s 671.33 ┬╡s]
+                        change: [-6.6811% -3.1119% +0.9715%] (p = 0.12 > 0.05)
+                        No change in performance detected.
+
+Benchmarking dropout_forward/training_2048_features
+Benchmarking dropout_forward/training_2048_features: Warming up for 3.0000 s
+Benchmarking dropout_forward/training_2048_features: Collecting 100 samples in estimated 5.3467 s (15k iterations)
+Benchmarking dropout_forward/training_2048_features: Analyzing
+dropout_forward/training_2048_features
+                        time:   [360.39 ┬╡s 370.75 ┬╡s 380.84 ┬╡s]
+                        change: [-4.8586% -1.1747% +2.3501%] (p = 0.50 > 0.05)
+                        No change in performance detected.
+Benchmarking dropout_forward/eval_2048_features
+Benchmarking dropout_forward/eval_2048_features: Warming up for 3.0000 s
+Benchmarking dropout_forward/eval_2048_features: Collecting 100 samples in estimated 5.0020 s (1.2M iterations)
+Benchmarking dropout_forward/eval_2048_features: Analyzing
+dropout_forward/eval_2048_features
+                        time:   [4.3519 ┬╡s 4.4398 ┬╡s 4.5242 ┬╡s]
+                        change: [-13.794% -9.9899% -6.3544%] (p = 0.00 < 0.05)
+                        Performance has improved.
+
+Benchmarking mse_loss/small_128_features
+Benchmarking mse_loss/small_128_features: Warming up for 3.0000 s
+Benchmarking mse_loss/small_128_features: Collecting 100 samples in estimated 5.0066 s (2.3M iterations)
+Benchmarking mse_loss/small_128_features: Analyzing
+mse_loss/small_128_features
+                        time:   [2.1640 ┬╡s 2.1948 ┬╡s 2.2256 ┬╡s]
+                        change: [-8.3464% -5.9213% -3.6177%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high severe
+Benchmarking mse_loss/large_2048_features
+Benchmarking mse_loss/large_2048_features: Warming up for 3.0000 s
+Benchmarking mse_loss/large_2048_features: Collecting 100 samples in estimated 5.0071 s (283k iterations)
+Benchmarking mse_loss/large_2048_features: Analyzing
+mse_loss/large_2048_features
+                        time:   [17.689 ┬╡s 17.928 ┬╡s 18.172 ┬╡s]
+                        change: [-3.0442% -0.8222% +1.6452%] (p = 0.49 > 0.05)
+                        No change in performance detected.
+Found 5 outliers among 100 measurements (5.00%)
+  4 (4.00%) high mild
+  1 (1.00%) high severe
+
+Benchmarking activations/relu_32x1024
+Benchmarking activations/relu_32x1024: Warming up for 3.0000 s
+Benchmarking activations/relu_32x1024: Collecting 100 samples in estimated 5.0043 s (1.0M iterations)
+Benchmarking activations/relu_32x1024: Analyzing
+activations/relu_32x1024
+                        time:   [4.6997 ┬╡s 4.8155 ┬╡s 4.9365 ┬╡s]
+                        change: [-8.1054% -4.7399% -0.9622%] (p = 0.01 < 0.05)
+                        Change within noise threshold.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high severe
+Benchmarking activations/gelu_32x1024
+Benchmarking activations/gelu_32x1024: Warming up for 3.0000 s
+Benchmarking activations/gelu_32x1024: Collecting 100 samples in estimated 7.3640 s (15k iterations)
+Benchmarking activations/gelu_32x1024: Analyzing
+activations/gelu_32x1024
+                        time:   [474.57 ┬╡s 484.53 ┬╡s 494.70 ┬╡s]
+                        change: [-8.9706% -6.2938% -3.5557%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+

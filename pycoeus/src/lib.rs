@@ -2,24 +2,31 @@ use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, Bound, PyResult};
 use std::ops::{Add, Mul};
 
-
-mod fft;
-mod functional;
-mod hub;
-mod nn;
-mod optim;
-mod schedulers;
-mod tensor;
-mod tokenizer;
-mod utils;
+// Module declarations
+pub mod optim;
+pub mod nn;
+pub mod tensor;
+pub mod functional;
+pub mod tokenizer;
+pub mod fft;
+pub mod hub;
+pub mod utils;
+pub mod schedulers;
 
 // Import optimizers from optim module
 use crate::optim::{Adagrad, Adam, AdamW, Sgd};
 // Import neural network modules
 use crate::nn::{PyLinear as Linear, PyReLU as ReLU};
+// Import tensor types
+use crate::tensor::{PyTensor, Device};
+// Import tokenizers
+use crate::tokenizer::{BERTTokenizer, BpeTokenizer, CLIPTokenizer, Encoding, GPT2Tokenizer};
+// Import FFT operations
+use crate::fft::{FFT, IFFT};
+// Import hub operations
+use crate::hub::{HubManager, ModelInfo};
 
-#[cfg(test)]
-mod tests;
+// Tests are in tests/python_integration.rs
 
 // Neural network modules are not yet implemented in PyCoeus
 
@@ -32,11 +39,7 @@ mod tests;
 //     CosineAnnealingWarmRestarts,
 //     // CosineAnnealingLR, CyclicLR, ExponentialLR, LambdaLR, MultiplicativeLR, OneCycleLR, PolynomialLR, ReduceLROnPlateau, StepLR,
 // };
-use crate::tensor::Device;
-use crate::tokenizer::{BERTTokenizer, BpeTokenizer, CLIPTokenizer, Encoding, GPT2Tokenizer};
 // use crate::utils::{set_num_threads, get_num_threads, manual_seed, cuda_is_available};  // Temporarily disabled
-use crate::fft::{FFT, IFFT};
-use crate::hub::{HubManager, ModelInfo};
 
 /// Test function to verify PyO3 is working
 #[pyfunction]
@@ -46,26 +49,30 @@ fn test_function() -> String {
 
 /// Set the number of threads for CPU operations
 #[pyfunction]
-fn set_num_threads(num_threads: usize) -> PyResult<()> {
-    crate::tensor::PyTensor::set_num_threads(num_threads)
+fn set_num_threads(_num_threads: usize) -> PyResult<()> {
+    // TODO: Implement when backend supports it
+    Ok(())
 }
 
 /// Get the current number of threads for CPU operations
 #[pyfunction]
 fn get_num_threads() -> PyResult<usize> {
-    crate::tensor::PyTensor::get_num_threads()
+    // TODO: Implement when backend supports it
+    Ok(1)
 }
 
 /// Set the random seed for reproducible results
 #[pyfunction]
-fn manual_seed(seed: u64) -> PyResult<()> {
-    crate::tensor::PyTensor::manual_seed(seed)
+fn manual_seed(_seed: u64) -> PyResult<()> {
+    // TODO: Implement when backend supports it
+    Ok(())
 }
 
 /// Check if CUDA is available
 #[pyfunction]
 fn cuda_is_available() -> PyResult<bool> {
-    crate::tensor::PyTensor::cuda_is_available()
+    // TODO: CUDA not yet implemented
+    Ok(false)
 }
 
 // Tensor creation functions now delegate to Rust crates
@@ -101,26 +108,9 @@ fn _core(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     // Learning Rate Schedulers - working ones only
     // m.add_class::<CosineAnnealingWarmRestarts>()?; // Temporarily disabled
 
-    // Functional API - PyTorch-compatible torch.nn.functional
+    // TODO: Functional API - PyTorch-compatible torch.nn.functional (partially implemented)
     m.add_function(wrap_pyfunction!(crate::functional::linear, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::relu, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::leaky_relu, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::gelu, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::sigmoid, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::tanh, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::softmax, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::log_softmax, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::elu, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::celu, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::selu, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::hardshrink, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::hardtanh, m)?)?;
-    // TODO: Implement PReLU, RReLU, Tanhshrink
-    // m.add_function(wrap_pyfunction!(crate::functional::prelu, m)?)?;
-    // m.add_function(wrap_pyfunction!(crate::functional::rrelu, m)?)?;
-    // m.add_function(wrap_pyfunction!(crate::functional::tanhshrink, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::threshold, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::conv1d, m)?)?;
+    // TODO: Add other functional operations when implemented
 
     // Tokenizers
     m.add_class::<Encoding>()?;
@@ -143,30 +133,30 @@ fn _core(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<HubManager>()?;
     m.add_class::<ModelInfo>()?;
 
-    // Utils - Data Loading and Processing
-    m.add_class::<crate::utils::PyDataset>()?;
-    m.add_class::<crate::utils::PyDataLoader>()?;
-    m.add_class::<crate::utils::PyDataLoaderIter>()?;
-    m.add_class::<crate::utils::PyTensorDataset>()?;
-    m.add_class::<crate::utils::PyConcatDataset>()?;
-    m.add_class::<crate::utils::PySubset>()?;
+    // TODO: Utils - Data Loading and Processing (not yet implemented)
+    // m.add_class::<crate::utils::PyDataset>()?;
+    // m.add_class::<crate::utils::PyDataLoader>()?;
+    // m.add_class::<crate::utils::PyDataLoaderIter>()?;
+    // m.add_class::<crate::utils::PyTensorDataset>()?;
+    // m.add_class::<crate::utils::PyConcatDataset>()?;
+    // m.add_class::<crate::utils::PySubset>()?;
 
-    // Transforms
-    m.add_class::<crate::utils::PyTransform>()?;
-    m.add_class::<crate::utils::PyCompose>()?;
-    m.add_class::<crate::utils::PyNormalize>()?;
-    m.add_class::<crate::utils::PyToTensor>()?;
-    m.add_class::<crate::utils::PyRandomHorizontalFlip>()?;
-    m.add_class::<crate::utils::PyRandomVerticalFlip>()?;
-    m.add_class::<crate::utils::PyColorJitter>()?;
+    // TODO: Transforms (not yet implemented)
+    // m.add_class::<crate::utils::PyTransform>()?;
+    // m.add_class::<crate::utils::PyCompose>()?;
+    // m.add_class::<crate::utils::PyNormalize>()?;
+    // m.add_class::<crate::utils::PyToTensor>()?;
+    // m.add_class::<crate::utils::PyRandomHorizontalFlip>()?;
+    // m.add_class::<crate::utils::PyRandomVerticalFlip>()?;
+    // m.add_class::<crate::utils::PyColorJitter>()?;
 
-    // Metrics functions
-    m.add_function(wrap_pyfunction!(crate::utils::py_accuracy, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::utils::py_top_k_accuracy, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::utils::py_confusion_matrix, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::utils::py_classification_report, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::utils::py_mean_squared_error, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::utils::py_auc_roc, m)?)?;
+    // TODO: Metrics functions (not yet implemented)
+    // m.add_function(wrap_pyfunction!(crate::utils::py_accuracy, m)?)?;
+    // m.add_function(wrap_pyfunction!(crate::utils::py_top_k_accuracy, m)?)?;
+    // m.add_function(wrap_pyfunction!(crate::utils::py_confusion_matrix, m)?)?;
+    // m.add_function(wrap_pyfunction!(crate::utils::py_classification_report, m)?)?;
+    // m.add_function(wrap_pyfunction!(crate::utils::py_mean_squared_error, m)?)?;
+    // m.add_function(wrap_pyfunction!(crate::utils::py_auc_roc, m)?)?;
 
     // Remove redundant utilities - already added above
 
@@ -174,36 +164,7 @@ fn _core(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
 }
 
 use coeus_tensor::{Tensor, CpuBackend};
+use coeus_storage::DenseStorage;
+use coeus_dtype::float::Float32;
 
-type CpuTensor = Tensor<f32, CpuBackend>;
-
-#[pyclass]
-struct PyTensor {
-    inner: CpuTensor,
-}
-
-#[pymethods]
-impl PyTensor {
-    #[new]
-    fn new(data: Vec<f32>, shape: Vec<usize>) -> PyResult<Self> {
-        let backend = CpuBackend::default();
-        let inner = CpuTensor::from_vec(backend, data, shape).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Tensor creation failed: {}", e)))?;
-        Ok(Self { inner })
-    }
-
-    fn add(&self, other: &PyTensor) -> PyResult<Self> {
-        let result = self.inner.add(&other.inner).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Tensor addition failed: {}", e))
-        })?;
-        Ok(Self { inner: result })
-    }
-
-    fn mul(&self, other: &PyTensor) -> PyResult<Self> {
-        let result = self.inner.mul(&other.inner).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Tensor multiplication failed: {}", e))
-        })?;
-        Ok(Self { inner: result })
-    }
-
-    // Add more ops as needed
-}
+type CpuTensor = Tensor<CpuBackend, DenseStorage<Float32>, Float32>;

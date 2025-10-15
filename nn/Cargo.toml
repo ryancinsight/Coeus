@@ -2,25 +2,49 @@
 name = "coeus-nn"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
-description = "PyTorch-like neural network modules for the Coeus tensor library"
-
-[dependencies]
-coeus-dtype = { path = "../dtype" }
-coeus-tensor = { path = "../tensor" }
-coeus-backend = { path = "../backend" }
-num-traits.workspace = true
-thiserror.workspace = true
-tracing = { version = "0.1", features = ["attributes"] }
-rand = "0.8"
-rand_distr = "0.4"
-serde = { version = "1.0", features = ["derive"], optional = true }
-
-[dev-dependencies]
-approx.workspace = true
-proptest = { version = "1.4", default-features = false, features = ["std"] }
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+description = "Neural network modules and layers for Coeus"
+readme = "README.md"
+keywords = ["machine-learning", "neural-networks", "deep-learning", "pytorch", "rust"]
+categories = ["science", "algorithms"]
 
 [features]
-default = []
-serde = ["dep:serde"]
+default = ["std", "autograd"]
+std = []
+autograd = ["coeus-autograd"]
+quantized = ["coeus-dtype/quantized", "coeus-dtype/std"]
+
+[dependencies]
+# Workspace dependencies
+coeus-dtype = { path = "../dtype", version = "0.1", features = ["serde"] }
+coeus-storage = { path = "../storage", version = "0.1" }
+coeus-backend = { path = "../backend", version = "0.1" }
+coeus-tensor = { path = "../tensor", version = "0.1" }
+coeus-autograd = { path = "../autograd", version = "0.1", optional = true }
+coeus-optim = { path = "../optim", version = "0.1" }
+
+# External dependencies
+num-traits = { workspace = true }
+thiserror = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_bytes = "0.11"
+rand = "0.8"
+rand_distr = "0.4"
+half = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+approx = { workspace = true }
+tempfile = "3.0"
+criterion.workspace = true
+
+[[bench]]
+name = "neural_networks"
+path = "benches/neural_networks.rs"
+harness = false
+rand = "0.8"

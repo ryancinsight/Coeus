@@ -1,19 +1,38 @@
 [package]
 name = "coeus-dtype"
-version = "0.1.0"
-edition = "2021"
-description = "Data type definitions and traits for the Coeus tensor library"
-keywords = ["machine-learning", "tensor", "dtype", "quantization"]
-categories = ["science", "data-structures"]
+description = "Core data types for Coeus deep learning framework"
+readme = "README.md"
+keywords = ["machine-learning", "deep-learning", "tensor", "dtype", "numerics"]
+categories = ["science", "mathematics", "data-structures"]
+documentation = "https://docs.rs/coeus-dtype"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["std", "simd", "serde", "complex"]
+std = ["num-traits/std"]
+simd = []
+half = ["dep:half"]
+complex = ["dep:num-complex"]
+quantized = []
+serde = ["dep:serde"]
 
 [dependencies]
-num-traits = { workspace = true }
-half = { workspace = true }
-approx = { workspace = true }
-bytemuck = { version = "1.14", features = ["derive"] }
-async-trait = { workspace = true }
-# Removed coeus-storage dependency to maintain separation of concerns
+num-traits.workspace = true
+thiserror.workspace = true
+libm.workspace = true
+half = { workspace = true, optional = true }
+num-complex = { workspace = true, optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
 
 [dev-dependencies]
-proptest = "1.4"
-approx = { workspace = true }
+proptest.workspace = true
+criterion.workspace = true
+approx.workspace = true
+

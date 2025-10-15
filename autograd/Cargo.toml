@@ -1,18 +1,43 @@
 [package]
 name = "coeus-autograd"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+description = "Automatic differentiation engine for Coeus tensors"
+readme = "README.md"
+keywords = ["machine-learning", "autograd", "automatic-differentiation", "rust"]
+categories = ["science", "algorithms"]
 
 [dependencies]
+# Workspace dependencies
 coeus-dtype = { path = "../dtype" }
+coeus-storage = { path = "../storage" }
 coeus-backend = { path = "../backend" }
 coeus-tensor = { path = "../tensor" }
-num-traits = "0.2"
-tracing = { version = "0.1", features = ["std"] }
-thiserror = "1.0"
-anyhow = "1.0"
+
+# Core numeric traits
+num-traits.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Observability
+tracing.workspace = true
+
+# Memory management (Copy-on-Write for gradients)
+cow-utils = "0.1"
+
+# Stack-allocated vectors for small collections
+smallvec = "1.13"
 
 [dev-dependencies]
-proptest = "1.0"
-approx = "0.5"
-tracing-test = "0.2"
+# Testing
+proptest.workspace = true
+
+# Approximate equality for floating point
+approx.workspace = true

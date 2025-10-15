@@ -2,23 +2,34 @@
 name = "coeus-utils"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
+authors.workspace = true
 repository.workspace = true
-description = "PyTorch-style utility functions and data loading for Coeus tensor library"
+homepage.workspace = true
+rust-version.workspace = true
+description = "Data loading utilities and datasets for Coeus"
+readme = "README.md"
+keywords = ["machine-learning", "data-loading", "datasets", "pytorch", "rust"]
+categories = ["science", "algorithms"]
+
+[features]
+default = ["std"]
+std = []
 
 [dependencies]
-coeus-tensor.workspace = true
-coeus-dtype.workspace = true
-coeus-backend.workspace = true
-num-traits.workspace = true
-rand.workspace = true
-rand_distr.workspace = true
-rayon.workspace = true
-thiserror.workspace = true
-anyhow.workspace = true
-parking_lot.workspace = true
-crossbeam.workspace = true
+# Workspace dependencies
+coeus-tensor = { path = "../tensor", version = "0.1" }
+coeus-dtype = { path = "../dtype", version = "0.1", features = ["serde"] }
+coeus-backend = { path = "../backend", version = "0.1" }
+coeus-storage = { path = "../storage", version = "0.1" }
+
+# External dependencies
+thiserror = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rand = "0.8"
+num-traits = { workspace = true }
 
 [dev-dependencies]
-approx.workspace = true
+proptest = { workspace = true }
+tempfile = "3.0"

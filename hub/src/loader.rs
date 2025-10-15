@@ -1,141 +1,437 @@
-//! State dictionary loading and saving functionality
+//! Safe model loading and deserialization
 
-use crate::{HubError, Result, StateDict};
-use coeus_tensor::Tensor;
-use coeus_backend::cpu::CpuBackend;
-use std::fs::File;
-use std::io::{Read, Write};
-use std::path::Path;
+use crate::cache::ModelCache;
+use crate::error::{HubError, Result};
+use crate::registry::{ModelEntry, Task as ModelTask};
+use crate::validator::ModelValidator;
+use coeus_backend::Backend;
+use coeus_dtype::DataType;
+use coeus_nn::Module;
+use reqwest::Client;
+use std::marker::PhantomData;
 
-/// Load a state dictionary from a PyTorch .pth file
-pub fn load_state_dict<P: AsRef<Path>>(path: P) -> Result<StateDict> {
-    let path = path.as_ref();
-
-    // Read the file
-    let mut file = File::open(path).map_err(|e| HubError::Io {
-        source: std::io::Error::new(
-            e.kind(),
-            format!("Failed to open {}: {}", path.display(), e),
-        ),
-    })?;
-
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
-
-    // Try to load as pickle (PyTorch format)
-    load_pickle_state_dict(&buffer)
+/// Configuration for model loading
+#[derive(Debug, Clone)]
+pub struct LoadConfig {
+    pub task: ModelTask,
+    pub force_reload: bool,
+    pub validate: bool,
 }
 
-/// Save a state dictionary to a file
-pub fn save_state_dict<P: AsRef<Path>>(state_dict: &StateDict, path: P) -> Result<()> {
-    let path = path.as_ref();
-
-    // For now, we'll save as JSON for simplicity
-    // In a full implementation, this would save as PyTorch format
-    let json = save_json_state_dict(state_dict)?;
-
-    let mut file = File::create(path).map_err(|e| HubError::Io {
-        source: std::io::Error::new(
-            e.kind(),
-            format!("Failed to create {}: {}", path.display(), e),
-        ),
-    })?;
-
-    file.write_all(json.as_bytes())?;
-
-    Ok(())
+/// Loaded model with metadata
+#[derive(Debug)]
+pub struct LoadedModel<M, B, T> {
+    pub model: M,
+    pub metadata: ModelEntry,
+    pub config: LoadConfig,
+    _phantom: PhantomData<(B, T)>,
 }
 
-/// Load state dict from pickle data (PyTorch format)
-fn load_pickle_state_dict(data: &[u8]) -> Result<StateDict> {
-    // PyTorch uses a specific pickle protocol with torch-specific opcodes
-    // For now, we'll implement a basic pickle parser that can handle simple PyTorch state dicts
-    // This is a simplified implementation - production code would need more robust parsing
-
-    if data.is_empty() {
-        return Err(HubError::invalid_format("Empty pickle data"));
-    }
-
-    // PyTorch state dicts are typically pickled dictionaries
-    // For basic compatibility, try to parse as a simple key-value structure
-    // This is a placeholder - real implementation would need proper pickle parsing
-
-    // For now, return an error with more informative message
-    Err(HubError::invalid_format(
-        "PyTorch pickle loading requires specialized parsing. Use torch.save() with pickle_protocol=2 for compatibility, or convert to JSON format.",
-    ))
+/// Safe model loader with caching and validation
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct ModelLoader {
+    client: Client,
+    cache: ModelCache,
+    validator: ModelValidator,
 }
 
-/// Load state dict from JSON data
-pub fn load_json_state_dict(json: &str) -> Result<StateDict> {
-    let parameters: std::collections::HashMap<String, Vec<f32>> = serde_json::from_str(json)?;
-
-    let mut state_dict = StateDict::new();
-
-    for (name, data) in parameters {
-        // Assume 1D tensors for now
-        // In a full implementation, this would handle shapes and types properly
-        let len = data.len();
-        let tensor = Tensor::from_vec(CpuBackend::default(), data, vec![len as usize]).unwrap();
-        state_dict.insert(name, tensor);
-    }
-
-    Ok(state_dict)
+/// HuggingFace Hub API client for model downloads
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct HuggingFaceLoader {
+    client: Client,
+    cache: ModelCache,
+    validator: ModelValidator,
+    api_token: Option<String>,
 }
 
-/// Save state dict as JSON
-pub fn save_json_state_dict(state_dict: &StateDict) -> Result<String> {
-    // Convert tensors to vectors for JSON serialization
-    let mut json_data = std::collections::HashMap::new();
-
-    for (name, tensor) in &state_dict.parameters {
-        let data: Vec<f32> = tensor.data().to_vec();
-        json_data.insert(name.clone(), data);
-    }
-
-    serde_json::to_string_pretty(&json_data).map_err(|e| HubError::Json { source: e })
-}
-
-/// Load state dict from a remote URL
-pub async fn load_state_dict_from_url(url: &str) -> Result<StateDict> {
-    let response = reqwest::get(url).await?;
-    let bytes = response.bytes().await?;
-    load_pickle_state_dict(&bytes)
-}
-
-/// Download a file from URL to local path with progress
-pub async fn download_file(url: &str, dest_path: &Path, expected_hash: Option<&str>) -> Result<()> {
-    // Create parent directories if needed
-    if let Some(parent) = dest_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    let response = reqwest::get(url).await?;
-    let bytes = response.bytes().await?;
-
-    // Verify hash if provided
-    if let Some(expected) = expected_hash {
-        let actual = hash_data(&bytes);
-        if actual != *expected {
-            return Err(HubError::HashMismatch {
-                expected: expected.to_string(),
-                actual,
-            });
+impl ModelLoader {
+    /// Create a new model loader
+    pub fn new() -> Self {
+        Self {
+            client: Client::new(),
+            cache: ModelCache::new(),
+            validator: ModelValidator::new(),
         }
     }
 
-    // Write to file
-    let mut file = File::create(dest_path)?;
-    file.write_all(&bytes)?;
+    /// Load a model with the specified configuration
+    pub async fn load<M, B, S, T>(
+        &self,
+        model_name: &str,
+        _config: LoadConfig,
+    ) -> Result<LoadedModel<M, B, T>>
+    where
+        M: Module<B, S, T>,
+        B: Backend,
+        S: coeus_storage::Storage<T> + Clone + 'static,
+        T: DataType,
+    {
+        // This is a simplified implementation
+        // In a real implementation, this would:
+        // 1. Resolve model from registry
+        // 2. Check cache or download
+        // 3. Validate model integrity
+        // 4. Safely deserialize and instantiate
 
-    Ok(())
+        Err(HubError::ModelNotFound {
+            name: model_name.to_string(),
+        })
+    }
+
+    /// Download a model from its URL
+    #[allow(dead_code)]
+    async fn download_model(&self, entry: &ModelEntry) -> Result<Vec<u8>> {
+        tracing::info!(
+            "Downloading model {} from {}",
+            entry.name,
+            entry.download_url
+        );
+
+        let response = self
+            .client
+            .get(&entry.download_url)
+            .send()
+            .await
+            .map_err(|e| HubError::NetworkError {
+                message: format!("Download failed: {}", e),
+            })?;
+
+        if !response.status().is_success() {
+            return Err(HubError::HttpError {
+                status: response.status().as_u16(),
+                message: format!("HTTP {}", response.status()),
+            });
+        }
+
+        let data = response
+            .bytes()
+            .await
+            .map_err(|e| HubError::NetworkError {
+                message: format!("Failed to read response: {}", e),
+            })?
+            .to_vec();
+
+        // Verify size if specified
+        if entry.file_size > 0 && data.len() as u64 != entry.file_size {
+            return Err(HubError::DownloadFailed {
+                url: entry.download_url.clone(),
+                message: format!(
+                    "Size mismatch: expected {}, got {}",
+                    entry.file_size,
+                    data.len()
+                ),
+            });
+        }
+
+        // Verify checksum
+        let computed_checksum = self.compute_checksum(&data);
+        if computed_checksum != entry.checksum {
+            return Err(HubError::CorruptedModel {
+                model: entry.name.clone(),
+            });
+        }
+
+        Ok(data)
+    }
+
+    /// Deserialize model from data (simplified implementation)
+    #[allow(dead_code)]
+    fn deserialize_model<M, B, S, T>(&self, _data: &[u8], _entry: &ModelEntry) -> Result<M>
+    where
+        M: Module<B, S, T>,
+        B: Backend,
+        S: coeus_storage::Storage<T> + Clone + 'static,
+        T: DataType,
+    {
+        // This would deserialize SafeTensors or other model formats
+        // For now, return an error indicating this needs implementation
+        Err(HubError::LoadingFailed {
+            model: _entry.name.clone(),
+            reason: "Model deserialization not yet implemented".to_string(),
+        })
+    }
+
+    /// Compute checksum for data verification
+    #[allow(dead_code)]
+    fn compute_checksum(&self, data: &[u8]) -> String {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        data.hash(&mut hasher);
+        format!("{:x}", hasher.finish())
+    }
 }
 
-/// Compute SHA256 hash of data
-fn hash_data(data: &[u8]) -> String {
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-    let result = hasher.finalize();
-    hex::encode(result)
+impl Default for ModelLoader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HuggingFaceLoader {
+    /// Create a new HuggingFace loader
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            client: Client::new(),
+            cache: ModelCache::new(),
+            validator: ModelValidator::new(),
+            api_token: None,
+        }
+    }
+
+    /// Create a new HuggingFace loader with API token
+    #[must_use]
+    pub fn with_token(token: String) -> Self {
+        Self {
+            client: Client::new(),
+            cache: ModelCache::new(),
+            validator: ModelValidator::new(),
+            api_token: Some(token),
+        }
+    }
+
+    /// Download a model from HuggingFace Hub
+    ///
+    /// # Arguments
+    /// * `model_id` - HuggingFace model ID (e.g., "bert-base-uncased")
+    /// * `filename` - Specific file to download (e.g., "pytorch_model.bin")
+    ///
+    /// # Returns
+    /// Downloaded model data as bytes
+    ///
+    /// # Errors
+    /// Returns `HubError` if download fails
+    pub async fn download_model(&self, model_id: &str, filename: &str) -> Result<Vec<u8>> {
+        let url = format!(
+            "https://huggingface.co/{}/resolve/main/{}",
+            model_id, filename
+        );
+
+        tracing::info!("Downloading model {} from HuggingFace Hub", model_id);
+
+        let mut request = self.client.get(&url);
+
+        // Add authorization header if token is provided
+        if let Some(token) = &self.api_token {
+            request = request.header("Authorization", format!("Bearer {}", token));
+        }
+
+        let response = request.send().await.map_err(|e| HubError::NetworkError {
+            message: format!("Download failed: {}", e),
+        })?;
+
+        if !response.status().is_success() {
+            return Err(HubError::HttpError {
+                status: response.status().as_u16(),
+                message: format!("HTTP {}", response.status()),
+            });
+        }
+
+        let data = response
+            .bytes()
+            .await
+            .map_err(|e| HubError::NetworkError {
+                message: format!("Failed to read response: {}", e),
+            })?
+            .to_vec();
+
+        // Basic validation - check if it's a valid file
+        if data.is_empty() {
+            return Err(HubError::DownloadFailed {
+                url,
+                message: "Downloaded file is empty".to_string(),
+            });
+        }
+
+        Ok(data)
+    }
+
+    /// Get model information from HuggingFace Hub
+    ///
+    /// # Arguments
+    /// * `model_id` - HuggingFace model ID
+    ///
+    /// # Returns
+    /// Model metadata from HuggingFace
+    ///
+    /// # Errors
+    /// Returns `HubError` if API request fails
+    pub async fn get_model_info(&self, model_id: &str) -> Result<HuggingFaceModelInfo> {
+        let url = format!("https://huggingface.co/api/models/{}", model_id);
+
+        let mut request = self.client.get(&url);
+
+        // Add authorization header if token is provided
+        if let Some(token) = &self.api_token {
+            request = request.header("Authorization", format!("Bearer {}", token));
+        }
+
+        let response = request.send().await.map_err(|e| HubError::NetworkError {
+            message: format!("API request failed: {}", e),
+        })?;
+
+        if !response.status().is_success() {
+            return Err(HubError::HttpError {
+                status: response.status().as_u16(),
+                message: format!("HTTP {}", response.status()),
+            });
+        }
+
+        let model_info: HuggingFaceModelInfo =
+            response.json().await.map_err(|e| HubError::NetworkError {
+                message: format!("Failed to parse API response: {}", e),
+            })?;
+
+        Ok(model_info)
+    }
+
+    /// List files in a HuggingFace model repository
+    ///
+    /// # Arguments
+    /// * `model_id` - HuggingFace model ID
+    ///
+    /// # Returns
+    /// List of files in the repository
+    ///
+    /// # Errors
+    /// Returns `HubError` if API request fails
+    pub async fn list_files(&self, model_id: &str) -> Result<Vec<HuggingFaceFile>> {
+        let url = format!("https://huggingface.co/api/models/{}/tree/main", model_id);
+
+        let mut request = self.client.get(&url);
+
+        // Add authorization header if token is provided
+        if let Some(token) = &self.api_token {
+            request = request.header("Authorization", format!("Bearer {}", token));
+        }
+
+        let response = request.send().await.map_err(|e| HubError::NetworkError {
+            message: format!("API request failed: {}", e),
+        })?;
+
+        if !response.status().is_success() {
+            return Err(HubError::HttpError {
+                status: response.status().as_u16(),
+                message: format!("HTTP {}", response.status()),
+            });
+        }
+
+        let files: Vec<HuggingFaceFile> =
+            response.json().await.map_err(|e| HubError::NetworkError {
+                message: format!("Failed to parse API response: {}", e),
+            })?;
+
+        Ok(files)
+    }
+}
+
+impl Default for HuggingFaceLoader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// HuggingFace model information from API
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct HuggingFaceModelInfo {
+    /// Model ID
+    pub id: String,
+    /// Model name
+    pub model_name: Option<String>,
+    /// Model description
+    pub description: Option<String>,
+    /// Model tags
+    pub tags: Vec<String>,
+    /// Model downloads count
+    pub downloads: Option<u64>,
+    /// Model likes count
+    pub likes: Option<u64>,
+}
+
+/// HuggingFace file information
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct HuggingFaceFile {
+    /// File path
+    pub path: String,
+    /// File type
+    #[serde(rename = "type")]
+    pub file_type: String,
+    /// File size in bytes
+    pub size: Option<u64>,
+    /// File OID (for LFS files)
+    pub oid: Option<String>,
+}
+
+impl<M, B: Backend, T: DataType> LoadedModel<M, B, T> {
+    /// Create a new loaded model
+    pub fn new(model: M, metadata: ModelEntry, config: LoadConfig) -> Self {
+        Self {
+            model,
+            metadata,
+            config,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Get the model's task type
+    pub fn task(&self) -> ModelTask {
+        self.config.task
+    }
+
+    /// Get model information
+    pub fn info(&self) -> &ModelEntry {
+        &self.metadata
+    }
+
+    /// Forward pass through the model
+    pub fn forward<S>(
+        &self,
+        input: &coeus_tensor::Tensor<B, S, T>,
+    ) -> Result<coeus_tensor::Tensor<B, S, T>>
+    where
+        S: coeus_storage::Storage<T> + Clone + 'static,
+        M: Module<B, S, T>,
+    {
+        self.model
+            .forward(input)
+            .map_err(|e| HubError::LoadingFailed {
+                model: self.metadata.name.clone(),
+                reason: format!("Forward pass failed: {:?}", e),
+            })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::registry::Task;
+
+    #[test]
+    fn test_loader_creation() {
+        let _loader = ModelLoader::new();
+        // Basic functionality tests
+    }
+
+    #[test]
+    fn test_load_config() {
+        let config = LoadConfig {
+            task: Task::Classification,
+            force_reload: false,
+            validate: true,
+        };
+
+        assert_eq!(config.task, Task::Classification);
+        assert!(!config.force_reload);
+        assert!(config.validate);
+    }
+
+    #[test]
+    fn test_model_loader_creation() {
+        let _loader = ModelLoader::new();
+        // Basic creation test - loader is initialized
+    }
 }

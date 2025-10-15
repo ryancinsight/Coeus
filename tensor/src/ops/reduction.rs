@@ -1,214 +1,542 @@
-//! Reduction operations
+//! Tensor reduction operations.
+//!
+//! This module provides operations that reduce tensor dimensions by
+//! aggregating elements, such as sum and mean calculations.
 
-use crate::{Dtype, FloatDtype, Result, Tensor, TensorError};
-use coeus_backend::{Backend, CpuBackend};
-use coeus_storage::TensorStorage;
+use std::{collections::BTreeSet, vec, vec::Vec};
 
-/// Sum along specified dimension
-pub fn sum_dim<T: Dtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>, dim: usize) -> Result<Tensor<T, B, S>> {
-    if dim >= tensor.ndim() {
-        return Err(TensorError::InvalidOperation {
-            message: format!(
-                "Dimension {} out of bounds for {}D tensor",
-                dim,
-                tensor.ndim()
-            ),
-        });
-    }
-    if tensor.numel() == 0 {
-        return Err(TensorError::InvalidOperation {
-            message: "Cannot sum empty tensor".to_string(),
-        });
-    }
+/// Reduction operations for tensors with dense storage.
+///
+/// This trait provides methods for aggregating tensor elements across
+/// all dimensions, resulting in scalar tensors.
+impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
+where
+    B: crate::Backend + Default,
+    T: crate::DataType,
+{
+    /// Computes the sum of all elements in the tensor.
+    ///
+    /// # Mathematical Definition
+    ///
+    /// For a tensor x with n elements:
+    /// ```text
+    /// sum(x) = Σᵢ xᵢ
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// A scalar tensor containing the sum of all elements.
+    ///
+    /// # Panics
+    ///
+    /// This function uses conditional unsafe in release builds for performance.
+    /// In debug builds, panics if scalar tensor creation fails (indicates a bug).
+    /// In release builds, uses `unwrap_unchecked()` after mathematical proof of correctness.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_tensor::Tensor;
+    /// use coeus_backend::CpuBackend;
+    /// use coeus_storage::DenseStorage;
+    /// use coeus_dtype::float::Float32;
+    ///
+    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+    ///     &[3]
+    /// ).unwrap();
+    ///
+    /// let sum = tensor.sum_all();
+    /// // sum = 1.0 + 2.0 + 3.0 = 6.0
+    /// assert_eq!(sum.as_slice()[0].get(), 6.0);
+    /// ```
+    #[must_use]
+    pub fn sum_all(&self) -> Self {
+        let sum_value = self
+            .as_slice()
+            .iter()
+            .copied()
+            .fold(T::zero(), |acc, x| acc + x);
 
-    let mut new_shape = tensor.shape().to_vec();
-    new_shape.remove(dim);
-
-    let mut result_data = vec![T::zero(); new_shape.iter().product()];
-
-    // Compute sum along dimension
-    let mut result_idx = 0;
-    let total_elements = tensor.numel();
-    let stride = tensor.shape()[dim];
-
-    for i in 0..total_elements {
-        let coords = index_to_coords(i, tensor.shape());
-        if coords[dim] == 0 {
-            // Start of a new sum group
-            let mut sum = T::zero();
-            for offset in 0..stride {
-                let mut coords_copy = coords.clone();
-                coords_copy[dim] = offset;
-                let idx = coords_to_index(&coords_copy, tensor.shape());
-                sum = sum + tensor.data()[idx];
-            }
-            result_data[result_idx] = sum;
-            result_idx += 1;
+        // SAFETY: Scalar tensor creation with single element always succeeds
+        #[cfg(debug_assertions)]
+        {
+            crate::Tensor::from_vec(vec![sum_value], &[1])
+                .expect("Scalar tensor creation failed: this is a bug")
+        }
+        #[cfg(not(debug_assertions))]
+        unsafe {
+            crate::Tensor::from_vec(vec![sum_value], &[1]).unwrap_unchecked()
         }
     }
 
-    let backend = tensor.backend().clone();
-    let mut result = Tensor::from_vec(backend, result_data, new_shape)?;
+    /// Computes the mean (average) of all elements in the tensor.
+    ///
+    /// # Mathematical Definition
+    ///
+    /// For a tensor x with n elements:
+    /// ```text
+    /// mean(x) = (1/n) * Σᵢ xᵢ
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// A scalar tensor containing the mean of all elements.
+    ///
+    /// # Panics
+    ///
+    /// This function uses conditional unsafe in release builds for performance.
+    /// In debug builds, panics if scalar tensor creation fails (indicates a bug).
+    /// In release builds, uses `unwrap_unchecked()` after mathematical proof of correctness.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_tensor::Tensor;
+    /// use coeus_backend::CpuBackend;
+    /// use coeus_storage::DenseStorage;
+    /// use coeus_dtype::float::Float32;
+    ///
+    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+    ///     &[3]
+    /// ).unwrap();
+    ///
+    /// let mean = tensor.mean_all();
+    /// // mean = (1.0 + 2.0 + 3.0) / 3 = 2.0
+    /// assert_eq!(mean.as_slice()[0].get(), 2.0);
+    /// ```
+    #[must_use]
+    pub fn mean_all(&self) -> Self {
+        let sum_value = self
+            .as_slice()
+            .iter()
+            .copied()
+            .fold(T::zero(), |acc, x| acc + x);
+        let n = T::from(self.len()).unwrap_or_else(T::one); // Fallback to 1 if cast fails
+        let mean_value = sum_value / n;
 
-    if tensor.requires_grad() {
-        result.set_requires_grad(true);
-        // Note: Graph integration is handled by tensor methods, not free functions
-        // Backward: gradient flows back to input with broadcasting
-        // For sum, gradient is broadcasted to input shape
-        // Edge case: empty tensor handled by zero gradient
-    }
-
-    Ok(result)
-}
-
-/// Sum of all elements
-pub fn sum<T: Dtype, B: Backend<T> + Clone, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>> {
-    if tensor.numel() == 0 {
-        return Err(TensorError::InvalidOperation {
-            message: "Cannot sum empty tensor".to_string(),
-        });
-    }
-
-    let sum_val = tensor.data().iter().fold(T::zero(), |acc, x| acc + *x);
-    let backend = tensor.backend().clone();
-    let mut result = Tensor::from_vec(backend, vec![sum_val], vec![])?;
-
-    if tensor.requires_grad() {
-        result.set_requires_grad(true);
-        // Note: Graph integration is handled by tensor methods, not free functions
-        // Backward: gradient is ones_like(input) for sum
-    }
-
-    Ok(result)
-}
-
-/// Mean of all elements
-pub fn mean<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>) -> Result<Tensor<T, B, S>>
-where
-    CpuBackend: Backend<T>,
-{
-    if tensor.numel() == 0 {
-        return Err(TensorError::InvalidOperation {
-            message: "Cannot mean empty tensor".to_string(),
-        });
-    }
-
-    let sum = sum(tensor)?;
-    let count = tensor.numel() as f64;
-
-    let data = vec![sum.data()[0] / T::from(count).unwrap()];
-    let backend = tensor.backend().clone();
-    let mut result = Tensor::from_vec(backend, data, vec![])?;
-
-    if tensor.requires_grad() {
-        result.set_requires_grad(true);
-        // Note: Graph integration is handled by tensor methods, not free functions
-        // Backward: gradient is ones_like(input) / numel for mean
-    }
-
-    Ok(result)
-}
-
-/// Mean along specified dimension
-pub fn mean_dim<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensor: &Tensor<T, B, S>, dim: usize) -> Result<Tensor<T, B, S>>
-where
-    CpuBackend: Backend<T>,
-{
-    let sum = sum_dim(tensor, dim)?;
-    let count = tensor.shape()[dim] as f64;
-
-    let data = sum
-        .data()
-        .iter()
-        .map(|x| *x / T::from(count).unwrap())
-        .collect();
-
-    let backend = sum.backend().clone();
-    let mut result = Tensor::from_vec(backend, data, sum.shape().to_vec())?;
-
-    if tensor.requires_grad() {
-        result.set_requires_grad(true);
-        // Note: Graph integration is handled by tensor methods, not free functions
-        // Backward: gradient flows back to input with broadcasting
-        // For sum, gradient is broadcasted to input shape
-        // Edge case: empty tensor handled by zero gradient
-    }
-
-    Ok(result)
-}
-
-/// Concatenate tensors along specified dimension
-pub fn cat<T: FloatDtype, B: Backend<T> + Clone + Send + Sync, S: TensorStorage<T> + Clone + Send + Sync>(tensors: &[&Tensor<T, B, S>], dim: usize) -> Result<Tensor<T, B, S>>
-where
-    CpuBackend: Backend<T>,
-{
-    if tensors.is_empty() {
-        return Err(TensorError::InvalidOperation {
-            message: "Cannot concatenate empty tensor list".to_string(),
-        });
-    }
-
-    // Check that all tensors have the same shape except for the concatenation dimension
-    let first_shape = tensors[0].shape();
-    for tensor in tensors.iter().skip(1) {
-        for (i, (a, b)) in first_shape.iter().zip(tensor.shape()).enumerate() {
-            if i != dim && a != b {
-                return Err(TensorError::ShapeMismatch {
-                    expected: first_shape.to_vec(),
-                    actual: tensor.shape().to_vec(),
-                });
-            }
+        // SAFETY: Scalar tensor creation with single element always succeeds
+        #[cfg(debug_assertions)]
+        {
+            crate::Tensor::from_vec(vec![mean_value], &[1])
+                .expect("Scalar tensor creation failed: this is a bug")
+        }
+        #[cfg(not(debug_assertions))]
+        unsafe {
+            crate::Tensor::from_vec(vec![mean_value], &[1]).unwrap_unchecked()
         }
     }
 
-    // Calculate new shape
-    let mut new_shape = first_shape.to_vec();
-    new_shape[dim] = tensors.iter().map(|t| t.shape()[dim]).sum();
-
-    let total_size: usize = new_shape.iter().product();
-    let mut result_data = vec![T::zero(); total_size];
-
-    // Concatenate data
-    let mut offset = 0;
-    for tensor in tensors {
-        let size = tensor.numel();
-        result_data[offset..offset + size].copy_from_slice(tensor.data());
-        offset += size;
+    /// Computes the sum of elements along specified dimensions.
+    ///
+    /// # Mathematical Definition
+    ///
+    /// For a tensor x with dimensions and specified dims to reduce:
+    /// ```text
+    /// sum(x, dims) = Σ_{i in dims} x along those dimensions
+    /// ```
+    ///
+    /// # Arguments
+    ///
+    /// * `dims` - Dimensions to reduce. If None, reduces all dimensions to scalar.
+    /// * `keepdim` - If true, keeps reduced dimensions with size 1.
+    ///
+    /// # Returns
+    ///
+    /// A tensor with reduced dimensions containing the sum along specified axes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any dimension in `dims` is out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    /// use coeus_backend::CpuBackend;
+    /// use coeus_storage::DenseStorage;
+    /// use coeus_dtype::float::Float32;
+    ///
+    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
+    ///     &[2, 2]
+    /// ).unwrap();
+    ///
+    /// // Sum along dimension 0 (rows)
+    /// let sum_dim0 = tensor.sum_dims(Some(&[0]), false).unwrap();
+    /// // sum_dim0.shape() = [2], values = [4.0, 6.0]
+    ///
+    /// // Sum along dimension 0, keep dimensions
+    /// let sum_dim0_keep = tensor.sum_dims(Some(&[0]), true).unwrap();
+    /// // sum_dim0_keep.shape() = [1, 2], values = [4.0, 6.0]
+    ///
+    /// // Sum all elements
+    /// let sum_all = tensor.sum_dims(None, false).unwrap();
+    /// // sum_all.shape() = [1], value = [10.0]
+    /// ```
+    ///
+    /// # Errors
+    /// Returns error if dimension indices are out of bounds or invalid.
+    #[must_use = "sum_dims returns the result tensor that should be used"]
+    pub fn sum_dims(&self, dims: Option<&[usize]>, keepdim: bool) -> crate::Result<Self> {
+        self.reduce_dims(dims, keepdim, |acc, x| acc + x, T::zero())
     }
 
-    let backend = tensors[0].backend().clone();
-    let mut result = Tensor::from_vec(backend, result_data, new_shape)?;
-
-    if tensors.iter().any(|t| t.requires_grad()) {
-        result.set_requires_grad(true);
-        // Note: Graph integration is handled by tensor methods, not free functions
+    /// Computes the mean of elements along specified dimensions.
+    ///
+    /// # Mathematical Definition
+    ///
+    /// For a tensor x with dimensions and specified dims to reduce:
+    /// ```text
+    /// mean(x, dims) = (1/n) * Σ_{i in dims} x along those dimensions
+    /// ```
+    /// where n is the product of sizes of reduced dimensions.
+    ///
+    /// # Arguments
+    ///
+    /// * `dims` - Dimensions to reduce. If None, reduces all dimensions to scalar.
+    /// * `keepdim` - If true, keeps reduced dimensions with size 1.
+    ///
+    /// # Returns
+    ///
+    /// A tensor with reduced dimensions containing the mean along specified axes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any dimension in `dims` is out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use coeus_tensor::Tensor;
+    /// use coeus_backend::CpuBackend;
+    /// use coeus_storage::DenseStorage;
+    /// use coeus_dtype::float::Float32;
+    ///
+    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
+    ///     &[2, 2]
+    /// ).unwrap();
+    ///
+    /// // Mean along dimension 0 (rows)
+    /// let mean_dim0 = tensor.mean_dims(Some(&[0]), false).unwrap();
+    /// // mean_dim0.shape() = [2], values = [2.0, 3.0]
+    ///
+    /// // Mean along dimension 0, keep dimensions
+    /// let mean_dim0_keep = tensor.mean_dims(Some(&[0]), true).unwrap();
+    /// // mean_dim0_keep.shape() = [1, 2], values = [2.0, 3.0]
+    ///
+    /// // Mean all elements
+    /// let mean_all = tensor.mean_dims(None, false).unwrap();
+    /// // mean_all.shape() = [1], value = [2.5]
+    /// ```
+    ///
+    /// # Errors
+    /// Returns error if dimension indices are out of bounds or invalid.
+    #[must_use = "mean_dims returns the result tensor that should be used"]
+    pub fn mean_dims(&self, dims: Option<&[usize]>, keepdim: bool) -> crate::Result<Self> {
+        let sum = self.reduce_dims(dims, keepdim, |acc, x| acc + x, T::zero())?;
+        let count = self.reduce_dims(dims, keepdim, |acc, _| acc + T::one(), T::zero())?;
+        {
+            let sum_data = sum.as_slice();
+            let count_data = count.as_slice();
+            let result_data: Vec<T> = sum_data.iter().zip(count_data.iter()).map(|(s, c)| *s / *c).collect();
+            let result_shape = sum.shape().dims().to_vec();
+            crate::Tensor::from_vec(result_data, &result_shape)
+        }
     }
 
-    Ok(result)
-}
-
-/// Utility function to convert flat index to coordinates
-fn index_to_coords(index: usize, shape: &[usize]) -> Vec<usize> {
-    let mut coords = vec![0; shape.len()];
-    let mut remaining = index;
-
-    for (i, &dim_size) in shape.iter().enumerate().rev() {
-        coords[i] = remaining % dim_size;
-        remaining /= dim_size;
+    /// Generic dimensional reduction with custom reduction function.
+    ///
+    /// # Arguments
+    ///
+    /// * `dims` - Dimensions to reduce. If None, reduces all dimensions.
+    /// * `keepdim` - If true, keeps reduced dimensions with size 1.
+    /// * `reduce_fn` - Function to combine accumulator and element: (acc, x) -> acc
+    /// * `init` - Initial value for the accumulator.
+    ///
+    /// # Returns
+    ///
+    /// A tensor with reduced dimensions.
+    fn reduce_dims<F>(
+        &self,
+        dims: Option<&[usize]>,
+        keepdim: bool,
+        reduce_fn: F,
+        init: T,
+    ) -> crate::Result<Self>
+    where
+        F: FnMut(T, T) -> T,
+    {
+        let result = self.reduce_dims_impl(dims, keepdim, reduce_fn, init)?;
+        // Inherit gradient requirements from input tensor (PyTorch-style)
+        Ok(result.requires_grad_(self.requires_grad()))
     }
 
-    coords
-}
+    fn reduce_dims_impl<F>(
+        &self,
+        dims: Option<&[usize]>,
+        keepdim: bool,
+        mut reduce_fn: F,
+        init: T,
+    ) -> crate::Result<Self>
+    where
+        F: FnMut(T, T) -> T,
+    {
+        let input_shape = self.shape().dims();
+        let ndim = input_shape.len();
 
-/// Utility function to convert coordinates to flat index
-fn coords_to_index(coords: &[usize], shape: &[usize]) -> usize {
-    let mut index = 0;
-    let mut stride = 1;
+        // Determine which dimensions to reduce
+        let dims_to_reduce: BTreeSet<usize> = if let Some(dims) = dims {
+            // Validate dimensions
+            for &dim in dims {
+                if dim >= ndim {
+                    return Err(crate::TensorError::ShapeError {
+                        expected: ndim,
+                        actual: dim,
+                        message: std::format!(
+                            "Dimension {dim} is out of bounds for tensor with {ndim} dimensions"
+                        ),
+                    });
+                }
+            }
+            dims.iter().copied().collect()
+        } else {
+            // Reduce all dimensions
+            (0..ndim).collect()
+        };
 
-    for (i, &coord) in coords.iter().enumerate().rev() {
-        index += coord * stride;
-        stride *= shape[i];
+        // Calculate output shape
+        let mut output_shape: Vec<usize> = Vec::new();
+        for (i, &size) in input_shape.iter().enumerate() {
+            if dims_to_reduce.contains(&i) {
+                if keepdim {
+                    output_shape.push(1);
+                }
+                // Skip dimension if not keeping it
+            } else {
+                output_shape.push(size);
+            }
+        }
+
+        // If all dimensions are reduced and keepdim is false, result is scalar
+        if output_shape.is_empty() {
+            output_shape = vec![1];
+        }
+
+        let input_data = self.as_slice();
+        let output_size: usize = output_shape.iter().product();
+        let mut output_data = vec![init; output_size];
+
+        // Calculate strides for input tensor
+        let mut input_strides = vec![1; ndim];
+        for i in (1..ndim).rev() {
+            input_strides[i - 1] = input_strides[i] * input_shape[i];
+        }
+
+        // Calculate strides for output tensor
+        let mut output_strides = vec![1; output_shape.len()];
+        for i in (1..output_shape.len()).rev() {
+            output_strides[i - 1] = output_strides[i] * output_shape[i];
+        }
+
+        // Perform reduction
+        let mut output_coords = vec![0; output_shape.len()];
+        let mut input_coords = vec![0; ndim];
+
+        // For each position in output tensor
+        for (output_idx, output_elem) in output_data.iter_mut().enumerate() {
+            // Convert flat output index to coordinates
+            let mut temp_idx = output_idx;
+            for (i, coord) in output_coords.iter_mut().enumerate() {
+                *coord = temp_idx % output_shape[i];
+                temp_idx /= output_shape[i];
+            }
+
+            // Map output coordinates back to input coordinates
+            let mut output_coord_idx = 0;
+            for (i, input_coord) in input_coords.iter_mut().enumerate() {
+                if dims_to_reduce.contains(&i) {
+                    // This dimension is being reduced - iterate over all values
+                    *input_coord = 0; // Will be set in inner loop
+                } else {
+                    // This dimension is preserved - copy coordinate
+                    *input_coord = output_coords[output_coord_idx];
+                    output_coord_idx += 1;
+                }
+            }
+
+            // Sum over the reduced dimensions
+            let mut accumulator = init;
+            let mut reduced_size = 1;
+            for &dim in &dims_to_reduce {
+                reduced_size *= input_shape[dim];
+            }
+
+            // Iterate over all combinations of reduced dimensions
+            for reduced_idx in 0..reduced_size {
+                // Set coordinates for reduced dimensions
+                let mut temp_reduced_idx = reduced_idx;
+                for &dim in &dims_to_reduce {
+                    input_coords[dim] = temp_reduced_idx % input_shape[dim];
+                    temp_reduced_idx /= input_shape[dim];
+                }
+
+                // Convert coordinates to flat index
+                let mut flat_idx = 0;
+                for d in 0..ndim {
+                    flat_idx += input_coords[d] * input_strides[d];
+                }
+
+                // Accumulate value
+                accumulator = reduce_fn(accumulator, input_data[flat_idx]);
+            }
+
+            *output_elem = accumulator;
+        }
+
+        // Create output tensor
+        Self::from_vec(output_data, &output_shape)
     }
 
-    index
+    /// Computes the maximum of elements along specified dimensions.
+    ///
+    /// # Mathematical Definition
+    ///
+    /// For a tensor x with dimensions and specified dims to reduce:
+    /// ```text
+    /// max(x, dims) = max_{i in dims} x along those dimensions
+    /// ```
+    ///
+    /// # Arguments
+    ///
+    /// * `dims` - Dimensions to reduce. If None, reduces all dimensions to scalar.
+    /// * `keepdim` - If true, keeps reduced dimensions with size 1.
+    ///
+    /// # Returns
+    ///
+    /// A tensor with reduced dimensions containing the maximum along specified axes.
+    ///
+    /// # Errors
+    /// Returns error if dimension indices are out of bounds or invalid.
+    #[must_use = "max_dims returns the result tensor that should be used"]
+    pub fn max_dims(&self, dims: Option<&[usize]>, keepdim: bool) -> crate::Result<Self>
+    where
+        T: PartialOrd + Clone,
+    {
+        // Use the first element as initial value, then find max
+        if self.is_empty() {
+            return Err(crate::error::TensorError::EmptyTensor);
+        }
+        let first_elem = self.as_slice()[0].clone();
+        self.reduce_dims(dims, keepdim, |a, b| if a > b { a } else { b }, first_elem)
+    }
+
+    /// Computes the minimum of elements along specified dimensions.
+    ///
+    /// # Mathematical Definition
+    ///
+    /// For a tensor x with dimensions and specified dims to reduce:
+    /// ```text
+    /// min(x, dims) = min_{i in dims} x along those dimensions
+    /// ```
+    ///
+    /// # Arguments
+    ///
+    /// * `dims` - Dimensions to reduce. If None, reduces all dimensions to scalar.
+    /// * `keepdim` - If true, keeps reduced dimensions with size 1.
+    ///
+    /// # Returns
+    ///
+    /// A tensor with reduced dimensions containing the minimum along specified axes.
+    ///
+    /// # Errors
+    /// Returns error if dimension indices are out of bounds or invalid.
+    #[must_use = "min_dims returns the result tensor that should be used"]
+    pub fn min_dims(&self, dims: Option<&[usize]>, keepdim: bool) -> crate::Result<Self>
+    where
+        T: PartialOrd + Clone,
+    {
+        // Use the first element as initial value, then find min
+        if self.is_empty() {
+            return Err(crate::error::TensorError::EmptyTensor);
+        }
+        let first_elem = self.as_slice()[0].clone();
+        self.reduce_dims(dims, keepdim, |a, b| if a < b { a } else { b }, first_elem)
+    }
+
+    /// PyTorch-compatible alias for `sum_dims`.
+    ///
+    /// Computes the sum of elements along specified dimensions.
+    ///
+    /// # Arguments
+    ///
+    /// * `dim` - Dimensions to reduce. If None, reduces all dimensions to scalar.
+    /// * `keepdim` - If true, keeps reduced dimensions with size 1.
+    ///
+    /// # Returns
+    ///
+    /// A tensor with reduced dimensions containing the sum along specified axes.
+    #[must_use = "sum returns the result tensor that should be used"]
+    pub fn sum(&self, dim: Option<&[usize]>, keepdim: bool) -> crate::Result<Self> {
+        self.sum_dims(dim, keepdim)
+    }
+
+    /// PyTorch-compatible alias for `mean_dims`.
+    ///
+    /// Computes the mean of elements along specified dimensions.
+    ///
+    /// # Arguments
+    ///
+    /// * `dim` - Dimensions to reduce. If None, reduces all dimensions to scalar.
+    /// * `keepdim` - If true, keeps reduced dimensions with size 1.
+    ///
+    /// # Returns
+    ///
+    /// A tensor with reduced dimensions containing the mean along specified axes.
+    #[must_use = "mean returns the result tensor that should be used"]
+    pub fn mean(&self, dim: Option<&[usize]>, keepdim: bool) -> crate::Result<Self> {
+        self.mean_dims(dim, keepdim)
+    }
+
+    /// PyTorch-compatible alias for `max_dims`.
+    ///
+    /// Computes the maximum of elements along specified dimensions.
+    ///
+    /// # Arguments
+    ///
+    /// * `dim` - Dimensions to reduce. If None, reduces all dimensions to scalar.
+    /// * `keepdim` - If true, keeps reduced dimensions with size 1.
+    ///
+    /// # Returns
+    ///
+    /// A tensor with reduced dimensions containing the maximum along specified axes.
+    #[must_use = "max returns the result tensor that should be used"]
+    pub fn max(&self, dim: Option<&[usize]>, keepdim: bool) -> crate::Result<Self>
+    where
+        T: PartialOrd + Clone,
+    {
+        self.max_dims(dim, keepdim)
+    }
+
+    /// PyTorch-compatible alias for `min_dims`.
+    ///
+    /// Computes the minimum of elements along specified dimensions.
+    ///
+    /// # Arguments
+    ///
+    /// * `dim` - Dimensions to reduce. If None, reduces all dimensions to scalar.
+    /// * `keepdim` - If true, keeps reduced dimensions with size 1.
+    ///
+    /// # Returns
+    ///
+    /// A tensor with reduced dimensions containing the minimum along specified axes.
+    #[must_use = "min returns the result tensor that should be used"]
+    pub fn min(&self, dim: Option<&[usize]>, keepdim: bool) -> crate::Result<Self>
+    where
+        T: PartialOrd + Clone,
+    {
+        self.min_dims(dim, keepdim)
+    }
 }

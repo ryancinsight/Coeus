@@ -1,311 +1,732 @@
-# Coeus Tensor Library - Software Requirements Specification
+# Software Requirements Specification (SRS): Coeus
 
 ## 1. Introduction
 
 ### 1.1 Purpose
-The Coeus Tensor Library provides a high-performance, PyTorch-compatible tensor computation framework in Rust, emphasizing automatic differentiation, mathematical correctness, and memory safety.
+This document specifies the functional and non-functional requirements for Coeus, a complete PyTorch-compatible deep learning framework implemented in safe Rust.
 
 ### 1.2 Scope
-The library shall provide:
-- Multi-dimensional tensor operations with automatic differentiation
-- PyTorch-compatible API for seamless migration
-- GPU acceleration support via wgpu
-- Comprehensive mathematical validation
-- Production-ready performance and reliability
+Coeus provides a drop-in replacement for PyTorch with identical API compatibility, enhanced safety through Rust's ownership system, and competitive performance through zero-cost abstractions.
+
+### 1.3 Definitions
+- **Tensor**: Multi-dimensional array with dtype T, storage S, and backend B: `Tensor<B<S<T>>>`
+- **Backend**: Compute substrate (CPU, GPU, NPU, etc.)
+- **Storage**: Memory layout (Dense, Sparse, etc.)
+- **Dtype**: Data type (f32, i32, Complex<f64>, etc.)
 
 ## 2. Overall Description
 
 ### 2.1 Product Perspective
-Coeus is a Rust-native alternative to PyTorch, providing identical functionality with superior memory safety and performance characteristics.
+Coeus is a standalone deep learning framework that can serve as a complete replacement for PyTorch while providing additional safety and performance guarantees.
 
 ### 2.2 Product Functions
-- Tensor creation and manipulation with generic dtype support
-- Automatic differentiation and gradient computation
-- Neural network layer implementations
-- GPU acceleration support
-- Mathematical function libraries
+- Tensor creation and manipulation
+- Automatic differentiation
+- Neural network construction and training
+- Optimization algorithms
+- Python bindings for ecosystem compatibility
 
 ### 2.3 User Characteristics
-- **ML Researchers**: Require mathematical precision and PyTorch compatibility
-- **Systems Programmers**: Need memory safety and performance optimization
-- **Production Engineers**: Require reliability and maintainability
-- **Library Developers**: Need extensible APIs and clean abstractions
+- **Researchers**: Need flexible, performant tensor operations
+- **ML Engineers**: Require production-ready, reliable frameworks
+- **Python Developers**: Expect PyTorch-compatible API
+- **Systems Programmers**: Value memory safety and performance
+
+### 2.4 Constraints
+- Must maintain 100% PyTorch API compatibility
+- Zero unsafe code in core functionality
+- Must achieve >95% of PyTorch's performance
+- Must support all major hardware backends
+- **ALL components MUST implement full `Tensor<B<S<T>>>` generic hierarchy** (ADR: Generic Architecture Commitment)
+- **System-wide zero runtime storage type dispatch - all generics resolved at compile-time**
+- **Future extensibility guaranteed through StorageFromVec<T> trait**
+
+### 2.5 Architectural Invariants
+
+#### 2.5.1 System-Wide Generic Hierarchy Maintenance
+**SRS-ARCH-GENERIC-001**: ALL components MUST implement full `B, S, T` generic parameters
+- Input: All component definitions (NN modules, optimizers, loss functions, activations)
+- Output: Generic implementations supporting any backend, storage, and datatype combination
+- Verification: Compilation succeeds with any valid B, S, T combination
+- Test: Type system allows `Conv2D<GpuBackend, CsrStorage<f32>, f32>`, `Adam<NpuBackend, QuantizedStorage<f32>, f32>`
+
+**SRS-ARCH-GENERIC-002**: Zero-cost abstractions across entire system
+- Input: Any B, S, T combination selection
+- Output: Compile-time monomorphization with absolutely no runtime dispatch
+- Verification: Generated assembly contains no generic type checks or virtual calls
+- Test: Performance benchmarks identical for different B, S, T combinations
+
+**SRS-ARCH-GENERIC-003**: Future extensibility through trait-based design
+- Input: New backend, storage, or datatype implementation
+- Output: Automatic compatibility with ALL existing components
+- Verification: New types work without modifying existing component code
+- Test: `StorageFromVec<T>`, `Backend`, `DataType` trait implementations enable seamless integration
+
+**SRS-ARCH-GENERIC-004**: PyTorch API compatibility maintained through generics
+- Input: PyTorch-style usage patterns
+- Output: Identical API regardless of underlying B, S, T types
+- Verification: Python bindings work identically for all generic combinations
+- Test: `tensor.backward()` works for `Tensor<GpuBackend, SparseStorage<f32>, f32>`
 
 ## 3. Specific Requirements
 
-### 3.1 Functional Requirements
+### 3.1 Dtype System Requirements
 
-#### 3.1.1 Core Tensor Operations (FR-TENSOR) - Verified Sprint 5
-- **Tensor Creation**: Multi-dimensional tensors from arrays, shapes, and existing tensors with edge cases (x=-1, y=10 → -10)
-- **Arithmetic Operations**: Element-wise add/sub/mul/div with operator overloads, autograd, and overflow/underflow handling (refactor proptest equivalence <1e-6 + edges verified post modularity prune).
-- **Mathematical Functions**: exp, log, sin, cos, sqrt, pow with gradient computation and precision validation (1e-6 error)
-- **Matrix Operations**: Matrix multiplication (GEMM) with broadcasting and zero/negative input checks
-- **Indexing**: Advanced indexing operations (slice, gather, scatter, masked) with bounds safety
-- **Broadcasting**: Automatic shape compatibility following NumPy/PyTorch with edge broadcasting (e.g., [1] to [3,1])
-- **Autograd**: Reverse-mode with chain rule validation 1e-6 (proptest f=x^2 y + sin x → ∂f/∂y=x^2 pass 1000 samples). Generic Dtype+Num forward, Float-cast backward (From<T> f32, round int). Edges: i32 x=-1 y=10 mul=-10 grad_y=-1, div(1,0)=Inf grad_x=0, overflow Err(AutogradError::Overflow) density<5%.
+#### 3.1.1 Floating Point Types
+**SRS-DTYPE-FP-001**: Support for f16 (half precision)
+- Verification: `dtype::Half` implements all arithmetic operations
+- Test: Round-trip conversion and gradient computation
 
-#### 3.1.2 Neural Network Layers (FR-NN) - Verified Sprint 3
-- **Convolutional**: Conv1d/2d/3d, TransposeConv1d/2d/3d with full autograd support (REQ-001 verified: proptest chain rule <1e-6 for 1000 samples, edges including negative values exact, zero propagation, Inf/NaN handling, overflow/underflow with appropriate error propagation or gradient preservation, precision validation for large values relative error <1e-6; nextest runtime <30s across granular forward/backward/edges test units).
-- **Pooling**: MaxPool2d, AvgPool2d, AdaptiveAvgPool1d/2d, AdaptiveMaxPool1d/2d
-- **Normalization**: BatchNorm1d/2d/3d, LayerNorm, InstanceNorm1d/2d/3d, GroupNorm
-- **Recurrent**: RNN, LSTM, GRU with PyTorch-compatible sequence processing
-- **Attention**: MultiheadAttention, Transformer, TransformerEncoder, TransformerDecoder
-- **Embedding**: Embedding, EmbeddingBag with vocabulary management
-- **Dropout**: Dropout2d/3d with training/evaluation mode support
+**SRS-DTYPE-FP-002**: Support for f32 (single precision)
+- Verification: Full IEEE 754 compliance
+- Test: Numerical accuracy vs reference implementations
 
-#### 3.1.3 Optimization & Training (FR-OPTIM)
-- **Core Optimizers**: SGD (momentum, weight decay), Adam (AMSGrad), AdamW, RMSprop, Adagrad
-- **Advanced Optimizers**: LBFGS, SparseAdam, ASGD, Rprop
-- **Schedulers**: StepLR, ExponentialLR, CosineAnnealingLR, ReduceLROnPlateau, CyclicLR, OneCycleLR
-- **Parameter Groups**: Multi-parameter group optimization with per-group settings
+**SRS-DTYPE-FP-003**: Support for f64 (double precision)
+- Verification: High precision scientific computing
+- Test: Extended precision arithmetic validation
 
-#### 3.1.4 Data Processing (FR-DATA)
-- **Data Loading**: Dataset, DataLoader, TensorDataset with parallel processing
-- **Transforms**: Comprehensive vision transforms (Normalize, RandomCrop, RandomHorizontalFlip, ColorJitter)
-- **Loss Functions**: 15+ loss functions (MSE, CrossEntropy, KLDiv, Focal Loss, ranking losses)
-- **Metrics**: Accuracy, precision, recall, F1, top-k accuracy, confusion matrix, AUC-ROC
+**SRS-DTYPE-FP-004**: Support for bfloat16
+- Verification: Google Brain Float format implementation
+- Test: Mixed precision training compatibility
 
-#### 3.1.5 Signal Processing (FR-FFT)
-- **FFT Operations**: 1D/2D FFT, rFFT with normalization modes (None, Ortho, Forward, Backward)
-- **PyTorch Compatibility**: Drop-in replacement for torch.fft operations
+#### 3.1.2 Integer Types
+**SRS-DTYPE-INT-001**: Support for signed integers (i8, i16, i32, i64)
+- Verification: Two's complement arithmetic
+- Test: Overflow handling and saturation
 
-#### 3.1.6 Model Ecosystem (FR-HUB) ✅ ENHANCED
-- **Hub Integration**: PyTorch Hub-compatible model loading with caching and integrity verification
-- **GGUF Support**: Complete llama.cpp GGUF format compatibility with quantization
-- **Serialization**: Binary/JSON state dict serialization with PyTorch compatibility
-- **Tokenizer**: Complete BPE implementation with GPT-2, CLIP, BERT support
-- **Quantized Models**: Support for Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 quantization schemes
-- **Large Language Models**: Llama 2, Code Llama, GPT-2 model support
-- **Memory Optimization**: 75% memory reduction with quantized inference
-- **Model Registry**: Comprehensive registry with 10+ pre-trained models
-- **Compatibility Validation**: Automatic model compatibility checking
-- **Multi-Architecture**: Support for multiple transformer architectures
+**SRS-DTYPE-INT-002**: Support for unsigned integers (u8, u16, u32, u64)
+- Verification: Modular arithmetic
+- Test: Underflow handling
 
-#### 3.1.7 Python Integration (FR-PYCOEUS) ⚠️ MINIMAL (~5% coverage)
-- **Core API**: PyTorch-compatible tensor operations with basic functionality ✅ WORKING
-- **Neural Network Layers**: Limited PyTorch nn module compatibility (~5% of API) ⚠️ MINIMAL
-- **Available in PyCoeus**: Conv2d, Linear, ReLU, RNN, LSTM, GRU, GPT2 ✅ IMPLEMENTED
-- **Missing from PyCoeus**: Conv1d/3d, ConvTranspose variants, normalization, pooling, attention, embedding, dropout, comprehensive losses/activations ❌ NOT IMPLEMENTED
-- **Container Modules**: Sequential, ModuleList, ModuleDict for complex network composition ❌ NOT IMPLEMENTED
-- **Activation Functions**: Limited activation functions (ELU, CELU, SELU, etc. in functional API only) ⚠️ PARTIAL
-- **Functional API**: Basic torch.nn.functional compatibility ⚠️ MINIMAL
-- **Initialization Functions**: Xavier and Kaiming weight initialization methods ❌ NOT IMPLEMENTED
-- **Loss Functions**: Basic loss functions (MSE, CrossEntropy) ✅ IMPLEMENTED
-- **Optimizers**: Basic optimizers (SGD, Adam, AdamW) ✅ IMPLEMENTED
-- **Learning Rate Schedulers**: Limited schedulers (CosineAnnealingWarmRestarts) ⚠️ MINIMAL
-- **Utils Integration**: Dataset, DataLoader, transforms, metrics framework ❌ NOT IMPLEMENTED
-- **Autograd**: Full gradient computation with chain rule validation ✅ IMPLEMENTED
-- **Performance**: Statistical benchmarking showing <2x PyTorch performance gap ✅ VERIFIED
-- **Cross-Platform**: Automated wheel distribution for Windows/macOS/Linux/ARM64 ✅ IMPLEMENTED
-- **PyTorch API Compatibility**: ~5% drop-in replacement capability ⚠️ MINIMAL
+#### 3.1.3 Complex Types
+**SRS-DTYPE-CPLX-001**: Support for Complex<f32>
+- Verification: Complex arithmetic operations
+- Test: FFT compatibility and phase calculations
 
-## 🚨 CRITICAL ARCHITECTURAL ISSUES - TENSOR CRATE REWRITE REQUIRED
+**SRS-DTYPE-CPLX-002**: Support for Complex<f64>
+- Verification: High precision complex arithmetic
+- Test: Signal processing applications
 
-### **3.2 Non-Functional Requirements (NFR-ARCH)**
+#### 3.1.4 Quantized Types
+**SRS-DTYPE-QNT-001**: Support for 8-bit quantization
+- Verification: Affine and symmetric quantization
+- Test: Quantization noise analysis
 
-#### **NFR-ARCH-001: Tensor Crate Architectural Integrity**
-- **Current Status**: ✅ **ARCHITECTURAL INTEGRITY RESTORED** (0 compilation errors, includes generic serialization T: Dtype/B save/load/grad preserve).
-- **Refactoring Completed**: SPRINT 1 - SerializableTensor<T>/StateDict<T>, proptest edges.
-- **Risk Level**: LOW (2/10) - Major architectural issues resolved
-- **Dependency**: PyCoeus compilation now blocked only by autograd crate issues (not tensor)
+**SRS-DTYPE-QNT-002**: Support for dynamic quantization
+- Verification: Runtime quantization schemes
+- Test: Accuracy vs performance trade-offs
 
-**Issues Resolved in SPRINT 54:**
-1. ✅ **SRP Compliance**: ✅ ACHIEVED - Clean module separation with focused responsibilities
-2. ✅ **Trait Bound Enforcement**: ✅ ACHIEVED - Proper `Backend<T>` generic constraints with type safety
-3. ✅ **Eliminated Circular Dependencies**: ✅ ACHIEVED - Proper tensor implementation instead of re-exports
-4. ✅ **API Consistency**: ✅ ACHIEVED - Complete tensor API with all required methods
-5. ✅ **Type System Integrity**: ✅ ACHIEVED - Proper generic type handling throughout
+### 3.2 Tensor Operations Requirements
 
-#### **NFR-ARCH-002: Clean Architecture Requirements**
-- ✅ **Module Hierarchy**: ✅ ACHIEVED - Book Chapter 7 modular structure implemented
-- ✅ **Single Responsibility**: ✅ ACHIEVED - Each module <400 lines with focused purpose
-- ✅ **Dependency Direction**: ✅ ACHIEVED - Acyclic dependency graph with proper separation
-- ✅ **Trait Enforcement**: ✅ ACHIEVED - All trait bounds enforced at compile time
-- ✅ **Type Safety**: ✅ ACHIEVED - Zero unsafe code, proper generic constraints
+#### 3.2.1 Creation Operations
+**SRS-TENSOR-CREATE-001**: Tensor creation from arrays/slices
+- Input: `&[T]`, shape specification
+- Output: `Tensor<B<S<T>>>`
+- Verification: Memory layout correctness
+- Test: Shape validation and data integrity
 
-#### **NFR-ARCH-003: Foundation Crate Dependencies**
-- ✅ **Foundation Status**: ✅ PRODUCTION READY (dtype, backend, tensor) - **autograd pending**
-- ✅ **Tensor Dependency**: ✅ ACHIEVED - Clean integration with backend tensor API
-- ✅ **Autograd Integration**: ⚠️ **PRE-EXISTING ISSUES** - NumCast trait bounds not satisfied in autograd crate
-- ✅ **Memory Safety**: ✅ ACHIEVED - Arc<RwLock> architecture with proper bounds checking
+**SRS-TENSOR-CREATE-002**: Tensor creation with fill values
+- Input: shape, fill_value: T
+- Output: `Tensor<B<S<T>>>`
+- Verification: All elements equal fill_value
+- Test: Large tensor creation performance
 
-### **3.3 System Architecture Requirements (SAR)**
+#### 3.2.2 Arithmetic Operations
+**SRS-TENSOR-ARITH-001**: Element-wise addition
+- Input: lhs: `&Tensor`, rhs: `&Tensor` or scalar
+- Output: `Tensor` with element-wise sum
+- Verification: Broadcasting rules compliance
+- Test: Gradient computation correctness
 
-#### **SAR-001: Tensor Crate Refactoring Specifications**
-**Implementation Completed in SPRINT 54:**
-1. ✅ **Architecture**: Clean slate tensor crate with proper module structure
-2. ✅ **Core Operations**: Tensor operations with trait bounds enforcement
-3. ✅ **Type Safety**: Advanced indexing with compile-time type safety guarantees
-4. ✅ **Validation**: Comprehensive testing and validation completed
+**SRS-TENSOR-ARITH-002**: Element-wise multiplication
+- Input: lhs: `&Tensor`, rhs: `&Tensor` or scalar
+- Output: `Tensor` with element-wise product
+- Verification: Broadcasting and type promotion
+- Test: Numerical stability analysis
 
-**Design Principles Achieved:**
-- ✅ **SOLID Principles**: Single responsibility, Open-closed, Liskov substitution
-- ✅ **CUPID Principles**: Composition, Unix philosophy, Predictability
-- ✅ **SSOT**: Single source of truth for all type definitions
-- ✅ **DRY**: Eliminated redundant code patterns (removed duplicate arithmetic.rs)
-- ✅ **YAGNI**: No unnecessary abstractions, focused implementation
+**SRS-TENSOR-ARITH-003**: Matrix multiplication
+- Input: lhs: `&Tensor`, rhs: `&Tensor`
+- Output: `Tensor` with matrix product
+- Verification: BLAS-compatible algorithms
+- Test: Performance vs cuBLAS/MKL
 
-**Technical Requirements Met:**
-- ✅ **Zero Compilation Errors**: Clean build with no warnings in tensor crate
-- ✅ **Type Safety**: All trait bounds satisfied at compile time
-- ✅ **Memory Safety**: Zero unsafe code, proper bounds checking
-- ✅ **Thread Safety**: Arc<RwLock> architecture validation
-- ✅ **Performance**: Zero-copy operations with Cow<BackendData<T>>
+#### 3.2.3 Indexing Operations
+**SRS-TENSOR-RESHAPE-001**: Tensor reshaping with dimension inference
+- Input: tensor, target_dims: &[isize] (supports -1 for auto-inference)
+- Output: `Result<Tensor>` with reshaped data
+- Verification: Element count preservation, dimension inference correctness
+- Test: -1 inference, shape validation, edge cases
 
-### 3.2 Non-Functional Requirements
+**SRS-TENSOR-TRANSPOSE-001**: Tensor transposition
+- Input: tensor, dim0: usize, dim1: usize
+- Output: `Tensor` with transposed dimensions
+- Verification: Correct dimension swapping, data layout preservation
+- Test: 2D matrix transpose, identity transpose (same dims), bounds checking
 
-#### 3.2.1 Performance Requirements
-- **Memory Efficiency**: Zero-copy operations where possible, <2x PyTorch memory usage
-- **Computational Speed**: Competitive with PyTorch for equivalent operations
-- **Thread Safety**: Safe concurrent operations with proper synchronization
-- **Scalability**: Prepared for distributed computing and multi-device support
+**SRS-TENSOR-IDX-001**: Advanced indexing support
+- Input: tensor, index specification
+- Output: View or sub-tensor
+- Verification: NumPy-compatible indexing
+- Test: Fancy indexing performance
 
-#### 3.2.2 Quality Requirements
-- **Memory Safety**: Zero unsafe code blocks, Rust ownership system guarantees ✅ VERIFIED
-- **Code Quality**: Zero clippy warnings, strict `-D warnings` enforcement ✅ ACHIEVED
-- **Test Coverage**: 35.09% reported coverage - comprehensive test suites with edge cases implemented ✅ VERIFIED
-- **Coverage Measurement**: Tarpaulin limitation identified - actual functional coverage higher based on 716/716 tests passing ✅ VALIDATED
-- **Documentation**: Empirically validated - all claims supported by test execution evidence ✅ SYNCHRONIZED
-- **Mathematical Precision**: Operations validated to 1e-6 relative error across all implementations ✅ VERIFIED
+**SRS-TENSOR-IDX-002**: Boolean masking
+- Input: tensor, boolean mask
+- Output: Filtered tensor
+- Verification: Memory-efficient implementation
+- Test: Large tensor masking operations
 
-#### 3.2.3 Compatibility Requirements
-- **PyTorch API**: 95%+ compatibility with drop-in replacement capability
-- **Cross-Platform**: Verified compatibility across Windows, macOS, Linux, ARM64
-- **Python Integration**: Seamless integration with existing ML workflows
-- **Standards Compliance**: IEEE 754 floating-point arithmetic compliance
+### 3.3 Automatic Differentiation Requirements
 
-#### 3.2.4 Maintainability Requirements
-- **Modular Design**: Clean crate boundaries with proper separation of concerns
-- **Extensible Architecture**: Trait-based operations for easy extension
-- **Error Handling**: Comprehensive error propagation with descriptive messages
-- **Code Standards**: Consistent Rust naming and formatting conventions
+#### 3.3.1 Forward Pass
+**SRS-AUTOGRAD-FWD-001**: Gradient accumulation
+- Input: Operation with requires_grad=true
+- Output: Computation graph construction
+- Verification: Memory-efficient graph building
+- Test: Memory usage scaling
 
-## 4. Implementation Status (POST-REFACTORING)
+#### 3.3.2 Backward Pass
+**SRS-AUTOGRAD-BWD-001**: Gradient computation
+- Input: scalar loss tensor
+- Output: Gradients for all tensors in graph
+- Verification: Correct gradient formulas
+- Test: Numerical gradient validation
 
-### 4.1 Core Features ✅ PRODUCTION READY
-- ✅ **Tensor Operations**: ✅ Comprehensive implementation, ✅ Zero compilation errors, ✅ Type-safe backend abstraction
-- ✅ **Automatic Differentiation**: ⚠️ **PRE-EXISTING ISSUES** - NumCast trait bounds in autograd crate (43 errors)
-- ✅ **Neural Network Layers**: ✅ Complete layer suite, ✅ Gradient flow verified (240/240 tests passing)
-- ✅ **Optimization Framework**: ✅ Complete optimizer suite, ✅ All tests passing (80/80 tests passing)
-- ✅ **Data Processing**: ✅ Full data loading and preprocessing, ✅ All tests passing (41/41 tests passing)
-- ✅ **Python Integration**: ⚠️ **MINIMAL (~5% PyTorch API)** - Basic PyTorch-compatible tensor operations with limited NN layers (Conv2d, Linear, ReLU, RNN, LSTM, GRU, GPT2)
-- ✅ **Code Quality**: ✅ Zero clippy violations, ✅ Enterprise-grade error handling achieved
-- ✅ **Production Readiness**: ✅ **TENSOR CRATE ACHIEVED** - Foundation crates production ready, autograd issues separate
+**SRS-AUTOGRAD-BWD-002**: Higher-order derivatives
+- Input: Gradient tensor
+- Output: Hessian-vector products
+- Verification: Recursive differentiation
+- Test: Second-order optimization algorithms
 
-**SPRINT 47: CRITICAL REMEDIATION COMPLETED ✅**
-- Comprehensive test suite expansion implemented (152 unit tests + 108 doctests passing)
-- All tensor operations now have comprehensive edge case, precision, and gradient testing
-- Memory safety, numerical stability, and error condition validation implemented
-- Zero-coverage files now have extensive test coverage for all edge cases
-- Documentation fully synchronized with empirical evidence ✅
+### 3.4 Backend Requirements
 
-**SPRINT 49: COVERAGE MEASUREMENT VALIDATION & REMEDIATION ✅**
-- **Coverage Measurement Tool Limitation Confirmed**: Tarpaulin under-reports coverage for same-file test modules (34.76% vs empirical validation)
-- **Zero-Coverage Files Analysis**: Critical files identified with extensive test suites (515+ lines of test code) not counted by tarpaulin
-- **Alternative Validation Methodology**: Empirical test execution metrics confirm comprehensive functional coverage
-- **Production Readiness**: All functional requirements validated; scholarly audit complete with 716/716 tests passing
-- **Critical Remediation**: Test coverage expansion to 90%+ threshold via comprehensive zero-coverage file testing
+#### 3.4.1 CPU Backend
+**SRS-BACKEND-CPU-001**: SIMD acceleration
+- Verification: Runtime feature detection
+- Test: Performance scaling with vector width
+- Performance: >80% of theoretical peak FLOPS
 
-### 4.3 Alternative Coverage Validation Methodology
-**Coverage Measurement Tool Limitation Identified:**
-- Tarpaulin fails to measure coverage for tests in same file as implementation
-- Empirical validation shows comprehensive test execution (152 tests passing)
-- Alternative assessment methodology required for production readiness
+#### 3.4.2 GPU Backend
+**SRS-BACKEND-GPU-001**: Vulkan/Metal/DX12 via wgpu
+- Verification: Cross-platform shader compilation
+- Test: Compatibility across GPU vendors
+- Performance: >90% of CUDA performance for compute kernels
 
-**Empirical Coverage Validation Criteria:**
-- **Test Execution Success Rate**: 100% (152/152 unit tests passing)
-- **Test Discovery**: All comprehensive tests being executed (verified via cargo test output)
-- **Edge Case Coverage**: Comprehensive validation for overflow, underflow, precision, memory safety
-- **Functional Validation**: All SRS requirements validated through extensive testing
-- **Performance Characteristics**: Tests complete within 30s runtime limits
+#### 3.4.3 Backend Abstraction
+**SRS-BACKEND-ABS-001**: Zero-cost backend dispatch
+- Verification: Monomorphization eliminates runtime overhead
+- Test: Benchmark vs dynamic dispatch
+- Constraint: No trait objects in hot paths
 
-**Production Readiness Assessment:**
-- ✅ **Functional Requirements**: All SRS requirements validated
-- ✅ **Test Suite Completeness**: Comprehensive edge case coverage implemented
-- ✅ **Memory Safety**: Validated through large tensor operations
-- ✅ **Numerical Stability**: Verified for extreme computational scenarios
-- ⚠️ **Coverage Measurement**: Tool limitation identified; alternative validation implemented
+### 3.5 Sparse Storage Operations Requirements
 
-### 4.2 Sprint 48: Scholarly Audit & Coverage Measurement Validation
-1. **SCHOLARLY AUDIT COMPLETED**: Comprehensive empirical analysis with 716/716 tests passing ✅
-2. **COVERAGE MEASUREMENT LIMITATION IDENTIFIED**: Tarpaulin under-reports coverage for same-file test modules ✅
-3. **ALTERNATIVE VALIDATION METHODOLOGY IMPLEMENTED**: Empirical test execution metrics confirm functionality ✅
-4. **CRITICAL FILE TESTING COMPLETED**: Comprehensive tests added for zero-coverage files ✅
-5. **SRS VALIDATION ACHIEVED**: All software requirements validated through extensive testing ✅
+#### 3.5.1 Sparse Matrix Operations
+**SRS-SPARSE-MATMUL-001**: Sparse-sparse matrix multiplication
+- Input: Two sparse matrices A, B in any sparse format (CSR, CSC, COO)
+- Output: Sparse result matrix C = A @ B with optimal format selection
+- Verification: Mathematical correctness, sparsity preservation, format optimization
+- Test: Performance vs dense operations, memory efficiency, numerical accuracy
+- Performance: O(nnz_A + nnz_B) complexity, automatic format selection
 
-### 4.3 Sprint 48: Production Readiness Assessment
-**COVERAGE MEASUREMENT TOOL LIMITATION ANALYSIS:**
+**SRS-SPARSE-MATMUL-002**: Sparse-dense matrix multiplication
+- Input: Sparse matrix A, dense matrix/vector B
+- Output: Dense result C = A @ B
+- Verification: Memory-efficient computation, no temporary dense conversion
+- Test: Performance benchmarks, memory usage validation
+- Performance: O(nnz_A) complexity, optimal for sparse inputs
 
-**Root Cause**: Tarpaulin fails to measure coverage for tests in same-file `#[cfg(test)]` modules
-**Impact**: Under-reporting of actual functional coverage despite comprehensive testing
-**Files Affected**:
-- `tensor/src/core/arithmetic_ops.rs`: 515 lines test code (reported 0%)
-- `tensor/src/core/indexing_ops.rs`: 336 lines test code (reported 0%)
-- `tensor/src/core/matrix_ops.rs`: 302 lines test code (reported 0%)
-- `tensor/src/matrix_ops.rs`: 227 lines test code (reported 0%)
-- `utils/src/data/dataset.rs`: 570 lines test code (newly implemented)
+**SRS-SPARSE-ARITH-001**: Sparse element-wise operations
+- Input: Sparse tensors A, B with compatible shapes
+- Output: Sparse result C = A ⊕ B where ⊕ ∈ {+, -, *, /}
+- Verification: Sparsity preservation, broadcasting support, format optimization
+- Test: Gradient computation, numerical stability, memory efficiency
 
-**Alternative Validation Results**:
-- **Test Execution Success Rate**: 100% (716/716 tests passing)
-- **Edge Case Coverage**: Comprehensive validation for all critical scenarios
-- **Functional Completeness**: All SRS requirements validated through testing
-- **Mathematical Correctness**: Operations validated to 1e-6 relative error
-- **Memory Safety**: Verified through large tensor operations
+**SRS-SPARSE-REDUCE-001**: Sparse tensor reductions
+- Input: Sparse tensor A, reduction operation (sum, mean, max, min), dimensions
+- Output: Reduced tensor (sparse or dense based on result sparsity)
+- Verification: Correctness, memory efficiency, dimension handling
+- Test: Performance vs dense reductions, memory usage
 
-**Production Readiness**: ✅ **ACHIEVED** - Alternative validation methodology confirms enterprise-grade quality
+#### 3.5.2 Sparse Neural Network Operations
+**SRS-SPARSE-NN-001**: Sparse Linear layer forward/backward
+- Input: Sparse input tensor, sparse weight matrix, optional sparse bias
+- Output: Sparse output tensor without dense conversion
+- Verification: Native sparse matrix multiplication, sparse gradient computation
+- Test: Sparsity preservation, performance vs dense Linear, memory efficiency
+- Performance: O(nnz_input + nnz_weights) complexity
 
-**Current Metrics**: 716/716 tests passing (100% functional validation), <2x PyTorch performance gap, ALTERNATIVE VALIDATION METHODOLOGY CONFIRMS PRODUCTION READINESS
+**SRS-SPARSE-NN-002**: Sparse Convolution operations
+- Input: Sparse input feature maps, sparse kernels
+- Output: Sparse output feature maps with maintained sparsity
+- Verification: Convolution correctness, sparsity patterns, gradient flow
+- Test: Performance benchmarks, memory usage, accuracy preservation
 
-# SRS (Enumerated Reqs)
+**SRS-SPARSE-NN-003**: Sparse Attention mechanisms
+- Input: Sparse query/key/value tensors for long sequences
+- Output: Sparse attention outputs with memory-efficient computation
+- Verification: Attention mechanism correctness, sparsity preservation
+- Test: Sequence length scaling, memory efficiency, performance benchmarks
 
-1. REQ-001: Autograd gradients (Dtype+Num hybrid). Verif: Proptest <1e-6/exact, edges ✓ (forward Num add/mul, backward f32 cast From<T>/round int, i32 x=-1 y=10 mul=-10 grad_y=-1 verified 1000 samples, div(1,0)=Inf grad_x=0, overflow Err(AutogradError::Overflow), underflow→0 grad=1, NaN propagate; serialization round-trip preserves grad).
+**SRS-SPARSE-NN-004**: Sparse RNN operations
+- Input: Sparse input sequences, sparse weight matrices
+- Output: Sparse hidden states throughout computation
+- Verification: RNN dynamics preservation, gradient flow through sparse operations
+- Test: Sequence processing efficiency, memory usage optimization
 
-Non-functional: Spans, miri clean, <30s tests.
+#### 3.5.3 Sparse Training Operations
+**SRS-SPARSE-TRAIN-001**: Sparse gradient computation
+- Input: Sparse forward pass outputs, loss gradients
+- Output: Sparse parameter gradients preserving sparsity patterns
+- Verification: Gradient correctness, sparsity preservation, memory efficiency
+- Test: Training convergence, memory usage during backprop
 
-8. REQ-008: Tensor modularity/extensibility. Verif: Cargo udeps 0 unused, dendrogram depth<=3 (split arithmetic/indexing/matrix/reduction proptest structure, cleanup no dupe/mod.rs full declare), proptest equivalence old=new <1e-6 all ops post-cleanup/full Ops dispatch, edges pos/neg/zero/overflow/underflow/precision (x=-1 y=10 mul=-10 exact int/<1e-6 float), nextest <30s granular (arithmetic/matrix/reduction units). Ops enum dispatch extensible no shims, Cow zero-copy views (no alloc <1e-6 test), const generics fixed shapes compile-time opt.
+**SRS-SPARSE-TRAIN-002**: Sparse optimizer updates
+- Input: Sparse parameter gradients, optimizer state
+- Output: Sparse parameter updates with efficient computation
+- Verification: Optimizer algorithm correctness, sparse parameter handling
+- Test: Training performance, convergence speed, memory efficiency
 
-// REQ-010: Mod Cleanup. Verif: No dupe symbols E0432 (delete ops.rs, mod.rs full declare submods), mod.rs pub mod arithmetic; etc. (proptest no conflict).
+**SRS-SPARSE-TRAIN-003**: Sparse checkpointing
+- Input: Sparse model parameters and optimizer state
+- Output: Efficient serialization of sparse tensors
+- Verification: Storage efficiency, loading speed, format compatibility
+- Test: Model saving/loading performance, storage space reduction
 
-## SRS Addendum — Sprint 93 Micro-sprint Verification Criteria
+#### 3.5.4 Sparse Hardware Acceleration
+**SRS-SPARSE-HW-001**: GPU sparse operations
+- Input: Sparse tensors on GPU memory
+- Output: Accelerated sparse operations using cuSPARSE or equivalent
+- Verification: Performance improvement, memory efficiency, correctness
+- Test: GPU utilization, speedup vs CPU sparse operations
 
-Purpose: Provide compact, unambiguous verification criteria for the NN API migration micro-sprint and adjacent gate checks. These are traceable requirements intended to be automated or measured.
+**SRS-SPARSE-HW-002**: Sparse format optimization
+- Input: Sparse tensors in any format (CSR, CSC, COO)
+- Output: Optimal format selection and conversion for target hardware
+- Verification: Automatic format selection, conversion efficiency
+- Test: Hardware-specific performance optimization
 
-1. REQ-S93-001 (API Migration Safety): All automated edits applied to `nn/` must be reviewable and reversible.
-   - Verification: Codemod dry-run outputs diffs for each file; each PR contains the codemod commit and diff artifact. Manual code review approves or rejects.
+### 3.6 Neural Network Requirements
 
-2. REQ-S93-002 (Compilation Delta): The migration micro-sprint shall reduce `nn` crate compilation errors by ≥30% for the targeted module set in a single micro-sprint (≤1h).
-   - Verification: `cargo check` error counts before/after logged in the sprint artifact; reduction ≥30% counted as success. Failing: escalate to manual triage.
+#### 3.5.1 Module System
+**SRS-NN-MODULE-001**: Module base trait
+- Input: Module implementation with parameters and submodules
+- Output: Unified interface for neural network components
+- Verification: Parameter management, forward pass, gradient computation
+- Test: Module composition, parameter sharing, state management
 
-3. REQ-S93-003 (Local Quality Gates): For each migrated module, `cargo check` and `clippy -D warnings` must pass locally before opening PRs.
-   - Verification: PR checklist includes local check outputs; CI re-runs same checks.
+**SRS-NN-MODULE-002**: Parameter management
+- Input: Module with learnable parameters
+- Output: Parameter collection and gradient accumulation
+- Verification: Parameter registration, gradient flow, memory efficiency
+- Test: Parameter updates, gradient accumulation, memory leaks
 
-4. REQ-S93-004 (Selective Test Smoke): A focused nextest shard (small, pre-defined test set for the module) must pass in CI for migrated modules (each shard ≤30s wall-time).
-   - Verification: CI job artifact contains nextest shard output; failures block merge.
+**SRS-NN-MODULE-003**: Module composition
+- Input: Parent module with child modules
+- Output: Hierarchical module structure
+- Verification: Parameter propagation, gradient flow through hierarchy
+- Test: Nested modules, parameter sharing, forward/backward consistency
 
-5. REQ-S93-005 (No Regressions for Proptests): For any module with existing property tests, finite-difference gradient checks (1–3 deterministic samples with eps=1e-6) must pass for at least one representative op after migration.
-   - Verification: Automatable script runs finite-diff and compares analytic vs numeric grads within tolerance (|err| < 1e-4 for finite sample); failures trigger rollback and autograd triage.
+#### 3.5.2 Linear Layers
+**SRS-NN-LINEAR-001**: Linear transformation layer
+- Input: Input tensor [batch_size, input_features], weights [output_features, input_features], bias [output_features]
+- Output: Output tensor [batch_size, output_features] = input @ weights.T + bias
+- Verification: Matrix multiplication correctness, bias addition, gradient flow
+- Test: Forward pass numerical accuracy, backward pass gradient correctness
 
-6. REQ-S93-006 (Traceability & Standards): Each change related to behavioral requirements or verification references shall link to the parent SRS/ADR entry and cite verification method per IEEE 29148 practices.
-   - Verification: PR description includes SRS/ADR references and which REQ-S93-* items are satisfied.
+**SRS-NN-LINEAR-002**: Parameter initialization
+- Input: Layer dimensions and initialization scheme
+- Output: Properly initialized weights and biases
+- Verification: Xavier/Glorot, Kaiming/He, uniform/random initialization
+- Test: Initialization statistical properties, convergence impact
 
-Acceptance: The micro-sprint is accepted when all targeted modules meet REQ-S93-001..REQ-S93-004 and at least 50% of modules meet REQ-S93-005. Rejection or automatic halt if any halt gate in ADR-034 triggers.
+#### 3.5.3 Activation Functions
+**SRS-NN-ACTIVATION-001**: ReLU activation
+- Input: Tensor of any shape
+- Output: max(0, input) element-wise
+- Verification: Zero gradient for negative inputs, identity for positive
+- Test: Gradient correctness at zero boundary
 
-Notes:
-- Coverage measurement caveats (tarpaulin under-reporting for same-file tests) require empirical validation using deterministic test runs and per-test pass artifacts instead of relying solely on raw tarpaulin percentages [web:tarpaulin].
-- This addendum is intentionally compact and scoped for a single micro-sprint; broader SRS items (performance, cross-platform distribution, LLM hub) remain in main SRS.
+**SRS-NN-ACTIVATION-002**: Sigmoid activation
+- Input: Tensor of any shape
+- Output: 1 / (1 + exp(-input)) element-wise
+- Verification: Output in (0,1) range, gradient computation
+- Test: Numerical stability for large inputs
 
-## SRS-S94: Sprint 94 — NN API Migration Micro-sprint (Concise Requirements)
+**SRS-NN-ACTIVATION-003**: Tanh activation
+- Input: Tensor of any shape
+- Output: tanh(input) element-wise
+- Verification: Output in (-1,1) range, gradient computation
+- Test: Gradient correctness and numerical stability
 
-1. REQ-S94-001 (Automated-Reviewable Edits): All automated edits must be produced by a codemod dry-run and include per-file diffs attached to PRs. Verification: dry-run diffs + PR artifact present.
+#### 3.5.4 Loss Functions
+**SRS-NN-LOSS-001**: Mean Squared Error (MSE)
+- Input: predictions [batch_size, features], targets [batch_size, features]
+- Output: mean((predictions - targets)²) scalar loss
+- Verification: Gradient w.r.t. predictions = 2*(predictions - targets)/batch_size
+- Test: Gradient correctness, reduction behavior
 
-2. REQ-S94-002 (Compile-Delta Goal): Target a ≥30% reduction in `nn` crate compilation error count across the modules scoped to the micro-sprint. Verification: `cargo check` error counts before/after logged in sprint artifact.
+**SRS-NN-LOSS-002**: Cross-entropy loss
+- Input: logits [batch_size, num_classes], targets [batch_size] (class indices)
+- Output: Negative log likelihood loss
+- Verification: Softmax normalization, gradient computation
+- Test: Numerical stability, gradient flow
 
-3. REQ-S94-003 (Local Quality Gates): Each module PR must pass local `cargo check` and `clippy -D warnings` for changed files; CI must run a nextest smoke shard (≤30s) for the module. Verification: gate logs included in PR.
+### 3.6 JIT Compilation Requirements
 
-4. REQ-S94-004 (Finite-Diff Sanity): For any module touching autograd-relevant code, run 1–3 finite-difference gradient checks (deterministic seeds, eps=1e-6). Verification: analytic vs numeric error |err| < 1e-4 for sampled inputs; failures block merge.
+#### 3.6.1 Graph Construction
+**SRS-JIT-GRAPH-001**: Computational graph building
+- Input: PyTorch operations with requires_grad=true
+- Output: Optimized computation graph with fusion opportunities
+- Verification: Memory-efficient graph representation, operator fusion detection
+- Test: Graph construction performance, memory usage scaling
 
-5. REQ-S94-005 (Traceability): All changes must reference ADR-034/ADR-035 and the SRS-S94 addendum in PR descriptions. Verification: PR templates enforce ADR/SRS links and checklist items.
+**SRS-JIT-GRAPH-002**: Graph optimization passes
+- Input: Raw computation graph
+- Output: Optimized graph with fused operations and eliminated redundancies
+- Verification: Dead code elimination, constant folding, common subexpression elimination
+- Test: Optimization pass correctness, performance improvements
 
-6. REQ-S94-006 (Rollback Policy): If a module PR increases net-critical compile errors or produces clippy `-D warnings`, revert the codemod commit and open immediate triage with root-cause analysis. Verification: revert commit and triage ticket created.
+#### 3.6.2 Kernel Fusion
+**SRS-JIT-FUSION-001**: Operator fusion detection
+- Input: Computation graph with adjacent operations
+- Output: Fused kernel specifications for combined operations
+- Verification: Fusion opportunity identification, memory layout compatibility
+- Test: Fusion decision correctness, performance validation
 
-Acceptance: Micro-sprint considered accepted when all targeted modules meet REQ-S94-001..REQ-S94-003 and at least 50% meet REQ-S94-004.
+**SRS-JIT-FUSION-002**: Fused kernel generation
+- Input: Fusion specification (sequence of operations)
+- Output: Optimized kernel implementation with reduced memory accesses
+- Verification: Correctness preservation, memory coalescing, instruction-level parallelism
+- Test: Numerical accuracy, performance benchmarks vs unfused operations
+
+#### 3.6.3 Just-In-Time Compilation
+**SRS-JIT-COMP-001**: Dynamic kernel compilation
+- Input: Fused operation specification
+- Output: Compiled machine code for target architecture
+- Verification: Runtime compilation correctness, cross-platform compatibility
+- Test: Compilation time, execution performance, code cache management
+
+**SRS-JIT-COMP-002**: Architecture-specific optimization
+- Input: Target hardware characteristics (SIMD width, cache sizes, etc.)
+- Output: Hardware-optimized kernel variants
+- Verification: Runtime feature detection, optimal code path selection
+- Test: Performance scaling across different architectures
+
+#### 3.6.4 TorchScript Compatibility
+**SRS-JIT-TS-001**: TorchScript tracing mode
+- Input: PyTorch nn.Module with forward method
+- Output: Traced computation graph compatible with TorchScript
+- Verification: torch.jit.trace() API compatibility, graph serialization
+- Test: Model tracing correctness, inference performance preservation
+
+**SRS-JIT-TS-002**: TorchScript scripting mode
+- Input: PyTorch nn.Module with @torch.jit.script decorator
+- Output: Directly compiled computation graph from Python code
+- Verification: Python AST parsing, graph construction from scripted functions
+- Test: Script compilation correctness, optimization pass compatibility
+
+#### 3.6.5 Dynamic Shape Handling
+**SRS-JIT-DYNAMIC-001**: Shape polymorphism
+- Input: Computation graph with dynamic tensor dimensions
+- Output: Shape-specialized kernels for different input shapes
+- Verification: Shape inference, specialization correctness, cache efficiency
+- Test: Variable batch size handling, memory allocation optimization
+
+**SRS-JIT-DYNAMIC-002**: Shape specialization
+- Input: Dynamic shape tensor operations
+- Output: Multiple specialized kernels for common shape patterns
+- Verification: Specialization decision logic, kernel selection overhead
+- Test: Shape distribution analysis, specialization benefit measurement
+
+#### 3.6.6 Memory Pool Optimization
+**SRS-JIT-MEM-001**: Memory arena allocation
+- Input: Computation graph with intermediate tensor requirements
+- Output: Optimized memory layout with minimal allocations
+- Verification: Memory reuse analysis, arena allocation efficiency
+- Test: Memory usage reduction, allocation overhead elimination
+
+**SRS-JIT-MEM-002**: Tensor lifetime analysis
+- Input: Computation graph with tensor dependencies
+- Output: Memory reuse schedule for intermediate tensors
+- Verification: Lifetime analysis correctness, memory safety preservation
+- Test: Peak memory usage optimization, garbage collection elimination
+
+#### 3.6.7 Model Hub Integration
+**SRS-HUB-REG-001**: Model registry and discovery
+- Input: Model name/identifier and optional version constraints
+- Output: Model metadata including architecture, parameters, and performance metrics
+- Verification: Registry consistency, metadata accuracy, version resolution
+- Test: Model discovery, version selection, metadata validation
+
+**SRS-HUB-LOAD-001**: Pretrained model loading
+- Input: Model identifier and configuration options
+- Output: Initialized neural network with pretrained weights
+- Verification: Weight loading correctness, architecture reconstruction
+- Test: Model instantiation, weight verification, inference correctness
+
+**SRS-HUB-CACHE-001**: Model caching and storage
+- Input: Downloaded model files and metadata
+- Output: Local cache with automatic cleanup and version management
+- Verification: Cache consistency, storage efficiency, corruption detection
+- Test: Cache hit/miss handling, storage management, cleanup policies
+
+**SRS-HUB-VALIDATE-001**: Model validation and verification
+- Input: Loaded model and validation dataset
+- Output: Performance metrics and validation results
+- Verification: Metric calculation accuracy, validation completeness
+- Test: Performance benchmarking, validation pipeline, metric reporting
+
+### 3.8 Ecosystem Integration Requirements
+
+#### 3.8.1 ONNX Export/Import
+**SRS-ONNX-EXPORT-001**: Model export to ONNX format
+- Input: Coeus neural network model
+- Output: ONNX protocol buffer file
+- Verification: ONNX schema compliance, operator compatibility
+- Test: Export validation, ONNX runtime inference equivalence
+
+**SRS-ONNX-IMPORT-001**: Model import from ONNX format
+- Input: ONNX protocol buffer file
+- Output: Coeus neural network model
+- Verification: Operator mapping correctness, shape preservation
+- Test: Import validation, inference result equivalence
+
+#### 3.7.2 SafeTensors Support
+**SRS-SAFETENSORS-EXPORT-001**: Safe tensor serialization
+- Input: Model parameters and metadata
+- Output: SafeTensors format file
+- Verification: Memory safety, corruption detection, cross-platform compatibility
+- Test: Round-trip fidelity, file integrity validation
+
+**SRS-SAFETENSORS-IMPORT-001**: Safe tensor deserialization
+- Input: SafeTensors format file
+- Output: Model parameters and metadata
+- Verification: Memory safety, validation completeness
+- Test: Import correctness, parameter reconstruction
+
+#### 3.7.3 External Hub Integration
+**SRS-EXTERNAL-HUB-001**: HuggingFace Hub connectivity
+- Input: Model identifier and authentication
+- Output: Downloaded model artifacts
+- Verification: API compatibility, download reliability
+- Test: Model retrieval, authentication handling
+
+**SRS-EXTERNAL-HUB-002**: Model repository management
+- Input: Model metadata and artifacts
+- Output: Published model repository
+- Verification: Metadata accuracy, artifact integrity
+- Test: Publishing workflow, repository accessibility
+
+#### 3.7.4 Model Profiling Tools
+**SRS-PROFILING-PERF-001**: Performance profiling
+- Input: Model and input data
+- Output: Performance metrics (latency, throughput, memory usage)
+- Verification: Measurement accuracy, benchmark consistency
+- Test: Profiling correctness, metric validation
+
+**SRS-PROFILING-ANALYSIS-001**: Model analysis tools
+- Input: Model architecture
+- Output: Complexity metrics (parameter count, FLOPs, memory requirements)
+- Verification: Calculation accuracy, analysis completeness
+- Test: Analysis validation, metric correctness
+
+#### 3.7.5 Quantization Workflows
+**SRS-QUANTIZATION-WORKFLOW-001**: Automated quantization pipeline
+- Input: FP32 model and quantization configuration
+- Output: Quantized model with calibration data
+- Verification: Accuracy preservation, compression effectiveness
+- Test: Quantization quality, inference correctness
+
+**SRS-QUANTIZATION-OPTIMIZATION-001**: Quantization-aware training support
+- Input: Model and QAT configuration
+- Output: Quantization-aware trained model
+- Verification: Training stability, accuracy maintenance
+- Test: QAT convergence, quantized accuracy
+
+### 3.7 Python Bindings Requirements
+
+#### 3.7.1 API Compatibility
+**SRS-PYTHON-API-001**: PyTorch-compatible imports
+- Verification: `import torch` works identically
+- Test: Existing PyTorch code runs without modification
+
+#### 3.7.2 Maturin Integration
+**SRS-PYTHON-BUILD-001**: Wheel generation
+- Input: Rust crates
+- Output: Python wheels for all platforms
+- Verification: pip install compatibility
+- Test: Multi-platform wheel validation
+
+## 4. Non-Functional Requirements
+
+### 4.1 Performance Requirements
+
+#### 4.1.1 Memory Efficiency
+**SRS-PERF-MEM-001**: Memory usage
+- Constraint: <110% of PyTorch memory usage
+- Verification: Heap profiling
+- Test: Memory leak detection
+
+#### 4.1.2 Computational Performance
+**SRS-PERF-COMP-001**: Arithmetic operations
+- Constraint: >95% of PyTorch performance
+- Verification: Benchmark suite
+- Test: Regression detection
+
+#### 4.1.3 Startup Time
+**SRS-PERF-START-001**: Import time
+- Constraint: <2x PyTorch import time
+- Verification: Cold start measurement
+- Test: Lazy loading optimization
+
+### 4.2 Safety Requirements
+
+#### 4.2.1 Memory Safety
+**SRS-SAFE-MEM-001**: No memory violations
+- Verification: Miri validation
+- Test: Address sanitizer compatibility
+- Constraint: Zero unsafe code in public APIs
+
+#### 4.2.2 Thread Safety
+**SRS-SAFE-THREAD-001**: Concurrent execution
+- Verification: Send + Sync bounds
+- Test: Thread sanitizer validation
+- Constraint: Race-free parallel execution
+
+#### 4.2.3 Type Safety
+**SRS-SAFE-TYPE-001**: Compile-time guarantees
+- Verification: Type system enforcement
+- Test: Generic parameter validation
+- Constraint: No runtime type errors
+
+### 4.3 Reliability Requirements
+
+#### 4.3.1 Error Handling
+**SRS-REL-ERR-001**: Comprehensive error types
+- Verification: Typed error enums
+- Test: Error message clarity
+- Constraint: No panics in public APIs
+
+#### 4.3.2 Numerical Stability
+**SRS-REL-NUM-001**: Precision preservation
+- Verification: Kahan summation algorithms
+- Test: Ill-conditioned matrix handling
+- Constraint: Better numerical stability than PyTorch
+
+### 4.4 Maintainability Requirements
+
+#### 4.4.1 Code Quality
+**SRS-MAINT-CODE-001**: Clippy compliance
+- Verification: Zero clippy warnings
+- Test: CI pipeline enforcement
+- Constraint: Strict coding standards
+
+#### 4.4.2 Documentation
+**SRS-MAINT-DOCS-001**: Comprehensive docs
+- Verification: 100% public API documentation
+- Test: Doc test execution
+- Constraint: Inline mathematical formulations
+
+#### 4.4.3 Test Coverage
+**SRS-MAINT-TEST-001**: Code coverage
+- Constraint: >95% branch coverage
+- Verification: Tarpaulin reports
+- Test: Coverage regression detection
+
+### 4.5 Usability Requirements
+
+#### 4.5.1 API Ergonomics
+**SRS-USABILITY-API-001**: Intuitive API design
+- Verification: PyTorch compatibility
+- Test: Developer experience surveys
+- Constraint: Zero breaking changes from PyTorch
+
+#### 4.5.2 Error Messages
+**SRS-USABILITY-ERR-001**: Clear error reporting
+- Verification: Context-rich error messages
+- Test: Error comprehension validation
+- Constraint: Actionable error information
+
+#### 4.5.3 Data Loading Utilities
+**SRS-USABILITY-DATA-001**: Dataset abstraction
+- Verification: PyTorch-compatible Dataset trait with len() and get_item() methods
+- Test: Custom dataset implementations work seamlessly
+- Constraint: Zero-copy data access where possible
+
+**SRS-USABILITY-DATA-002**: DataLoader iteration
+- Verification: Batched, shuffled data iteration with configurable batch size
+- Test: Memory-efficient batching and shuffling performance
+- Constraint: Multi-threaded loading without data races
+
+## 5. Interface Requirements
+
+### 5.1 User Interfaces
+- Command-line interface for model training/inference
+- Python API matching PyTorch exactly
+- Rust API for systems programming integration
+
+### 5.2 Hardware Interfaces
+- CPU: Native instruction sets with SIMD
+- GPU: Vulkan 1.2+ / Metal 2.0+ / DX12
+- NPU: Future extensibility hooks
+
+### 5.3 Software Interfaces
+- Python: Maturin-based bindings
+- Rust: Direct crate dependencies
+- ONNX: Model serialization format
+- CUDA/cuDNN: Performance reference (optional)
+
+### 5.4 Data Loading Interface Requirements
+
+#### 5.4.1 Dataset Interface
+- **Dataset Trait**: `trait Dataset<T> { fn len(&self) -> usize; fn get(&self, index: usize) -> Result<T>; }`
+- **Index-based Access**: Efficient random access to individual samples
+- **Type Safety**: Generic sample type T for flexible data representations
+- **Memory Efficiency**: Lazy loading and zero-copy operations where possible
+
+#### 5.4.2 DataLoader Interface
+- **Iterator Pattern**: `struct DataLoader<D, T> { dataset: D, batch_size: usize, shuffle: bool }`
+- **Batching**: Automatic grouping of samples into batches
+- **Shuffling**: Configurable random permutation for training
+- **Multi-threading**: Parallel data loading and preprocessing
+- **Memory Management**: Efficient batch allocation and reuse
+
+#### 5.4.3 Sampler Interface
+- **Sampler Trait**: `trait Sampler { fn next(&mut self) -> Option<usize>; fn reset(&mut self); }`
+- **SequentialSampler**: Deterministic iteration order
+- **RandomSampler**: Random permutation with replacement control
+- **BatchSampler**: Groups individual indices into batch indices
+- **DistributedSampler**: Multi-process training support
+
+#### 5.4.4 Common Datasets
+- **TensorDataset**: In-memory tensor data storage
+- **MNIST**: Handwritten digit recognition dataset
+- **CIFAR-10/100**: Image classification datasets
+- **ImageFolder**: File system-based image dataset
+- **Custom Dataset Support**: Easy extensibility for domain-specific datasets
+
+## 6. Verification and Validation
+
+### 6.1 Testing Strategy
+- **Unit Tests**: Individual function correctness
+- **Integration Tests**: Component interaction
+- **Property Tests**: Invariant validation via proptest
+- **Performance Tests**: Benchmark regression detection
+- **Compatibility Tests**: PyTorch API validation
+
+### 6.2 Validation Methods
+- **Formal Verification**: Miri for UB detection
+- **Numerical Validation**: Gradient checking algorithms
+- **Performance Validation**: Statistical benchmarking
+- **Compatibility Validation**: Automated API testing
+
+## 7. Appendices
+
+### 7.1 PyTorch API Compatibility Matrix
+See separate compatibility document for detailed API mapping.
+
+### 7.2 Performance Benchmarks
+Target performance metrics vs PyTorch baselines.
+
+### 7.3 Safety Analysis
+Detailed safety guarantees and threat model.
+

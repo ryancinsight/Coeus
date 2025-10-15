@@ -1,53 +1,94 @@
 [workspace]
 members = [
-    "backend",
+    "coeus-error",
     "dtype",
-    "examples",
-    "fft",
-    "hub",
-    "models",
+    "storage",
+    "backend",
+    "tensor",
+    "autograd",
     "nn",
     "optim",
-    "pycoeus",
-    "storage",
-    "tensor",
+    "utils",
     "tokenizer",
-    "utils"
+    # "pycoeus",  # Temporarily excluded for NN decoupling testing
+    # "examples",  # Temporarily excluded for NN decoupling testing
+    # "profiling",  # Temporarily excluded for NN decoupling testing
+    # "distributed",  # Temporarily excluded for NN decoupling testing
+    # "jit",  # Temporarily excluded for NN decoupling testing
+    # "hub",  # Temporarily excluded for NN decoupling testing
 ]
-exclude = [
-    "autograd"  # TEMPORARILY EXCLUDED - needs major refactor
-]
+
 resolver = "2"
+
+[workspace.dependencies]
+# Core numeric traits
+num-traits = { version = "0.2", default-features = false, features = ["libm"] }
+num-complex = { version = "0.4", default-features = false }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Math functions (no_std compatible)
+libm = "0.2"
+
+# Half precision types
+half = { version = "2.3" }
+
+# Safe casting between byte arrays and other types
+bytemuck = { version = "1.14", features = ["derive"] }
+
+# Development dependencies
+proptest = "1.0"
+criterion = "0.5"
+approx = "0.5"
+tracing-test = "0.2"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["Ryan Clanton <ryancinsight@gmail.com>"]
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/your-org/coeus"
+license = "Apache-2.0"
+authors = ["Ryan Clanton"]
+repository = "https://github.com/ryancinsight/coeus"
+homepage = "https://github.com/ryancinsight/coeus"
+rust-version = "1.70"
 
-[workspace.dependencies]
-num-traits = "0.2.18"
-num-complex = "0.4.5"
-thiserror = "1.0.64"
-anyhow = "1.0.86"
-parking_lot = "0.12.3"
-crossbeam = "0.8.4"
-rayon = "1.10.0"
-serde = { version = "1.0.210", features = ["derive"] }
-tracing = "0.1.40"
-tokio = { version = "1.40.0", features = ["full"] }
-approx = "0.5"
-async-trait = "0.1"
-half = { version = "2.1", features = ["num-traits"] }
-rand = "0.8"
-rand_distr = "0.4"
-criterion = { version = "0.5", features = ["html_reports"] }
-rustfft = "6.1"
-coeus-dtype = { path = "./dtype" }
-coeus-backend = { path = "./backend" }
-coeus-storage = { path = "./storage" }
-coeus-tensor = { path = "./tensor" }
-coeus-nn = { path = "./nn" }
-coeus-hub = { path = "./hub" }
-coeus-models = { path = "./models" }
+# Build optimization profiles for performance and size
+[profile.release]
+# Enable link-time optimization for better performance
+lto = true
+# Optimize for size while maintaining performance
+opt-level = 3
+# Strip debug symbols from release builds
+strip = true
+# Enable panic unwinding for better error messages
+panic = "unwind"
+# Generate debug info for profiling
+debug = false
+
+[profile.bench]
+# Same as release but with debug info for profiling
+inherits = "release"
+debug = true
+strip = false
+
+[profile.dev]
+# Faster compilation during development
+opt-level = 0
+# Enable debug assertions
+debug = true
+# Use panic unwinding for better error messages
+panic = "unwind"
+
+

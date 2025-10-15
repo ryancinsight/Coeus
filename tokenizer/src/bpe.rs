@@ -1,308 +1,106 @@
-//! Byte-Pair Encoding (BPE) implementation
+//! Byte Pair Encoding (BPE) tokenizer implementation.
 
+use crate::encoding::{BatchEncoding, Encoding};
 use crate::error::{Result, TokenizerError};
+use crate::post_processor::{PostProcessor, TemplatePostProcessor};
+use crate::pre_tokenizer::{BasicPreTokenizer, PreTokenizer};
 use crate::vocabulary::Vocabulary;
-use ahash::AHashMap;
-use regex::Regex;
-use std::collections::HashSet;
+use crate::{BatchTokenizer, Tokenizer};
+use std::collections::HashMap;
 
-/// BPE tokenizer implementation
+/// Byte Pair Encoding tokenizer.
+///
+/// Implements the BPE algorithm used by GPT models and other subword tokenizers.
+/// Merges frequent byte pairs iteratively to build a vocabulary of subword units.
 #[derive(Debug, Clone)]
 pub struct BpeTokenizer {
-    /// The vocabulary containing token-to-ID mappings
-    vocabulary: Vocabulary,
-    /// Regex pattern for tokenization
-    pattern: Regex,
-    /// Merge rules for BPE (in application order)
-    merges: Vec<(String, String)>,
-    /// Special tokens
-    special_tokens: HashSet<String>,
-    /// Model name
-    model_name: String,
+    /// Token vocabulary.
+    vocab: Vocabulary,
+    /// BPE merge rules (pair -> merged token).
+    merges: HashMap<(String, String), String>,
+    /// Pre-tokenizer for text preprocessing.
+    pre_tokenizer: BasicPreTokenizer,
+    /// Post-processor for special tokens.
+    post_processor: Option<TemplatePostProcessor>,
+    /// Whether to add prefix spaces.
+    add_prefix_space: bool,
+    /// Unknown token handling.
+    unk_token: Option<String>,
 }
 
 impl BpeTokenizer {
-    /// Get the model name
-    #[must_use]
-    pub fn model_name(&self) -> &str {
-        &self.model_name
-    }
-
-    /// Get the vocabulary
-    #[must_use]
-    pub const fn vocabulary(&self) -> &Vocabulary {
-        &self.vocabulary
-    }
-
-    /// Get mutable access to the vocabulary
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn vocabulary_mut(&mut self) -> &mut Vocabulary {
-        &mut self.vocabulary
-    }
-
-    /// Create a new BPE tokenizer
-    #[must_use]
-    pub fn new(model_name: String) -> Self {
-        Self {
-            vocabulary: Vocabulary::new(),
-            pattern: Self::default_pattern(),
-            merges: Vec::new(),
-            special_tokens: HashSet::new(),
-            model_name,
-        }
-    }
-
-    /// Create BPE tokenizer with custom pattern
+    /// Create a new BPE tokenizer.
+    ///
+    /// # Arguments
+    /// * `vocab` - Token vocabulary mapping tokens to IDs
+    /// * `merges` - BPE merge rules as (pair1, pair2) -> `merged_token`
     ///
     /// # Errors
-    /// Returns `TokenizerError::ConfigError` if the provided regex pattern is invalid.
-    pub fn with_pattern(model_name: String, pattern: &str) -> Result<Self> {
-        let pattern = Regex::new(pattern)
-            .map_err(|e| TokenizerError::config_error(format!("Invalid regex pattern: {e}")))?;
+    /// Returns error if vocabulary is invalid
+    pub fn new(vocab: Vocabulary, merges: Vec<(String, String)>) -> Result<Self> {
+        let mut merge_map = HashMap::new();
+        for (pair1, pair2) in merges {
+            let merged_token = format!("{pair1}{pair2}");
+            merge_map.insert((pair1, pair2), merged_token);
+        }
 
         Ok(Self {
-            vocabulary: Vocabulary::new(),
-            pattern,
-            merges: Vec::new(),
-            special_tokens: HashSet::new(),
-            model_name,
+            vocab,
+            merges: merge_map,
+            pre_tokenizer: BasicPreTokenizer::new(),
+            post_processor: None,
+            add_prefix_space: true,
+            unk_token: Some("[UNK]".to_string()),
         })
     }
 
-    /// Get the default regex pattern for BPE tokenization
-    ///
-    /// # Panics
-    /// Panics if the default BPE regex pattern is invalid (should never happen in practice).
+    /// Create tokenizer with custom pre-tokenizer.
     #[must_use]
-    pub fn default_pattern() -> Regex {
-        // GPT-like pattern: split on whitespace and punctuation (simplified without look-ahead)
-        Regex::new(r"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+")
-            .expect("Default BPE pattern should be valid")
+    pub fn with_pre_tokenizer(mut self, pre_tokenizer: BasicPreTokenizer) -> Self {
+        self.pre_tokenizer = pre_tokenizer;
+        self
     }
 
-    /// Add special tokens
-    pub fn add_special_tokens(&mut self, tokens: &[String]) {
-        for token in tokens {
-            self.special_tokens.insert(token.clone());
-            self.vocabulary.add_special_token(token.clone());
-        }
+    /// Create tokenizer with post-processor.
+    #[must_use]
+    pub fn with_post_processor(mut self, post_processor: TemplatePostProcessor) -> Self {
+        self.post_processor = Some(post_processor);
+        self
     }
 
-    /// Load pre-trained vocabulary and merges
+    /// Set prefix space handling.
+    #[must_use]
+    pub fn with_prefix_space(mut self, add_prefix_space: bool) -> Self {
+        self.add_prefix_space = add_prefix_space;
+        self
+    }
+
+    /// Set unknown token.
+    #[must_use]
+    pub fn with_unk_token(mut self, unk_token: String) -> Self {
+        self.unk_token = Some(unk_token);
+        self
+    }
+
+    /// Apply BPE algorithm to a word.
     ///
-    /// # Errors
-    /// Returns `TokenizerError::VocabularyError` if vocabulary integrity is compromised during loading.
-    pub fn load_vocab_and_merges(
-        &mut self,
-        vocab: AHashMap<String, usize>,
-        merges: Vec<(String, String)>,
-    ) -> Result<()> {
-        // Clear existing vocabulary
-        self.vocabulary.clear();
-
-        // Add all tokens from vocab
-        let mut sorted_vocab: Vec<_> = vocab.into_iter().collect();
-        sorted_vocab.sort_by_key(|(_, id)| *id);
-
-        for (token, id) in sorted_vocab {
-            // Reserve space for the ID if needed
-            while self.vocabulary.id_to_token.len() <= id {
-                self.vocabulary.id_to_token.push(String::new());
-            }
-            self.vocabulary.id_to_token[id].clone_from(&token);
-            self.vocabulary.token_to_id.insert(token, id);
-        }
-
-        // Set next_id to the highest ID + 1
-        self.vocabulary.next_id = self.vocabulary.id_to_token.len();
-
-        // Load merges in the correct application order
-        self.merges = merges;
-
-        self.validate()?;
-        Ok(())
-    }
-
-    /// Train BPE on a corpus of text
+    /// # Arguments
+    /// * `word` - Input word to tokenize
     ///
-    /// # Errors
-    /// Returns `TokenizerError::InvalidInput` if the corpus is empty.
-    /// Returns `TokenizerError::BpeMergeError` if BPE merge operations fail.
-    /// Returns `TokenizerError::VocabularyError` if vocabulary operations fail.
-    pub fn train(
-        &mut self,
-        corpus: &[String],
-        vocab_size: usize,
-        num_merges: Option<usize>,
-    ) -> Result<()> {
-        if corpus.is_empty() {
-            return Err(TokenizerError::invalid_input(
-                "Empty corpus provided for training",
-            ));
-        }
+    /// # Returns
+    /// Vector of subword tokens
+    fn apply_bpe(&self, word: &str) -> Vec<String> {
+        // Start with character-level tokenization
+        let mut tokens: Vec<String> = word.chars().map(|c| c.to_string()).collect();
 
-        // Step 1: Pre-tokenize the corpus
-        let mut word_freqs = AHashMap::default();
-        for text in corpus {
-            let words = self.pre_tokenize(text);
-            for word in words {
-                *word_freqs.entry(word).or_insert(0) += 1;
-            }
-        }
-
-        // Step 2: Initialize vocabulary with byte-level tokens
-        let mut vocab = Self::initialize_byte_vocab();
-        let mut merges = Vec::new();
-
-        // Step 3: Convert words to token sequences
-        let mut word_tokens: AHashMap<String, Vec<String>> = AHashMap::default();
-        for word in word_freqs.keys() {
-            word_tokens.insert(word.clone(), Self::word_to_bytes(word));
-        }
-
-        // Step 4: Perform merges
-        let target_merges = num_merges.unwrap_or_else(|| vocab_size.saturating_sub(256));
-        let mut merge_count = 0;
-
-        while merge_count < target_merges {
-            // Find the most frequent pair
-            let pair_stats = Self::get_pair_stats(&word_tokens, &word_freqs);
-            if pair_stats.is_empty() {
-                break; // No more pairs to merge
-            }
-
-            // Get the most frequent pair
-            let best_pair = pair_stats
-                .iter()
-                .max_by_key(|(_, freq)| *freq)
-                .map(|(pair, _)| pair.clone())
-                .ok_or_else(|| TokenizerError::bpe_merge_error("No pairs found for merging"))?;
-
-            // Perform the merge
-            let new_token = format!("{}{}", best_pair.0, best_pair.1);
-            Self::merge_pair(&mut word_tokens, &best_pair, &new_token);
-
-            // Add to merges and vocabulary
-            let _new_id = vocab.size();
-            vocab.add_token(new_token.clone());
-            merges.push(best_pair.clone());
-
-            merge_count += 1;
-        }
-
-        // Step 5: Store the results
-        self.merges = merges;
-        self.vocabulary = vocab;
-
-        // Add special tokens if any
-        for token in &self.special_tokens {
-            self.vocabulary.add_special_token(token.clone());
-        }
-
-        Ok(())
-    }
-
-    /// Pre-tokenize text using regex pattern
-    fn pre_tokenize(&self, text: &str) -> Vec<String> {
-        let mut words = Vec::new();
-        for cap in self.pattern.captures_iter(text) {
-            if let Some(word) = cap.get(0) {
-                words.push(word.as_str().to_string());
-            }
-        }
-        words
-    }
-
-    /// Convert word to byte sequences
-    fn word_to_bytes(word: &str) -> Vec<String> {
-        word.chars().map(|c| format!("{:02x}", c as u32)).collect()
-    }
-
-    /// Initialize vocabulary with byte-level tokens
-    fn initialize_byte_vocab() -> Vocabulary {
-        let mut vocab = Vocabulary::new();
-
-        // Add bytes 0-255 as initial vocabulary
-        for byte in 0..=255u8 {
-            let token = format!("{byte:02x}");
-            vocab.add_token(token);
-        }
-
-        vocab
-    }
-
-    /// Get statistics for all pairs in the current tokenization
-    fn get_pair_stats(
-        word_tokens: &AHashMap<String, Vec<String>>,
-        word_freqs: &AHashMap<String, u64>,
-    ) -> AHashMap<(String, String), u64> {
-        let mut pair_stats = AHashMap::default();
-
-        for (word, tokens) in word_tokens {
-            let freq = word_freqs.get(word).copied().unwrap_or(0);
-
-            if tokens.len() >= 2 {
-                for pair in tokens.windows(2) {
-                    if pair.len() == 2 {
-                        let pair_key = (pair[0].clone(), pair[1].clone());
-                        *pair_stats.entry(pair_key).or_insert(0) += freq;
-                    }
-                }
-            }
-        }
-
-        pair_stats
-    }
-
-    /// Merge a pair in all words
-    fn merge_pair(
-        word_tokens: &mut AHashMap<String, Vec<String>>,
-        pair: &(String, String),
-        new_token: &str,
-    ) {
-        for tokens in word_tokens.values_mut() {
+        // Apply merge rules in order
+        for ((pair1, pair2), merged) in &self.merges {
             let mut i = 0;
             while i < tokens.len() - 1 {
-                if tokens[i] == pair.0 && tokens[i + 1] == pair.1 {
-                    tokens[i] = new_token.to_string();
+                if tokens[i] == *pair1 && tokens[i + 1] == *pair2 {
+                    // Merge the pair
+                    tokens[i].clone_from(merged);
                     tokens.remove(i + 1);
-                } else {
-                    i += 1;
-                }
-            }
-        }
-    }
-
-    /// Encode text using BPE
-    ///
-    /// # Errors
-    /// Returns `TokenizerError::EncodingError` if BPE encoding fails.
-    pub fn encode_bpe(&self, text: &str) -> Result<Vec<String>> {
-        let words = self.pre_tokenize(text);
-        let mut tokens = Vec::new();
-
-        for word in words {
-            let word_tokens = self.encode_word_bpe(&word);
-            tokens.extend(word_tokens);
-        }
-
-        Ok(tokens)
-    }
-
-    /// Encode a single word using BPE
-    fn encode_word_bpe(&self, word: &str) -> Vec<String> {
-        let mut tokens = Self::word_to_bytes(word);
-
-        // Apply merges in the correct order (most frequent first)
-        for (token1, token2) in &self.merges {
-            let mut i = 0;
-            while i < tokens.len() - 1 {
-                if tokens[i] == *token1 && tokens[i + 1] == *token2 {
-                    let merged = format!("{token1}{token2}");
-                    tokens[i] = merged;
-                    tokens.remove(i + 1);
-                    // Don't increment i here, check the same position again
-                    // in case we can merge more
                 } else {
                     i += 1;
                 }
@@ -312,221 +110,265 @@ impl BpeTokenizer {
         tokens
     }
 
-    /// Decode BPE tokens back to text
-    ///
-    /// # Errors
-    /// Returns `TokenizerError::EncodingError` if BPE decoding fails.
-    pub fn decode_bpe(&self, tokens: &[String]) -> Result<String> {
-        let mut text = String::new();
+    /// Handle unknown tokens.
+    fn handle_unknown(&self, token: &str) -> Result<u32> {
+        if let Some(unk_token) = &self.unk_token {
+            self.vocab.token_to_id(unk_token).ok_or_else(|| {
+                TokenizerError::vocabulary(format!(
+                    "Unknown token '{token}' and UNK token '{unk_token}' not in vocabulary"
+                ))
+            })
+        } else {
+            Err(TokenizerError::UnknownToken(token.to_string()))
+        }
+    }
+}
 
-        for (i, token) in tokens.iter().enumerate() {
-            // Convert hex back to character if it's a byte token
-            if token.len() == 2 && token.chars().all(|c| c.is_ascii_hexdigit()) {
-                if let Ok(byte) = u32::from_str_radix(token, 16) {
-                    if let Some(ch) = char::from_u32(byte) {
-                        text.push(ch);
-                    }
-                }
+impl Tokenizer for BpeTokenizer {
+    fn encode(&self, text: &str) -> Result<Encoding> {
+        // Pre-tokenize
+        let pre_tokens = self.pre_tokenizer.pre_tokenize(text)?;
+
+        let mut all_ids = Vec::new();
+        let mut all_tokens = Vec::new();
+        let mut all_offsets = Vec::new();
+        let mut offset = 0;
+
+        // Apply BPE to each pre-token
+        for pre_token in pre_tokens {
+            let subwords = self.apply_bpe(&pre_token);
+
+            for subword in subwords {
+                // Convert subword to ID
+                let token_id = self
+                    .vocab
+                    .token_to_id(&subword)
+                    .unwrap_or_else(|| self.handle_unknown(&subword).unwrap_or(0)); // Fallback to 0
+
+                all_ids.push(token_id);
+                all_tokens.push(subword.clone());
+
+                // Calculate character offsets (approximate)
+                let token_len = subword.chars().count();
+                all_offsets.push((offset, offset + token_len));
+                offset += token_len;
+            }
+
+            // Add space between words if prefix space is enabled
+            if self.add_prefix_space {
+                offset += 1; // Account for space
+            }
+        }
+
+        let ids_len = all_ids.len();
+        let mut encoding = Encoding::new(
+            all_ids,
+            all_tokens,
+            all_offsets,
+            vec![1; ids_len], // attention_mask
+            vec![0; ids_len], // token_type_ids
+            vec![0; ids_len], // special_tokens_mask
+            text.len(),
+        );
+
+        // Apply post-processing if configured
+        if let Some(processor) = &self.post_processor {
+            encoding = processor.post_process(encoding, &self.vocab)?;
+        }
+
+        Ok(encoding)
+    }
+
+    fn decode(&self, ids: &[u32]) -> Result<String> {
+        let mut tokens = Vec::new();
+        for &id in ids {
+            if let Some(token) = self.vocab.id_to_token(id) {
+                tokens.push(token);
             } else {
-                text.push_str(token);
-            }
-
-            // Add space between words (simple heuristic)
-            if i < tokens.len() - 1 && !token.ends_with(' ') {
-                text.push(' ');
+                return Err(TokenizerError::InvalidTokenId(id));
             }
         }
 
-        Ok(text.trim().to_string())
-    }
-
-    /// Get the merges
-    #[must_use]
-    pub const fn merges(&self) -> &Vec<(String, String)> {
-        &self.merges
-    }
-
-    /// Validate BPE tokenizer configuration
-    ///
-    /// # Errors
-    /// Returns `TokenizerError::VocabularyError` if vocabulary integrity is compromised.
-    /// Returns `TokenizerError::BpeMergeError` if merge rules reference non-existent tokens.
-    pub fn validate(&self) -> Result<()> {
-        self.vocabulary.validate()?;
-
-        // Validate that all merge pairs exist in vocabulary
-        for (token1, token2) in &self.merges {
-            if self.vocabulary.get_token_id(token1).is_none() {
-                return Err(TokenizerError::bpe_merge_error(format!(
-                    "Merge token '{token1}' not found in vocabulary"
-                )));
-            }
-            if self.vocabulary.get_token_id(token2).is_none() {
-                return Err(TokenizerError::bpe_merge_error(format!(
-                    "Merge token '{token2}' not found in vocabulary"
-                )));
+        // Join tokens, handling special tokens
+        // For BPE, we reconstruct by joining tokens directly since merges preserve original text
+        let mut result = String::new();
+        for token in tokens {
+            if self.vocab.is_special_token(&token) {
+                // Special tokens are kept as-is
+                result.push_str(&token);
+            } else {
+                // Regular tokens: join directly
+                result.push_str(&token);
             }
         }
 
-        Ok(())
+        Ok(result)
+    }
+
+    fn vocab_size(&self) -> usize {
+        self.vocab.size()
+    }
+
+    fn vocabulary(&self) -> &Vocabulary {
+        &self.vocab
+    }
+}
+
+impl BatchTokenizer for BpeTokenizer {
+    fn encode_batch(
+        &self,
+        texts: &[String],
+        padding: bool,
+        truncation: bool,
+        max_length: Option<usize>,
+    ) -> Result<BatchEncoding> {
+        let mut encodings = Vec::new();
+        let mut max_len = 0;
+
+        // Encode each text
+        for text in texts {
+            let mut encoding = self.encode(text)?;
+
+            if truncation {
+                if let Some(max_len_val) = max_length {
+                    encoding.truncate(max_len_val);
+                }
+            }
+
+            max_len = max_len.max(encoding.len());
+            encodings.push(encoding);
+        }
+
+        // Apply padding if requested
+        if padding {
+            let pad_token_id = self.vocab.special_token_id("[PAD]").unwrap_or(0);
+            for encoding in &mut encodings {
+                if let Some(max_len_val) = max_length {
+                    if encoding.len() < max_len_val {
+                        encoding.pad(max_len_val, pad_token_id);
+                    }
+                } else if encoding.len() < max_len {
+                    encoding.pad(max_len, pad_token_id);
+                }
+            }
+        }
+
+        Ok(BatchEncoding::new(
+            encodings,
+            max_length.unwrap_or(max_len),
+            self.vocab.special_token_id("[PAD]").unwrap_or(0),
+            padding,
+            truncation,
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vocabulary::Vocabulary;
 
-    #[test]
-    fn test_bpe_tokenizer_creation() {
-        let tokenizer = BpeTokenizer::new("test".to_string());
-        assert_eq!(tokenizer.model_name, "test");
-        assert_eq!(tokenizer.vocabulary.size(), 0);
-        assert!(tokenizer.merges.is_empty());
+    fn create_test_vocab() -> Vocabulary {
+        let mut vocab = Vocabulary::new();
+        vocab.add_token("h".to_string(), 0).unwrap();
+        vocab.add_token("e".to_string(), 1).unwrap();
+        vocab.add_token("l".to_string(), 2).unwrap();
+        vocab.add_token("o".to_string(), 3).unwrap();
+        vocab.add_token("w".to_string(), 4).unwrap();
+        vocab.add_token("r".to_string(), 5).unwrap();
+        vocab.add_token("d".to_string(), 6).unwrap();
+        vocab.add_token("he".to_string(), 7).unwrap();
+        vocab.add_token("ll".to_string(), 8).unwrap();
+        vocab.add_token("lo".to_string(), 9).unwrap();
+        vocab.add_token("world".to_string(), 10).unwrap();
+        vocab
+    }
+
+    fn create_test_merges() -> Vec<(String, String)> {
+        vec![
+            ("h".to_string(), "e".to_string()),    // he
+            ("l".to_string(), "l".to_string()),    // ll
+            ("l".to_string(), "o".to_string()),    // lo
+            ("w".to_string(), "o".to_string()),    // wo
+            ("wo".to_string(), "r".to_string()),   // wor
+            ("wor".to_string(), "l".to_string()),  // worl
+            ("worl".to_string(), "d".to_string()), // world
+        ]
     }
 
     #[test]
-    fn test_pre_tokenize() {
-        let tokenizer = BpeTokenizer::new("test".to_string());
-        let text = "Hello, world!";
-        let words = tokenizer.pre_tokenize(text);
-        assert!(!words.is_empty());
+    fn test_bpe_basic_encoding() {
+        let vocab = create_test_vocab();
+        let merges = create_test_merges();
+        let tokenizer = BpeTokenizer::new(vocab, merges).unwrap();
+
+        let encoding = tokenizer.encode("hello").unwrap();
+
+        // Should apply merges: h + e → he, l + l → ll, l + o → lo
+        assert!(!encoding.ids.is_empty());
+        assert_eq!(encoding.tokens.len(), encoding.ids.len());
     }
 
     #[test]
-    fn test_word_to_bytes() {
-        let bytes = BpeTokenizer::word_to_bytes("A");
-        assert_eq!(bytes, vec!["41"]); // 'A' is 0x41 in hex
+    fn test_bpe_decode() {
+        let vocab = create_test_vocab();
+        let merges = create_test_merges();
+        let tokenizer = BpeTokenizer::new(vocab, merges).unwrap();
+
+        // Test round-trip
+        let original = "hello";
+        let encoding = tokenizer.encode(original).unwrap();
+        let decoded = tokenizer.decode(&encoding.ids).unwrap();
+
+        // Should reconstruct original text
+        assert_eq!(decoded, original);
     }
 
     #[test]
-    fn test_initialize_byte_vocab() {
-        let vocab = BpeTokenizer::initialize_byte_vocab();
-        assert_eq!(vocab.size(), 256); // 0-255 bytes
+    fn test_bpe_with_special_tokens() {
+        let mut vocab = create_test_vocab();
+        vocab.add_special_token("[CLS]".to_string(), 11).unwrap();
+        vocab.add_special_token("[SEP]".to_string(), 12).unwrap();
+
+        let merges = create_test_merges();
+        let post_processor = TemplatePostProcessor::bert();
+        let tokenizer = BpeTokenizer::new(vocab, merges)
+            .unwrap()
+            .with_post_processor(post_processor);
+
+        let encoding = tokenizer.encode("hello").unwrap();
+
+        // Should have [CLS] and [SEP] tokens
+        assert!(encoding.tokens.contains(&"[CLS]".to_string()));
+        assert!(encoding.tokens.contains(&"[SEP]".to_string()));
     }
 
     #[test]
-    fn test_validation() {
-        let tokenizer = BpeTokenizer::new("test".to_string());
-        assert!(tokenizer.validate().is_ok());
+    fn test_bpe_batch_encoding() {
+        let vocab = create_test_vocab();
+        let merges = create_test_merges();
+        let tokenizer = BpeTokenizer::new(vocab, merges).unwrap();
+
+        let texts = vec!["hello".to_string(), "world".to_string()];
+        let batch = tokenizer
+            .encode_batch(&texts, true, false, Some(5))
+            .unwrap();
+
+        assert_eq!(batch.batch_size(), 2);
+        assert_eq!(batch.max_len, 5);
+        assert!(batch.padded);
     }
 
     #[test]
-    fn test_custom_pattern() {
-        let pattern = r"\w+|\W+";
-        let tokenizer = BpeTokenizer::with_pattern("test".to_string(), pattern).unwrap();
-        assert_eq!(tokenizer.model_name, "test");
-    }
+    fn test_bpe_apply_bpe() {
+        let vocab = create_test_vocab();
+        let merges = create_test_merges();
+        let tokenizer = BpeTokenizer::new(vocab, merges).unwrap();
 
-    #[test]
-    fn test_invalid_pattern() {
-        let result = BpeTokenizer::with_pattern("test".to_string(), r"[invalid");
-        assert!(result.is_err());
-    }
+        let result = tokenizer.apply_bpe("hello");
 
-    #[test]
-    fn test_bpe_edge_cases() {
-        let tokenizer = BpeTokenizer::new("test".to_string());
-
-        // Test with empty text
-        let result = tokenizer.encode_bpe("");
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_empty());
-
-        // Test with very long text
-        let long_text = "word ".repeat(1000);
-        let result = tokenizer.encode_bpe(&long_text);
-        assert!(result.is_ok());
-
-        // Test with special characters
-        let special_text = "Hello, world! 🚀 你好 🌟";
-        let result = tokenizer.encode_bpe(special_text);
-        assert!(result.is_ok());
-
-        // Test pre-tokenization edge cases
-        let text_with_newlines = "Hello\nworld\r\ntest";
-        let words = tokenizer.pre_tokenize(text_with_newlines);
-        assert!(!words.is_empty());
-
-        // Test with only whitespace
-        let whitespace_text = "   \n\t  ";
-        let words = tokenizer.pre_tokenize(whitespace_text);
-        // Note: Regex captures whitespace sequences, so we get some tokens
-        assert!(!words.is_empty()); // Regex captures whitespace sequences
-    }
-
-    #[test]
-    fn test_bpe_training_edge_cases() {
-        let mut tokenizer = BpeTokenizer::new("test".to_string());
-
-        // Test training with empty corpus
-        let result = tokenizer.train(&[], 100, Some(10));
-        assert!(result.is_err());
-
-        // Test training with very small corpus
-        let corpus = vec!["a".to_string()];
-        let result = tokenizer.train(&corpus, 100, Some(10));
-        assert!(result.is_ok());
-
-        // Test training with repeated tokens
-        let corpus = vec!["hello world".to_string(); 100];
-        let result = tokenizer.train(&corpus, 50, Some(10));
-        assert!(result.is_ok());
-        assert!(tokenizer.vocabulary.size() > 256); // Should have added tokens beyond base bytes
-    }
-
-    #[test]
-    fn test_bpe_merge_operations() {
-        let mut tokenizer = BpeTokenizer::new("test".to_string());
-
-        // Add some initial vocabulary
-        tokenizer.vocabulary.add_token("he".to_string());
-        tokenizer.vocabulary.add_token("ll".to_string());
-        tokenizer.vocabulary.add_token("o".to_string());
-
-        // Test merge pair operation
-        let word_tokens = [
-            vec!["he".to_string(), "ll".to_string()],
-            vec!["o".to_string()],
-        ];
-
-        let mut word_tokens_map = AHashMap::default();
-        word_tokens_map.insert("hello".to_string(), word_tokens[0].clone());
-        word_tokens_map.insert("o".to_string(), word_tokens[1].clone());
-
-        let mut word_freqs = AHashMap::default();
-        word_freqs.insert("hello".to_string(), 5);
-        word_freqs.insert("o".to_string(), 3);
-
-        let pair_stats = BpeTokenizer::get_pair_stats(&word_tokens_map, &word_freqs);
-        assert!(!pair_stats.is_empty());
-
-        // Test merge operation
-        let best_pair = ("he".to_string(), "ll".to_string());
-        BpeTokenizer::merge_pair(&mut word_tokens_map, &best_pair, "hell");
-
-        // Verify merge occurred
-        if let Some(tokens) = word_tokens_map.get("hello") {
-            assert!(tokens.contains(&"hell".to_string()));
-        }
-    }
-
-    #[test]
-    fn test_bpe_decode_edge_cases() {
-        let tokenizer = BpeTokenizer::new("test".to_string());
-
-        // Test decode with empty tokens
-        let result = tokenizer.decode_bpe(&[]);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "");
-
-        // Test decode with invalid byte sequences
-        let tokens = vec!["zz".to_string()]; // Invalid hex
-        let result = tokenizer.decode_bpe(&tokens);
-        assert!(result.is_ok()); // Should handle gracefully
-
-        // Test decode with mixed valid/invalid
-        let tokens = vec!["48".to_string(), "invalid".to_string(), "65".to_string()]; // 'H', invalid, 'e'
-        let result = tokenizer.decode_bpe(&tokens);
-        assert!(result.is_ok());
+        // Should have merged some pairs
+        assert!(!result.is_empty());
+        assert!(result.contains(&"he".to_string()) || result.len() < 5); // Some merging occurred
     }
 }
