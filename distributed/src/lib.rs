@@ -19,9 +19,12 @@ pub mod optimizer;
 pub mod process_group;
 pub mod reducer;
 
-pub use communication::{CommunicationBackend, BackendType, BackendStats, NCCLBackend, GlooBackend, MPIBackend, create_backend, create_auto_backend};
+pub use communication::{
+    create_auto_backend, create_backend, BackendStats, BackendType, CommunicationBackend,
+    GlooBackend, MPIBackend, NCCLBackend, TCPBackend,
+};
 pub use data_parallel::DataParallel;
 pub use error::{DistributedError, Result};
 pub use optimizer::DistributedOptimizer;
-pub use process_group::{ProcessGroup, Rank, WorldSize, FaultToleranceConfig};
+pub use process_group::{FaultToleranceConfig, ProcessGroup, Rank, WorldSize};
 pub use reducer::GradientReducer;

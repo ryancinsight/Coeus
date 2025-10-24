@@ -12,13 +12,11 @@ use coeus_tensor::Tensor;
 use crate::error::Result;
 use crate::parameter::Parameter;
 
-/// Type aliases to reduce complexity
-type CpuTensor<T> = Tensor<CpuBackend, DenseStorage<T>, T>;
-
 /// GRU (Gated Recurrent Unit) layer for sequence modeling.
 ///
 /// Implements the GRU architecture with reset and update gates.
 /// More efficient than LSTM while maintaining similar performance.
+#[derive(Debug)]
 pub struct GRU<B, S, T>
 where
     B: Backend + Clone,
@@ -26,13 +24,13 @@ where
     T: DataType,
 {
     /// Input-to-hidden weights for each gate (r, z, n) and layer
-    pub weight_ih: Vec<Parameter<CpuBackend, DenseStorage<T>, T>>,
+    pub weight_ih: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,
     /// Hidden-to-hidden weights for each gate (r, z, n) and layer
-    pub weight_hh: Vec<Parameter<CpuBackend, DenseStorage<T>, T>>,
+    pub weight_hh: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,
     /// Input-to-hidden biases for each gate (r, z, n) and layer
-    pub bias_ih: Vec<Parameter<CpuBackend, DenseStorage<T>, T>>,
+    pub bias_ih: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,
     /// Hidden-to-hidden biases for each gate (r, z, n) and layer
-    pub bias_hh: Vec<Parameter<CpuBackend, DenseStorage<T>, T>>,
+    pub bias_hh: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,
     /// Number of expected features in the input
     pub input_size: usize,
     /// Number of features in the hidden state
@@ -123,27 +121,25 @@ where
                 let weight_hh_var = w_hh;
 
                 weight_ih.push(Parameter::new(
-                    weight_ih_var, format!("weight_ih_l{}", layer),
+                    weight_ih_var,
+                    format!("weight_ih_l{}", layer),
                 ));
                 weight_hh.push(Parameter::new(
-                    weight_hh_var, format!("weight_hh_l{}", layer),
+                    weight_hh_var,
+                    format!("weight_hh_l{}", layer),
                 ));
 
                 if bias {
                     let b_ih =
-                        Tensor::<CpuBackend, DenseStorage<T>, T>::zeros(&[gate_size]).unwrap();
+                        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[gate_size]).unwrap();
                     let b_hh =
-                        Tensor::<CpuBackend, DenseStorage<T>, T>::zeros(&[gate_size]).unwrap();
+                        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[gate_size]).unwrap();
 
                     let bias_ih_var = b_ih;
                     let bias_hh_var = b_hh;
 
-                    bias_ih.push(Parameter::new(
-                        bias_ih_var, format!("bias_ih_l{}", layer),
-                    ));
-                    bias_hh.push(Parameter::new(
-                        bias_hh_var, format!("bias_hh_l{}", layer),
-                    ));
+                    bias_ih.push(Parameter::new(bias_ih_var, format!("bias_ih_l{}", layer)));
+                    bias_hh.push(Parameter::new(bias_hh_var, format!("bias_hh_l{}", layer)));
                 }
             }
         }
@@ -174,8 +170,8 @@ where
         rows: usize,
         cols: usize,
         _limit: T,
-    ) -> Tensor<CpuBackend, DenseStorage<T>, T> {
-        let mut tensor = Tensor::<CpuBackend, DenseStorage<T>, T>::zeros(&[rows, cols]).unwrap();
+    ) -> Tensor<CpuBackend<T>, DenseStorage<T>, T> {
+        let mut tensor = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[rows, cols]).unwrap();
         crate::init::xavier_uniform_(&mut tensor, 1.0).unwrap();
         tensor
     }

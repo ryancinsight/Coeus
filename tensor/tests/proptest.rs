@@ -3,8 +3,8 @@
 //! These tests validate mathematical invariants, edge cases, and correctness
 //! properties that are difficult to test with traditional unit tests.
 
-use proptest::prelude::*;
 use approx::assert_relative_eq;
+use proptest::prelude::*;
 
 use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
@@ -12,20 +12,18 @@ use coeus_storage::DenseStorage;
 use coeus_tensor::Tensor;
 
 /// Type alias for our test tensor type
-type TestTensor = Tensor<CpuBackend, DenseStorage<Float32>, Float32>;
+type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
 /// Generate random tensor shapes (1D to 4D)
 fn arb_tensor_shape() -> impl Strategy<Value = Vec<usize>> {
-    prop::collection::vec(1..=1000usize, 1..=4)
-        .prop_filter("Non-empty shape", |s| !s.is_empty() && s.iter().all(|&x| x > 0))
+    prop::collection::vec(1..=1000usize, 1..=4).prop_filter("Non-empty shape", |s| {
+        !s.is_empty() && s.iter().all(|&x| x > 0)
+    })
 }
 
 /// Generate random tensor data
 fn arb_tensor_data() -> impl Strategy<Value = Vec<Float32>> {
-    prop::collection::vec(
-        prop::num::f32::NORMAL.prop_map(Float32::new),
-        1..=10000
-    )
+    prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), 1..=10000)
 }
 
 /// Generate a random tensor with given shape
@@ -38,7 +36,7 @@ fn arb_tensor() -> impl Strategy<Value = TestTensor> {
             } else {
                 None
             }
-        }
+        },
     )
 }
 
@@ -46,14 +44,8 @@ fn arb_tensor() -> impl Strategy<Value = TestTensor> {
 fn arb_tensor_pair_same_shape() -> impl Strategy<Value = (TestTensor, TestTensor)> {
     arb_tensor_shape().prop_flat_map(|shape| {
         let size: usize = shape.iter().product();
-        let data1 = prop::collection::vec(
-            prop::num::f32::NORMAL.prop_map(Float32::new),
-            size
-        );
-        let data2 = prop::collection::vec(
-            prop::num::f32::NORMAL.prop_map(Float32::new),
-            size
-        );
+        let data1 = prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), size);
+        let data2 = prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), size);
 
         (data1, data2).prop_map(move |(d1, d2)| {
             (
@@ -69,14 +61,8 @@ fn arb_matrix_mult_pair() -> impl Strategy<Value = (TestTensor, TestTensor)> {
     (1..=50usize, 1..=50usize, 1..=50usize).prop_flat_map(|(m, k, n)| {
         let a_size = m * k;
         let b_size = k * n;
-        let a_data = prop::collection::vec(
-            prop::num::f32::NORMAL.prop_map(Float32::new),
-            a_size
-        );
-        let b_data = prop::collection::vec(
-            prop::num::f32::NORMAL.prop_map(Float32::new),
-            b_size
-        );
+        let a_data = prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), a_size);
+        let b_data = prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), b_size);
 
         (a_data, b_data).prop_map(move |(a_d, b_d)| {
             (

@@ -3,6 +3,7 @@
 use crate::error::{DistributedError, Result};
 use crate::process_group::ProcessGroup;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Gradient reducer for synchronizing gradients across devices
 ///
@@ -10,7 +11,7 @@ use std::collections::HashMap;
 /// AllReduce operations to ensure consistent model updates.
 #[derive(Debug)]
 pub struct GradientReducer {
-    process_group: ProcessGroup,
+    process_group: Arc<ProcessGroup>,
     buffers: HashMap<String, Vec<f32>>,
     gpu_buffers: HashMap<String, wgpu::Buffer>,
     device: Option<wgpu::Device>,
@@ -19,7 +20,7 @@ pub struct GradientReducer {
 
 impl GradientReducer {
     /// Create a new gradient reducer
-    pub fn new(process_group: ProcessGroup) -> Self {
+    pub fn new(process_group: Arc<ProcessGroup>) -> Self {
         Self {
             process_group,
             buffers: HashMap::new(),
@@ -30,7 +31,11 @@ impl GradientReducer {
     }
 
     /// Create a new GPU-accelerated gradient reducer
-    pub fn new_with_gpu(process_group: ProcessGroup, device: wgpu::Device, queue: wgpu::Queue) -> Self {
+    pub fn new_with_gpu(
+        process_group: Arc<ProcessGroup>,
+        device: wgpu::Device,
+        queue: wgpu::Queue,
+    ) -> Self {
         Self {
             process_group,
             buffers: HashMap::new(),
@@ -55,17 +60,31 @@ impl GradientReducer {
         self.buffers.insert(name.clone(), vec![0.0; buffer_size]);
 
         // Create GPU buffer if GPU acceleration is available
-        if let (Some(device), Some(queue)) = (&self.device, &self.queue) {
+        if let (Some(device), Some(_queue)) = (&self.device, &self.queue) {
             let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some(&format!("Gradient Buffer: {}", name)),
                 size: (buffer_size * std::mem::size_of::<f32>()) as u64,
-                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
+                usage: wgpu::BufferUsages::STORAGE
+                    | wgpu::BufferUsages::COPY_SRC
+                    | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
             self.gpu_buffers.insert(name, gpu_buffer);
         }
 
         Ok(())
+    }
+
+    /// Check if a parameter is registered
+    pub fn is_parameter_registered(&self, name: &str) -> bool {
+        self.buffers.contains_key(name)
+    }
+
+    /// Get the size of a registered parameter
+    pub fn get_parameter_size(&self, name: &str) -> Option<usize> {
+        self.buffers
+            .get(name)
+            .map(|buffer| buffer.len() / self.process_group.world_size().0)
     }
 
     /// Reduce gradients for a parameter across all devices (CPU)
@@ -96,7 +115,7 @@ impl GradientReducer {
 
         buffer[start_idx..end_idx].copy_from_slice(local_gradients);
 
-        // Perform AllReduce (placeholder for actual communication)
+        // Perform AllReduce operation across all processes
         self.process_group.all_reduce(buffer).await?;
 
         // Average the gradients across all devices
@@ -112,18 +131,28 @@ impl GradientReducer {
     ///
     /// This performs GPU-accelerated AllReduce operations for optimal performance
     /// on large models with many parameters.
-    pub async fn reduce_gradients_gpu(&mut self, name: &str, local_gradients: &[f32]) -> Result<()> {
+    #[allow(clippy::manual_slice_size_calculation)]
+    pub async fn reduce_gradients_gpu(
+        &mut self,
+        name: &str,
+        local_gradients: &[f32],
+    ) -> Result<()> {
         // Check if GPU acceleration is available
         let (device, queue) = match (&self.device, &self.queue) {
             (Some(d), Some(q)) => (d, q),
-            _ => return Err(DistributedError::ProcessGroupConfig {
-                message: "GPU acceleration not available for gradient reduction".to_string(),
-            }),
+            _ => {
+                return Err(DistributedError::ProcessGroupConfig {
+                    message: "GPU acceleration not available for gradient reduction".to_string(),
+                })
+            }
         };
 
-        let gpu_buffer = self.gpu_buffers.get(name).ok_or_else(|| DistributedError::ProcessGroupConfig {
-            message: format!("GPU buffer for parameter '{}' not found", name),
-        })?;
+        let gpu_buffer =
+            self.gpu_buffers
+                .get(name)
+                .ok_or_else(|| DistributedError::ProcessGroupConfig {
+                    message: format!("GPU buffer for parameter '{}' not found", name),
+                })?;
 
         let world_size = self.process_group.world_size().0;
         let rank = self.process_group.rank().0;
@@ -132,6 +161,7 @@ impl GradientReducer {
         // Upload local gradients to GPU buffer
         let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Gradient Upload Staging"),
+            #[allow(clippy::manual_slice_size_calculation)]
             size: (grad_size * std::mem::size_of::<f32>()) as u64,
             usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::MAP_WRITE,
             mapped_at_creation: true,
@@ -151,18 +181,15 @@ impl GradientReducer {
         });
 
         let offset = (rank * grad_size * std::mem::size_of::<f32>()) as u64;
-        encoder.copy_buffer_to_buffer(
-            &staging_buffer,
-            0,
-            gpu_buffer,
-            offset,
-            (grad_size * std::mem::size_of::<f32>()) as u64,
-        );
+        let copy_size = grad_size * std::mem::size_of::<f32>();
+        encoder.copy_buffer_to_buffer(&staging_buffer, 0, gpu_buffer, offset, copy_size as u64);
 
         queue.submit(Some(encoder.finish()));
 
-        // Perform AllReduce (placeholder - would integrate with NCCL/Gloo in production)
-        self.process_group.all_reduce_gpu(gpu_buffer, grad_size, world_size).await?;
+        // Perform GPU AllReduce operation across all processes
+        self.process_group
+            .all_reduce_gpu(gpu_buffer, grad_size)
+            .await?;
 
         // Average gradients on GPU
         let avg_shader = r#"
@@ -182,21 +209,23 @@ impl GradientReducer {
             source: wgpu::ShaderSource::Wgsl(avg_shader.into()),
         });
 
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Gradient Averaging Bind Group Layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Gradient Averaging Layout"),
-            bind_group_layouts: &[&device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Gradient Averaging Bind Group Layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: false },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            })],
+            bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -209,7 +238,7 @@ impl GradientReducer {
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Gradient Averaging Bind Group"),
-            layout: &pipeline_layout.get_bind_group_layout(0),
+            layout: &bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: gpu_buffer.as_entire_binding(),
@@ -270,7 +299,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_gradient_reducer_registration() {
-        let pg = ProcessGroup::new(Rank(0), WorldSize(2)).unwrap();
+        let pg = Arc::new(ProcessGroup::new(Rank(0), WorldSize(2)).unwrap());
         let mut reducer = GradientReducer::new(pg);
 
         reducer.register_parameter("weight".to_string(), 4).unwrap();
@@ -281,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_gradient_reducer_creation() {
-        let pg = ProcessGroup::new(Rank(0), WorldSize(4)).unwrap();
+        let pg = Arc::new(ProcessGroup::new(Rank(0), WorldSize(4)).unwrap());
         let reducer = GradientReducer::new(pg);
         // Should create without error
         assert_eq!(reducer.buffers.len(), 0);
@@ -289,7 +318,7 @@ mod tests {
 
     #[test]
     fn test_parameter_registration() {
-        let pg = ProcessGroup::new(Rank(0), WorldSize(3)).unwrap();
+        let pg = Arc::new(ProcessGroup::new(Rank(0), WorldSize(3)).unwrap());
         let mut reducer = GradientReducer::new(pg);
 
         // Register parameter
@@ -304,7 +333,7 @@ mod tests {
 
     #[test]
     fn test_duplicate_parameter_registration() {
-        let pg = ProcessGroup::new(Rank(0), WorldSize(2)).unwrap();
+        let pg = Arc::new(ProcessGroup::new(Rank(0), WorldSize(2)).unwrap());
         let mut reducer = GradientReducer::new(pg);
 
         // Register parameter first time
@@ -317,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_unregistered_parameter_access() {
-        let pg = ProcessGroup::new(Rank(0), WorldSize(2)).unwrap();
+        let pg = Arc::new(ProcessGroup::new(Rank(0), WorldSize(2)).unwrap());
         let mut reducer = GradientReducer::new(pg);
 
         // Try to reduce unregistered parameter
@@ -332,7 +361,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_gradient_reduction() {
-        let pg = ProcessGroup::new(Rank(0), WorldSize(2)).unwrap();
+        let pg = Arc::new(ProcessGroup::new(Rank(0), WorldSize(2)).unwrap());
         let mut reducer = GradientReducer::new(pg);
 
         reducer.register_parameter("weight".to_string(), 2).unwrap();
@@ -349,7 +378,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_gradient_reduction_multiple_devices() {
-        let pg = ProcessGroup::new(Rank(1), WorldSize(4)).unwrap(); // Rank 1 of 4
+        let pg = Arc::new(ProcessGroup::new(Rank(1), WorldSize(4)).unwrap()); // Rank 1 of 4
         let mut reducer = GradientReducer::new(pg);
 
         reducer
@@ -369,7 +398,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_multiple_parameters() {
-        let pg = ProcessGroup::new(Rank(0), WorldSize(2)).unwrap();
+        let pg = Arc::new(ProcessGroup::new(Rank(0), WorldSize(2)).unwrap());
         let mut reducer = GradientReducer::new(pg);
 
         // Register multiple parameters

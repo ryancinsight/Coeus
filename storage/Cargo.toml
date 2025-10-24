@@ -26,3 +26,5 @@ thiserror.workspace = true
 [dev-dependencies]
 proptest.workspace = true
 approx.workspace = true
+rand.workspace = true
+criterion.workspace = true

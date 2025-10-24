@@ -1,11 +1,10 @@
 //! Layer Normalization for neural networks.
 
-
 use std::marker::PhantomData;
 
 use coeus_backend::{Backend, CpuBackend};
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use coeus_tensor::Tensor;
 
 use crate::error::Result;
@@ -41,10 +40,10 @@ use crate::parameter::Parameter;
 /// use coeus_dtype::float::Float32;
 ///
 /// // Create LayerNorm for [batch_size, seq_len, hidden_dim=128]
-/// let layer_norm = LayerNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(vec![128], 1e-5);
+/// let layer_norm = LayerNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(vec![128], 1e-5);
 ///
 /// // Input: [2, 10, 128]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 10, 128]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 10, 128]).unwrap();
 ///
 /// // Output: [2, 10, 128] (normalized across hidden_dim)
 /// let output = layer_norm.forward(&input).unwrap();
@@ -95,15 +94,13 @@ where
         // Initialize weight (γ) to 1
         let weight_data = vec![T::one(); num_features];
         let weight_tensor =
-            Tensor::<B, DenseStorage<T>, T>::from_vec(weight_data, &normalized_shape)
-                .unwrap();
+            Tensor::<B, DenseStorage<T>, T>::from_vec(weight_data, &normalized_shape).unwrap();
         let weight = Parameter::new(weight_tensor.requires_grad_(true), "weight".to_string());
 
         // Initialize bias (β) to 0
         let bias_data = vec![T::zero(); num_features];
         let bias_tensor =
-            Tensor::<B, DenseStorage<T>, T>::from_vec(bias_data, &normalized_shape)
-                .unwrap();
+            Tensor::<B, DenseStorage<T>, T>::from_vec(bias_data, &normalized_shape).unwrap();
         let bias = Parameter::new(bias_tensor.requires_grad_(true), "bias".to_string());
 
         Self {
@@ -210,10 +207,11 @@ mod tests {
 
     #[test]
     fn test_layernorm_forward() {
-        let layer_norm = LayerNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(vec![4], 1e-5);
+        let layer_norm =
+            LayerNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(vec![4], 1e-5);
 
         // Input: [2, 4]
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(1.0),
                 Float32::new(2.0),
@@ -253,10 +251,11 @@ mod tests {
 
     #[test]
     fn test_layernorm_numerical_stability() {
-        let layer_norm = LayerNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(vec![3], 1e-5);
+        let layer_norm =
+            LayerNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(vec![3], 1e-5);
 
         // Input with large values
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(1000.0),
                 Float32::new(1001.0),
@@ -280,24 +279,30 @@ mod tests {
 
     #[test]
     fn test_layernorm_affine_transform() {
-        let mut layer_norm = LayerNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(vec![3], 1e-5);
+        let mut layer_norm =
+            LayerNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(vec![3], 1e-5);
 
         // Set weight to 2.0 and bias to 1.0
         let weight_data = vec![Float32::new(2.0); 3];
         let weight_tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(weight_data, &[3])
-                .unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                weight_data,
+                &[3],
+            )
+            .unwrap();
         layer_norm.weight =
             Parameter::new(weight_tensor.requires_grad_(true), "weight".to_string());
 
         let bias_data = vec![Float32::new(1.0); 3];
-        let bias_tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(bias_data, &[3])
-                .unwrap();
+        let bias_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            bias_data,
+            &[3],
+        )
+        .unwrap();
         layer_norm.bias = Parameter::new(bias_tensor.requires_grad_(true), "bias".to_string());
 
         // Input: [1, 2, 3]
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
@@ -333,7 +338,7 @@ mod tests {
         let layer_norm = LayerNormCpu::<Float32>::new(vec![4], 1e-5);
 
         // Input: [2, 3, 4] (batch_size=2, seq_len=3, hidden_dim=4)
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0); 24],
             &[2, 3, 4],
         )
@@ -352,6 +357,4 @@ mod tests {
 
 /// Type alias for LayerNorm layer with CPU backend and dense storage.
 /// This provides backward compatibility with existing code.
-pub type LayerNormCpu<T> = LayerNorm<CpuBackend, DenseStorage<T>, T>;
-
-
+pub type LayerNormCpu<T> = LayerNorm<CpuBackend<T>, DenseStorage<T>, T>;

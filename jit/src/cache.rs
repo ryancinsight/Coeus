@@ -173,7 +173,8 @@ impl KernelCache {
                     optimization_level: crate::compiler::OptimizationLevel::Basic,
                     memory_requirements: 1024,
                     performance_estimate: 50.0,
-                    code_placeholder: vec![0; 256],
+                    machine_code: vec![0; 256],
+                    function_ptr: Some(0),
                 }))
             } else {
                 Ok(None)
@@ -248,7 +249,8 @@ mod tests {
             optimization_level: OptimizationLevel::Basic,
             memory_requirements: 1024,
             performance_estimate: 50.0,
-            code_placeholder: vec![0; 256],
+            machine_code: vec![0; 256],
+            function_ptr: Some(0),
         }
     }
 

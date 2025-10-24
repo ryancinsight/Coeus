@@ -9,9 +9,9 @@ use coeus_storage::DenseStorage;
 use coeus_tensor::Tensor;
 use proptest::prelude::*;
 
-type CpuTensorF32 = Tensor<CpuBackend, DenseStorage<Float32>, Float32>;
-type CpuTensorF64 = Tensor<CpuBackend, DenseStorage<Float64>, Float64>;
-type CpuTensorI32 = Tensor<CpuBackend, DenseStorage<Int32>, Int32>;
+type CpuTensorF32 = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
+type CpuTensorF64 = Tensor<CpuBackend<Float64>, DenseStorage<Float64>, Float64>;
+type CpuTensorI32 = Tensor<CpuBackend<Int32>, DenseStorage<Int32>, Int32>;
 
 // ============================================================================
 // Property: Arithmetic Operations Preserve Shape

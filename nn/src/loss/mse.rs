@@ -4,10 +4,10 @@
 
 use std::fmt;
 
-use coeus_backend::{Backend, CpuBackend};
+use coeus_backend::Backend;
 use coeus_dtype::traits::FloatExt;
 use coeus_dtype::DataType;
-use coeus_storage::{DenseStorage, Storage, StorageFromVec};
+use coeus_storage::{Storage, StorageFromVec};
 use coeus_tensor::Tensor;
 
 use crate::error::{NNError, Result};
@@ -27,12 +27,12 @@ use crate::error::{NNError, Result};
 ///
 /// let loss_fn = MSELoss::new();
 ///
-/// let predictions = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
 ///     &[3]
 /// ).unwrap();
 ///
-/// let targets = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.5), Float32::new(2.0), Float32::new(2.5)],
 ///     &[3]
 /// ).unwrap();
@@ -131,17 +131,20 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use coeus_backend::CpuBackend;
     use coeus_dtype::float::Float32;
+    use coeus_storage::DenseStorage;
+    use coeus_tensor::Tensor;
 
     #[test]
     fn test_mse_loss_basic() {
-        let predictions = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
         .unwrap();
 
-        let targets = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.5), Float32::new(2.0), Float32::new(2.5)],
             &[3],
         )
@@ -157,13 +160,13 @@ mod tests {
 
     #[test]
     fn test_mse_loss_perfect_prediction() {
-        let predictions = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
         .unwrap();
 
-        let targets = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
@@ -179,13 +182,13 @@ mod tests {
 
     #[test]
     fn test_mse_loss_shape_mismatch() {
-        let predictions = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
         )
         .unwrap();
 
-        let targets = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0)],
             &[1],
         )

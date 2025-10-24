@@ -2,171 +2,431 @@
 //!
 //! This module implements the Adam optimizer with bias correction and adaptive
 //! learning rates using first and second moment estimates.
-
-use std::collections::HashMap;
-use std::marker::PhantomData;
+//!
+//! Adam algorithm:
+//! ```text
+//! m_t = β₁ * m_{t-1} + (1 - β₁) * g_t
+//! v_t = β₂ * v_{t-1} + (1 - β₂) * g_t²
+//! m̂_t = m_t / (1 - β₁^t)
+//! v̂_t = v_t / (1 - β₂^t)
+//! θ_t = θ_{t-1} - α * m̂_t / (√v̂_t + ε)
+//! ```
 
 use coeus_backend::Backend;
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec};
+use coeus_storage::{Storage, StorageFromVec, StorageToDense};
 use coeus_tensor::Tensor;
 
+use crate::gpu_backend::GpuAcceleratedOptimizer;
+use crate::optimizer::BaseOptimizer;
 use crate::optimizer_core::{Optimizer, ParamState};
 use crate::Parameter;
 
-/// Adam (Adaptive Moment Estimation) optimizer.
-///
-/// Implements the Adam algorithm from "Adam: A Method for Stochastic Optimization"
-/// (Kingma & Ba, 2014): <https://arxiv.org/abs/1412.6980>
-///
-/// Adam combines the benefits of AdaGrad and RMSprop by maintaining per-parameter
-/// adaptive learning rates using first and second moment estimates with bias correction.
-///
-/// # Algorithm
-///
-/// ```text
-/// m_t = beta1 * m_{t-1} + (1 - beta1) * grad
-/// v_t = beta2 * v_{t-1} + (1 - beta2) * grad^2
-/// m_hat = m_t / (1 - beta1^t)
-/// v_hat = v_t / (1 - beta2^t)
-/// param = param - lr * m_hat / (sqrt(v_hat) + epsilon)
-/// ```
-///
-/// # Hyperparameters
-///
-/// - `lr`: Learning rate (default: 0.001)
-/// - `beta1`: First moment decay rate (default: 0.9)
-/// - `beta2`: Second moment decay rate (default: 0.999)
-/// - `epsilon`: Numerical stability constant (default: 1e-8)
-/// - `weight_decay`: L2 regularization factor (default: 0.0)
-///
-/// # Examples
-///
-/// ```rust
-/// use coeus_optim::adam::Adam;
-/// use coeus_dtype::float::Float32;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-///
-/// // Create Adam with default hyperparameters
-/// let mut optimizer = Adam::<CpuBackend, DenseStorage<Float32>, Float32>::new(0.001, 0.9, 0.999, 1e-8, 0.0);
-/// ```
+/// Adam (Adaptive Moment Estimation) optimizer with optional GPU acceleration
 #[derive(Debug)]
 pub struct Adam<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + num_traits::Float,
 {
-    /// Parameter states
     param_states: Vec<ParamState<B, S, T>>,
-    /// Learning rate
+    param_groups: Vec<crate::optimizer::ParamGroup<B, S, T>>,
     lr: f64,
-    /// First moment decay rate
     beta1: f64,
-    /// Second moment decay rate
     beta2: f64,
-    /// Numerical stability constant
-    epsilon: f64,
-    /// Weight decay (L2 regularization)
+    eps: f64,
     weight_decay: f64,
-    /// Timestep counter
-    t: usize,
-    /// Phantom data
-    _phantom: PhantomData<(B, S, T)>,
+    t: u64, // timestep for bias correction
 }
 
 impl<B, S, T> Adam<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + num_traits::Float,
 {
-    /// Create a new Adam optimizer.
+    /// Create Adam optimizer with default hyperparameters
     ///
     /// # Arguments
-    /// * `lr` - Learning rate
-    /// * `beta1` - First moment decay rate
-    /// * `beta2` - Second moment decay rate
-    /// * `epsilon` - Numerical stability constant
-    /// * `weight_decay` - L2 regularization factor
-    pub fn new(lr: f64, beta1: f64, beta2: f64, epsilon: f64, weight_decay: f64) -> Self {
-        Self {
+    /// * `params` - Parameter tensors to optimize
+    /// * `lr` - Learning rate (must be > 0)
+    pub fn new(params: Vec<coeus_tensor::Tensor<B, S, T>>, lr: f64) -> Self {
+        assert!(lr > 0.0, "Learning rate must be positive, got {}", lr);
+        Self::with_hyperparams(params, lr, 0.9, 0.999, 1e-8, 0.0)
+    }
+
+    /// Create Adam optimizer with custom hyperparameters
+    ///
+    /// # Arguments
+    /// * `params` - Parameter tensors to optimize
+    /// * `lr` - Learning rate (must be > 0)
+    /// * `beta1` - Exponential decay rate for first moment (must be in [0, 1))
+    /// * `beta2` - Exponential decay rate for second moment (must be in [0, 1))
+    /// * `eps` - Small constant for numerical stability (must be >= 0)
+    /// * `weight_decay` - L2 regularization factor (must be >= 0)
+    pub fn with_hyperparams(
+        params: Vec<coeus_tensor::Tensor<B, S, T>>,
+        lr: f64,
+        beta1: f64,
+        beta2: f64,
+        eps: f64,
+        weight_decay: f64,
+    ) -> Self {
+        // Validate hyperparameters
+        assert!(lr > 0.0, "Learning rate must be positive, got {}", lr);
+        assert!(
+            (0.0..1.0).contains(&beta1),
+            "beta1 must be in range [0, 1), got {}",
+            beta1
+        );
+        assert!(
+            (0.0..1.0).contains(&beta2),
+            "beta2 must be in range [0, 1), got {}",
+            beta2
+        );
+        assert!(eps >= 0.0, "eps must be non-negative, got {}", eps);
+        assert!(
+            weight_decay >= 0.0,
+            "weight_decay must be non-negative, got {}",
+            weight_decay
+        );
+
+        let mut optimizer = Self {
             param_states: Vec::new(),
+            param_groups: Vec::new(),
             lr,
             beta1,
             beta2,
-            epsilon,
+            eps,
             weight_decay,
             t: 0,
-            _phantom: PhantomData,
-        }
+        };
+        optimizer.add_param_group(params);
+        optimizer
     }
 
-    /// Create Adam with default hyperparameters.
+    /// Create Adam optimizer with GPU acceleration (placeholder)
+    ///
+    /// # Arguments
+    /// * `params` - Parameter tensors to optimize
+    /// * `lr` - Learning rate (must be > 0)
+    pub fn new_with_gpu(
+        params: Vec<coeus_tensor::Tensor<B, S, T>>,
+        lr: f64,
+    ) -> Result<Self, crate::error::OptimError> {
+        // For now, this just creates CPU version
+        // GPU acceleration would be implemented here in the future
+        Ok(Self::new(params, lr))
+    }
+
+    /// Create Adam optimizer with default learning rate
     pub fn default(lr: f64) -> Self {
-        Self::new(lr, 0.9, 0.999, 1e-8, 0.0)
+        Self::new(Vec::new(), lr)
     }
 
-    /// Create Adam with custom beta values.
-    pub fn with_betas(lr: f64, beta1: f64, beta2: f64) -> Self {
-        Self::new(lr, beta1, beta2, 1e-8, 0.0)
-    }
-
-    /// Get beta1 value
+    /// Get beta1 parameter
     pub fn beta1(&self) -> f64 {
         self.beta1
     }
 
-    /// Get beta2 value
+    /// Get beta2 parameter
     pub fn beta2(&self) -> f64 {
         self.beta2
     }
 
-    /// Get epsilon value
-    pub fn epsilon(&self) -> f64 {
-        self.epsilon
+    /// Get epsilon parameter
+    pub fn eps(&self) -> f64 {
+        self.eps
     }
 
-    /// Get current timestep
-    pub fn timestep(&self) -> usize {
-        self.t
+    /// Get weight decay parameter
+    pub fn weight_decay(&self) -> f64 {
+        self.weight_decay
+    }
+}
+
+impl<B, S, T> BaseOptimizer<B, S, T> for Adam<B, S, T>
+where
+    B: Backend + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    T: DataType + FloatExt + num_traits::Float,
+{
+    fn step(&mut self) -> Result<usize, crate::OptimError> {
+        self.step_cpu()
+    }
+
+    fn step_cpu(&mut self) -> Result<usize, crate::OptimError> {
+        use coeus_tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
+
+        self.t += 1; // increment timestep for bias correction
+
+        let lr = T::from(self.lr).unwrap();
+        let beta1 = T::from(self.beta1).unwrap();
+        let beta2 = T::from(self.beta2).unwrap();
+        let eps = T::from(self.eps).unwrap();
+        let weight_decay = T::from(self.weight_decay).unwrap();
+        let one = T::from(1.0).unwrap();
+
+        // Compute bias correction coefficients: 1 / (1 - β^t)
+        // For numerical stability, use approximation for small t
+        let t_val = self.t as f64;
+        let bias_correction1 = T::from(1.0 / (1.0 - self.beta1.powf(t_val))).unwrap();
+        let bias_correction2 = T::from(1.0 / (1.0 - self.beta2.powf(t_val))).unwrap();
+
+        for param_state in &mut self.param_states {
+            // Get gradient from tensor (PyTorch-style: gradients are stored on tensors)
+            let grad = match param_state.param.grad() {
+                Ok(tensor_grad) => {
+                    // Convert gradient storage to dense, then create optimizer's storage type
+                    // This handles any gradient storage type (dense, sparse, quantized, etc.)
+                    let dense_grad = tensor_grad
+                        .storage_ref()
+                        .to_dense()
+                        .map_err(|_| crate::OptimError::GradientNotAvailable)?;
+                    match S::from_vec(dense_grad.as_slice().to_vec(), tensor_grad.shape().dims()) {
+                        Ok(converted_storage) => {
+                            // Use the same backend as the original tensor
+                            let backend = tensor_grad.backend().clone();
+                            Tensor::from_storage(converted_storage, backend)
+                        }
+                        Err(_) => return Err(crate::OptimError::GradientNotAvailable),
+                    }
+                }
+                Err(_) => return Err(crate::OptimError::GradientNotAvailable),
+            };
+
+            // Apply weight decay if specified (L2 regularization)
+            let effective_grad = if self.weight_decay > 0.0 {
+                let weight_decay_term = scalar_mul(&param_state.param, weight_decay)?;
+                add(&grad, &weight_decay_term)?
+            } else {
+                grad.clone()
+            };
+
+            // Update biased first moment: m = β₁ * m + (1 - β₁) * g
+            let param_name = param_state.name.clone();
+            {
+                let m = param_state.get_state_mut("m").ok_or_else(|| {
+                    crate::error::OptimError::InvalidState {
+                        param_name: param_name.clone(),
+                        state_key: "m".to_string(),
+                    }
+                })?;
+                let beta1_m = scalar_mul(m, beta1)?;
+                let one_minus_beta1 = one - beta1;
+                let one_minus_beta1_grad = scalar_mul(&effective_grad, one_minus_beta1)?;
+                *m = add(&beta1_m, &one_minus_beta1_grad)?;
+            }
+
+            // Update biased second moment: v = β₂ * v + (1 - β₂) * g²
+            {
+                let v = param_state.get_state_mut("v").ok_or_else(|| {
+                    crate::error::OptimError::InvalidState {
+                        param_name,
+                        state_key: "v".to_string(),
+                    }
+                })?;
+                let grad_squared = mul(&effective_grad, &effective_grad)?;
+                let beta2_v = scalar_mul(v, beta2)?;
+                let one_minus_beta2 = one - beta2;
+                let one_minus_beta2_grad_sq = scalar_mul(&grad_squared, one_minus_beta2)?;
+                *v = add(&beta2_v, &one_minus_beta2_grad_sq)?;
+            }
+
+            // Bias-corrected moments: m̂ = m / (1 - β₁^t), v̂ = v / (1 - β₂^t)
+            let m_ref = param_state.get_state("m").unwrap();
+            let v_ref = param_state.get_state("v").unwrap();
+            let m_hat = scalar_mul(m_ref, bias_correction1)?;
+            let v_hat = scalar_mul(v_ref, bias_correction2)?;
+
+            // Parameter update: θ = θ - α * m̂ / (√v̂ + ε)
+            // For numerical stability, compute √(v̂ + ε)
+            let v_hat_plus_eps = scalar_add(&v_hat, eps)?;
+            let v_hat_sqrt = sqrt(&v_hat_plus_eps)?;
+            let update_ratio = div(&m_hat, &v_hat_sqrt)?;
+            let scaled_update = scalar_mul(&update_ratio, lr)?;
+            param_state.param = sub(&param_state.param, &scaled_update)?;
+        }
+
+        Ok(self.param_states.len())
+    }
+
+    fn zero_grad(&mut self) {
+        for param_state in &mut self.param_states {
+            let _ = param_state.param.zero_grad();
+        }
+    }
+
+    fn add_param_group(&mut self, params: Vec<coeus_tensor::Tensor<B, S, T>>) {
+        // Create parameter states for each tensor with Adam-specific state
+        for tensor in params.clone().into_iter() {
+            let mut param_state =
+                ParamState::new(tensor.clone(), format!("param_{}", self.param_states.len()));
+
+            // Initialize Adam state: first moment (m) and second moment (v)
+            let shape = tensor.shape().dims().to_vec();
+            let m = Tensor::zeros(&shape).unwrap(); // first moment
+            let v = Tensor::zeros(&shape).unwrap(); // second moment
+
+            param_state.init_state("m".to_string(), m);
+            param_state.init_state("v".to_string(), v);
+
+            // No need to pre-set gradient here - it will be retrieved during step
+
+            self.param_states.push(param_state);
+        }
+
+        // Create parameter group
+        self.param_groups.push(crate::optimizer::ParamGroup::new(
+            params,
+            self.lr as f32,
+            self.weight_decay as f32,
+        ));
+    }
+
+    fn get_lr(&self) -> f32 {
+        self.lr as f32
+    }
+
+    fn set_lr(&mut self, lr: f32) {
+        self.lr = lr as f64;
+        if !self.param_groups.is_empty() {
+            self.param_groups[0].lr = lr;
+        }
+    }
+
+    fn state_dict(&self) -> std::collections::HashMap<String, coeus_tensor::Tensor<B, S, T>> {
+        let mut state = std::collections::HashMap::new();
+
+        // Save parameters and their Adam state (first and second moments)
+        for param_state in &self.param_states {
+            state.insert(param_state.name.clone(), param_state.param.clone());
+
+            // Save Adam state (first and second moments)
+            for (key, tensor) in &param_state.state {
+                state.insert(format!("{}.{}", param_state.name, key), tensor.clone());
+            }
+        }
+
+        // Save timestep for bias correction continuity
+        // Create a scalar tensor with the timestep value
+        let step_tensor = Tensor::from_vec(vec![T::from(self.t as f64).unwrap()], &[1]).unwrap();
+        state.insert("step".to_string(), step_tensor);
+
+        state
+    }
+
+    fn load_state_dict(
+        &mut self,
+        state_dict: std::collections::HashMap<String, coeus_tensor::Tensor<B, S, T>>,
+    ) -> Result<(), crate::OptimError> {
+        for param_state in &mut self.param_states {
+            // Load parameter
+            if let Some(param) = state_dict.get(&param_state.name) {
+                if param.shape().dims() != param_state.param.shape().dims() {
+                    return Err(crate::error::OptimError::ShapeMismatch {
+                        param_name: param_state.name.clone(),
+                        expected: param_state.param.shape().dims().to_vec(),
+                        actual: param.shape().dims().to_vec(),
+                    });
+                }
+                param_state.param = param.clone();
+            }
+
+            // Load Adam state (first and second moments)
+            let m_key = format!("{}.m", param_state.name);
+            if let Some(m) = state_dict.get(&m_key) {
+                param_state.init_state("m".to_string(), m.clone());
+            }
+
+            let v_key = format!("{}.v", param_state.name);
+            if let Some(v) = state_dict.get(&v_key) {
+                param_state.init_state("v".to_string(), v.clone());
+            }
+        }
+
+        // Load timestep for bias correction continuity
+        if let Some(step_tensor) = state_dict.get("step") {
+            if let Some(&step_val) = step_tensor.as_slice().first() {
+                // Convert back to usize, handling potential precision loss
+                self.t = step_val.to_f64().unwrap() as u64;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn param_groups(&self) -> &[crate::optimizer::ParamGroup<B, S, T>] {
+        &self.param_groups
+    }
+
+    fn param_groups_mut(&mut self) -> &mut [crate::optimizer::ParamGroup<B, S, T>] {
+        &mut self.param_groups
     }
 }
 
 impl<B, S, T> Optimizer<B, S, T> for Adam<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + num_traits::Float,
 {
     fn name(&self) -> &str {
         "Adam"
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
-        self.param_states.iter().map(|ps| ps.param.clone()).collect()
+        self.param_states
+            .iter()
+            .map(|ps| ps.param.clone())
+            .collect()
     }
 
-    fn named_parameters(&self) -> HashMap<String, Parameter<B, S, T>> {
+    fn named_parameters(&self) -> std::collections::HashMap<String, Parameter<B, S, T>> {
         self.param_states
             .iter()
             .map(|ps| (ps.name.clone(), ps.param.clone()))
             .collect()
     }
 
-    fn add_param(&mut self, param: Parameter<B, S, T>, name: String) {
-        let mut param_state = ParamState::new(param, name);
+    fn add_param(
+        &mut self,
+        param: &mut Parameter<B, S, T>,
+        name: String,
+    ) -> Result<(), crate::error::OptimError> {
+        // Check if parameter requires gradients
+        if !param.requires_grad() {
+            return Err(crate::error::OptimError::InvalidParameter {
+                param: name.clone(),
+                value: "requires_grad=false".to_string(),
+                reason: "parameter must require gradients for optimization".to_string(),
+            });
+        }
 
-        // Initialize Adam state: m (first moment) and v (second moment)
-        let shape = param_state.param.shape().dims();
-        let m = Tensor::zeros(shape).unwrap();
-        let v = Tensor::zeros(shape).unwrap();
+        // Check if parameter already exists
+        if self.has_param(&name) {
+            return Err(crate::error::OptimError::InvalidParameter {
+                param: name,
+                value: "already exists".to_string(),
+                reason: "parameter name must be unique".to_string(),
+            });
+        }
 
+        let param_clone = param.clone();
+        let mut param_state = ParamState::new(param_clone, name);
+
+        // Initialize Adam state (m, v)
+        let shape = param.shape().dims();
+        let m = Tensor::zeros(shape)
+            .map_err(|e| crate::error::OptimError::TensorError { source: e })?;
+        let v = Tensor::zeros(shape)
+            .map_err(|e| crate::error::OptimError::TensorError { source: e })?;
         param_state.init_state("m".to_string(), m);
         param_state.init_state("v".to_string(), v);
 
         self.param_states.push(param_state);
+        Ok(())
     }
 
     fn remove_param(&mut self, name: &str) {
@@ -181,145 +441,73 @@ where
         self.lr
     }
 
-    fn set_lr(&mut self, lr: f64) {
+    fn set_lr(&mut self, lr: f64) -> Result<(), crate::error::OptimError> {
+        if lr <= 0.0 {
+            return Err(crate::error::OptimError::InvalidParameter {
+                param: "lr".to_string(),
+                value: lr.to_string(),
+                reason: "learning rate must be positive".to_string(),
+            });
+        }
         self.lr = lr;
+        Ok(())
     }
 
     fn weight_decay(&self) -> f64 {
         self.weight_decay
     }
 
-    fn set_weight_decay(&mut self, weight_decay: f64) {
+    fn set_weight_decay(&mut self, weight_decay: f64) -> Result<(), crate::error::OptimError> {
+        if weight_decay < 0.0 {
+            return Err(crate::error::OptimError::InvalidParameter {
+                param: "weight_decay".to_string(),
+                value: weight_decay.to_string(),
+                reason: "weight decay must be non-negative".to_string(),
+            });
+        }
         self.weight_decay = weight_decay;
+        // Update parameter groups if they exist
+        for group in &mut self.param_groups {
+            group.weight_decay = weight_decay as f32;
+        }
+        Ok(())
+    }
+
+    /// Get the learning rate (alias for lr)
+    fn learning_rate(&self) -> f64 {
+        self.lr()
+    }
+
+    /// Set the learning rate (alias for set_lr)
+    fn set_learning_rate(&mut self, lr: f64) -> Result<(), crate::error::OptimError> {
+        <Self as Optimizer<B, S, T>>::set_lr(self, lr)
     }
 
     fn zero_grad(&mut self) {
-        for param_state in &mut self.param_states {
-            if let Some(ref mut param) = param_state.param.grad_mut() {
-                param.zero_();
-            }
-        }
+        <Self as BaseOptimizer<B, S, T>>::zero_grad(self);
     }
 
-    fn step(&mut self) -> Result<(), crate::error::OptimError> {
-        self.t += 1;
-
-        let lr = T::from(self.lr).unwrap();
-        let beta1 = T::from(self.beta1).unwrap();
-        let beta2 = T::from(self.beta2).unwrap();
-        let epsilon = T::from(self.epsilon).unwrap();
-        let weight_decay = T::from(self.weight_decay).unwrap();
-        let one = T::from(1.0).unwrap();
-        let t = T::from(self.t as f64).unwrap();
-
-        for param_state in &mut self.param_states {
-            let grad = param_state.grad()?;
-
-            // Apply weight decay if specified
-            let effective_grad = if self.weight_decay > 0.0 {
-                grad + &(&param_state.param * weight_decay)
-            } else {
-                grad.clone()
-            };
-
-            // Get or create moment estimates
-            let m = param_state.get_state_mut("m")
-                .ok_or_else(|| crate::error::OptimError::InvalidState {
-                    param_name: param_state.name.clone(),
-                    state_key: "m".to_string(),
-                })?;
-
-            let v = param_state.get_state_mut("v")
-                .ok_or_else(|| crate::error::OptimError::InvalidState {
-                    param_name: param_state.name.clone(),
-                    state_key: "v".to_string(),
-                })?;
-
-            // Update biased first moment estimate
-            // m_t = beta1 * m_{t-1} + (1 - beta1) * grad
-            *m = &(&m * beta1) + &(&effective_grad * (one - beta1));
-
-            // Update biased second raw moment estimate
-            // v_t = beta2 * v_{t-1} + (1 - beta2) * grad^2
-            let grad_squared = &effective_grad * &effective_grad;
-            *v = &(&v * beta2) + &(&grad_squared * (one - beta2));
-
-            // Compute bias-corrected first moment
-            // m_hat = m_t / (1 - beta1^t)
-            let beta1_t = beta1.powf(t);
-            let m_hat = m / (one - beta1_t);
-
-            // Compute bias-corrected second moment
-            // v_hat = v_t / (1 - beta2^t)
-            let beta2_t = beta2.powf(t);
-            let v_hat = v / (one - beta2_t);
-
-            // Compute parameter update
-            // param = param - lr * m_hat / (sqrt(v_hat) + epsilon)
-            let v_hat_sqrt = v_hat.sqrt();
-            let denominator = &v_hat_sqrt + &epsilon;
-            let update = &(&m_hat * lr) / &denominator;
-
-            param_state.param -= &update;
-        }
-
-        Ok(())
+    fn step(&mut self) -> Result<usize, crate::error::OptimError> {
+        <Self as BaseOptimizer<B, S, T>>::step(self)
     }
 
-    fn state_dict(&self) -> HashMap<String, Tensor<B, S, T>> {
-        let mut state = HashMap::new();
-        for param_state in &self.param_states {
-            state.insert(param_state.name.clone(), param_state.param.clone());
-            for (key, tensor) in &param_state.state {
-                state.insert(format!("{}.{}", param_state.name, key), tensor.clone());
-            }
-        }
-        state.insert("timestep".to_string(), Tensor::from_vec(vec![T::from(self.t as f64).unwrap()], &[1]).unwrap());
-        state
+    fn state_dict(&self) -> std::collections::HashMap<String, Tensor<B, S, T>> {
+        <Self as BaseOptimizer<B, S, T>>::state_dict(self)
     }
 
-    fn load_state_dict(&mut self, state_dict: HashMap<String, Tensor<B, S, T>>) -> Result<(), crate::error::OptimError> {
-        for param_state in &mut self.param_states {
-            if let Some(param) = state_dict.get(&param_state.name) {
-                if param.shape().dims() != param_state.param.shape().dims() {
-                    return Err(crate::error::OptimError::ShapeMismatch {
-                        param_name: param_state.name.clone(),
-                        expected: param_state.param.shape().dims().to_vec(),
-                        actual: param.shape().dims().to_vec(),
-                    });
-                }
-                param_state.param = param.clone();
-            }
-
-            // Load moment estimates
-            let m_key = format!("{}.m", param_state.name);
-            let v_key = format!("{}.v", param_state.name);
-
-            if let Some(m) = state_dict.get(&m_key) {
-                param_state.init_state("m".to_string(), m.clone());
-            }
-            if let Some(v) = state_dict.get(&v_key) {
-                param_state.init_state("v".to_string(), v.clone());
-            }
-        }
-
-        if let Some(t_tensor) = state_dict.get("timestep") {
-            if let Some(&t_val) = t_tensor.as_slice().first() {
-                self.t = t_val.to_f64().unwrap() as usize;
-            }
-        }
-
-        Ok(())
+    fn load_state_dict(
+        &mut self,
+        state_dict: std::collections::HashMap<String, Tensor<B, S, T>>,
+    ) -> Result<(), crate::error::OptimError> {
+        <Self as BaseOptimizer<B, S, T>>::load_state_dict(self, state_dict)
     }
 }
 
-impl<B, S, T> Default for Adam<B, S, T>
+// Implement GPU-accelerated optimizer trait (simplified)
+impl<B, S, T> GpuAcceleratedOptimizer for Adam<B, S, T>
 where
     B: Backend + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + num_traits::Float,
 {
-    fn default() -> Self {
-        Self::new(0.001, 0.9, 0.999, 1e-8, 0.0)
-    }
 }

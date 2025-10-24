@@ -3,9 +3,8 @@
 //! Provides efficient implementations of matrix operations for sparse tensors
 //! in CSR, CSC, and COO formats.
 
-use crate::{Result, SparseFormat, CsrStorage, CscStorage, CooStorage, StorageError, Storage};
+use crate::{CooStorage, CscStorage, CsrStorage, Result, SparseFormat, Storage, StorageError};
 use alloc::{vec, vec::Vec};
-use core::cmp::Ordering;
 
 /// Sparse matrix multiplication trait
 pub trait SparseMatMul<T: crate::DataType> {
@@ -48,7 +47,12 @@ pub trait SparseMatMul<T: crate::DataType> {
     ///
     /// # Errors
     /// Returns error if matrix dimensions are incompatible
-    fn matmul_dense(&self, dense_matrix: &[T], dense_rows: usize, dense_cols: usize) -> Result<Vec<T>>
+    fn matmul_dense(
+        &self,
+        dense_matrix: &[T],
+        dense_rows: usize,
+        dense_cols: usize,
+    ) -> Result<Vec<T>>
     where
         T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy;
 }
@@ -122,6 +126,8 @@ pub trait SparseElementWise<T: crate::DataType> {
     ///
     /// # Returns
     /// New sparse matrix with operation applied
+    /// # Errors
+    /// Returns error if operation fails
     fn map_nz<F>(&self, op: F) -> Result<Self>
     where
         Self: Sized,
@@ -129,7 +135,15 @@ pub trait SparseElementWise<T: crate::DataType> {
 }
 
 /// Sparse tensor reduction operations
-pub trait SparseReduce<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::ops::Div<Output = T> + Copy + PartialOrd> {
+pub trait SparseReduce<
+    T: crate::DataType
+        + num_traits::Zero
+        + core::ops::Add<Output = T>
+        + core::ops::Div<Output = T>
+        + Copy
+        + PartialOrd,
+>
+{
     /// Sum all elements (including implicit zeros)
     fn sum(&self) -> T;
 
@@ -179,9 +193,70 @@ pub trait SparseReshape<T: crate::DataType> {
     fn reshape_sparse(&self, new_shape: &[usize]) -> Result<CooStorage<T>>;
 }
 
+/// Sparse optimizer arithmetic operations
+/// These operations are optimized for optimizer updates on sparse tensors
+pub trait SparseOptimizerOps<T: crate::DataType> {
+    /// Scalar multiplication: result = scalar * self (only on non-zero elements)
+    ///
+    /// # Arguments
+    /// * `scalar` - Scalar value to multiply by
+    ///
+    /// # Returns
+    /// New sparse matrix with scalar multiplication applied
+    ///
+    /// # Errors
+    /// Returns error if allocation fails during sparse matrix creation.
+    fn scalar_mul_sparse(&self, scalar: T) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Element-wise square: result\[i\] = self\[i\] * self\[i\]
+    ///
+    /// # Returns
+    /// New sparse matrix with element-wise square applied
+    ///
+    /// # Errors
+    /// Returns error if allocation fails during sparse matrix creation.
+    fn square_sparse(&self) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Element-wise square root: result\[i\] = sqrt(self\[i\])
+    ///
+    /// # Returns
+    /// New sparse matrix with element-wise square root applied
+    ///
+    /// # Errors
+    /// Returns error if allocation fails during sparse matrix creation.
+    fn sqrt_sparse(&self) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Add scalar to all elements: result\[i\] = self\[i\] + scalar
+    ///
+    /// # Arguments
+    /// * `scalar` - Scalar value to add
+    ///
+    /// # Returns
+    /// New sparse matrix with scalar addition applied
+    ///
+    /// # Errors
+    /// Returns error if allocation fails during sparse matrix creation.
+    fn scalar_add_sparse(&self, scalar: T) -> Result<Self>
+    where
+        Self: Sized;
+}
+
 // CSR Matrix Multiplication Implementation
-impl<T: crate::DataType + core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy> SparseMatMul<T> for CsrStorage<T> {
-    fn matmul_sparse(&self, other: &Self, result_format: SparseFormat) -> Result<CooStorage<T>> {
+impl<
+        T: crate::DataType
+            + core::ops::Add<Output = T>
+            + core::ops::Mul<Output = T>
+            + num_traits::Zero
+            + Copy,
+    > SparseMatMul<T> for CsrStorage<T>
+{
+    fn matmul_sparse(&self, other: &Self, _result_format: SparseFormat) -> Result<CooStorage<T>> {
         // Validate dimensions
         if self.shape().dims()[1] != other.shape().dims()[0] {
             return Err(StorageError::ShapeMismatch {
@@ -190,45 +265,53 @@ impl<T: crate::DataType + core::ops::Add<Output = T> + core::ops::Mul<Output = T
             });
         }
 
-        let m = self.shape().dims()[0];
-        let k = self.shape().dims()[1];
-        let n = other.shape().dims()[1];
+        let m = self.shape().dims()[0]; // A rows
+        let _k = self.shape().dims()[1]; // A cols / B rows
+        let n = other.shape().dims()[1]; // B cols
 
-        // Use COO format for accumulation (easier for construction)
-        let mut result_data = Vec::new();
-        let mut result_row_indices = Vec::new();
-        let mut result_col_indices = Vec::new();
+        // Algorithm: CSR × CSR multiplication using symbolic/numeric phases
+        // 1. Symbolic phase: Determine sparsity pattern of C = A @ B
+        // 2. Numeric phase: Compute non-zero values
 
-        // Standard CSR sparse matrix multiplication
-        // For each row i in A
-        for i in 0..m {
-            let row_start = self.indptr()[i];
-            let row_end = self.indptr()[i + 1];
-
-            // For each non-zero element A[i,k] in row i
-            for a_idx in row_start..row_end {
-                let k = self.indices()[a_idx];
-                let a_val = self.as_slice()[a_idx];
-
-                // For each non-zero element B[k,j] in row k of B
-                let b_row_start = other.indptr()[k];
-                let b_row_end = other.indptr()[k + 1];
-
-                for b_idx in b_row_start..b_row_end {
-                    let j = other.indices()[b_idx];
-                    let b_val = other.as_slice()[b_idx];
-
-                    // Accumulate C[i,j] += A[i,k] * B[k,j]
-                    let c_val = a_val * b_val;
-                    result_data.push(c_val);
-                    result_row_indices.push(i);
-                    result_col_indices.push(j);
+        // Symbolic phase: Compute row pointers for result
+        let mut nnz_per_row = vec![0usize; m];
+        for (i, item) in nnz_per_row.iter_mut().enumerate().take(m) {
+            let mut cols_seen = std::collections::HashSet::new();
+            for a_ptr in self.indptr()[i]..self.indptr()[i + 1] {
+                let a_col = self.indices()[a_ptr];
+                for b_ptr in other.indptr()[a_col]..other.indptr()[a_col + 1] {
+                    cols_seen.insert(other.indices()[b_ptr]);
                 }
+            }
+            *item = cols_seen.len();
+        }
+
+        // Numeric phase: Compute actual values
+        let mut result_rows = Vec::new();
+        let mut result_cols = Vec::new();
+        let mut result_values = Vec::new();
+
+        for i in 0..m {
+            let mut row_accumulator = std::collections::HashMap::new();
+            for a_ptr in self.indptr()[i]..self.indptr()[i + 1] {
+                let a_col = self.indices()[a_ptr];
+                let a_val = self.as_slice()[a_ptr];
+                for b_ptr in other.indptr()[a_col]..other.indptr()[a_col + 1] {
+                    let b_col = other.indices()[b_ptr];
+                    let b_val = other.as_slice()[b_ptr];
+                    let entry = row_accumulator.entry(b_col).or_insert(T::zero());
+                    *entry = *entry + a_val * b_val;
+                }
+            }
+
+            for (col, val) in row_accumulator {
+                result_rows.push(i);
+                result_cols.push(col);
+                result_values.push(val);
             }
         }
 
-        // Return result in COO format
-        CooStorage::new(result_data, result_row_indices, result_col_indices, &[m, n])
+        CooStorage::new(result_values, result_rows, result_cols, &[m, n])
     }
 
     fn matvec_mul(&self, vector: &[T]) -> Result<Vec<T>> {
@@ -245,6 +328,7 @@ impl<T: crate::DataType + core::ops::Add<Output = T> + core::ops::Mul<Output = T
 
         // High-performance CSR matvec multiplication with cache-aware blocking
         // Process in blocks to improve cache locality and enable SIMD vectorization
+        #[allow(clippy::items_after_statements)]
         const BLOCK_SIZE: usize = 64; // Tune based on cache line size
 
         // For each row block
@@ -252,7 +336,12 @@ impl<T: crate::DataType + core::ops::Add<Output = T> + core::ops::Mul<Output = T
             let row_block_end = (row_block + BLOCK_SIZE).min(m);
 
             // For each row in the block
-            for row in row_block..row_block_end {
+            for (row, result_item) in result
+                .iter_mut()
+                .enumerate()
+                .take(row_block_end)
+                .skip(row_block)
+            {
                 let row_start = self.indptr()[row];
                 let row_end = self.indptr()[row + 1];
 
@@ -289,14 +378,19 @@ impl<T: crate::DataType + core::ops::Add<Output = T> + core::ops::Mul<Output = T
                     idx += 1;
                 }
 
-                result[row] = sum;
+                *result_item = sum;
             }
         }
 
         Ok(result)
     }
 
-    fn matmul_dense(&self, dense_matrix: &[T], dense_rows: usize, dense_cols: usize) -> Result<Vec<T>>
+    fn matmul_dense(
+        &self,
+        dense_matrix: &[T],
+        dense_rows: usize,
+        dense_cols: usize,
+    ) -> Result<Vec<T>>
     where
         T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
     {
@@ -340,8 +434,15 @@ impl<T: crate::DataType + core::ops::Add<Output = T> + core::ops::Mul<Output = T
 }
 
 // CSC Matrix Multiplication Implementation
-impl<T: crate::DataType + core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy> SparseMatMul<T> for CscStorage<T> {
-    fn matmul_sparse(&self, other: &Self, result_format: SparseFormat) -> Result<CooStorage<T>> {
+impl<
+        T: crate::DataType
+            + core::ops::Add<Output = T>
+            + core::ops::Mul<Output = T>
+            + num_traits::Zero
+            + Copy,
+    > SparseMatMul<T> for CscStorage<T>
+{
+    fn matmul_sparse(&self, other: &Self, _result_format: SparseFormat) -> Result<CooStorage<T>> {
         // For CSC, it's often better to convert to CSR and use CSR multiplication
         let self_csr = self.to_csr();
         let other_csr = other.to_csr();
@@ -354,7 +455,12 @@ impl<T: crate::DataType + core::ops::Add<Output = T> + core::ops::Mul<Output = T
         csr.matvec_mul(vector)
     }
 
-    fn matmul_dense(&self, dense_matrix: &[T], dense_rows: usize, dense_cols: usize) -> Result<Vec<T>>
+    fn matmul_dense(
+        &self,
+        dense_matrix: &[T],
+        dense_rows: usize,
+        dense_cols: usize,
+    ) -> Result<Vec<T>>
     where
         T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
     {
@@ -365,8 +471,15 @@ impl<T: crate::DataType + core::ops::Add<Output = T> + core::ops::Mul<Output = T
 }
 
 // COO Matrix Multiplication Implementation
-impl<T: crate::DataType + core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy> SparseMatMul<T> for CooStorage<T> {
-    fn matmul_sparse(&self, other: &Self, result_format: SparseFormat) -> Result<CooStorage<T>> {
+impl<
+        T: crate::DataType
+            + core::ops::Add<Output = T>
+            + core::ops::Mul<Output = T>
+            + num_traits::Zero
+            + Copy,
+    > SparseMatMul<T> for CooStorage<T>
+{
+    fn matmul_sparse(&self, other: &Self, _result_format: SparseFormat) -> Result<CooStorage<T>> {
         // Convert to CSR for multiplication, then back to COO
         let self_csr = self.to_csr();
         let other_csr = other.to_csr();
@@ -379,7 +492,12 @@ impl<T: crate::DataType + core::ops::Add<Output = T> + core::ops::Mul<Output = T
         csr.matvec_mul(vector)
     }
 
-    fn matmul_dense(&self, dense_matrix: &[T], dense_rows: usize, dense_cols: usize) -> Result<Vec<T>>
+    fn matmul_dense(
+        &self,
+        dense_matrix: &[T],
+        dense_rows: usize,
+        dense_cols: usize,
+    ) -> Result<Vec<T>>
     where
         T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
     {
@@ -432,12 +550,19 @@ impl<T: crate::DataType + core::ops::Add<Output = T> + Copy> SparseAdd<T> for Co
         result_col_indices.extend_from_slice(other.col_indices());
 
         // Create result COO matrix
-        CooStorage::new(result_data, result_row_indices, result_col_indices, self.shape().dims())
+        CooStorage::new(
+            result_data,
+            result_row_indices,
+            result_col_indices,
+            self.shape().dims(),
+        )
     }
 }
 
 // Sparse Subtraction Implementation (all formats)
-impl<T: crate::DataType + core::ops::Sub<Output = T> + core::ops::Neg<Output = T> + Copy> SparseSub<T> for CsrStorage<T> {
+impl<T: crate::DataType + core::ops::Sub<Output = T> + core::ops::Neg<Output = T> + Copy>
+    SparseSub<T> for CsrStorage<T>
+{
     fn sub_sparse(&self, other: &Self) -> Result<CooStorage<T>> {
         let self_coo = self.to_coo();
         let other_coo = other.to_coo();
@@ -445,7 +570,9 @@ impl<T: crate::DataType + core::ops::Sub<Output = T> + core::ops::Neg<Output = T
     }
 }
 
-impl<T: crate::DataType + core::ops::Sub<Output = T> + core::ops::Neg<Output = T> + Copy> SparseSub<T> for CscStorage<T> {
+impl<T: crate::DataType + core::ops::Sub<Output = T> + core::ops::Neg<Output = T> + Copy>
+    SparseSub<T> for CscStorage<T>
+{
     fn sub_sparse(&self, other: &Self) -> Result<CooStorage<T>> {
         let self_coo = self.to_coo();
         let other_coo = other.to_coo();
@@ -453,7 +580,10 @@ impl<T: crate::DataType + core::ops::Sub<Output = T> + core::ops::Neg<Output = T
     }
 }
 
-impl<T: crate::DataType + core::ops::Sub<Output = T> + core::ops::Neg<Output = T> + Copy> SparseSub<T> for CooStorage<T> {
+impl<T: crate::DataType + core::ops::Sub<Output = T> + core::ops::Neg<Output = T> + Copy>
+    SparseSub<T> for CooStorage<T>
+{
+    #[allow(clippy::items_after_statements)]
     fn sub_sparse(&self, other: &Self) -> Result<CooStorage<T>> {
         // Validate dimensions
         if self.shape().dims() != other.shape().dims() {
@@ -468,12 +598,22 @@ impl<T: crate::DataType + core::ops::Sub<Output = T> + core::ops::Neg<Output = T
         let mut position_map: BTreeMap<(usize, usize), T> = BTreeMap::new();
 
         // Add all elements from self
-        for ((&row, &col), &val) in self.row_indices().iter().zip(self.col_indices()).zip(self.as_slice()) {
+        for ((&row, &col), &val) in self
+            .row_indices()
+            .iter()
+            .zip(self.col_indices())
+            .zip(self.as_slice())
+        {
             position_map.insert((row, col), val);
         }
 
         // Subtract all elements from other
-        for ((&row, &col), &val) in other.row_indices().iter().zip(other.col_indices()).zip(other.as_slice()) {
+        for ((&row, &col), &val) in other
+            .row_indices()
+            .iter()
+            .zip(other.col_indices())
+            .zip(other.as_slice())
+        {
             let entry = position_map.entry((row, col)).or_insert(T::zero());
             *entry = entry.sub(val);
         }
@@ -491,7 +631,12 @@ impl<T: crate::DataType + core::ops::Sub<Output = T> + core::ops::Neg<Output = T
             }
         }
 
-        CooStorage::new(result_data, result_row_indices, result_col_indices, self.shape().dims())
+        CooStorage::new(
+            result_data,
+            result_row_indices,
+            result_col_indices,
+            self.shape().dims(),
+        )
     }
 }
 
@@ -513,6 +658,7 @@ impl<T: crate::DataType + core::ops::Mul<Output = T> + Copy> SparseMul<T> for Cs
 }
 
 impl<T: crate::DataType + core::ops::Mul<Output = T> + Copy> SparseMul<T> for CooStorage<T> {
+    #[allow(clippy::items_after_statements)]
     fn mul_sparse(&self, other: &Self) -> Result<CooStorage<T>> {
         // Validate dimensions
         if self.shape().dims() != other.shape().dims() {
@@ -525,9 +671,12 @@ impl<T: crate::DataType + core::ops::Mul<Output = T> + Copy> SparseMul<T> for Co
         // Create maps for efficient lookup of other matrix elements
         use alloc::collections::BTreeMap;
         let mut other_map = BTreeMap::new();
-        for ((&row, &col), &val) in other.row_indices().iter()
+        for ((&row, &col), &val) in other
+            .row_indices()
+            .iter()
             .zip(other.col_indices().iter())
-            .zip(other.as_slice().iter()) {
+            .zip(other.as_slice().iter())
+        {
             other_map.insert((row, col), val);
         }
 
@@ -536,9 +685,12 @@ impl<T: crate::DataType + core::ops::Mul<Output = T> + Copy> SparseMul<T> for Co
         let mut result_col_indices = Vec::new();
 
         // For each element in self, check if same position exists in other
-        for ((&row, &col), &val) in self.row_indices().iter()
+        for ((&row, &col), &val) in self
+            .row_indices()
+            .iter()
             .zip(self.col_indices().iter())
-            .zip(self.as_slice().iter()) {
+            .zip(self.as_slice().iter())
+        {
             if let Some(&other_val) = other_map.get(&(row, col)) {
                 result_data.push(val * other_val);
                 result_row_indices.push(row);
@@ -546,7 +698,12 @@ impl<T: crate::DataType + core::ops::Mul<Output = T> + Copy> SparseMul<T> for Co
             }
         }
 
-        CooStorage::new(result_data, result_row_indices, result_col_indices, self.shape().dims())
+        CooStorage::new(
+            result_data,
+            result_row_indices,
+            result_col_indices,
+            self.shape().dims(),
+        )
     }
 }
 
@@ -568,6 +725,7 @@ impl<T: crate::DataType + core::ops::Div<Output = T> + Copy> SparseDiv<T> for Cs
 }
 
 impl<T: crate::DataType + core::ops::Div<Output = T> + Copy> SparseDiv<T> for CooStorage<T> {
+    #[allow(clippy::items_after_statements)]
     fn div_sparse(&self, other: &Self) -> Result<CooStorage<T>> {
         // Validate dimensions
         if self.shape().dims() != other.shape().dims() {
@@ -580,9 +738,12 @@ impl<T: crate::DataType + core::ops::Div<Output = T> + Copy> SparseDiv<T> for Co
         // Create maps for efficient lookup of other matrix elements
         use alloc::collections::BTreeMap;
         let mut other_map = BTreeMap::new();
-        for ((&row, &col), &val) in other.row_indices().iter()
+        for ((&row, &col), &val) in other
+            .row_indices()
+            .iter()
             .zip(other.col_indices().iter())
-            .zip(other.as_slice().iter()) {
+            .zip(other.as_slice().iter())
+        {
             other_map.insert((row, col), val);
         }
 
@@ -591,9 +752,12 @@ impl<T: crate::DataType + core::ops::Div<Output = T> + Copy> SparseDiv<T> for Co
         let mut result_col_indices = Vec::new();
 
         // For each element in self, check if same position exists in other
-        for ((&row, &col), &val) in self.row_indices().iter()
+        for ((&row, &col), &val) in self
+            .row_indices()
+            .iter()
             .zip(self.col_indices().iter())
-            .zip(self.as_slice().iter()) {
+            .zip(self.as_slice().iter())
+        {
             if let Some(&other_val) = other_map.get(&(row, col)) {
                 result_data.push(val / other_val);
                 result_row_indices.push(row);
@@ -601,7 +765,12 @@ impl<T: crate::DataType + core::ops::Div<Output = T> + Copy> SparseDiv<T> for Co
             }
         }
 
-        CooStorage::new(result_data, result_row_indices, result_col_indices, self.shape().dims())
+        CooStorage::new(
+            result_data,
+            result_row_indices,
+            result_col_indices,
+            self.shape().dims(),
+        )
     }
 }
 
@@ -613,7 +782,12 @@ impl<T: crate::DataType + Copy> SparseElementWise<T> for CsrStorage<T> {
     {
         let new_data: Vec<T> = self.as_slice().iter().map(|&x| op(x)).collect();
         // Create new CSR with modified data but same structure
-        CsrStorage::new(new_data, self.indices().to_vec(), self.indptr().to_vec(), self.shape().dims())
+        CsrStorage::new(
+            new_data,
+            self.indices().to_vec(),
+            self.indptr().to_vec(),
+            self.shape().dims(),
+        )
     }
 }
 
@@ -624,7 +798,12 @@ impl<T: crate::DataType + Copy> SparseElementWise<T> for CscStorage<T> {
     {
         let new_data: Vec<T> = self.as_slice().iter().map(|&x| op(x)).collect();
         // Create new CSC with modified data but same structure
-        CscStorage::new(new_data, self.indices().to_vec(), self.indptr().to_vec(), self.shape().dims())
+        CscStorage::new(
+            new_data,
+            self.indices().to_vec(),
+            self.indptr().to_vec(),
+            self.shape().dims(),
+        )
     }
 }
 
@@ -635,16 +814,30 @@ impl<T: crate::DataType + Copy> SparseElementWise<T> for CooStorage<T> {
     {
         let new_data: Vec<T> = self.as_slice().iter().map(|&x| op(x)).collect();
         // Create new COO with modified data but same structure
-        CooStorage::new(new_data, self.row_indices().to_vec(), self.col_indices().to_vec(), self.shape().dims())
+        CooStorage::new(
+            new_data,
+            self.row_indices().to_vec(),
+            self.col_indices().to_vec(),
+            self.shape().dims(),
+        )
     }
 }
 
 // Reduction operations for all sparse formats
-impl<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::ops::Div<Output = T> + Copy + PartialOrd> SparseReduce<T> for CsrStorage<T> {
+impl<
+        T: crate::DataType
+            + num_traits::Zero
+            + core::ops::Add<Output = T>
+            + core::ops::Div<Output = T>
+            + Copy
+            + PartialOrd,
+    > SparseReduce<T> for CsrStorage<T>
+{
     fn sum(&self) -> T {
         self.sum_nz()
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn mean(&self) -> T {
         let total_elements = self.shape().size();
         if total_elements == 0 {
@@ -656,11 +849,15 @@ impl<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::
     }
 
     fn max(&self) -> T {
-        self.as_slice().iter().fold(T::zero(), |acc, &x| if x > acc { x } else { acc })
+        self.as_slice()
+            .iter()
+            .fold(T::zero(), |acc, &x| if x > acc { x } else { acc })
     }
 
     fn min(&self) -> T {
-        self.as_slice().iter().fold(T::zero(), |acc, &x| if x < acc { x } else { acc })
+        self.as_slice()
+            .iter()
+            .fold(T::zero(), |acc, &x| if x < acc { x } else { acc })
     }
 
     fn sum_nz(&self) -> T {
@@ -671,6 +868,7 @@ impl<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::
         self.as_slice().len()
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn sparsity(&self) -> f64 {
         let total_elements = self.shape().size();
         if total_elements == 0 {
@@ -681,11 +879,20 @@ impl<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::
     }
 }
 
-impl<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::ops::Div<Output = T> + Copy + PartialOrd> SparseReduce<T> for CscStorage<T> {
+impl<
+        T: crate::DataType
+            + num_traits::Zero
+            + core::ops::Add<Output = T>
+            + core::ops::Div<Output = T>
+            + Copy
+            + PartialOrd,
+    > SparseReduce<T> for CscStorage<T>
+{
     fn sum(&self) -> T {
         self.sum_nz()
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn mean(&self) -> T {
         let total_elements = self.shape().size();
         if total_elements == 0 {
@@ -697,11 +904,15 @@ impl<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::
     }
 
     fn max(&self) -> T {
-        self.as_slice().iter().fold(T::zero(), |acc, &x| if x > acc { x } else { acc })
+        self.as_slice()
+            .iter()
+            .fold(T::zero(), |acc, &x| if x > acc { x } else { acc })
     }
 
     fn min(&self) -> T {
-        self.as_slice().iter().fold(T::zero(), |acc, &x| if x < acc { x } else { acc })
+        self.as_slice()
+            .iter()
+            .fold(T::zero(), |acc, &x| if x < acc { x } else { acc })
     }
 
     fn sum_nz(&self) -> T {
@@ -712,6 +923,7 @@ impl<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::
         self.as_slice().len()
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn sparsity(&self) -> f64 {
         let total_elements = self.shape().size();
         if total_elements == 0 {
@@ -722,11 +934,20 @@ impl<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::
     }
 }
 
-impl<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::ops::Div<Output = T> + Copy + PartialOrd> SparseReduce<T> for CooStorage<T> {
+impl<
+        T: crate::DataType
+            + num_traits::Zero
+            + core::ops::Add<Output = T>
+            + core::ops::Div<Output = T>
+            + Copy
+            + PartialOrd,
+    > SparseReduce<T> for CooStorage<T>
+{
     fn sum(&self) -> T {
         self.sum_nz()
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn mean(&self) -> T {
         let total_elements = self.shape().size();
         if total_elements == 0 {
@@ -738,11 +959,15 @@ impl<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::
     }
 
     fn max(&self) -> T {
-        self.as_slice().iter().fold(T::zero(), |acc, &x| if x > acc { x } else { acc })
+        self.as_slice()
+            .iter()
+            .fold(T::zero(), |acc, &x| if x > acc { x } else { acc })
     }
 
     fn min(&self) -> T {
-        self.as_slice().iter().fold(T::zero(), |acc, &x| if x < acc { x } else { acc })
+        self.as_slice()
+            .iter()
+            .fold(T::zero(), |acc, &x| if x < acc { x } else { acc })
     }
 
     fn sum_nz(&self) -> T {
@@ -753,6 +978,7 @@ impl<T: crate::DataType + num_traits::Zero + core::ops::Add<Output = T> + core::
         self.as_slice().len()
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn sparsity(&self) -> f64 {
         let total_elements = self.shape().size();
         if total_elements == 0 {
@@ -875,17 +1101,69 @@ impl<T: crate::DataType + Copy> SparseReshape<T> for CooStorage<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Shape, SparseFormat};
-    use coeus_dtype::float::F32;
     use alloc::vec;
+    use coeus_dtype::float::F32;
+
+    #[test]
+    fn test_csr_matmul_sparse() {
+        // Test CSR × CSR sparse matrix multiplication
+        // Matrix A (2x2): [[1, 2], [3, 0]]
+        let data_a = vec![F32::new(1.0), F32::new(2.0), F32::new(3.0)];
+        let indices_a = vec![0, 1, 0]; // columns: [0, 1, 0]
+        let indptr_a = vec![0, 2, 3]; // row pointers
+        let csr_a = CsrStorage::new(data_a, indices_a, indptr_a, &[2, 2]).unwrap();
+
+        // Matrix B (2x2): [[1, 0], [0, 1]]
+        let data_b = vec![F32::new(1.0), F32::new(1.0)];
+        let indices_b = vec![0, 1]; // columns: [0, 1]
+        let indptr_b = vec![0, 1, 2]; // row pointers
+        let csr_b = CsrStorage::new(data_b, indices_b, indptr_b, &[2, 2]).unwrap();
+
+        // Result should be 2x2 matrix
+        let result_coo = csr_a.matmul_sparse(&csr_b, SparseFormat::Csr).unwrap();
+
+        // Expected result:
+        // Row 0: [1*1 + 2*0, 1*0 + 2*1] = [1, 2]
+        // Row 1: [3*1 + 0*0, 3*0 + 0*1] = [3, 0]
+        assert_eq!(result_coo.shape().dims(), &[2, 2]);
+        assert_eq!(result_coo.nnz(), 3); // Three non-zero elements
+
+        let data = result_coo.as_slice();
+        let rows = result_coo.row_indices();
+        let cols = result_coo.col_indices();
+
+        // Find element at (0,0) = 1
+        let idx_00 = rows
+            .iter()
+            .zip(cols)
+            .position(|(&r, &c)| r == 0 && c == 0)
+            .unwrap();
+        assert_eq!(data[idx_00], F32::new(1.0));
+
+        // Find element at (0,1) = 2
+        let idx_01 = rows
+            .iter()
+            .zip(cols)
+            .position(|(&r, &c)| r == 0 && c == 1)
+            .unwrap();
+        assert_eq!(data[idx_01], F32::new(2.0));
+
+        // Find element at (1,0) = 3
+        let idx_10 = rows
+            .iter()
+            .zip(cols)
+            .position(|(&r, &c)| r == 1 && c == 0)
+            .unwrap();
+        assert_eq!(data[idx_10], F32::new(3.0));
+    }
 
     #[test]
     fn test_csr_matvec_mul() {
         // Create simple 2x2 CSR matrix: [[1, 0], [2, 3]]
         // Non-zeros: (0,0)=1, (1,0)=2, (1,1)=3
         let data = vec![F32::new(1.0), F32::new(2.0), F32::new(3.0)];
-        let indices = vec![0, 0, 1];  // column indices
-        let indptr = vec![0, 1, 3];   // row pointers
+        let indices = vec![0, 0, 1]; // column indices
+        let indptr = vec![0, 1, 3]; // row pointers
         let csr = CsrStorage::new(data, indices, indptr, &[2, 2]).unwrap();
 
         // Multiply with vector [1, 1]
@@ -905,13 +1183,30 @@ mod tests {
         let csr = CsrStorage::new(data, indices, indptr, &[2, 2]).unwrap();
 
         // Dense matrix 2x3: [[1, 2, 3], [4, 5, 6]]
-        let dense_matrix = vec![F32::new(1.0), F32::new(2.0), F32::new(3.0), F32::new(4.0), F32::new(5.0), F32::new(6.0)];
+        let dense_matrix = vec![
+            F32::new(1.0),
+            F32::new(2.0),
+            F32::new(3.0),
+            F32::new(4.0),
+            F32::new(5.0),
+            F32::new(6.0),
+        ];
         let result = csr.matmul_dense(&dense_matrix, 2, 3).unwrap();
 
         // Expected 2x3 result:
         // Row 0: [1*1, 1*2, 1*3] = [1, 2, 3]
         // Row 1: [2*1 + 3*4, 2*2 + 3*5, 2*3 + 3*6] = [14, 19, 24]
-        assert_eq!(result, vec![F32::new(1.0), F32::new(2.0), F32::new(3.0), F32::new(14.0), F32::new(19.0), F32::new(24.0)]);
+        assert_eq!(
+            result,
+            vec![
+                F32::new(1.0),
+                F32::new(2.0),
+                F32::new(3.0),
+                F32::new(14.0),
+                F32::new(19.0),
+                F32::new(24.0)
+            ]
+        );
     }
 
     #[test]
@@ -932,16 +1227,16 @@ mod tests {
         let data_a = vec![F32::new(1.0), F32::new(2.0)];
         let row_a = vec![0, 1];
         let col_a = vec![0, 1];
-        let coo_a = CooStorage::new(data_a, row_a, col_a, &[2, 2]).unwrap();
+        let coo_data_a = CooStorage::new(data_a, row_a, col_a, &[2, 2]).unwrap();
 
         // Matrix B: [[0, 3], [4, 0]]
         let data_b = vec![F32::new(3.0), F32::new(4.0)];
         let row_b = vec![0, 1];
         let col_b = vec![1, 0];
-        let coo_b = CooStorage::new(data_b, row_b, col_b, &[2, 2]).unwrap();
+        let coo_data_b = CooStorage::new(data_b, row_b, col_b, &[2, 2]).unwrap();
 
         // Result should have all 4 elements
-        let result = coo_a.add_sparse(&coo_b).unwrap();
+        let result = coo_data_a.add_sparse(&coo_data_b).unwrap();
         assert_eq!(result.nnz(), 4);
         assert_eq!(result.shape().dims(), &[2, 2]);
     }
@@ -1072,5 +1367,245 @@ mod tests {
         assert_eq!(transposed_data[2], F32::new(3.0));
         assert_eq!(transposed_rows[2], 2);
         assert_eq!(transposed_cols[2], 1);
+    }
+}
+
+// Sparse Optimizer Operations Implementation (all formats)
+impl<T: crate::DataType + core::ops::Mul<Output = T> + Copy> SparseOptimizerOps<T>
+    for CsrStorage<T>
+{
+    fn scalar_mul_sparse(&self, scalar: T) -> Result<Self> {
+        let new_data: Vec<T> = self.as_slice().iter().map(|&x| x * scalar).collect();
+        CsrStorage::new(
+            new_data,
+            self.indices().to_vec(),
+            self.indptr().to_vec(),
+            self.shape().dims(),
+        )
+    }
+
+    fn square_sparse(&self) -> Result<Self> {
+        let new_data: Vec<T> = self.as_slice().iter().map(|&x| x * x).collect();
+        CsrStorage::new(
+            new_data,
+            self.indices().to_vec(),
+            self.indptr().to_vec(),
+            self.shape().dims(),
+        )
+    }
+
+    fn sqrt_sparse(&self) -> Result<Self> {
+        // For floating point types, we can compute square root
+        // This assumes T supports square root operation (float types)
+        let new_data: Vec<T> = self
+            .as_slice()
+            .iter()
+            .map(|&x| {
+                // This requires T to have a sqrt method (float types)
+                // For now, we'll use a placeholder that needs to be refined
+                // based on the actual DataType implementation
+                if let Some(float_val) = x.to_f64() {
+                    T::from(float_val.sqrt()).unwrap_or(x)
+                } else {
+                    x // fallback for non-float types
+                }
+            })
+            .collect();
+        CsrStorage::new(
+            new_data,
+            self.indices().to_vec(),
+            self.indptr().to_vec(),
+            self.shape().dims(),
+        )
+    }
+
+    fn scalar_add_sparse(&self, scalar: T) -> Result<Self> {
+        // Note: This adds scalar to non-zero elements, maintaining sparsity
+        // This is different from adding scalar to the entire matrix
+        let new_data: Vec<T> = self.as_slice().iter().map(|&x| x + scalar).collect();
+        CsrStorage::new(
+            new_data,
+            self.indices().to_vec(),
+            self.indptr().to_vec(),
+            self.shape().dims(),
+        )
+    }
+}
+
+impl<T: crate::DataType + core::ops::Mul<Output = T> + Copy> SparseOptimizerOps<T>
+    for CscStorage<T>
+{
+    fn scalar_mul_sparse(&self, scalar: T) -> Result<Self> {
+        let new_data: Vec<T> = self.as_slice().iter().map(|&x| x * scalar).collect();
+        CscStorage::new(
+            new_data,
+            self.indices().to_vec(),
+            self.indptr().to_vec(),
+            self.shape().dims(),
+        )
+    }
+
+    fn square_sparse(&self) -> Result<Self> {
+        let new_data: Vec<T> = self.as_slice().iter().map(|&x| x * x).collect();
+        CscStorage::new(
+            new_data,
+            self.indices().to_vec(),
+            self.indptr().to_vec(),
+            self.shape().dims(),
+        )
+    }
+
+    fn sqrt_sparse(&self) -> Result<Self> {
+        let new_data: Vec<T> = self
+            .as_slice()
+            .iter()
+            .map(|&x| {
+                if let Some(float_val) = x.to_f64() {
+                    T::from(float_val.sqrt()).unwrap_or(x)
+                } else {
+                    x
+                }
+            })
+            .collect();
+        CscStorage::new(
+            new_data,
+            self.indices().to_vec(),
+            self.indptr().to_vec(),
+            self.shape().dims(),
+        )
+    }
+
+    fn scalar_add_sparse(&self, scalar: T) -> Result<Self> {
+        let new_data: Vec<T> = self.as_slice().iter().map(|&x| x + scalar).collect();
+        CscStorage::new(
+            new_data,
+            self.indices().to_vec(),
+            self.indptr().to_vec(),
+            self.shape().dims(),
+        )
+    }
+}
+
+impl<T: crate::DataType + core::ops::Mul<Output = T> + Copy> SparseOptimizerOps<T>
+    for CooStorage<T>
+{
+    fn scalar_mul_sparse(&self, scalar: T) -> Result<Self> {
+        let new_data: Vec<T> = self.as_slice().iter().map(|&x| x * scalar).collect();
+        CooStorage::new(
+            new_data,
+            self.row_indices().to_vec(),
+            self.col_indices().to_vec(),
+            self.shape().dims(),
+        )
+    }
+
+    fn square_sparse(&self) -> Result<Self> {
+        let new_data: Vec<T> = self.as_slice().iter().map(|&x| x * x).collect();
+        CooStorage::new(
+            new_data,
+            self.row_indices().to_vec(),
+            self.col_indices().to_vec(),
+            self.shape().dims(),
+        )
+    }
+
+    fn sqrt_sparse(&self) -> Result<Self> {
+        let new_data: Vec<T> = self
+            .as_slice()
+            .iter()
+            .map(|&x| {
+                if let Some(float_val) = x.to_f64() {
+                    T::from(float_val.sqrt()).unwrap_or(x)
+                } else {
+                    x
+                }
+            })
+            .collect();
+        CooStorage::new(
+            new_data,
+            self.row_indices().to_vec(),
+            self.col_indices().to_vec(),
+            self.shape().dims(),
+        )
+    }
+
+    fn scalar_add_sparse(&self, scalar: T) -> Result<Self> {
+        let new_data: Vec<T> = self.as_slice().iter().map(|&x| x + scalar).collect();
+        CooStorage::new(
+            new_data,
+            self.row_indices().to_vec(),
+            self.col_indices().to_vec(),
+            self.shape().dims(),
+        )
+    }
+}
+
+#[cfg(test)]
+mod optimizer_ops_tests {
+    use super::*;
+    use coeus_dtype::float::F32;
+
+    #[test]
+    fn test_sparse_scalar_mul() {
+        // Create COO: (0,0)=2.0, (1,1)=3.0
+        let data = vec![F32::new(2.0), F32::new(3.0)];
+        let row_indices = vec![0, 1];
+        let col_indices = vec![0, 1];
+        let coo = CooStorage::new(data, row_indices, col_indices, &[2, 2]).unwrap();
+
+        // Multiply by 0.5: (0,0)=1.0, (1,1)=1.5
+        let result = coo.scalar_mul_sparse(F32::new(0.5)).unwrap();
+
+        assert_eq!(result.nnz(), 2);
+        assert_eq!(result.as_slice()[0], F32::new(1.0));
+        assert_eq!(result.as_slice()[1], F32::new(1.5));
+    }
+
+    #[test]
+    fn test_sparse_square() {
+        // Create COO: (0,0)=2.0, (1,1)=3.0
+        let data = vec![F32::new(2.0), F32::new(3.0)];
+        let row_indices = vec![0, 1];
+        let col_indices = vec![0, 1];
+        let coo = CooStorage::new(data, row_indices, col_indices, &[2, 2]).unwrap();
+
+        // Square: (0,0)=4.0, (1,1)=9.0
+        let result = coo.square_sparse().unwrap();
+
+        assert_eq!(result.nnz(), 2);
+        assert_eq!(result.as_slice()[0], F32::new(4.0));
+        assert_eq!(result.as_slice()[1], F32::new(9.0));
+    }
+
+    #[test]
+    fn test_sparse_sqrt() {
+        // Create COO: (0,0)=4.0, (1,1)=9.0
+        let data = vec![F32::new(4.0), F32::new(9.0)];
+        let row_indices = vec![0, 1];
+        let col_indices = vec![0, 1];
+        let coo = CooStorage::new(data, row_indices, col_indices, &[2, 2]).unwrap();
+
+        // Square root: (0,0)=2.0, (1,1)=3.0
+        let result = coo.sqrt_sparse().unwrap();
+
+        assert_eq!(result.nnz(), 2);
+        assert_eq!(result.as_slice()[0], F32::new(2.0));
+        assert_eq!(result.as_slice()[1], F32::new(3.0));
+    }
+
+    #[test]
+    fn test_sparse_scalar_add() {
+        // Create COO: (0,0)=2.0, (1,1)=3.0
+        let data = vec![F32::new(2.0), F32::new(3.0)];
+        let row_indices = vec![0, 1];
+        let col_indices = vec![0, 1];
+        let coo = CooStorage::new(data, row_indices, col_indices, &[2, 2]).unwrap();
+
+        // Add 1.0: (0,0)=3.0, (1,1)=4.0
+        let result = coo.scalar_add_sparse(F32::new(1.0)).unwrap();
+
+        assert_eq!(result.nnz(), 2);
+        assert_eq!(result.as_slice()[0], F32::new(3.0));
+        assert_eq!(result.as_slice()[1], F32::new(4.0));
     }
 }

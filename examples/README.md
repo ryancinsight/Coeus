@@ -138,16 +138,16 @@ cargo run --example comprehensive_training
 
 ### 7. GPU Basic (`gpu_basic.rs`)
 
-Introduction to GPU-accelerated computations.
+Demonstrates the current GPU backend stub implementation.
 
 ```bash
 cargo run --example gpu_basic
 ```
 
 **Features:**
-- GPU tensor operations
-- GPU memory management
-- Basic GPU computations
+- GPU backend initialization
+- Demonstrates stub operations (returns UnsupportedOperation)
+- Foundation for future GPU acceleration development
 
 ### 8. Distributed Training (`distributed_training.rs`)
 
@@ -162,6 +162,21 @@ cargo run --example distributed_training
 - Gradient synchronization
 - Multi-GPU training
 - Fault tolerance
+
+### 9. Mixed Precision Training (`mixed_precision.rs`)
+
+Automatic mixed precision training with FP16 and gradient scaling.
+
+```bash
+cargo run --example mixed_precision
+```
+
+**Features:**
+- FP16 operations for memory efficiency
+- Loss scaling for numerical stability
+- Gradient scaling to prevent underflow
+- NaN/Inf detection and handling
+- Automatic loss scale adjustment
 
 ### 9. Parallel Training (`parallel_training.rs`)
 
@@ -195,17 +210,6 @@ The distributed training examples show how to:
 
 ## Performance Examples
 
-### Performance Analysis (`performance_analysis.rs`)
-
-```bash
-cargo run --example performance_analysis
-```
-
-**Features:**
-- Performance profiling
-- Memory usage analysis
-- Bottleneck identification
-- Optimization recommendations
 
 ### Tracing (`tracing.rs`)
 
@@ -264,8 +268,9 @@ For new users, we recommend following this learning path:
 2. **Build networks**: `neural_network.rs`
 3. **Custom components**: `custom_layer.rs`
 4. **Advanced training**: `advanced_training.rs` or `comprehensive_training.rs`
-5. **Performance**: `performance_analysis.rs`
-6. **Scale up**: `distributed_training.rs` or `gpu_basic.rs`
+5. **Mixed precision**: `mixed_precision.rs` for FP16 training
+6. **Performance**: Use `tracing.rs` for monitoring and profiling
+7. **Scale up**: `distributed_training.rs` or `gpu_basic.rs`
 
 ## API Documentation
 

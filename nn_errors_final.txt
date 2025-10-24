@@ -1,0 +1,407 @@
+warning: unused import: `num_traits::ToPrimitive`
+ --> nn\src\sequential.rs:9:5
+  |
+9 | use num_traits::ToPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::collections::BinaryHeap`
+ --> nn\src\nas\evolutionary.rs:7:5
+  |
+7 | use std::collections::BinaryHeap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\nas\reinforcement.rs:6:5
+  |
+6 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ArchitectureType`
+ --> nn\src\nas\reinforcement.rs:9:60
+  |
+9 | use super::search_space::{Architecture, ArchitectureSpace, ArchitectureType, LayerSpec};
+  |                                                            ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\nas\darts.rs:6:5
+  |
+6 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::fmt`
+ --> nn\src\nas\search_space.rs:6:5
+  |
+6 | use std::fmt;
+  |     ^^^^^^^^
+
+warning: unused import: `Instant`
+ --> nn\src\nas\evaluator.rs:7:27
+  |
+7 | use std::time::{Duration, Instant};
+  |                           ^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\nas\evaluator.rs:10:20
+   |
+10 | use crate::error::{NNError, Result};
+   |                    ^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\hpo\bayesian.rs:6:5
+  |
+6 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\hpo\bandits.rs:6:5
+  |
+6 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `HPOptimizer`
+  --> nn\src\hpo\bandits.rs:10:24
+   |
+10 | use super::optimizer::{HPOptimizer, OptimizationResult};
+   |                        ^^^^^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\hpo\bandits.rs:11:20
+   |
+11 | use crate::error::{NNError, Result};
+   |                    ^^^^^^^
+
+warning: unused imports: `PI` and `SQRT_2`
+  --> nn\src\hpo\population.rs:56:24
+   |
+56 | use std::f64::consts::{PI, SQRT_2};
+   |                        ^^  ^^^^^^
+
+warning: unused import: `std::sync::Arc`
+  --> nn\src\hpo\population.rs:57:5
+   |
+57 | use std::sync::Arc;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused imports: `HyperparameterValue` and `Hyperparameter`
+  --> nn\src\hpo\population.rs:60:63
+   |
+60 | use super::space::{HyperparameterSpace, HyperparameterConfig, Hyperparameter, HyperparameterValue};
+   |                                                               ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `HPOptimizer`
+  --> nn\src\hpo\population.rs:61:24
+   |
+61 | use super::optimizer::{HPOptimizer, OptimizationResult};
+   |                        ^^^^^^^^^^^
+
+warning: unused imports: `Add`, `Div`, `Mul`, and `Sub`
+ --> nn\src\meta\maml.rs:8:16
+  |
+8 | use std::ops::{Add, Mul, Div, Sub};
+  |                ^^^  ^^^  ^^^  ^^^
+
+warning: unused import: `reduction`
+  --> nn\src\meta\maml.rs:13:46
+   |
+13 | use coeus_tensor::{Tensor, ops::{arithmetic, reduction}};
+   |                                              ^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\meta\prototypical.rs:7:5
+  |
+7 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Add`, `Div`, and `Mul`
+ --> nn\src\meta\prototypical.rs:9:16
+  |
+9 | use std::ops::{Add, Mul, Div};
+  |                ^^^  ^^^  ^^^
+
+warning: unused import: `crate::Module`
+  --> nn\src\meta\prototypical.rs:12:5
+   |
+12 | use crate::Module;
+   |     ^^^^^^^^^^^^^
+
+warning: unused imports: `NNError` and `Result`
+ --> nn\src\meta\meta_optimizer.rs:6:20
+  |
+6 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^  ^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\meta\adaptation.rs:6:20
+  |
+6 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\feature\pipeline.rs:6:20
+  |
+6 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^
+
+warning: unused import: `rayon::prelude`
+  --> nn\src\hpo\population.rs:55:5
+   |
+55 | use rayon::prelude::*;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `rand::Rng`
+ --> nn\src\hpo\bayesian.rs:7:5
+  |
+7 | use rand::Rng;
+  |     ^^^^^^^^^
+
+warning: unused variable: `result`
+   --> nn\src\nas\research_automation.rs:843:41
+    |
+843 |     pub fn check_reproducibility(&self, result: &ExperimentRecord) -> Result<()> {
+    |                                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_result`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `architectures`
+   --> nn\src\nas\reinforcement.rs:121:37
+    |
+121 |     pub fn update_policy(&mut self, architectures: &[Architecture], rewards: &[f64]) {
+    |                                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_architectures`
+
+warning: unused variable: `num_heads`
+   --> nn\src\nas\search_space.rs:191:38
+    |
+191 |             LayerSpec::Transformer { num_heads, feedforward_dim, .. } => {
+    |                                      ^^^^^^^^^ help: try ignoring the field: `num_heads: _`
+
+warning: unused variable: `arch_hash`
+   --> nn\src\nas\evaluator.rs:310:25
+    |
+310 |                     let arch_hash = EvaluationCache::hash_architecture(&architecture);
+    |                         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_arch_hash`
+
+warning: unused variable: `k_star_t`
+  --> nn\src\hpo\bayesian.rs:69:13
+   |
+69 |         let k_star_t = k_star.clone();
+   |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_k_star_t`
+
+warning: unused variable: `tolerance`
+   --> nn\src\hpo\population.rs:417:57
+    |
+417 |     fn update_cmaes_full(&mut self, initial_sigma: f64, tolerance: f64) -> Result<()> {
+    |                                                         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tolerance`
+
+warning: unused variable: `c_sigma`
+   --> nn\src\hpo\population.rs:428:13
+    |
+428 |         let c_sigma = (mu_eff + 2.0) / (dim as f64 + mu_eff + 5.0);
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_c_sigma`
+
+warning: unused variable: `c_1`
+   --> nn\src\hpo\population.rs:429:13
+    |
+429 |         let c_1 = 2.0 / ((dim + 1) as f64).powi(2);
+    |             ^^^ help: if this is intentional, prefix it with an underscore: `_c_1`
+
+warning: unused variable: `c_mu`
+   --> nn\src\hpo\population.rs:430:13
+    |
+430 |         let c_mu = mu_eff / ((dim + 1) as f64).powi(2);
+    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_c_mu`
+
+warning: unused variable: `trial_config`
+   --> nn\src\hpo\population.rs:527:21
+    |
+527 |                 let trial_config = HyperparameterConfig::from_vector(&trial_particle.position, &self.space)?;
+    |                     ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_trial_config`
+
+warning: unused variable: `trial_fitness`
+   --> nn\src\hpo\population.rs:528:21
+    |
+528 |                 let trial_fitness = 0.0; // Simplified - would use actual evaluation
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_trial_fitness`
+
+warning: unused variable: `config`
+   --> nn\src\hpo\population.rs:562:44
+    |
+562 |         self.evaluate_population_parallel(|config| Ok(f64::INFINITY))?;
+    |                                            ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+
+warning: unused variable: `improved`
+   --> nn\src\hpo\population.rs:695:17
+    |
+695 |             let improved = self.step(&objective)?;
+    |                 ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_improved`
+
+warning: unused variable: `log_scale`
+   --> nn\src\hpo\space.rs:231:55
+    |
+231 |                 Hyperparameter::Int { name, min, max, log_scale } => {
+    |                                                       ^^^^^^^^^ help: try ignoring the field: `log_scale: _`
+
+warning: unused variable: `end_idx`
+   --> nn\src\hpo\space.rs:258:25
+    |
+258 |                     let end_idx = (idx + choices.len()).min(vector.len());
+    |                         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_end_idx`
+
+warning: unused variable: `constrained_param`
+   --> nn\src\hpo\space.rs:473:87
+    |
+473 |             HyperparameterConstraint::Conditional { condition_param, condition_value, constrained_param, constraint } => {
+    |                                                                                       ^^^^^^^^^^^^^^^^^ help: try ignoring the field: `constrained_param: _`
+
+warning: unused variable: `evaluations_per_run`
+   --> nn\src\hpo\optimizer.rs:271:37
+    |
+271 |     pub fn run_benchmark(&mut self, evaluations_per_run: usize) -> Result<BenchmarkResults> {
+    |                                     ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_evaluations_per_run`
+
+warning: variable `total_loss` is assigned to, but never used
+   --> nn\src\meta\maml.rs:144:13
+    |
+144 |         let mut total_loss = 0.0;
+    |             ^^^^^^^^^^^^^^
+    |
+    = note: consider using `_total_loss` instead
+
+warning: value assigned to `total_loss` is never read
+   --> nn\src\meta\maml.rs:149:13
+    |
+149 |             total_loss += loss;
+    |             ^^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `model`
+   --> nn\src\meta\maml.rs:179:33
+    |
+179 |     fn compute_task_loss(&self, model: &M, dataset: &[(Tensor<B, S, T>, Tensor<B, S, T>)]) -> Result<f64> {
+    |                                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_model`
+
+warning: value assigned to `total_loss` is never read
+   --> nn\src\meta\maml.rs:180:30
+    |
+180 |         let mut total_loss = 0.0;
+    |                              ^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `param`
+   --> nn\src\meta\maml.rs:200:17
+    |
+200 |             for param in model.parameters() {
+    |                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_param`
+
+warning: unused variable: `input`
+   --> nn\src\meta\prototypical.rs:103:14
+    |
+103 |         for (input, class_id) in support_set {
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_input`
+
+warning: unused variable: `query`
+   --> nn\src\meta\prototypical.rs:135:28
+    |
+135 |     pub fn classify(&self, query: &Tensor<B, S, T>, prototypes: &[Tensor<B, S, T>]) -> Result<Vec<f64>> {
+    |                            ^^^^^ help: if this is intentional, prefix it with an underscore: `_query`
+
+warning: unused variable: `input`
+  --> nn\src\meta\meta_optimizer.rs:81:13
+   |
+81 |         let input = vec![gradient, self.hidden_state[param_idx % self.hidden_size]];
+   |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_input`
+
+warning: unused variable: `class_id`
+  --> nn\src\meta\benchmark.rs:46:13
+   |
+46 |         for class_id in 0..num_classes {
+   |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_class_id`
+
+warning: unused variable: `step`
+  --> nn\src\feature\selection.rs:58:67
+   |
+58 |             SelectionMethod::RecursiveElimination { estimator: _, step } => {
+   |                                                                   ^^^^ help: try ignoring the field: `step: _`
+
+warning: unused variable: `score`
+   --> nn\src\feature\selection.rs:211:17
+    |
+211 |             let score = estimator.fit_score(features, targets)?;
+    |                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_score`
+
+warning: unused variable: `start_time`
+   --> nn\src\feature\transformation.rs:113:13
+    |
+113 |         let start_time = std::time::Instant::now();
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_start_time`
+
+warning: unused variable: `feature_range`
+   --> nn\src\feature\transformation.rs:334:56
+    |
+334 |     fn fit_minmax_scaler(&self, features: &[Vec<f64>], feature_range: (f64, f64)) -> Result<TransformationParameters> {
+    |                                                        ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_feature_range`
+
+warning: variable does not need to be mutable
+   --> nn\src\feature\importance.rs:101:21
+    |
+101 |                 let mut permuted_input = input.clone();
+    |                     ----^^^^^^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `permuted_input`
+   --> nn\src\feature\importance.rs:101:21
+    |
+101 |                 let mut permuted_input = input.clone();
+    |                     ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_permuted_input`
+
+warning: variable does not need to be mutable
+   --> nn\src\feature\importance.rs:376:13
+    |
+376 |         let mut original_values: Vec<f64> = features.iter().map(|row| row[column_idx]).collect();
+    |             ----^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `best_pipeline`
+   --> nn\src\feature\integration.rs:290:21
+    |
+290 |         if let Some(best_pipeline) = result.pipeline_results.iter()
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_best_pipeline`
+
+warning: method `compute_rnn` is never used
+   --> nn\src\rnn\rnn.rs:580:8
+    |
+229 | / impl<B, S, T> RNN<B, S, T>
+230 | | where
+231 | |     B: Backend + Clone + Default,
+232 | |     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+233 | |     T: DataType + FloatExt,
+    | |___________________________- method in this implementation
+...
+580 |       fn compute_rnn(
+    |          ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `create_sparse_projection_generic` is never used
+   --> nn\src\attention\sparse.rs:158:8
+    |
+ 68 | / impl<B, S, T> SparseAttention<B, S, T>
+ 69 | | where
+ 70 | |     B: Backend + Clone + Default,
+ 71 | |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+ 72 | |     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::Zero,
+    | |___________________________________________________________________________________________- associated function in this implementation
+...
+158 |       fn create_sparse_projection_generic(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `coeus-nn` (lib) generated 62 warnings (run `cargo fix --lib -p coeus-nn` to apply 55 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.24s

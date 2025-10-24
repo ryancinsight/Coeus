@@ -1,4 +1,4 @@
-//! # NPU Backend for Neural Processing Units
+﻿//! # NPU Backend for Neural Processing Units
 //!
 //! Specialized backend for neural processing units (NPUs) with hardware acceleration
 //! for neural network operations. Supports major NPU architectures including
@@ -17,12 +17,12 @@
 //! All NPU operations are memory-safe with zero unsafe code. Hardware abstraction
 //! layers provide safe interfaces to NPU-specific operations.
 
-use crate::{Backend, Device, DeviceInfo};
+use crate::{Backend, Device};
 use std::{
+    eprintln,
     string::{String, ToString},
     vec,
     vec::Vec,
-    println,
 };
 
 /// Errors that can occur in NPU backend operations
@@ -67,6 +67,12 @@ pub struct NpuBackend {
     npu_info: NpuDeviceInfo,
 }
 
+impl Default for NpuBackend {
+    fn default() -> Self {
+        Self::new().unwrap_or_else(|_| panic!("NpuBackend initialization failed. Use NpuBackend::new() instead."))
+    }
+}
+
 impl NpuBackend {
     /// Create a new NPU backend with default configuration
     ///
@@ -94,8 +100,11 @@ impl NpuBackend {
 
     /// Detect available NPU hardware
     ///
-    /// This method would be implemented to detect various NPU architectures
-    /// in a real implementation.
+    /// Detect available NPU hardware
+    ///
+    /// Returns device information for available NPU hardware. In production,
+    /// this would detect Apple Neural Engine, Google Edge TPU, Qualcomm Hexagon DSP,
+    /// and other custom NPU architectures.
     fn detect_npu_hardware() -> Result<NpuDeviceInfo, NpuError> {
         // Placeholder implementation - in practice this would:
         // 1. Check for Apple Neural Engine (iOS/macOS)
@@ -104,7 +113,7 @@ impl NpuBackend {
         // 4. Check for custom NPU hardware
         // 5. Return appropriate device info
 
-        // For now, return a generic NPU device
+        // Return generic NPU device info for framework compatibility
         Ok(NpuDeviceInfo {
             name: "Generic Neural Processing Unit".to_string(),
             manufacturer: "Generic".to_string(),
@@ -193,16 +202,412 @@ pub struct NpuCompiledModel {
     pub operations_supported: Vec<String>,
 }
 
-impl Backend for NpuBackend {
-    type DeviceType = Device;
+impl Default for NpuBackend {
+    fn default() -> Self {
+        Self::new().unwrap_or_else(|_| {
+            // If hardware detection fails, create a placeholder instance
+            Self {
+                device_info: Device::Npu {
+                    name: "Generic Neural Processing Unit (Unavailable)".to_string(),
+                    manufacturer: "Generic".to_string(),
+                    compute_units: 0,
+                    peak_tops: 0.0,
+                    memory_mb: 0,
+                },
+                npu_info: NpuDeviceInfo {
+                    name: "Generic Neural Processing Unit (Unavailable)".to_string(),
+                    manufacturer: "Generic".to_string(),
+                    compute_units: 0,
+                    peak_tops: 0.0,
+                    memory_mb: 0,
+                    supported_ops: vec![],
+                },
+            }
+        })
+    }
+}
+
+impl<T: crate::DataType> Backend for NpuBackend<T> {
+    type Data = T;
+    type Device = Device;
 
     fn device(&self) -> &Self::DeviceType {
         &self.device_info
     }
 
+    fn device_name(&self) -> &str {
+        &self.npu_info.name
+    }
+
     fn supports(&self, operation: &str) -> bool {
         // Check if operation is supported by this NPU
         self.npu_info.supported_ops.contains(&operation.to_string())
+    }
+
+    fn add_dense<T>(
+        &self,
+        lhs: &coeus_storage::DenseStorage<T>,
+        rhs: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU add_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().add_dense(lhs, rhs)
+    }
+
+    fn mul_dense<T>(
+        &self,
+        lhs: &coeus_storage::DenseStorage<T>,
+        rhs: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU mul_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().mul_dense(lhs, rhs)
+    }
+
+    fn matmul_dense<T>(
+        &self,
+        lhs: &coeus_storage::DenseStorage<T>,
+        rhs: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU matmul_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().matmul_dense(lhs, rhs)
+    }
+
+    fn exp_dense<T>(
+        &self,
+        input: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU exp_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().exp_dense(input)
+    }
+
+    fn log_dense<T>(
+        &self,
+        input: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU log_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().log_dense(input)
+    }
+
+    fn sin_dense<T>(
+        &self,
+        input: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU sin_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().sin_dense(input)
+    }
+
+    fn cos_dense<T>(
+        &self,
+        input: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU cos_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().cos_dense(input)
+    }
+
+    fn conv2d_dense<T>(
+        &self,
+        input: &coeus_storage::DenseStorage<T>,
+        weight: &coeus_storage::DenseStorage<T>,
+        bias: Option<&coeus_storage::DenseStorage<T>>,
+        stride: (usize, usize),
+        padding: (usize, usize),
+        input_shape: &[usize],
+        weight_shape: &[usize],
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU conv2d_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().conv2d_dense(
+            input,
+            weight,
+            bias,
+            stride,
+            padding,
+            input_shape,
+            weight_shape,
+        )
+    }
+
+    fn spmm_csr<T>(
+        &self,
+        lhs_data: &[T],
+        lhs_indices: &[usize],
+        lhs_indptr: &[usize],
+        rhs_data: &[T],
+        rhs_indices: &[usize],
+        rhs_indptr: &[usize],
+        m: usize,
+        k: usize,
+        n: usize,
+    ) -> crate::Result<(Vec<T>, Vec<usize>, Vec<usize>)>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU spmm_csr not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().spmm_csr(
+            lhs_data,
+            lhs_indices,
+            lhs_indptr,
+            rhs_data,
+            rhs_indices,
+            rhs_indptr,
+            m,
+            k,
+            n,
+        )
+    }
+
+    fn spmv_csr<T>(
+        &self,
+        matrix_data: &[T],
+        matrix_indices: &[usize],
+        matrix_indptr: &[usize],
+        vector: &[T],
+        rows: usize,
+        cols: usize,
+    ) -> crate::Result<Vec<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU spmv_csr not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().spmv_csr(
+            matrix_data,
+            matrix_indices,
+            matrix_indptr,
+            vector,
+            rows,
+            cols,
+        )
+    }
+
+    fn quantize<T>(
+        &self,
+        input: &[T],
+        scale: T,
+        zero_point: T,
+        bits: usize,
+        scheme: &str,
+    ) -> crate::Result<Vec<u8>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU quantize not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().quantize(input, scale, zero_point, bits, scheme)
+    }
+
+    fn dequantize<T>(
+        &self,
+        quantized_data: &[u8],
+        scale: T,
+        zero_point: T,
+        bits: usize,
+        scheme: &str,
+        output_size: usize,
+    ) -> crate::Result<Vec<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU dequantize not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().dequantize(
+            quantized_data,
+            scale,
+            zero_point,
+            bits,
+            scheme,
+            output_size,
+        )
+    }
+
+    fn quantized_matmul<T>(
+        &self,
+        lhs_data: &[u8],
+        lhs_scale: T,
+        lhs_zero_point: T,
+        rhs_data: &[u8],
+        rhs_scale: T,
+        rhs_zero_point: T,
+        bias: Option<&[T]>,
+        m: usize,
+        k: usize,
+        n: usize,
+        bits: usize,
+        scheme: &str,
+    ) -> crate::Result<Vec<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("NPU quantized_matmul not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().quantized_matmul(
+            lhs_data,
+            lhs_scale,
+            lhs_zero_point,
+            rhs_data,
+            rhs_scale,
+            rhs_zero_point,
+            bias,
+            m,
+            k,
+            n,
+            bits,
+            scheme,
+        )
+    }
+
+    fn sub_dense<T>(
+        &self,
+        lhs: &coeus_storage::DenseStorage<T>,
+        rhs: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        eprintln!("NPU sub_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().sub_dense(lhs, rhs)
+    }
+
+    fn sum_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    where
+        T: crate::DataType + std::ops::Add<Output = T> + num_traits::Zero + Copy,
+    {
+        eprintln!("NPU sum_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().sum_dense(input)
+    }
+
+    fn mean_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    where
+        T: crate::DataType
+            + std::ops::Add<Output = T>
+            + std::ops::Div<Output = T>
+            + num_traits::Zero
+            + num_traits::One
+            + Copy
+            + From<u32>
+            + num_traits::FromPrimitive,
+    {
+        eprintln!("NPU mean_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().mean_dense(input)
+    }
+
+    fn max_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    where
+        T: crate::DataType + PartialOrd + Copy,
+    {
+        eprintln!("NPU max_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().max_dense(input)
+    }
+
+    fn min_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    where
+        T: crate::DataType + PartialOrd + Copy,
+    {
+        eprintln!("NPU min_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().min_dense(input)
+    }
+
+    fn argmax_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    where
+        T: crate::DataType + PartialOrd + Copy,
+    {
+        eprintln!("NPU argmax_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().argmax_dense(input)
+    }
+
+    fn argmin_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    where
+        T: crate::DataType + PartialOrd + Copy,
+    {
+        eprintln!("NPU argmin_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().argmin_dense(input)
+    }
+
+    fn coo_matmul_sparse<T>(
+        &self,
+        lhs: &coeus_storage::CooStorage<T>,
+        rhs: &coeus_storage::CooStorage<T>,
+    ) -> crate::Result<coeus_storage::CooStorage<T>>
+    where
+        T: crate::DataType
+            + std::ops::Add<Output = T>
+            + std::ops::Mul<Output = T>
+            + num_traits::Zero
+            + Copy,
+    {
+        eprintln!("NPU coo_matmul_sparse not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().coo_matmul_sparse(lhs, rhs)
+    }
+
+    fn coo_matmul_dense<T>(
+        &self,
+        lhs: &coeus_storage::CooStorage<T>,
+        rhs: &[T],
+    ) -> crate::Result<Vec<T>>
+    where
+        T: crate::DataType
+            + std::ops::Add<Output = T>
+            + std::ops::Mul<Output = T>
+            + num_traits::Zero
+            + Copy,
+    {
+        eprintln!("NPU coo_matmul_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().coo_matmul_dense(lhs, rhs)
+    }
+
+    fn coo_add_sparse<T>(
+        &self,
+        lhs: &coeus_storage::CooStorage<T>,
+        rhs: &coeus_storage::CooStorage<T>,
+    ) -> crate::Result<coeus_storage::CooStorage<T>>
+    where
+        T: crate::DataType + std::ops::Add<Output = T> + Copy,
+    {
+        eprintln!("NPU coo_add_sparse not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().coo_add_sparse(lhs, rhs)
+    }
+
+    fn coo_mul_sparse<T>(
+        &self,
+        lhs: &coeus_storage::CooStorage<T>,
+        rhs: &coeus_storage::CooStorage<T>,
+    ) -> crate::Result<coeus_storage::CooStorage<T>>
+    where
+        T: crate::DataType + std::ops::Mul<Output = T> + Copy,
+    {
+        eprintln!("NPU coo_mul_sparse not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().coo_mul_sparse(lhs, rhs)
     }
 }
 
@@ -234,7 +639,13 @@ mod tests {
         let backend = NpuBackend::new();
         match backend {
             Ok(backend) => match backend.device() {
-                Device::Npu { name, manufacturer, compute_units, peak_tops, memory_mb } => {
+                Device::Npu {
+                    name,
+                    manufacturer,
+                    compute_units,
+                    peak_tops,
+                    memory_mb,
+                } => {
                     assert!(!name.is_empty());
                     assert!(!manufacturer.is_empty());
                     assert!(*compute_units > 0);
@@ -326,3 +737,4 @@ mod tests {
         }
     }
 }
+

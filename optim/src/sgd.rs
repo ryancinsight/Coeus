@@ -8,11 +8,13 @@ use std::marker::PhantomData;
 
 use coeus_backend::Backend;
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use coeus_storage::DenseStorage;
+use coeus_tensor::{
+    ops::arithmetic::{add, scalar_mul, sub},
+    Tensor,
+};
 
-use crate::optimizer_core::{Optimizer, OptimizerConfig, ParamState};
-use crate::Parameter;
+use crate::optimizer_core::{Optimizer, ParamState};
 
 /// Stochastic Gradient Descent (SGD) optimizer with momentum.
 ///
@@ -50,17 +52,16 @@ use crate::Parameter;
 /// use coeus_storage::DenseStorage;
 ///
 /// // Create SGD optimizer
-/// let mut optimizer = SGD::<CpuBackend, DenseStorage<Float32>, Float32>::new(0.01, 0.9, 0.0, 0.0, false);
+/// let mut optimizer = SGD::<CpuBackend, Float32>::new(0.01, 0.9, 0.0, 0.0, false);
 /// ```
 #[derive(Debug)]
-pub struct SGD<B, S, T>
+pub struct SGD<B, T>
 where
     B: Backend + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
     /// Parameter states
-    param_states: Vec<ParamState<B, S, T>>,
+    param_states: Vec<ParamState<B, DenseStorage<T>, T>>,
     /// Learning rate
     lr: f64,
     /// Momentum factor
@@ -72,13 +73,12 @@ where
     /// Whether to use Nesterov momentum
     nesterov: bool,
     /// Phantom data
-    _phantom: PhantomData<(B, S, T)>,
+    _phantom: PhantomData<(B, T)>,
 }
 
-impl<B, S, T> SGD<B, S, T>
+impl<B, T> SGD<B, T>
 where
     B: Backend + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
     /// Create a new SGD optimizer.
@@ -132,35 +132,48 @@ where
     }
 }
 
-impl<B, S, T> Optimizer<B, S, T> for SGD<B, S, T>
+impl<B, T> Optimizer<B, DenseStorage<T>, T> for SGD<B, T>
 where
-    B: Backend + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt + core::ops::Add<Output = T> + core::ops::Sub<Output = T> + core::ops::Mul<Output = T> + core::ops::Div<Output = T>,
+    B: Backend + Clone + Default + Send + Sync,
+    T: DataType
+        + FloatExt
+        + core::ops::Add<Output = T>
+        + core::ops::Sub<Output = T>
+        + core::ops::Mul<Output = T>
+        + core::ops::Div<Output = T>,
 {
     fn name(&self) -> &str {
         "SGD"
     }
 
-    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
-        self.param_states.iter().map(|ps| ps.param.clone()).collect()
+    fn parameters(&self) -> Vec<Tensor<B, DenseStorage<T>, T>> {
+        self.param_states
+            .iter()
+            .map(|ps| ps.param.clone())
+            .collect()
     }
 
-    fn named_parameters(&self) -> HashMap<String, Parameter<B, S, T>> {
+    fn named_parameters(&self) -> HashMap<String, Tensor<B, DenseStorage<T>, T>> {
         self.param_states
             .iter()
             .map(|ps| (ps.name.clone(), ps.param.clone()))
             .collect()
     }
 
-    fn add_param(&mut self, param: Parameter<B, S, T>, name: String) {
-        let mut param_state = ParamState::new(param, name);
+    fn add_param(
+        &mut self,
+        param: &mut Tensor<B, DenseStorage<T>, T>,
+        name: String,
+    ) -> Result<(), crate::error::OptimError> {
+        let param_clone = param.clone();
+        let mut param_state = ParamState::new(param_clone, name);
         if self.momentum > 0.0 {
             // Initialize momentum buffer
             let velocity = Tensor::zeros(param.shape().dims()).unwrap();
             param_state.init_state("momentum_buffer".to_string(), velocity);
         }
         self.param_states.push(param_state);
+        Ok(())
     }
 
     fn remove_param(&mut self, name: &str) {
@@ -175,27 +188,44 @@ where
         self.lr
     }
 
-    fn set_lr(&mut self, lr: f64) {
+    fn set_lr(&mut self, lr: f64) -> Result<(), crate::error::OptimError> {
+        if lr <= 0.0 {
+            return Err(crate::error::OptimError::InvalidParameter {
+                param: "lr".to_string(),
+                value: lr.to_string(),
+                reason: "Learning rate must be positive".to_string(),
+            });
+        }
         self.lr = lr;
+        Ok(())
     }
 
     fn weight_decay(&self) -> f64 {
         self.weight_decay
     }
 
-    fn set_weight_decay(&mut self, weight_decay: f64) {
+    fn set_weight_decay(&mut self, weight_decay: f64) -> Result<(), crate::error::OptimError> {
+        if weight_decay < 0.0 {
+            return Err(crate::error::OptimError::InvalidParameter {
+                param: "weight_decay".to_string(),
+                value: weight_decay.to_string(),
+                reason: "Weight decay must be non-negative".to_string(),
+            });
+        }
         self.weight_decay = weight_decay;
+        Ok(())
     }
 
     fn zero_grad(&mut self) {
         for param_state in &mut self.param_states {
-            if let Some(ref mut grad) = param_state.grad {
-                grad.zero_();
+            // Zero gradients in the tensor
+            if let Ok(()) = param_state.param.zero_grad() {
+                // Successfully zeroed gradients
             }
         }
     }
 
-    fn step(&mut self) -> Result<(), crate::error::OptimError> {
+    fn step(&mut self) -> Result<usize, crate::error::OptimError> {
         let lr = T::from(self.lr).unwrap();
         let weight_decay = T::from(self.weight_decay).unwrap();
         let momentum = T::from(self.momentum).unwrap();
@@ -203,52 +233,67 @@ where
         let one = T::from(1.0).unwrap();
 
         for param_state in &mut self.param_states {
-            // Get parameter and gradient
-            let param_data = param_state.param.as_slice();
-            let grad = param_state.grad()?;
+            // Get gradient from tensor (PyTorch-style: gradients are stored on tensors)
+            let grad = param_state
+                .param
+                .grad()
+                .map_err(|_| crate::error::OptimError::GradientNotAvailable)?;
 
             // Apply weight decay if specified
             let effective_grad = if self.weight_decay > 0.0 {
-                use crate::ops::arithmetic::{scalar_add, scalar_mul};
                 let weight_decay_term = scalar_mul(&param_state.param, weight_decay)?;
-                scalar_add(&grad, &weight_decay_term)?
+                add(&grad, &weight_decay_term)?
             } else {
-                grad.clone()
+                grad
             };
 
             if self.momentum > 0.0 {
                 // Momentum-based update
                 let velocity_key = "momentum_buffer";
-                let velocity = param_state.get_state_mut(velocity_key)
-                    .ok_or_else(|| crate::error::OptimError::InvalidState {
-                        message: format!("Missing momentum buffer for parameter '{}'", param_state.name),
-                    })?;
+                let param_name = param_state.name.clone();
+                let velocity = param_state.get_state_mut(velocity_key).ok_or_else(|| {
+                    crate::error::OptimError::InvalidState {
+                        param_name,
+                        state_key: velocity_key.to_string(),
+                    }
+                })?;
 
                 if self.nesterov {
                     // Nesterov momentum: v = momentum * v + g, p = p - lr * (momentum * v + g)
-                    use crate::ops::arithmetic::{scalar_mul, scalar_add};
-                    let momentum_velocity = scalar_mul(&velocity, momentum)?;
-                    let new_velocity = scalar_add(&momentum_velocity, &scalar_mul(&effective_grad, one - dampening)?)?;
-                    let nesterov_grad = scalar_add(&momentum_velocity, &scalar_mul(&effective_grad, one + momentum)?)?;
+                    let momentum_velocity = scalar_mul(velocity, momentum)?;
+                    let new_velocity = add(
+                        &momentum_velocity,
+                        &scalar_mul(&effective_grad, one - dampening)?,
+                    )?;
+                    let nesterov_grad = add(
+                        &momentum_velocity,
+                        &scalar_mul(&effective_grad, one + momentum)?,
+                    )?;
                     *velocity = new_velocity;
-                    param_state.param -= &scalar_mul(&nesterov_grad, lr)?;
+                    // Update parameter after velocity is updated
+                    let param_update = scalar_mul(&nesterov_grad, lr)?;
+                    param_state.param = sub(&param_state.param, &param_update)?;
                 } else {
                     // Standard momentum: v = momentum * v + (1-dampening) * g, p = p - lr * v
-                    use crate::ops::arithmetic::{scalar_mul, scalar_add};
-                    *velocity = scalar_add(&scalar_mul(&velocity, momentum)?, &scalar_mul(&effective_grad, one - dampening)?)?;
-                    param_state.param -= &scalar_mul(&velocity, lr)?;
+                    let new_velocity = add(
+                        &scalar_mul(velocity, momentum)?,
+                        &scalar_mul(&effective_grad, one - dampening)?,
+                    )?;
+                    *velocity = new_velocity;
+                    // Update parameter after velocity is updated
+                    let param_update = scalar_mul(velocity, lr)?;
+                    param_state.param = sub(&param_state.param, &param_update)?;
                 }
             } else {
                 // Standard SGD: p = p - lr * g
-                use crate::ops::arithmetic::scalar_mul;
-                param_state.param -= &scalar_mul(&effective_grad, lr)?;
+                param_state.param = sub(&param_state.param, &scalar_mul(&effective_grad, lr)?)?;
             }
         }
 
-        Ok(())
+        Ok(self.param_states.len())
     }
 
-    fn state_dict(&self) -> HashMap<String, Tensor<B, S, T>> {
+    fn state_dict(&self) -> HashMap<String, Tensor<B, DenseStorage<T>, T>> {
         let mut state = HashMap::new();
         for param_state in &self.param_states {
             state.insert(param_state.name.clone(), param_state.param.clone());
@@ -259,11 +304,15 @@ where
         state
     }
 
-    fn load_state_dict(&mut self, state_dict: HashMap<String, Tensor<B, S, T>>) -> Result<(), crate::error::OptimError> {
+    fn load_state_dict(
+        &mut self,
+        state_dict: HashMap<String, Tensor<B, DenseStorage<T>, T>>,
+    ) -> Result<(), crate::error::OptimError> {
         for param_state in &mut self.param_states {
             if let Some(param) = state_dict.get(&param_state.name) {
                 if param.shape().dims() != param_state.param.shape().dims() {
                     return Err(crate::error::OptimError::ShapeMismatch {
+                        param_name: param_state.name.clone(),
                         expected: param_state.param.shape().dims().to_vec(),
                         actual: param.shape().dims().to_vec(),
                     });
@@ -283,10 +332,9 @@ where
     }
 }
 
-impl<B, S, T> Default for SGD<B, S, T>
+impl<B, T> Default for SGD<B, T>
 where
     B: Backend + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
     fn default() -> Self {

@@ -494,10 +494,10 @@ impl From<String> for SystemError {
 // Conversion implementations from existing error types
 // These will be added as other crates are updated to use the unified error type
 
-    #[cfg(test)]
-    mod tests {
-        use crate::std::string::ToString;
+#[cfg(test)]
+mod tests {
     use super::*;
+    use crate::std::string::ToString;
 
     #[test]
     fn test_error_display() {

@@ -11,7 +11,7 @@ use crate::error::{JitError, Result};
 use crate::graph::{ComputationGraph, NodeId, NodeMetadata, Operation};
 
 thread_local! {
-    static TRACING_CONTEXT: RefCell<Option<TracingContext>> = RefCell::new(None);
+    static TRACING_CONTEXT: RefCell<Option<TracingContext>> = const { RefCell::new(None) };
 }
 
 /// Context for tracing autograd operations into JIT graphs
@@ -177,11 +177,7 @@ pub fn record_operation(
     metadata: NodeMetadata,
 ) -> Option<NodeId> {
     TRACING_CONTEXT.with(|ctx| {
-        if let Some(ref mut tracing_ctx) = *ctx.borrow_mut() {
-            Some(tracing_ctx.record_operation(operation, input_vars, output_var, metadata))
-        } else {
-            None
-        }
+        (*ctx.borrow_mut()).as_mut().map(|tracing_ctx| tracing_ctx.record_operation(operation, input_vars, output_var, metadata))
     })
 }
 
@@ -195,11 +191,7 @@ pub fn record_operation(
 /// Some(node_id) if tracing was active, None otherwise
 pub fn record_parameter(var_id: usize, metadata: NodeMetadata) -> Option<NodeId> {
     TRACING_CONTEXT.with(|ctx| {
-        if let Some(ref mut tracing_ctx) = *ctx.borrow_mut() {
-            Some(tracing_ctx.record_parameter(var_id, metadata))
-        } else {
-            None
-        }
+        (*ctx.borrow_mut()).as_mut().map(|tracing_ctx| tracing_ctx.record_parameter(var_id, metadata))
     })
 }
 
@@ -210,11 +202,7 @@ where
     F: FnOnce(&mut TracingContext) -> R,
 {
     TRACING_CONTEXT.with(|ctx| {
-        if let Some(ref mut tracing_ctx) = *ctx.borrow_mut() {
-            Some(f(tracing_ctx))
-        } else {
-            None
-        }
+        (*ctx.borrow_mut()).as_mut().map(f)
     })
 }
 

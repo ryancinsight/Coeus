@@ -9,10 +9,10 @@
 //! Run with: cargo run --example custom_layer
 
 use coeus_autograd::ops::backward_with_grad;
-use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
 use coeus_nn::{error::NNError, Linear, Module, Parameter};
 use coeus_storage::DenseStorage;
+use coeus_tensor::CpuBackend;
 use coeus_tensor::Tensor;
 
 /// Custom Residual Block Layer
@@ -27,9 +27,10 @@ use coeus_tensor::Tensor;
 ///         └────────────────────────────────────────────────────────────────────────────────────────────┘
 ///                                                (residual connection)
 /// ```
+#[derive(Debug)]
 pub struct ResidualBlock {
-    fc1: Linear<CpuBackend, DenseStorage<Float32>, Float32>,
-    fc2: Linear<CpuBackend, DenseStorage<Float32>, Float32>,
+    fc1: Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    fc2: Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
     _in_features: usize,
     _hidden_features: usize,
 }
@@ -47,24 +48,32 @@ impl ResidualBlock {
     /// ```
     pub fn new(in_features: usize, hidden_features: usize) -> Self {
         Self {
-            fc1: Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(in_features, hidden_features).unwrap(),
-            fc2: Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(hidden_features, in_features).unwrap(),
+            fc1: Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                in_features,
+                hidden_features,
+            )
+            .unwrap(),
+            fc2: Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                hidden_features,
+                in_features,
+            )
+            .unwrap(),
             _in_features: in_features,
             _hidden_features: hidden_features,
         }
     }
 }
 
-impl Module<CpuBackend, DenseStorage<Float32>, Float32> for ResidualBlock {
+impl Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32> for ResidualBlock {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, NNError> {
+        input: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, NNError> {
         // Transform: fc1 -> ReLU -> fc2
         let x = self.fc1.forward(input)?;
 
         // ReLU activation (element-wise max(0, x))
-        let x_relu = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let x_relu = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             x.as_slice()
                 .iter()
                 .map(|&val| Float32::new(val.get().max(0.0)))
@@ -80,7 +89,7 @@ impl Module<CpuBackend, DenseStorage<Float32>, Float32> for ResidualBlock {
         Ok(output)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<Float32>, Float32>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
         let mut params = self.fc1.parameters();
         params.extend(self.fc2.parameters());
         params
@@ -108,10 +117,11 @@ impl Module<CpuBackend, DenseStorage<Float32>, Float32> for ResidualBlock {
 /// Attention(Q, K, V) = softmax(QK^T / sqrt(d_k)) V
 ///
 /// This is a core component of Transformer architectures.
+#[derive(Debug)]
 pub struct SelfAttention {
-    query: Linear<CpuBackend, DenseStorage<Float32>, Float32>,
-    key: Linear<CpuBackend, DenseStorage<Float32>, Float32>,
-    value: Linear<CpuBackend, DenseStorage<Float32>, Float32>,
+    query: Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    key: Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    value: Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
     _d_k: f32,
 }
 
@@ -128,19 +138,22 @@ impl SelfAttention {
     /// ```
     pub fn new(d_model: usize, d_k: usize) -> Self {
         Self {
-            query: Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(d_model, d_k).unwrap(),
-            key: Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(d_model, d_k).unwrap(),
-            value: Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(d_model, d_k).unwrap(),
+            query: Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(d_model, d_k)
+                .unwrap(),
+            key: Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(d_model, d_k)
+                .unwrap(),
+            value: Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(d_model, d_k)
+                .unwrap(),
             _d_k: d_k as f32,
         }
     }
 }
 
-impl Module<CpuBackend, DenseStorage<Float32>, Float32> for SelfAttention {
+impl Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32> for SelfAttention {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, NNError> {
+        input: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, NNError> {
         // Compute Q, K, V projections
         let _q = self.query.forward(input)?;
         let _k = self.key.forward(input)?;
@@ -151,7 +164,7 @@ impl Module<CpuBackend, DenseStorage<Float32>, Float32> for SelfAttention {
         Ok(v)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<Float32>, Float32>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
         let mut params = self.query.parameters();
         params.extend(self.key.parameters());
         params.extend(self.value.parameters());
@@ -185,7 +198,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let residual_block = ResidualBlock::new(4, 8);
 
     // Linear layers expect 2D input: [batch_size, features]
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(1.0),
             Float32::new(2.0),
@@ -209,7 +222,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let attention = SelfAttention::new(4, 2);
 
     // Linear layers expect 2D input: [batch_size, features]
-    let input_attn = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let input_attn = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(1.0),
             Float32::new(2.0),
@@ -229,7 +242,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 3: Gradient Flow Through Custom Layer
     println!("3. Gradient Flow Through Custom Layer");
 
-    let tensor_input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let tensor_input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(1.0),
             Float32::new(2.0),
@@ -239,7 +252,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &[4],
     )?;
 
-    let mut var_input = tensor_input.requires_grad_(true);
+    let var_input = tensor_input.requires_grad_(true);
 
     // Simple transformation: square each element
     let squared = &var_input * &var_input;
@@ -248,7 +261,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let loss = squared.sum(None, false)?;
 
     // Backward pass
-    let loss_grad = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let loss_grad = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(1.0)],
         &[1],
     )?;

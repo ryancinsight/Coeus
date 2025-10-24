@@ -1,6 +1,5 @@
 //! Dropout layer for regularization.
 
-
 use coeus_backend::CpuBackend;
 use coeus_dtype::{traits::FloatExt, DataType};
 use coeus_storage::DenseStorage;
@@ -30,22 +29,22 @@ use crate::parameter::Parameter;
 /// let mut dropout = Dropout::new(0.5);
 ///
 /// // Set to training mode
-/// <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+/// <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
 ///
 /// // Input: [2, 3]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0),
 ///          Float32::new(4.0), Float32::new(5.0), Float32::new(6.0)],
 ///     &[2, 3]
 /// ).unwrap();
 ///
 /// // Output: Some elements zeroed, others scaled by 2.0
-/// let output = <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+/// let output = <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
 /// assert_eq!(output.shape().dims(), &[2, 3]);
 ///
 /// // Set to evaluation mode
-/// <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, false);
-/// let output_eval = <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+/// <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut dropout, false);
+/// let output_eval = <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
 /// // In eval mode, output == input
 /// ```
 #[derive(Debug, Clone)]
@@ -76,7 +75,6 @@ impl Dropout {
             training: true, // Default to training mode
         }
     }
-
 }
 
 impl Default for Dropout {
@@ -85,11 +83,11 @@ impl Default for Dropout {
     }
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for Dropout {
+impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropout {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         if !self.training || self.p == 0.0 {
             // Evaluation mode or p=0: pass through unchanged
             return Ok(input.clone());
@@ -124,7 +122,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for Dropout 
         Tensor::from_vec(output_data, input.shape().dims()).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         vec![] // Dropout has no learnable parameters
     }
 
@@ -150,9 +148,12 @@ mod tests {
     #[test]
     fn test_dropout_eval_mode() {
         let mut dropout = Dropout::new(0.5);
-        <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, false); // Evaluation mode
+        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            false,
+        ); // Evaluation mode
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(1.0),
                 Float32::new(2.0),
@@ -163,7 +164,11 @@ mod tests {
         )
         .unwrap();
 
-        let output = <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+        let output =
+            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
         let input_data: Vec<f32> = input.as_slice().iter().map(|x: &Float32| x.get()).collect();
         let output_data: Vec<f32> = output
             .as_slice()
@@ -180,15 +185,22 @@ mod tests {
     #[test]
     fn test_dropout_training_mode() {
         let mut dropout = Dropout::new(0.5);
-        <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true); // Training mode
+        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        ); // Training mode
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0); 100], // 100 ones
             &[100],
         )
         .unwrap();
 
-        let output = <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+        let output =
+            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
         let output_data: Vec<f32> = output
             .as_slice()
             .iter()
@@ -221,15 +233,22 @@ mod tests {
     #[test]
     fn test_dropout_p_zero() {
         let mut dropout = Dropout::new(0.0);
-        <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
         .unwrap();
 
-        let output = <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+        let output =
+            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
         let input_data: Vec<f32> = input.as_slice().iter().map(|x: &Float32| x.get()).collect();
         let output_data: Vec<f32> = output
             .as_slice()
@@ -246,15 +265,22 @@ mod tests {
     #[test]
     fn test_dropout_p_one() {
         let mut dropout = Dropout::new(1.0);
-        <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
         .unwrap();
 
-        let output = <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+        let output =
+            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
         let output_data: Vec<f32> = output
             .as_slice()
             .iter()
@@ -270,12 +296,15 @@ mod tests {
     #[test]
     fn test_dropout_no_parameters() {
         let dropout = Dropout::new(0.5);
-        let params = <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::parameters(&dropout);
+        let params =
+            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::parameters(
+                &dropout,
+            );
         assert_eq!(params.len(), 0);
     }
 
     #[test]
-    #[should_panic(expected = "Dropout probability must be in [0.0, 1.0]")]
+    #[should_panic(expected = "Dropout probability must be in [0.0, 1.0], got 1.5")]
     fn test_dropout_invalid_probability() {
         let _ = Dropout::new(1.5); // Invalid probability
     }
@@ -309,13 +338,13 @@ mod tests {
 /// let mut dropout = Dropout2d::new(0.5);
 ///
 /// // Set to training mode
-/// <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+/// <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
 ///
 /// // Input: [2, 64, 32, 32]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 64, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 64, 32, 32]).unwrap();
 ///
 /// // Output: Some channels zeroed, others scaled by 2.0
-/// let output = <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+/// let output = <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
 /// assert_eq!(output.shape().dims(), &[2, 64, 32, 32]);
 /// ```
 ///
@@ -349,11 +378,11 @@ impl Dropout2d {
     }
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for Dropout2d {
+impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropout2d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         assert_eq!(input_shape.len(), 4, "Input must be 4D [N, C, H, W]");
 
@@ -398,7 +427,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for Dropout2
         Tensor::from_vec(output_data, input_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         vec![]
     }
 
@@ -441,13 +470,13 @@ impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for Dropout2
 /// let mut dropout = Dropout3d::new(0.5);
 ///
 /// // Set to training mode
-/// <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+/// <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
 ///
 /// // Input: [1, 64, 16, 32, 32] (video/volumetric data)
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 16, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 16, 32, 32]).unwrap();
 ///
 /// // Output: Some channels zeroed, others scaled by 2.0
-/// let output = <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+/// let output = <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 16, 32, 32]);
 /// ```
 ///
@@ -479,14 +508,13 @@ impl Dropout3d {
 
         Self { p, training: true }
     }
-
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for Dropout3d {
+impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropout3d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         assert_eq!(input_shape.len(), 5, "Input must be 5D [N, C, D, H, W]");
 
@@ -532,7 +560,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for Dropout3
         Tensor::from_vec(output_data, input_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         vec![]
     }
 
@@ -557,11 +585,19 @@ mod tests_dropout2d {
     #[test]
     fn test_dropout2d_eval_mode() {
         let mut dropout = Dropout2d::new(0.5);
-        <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, false);
+        <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            false,
+        );
 
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 3, 4, 4]).unwrap();
-        let output = <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 3, 4, 4])
+                .unwrap();
+        let output =
+            <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
 
         // In eval mode, output should equal input
         let input_data: Vec<f32> = input.as_slice().iter().map(|x: &Float32| x.get()).collect();
@@ -577,12 +613,20 @@ mod tests_dropout2d {
     #[test]
     fn test_dropout2d_training_mode() {
         let mut dropout = Dropout2d::new(0.5);
-        <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
         // Input: [1, 10, 8, 8] (10 channels)
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 10, 8, 8]).unwrap();
-        let output = <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 10, 8, 8])
+                .unwrap();
+        let output =
+            <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
 
         assert_eq!(output.shape().dims(), &[1, 10, 8, 8]);
 
@@ -609,11 +653,19 @@ mod tests_dropout2d {
     #[test]
     fn test_dropout2d_p_zero() {
         let mut dropout = Dropout2d::new(0.0);
-        <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 3, 4, 4]).unwrap();
-        let output = <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3, 4, 4])
+                .unwrap();
+        let output =
+            <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
 
         let input_data: Vec<f32> = input.as_slice().iter().map(|x: &Float32| x.get()).collect();
         let output_data: Vec<f32> = output
@@ -628,11 +680,19 @@ mod tests_dropout2d {
     #[test]
     fn test_dropout2d_p_one() {
         let mut dropout = Dropout2d::new(1.0);
-        <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 3, 4, 4]).unwrap();
-        let output = <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3, 4, 4])
+                .unwrap();
+        let output =
+            <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
 
         let output_data: Vec<f32> = output
             .as_slice()
@@ -645,12 +705,20 @@ mod tests_dropout2d {
     #[test]
     fn test_dropout2d_cnn_regularization() {
         let mut dropout = Dropout2d::new(0.5);
-        <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
         // ResNet-style: [4, 256, 14, 14]
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[4, 256, 14, 14]).unwrap();
-        let output = <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[4, 256, 14, 14])
+                .unwrap();
+        let output =
+            <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
 
         assert_eq!(output.shape().dims(), &[4, 256, 14, 14]);
     }
@@ -659,11 +727,17 @@ mod tests_dropout2d {
     #[should_panic(expected = "Input must be 4D [N, C, H, W]")]
     fn test_dropout2d_invalid_input_shape() {
         let mut dropout = Dropout2d::new(0.5);
-        <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
         // Invalid 3D input
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 3, 4]).unwrap();
-        let _ = <Dropout2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 3, 4])
+            .unwrap();
+        let _ = <Dropout2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+            &dropout, &input,
+        );
     }
 }
 
@@ -675,11 +749,19 @@ mod tests_dropout3d {
     #[test]
     fn test_dropout3d_eval_mode() {
         let mut dropout = Dropout3d::new(0.5);
-        <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, false);
+        <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            false,
+        );
 
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 3, 4, 4, 4]).unwrap();
-        let output = <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3, 4, 4, 4])
+                .unwrap();
+        let output =
+            <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
 
         let input_data: Vec<f32> = input.as_slice().iter().map(|x: &Float32| x.get()).collect();
         let output_data: Vec<f32> = output
@@ -694,12 +776,20 @@ mod tests_dropout3d {
     #[test]
     fn test_dropout3d_training_mode() {
         let mut dropout = Dropout3d::new(0.5);
-        <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
         // Input: [1, 8, 4, 4, 4] (8 channels)
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 8, 4, 4, 4]).unwrap();
-        let output = <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 8, 4, 4, 4])
+                .unwrap();
+        let output =
+            <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
 
         assert_eq!(output.shape().dims(), &[1, 8, 4, 4, 4]);
 
@@ -726,11 +816,19 @@ mod tests_dropout3d {
     #[test]
     fn test_dropout3d_p_zero() {
         let mut dropout = Dropout3d::new(0.0);
-        <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 3, 4, 4, 4]).unwrap();
-        let output = <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3, 4, 4, 4])
+                .unwrap();
+        let output =
+            <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
 
         let input_data: Vec<f32> = input.as_slice().iter().map(|x: &Float32| x.get()).collect();
         let output_data: Vec<f32> = output
@@ -745,11 +843,19 @@ mod tests_dropout3d {
     #[test]
     fn test_dropout3d_p_one() {
         let mut dropout = Dropout3d::new(1.0);
-        <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 3, 4, 4, 4]).unwrap();
-        let output = <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3, 4, 4, 4])
+                .unwrap();
+        let output =
+            <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
 
         let output_data: Vec<f32> = output
             .as_slice()
@@ -762,13 +868,21 @@ mod tests_dropout3d {
     #[test]
     fn test_dropout3d_video_classification() {
         let mut dropout = Dropout3d::new(0.5);
-        <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
         // C3D-style: [2, 64, 16, 32, 32]
-        let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 64, 16, 32, 32])
-                .unwrap();
-        let output = <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[
+            2, 64, 16, 32, 32,
+        ])
+        .unwrap();
+        let output =
+            <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
 
         assert_eq!(output.shape().dims(), &[2, 64, 16, 32, 32]);
     }
@@ -777,22 +891,22 @@ mod tests_dropout3d {
     #[should_panic(expected = "Input must be 5D [N, C, D, H, W]")]
     fn test_dropout3d_invalid_input_shape() {
         let mut dropout = Dropout3d::new(0.5);
-        <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
 
         // Invalid 4D input
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 3, 4, 4]).unwrap();
-        let _ = <Dropout3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&dropout, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 3, 4, 4])
+                .unwrap();
+        let _ = <Dropout3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+            &dropout, &input,
+        );
     }
 }
 
 #[cfg(test)]
 mod dropout_forward_var_tests {
-    use super::*;
-    use coeus_dtype::float::Float32;
-    use coeus_tensor::Tensor;
-
-
-
+    // Empty test module placeholder
 }
-

@@ -21,7 +21,7 @@ fn test_simple_feedforward_network() -> Result<()> {
     model.add_module("linear2".to_string(), Linear::new(5, 1)?);
 
     // Create input tensor (batch_size=2, input_dim=10)
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             // Batch 1
             Float32::new(1.0), Float32::new(0.5), Float32::new(-0.2), Float32::new(0.8),
@@ -101,7 +101,7 @@ fn test_model_parameters_and_state_dict() -> Result<()> {
 #[test]
 fn test_loss_function_integration() -> Result<()> {
     // Create some dummy predictions and targets
-    let predictions = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(0.8), Float32::new(0.2),  // Sample 1: high confidence for class 0
             Float32::new(0.3), Float32::new(0.7),  // Sample 2: high confidence for class 1
@@ -109,7 +109,7 @@ fn test_loss_function_integration() -> Result<()> {
         &[2, 2],
     )?;
 
-    let targets = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(1.0), Float32::new(0.0),  // Sample 1: true class 0
             Float32::new(0.0), Float32::new(1.0),  // Sample 2: true class 1
@@ -144,7 +144,7 @@ fn test_loss_function_integration() -> Result<()> {
 fn test_activation_functions() -> Result<()> {
     // Test ReLU
     let relu = ReLU::new();
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(1.0), Float32::new(-0.5), Float32::new(0.0), Float32::new(2.0),
         ],
@@ -177,7 +177,7 @@ fn test_activation_functions() -> Result<()> {
 #[test]
 fn test_functional_api() -> Result<()> {
     // Create test tensors
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(1.0), Float32::new(2.0),
             Float32::new(3.0), Float32::new(4.0),
@@ -186,7 +186,7 @@ fn test_functional_api() -> Result<()> {
     )?;
 
     // Test functional linear transformation
-    let weight = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let weight = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(1.0), Float32::new(0.0),
             Float32::new(0.0), Float32::new(1.0),
@@ -194,7 +194,7 @@ fn test_functional_api() -> Result<()> {
         &[2, 2],
     )?;
 
-    let bias = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let bias = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(0.1), Float32::new(0.2)],
         &[2],
     )?;
@@ -215,3 +215,4 @@ fn test_functional_api() -> Result<()> {
 
     Ok(())
 }
+

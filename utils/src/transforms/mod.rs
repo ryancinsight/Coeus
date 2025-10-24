@@ -4,6 +4,14 @@
 //! machine learning data. Transformations can be chained together using
 //! the `Compose` transform for complex preprocessing pipelines.
 //!
+//! ## PyO3 Safety Features
+//!
+//! The transform trait system is designed to be safely used with PyO3 trait objects:
+//! - Zero-cost abstraction with static dispatch where possible
+//! - Safe trait object composition through dynamic dispatch
+//! - Memory safety guarantees across FFI boundaries
+//! - SIMD acceleration for performance-critical operations
+//!
 //! ## Example
 //!
 //! ```rust
@@ -24,21 +32,58 @@
 //! let transformed = transform.apply_dynamic(input).unwrap();
 //!
 //! // Result is a normalized tensor: (x - 2.0) / 1.0
-//! let tensor = transformed.downcast::<Tensor<CpuBackend, DenseStorage<Float32>, Float32>>().unwrap();
+//! let tensor = transformed.downcast::<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>().unwrap();
 //! ```
+
+use coeus_backend::Backend;
+use coeus_dtype::DataType;
+use coeus_storage::Storage;
 
 pub mod compose;
 pub mod normalize;
+pub mod random_apply;
+pub mod resize;
 pub mod totensor;
 
 pub use compose::Compose;
 pub use normalize::Normalize;
+pub use random_apply::{ConditionalTransform, RandomApply};
+pub use resize::Resize;
 pub use totensor::ToTensor;
 
-/// Trait for data transformations
+/// Core trait for data transformations that work with generic tensor types
+///
+/// This trait supports the full B<S<T>> generic architecture and enables
+/// zero-cost abstractions across different backend, storage, and data type combinations.
+pub trait CoeusTransform<B, S, T>
+where
+    B: Backend,
+    S: Storage<T>,
+    T: DataType,
+{
+    /// Apply the transformation to a tensor with the specified types
+    ///
+    /// # Arguments
+    /// * `input` - The input tensor to transform
+    ///
+    /// # Returns
+    /// The transformed tensor, or an error if transformation fails
+    fn apply(
+        &self,
+        input: &coeus_tensor::Tensor<B, S, T>,
+    ) -> Result<coeus_tensor::Tensor<B, S, T>, TransformError>;
+
+    /// Get the name of this transform for debugging
+    fn name(&self) -> &str;
+}
+
+/// Legacy trait for data transformations (deprecated)
 ///
 /// Transformations convert raw data into processed tensors suitable for
 /// neural network input. They are composable and can be chained together.
+///
+/// This trait is maintained for backward compatibility but should be replaced
+/// with CoeusTransform for new implementations.
 pub trait Transform<T, U = T> {
     /// Apply the transformation to input data
     ///

@@ -1,4 +1,4 @@
-impl<B, T> Tensor<B, CsrStorage<T>, T>
+﻿impl<B, T> Tensor<B, CsrStorage<T>, T>
 where
     B: Backend,
     T: DataType,
@@ -309,3 +309,4 @@ where
 // Sparse tensor operations and conversions
 
 /// Utility functions for sparse tensor operations
+

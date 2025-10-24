@@ -1,14 +1,13 @@
 //! Node-based computation graph for automatic differentiation
 //!
 //! This module implements a node-based computation graph architecture that
-//! enables dynamic graph construction compatible with PyTorch's autograd system.
+//! enables dynamic graph construction compatible with `PyTorch`'s autograd system.
 
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
 use coeus_backend::Backend;
-use coeus_storage::Storage;
 use coeus_dtype::DataType;
 use coeus_tensor::Tensor;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 /// Unique identifier for nodes in the computation graph
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -130,12 +129,14 @@ impl GraphNode {
     }
 
     /// Set the node name for debugging
+    #[must_use]
     pub fn with_name(mut self, name: String) -> Self {
         self.metadata.name = name;
         self
     }
 
     /// Mark this node as requiring gradients
+    #[must_use]
     pub fn requires_grad(mut self, requires_grad: bool) -> Self {
         self.metadata.requires_grad = requires_grad;
         self
@@ -254,9 +255,10 @@ impl TopologicalSorter {
         order: &mut Vec<NodeId>,
     ) {
         // Check for cycles
-        if visiting.contains(&node_id) {
-            panic!("Cycle detected in computation graph at node {:?}", node_id);
-        }
+        assert!(
+            !visiting.contains(&node_id),
+            "Cycle detected in computation graph at node {node_id:?}"
+        );
 
         if visited.contains(&node_id) {
             return;
@@ -278,20 +280,22 @@ impl TopologicalSorter {
         order.push(node_id);
     }
 
-    /// Get all nodes that need gradients (have requires_grad = true)
+    /// Get all nodes that need gradients (have `requires_grad` = true)
     #[must_use]
     pub fn gradient_nodes(registry: &NodeRegistry) -> Vec<NodeId> {
         registry
             .nodes()
             .iter()
             .filter_map(|(&id, node_arc)| {
-                node_arc.read().ok().and_then(|node| {
-                    if node.produces_grad() {
-                        Some(id)
-                    } else {
-                        None
-                    }
-                })
+                node_arc.read().ok().and_then(
+                    |node| {
+                        if node.produces_grad() {
+                            Some(id)
+                        } else {
+                            None
+                        }
+                    },
+                )
             })
             .collect()
     }
@@ -304,7 +308,7 @@ impl TopologicalSorter {
 /// - Adding to existing gradients instead of replacing
 /// - Memory-efficient storage for multiple backward passes
 ///
-/// Note: Currently restricted to DenseStorage as it provides the arithmetic
+/// Note: Currently restricted to `DenseStorage` as it provides the arithmetic
 /// operations needed for gradient accumulation.
 pub struct GradientAccumulator<B, T>
 where
@@ -333,7 +337,11 @@ where
     /// If a gradient already exists for this tensor, the new gradient is added to it.
     /// This enables proper gradient accumulation for tensors that receive gradients
     /// from multiple paths in the computational graph.
-    pub fn accumulate(&mut self, tensor: &Tensor<B, coeus_storage::DenseStorage<T>, T>, grad: Tensor<B, coeus_storage::DenseStorage<T>, T>) {
+    pub fn accumulate(
+        &mut self,
+        tensor: &Tensor<B, coeus_storage::DenseStorage<T>, T>,
+        grad: Tensor<B, coeus_storage::DenseStorage<T>, T>,
+    ) {
         let key = (tensor as *const Tensor<B, coeus_storage::DenseStorage<T>, T>).cast::<()>();
 
         if let Some(existing_grad) = self.gradients.get_mut(&key) {
@@ -348,7 +356,10 @@ where
 
     /// Get accumulated gradient for a tensor
     #[must_use]
-    pub fn get(&self, tensor: &Tensor<B, coeus_storage::DenseStorage<T>, T>) -> Option<&Tensor<B, coeus_storage::DenseStorage<T>, T>> {
+    pub fn get(
+        &self,
+        tensor: &Tensor<B, coeus_storage::DenseStorage<T>, T>,
+    ) -> Option<&Tensor<B, coeus_storage::DenseStorage<T>, T>> {
         let key = (tensor as *const Tensor<B, coeus_storage::DenseStorage<T>, T>).cast::<()>();
         self.gradients.get(&key)
     }
@@ -357,17 +368,39 @@ where
     ///
     /// This method sets the accumulated gradients on their corresponding tensors.
     /// Gradients are properly accumulated within this accumulator before being applied.
+    #[allow(clippy::missing_errors_doc)]
     pub fn apply_gradients(&mut self) -> Result<(), crate::error::AutogradError> {
         for (tensor_ptr, grad) in self.gradients.drain() {
             // Convert pointer back to reference (unsafe but controlled)
-            let tensor = unsafe { &*(tensor_ptr as *const Tensor<B, coeus_storage::DenseStorage<T>, T>) };
+            let tensor =
+                unsafe { &*tensor_ptr.cast::<Tensor<B, coeus_storage::DenseStorage<T>, T>>() };
 
-            // Set the accumulated gradient on the tensor
-            // Gradients are already properly accumulated within this accumulator
-            if let Err(e) = tensor.set_grad(grad) {
-                return Err(crate::error::AutogradError::GradientError {
-                    message: format!("Failed to set gradient: {:?}", e),
-                });
+            // Check if tensor already has a gradient and accumulate
+            if let Ok(existing_grad) = tensor.grad() {
+                // Accumulate gradients manually
+                let existing_data = existing_grad.as_slice();
+                let grad_data = grad.as_slice();
+                let mut accumulated_data = Vec::with_capacity(existing_data.len());
+
+                for (a, b) in existing_data.iter().zip(grad_data) {
+                    accumulated_data.push(*a + *b);
+                }
+
+                let accumulated = Tensor::from_vec(accumulated_data, existing_grad.shape().dims())
+                    .map_err(crate::error::AutogradError::TensorError)?;
+
+                if let Err(e) = tensor.set_grad(accumulated) {
+                    return Err(crate::error::AutogradError::GradientError {
+                        message: format!("Failed to set accumulated gradient: {e:?}"),
+                    });
+                }
+            } else {
+                // No existing gradient, just set it
+                if let Err(e) = tensor.set_grad(grad) {
+                    return Err(crate::error::AutogradError::GradientError {
+                        message: format!("Failed to set gradient: {e:?}"),
+                    });
+                }
             }
         }
 

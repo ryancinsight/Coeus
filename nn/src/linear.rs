@@ -4,7 +4,7 @@ use std::fmt;
 
 use coeus_backend::Backend;
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use coeus_tensor::Tensor;
 use num_traits;
 
@@ -31,7 +31,7 @@ use crate::parameter::Parameter;
 /// use coeus_dtype::float::Float32;
 ///
 /// // Create a linear layer: 784 -> 128
-/// let layer = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 128).unwrap();
+/// let layer = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 128).unwrap();
 /// assert_eq!(layer.in_features, 784);
 /// assert_eq!(layer.out_features, 128);
 /// ```
@@ -58,7 +58,7 @@ impl<B, S, T> Linear<B, S, T>
 where
     B: Backend + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType + FloatExt + num_traits::Zero,
+    T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive,
 {
     /// Create a new linear layer.
     ///
@@ -75,8 +75,7 @@ where
     ///
     /// # Errors
     /// Returns `NNError::InvalidInput` if `in_features` or `out_features` is 0.
-    pub fn new_with_backend(backend: B, in_features: usize, out_features: usize) -> Result<Self>
-    {
+    pub fn new_with_backend(backend: B, in_features: usize, out_features: usize) -> Result<Self> {
         if in_features == 0 {
             return Err(crate::error::NNError::InvalidInput {
                 message: "in_features must be > 0".to_string(),
@@ -90,11 +89,15 @@ where
 
         // Xavier/Glorot uniform initialization: U(-sqrt(6/(fan_in + fan_out)), sqrt(6/(fan_in + fan_out)))
         let limit = (T::from(6.0).unwrap() / T::from(in_features + out_features).unwrap()).sqrt();
-        let weight_data = Self::xavier_uniform_init_with_backend(&backend, in_features, out_features, limit)?;
+        let weight_data =
+            Self::xavier_uniform_init_with_backend(&backend, in_features, out_features, limit)?;
         let bias_storage = S::zeros(&[out_features])?;
         let bias_data = Tensor::<B, S, T>::from_storage(bias_storage, backend.clone());
 
-        let weight = Parameter::new(weight_data.clone().requires_grad_(true), "weight".to_string());
+        let weight = Parameter::new(
+            weight_data.clone().requires_grad_(true),
+            "weight".to_string(),
+        );
         let bias = Parameter::new(bias_data.requires_grad_(true), "bias".to_string());
 
         // Cache transposed weight for efficient forward passes
@@ -192,16 +195,15 @@ where
         }
 
         // Initialize weights with sparse pattern (dense storage)
-        let weight_data = Self::sparse_weight_init_dense(
-            &backend,
-            in_features,
-            out_features,
-            sparsity,
-        )?;
+        let weight_data =
+            Self::sparse_weight_init_dense(&backend, in_features, out_features, sparsity)?;
         let bias_storage = S::zeros(&[out_features])?;
         let bias_data = Tensor::<B, S, T>::from_storage(bias_storage, backend.clone());
 
-        let weight = Parameter::new(weight_data.clone().requires_grad_(true), "weight".to_string());
+        let weight = Parameter::new(
+            weight_data.clone().requires_grad_(true),
+            "weight".to_string(),
+        );
         let bias = Parameter::new(bias_data.requires_grad_(true), "bias".to_string());
 
         // Cache transposed weight for efficient forward passes
@@ -229,10 +231,27 @@ where
         out_features: usize,
         _limit: T,
     ) -> Result<Tensor<B, S, T>> {
+        use rand::prelude::*;
+
         let shape = [out_features, in_features];
-        // Use zeros initialization for now
-        // TODO: Implement proper Xavier uniform initialization
-        let storage = S::zeros(&shape)?;
+        let total_elements = out_features * in_features;
+
+        // Calculate Xavier uniform limit: sqrt(6 / (fan_in + fan_out))
+        let fan_in = T::from(in_features).unwrap();
+        let fan_out = T::from(out_features).unwrap();
+        let limit = (T::from(6.0).unwrap() / (fan_in + fan_out)).sqrt();
+        let limit_f64 = limit.to_f64().unwrap();
+
+        // Generate random values uniformly distributed in [-limit, limit]
+        let mut rng = rand::thread_rng();
+        let weight_data: Vec<T> = (0..total_elements)
+            .map(|_| {
+                let rand_val: f64 = rng.gen_range(-limit_f64..=limit_f64);
+                T::from_f64(rand_val).unwrap_or(T::zero())
+            })
+            .collect();
+
+        let storage = S::from_vec(weight_data, &shape)?;
         Ok(Tensor::<B, S, T>::from_storage(storage, backend.clone()))
     }
 
@@ -290,21 +309,9 @@ where
         let storage = S::from_vec(weight_data, &[out_features, in_features])?;
         Ok(Tensor::<B, S, T>::from_storage(storage, backend.clone()))
     }
-
-    // TODO: Implement sparse weight detection and sparse forward
-    // fn is_sparse_weight_storage(&self) -> bool {
-    //     // Check if the weight storage is sparse
-    //     let weight_storage = self.weight.data().storage();
-    //     weight_storage.as_any().downcast_ref::<coeus_storage::CsrStorage<T>>().is_some() ||
-    //     weight_storage.as_any().downcast_ref::<coeus_storage::CscStorage<T>>().is_some() ||
-    //     weight_storage.as_any().downcast_ref::<coeus_storage::CooStorage<T>>().is_some()
-    // }
-
-    // TODO: Implement sparse forward
-    // }
 }
 
-// TODO: Implement AutoGradTensor-based forward method
+// Future enhancement: Implement AutoGradTensor-based forward method with proper grad_fn setup
 // The Variable-based API is deprecated in favor of tensor-based operations
 // with AutoGradTensor for gradient computation
 
@@ -314,10 +321,7 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + num_traits::Zero + num_traits::One,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // Linear transformation: output = input @ weight.T + bias
         // Shapes: input [..., in_features], weight [out_features, in_features], bias [out_features]
 
@@ -334,22 +338,25 @@ where
             return Err(crate::error::NNError::InvalidInput {
                 message: format!(
                     "Input feature dimension {} does not match weight input features {}",
-                    input_shape.dims().last().unwrap_or(&0), in_features
+                    input_shape.dims().last().unwrap_or(&0),
+                    in_features
                 ),
             });
         }
 
-        if bias_shape.dims() != &[out_features] {
+        if bias_shape.dims() != [out_features] {
             return Err(crate::error::NNError::InvalidInput {
                 message: format!(
                     "Bias shape {:?} does not match expected shape [{:?}]",
-                    bias_shape.dims(), &[out_features]
+                    bias_shape.dims(),
+                    &[out_features]
                 ),
             });
         }
 
-        // Perform matrix multiplication
-        // Convert input to dense for matrix multiplication (since weight_t is dense)
+        // Use dense computation path for now
+        // Future enhancement: Implement compile-time sparse weight detection and sparse operations
+        // This would require separate trait implementations for sparse storage types
         let input_dense = input.to_dense_generic()?;
         let weight_t = self.weight_t.as_ref().unwrap();
         let output = input_dense.matmul(weight_t)?;
@@ -408,6 +415,23 @@ where
     }
 }
 
+#[cfg(feature = "safetensors")]
+impl<B, S, T> crate::module::ModuleSerialize<B, S, T> for Linear<B, S, T>
+where
+    B: Backend + Clone + std::default::Default,
+    S: Storage<T>
+        + Clone
+        + 'static
+        + coeus_storage::StorageFromVec<T>
+        + coeus_storage::StorageToDense<T>,
+    T: DataType
+        + serde::Serialize
+        + for<'de> serde::Deserialize<'de>
+        + coeus_dtype::traits::FloatExt,
+{
+    // Default implementation from the trait is sufficient
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -416,11 +440,12 @@ mod tests {
     use coeus_storage::DenseStorage;
     use coeus_tensor::Tensor;
 
-    type TestParameter = Parameter<CpuBackend, DenseStorage<Float32>, Float32>;
+    type TestParameter = Parameter<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
     #[test]
     fn test_parameter_creation() {
-        let data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[5]).unwrap()
+        let data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[5])
+            .unwrap()
             .requires_grad_(true);
         let param = TestParameter::new(data, "test_param".to_string());
 
@@ -431,7 +456,8 @@ mod tests {
 
     #[test]
     fn test_parameter_creation_no_grad() {
-        let data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[5]).unwrap();
+        let data =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[5]).unwrap();
         let param = TestParameter::new(data, "test_param".to_string());
 
         assert_eq!(param.name(), "test_param");
@@ -441,7 +467,8 @@ mod tests {
 
     #[test]
     fn test_parameter_zero_grad() {
-        let data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[3]).unwrap()
+        let data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[3])
+            .unwrap()
             .requires_grad_(true);
         let mut param = TestParameter::new(data, "test".to_string());
 
@@ -453,14 +480,15 @@ mod tests {
         assert!(!param.requires_grad());
     }
 
-
     #[test]
     fn test_parameter_update_data() {
-        let data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[3]).unwrap()
+        let data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[3])
+            .unwrap()
             .requires_grad_(true);
         let mut param = TestParameter::new(data, "test".to_string());
 
-        let new_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[3]).unwrap();
+        let new_data =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[3]).unwrap();
         param.update_data(new_data);
 
         // Should still require gradients
@@ -471,7 +499,11 @@ mod tests {
 
     #[test]
     fn test_sparse_weight_initialization() {
-        let layer = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_sparse_init(10, 5, 0.8).unwrap();
+        let layer =
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_sparse_init(
+                10, 5, 0.8,
+            )
+            .unwrap();
 
         // Check dimensions
         assert_eq!(layer.in_features, 10);
@@ -493,7 +525,11 @@ mod tests {
         // With 80% sparsity, we expect around 20% non-zero elements
         // Allow some tolerance for random initialization
         let expected_nnz = (total_elements as f64 * 0.2).round() as usize;
-        assert!((non_zero_count as isize - expected_nnz as isize).abs() <= 5,
-                "Expected ~{} non-zero elements, got {}", expected_nnz, non_zero_count);
+        assert!(
+            (non_zero_count as isize - expected_nnz as isize).abs() <= 5,
+            "Expected ~{} non-zero elements, got {}",
+            expected_nnz,
+            non_zero_count
+        );
     }
 }

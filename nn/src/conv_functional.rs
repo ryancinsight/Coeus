@@ -29,7 +29,7 @@ where
     T: DataType + FloatExt,
 {
     let input_shape = input.shape().dims();
-    if input_shape.len() != 4 {
+    if input_shape.len() != 4usize {
         return Err(NNError::ShapeMismatch {
             operation: "pad_2d".to_string(),
             expected: vec![0, 0, 0, 0],
@@ -87,7 +87,7 @@ where
     T: DataType + FloatExt,
 {
     let input_shape = input.shape().dims();
-    if input_shape.len() != 5 {
+    if input_shape.len() != 5usize {
         return Err(NNError::ShapeMismatch {
             operation: "pad_3d".to_string(),
             expected: vec![0, 0, 0, 0, 0],
@@ -230,13 +230,13 @@ where
     let input_shape = input.shape().dims();
     let weight_shape = weight.shape().dims();
 
-    if input_shape.len() != 4 {
+    if input_shape.len() != 4usize {
         return Err(NNError::InvalidInput {
             message: "Input must be 4D [batch, channels, height, width]".to_string(),
         });
     }
 
-    if weight_shape.len() != 4 {
+    if weight_shape.len() != 4usize {
         return Err(NNError::InvalidInput {
             message: "Weight must be 4D [out_channels, in_channels, kernel_h, kernel_w]".to_string(),
         });
@@ -351,13 +351,13 @@ where
     let input_shape = input.shape().dims();
     let weight_shape = weight.shape().dims();
 
-    if input_shape.len() != 5 {
+    if input_shape.len() != 5usize {
         return Err(NNError::InvalidInput {
             message: "Input must be 5D [batch, channels, depth, height, width]".to_string(),
         });
     }
 
-    if weight_shape.len() != 5 {
+    if weight_shape.len() != 5usize {
         return Err(NNError::InvalidInput {
             message: "Weight must be 5D [out_channels, in_channels, kernel_d, kernel_h, kernel_w]".to_string(),
         });
@@ -480,13 +480,13 @@ where
     let input_shape = input.shape().dims();
     let weight_shape = weight.shape().dims();
 
-    if input_shape.len() != 3 {
+    if input_shape.len() != 3usize {
         return Err(NNError::InvalidInput {
             message: "Input must be 3D [batch, channels, length]".to_string(),
         });
     }
 
-    if weight_shape.len() != 3 {
+    if weight_shape.len() != 3usize {
         return Err(NNError::InvalidInput {
             message: "Weight must be 3D [out_channels, in_channels, kernel_size]".to_string(),
         });
@@ -579,7 +579,7 @@ mod tests {
     use coeus_storage::DenseStorage;
     use coeus_tensor::Tensor;
 
-    type TestTensor = Tensor<CpuBackend, DenseStorage<Float32>, Float32>;
+    type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
     #[test]
     fn test_pad_2d() {
@@ -629,3 +629,4 @@ mod tests {
         assert_eq!(conv3d_output_size(5, 10, 10, 3, 3, 3, 1, 1, 1, 0, 0, 0), (3, 8, 8));
     }
 }
+

@@ -8,16 +8,19 @@ use std::vec::Vec;
 /// Creation operations for tensors with any storage type.
 ///
 /// This trait provides methods for creating tensors from vectors, slices,
-/// and generating tensors filled with zeros or ones.
+/// and generating tensors with specific fill patterns.
 impl<B, S, T> crate::Tensor<B, S, T>
 where
-    B: crate::Backend + Default,
-    S: crate::Storage<T> + crate::StorageFromVec<T> + 'static,
+    B: crate::Backend + Clone,
+    S: crate::Storage<T> + Clone + crate::StorageFromVec<T>,
     T: crate::DataType,
 {
     /// Creates a tensor from a vector with specified shape.
     ///
-    /// Uses default backend instance.
+    /// # Arguments
+    /// * `data` - Vector of tensor data
+    /// * `dims` - Shape dimensions
+    /// * `backend` - Backend instance to use
     ///
     /// # Errors
     ///
@@ -32,15 +35,42 @@ where
     /// use coeus_dtype::int::Int32;
     ///
     /// let data = vec![Int32::new(1), Int32::new(2), Int32::new(3)];
-    /// let tensor = Tensor::<CpuBackend, DenseStorage<Int32>, Int32>::from_vec(data, &[3]).unwrap();
+    /// let backend = CpuBackend::new();
+    /// let tensor = Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec_with_backend(data, &[3], backend).unwrap();
+    /// assert_eq!(tensor.len(), 3);
+    /// ```
+    pub fn from_vec_with_backend(data: Vec<T>, dims: &[usize], backend: B) -> crate::Result<Self>
+    where
+        S: coeus_storage::StorageFromVec<T>,
+    {
+        let storage = S::from_vec(data, dims).map_err(crate::TensorError::StorageError)?;
+        Ok(Self::from_storage(storage, backend))
+    }
+
+    /// Creates a tensor from a vector with specified shape using default backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if data size doesn't match shape.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_tensor::Tensor;
+    /// use coeus_backend::CpuBackend;
+    /// use coeus_storage::DenseStorage;
+    /// use coeus_dtype::int::Int32;
+    ///
+    /// let data = vec![Int32::new(1), Int32::new(2), Int32::new(3)];
+    /// let tensor = Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec(data, &[3]).unwrap();
     /// assert_eq!(tensor.len(), 3);
     /// ```
     pub fn from_vec(data: Vec<T>, dims: &[usize]) -> crate::Result<Self>
     where
+        B: Default,
         S: coeus_storage::StorageFromVec<T>,
     {
-        let storage = S::from_vec(data, dims)
-            .map_err(crate::TensorError::StorageError)?;
+        let storage = S::from_vec(data, dims).map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, B::default()))
     }
 
@@ -62,16 +92,16 @@ where
     /// use coeus_dtype::float::Float32;
     /// use num_traits::Zero;
     ///
-    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 3]).unwrap();
+    /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 3]).unwrap();
     /// assert_eq!(tensor.len(), 6);
     /// assert!(tensor.as_slice().iter().all(|&x| x.is_zero()));
     /// ```
     pub fn zeros(dims: &[usize]) -> crate::Result<Self>
     where
+        B: Default,
         T: num_traits::Zero,
     {
-        let storage = S::zeros(dims)
-            .map_err(crate::TensorError::StorageError)?;
+        let storage = S::zeros(dims).map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, B::default()))
     }
 
@@ -93,24 +123,23 @@ where
     /// use coeus_dtype::int::Int64;
     /// use num_traits::One;
     ///
-    /// let tensor = Tensor::<CpuBackend, DenseStorage<Int64>, Int64>::ones(&[4]).unwrap();
+    /// let tensor = Tensor::<CpuBackend<Int64>, DenseStorage<Int64>, Int64>::ones(&[4]).unwrap();
     /// assert_eq!(tensor.len(), 4);
     /// assert!(tensor.as_slice().iter().all(|&x| x.is_one()));
     /// ```
     pub fn ones(dims: &[usize]) -> crate::Result<Self>
     where
+        B: Default,
         T: num_traits::One,
     {
-        let storage = S::ones(dims)
-            .map_err(crate::TensorError::StorageError)?;
+        let storage = S::ones(dims).map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, B::default()))
     }
-
 }
 // Separate impl for DenseStorage to provide from_slice
 impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
 where
-    B: crate::Backend + Default,
+    B: crate::Backend,
     T: crate::DataType,
 {
     /// Creates a tensor from a slice with specified shape.
@@ -128,15 +157,33 @@ where
     /// use coeus_dtype::float::Float64;
     ///
     /// let data = [Float64::new(1.0), Float64::new(2.0), Float64::new(3.0), Float64::new(4.0)];
-    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float64>, Float64>::from_slice(&data, &[2, 2]).unwrap();
+    /// let tensor = Tensor::<CpuBackend<Float64>, DenseStorage<Float64>, Float64>::from_slice(&data, &[2, 2]).unwrap();
     /// assert_eq!(tensor.shape().dims(), &[2, 2]);
     /// ```
-    pub fn from_slice(data: &[T], dims: &[usize]) -> crate::Result<Self> {
+    pub fn from_slice(data: &[T], dims: &[usize]) -> crate::Result<Self>
+    where
+        B: Default,
+    {
         let storage = coeus_storage::DenseStorage::from_slice(data, dims)
             .map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, B::default()))
     }
 
+    /// Creates a tensor from a slice with specified shape and backend.
+    ///
+    /// # Arguments
+    /// * `data` - Slice of tensor data
+    /// * `dims` - Shape dimensions
+    /// * `backend` - Backend instance to use
+    ///
+    /// # Errors
+    ///
+    /// Returns error if slice size doesn't match shape.
+    pub fn from_slice_with_backend(data: &[T], dims: &[usize], backend: B) -> crate::Result<Self> {
+        let storage = coeus_storage::DenseStorage::from_slice(data, dims)
+            .map_err(crate::TensorError::StorageError)?;
+        Ok(Self::from_storage(storage, backend))
+    }
 }
 
 /// Generic creation operations for tensors with any StorageFromVec storage.
@@ -144,8 +191,8 @@ where
 ///
 impl<B, S, T> crate::Tensor<B, S, T>
 where
-    B: crate::Backend + Default,
-    S: crate::Storage<T> + crate::StorageFromVec<T> + 'static,
+    B: crate::Backend,
+    S: crate::Storage<T> + Clone + crate::StorageFromVec<T> + 'static,
     T: crate::DataType,
 {
     /// Creates a tensor filled with zeros using any StorageFromVec implementation.
@@ -166,7 +213,7 @@ where
     /// use coeus_dtype::float::Float32;
     /// use num_traits::Zero;
     ///
-    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros_generic(&[2, 3]).unwrap();
+    /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros_generic(&[2, 3]).unwrap();
     /// assert_eq!(tensor.len(), 6);
     /// assert!(tensor.as_slice().iter().all(|&x| x.is_zero()));
     /// ```
@@ -174,8 +221,7 @@ where
     where
         T: num_traits::Zero,
     {
-        let storage = S::zeros(dims)
-            .map_err(crate::TensorError::StorageError)?;
+        let storage = S::zeros(dims).map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, B::default()))
     }
 
@@ -197,7 +243,7 @@ where
     /// use coeus_dtype::int::Int64;
     /// use num_traits::One;
     ///
-    /// let tensor = Tensor::<CpuBackend, DenseStorage<Int64>, Int64>::ones_generic(&[4]).unwrap();
+    /// let tensor = Tensor::<CpuBackend<Int64>, DenseStorage<Int64>, Int64>::ones_generic(&[4]).unwrap();
     /// assert_eq!(tensor.len(), 4);
     /// assert!(tensor.as_slice().iter().all(|&x| x.is_one()));
     /// ```
@@ -205,8 +251,7 @@ where
     where
         T: num_traits::One,
     {
-        let storage = S::ones(dims)
-            .map_err(crate::TensorError::StorageError)?;
+        let storage = S::ones(dims).map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, B::default()))
     }
 }

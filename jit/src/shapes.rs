@@ -277,7 +277,7 @@ impl ShapeSpecializer {
         }
 
         // Estimate performance score based on shape properties
-        let performance_score = self.estimate_performance(&pattern);
+        let performance_score = self.estimate_performance(pattern);
 
         let key = ShapeKey::new(pattern.input_shapes.clone(), pattern.output_shapes.clone());
 

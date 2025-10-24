@@ -16,7 +16,7 @@
 //!     Float32::new(1.0), Float32::new(2.0), Float32::new(3.0),
 //!     Float32::new(4.0), Float32::new(5.0), Float32::new(6.0)
 //! ];
-//! let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+//! let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 //!     data, &[2, 3]
 //! ).unwrap();
 //!
@@ -38,7 +38,7 @@
 //! # use coeus_storage::DenseStorage;
 //! # use coeus_dtype::float::Float32;
 //! # let data = vec![Float32::new(10.0), Float32::new(20.0), Float32::new(30.0), Float32::new(40.0), Float32::new(50.0)];
-//! # let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data, &[5]).unwrap();
+//! # let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[5]).unwrap();
 //!
 //! // Select elements at indices [0, 2, 4, 1]
 //! let indices = [0i32, 2, 4, 1];
@@ -56,7 +56,7 @@
 //! # use coeus_storage::DenseStorage;
 //! # use coeus_dtype::float::Float32;
 //! # let data = vec![Float32::new(0.0), Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0), Float32::new(5.0)];
-//! # let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data, &[6]).unwrap();
+//! # let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[6]).unwrap();
 //!
 //! // Slice with step: [1:5:2] -> elements at indices 1, 3
 //! let slices = [(Some(1), Some(5), 2)];
@@ -679,3 +679,4 @@ mod tests {
         assert!(tensor.advanced_slice(&slices).is_err());
     }
 }
+

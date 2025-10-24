@@ -1,7 +1,6 @@
 //! Error types for tensor operations
 
 use core::fmt;
-use std::string::String;
 
 /// Errors that can occur during tensor operations
 #[derive(Debug, Clone, PartialEq)]
@@ -99,11 +98,20 @@ impl fmt::Display for TensorError {
             Self::BackendError(msg) => {
                 write!(f, "Backend error: {msg}")
             }
-            Self::BroadcastError { lhs_shape, rhs_shape } => {
+            Self::BroadcastError {
+                lhs_shape: _,
+                rhs_shape: _,
+            } => {
                 write!(f, "Incompatible shapes for broadcasting")
             }
-            Self::UnsupportedOperation { operation, storage_type } => {
-                write!(f, "Unsupported {operation} operation for {storage_type} storage type")
+            Self::UnsupportedOperation {
+                operation,
+                storage_type,
+            } => {
+                write!(
+                    f,
+                    "Unsupported {operation} operation for {storage_type} storage type"
+                )
             }
             Self::EmptyTensor => {
                 write!(f, "Operation on empty tensor")
@@ -122,11 +130,14 @@ impl From<coeus_backend::BackendError> for TensorError {
     fn from(error: coeus_backend::BackendError) -> Self {
         match error {
             coeus_backend::BackendError::UnsupportedOperation { operation, backend } => {
-                Self::BackendError(std::format!("Unsupported {operation} operation for {backend} backend"))
+                Self::BackendError(std::format!(
+                    "Unsupported {operation} operation for {backend} backend"
+                ))
             }
             coeus_backend::BackendError::InvalidInput(msg) => {
                 Self::BackendError(std::format!("Invalid input: {msg}"))
             }
+            coeus_backend::BackendError::StorageError { source } => Self::StorageError(source),
         }
     }
 }

@@ -36,7 +36,7 @@ pub fn numerical_gradient<T, F>(
     f: F,
     x: &Variable<T>,
     epsilon: T,
-) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>>
+) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>>
 where
     T: DataType + FloatExt,
     F: Fn(&Variable<T>) -> Variable<T>,
@@ -111,8 +111,8 @@ where
 /// ```
 #[must_use]
 pub fn gradients_close<T>(
-    analytical: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    numerical: &Tensor<CpuBackend, DenseStorage<T>, T>,
+    analytical: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    numerical: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     rtol: T,
     atol: T,
 ) -> bool
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn test_numerical_gradient_quadratic() {
         // f(x) = x², so df/dx = 2x
-        let x_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(3.0)],
             &[1],
         )
@@ -186,13 +186,13 @@ mod tests {
     /// Test `gradients_close` function with matching gradients
     #[test]
     fn test_gradients_close_match() {
-        let analytical = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let analytical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
         .unwrap();
 
-        let numerical = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let numerical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(1.00001),
                 Float32::new(2.00001),
@@ -211,13 +211,13 @@ mod tests {
     /// Test `gradients_close` function with mismatched gradients
     #[test]
     fn test_gradients_close_mismatch() {
-        let analytical = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let analytical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
         .unwrap();
 
-        let numerical = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let numerical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.1), Float32::new(2.1), Float32::new(3.1)],
             &[3],
         )
@@ -232,13 +232,13 @@ mod tests {
     /// Test `gradients_close` with different shapes
     #[test]
     fn test_gradients_close_different_shapes() {
-        let analytical = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let analytical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
         )
         .unwrap();
 
-        let numerical = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let numerical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
@@ -255,7 +255,7 @@ mod tests {
     fn test_numerical_gradient_sum() {
         use crate::graph::backward;
 
-        let x_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(2.0), Float32::new(3.0)],
             &[2],
         )
@@ -312,14 +312,14 @@ mod tests {
 
         // Test case: x^3 where x=2.0
         // Analytical: d/dx(x^3) = 3*x^2 = 3*4 = 12.0
-        let x_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(2.0)],
             &[1],
         )
         .unwrap();
         let x = Variable::new(x_data);
 
-        let exp_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let exp_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(3.0)],
             &[1],
         )
@@ -376,7 +376,7 @@ mod tests {
     fn test_numerical_gradient_exp() {
         use crate::graph::backward;
 
-        let x_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0)],
             &[1],
         )
@@ -428,7 +428,7 @@ mod tests {
     fn test_numerical_gradient_log() {
         use crate::graph::backward;
 
-        let x_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(2.0)],
             &[1],
         )
@@ -480,7 +480,7 @@ mod tests {
     fn test_numerical_gradient_sin() {
         use crate::graph::backward;
 
-        let x_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(0.5)],
             &[1],
         )
@@ -532,7 +532,7 @@ mod tests {
     fn test_numerical_gradient_cos() {
         use crate::graph::backward;
 
-        let x_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(0.5)],
             &[1],
         )
@@ -584,7 +584,7 @@ mod tests {
     fn test_numerical_gradient_mean() {
         use crate::graph::backward;
 
-        let x_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(2.0), Float32::new(4.0)],
             &[2],
         )
@@ -643,14 +643,14 @@ mod tests {
         // x (scalar [1]) + y (vector [3]) → z (vector [3])
         // Analytical: d/dx(x+y) = sum([1,1,1]) = 3 (reduce along broadcast dim)
         //             d/dy(x+y) = [1,1,1] (no broadcasting)
-        let x_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(2.0)],
             &[1],
         )
         .unwrap();
         let x = Variable::new(x_data);
 
-        let y_data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let y_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )

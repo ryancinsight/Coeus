@@ -14,7 +14,7 @@ use crate::Dtype;
 use libm;
 
 /// 32-bit single precision floating point type
-#[derive(Clone, Copy, Default, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Float32(pub f32);
 
@@ -29,6 +29,14 @@ impl Float32 {
     #[must_use]
     pub const fn get(self) -> f32 {
         self.0
+    }
+}
+
+impl Eq for Float32 {}
+
+impl PartialOrd for Float32 {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
     }
 }
 
@@ -135,6 +143,21 @@ impl num_traits::ToPrimitive for Float32 {
 /// let inf = Float32::from_f64(f64::INFINITY).unwrap();
 /// assert!(num_traits::Float::is_infinite(inf));
 /// ```
+impl From<u32> for Float32 {
+    #[allow(clippy::cast_precision_loss)]
+    fn from(value: u32) -> Self {
+        #[allow(clippy::cast_possible_truncation)]
+        Self::new(value as f32)
+    }
+}
+
+impl From<f64> for Float32 {
+    fn from(value: f64) -> Self {
+        #[allow(clippy::cast_possible_truncation)]
+        Self::new(value as f32)
+    }
+}
+
 impl num_traits::FromPrimitive for Float32 {
     /// Convert from i64 to Float32.
     ///
@@ -224,6 +247,20 @@ impl core::ops::Neg for Float32 {
 impl core::ops::AddAssign for Float32 {
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::iter::Sum for Float32 {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Float32::zero(), |acc, x| acc + x)
+    }
+}
+
+#[cfg(feature = "std")]
+impl<'a> std::iter::Sum<&'a Float32> for Float32 {
+    fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+        iter.fold(Float32::zero(), |acc, x| acc + *x)
     }
 }
 
@@ -367,7 +404,11 @@ impl Float for Float32 {
     }
 
     fn abs_sub(self, other: Self) -> Self {
-        Self(if self.0 > other.0 { self.0 - other.0 } else { 0.0 })
+        Self(if self.0 > other.0 {
+            self.0 - other.0
+        } else {
+            0.0
+        })
     }
 
     fn cbrt(self) -> Self {
@@ -906,7 +947,11 @@ impl Float for Float64 {
     }
 
     fn abs_sub(self, other: Self) -> Self {
-        Self(if self.0 > other.0 { self.0 - other.0 } else { 0.0 })
+        Self(if self.0 > other.0 {
+            self.0 - other.0
+        } else {
+            0.0
+        })
     }
 
     fn cbrt(self) -> Self {
@@ -1054,6 +1099,20 @@ impl core::ops::Neg for Float64 {
 impl core::ops::AddAssign for Float64 {
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::iter::Sum for Float64 {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Float64::zero(), |acc, x| acc + x)
+    }
+}
+
+#[cfg(feature = "std")]
+impl<'a> std::iter::Sum<&'a Float64> for Float64 {
+    fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+        iter.fold(Float64::zero(), |acc, x| acc + *x)
     }
 }
 
@@ -1815,10 +1874,18 @@ mod tests {
     fn test_float32_math_functions() {
         let x = Float32(1.0);
 
-        assert_relative_eq!(num_traits::Float::exp(x).get(), core::f32::consts::E, epsilon = 1e-5);
+        assert_relative_eq!(
+            num_traits::Float::exp(x).get(),
+            core::f32::consts::E,
+            epsilon = 1e-5
+        );
         assert_relative_eq!(num_traits::Float::ln(x).get(), 0.0, epsilon = 1e-6);
         assert_relative_eq!(num_traits::Float::sqrt(x).get(), 1.0, epsilon = 1e-6);
-        assert_relative_eq!(num_traits::Float::sin(x).get(), 0.841_470_96, epsilon = 1e-6);
+        assert_relative_eq!(
+            num_traits::Float::sin(x).get(),
+            0.841_470_96,
+            epsilon = 1e-6
+        );
         assert_relative_eq!(num_traits::Float::cos(x).get(), 0.540_302_3, epsilon = 1e-6);
     }
 
@@ -1826,11 +1893,23 @@ mod tests {
     fn test_float64_math_functions() {
         let x = Float64(1.0);
 
-        assert_relative_eq!(num_traits::Float::exp(x).get(), core::f64::consts::E, epsilon = 1e-12);
+        assert_relative_eq!(
+            num_traits::Float::exp(x).get(),
+            core::f64::consts::E,
+            epsilon = 1e-12
+        );
         assert_relative_eq!(num_traits::Float::ln(x).get(), 0.0, epsilon = 1e-12);
         assert_relative_eq!(num_traits::Float::sqrt(x).get(), 1.0, epsilon = 1e-12);
-        assert_relative_eq!(num_traits::Float::sin(x).get(), 1.0_f64.sin(), epsilon = 1e-12);
-        assert_relative_eq!(num_traits::Float::cos(x).get(), 1.0_f64.cos(), epsilon = 1e-12);
+        assert_relative_eq!(
+            num_traits::Float::sin(x).get(),
+            1.0_f64.sin(),
+            epsilon = 1e-12
+        );
+        assert_relative_eq!(
+            num_traits::Float::cos(x).get(),
+            1.0_f64.cos(),
+            epsilon = 1e-12
+        );
     }
 
     #[test]
@@ -1911,11 +1990,13 @@ mod tests {
         {
             let x = Half(half::f16::from_f32(1.0));
 
-            assert_relative_eq!(num_traits::Float::exp(x).get(), core::f32::consts::E, epsilon = 1e-5);
-            assert_relative_eq!(num_traits::Float::ln(x).get(), 0.0, epsilon = 1e-6);
-            assert_relative_eq!(num_traits::Float::sqrt(x).get(), 1.0, epsilon = 1e-6);
-            assert_relative_eq!(num_traits::Float::sin(x).get(), 0.841_470_96, epsilon = 1e-6);
-            assert_relative_eq!(num_traits::Float::cos(x).get(), 0.540_302_3, epsilon = 1e-6);
+            // f16 has ~11 bits mantissa, ~3-4 significant decimal digits
+            // Use appropriate epsilon for reduced precision arithmetic
+            assert_relative_eq!(FloatExt::exp(x).get(), core::f32::consts::E, epsilon = 1e-3);
+            assert_relative_eq!(FloatExt::ln(x).get(), 0.0, epsilon = 1e-3);
+            assert_relative_eq!(FloatExt::sqrt(x).get(), 1.0, epsilon = 1e-3);
+            assert_relative_eq!(FloatExt::sin(x).get(), 0.841_470_96, epsilon = 1e-3);
+            assert_relative_eq!(FloatExt::cos(x).get(), 0.540_302_3, epsilon = 1e-3);
         }
     }
 
@@ -1925,11 +2006,13 @@ mod tests {
         {
             let x = BFloat16(half::bf16::from_f32(1.0));
 
-            assert_relative_eq!(num_traits::Float::exp(x).get(), core::f32::consts::E, epsilon = 1e-5);
-            assert_relative_eq!(num_traits::Float::ln(x).get(), 0.0, epsilon = 1e-6);
-            assert_relative_eq!(num_traits::Float::sqrt(x).get(), 1.0, epsilon = 1e-6);
-            assert_relative_eq!(num_traits::Float::sin(x).get(), 0.841_470_96, epsilon = 1e-6);
-            assert_relative_eq!(num_traits::Float::cos(x).get(), 0.540_302_3, epsilon = 1e-6);
+            // BFloat16 has ~8 bits mantissa, ~2 significant decimal digits
+            // Use relaxed epsilon for highly reduced precision arithmetic
+            assert_relative_eq!(FloatExt::exp(x).get(), core::f32::consts::E, epsilon = 1e-2);
+            assert_relative_eq!(FloatExt::ln(x).get(), 0.0, epsilon = 1e-2);
+            assert_relative_eq!(FloatExt::sqrt(x).get(), 1.0, epsilon = 1e-2);
+            assert_relative_eq!(FloatExt::sin(x).get(), 0.841_470_96, epsilon = 1e-2);
+            assert_relative_eq!(FloatExt::cos(x).get(), 0.540_302_3, epsilon = 1e-2);
         }
     }
 
@@ -1945,9 +2028,9 @@ mod tests {
 
             assert!(zero.is_zero());
             assert!(one.is_one());
-            assert!(num_traits::Float::is_infinite(inf));
-            assert!(num_traits::Float::is_infinite(neg_inf));
-            assert!(num_traits::Float::is_nan(nan));
+            assert!(FloatExt::is_infinite(inf));
+            assert!(FloatExt::is_infinite(neg_inf));
+            assert!(FloatExt::is_nan(nan));
         }
     }
 
@@ -1963,9 +2046,9 @@ mod tests {
 
             assert!(zero.is_zero());
             assert!(one.is_one());
-            assert!(num_traits::Float::is_infinite(inf));
-            assert!(num_traits::Float::is_infinite(neg_inf));
-            assert!(num_traits::Float::is_nan(nan));
+            assert!(FloatExt::is_infinite(inf));
+            assert!(FloatExt::is_infinite(neg_inf));
+            assert!(FloatExt::is_nan(nan));
         }
     }
 
@@ -1991,6 +2074,7 @@ mod tests {
 
     // FromPrimitive tests for Float32
     #[test]
+    #[allow(clippy::float_cmp)]
     fn test_float32_from_i64() {
         use num_traits::FromPrimitive;
 
@@ -2008,6 +2092,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::float_cmp)]
     fn test_float32_from_u64() {
         use num_traits::FromPrimitive;
 
@@ -2032,9 +2117,15 @@ mod tests {
         assert_eq!(Float32::from_f32(-2.71828).unwrap().get(), -2.71828);
 
         // Special values
-        assert!(num_traits::Float::is_infinite(Float32::from_f32(f32::INFINITY).unwrap()));
-        assert!(num_traits::Float::is_infinite(Float32::from_f32(f32::NEG_INFINITY).unwrap()));
-        assert!(num_traits::Float::is_nan(Float32::from_f32(f32::NAN).unwrap()));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f32(f32::INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f32(f32::NEG_INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_nan(
+            Float32::from_f32(f32::NAN).unwrap()
+        ));
 
         // Edge cases
         assert_eq!(Float32::from_f32(f32::MIN).unwrap().get(), f32::MIN);
@@ -2047,17 +2138,35 @@ mod tests {
 
         // Normal values
         assert_eq!(Float32::from_f64(0.0).unwrap().get(), 0.0);
-        assert_relative_eq!(Float32::from_f64(3.14159).unwrap().get(), 3.14159, epsilon = 1e-5);
-        assert_relative_eq!(Float32::from_f64(-2.71828).unwrap().get(), -2.71828, epsilon = 1e-5);
+        assert_relative_eq!(
+            Float32::from_f64(3.14159).unwrap().get(),
+            3.14159,
+            epsilon = 1e-5
+        );
+        assert_relative_eq!(
+            Float32::from_f64(-2.71828).unwrap().get(),
+            -2.71828,
+            epsilon = 1e-5
+        );
 
         // Special values
-        assert!(num_traits::Float::is_infinite(Float32::from_f64(f64::INFINITY).unwrap()));
-        assert!(num_traits::Float::is_infinite(Float32::from_f64(f64::NEG_INFINITY).unwrap()));
-        assert!(num_traits::Float::is_nan(Float32::from_f64(f64::NAN).unwrap()));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f64(f64::INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f64(f64::NEG_INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_nan(
+            Float32::from_f64(f64::NAN).unwrap()
+        ));
 
         // Values outside f32 range become infinity
-        assert!(num_traits::Float::is_infinite(Float32::from_f64(f64::MAX).unwrap()));
-        assert!(num_traits::Float::is_infinite(Float32::from_f64(-f64::MAX).unwrap()));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f64(f64::MAX).unwrap()
+        ));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f64(-f64::MAX).unwrap()
+        ));
 
         // Precision loss from f64 to f32
         let precise = 1.234567890123456789_f64;
@@ -2072,7 +2181,7 @@ mod tests {
 
         // Normal values
         assert_eq!(Float64::from_i64(0).unwrap().get(), 0.0);
-        assert_eq!(Float64::from_i64(42).unwrap().get(), 42.0);
+        assert!((Float64::from_i64(42).unwrap().get() - 42.0).abs() < 1e-6);
         assert_eq!(Float64::from_i64(-42).unwrap().get(), -42.0);
         assert_eq!(Float64::from_i64(i64::MAX).unwrap().get(), i64::MAX as f64);
         assert_eq!(Float64::from_i64(i64::MIN).unwrap().get(), i64::MIN as f64);
@@ -2104,13 +2213,27 @@ mod tests {
 
         // Normal values (lossless conversion)
         assert_eq!(Float64::from_f32(0.0).unwrap().get(), 0.0);
-        assert_relative_eq!(Float64::from_f32(3.14159).unwrap().get(), 3.14159_f32 as f64, epsilon = 1e-12);
-        assert_relative_eq!(Float64::from_f32(-2.71828).unwrap().get(), -2.71828_f32 as f64, epsilon = 1e-12);
+        assert_relative_eq!(
+            Float64::from_f32(3.14159).unwrap().get(),
+            3.14159_f32 as f64,
+            epsilon = 1e-12
+        );
+        assert_relative_eq!(
+            Float64::from_f32(-2.71828).unwrap().get(),
+            -2.71828_f32 as f64,
+            epsilon = 1e-12
+        );
 
         // Special values
-        assert!(num_traits::Float::is_infinite(Float64::from_f32(f32::INFINITY).unwrap()));
-        assert!(num_traits::Float::is_infinite(Float64::from_f32(f32::NEG_INFINITY).unwrap()));
-        assert!(num_traits::Float::is_nan(Float64::from_f32(f32::NAN).unwrap()));
+        assert!(num_traits::Float::is_infinite(
+            Float64::from_f32(f32::INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_infinite(
+            Float64::from_f32(f32::NEG_INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_nan(
+            Float64::from_f32(f32::NAN).unwrap()
+        ));
 
         // Edge cases
         assert_eq!(Float64::from_f32(f32::MIN).unwrap().get(), f32::MIN as f64);
@@ -2127,9 +2250,15 @@ mod tests {
         assert_eq!(Float64::from_f64(-2.71828).unwrap().get(), -2.71828);
 
         // Special values
-        assert!(num_traits::Float::is_infinite(Float64::from_f64(f64::INFINITY).unwrap()));
-        assert!(num_traits::Float::is_infinite(Float64::from_f64(f64::NEG_INFINITY).unwrap()));
-        assert!(num_traits::Float::is_nan(Float64::from_f64(f64::NAN).unwrap()));
+        assert!(num_traits::Float::is_infinite(
+            Float64::from_f64(f64::INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_infinite(
+            Float64::from_f64(f64::NEG_INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_nan(
+            Float64::from_f64(f64::NAN).unwrap()
+        ));
 
         // Edge cases
         assert_eq!(Float64::from_f64(f64::MIN).unwrap().get(), f64::MIN);

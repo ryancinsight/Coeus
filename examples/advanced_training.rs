@@ -11,7 +11,7 @@ use std::io::{self, Write};
 
 use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
-use coeus_nn::{Linear, Module, ModuleSerialize, Sequential};
+use coeus_nn::{Linear, Module, Sequential};
 use coeus_storage::DenseStorage;
 use coeus_tensor::Tensor;
 
@@ -21,11 +21,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 1. Build a complex neural network
     println!("1. Building neural network:");
-    let mut model = Sequential::new();
-    model.add_module("input_layer".to_string(), Linear::new(10, 64).unwrap());
-    model.add_module("hidden_1".to_string(), Linear::new(64, 32).unwrap());
-    model.add_module("hidden_2".to_string(), Linear::new(32, 16).unwrap());
-    model.add_module("output_layer".to_string(), Linear::new(16, 3).unwrap());
+    let mut model: Sequential<coeus_backend::CpuBackend<Float32>, DenseStorage<Float32>, Float32> =
+        Sequential::new();
+    model.add_module("input_layer", Linear::new(10, 64).unwrap());
+    model.add_module("hidden_1", Linear::new(64, 32).unwrap());
+    model.add_module("hidden_2", Linear::new(32, 16).unwrap());
+    model.add_module("output_layer", Linear::new(16, 3).unwrap());
 
     println!("   Network architecture:");
     println!("   Input(10) → Linear(64) → Linear(32) → Linear(16) → Output(3)");
@@ -55,7 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 3. Forward pass demonstration
     println!("\n3. Forward pass demonstration:");
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(1.0); 10], // 10 features
         &[1, 10],                    // [batch_size=1, input_features=10]
     )?;
@@ -85,10 +86,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     // 5. Model loading and round-trip verification
     println!("\n5. Model loading (round-trip test):");
     let mut loaded_model = Sequential::new();
-    loaded_model.add_module("input_layer".to_string(), Linear::new(10, 64).unwrap());
-    loaded_model.add_module("hidden_1".to_string(), Linear::new(64, 32).unwrap());
-    loaded_model.add_module("hidden_2".to_string(), Linear::new(32, 16).unwrap());
-    loaded_model.add_module("output_layer".to_string(), Linear::new(16, 3).unwrap());
+    loaded_model.add_module("input_layer", Linear::new(10, 64).unwrap());
+    loaded_model.add_module("hidden_1", Linear::new(64, 32).unwrap());
+    loaded_model.add_module("hidden_2", Linear::new(32, 16).unwrap());
+    loaded_model.add_module("output_layer", Linear::new(16, 3).unwrap());
 
     println!("   Loading model from '{}'...", model_path);
     match loaded_model.load(std::path::Path::new(model_path)) {

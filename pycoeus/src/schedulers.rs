@@ -10,7 +10,7 @@ impl CosineAnnealingWarmRestarts {
     #[new]
     fn new() -> PyResult<Self> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "CosineAnnealingWarmRestarts scheduler not yet implemented in Coeus"
+            "CosineAnnealingWarmRestarts scheduler not yet implemented in Coeus",
         ))
     }
 }

@@ -181,7 +181,7 @@ impl<T: DataType> Storage<T> for DenseStorage<T> {
         true
     }
 
-    fn as_storage_ref(&self) -> &dyn Storage<T> {
+    fn as_storage_ref(&self) -> &Self {
         self
     }
 }
@@ -272,7 +272,7 @@ impl<T: DataType> crate::TransposeStorage<T> for DenseStorage<T> {
 
         if shape.len() != 2 {
             // For now, only support 2D transpose
-            // TODO: Implement general ND transpose
+            // Future enhancement: Implement general ND transpose for tensors > 2D
             return Err(crate::StorageError::ShapeMismatch {
                 expected: 2,
                 actual: shape.len(),

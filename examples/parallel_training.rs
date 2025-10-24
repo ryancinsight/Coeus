@@ -11,16 +11,16 @@
 //!
 //! Run with: cargo run --example parallel_training
 
-use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
 use coeus_nn::{Linear, Module};
 use coeus_storage::DenseStorage;
+use coeus_tensor::CpuBackend;
 use coeus_tensor::Tensor;
 use std::sync::{Arc, RwLock};
 use std::thread;
 
 /// Type alias for the complex tensor type used in this example
-type TrainingTensor = Tensor<CpuBackend, DenseStorage<Float32>, Float32>;
+type TrainingTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
 /// Shared data processing state for parallel workers
 ///
@@ -137,7 +137,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Demonstrate single-threaded model usage first
     println!("1. Single-Threaded Model Example");
-    let model = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(4, 2).unwrap();
+    let model = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(4, 2).unwrap();
     let input = TrainingTensor::from_vec(
         vec![
             Float32::new(1.0),

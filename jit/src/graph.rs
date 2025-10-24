@@ -55,6 +55,7 @@ pub enum Operation {
 
 /// Metadata associated with graph nodes
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct NodeMetadata {
     pub shape: Option<Vec<usize>>,
     pub dtype: Option<String>,
@@ -390,13 +391,3 @@ mod tests {
     }
 }
 
-impl Default for NodeMetadata {
-    fn default() -> Self {
-        Self {
-            shape: None,
-            dtype: None,
-            requires_grad: false,
-            name: None,
-        }
-    }
-}

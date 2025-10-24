@@ -27,7 +27,7 @@ use crate::parameter::Parameter;
 /// use coeus_dtype::float::Float32;
 ///
 /// let pool = MaxPool1d::new(2, Some(2), 0);
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
 /// let output = pool.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 50]);
 /// ```
@@ -53,14 +53,14 @@ impl MaxPool1d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for MaxPool1d {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T> for MaxPool1d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
 
-        if input_shape.len() != 3 {
+        if input_shape.len() != 3usize {
             return Err(NNError::InvalidInput {
                 message: format!(
                     "Expected 3D input (batch, channels, length), got {}D",
@@ -107,7 +107,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new()
     }
 
@@ -141,7 +141,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
 /// use coeus_dtype::float::Float32;
 ///
 /// let pool = AvgPool1d::new(2, Some(2), 0);
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
 /// let output = pool.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 50]);
 /// ```
@@ -167,14 +167,14 @@ impl AvgPool1d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for AvgPool1d {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T> for AvgPool1d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
 
-        if input_shape.len() != 3 {
+        if input_shape.len() != 3usize {
             return Err(NNError::InvalidInput {
                 message: format!(
                     "Expected 3D input (batch, channels, length), got {}D",
@@ -226,7 +226,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new()
     }
 
@@ -261,7 +261,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
 /// use coeus_dtype::float::Float32;
 ///
 /// let pool = AdaptiveAvgPool1d::new(10); // Output length = 10
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
 /// let output = pool.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 10]);
 /// ```
@@ -289,14 +289,16 @@ impl AdaptiveAvgPool1d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for AdaptiveAvgPool1d {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T>
+    for AdaptiveAvgPool1d
+{
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
 
-        if input_shape.len() != 3 {
+        if input_shape.len() != 3usize {
             return Err(NNError::InvalidInput {
                 message: format!(
                     "Expected 3D input (batch, channels, length), got {}D",
@@ -342,7 +344,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new()
     }
 
@@ -383,10 +385,10 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
 /// let pool = MaxPool2d::new((2, 2), Some((2, 2)), (0, 0));
 ///
 /// // Input: [batch_size=2, channels=64, height=32, width=32]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 64, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 64, 32, 32]).unwrap();
 ///
 /// // Output: [2, 64, 16, 16] (downsampled by 2x)
-/// let output = <MaxPool2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+/// let output = <MaxPool2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
 /// assert_eq!(output.shape().dims(), &[2, 64, 16, 16]);
 /// ```
 #[derive(Debug, Clone)]
@@ -435,11 +437,11 @@ impl MaxPool2d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for MaxPool2d {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T> for MaxPool2d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         // Input: [N, C, H_in, W_in]
         let input_shape = input.shape().dims();
         assert_eq!(input_shape.len(), 4, "Input must be 4D [N, C, H_in, W_in]");
@@ -499,7 +501,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
             .map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         vec![] // No learnable parameters
     }
 
@@ -540,10 +542,10 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
 /// let pool = AvgPool2d::new((2, 2), Some((2, 2)), (0, 0));
 ///
 /// // Input: [batch_size=2, channels=64, height=32, width=32]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 64, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 64, 32, 32]).unwrap();
 ///
 /// // Output: [2, 64, 16, 16] (downsampled by 2x)
-/// let output = <AvgPool2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+/// let output = <AvgPool2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
 /// assert_eq!(output.shape().dims(), &[2, 64, 16, 16]);
 /// ```
 #[derive(Debug, Clone)]
@@ -592,11 +594,11 @@ impl AvgPool2d {
     }
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for AvgPool2d {
+impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for AvgPool2d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         // Input: [N, C, H_in, W_in]
         let input_shape = input.shape().dims();
         assert_eq!(input_shape.len(), 4, "Input must be 4D [N, C, H_in, W_in]");
@@ -655,7 +657,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for AvgPool2
             .map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         vec![] // No learnable parameters
     }
 
@@ -694,7 +696,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for AvgPool2
 /// use coeus_dtype::float::Float32;
 ///
 /// let pool = AdaptiveAvgPool2d::new((1, 1)); // Global average pooling
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 3, 224, 224]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3, 224, 224]).unwrap();
 /// let output = pool.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 3, 1, 1]);
 /// ```
@@ -739,11 +741,13 @@ impl AdaptiveAvgPool2d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for AdaptiveAvgPool2d {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T>
+    for AdaptiveAvgPool2d
+{
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
 
         // Handle both 3D (C, H, W) and 4D (N, C, H, W) inputs
@@ -763,7 +767,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         };
 
         let (out_height, out_width) = self.output_size;
-        let output_shape = if input_shape.len() == 3 {
+        let output_shape = if input_shape.len() == 3usize {
             vec![channels, out_height, out_width]
         } else {
             vec![batch_size, channels, out_height, out_width]
@@ -813,7 +817,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new() // No learnable parameters
     }
 
@@ -849,7 +853,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
 /// use coeus_dtype::float::Float32;
 ///
 /// let pool = AdaptiveMaxPool2d::new((1, 1)); // Global max pooling
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 3, 224, 224]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3, 224, 224]).unwrap();
 /// let output = pool.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 3, 1, 1]);
 /// ```
@@ -888,11 +892,13 @@ impl AdaptiveMaxPool2d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for AdaptiveMaxPool2d {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T>
+    for AdaptiveMaxPool2d
+{
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
 
         // Handle both 3D (C, H, W) and 4D (N, C, H, W) inputs
@@ -912,7 +918,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         };
 
         let (out_height, out_width) = self.output_size;
-        let output_shape = if input_shape.len() == 3 {
+        let output_shape = if input_shape.len() == 3usize {
             vec![channels, out_height, out_width]
         } else {
             vec![batch_size, channels, out_height, out_width]
@@ -956,7 +962,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new() // No learnable parameters
     }
 
@@ -998,10 +1004,10 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
 /// let pool = MaxPool3d::new((2, 2, 2), Some((2, 2, 2)), (0, 0, 0));
 ///
 /// // Input: [batch_size=1, channels=64, depth=16, height=32, width=32]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 16, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 16, 32, 32]).unwrap();
 ///
 /// // Output: [1, 64, 8, 16, 16] (downsampled by 2x in all dimensions)
-/// let output = <MaxPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+/// let output = <MaxPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 8, 16, 16]);
 /// ```
 ///
@@ -1056,11 +1062,11 @@ impl MaxPool3d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for MaxPool3d {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T> for MaxPool3d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         // Input: [N, C, D_in, H_in, W_in]
         let input_shape = input.shape().dims();
         assert_eq!(
@@ -1143,7 +1149,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         .map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new() // No learnable parameters
     }
 
@@ -1185,10 +1191,10 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
 /// let pool = AvgPool3d::new((2, 2, 2), Some((2, 2, 2)), (0, 0, 0));
 ///
 /// // Input: [batch_size=1, channels=64, depth=16, height=32, width=32]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 16, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 16, 32, 32]).unwrap();
 ///
 /// // Output: [1, 64, 8, 16, 16] (downsampled by 2x in all dimensions)
-/// let output = <AvgPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+/// let output = <AvgPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 8, 16, 16]);
 /// ```
 ///
@@ -1243,11 +1249,11 @@ impl AvgPool3d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for AvgPool3d {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T> for AvgPool3d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         // Input: [N, C, D_in, H_in, W_in]
         let input_shape = input.shape().dims();
         assert_eq!(
@@ -1334,7 +1340,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         .map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new() // No learnable parameters
     }
 
@@ -1371,13 +1377,17 @@ mod tests {
 
         // Input: [batch_size=2, channels=3, height=4, width=4]
         let input_data: Vec<Float32> = (0..96).map(|i| Float32::new(i as f32)).collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[2, 3, 4, 4],
         )
         .unwrap();
 
-        let output = <MaxPool2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let output =
+            <MaxPool2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output shape should be [2, 3, 2, 2] (downsampled by 2x)
         assert_eq!(output.shape().dims(), &[2, 3, 2, 2]);
@@ -1394,13 +1404,17 @@ mod tests {
         .iter()
         .map(|&x| Float32::new(x))
         .collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 1, 4, 4],
         )
         .unwrap();
 
-        let output = <MaxPool2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let output =
+            <MaxPool2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
         let output_data = output.as_slice();
 
         // Expected output: max of each 2x2 window
@@ -1420,13 +1434,17 @@ mod tests {
         let pool = MaxPool2d::new((2, 2), None, (0, 0));
 
         let input_data: Vec<Float32> = (0..16).map(|i| Float32::new(i as f32)).collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 1, 4, 4],
         )
         .unwrap();
 
-        let output = <MaxPool2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let output =
+            <MaxPool2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output shape should be [1, 1, 2, 2] (stride defaults to kernel_size)
         assert_eq!(output.shape().dims(), &[1, 1, 2, 2]);
@@ -1452,13 +1470,17 @@ mod tests {
 
         // Input: [batch_size=2, channels=3, height=4, width=4]
         let input_data: Vec<Float32> = (0..96).map(|i| Float32::new(i as f32)).collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[2, 3, 4, 4],
         )
         .unwrap();
 
-        let output = <AvgPool2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let output =
+            <AvgPool2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output shape should be [2, 3, 2, 2] (downsampled by 2x)
         assert_eq!(output.shape().dims(), &[2, 3, 2, 2]);
@@ -1475,13 +1497,17 @@ mod tests {
         .iter()
         .map(|&x| Float32::new(x))
         .collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 1, 4, 4],
         )
         .unwrap();
 
-        let output = <AvgPool2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let output =
+            <AvgPool2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
         let output_data = output.as_slice();
 
         // Expected output: average of each 2x2 window
@@ -1501,13 +1527,17 @@ mod tests {
         let pool = AvgPool2d::new((2, 2), None, (0, 0));
 
         let input_data: Vec<Float32> = (0..16).map(|i| Float32::new(i as f32)).collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 1, 4, 4],
         )
         .unwrap();
 
-        let output = <AvgPool2d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let output =
+            <AvgPool2d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output shape should be [1, 1, 2, 2] (stride defaults to kernel_size)
         assert_eq!(output.shape().dims(), &[1, 1, 2, 2]);
@@ -1529,7 +1559,8 @@ mod tests {
     fn test_adaptive_avgpool2d_forward_shape() {
         let pool = AdaptiveAvgPool2d::new((7, 7));
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 3, 14, 14]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 3, 14, 14])
+                .unwrap();
         let output = pool.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[2, 3, 7, 7]);
     }
@@ -1537,7 +1568,7 @@ mod tests {
     #[test]
     fn test_adaptive_avgpool2d_global_pooling() {
         let pool = AdaptiveAvgPool2d::new((1, 1));
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(1.0),
                 Float32::new(2.0),
@@ -1564,7 +1595,8 @@ mod tests {
     #[test]
     fn test_adaptive_avgpool2d_3d_input() {
         let pool = AdaptiveAvgPool2d::new((2, 2));
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[3, 4, 4]).unwrap();
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[3, 4, 4])
+            .unwrap();
         let output = pool.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[3, 2, 2]);
     }
@@ -1579,7 +1611,8 @@ mod tests {
     fn test_adaptive_maxpool2d_forward_shape() {
         let pool = AdaptiveMaxPool2d::new((7, 7));
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 3, 14, 14]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 3, 14, 14])
+                .unwrap();
         let output = pool.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[2, 3, 7, 7]);
     }
@@ -1587,7 +1620,7 @@ mod tests {
     #[test]
     fn test_adaptive_maxpool2d_global_pooling() {
         let pool = AdaptiveMaxPool2d::new((1, 1));
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(1.0),
                 Float32::new(2.0),
@@ -1614,7 +1647,8 @@ mod tests {
     #[test]
     fn test_adaptive_maxpool2d_3d_input() {
         let pool = AdaptiveMaxPool2d::new((2, 2));
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[3, 4, 4]).unwrap();
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[3, 4, 4])
+            .unwrap();
         let output = pool.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[3, 2, 2]);
     }
@@ -1629,7 +1663,8 @@ mod tests {
     fn test_maxpool1d_forward_basic() {
         let pool = MaxPool1d::new(2, Some(2), 0);
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100])
+                .unwrap();
         let output = pool.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[1, 64, 50]);
     }
@@ -1638,7 +1673,8 @@ mod tests {
     fn test_maxpool1d_forward_with_stride() {
         let pool = MaxPool1d::new(3, Some(2), 0);
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 32, 100]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 32, 100])
+                .unwrap();
         let output = pool.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[1, 32, 49]);
     }
@@ -1652,9 +1688,11 @@ mod tests {
             Float32::new(3.0),
             Float32::new(4.0),
         ];
-        let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(input_data, &[1, 1, 4])
-                .unwrap();
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            input_data,
+            &[1, 1, 4],
+        )
+        .unwrap();
         let output = pool.forward(&input).unwrap();
 
         // Expected: max([1, 2]) = 2, max([3, 4]) = 4
@@ -1673,7 +1711,8 @@ mod tests {
     fn test_avgpool1d_forward_basic() {
         let pool = AvgPool1d::new(2, Some(2), 0);
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100])
+                .unwrap();
         let output = pool.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[1, 64, 50]);
     }
@@ -1687,9 +1726,11 @@ mod tests {
             Float32::new(2.0),
             Float32::new(4.0),
         ];
-        let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(input_data, &[1, 1, 4])
-                .unwrap();
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            input_data,
+            &[1, 1, 4],
+        )
+        .unwrap();
         let output = pool.forward(&input).unwrap();
 
         // Expected: avg([1, 3]) = 2, avg([2, 4]) = 3
@@ -1708,7 +1749,8 @@ mod tests {
     fn test_adaptive_avgpool1d_forward_basic() {
         let pool = AdaptiveAvgPool1d::new(10);
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100])
+                .unwrap();
         let output = pool.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[1, 64, 10]);
     }
@@ -1717,7 +1759,8 @@ mod tests {
     fn test_adaptive_avgpool1d_forward_upsampling() {
         let pool = AdaptiveAvgPool1d::new(20);
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 32, 10]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 32, 10])
+                .unwrap();
         let output = pool.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[1, 32, 20]);
     }
@@ -1731,9 +1774,11 @@ mod tests {
             Float32::new(3.0),
             Float32::new(4.0),
         ];
-        let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(input_data, &[1, 1, 4])
-                .unwrap();
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            input_data,
+            &[1, 1, 4],
+        )
+        .unwrap();
         let output = pool.forward(&input).unwrap();
 
         // Expected: avg([1, 2]) = 1.5, avg([3, 4]) = 3.5
@@ -1756,13 +1801,17 @@ mod tests {
 
         // Input: [batch_size=1, channels=3, depth=4, height=4, width=4]
         let input_data: Vec<Float32> = (0..192).map(|i| Float32::new(i as f32)).collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 3, 4, 4, 4],
         )
         .unwrap();
 
-        let output = <MaxPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let output =
+            <MaxPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output shape should be [1, 3, 2, 2, 2] (downsampled by 2x in all dimensions)
         assert_eq!(output.shape().dims(), &[1, 3, 2, 2, 2]);
@@ -1783,12 +1832,16 @@ mod tests {
             Float32::new(7.0),
             Float32::new(8.0),
         ];
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 1, 2, 2, 2],
         )
         .unwrap();
-        let output = <MaxPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let output =
+            <MaxPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Expected: max of all 8 values = 8.0
         assert_eq!(output.shape().dims(), &[1, 1, 1, 1, 1]);
@@ -1801,8 +1854,13 @@ mod tests {
 
         // Input: [1, 1, 3, 3, 3]
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3, 3]).unwrap();
-        let output = <MaxPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3, 3])
+                .unwrap();
+        let output =
+            <MaxPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output: (3 - 2) / 1 + 1 = 2
         assert_eq!(output.shape().dims(), &[1, 1, 2, 2, 2]);
@@ -1814,8 +1872,13 @@ mod tests {
 
         // Input: [batch_size=4, channels=2, depth=4, height=4, width=4]
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[4, 2, 4, 4, 4]).unwrap();
-        let output = <MaxPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[4, 2, 4, 4, 4])
+                .unwrap();
+        let output =
+            <MaxPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output shape should be [4, 2, 2, 2, 2]
         assert_eq!(output.shape().dims(), &[4, 2, 2, 2, 2]);
@@ -1826,10 +1889,15 @@ mod tests {
         let pool = MaxPool3d::new((2, 2, 2), Some((2, 2, 2)), (0, 0, 0));
 
         // Video input: [1, 64, 16, 112, 112] (16 frames, 64 channels, 112x112 resolution)
-        let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 16, 112, 112])
-                .unwrap();
-        let output = <MaxPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[
+            1, 64, 16, 112, 112,
+        ])
+        .unwrap();
+        let output =
+            <MaxPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output: [1, 64, 8, 56, 56] (downsampled by 2x)
         assert_eq!(output.shape().dims(), &[1, 64, 8, 56, 56]);
@@ -1849,13 +1917,17 @@ mod tests {
 
         // Input: [batch_size=1, channels=3, depth=4, height=4, width=4]
         let input_data: Vec<Float32> = (0..192).map(|i| Float32::new(i as f32)).collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 3, 4, 4, 4],
         )
         .unwrap();
 
-        let output = <AvgPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let output =
+            <AvgPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output shape should be [1, 3, 2, 2, 2] (downsampled by 2x in all dimensions)
         assert_eq!(output.shape().dims(), &[1, 3, 2, 2, 2]);
@@ -1876,12 +1948,16 @@ mod tests {
             Float32::new(7.0),
             Float32::new(8.0),
         ];
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 1, 2, 2, 2],
         )
         .unwrap();
-        let output = <AvgPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let output =
+            <AvgPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Expected: avg of all 8 values = (1+2+3+4+5+6+7+8)/8 = 36/8 = 4.5
         assert_eq!(output.shape().dims(), &[1, 1, 1, 1, 1]);
@@ -1894,8 +1970,13 @@ mod tests {
 
         // Input: [1, 1, 3, 3, 3]
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3, 3]).unwrap();
-        let output = <AvgPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3, 3])
+                .unwrap();
+        let output =
+            <AvgPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output: (3 - 2) / 1 + 1 = 2
         assert_eq!(output.shape().dims(), &[1, 1, 2, 2, 2]);
@@ -1909,8 +1990,13 @@ mod tests {
 
         // Input: [batch_size=4, channels=2, depth=4, height=4, width=4]
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[4, 2, 4, 4, 4]).unwrap();
-        let output = <AvgPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[4, 2, 4, 4, 4])
+                .unwrap();
+        let output =
+            <AvgPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output shape should be [4, 2, 2, 2, 2]
         assert_eq!(output.shape().dims(), &[4, 2, 2, 2, 2]);
@@ -1921,10 +2007,15 @@ mod tests {
         let pool = AvgPool3d::new((2, 2, 2), Some((2, 2, 2)), (0, 0, 0));
 
         // Video input: [1, 64, 16, 112, 112] (16 frames, 64 channels, 112x112 resolution)
-        let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 16, 112, 112])
-                .unwrap();
-        let output = <AvgPool3d as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&pool, &input).unwrap();
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[
+            1, 64, 16, 112, 112,
+        ])
+        .unwrap();
+        let output =
+            <AvgPool3d as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &pool, &input,
+            )
+            .unwrap();
 
         // Output: [1, 64, 8, 56, 56] (downsampled by 2x)
         assert_eq!(output.shape().dims(), &[1, 64, 8, 56, 56]);

@@ -28,7 +28,7 @@ use crate::error::Result;
 /// let loss_fn = CrossEntropyLoss::new();
 ///
 /// // 3 classes, 2 samples
-/// let logits = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let logits = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![
 ///         Float32::new(1.0), Float32::new(0.5), Float32::new(0.2),  // sample 1
 ///         Float32::new(0.1), Float32::new(2.0), Float32::new(0.3),  // sample 2
@@ -36,7 +36,7 @@ use crate::error::Result;
 ///     &[2, 3]
 /// ).unwrap();
 ///
-/// let targets = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(0.0), Float32::new(1.0)],  // class 0 for sample 1, class 1 for sample 2
 ///     &[2]
 /// ).unwrap();
@@ -62,9 +62,9 @@ impl CrossEntropyLoss {
     /// Scalar tensor containing the cross-entropy loss value.
     pub fn forward<T>(
         &self,
-        logits: &Tensor<CpuBackend, DenseStorage<T>, T>,
-        targets: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>>
+        logits: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        targets: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>>
     where
         T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd,
     {
@@ -93,9 +93,9 @@ impl fmt::Display for CrossEntropyLoss {
 /// # Returns
 /// Scalar tensor containing the cross-entropy loss value.
 pub fn cross_entropy_loss<T>(
-    logits: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    targets: &Tensor<CpuBackend, DenseStorage<T>, T>,
-) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>>
+    logits: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    targets: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>>
 where
     T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd,
 {
@@ -109,17 +109,21 @@ mod tests {
 
     #[test]
     fn test_cross_entropy_loss_basic() {
-        let logits = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let logits = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
-                Float32::new(1.0), Float32::new(0.5), Float32::new(0.2),  // sample 1
-                Float32::new(0.1), Float32::new(2.0), Float32::new(0.3),  // sample 2
+                Float32::new(1.0),
+                Float32::new(0.5),
+                Float32::new(0.2), // sample 1
+                Float32::new(0.1),
+                Float32::new(2.0),
+                Float32::new(0.3), // sample 2
             ],
             &[2, 3],
         )
         .unwrap();
 
-        let targets = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(0.0), Float32::new(1.0)],  // class 0 for sample 1, class 1 for sample 2
+        let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(0.0), Float32::new(1.0)], // class 0 for sample 1, class 1 for sample 2
             &[2],
         )
         .unwrap();
@@ -134,16 +138,18 @@ mod tests {
 
     #[test]
     fn test_cross_entropy_loss_perfect_prediction() {
-        let logits = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let logits = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
-                Float32::new(10.0), Float32::new(0.0), Float32::new(0.0),  // very confident prediction of class 0
+                Float32::new(10.0),
+                Float32::new(0.0),
+                Float32::new(0.0), // very confident prediction of class 0
             ],
             &[1, 3],
         )
         .unwrap();
 
-        let targets = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(0.0)],  // target class 0
+        let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(0.0)], // target class 0
             &[1],
         )
         .unwrap();
@@ -158,14 +164,14 @@ mod tests {
 
     #[test]
     fn test_cross_entropy_loss_shape_mismatch() {
-        let logits = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let logits = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(0.5)],
             &[1, 2],
         )
         .unwrap();
 
-        let targets = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(0.0), Float32::new(1.0)],  // wrong shape
+        let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(0.0), Float32::new(1.0)], // wrong shape
             &[2],
         )
         .unwrap();

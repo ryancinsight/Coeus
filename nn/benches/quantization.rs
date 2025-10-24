@@ -3,23 +3,27 @@
 //! Comprehensive benchmarks evaluating mixed precision quantization performance,
 //! calibration method accuracy, and memory efficiency across different bitwidths.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use rand::prelude::*;
 
 use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
 #[cfg(feature = "quantized")]
 use coeus_nn::quantization::{
-    MixedPrecisionConfig, CalibrationConfig, CalibrationMethod, QuantizationBitwidth,
-    QuantizationScheme, QuantizationGranularity, CalibrationPipeline,
-    MixedPrecisionQuantizedLinear
+    CalibrationConfig, CalibrationMethod, CalibrationPipeline, MixedPrecisionConfig,
+    MixedPrecisionQuantizedLinear, QuantizationBitwidth, QuantizationGranularity,
+    QuantizationScheme,
 };
 use coeus_nn::{Linear, Module};
 use coeus_storage::DenseStorage;
 use coeus_tensor::Tensor;
 
 /// Create random tensor with specified shape and distribution
-fn random_tensor(shape: &[usize], mean: f32, std: f32) -> Tensor<CpuBackend, DenseStorage<Float32>, Float32> {
+fn random_tensor(
+    shape: &[usize],
+    mean: f32,
+    std: f32,
+) -> Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> {
     let mut rng = rand::thread_rng();
     let size: usize = shape.iter().product();
     let normal = rand_distr::Normal::new(mean, std).unwrap();
@@ -32,7 +36,10 @@ fn random_tensor(shape: &[usize], mean: f32, std: f32) -> Tensor<CpuBackend, Den
 }
 
 /// Create tensor with outliers for calibration testing
-fn random_tensor_with_outliers(shape: &[usize], outlier_prob: f64) -> Tensor<CpuBackend, DenseStorage<Float32>, Float32> {
+fn random_tensor_with_outliers(
+    shape: &[usize],
+    outlier_prob: f64,
+) -> Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> {
     let mut rng = rand::thread_rng();
     let size: usize = shape.iter().product();
 
@@ -81,11 +88,14 @@ fn bench_calibration_methods(c: &mut Criterion) {
                             collect_histogram: false,
                         });
 
-                        pipeline.add_calibration_data("test_layer", &input_tensor).unwrap();
-                        let (scale, zero_point) = pipeline.get_optimal_params("test_layer", 8).unwrap();
+                        pipeline
+                            .add_calibration_data("test_layer", &input_tensor)
+                            .unwrap();
+                        let (scale, zero_point) =
+                            pipeline.get_optimal_params("test_layer", 8).unwrap();
                         black_box((scale, zero_point));
                     });
-                }
+                },
             );
         }
     }
@@ -120,14 +130,18 @@ fn bench_mixed_precision_forward(c: &mut Criterion) {
             let layer = MixedPrecisionQuantizedLinear::new(
                 CpuBackend::new(),
                 random_tensor(&[input_size, input_size / 2], 0.0, 0.1),
-                Float32::new(1.0), Float32::new(0.0), // scale, zero_point
-                None, // no bias
-                Float32::new(1.0), Float32::new(0.0), // input scale/zero
-                Float32::new(1.0), Float32::new(0.0), // output scale/zero
+                Float32::new(1.0),
+                Float32::new(0.0), // scale, zero_point
+                None,              // no bias
+                Float32::new(1.0),
+                Float32::new(0.0), // input scale/zero
+                Float32::new(1.0),
+                Float32::new(0.0), // output scale/zero
                 QuantizationScheme::Affine,
                 format!("{}_{}", config_name, input_size),
                 &config,
-            ).unwrap();
+            )
+            .unwrap();
 
             group.bench_function(
                 BenchmarkId::new(format!("{}_{}", config_name, input_size), input_size),
@@ -136,7 +150,7 @@ fn bench_mixed_precision_forward(c: &mut Criterion) {
                         let output = black_box(layer.forward(&input).unwrap());
                         black_box(output);
                     });
-                }
+                },
             );
         }
     }
@@ -169,17 +183,21 @@ fn bench_quantization_memory_usage(c: &mut Criterion) {
                         let layer = MixedPrecisionQuantizedLinear::new(
                             CpuBackend::new(),
                             original_tensor.clone(),
-                            Float32::new(1.0), Float32::new(0.0),
+                            Float32::new(1.0),
+                            Float32::new(0.0),
                             None,
-                            Float32::new(1.0), Float32::new(0.0),
-                            Float32::new(1.0), Float32::new(0.0),
+                            Float32::new(1.0),
+                            Float32::new(0.0),
+                            Float32::new(1.0),
+                            Float32::new(0.0),
                             QuantizationScheme::Affine,
                             format!("memory_test_{}", size),
                             &config,
-                        ).unwrap();
+                        )
+                        .unwrap();
                         black_box(layer);
                     });
-                }
+                },
             );
         }
     }
@@ -214,19 +232,22 @@ fn bench_calibration_statistics(c: &mut Criterion) {
                         let mut pipeline = CalibrationPipeline::new(config);
 
                         // Add multiple calibration samples
-                        for i in 0..samples.min(10) { // Limit to avoid excessive benchmark time
+                        for i in 0..samples.min(10) {
+                            // Limit to avoid excessive benchmark time
                             let sample_tensor = if i == 0 {
                                 base_tensor.clone()
                             } else {
                                 random_tensor_with_outliers(&[size], 0.01)
                             };
-                            pipeline.add_calibration_data("test_layer", &sample_tensor).unwrap();
+                            pipeline
+                                .add_calibration_data("test_layer", &sample_tensor)
+                                .unwrap();
                         }
 
                         let summary = pipeline.get_summary();
                         black_box(summary);
                     });
-                }
+                },
             );
         }
     }
@@ -249,12 +270,22 @@ fn bench_quantization_accuracy(c: &mut Criterion) {
 
     let configs = vec![
         ("FP32_Baseline", None),
-        ("8bit_Affine", Some(MixedPrecisionConfig::new()
-            .with_default_bitwidth(QuantizationBitwidth::Bits8)
-            .with_scheme(QuantizationScheme::Affine))),
-        ("4bit_Symmetric", Some(MixedPrecisionConfig::new()
-            .with_default_bitwidth(QuantizationBitwidth::Bits4)
-            .with_scheme(QuantizationScheme::Symmetric))),
+        (
+            "8bit_Affine",
+            Some(
+                MixedPrecisionConfig::new()
+                    .with_default_bitwidth(QuantizationBitwidth::Bits8)
+                    .with_scheme(QuantizationScheme::Affine),
+            ),
+        ),
+        (
+            "4bit_Symmetric",
+            Some(
+                MixedPrecisionConfig::new()
+                    .with_default_bitwidth(QuantizationBitwidth::Bits4)
+                    .with_scheme(QuantizationScheme::Symmetric),
+            ),
+        ),
     ];
 
     for (config_name, mp_config) in configs {
@@ -265,26 +296,34 @@ fn bench_quantization_accuracy(c: &mut Criterion) {
                     let layer1 = MixedPrecisionQuantizedLinear::new(
                         CpuBackend::new(),
                         random_tensor(&[input_size, hidden_size], 0.0, 0.1),
-                        Float32::new(1.0), Float32::new(0.0),
+                        Float32::new(1.0),
+                        Float32::new(0.0),
                         Some(random_tensor(&[hidden_size], 0.0, 0.1)),
-                        Float32::new(1.0), Float32::new(0.0),
-                        Float32::new(1.0), Float32::new(0.0),
+                        Float32::new(1.0),
+                        Float32::new(0.0),
+                        Float32::new(1.0),
+                        Float32::new(0.0),
                         config.scheme,
                         "layer1".to_string(),
                         &config,
-                    ).unwrap();
+                    )
+                    .unwrap();
 
                     let layer2 = MixedPrecisionQuantizedLinear::new(
                         CpuBackend::new(),
                         random_tensor(&[hidden_size, output_size], 0.0, 0.1),
-                        Float32::new(1.0), Float32::new(0.0),
+                        Float32::new(1.0),
+                        Float32::new(0.0),
                         Some(random_tensor(&[output_size], 0.0, 0.1)),
-                        Float32::new(1.0), Float32::new(0.0),
-                        Float32::new(1.0), Float32::new(0.0),
+                        Float32::new(1.0),
+                        Float32::new(0.0),
+                        Float32::new(1.0),
+                        Float32::new(0.0),
                         config.scheme,
                         "layer2".to_string(),
                         &config,
-                    ).unwrap();
+                    )
+                    .unwrap();
 
                     // Forward pass through both layers
                     let hidden = layer1.forward(&input).unwrap();
@@ -293,8 +332,18 @@ fn bench_quantization_accuracy(c: &mut Criterion) {
                 } else {
                     // FP32 baseline - use regular Linear layers
                     use coeus_nn::Linear;
-                    let layer1 = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(input_size, hidden_size).unwrap();
-                    let layer2 = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(hidden_size, output_size).unwrap();
+                    let layer1 =
+                        Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                            input_size,
+                            hidden_size,
+                        )
+                        .unwrap();
+                    let layer2 =
+                        Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                            hidden_size,
+                            output_size,
+                        )
+                        .unwrap();
 
                     let hidden = layer1.forward(&input).unwrap();
                     let output = layer2.forward(&hidden).unwrap();

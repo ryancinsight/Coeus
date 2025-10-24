@@ -10,30 +10,45 @@
 //! - Zero-cost abstractions maintaining compile-time type safety
 //! - Runtime storage type detection via Tensor::storage_ref()
 
-use coeus_backend::CpuBackend;
-use coeus_storage::{DenseStorage, CsrStorage};
 use coeus_dtype::float::Float32;
-use coeus_nn::{
-    Sequential, Linear, Module,
-    activation::{ReLU, Sigmoid, Tanh, GELU, Swish, LeakyReLU, ELU, Softmax, LogSoftmax, Hardsigmoid, Hardswish},
-    attention::{MultiHeadAttention, SparseAttention}
-};
 use coeus_nn::loss::mse_loss;
+use coeus_nn::{
+    activation::{
+        Hardsigmoid, Hardswish, LeakyReLU, LogSoftmax, ReLU, Sigmoid, Softmax, Swish, Tanh, ELU,
+        GELU,
+    },
+    attention::{MultiHeadAttention, SparseAttention},
+    Linear, Module, Sequential,
+};
+use coeus_storage::{CsrStorage, DenseStorage};
+use coeus_tensor::CpuBackend;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing dense storage pathways across all B<S<T>> components...");
 
     // Create test input tensor
-    let test_input = coeus_tensor::Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(1.0), Float32::new(-0.5), Float32::new(0.0), Float32::new(2.0)],
-        &[2, 2]
-    )?;
+    let test_input =
+        coeus_tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![
+                Float32::new(1.0),
+                Float32::new(-0.5),
+                Float32::new(0.0),
+                Float32::new(2.0),
+            ],
+            &[2, 2],
+        )?;
 
     // Test Sequential with dense storage
     println!("Testing Sequential with dense storage...");
-    let mut seq = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
-    seq.add_module("linear1".to_string(), Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(2, 3)?);
-    seq.add_module("linear2".to_string(), Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(3, 2)?);
+    let mut seq = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
+    seq.add_module(
+        "linear1".to_string(),
+        Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(2, 3)?,
+    );
+    seq.add_module(
+        "linear2".to_string(),
+        Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3, 2)?,
+    );
 
     let seq_output = seq.forward(&test_input)?;
     assert_eq!(seq_output.shape().dims(), &[2, 2]);
@@ -41,14 +56,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test loss functions with dense storage
     println!("Testing MSE loss with dense storage...");
-    let predictions = coeus_tensor::Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(1.0), Float32::new(2.0)],
-        &[2]
-    )?;
-    let targets = coeus_tensor::Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(1.5), Float32::new(2.5)],
-        &[2]
-    )?;
+    let predictions =
+        coeus_tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(1.0), Float32::new(2.0)],
+            &[2],
+        )?;
+    let targets =
+        coeus_tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(1.5), Float32::new(2.5)],
+            &[2],
+        )?;
 
     let loss = mse_loss(&predictions, &targets)?;
     assert_eq!(loss.shape().dims().len(), 0); // Scalar tensor has empty shape
@@ -127,30 +144,93 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing attention mechanisms with dense storage...");
 
     // Create attention input: [batch_size=2, seq_len=4, embed_dim=8] = 64 elements
-    let attention_input = coeus_tensor::Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![
-            // Batch 0, sequence elements
-            Float32::new(1.0), Float32::new(0.5), Float32::new(-0.2), Float32::new(0.8), Float32::new(0.3), Float32::new(-1.0), Float32::new(0.7), Float32::new(0.1),
-            Float32::new(0.9), Float32::new(0.4), Float32::new(-0.6), Float32::new(0.2), Float32::new(-0.1), Float32::new(0.8), Float32::new(0.3), Float32::new(-0.9),
-            Float32::new(0.6), Float32::new(-0.4), Float32::new(0.9), Float32::new(0.0), Float32::new(0.2), Float32::new(0.7), Float32::new(-0.3), Float32::new(0.5),
-            Float32::new(-0.8), Float32::new(0.1), Float32::new(0.6), Float32::new(-0.2), Float32::new(0.4), Float32::new(-0.7), Float32::new(0.0), Float32::new(0.9),
-            // Batch 1, sequence elements
-            Float32::new(0.5), Float32::new(-0.3), Float32::new(0.8), Float32::new(0.1), Float32::new(-0.9), Float32::new(0.4), Float32::new(0.2), Float32::new(-0.6),
-            Float32::new(0.7), Float32::new(0.0), Float32::new(-0.1), Float32::new(0.9), Float32::new(0.3), Float32::new(-0.8), Float32::new(0.6), Float32::new(0.1),
-            Float32::new(-0.4), Float32::new(0.5), Float32::new(0.2), Float32::new(-0.7), Float32::new(0.8), Float32::new(0.0), Float32::new(-0.3), Float32::new(0.9),
-            Float32::new(0.1), Float32::new(-0.6), Float32::new(0.4), Float32::new(0.7), Float32::new(-0.2), Float32::new(0.8), Float32::new(0.3), Float32::new(-0.9),
-        ],
-        &[2, 4, 8]
-    )?;
+    let attention_input =
+        coeus_tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![
+                // Batch 0, sequence elements
+                Float32::new(1.0),
+                Float32::new(0.5),
+                Float32::new(-0.2),
+                Float32::new(0.8),
+                Float32::new(0.3),
+                Float32::new(-1.0),
+                Float32::new(0.7),
+                Float32::new(0.1),
+                Float32::new(0.9),
+                Float32::new(0.4),
+                Float32::new(-0.6),
+                Float32::new(0.2),
+                Float32::new(-0.1),
+                Float32::new(0.8),
+                Float32::new(0.3),
+                Float32::new(-0.9),
+                Float32::new(0.6),
+                Float32::new(-0.4),
+                Float32::new(0.9),
+                Float32::new(0.0),
+                Float32::new(0.2),
+                Float32::new(0.7),
+                Float32::new(-0.3),
+                Float32::new(0.5),
+                Float32::new(-0.8),
+                Float32::new(0.1),
+                Float32::new(0.6),
+                Float32::new(-0.2),
+                Float32::new(0.4),
+                Float32::new(-0.7),
+                Float32::new(0.0),
+                Float32::new(0.9),
+                // Batch 1, sequence elements
+                Float32::new(0.5),
+                Float32::new(-0.3),
+                Float32::new(0.8),
+                Float32::new(0.1),
+                Float32::new(-0.9),
+                Float32::new(0.4),
+                Float32::new(0.2),
+                Float32::new(-0.6),
+                Float32::new(0.7),
+                Float32::new(0.0),
+                Float32::new(-0.1),
+                Float32::new(0.9),
+                Float32::new(0.3),
+                Float32::new(-0.8),
+                Float32::new(0.6),
+                Float32::new(0.1),
+                Float32::new(-0.4),
+                Float32::new(0.5),
+                Float32::new(0.2),
+                Float32::new(-0.7),
+                Float32::new(0.8),
+                Float32::new(0.0),
+                Float32::new(-0.3),
+                Float32::new(0.9),
+                Float32::new(0.1),
+                Float32::new(-0.6),
+                Float32::new(0.4),
+                Float32::new(0.7),
+                Float32::new(-0.2),
+                Float32::new(0.8),
+                Float32::new(0.3),
+                Float32::new(-0.9),
+            ],
+            &[2, 4, 8],
+        )?;
 
     // Test MultiHeadAttention
-    let mut multihead_attention = MultiHeadAttention::<CpuBackend, DenseStorage<Float32>, Float32>::new(8, 2)?;
+    let mut multihead_attention =
+        MultiHeadAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(8, 2)?;
     let attention_output = multihead_attention.forward(&attention_input)?;
     assert_eq!(attention_output.shape().dims(), &[2, 4, 8]);
     println!("✓ MultiHeadAttention with dense storage works");
 
     // Test SparseAttention (with dense storage for now)
-    let mut sparse_attention = SparseAttention::<CpuBackend, DenseStorage<Float32>, Float32>::new(8, 2, 0.5)?;
+    let mut sparse_attention =
+        SparseAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            8,
+            2,
+            coeus_nn::attention::SparseAttentionPattern::FixedSparsity { keep_ratio: 0.5 },
+        )?;
     let sparse_output = sparse_attention.forward(&attention_input)?;
     assert_eq!(sparse_output.shape().dims(), &[2, 4, 8]);
     println!("✓ SparseAttention with dense storage works");
@@ -164,9 +244,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✓ Sequential parameter access works");
 
     // Activation functions have no parameters (except those that might have learnable params)
-    let relu_params = <ReLU as Module<CpuBackend, DenseStorage<Float32>, Float32>>::parameters(&relu);
-    let sigmoid_params = <Sigmoid as Module<CpuBackend, DenseStorage<Float32>, Float32>>::parameters(&sigmoid);
-    let leaky_params = <LeakyReLU as Module<CpuBackend, DenseStorage<Float32>, Float32>>::parameters(&leaky_relu);
+    let relu_params =
+        <ReLU as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::parameters(&relu);
+    let sigmoid_params =
+        <Sigmoid as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::parameters(
+            &sigmoid,
+        );
+    let leaky_params =
+        <LeakyReLU as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::parameters(
+            &leaky_relu,
+        );
 
     assert_eq!(relu_params.len(), 0);
     assert_eq!(sigmoid_params.len(), 0);
@@ -189,11 +276,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test type checking for sparse storage (compile-time verification)
     println!("Testing sparse storage type compatibility...");
-    let _seq_sparse: Sequential<CpuBackend, CsrStorage<Float32>, Float32> = Sequential::new();
-    let _attention_sparse: MultiHeadAttention<CpuBackend, CsrStorage<Float32>, Float32> =
+    let _seq_sparse: Sequential<CpuBackend<Float32>, CsrStorage<Float32>, Float32> =
+        Sequential::new();
+    let _attention_sparse: MultiHeadAttention<CpuBackend<Float32>, CsrStorage<Float32>, Float32> =
         MultiHeadAttention::new(8, 2).unwrap();
-    let _sparse_attention_sparse: SparseAttention<CpuBackend, CsrStorage<Float32>, Float32> =
-        SparseAttention::new(8, 2, 0.5).unwrap();
+    let _sparse_attention_sparse: SparseAttention<
+        CpuBackend<Float32>,
+        CsrStorage<Float32>,
+        Float32,
+    > = SparseAttention::new(
+        8,
+        2,
+        coeus_nn::attention::SparseAttentionPattern::FixedSparsity { keep_ratio: 0.5 },
+    )
+    .unwrap();
     println!("✓ Sparse storage types compile successfully");
 
     // Demonstrate sparse infrastructure availability
@@ -215,4 +311,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("All comprehensive B<S<T>> tests passed! 🚀");
     Ok(())
 }
-

@@ -59,18 +59,20 @@ extern crate std;
 extern crate alloc;
 
 pub use alloc::{vec, vec::Vec};
+use coeus_dtype::traits::FloatExt;
 pub use coeus_dtype::DataType;
 pub use num_traits;
+use num_traits::Zero;
 
 // Core infrastructure
 pub mod error;
-pub mod shape;
 pub mod iter;
+pub mod shape;
 
 // Storage implementations
 pub mod dense;
-pub mod strided;
 pub mod quantized;
+pub mod strided;
 
 // Sparse storage
 pub mod sparse;
@@ -78,17 +80,68 @@ pub mod sparse_arithmetic;
 pub mod sparse_indexing;
 
 // Distributed storage
-pub mod distributed;
 pub mod broadcast;
+pub mod distributed;
 
 pub use dense::DenseStorage;
-pub use distributed::{DistributedStorage, ShardingStrategy, ReduceOperation};
+pub use distributed::{DistributedStorage, ReduceOperation, ShardingStrategy};
 pub use strided::StridedStorage;
 
 /// Trait for dynamic downcasting of storage types
 pub trait AsAny {
     /// Get as Any reference for downcasting
     fn as_any(&self) -> &dyn core::any::Any;
+}
+
+/// Trait for activation functions on storage types
+pub trait ActivationOps<T: DataType> {
+    /// Apply `ReLU` activation function
+    #[must_use]
+    fn relu(&self) -> Self
+    where
+        Self: Sized + Clone,
+        T: Zero + PartialOrd + Clone;
+    /// Apply tanh activation function
+    #[must_use]
+    fn tanh(&self) -> Self
+    where
+        Self: Sized + Clone,
+        T: FloatExt + Clone;
+    /// Apply sigmoid activation function
+    #[must_use]
+    fn sigmoid(&self) -> Self
+    where
+        Self: Sized + Clone,
+        T: FloatExt + Clone + core::ops::Neg<Output = T>;
+    /// Apply GELU activation function
+    #[must_use]
+    fn gelu(&self) -> Self
+    where
+        Self: Sized + Clone,
+        T: FloatExt + Clone + core::ops::Neg<Output = T> + num_traits::Pow<f32, Output = T>;
+    /// Apply Swish activation function
+    #[must_use]
+    fn swish(&self) -> Self
+    where
+        Self: Sized + Clone,
+        T: FloatExt + Clone + core::ops::Neg<Output = T>;
+    /// Apply Hardsigmoid activation function
+    #[must_use]
+    fn hardsigmoid(&self) -> Self
+    where
+        Self: Sized + Clone,
+        T: Zero + PartialOrd + Clone + core::ops::Add<Output = T> + core::ops::Div<Output = T>;
+    /// Apply Hardswish activation function
+    #[must_use]
+    fn hardswish(&self) -> Self
+    where
+        Self: Sized + Clone,
+        T: Zero
+            + PartialOrd
+            + Clone
+            + core::ops::Add<Output = T>
+            + core::ops::Div<Output = T>
+            + core::ops::Mul<Output = T>;
 }
 
 /// Trait for storage types that can be created from vectors
@@ -135,10 +188,13 @@ pub trait StorageToDense<T: crate::DataType>: Storage<T> {
     fn to_dense(&self) -> crate::Result<DenseStorage<T>>;
 }
 pub use error::StorageError;
+pub use quantized::{QuantizedStorage, QuantizedStorage16, QuantizedStorage4, QuantizedStorage8};
 pub use shape::Shape;
-pub use quantized::{QuantizedStorage, QuantizedStorage4, QuantizedStorage8, QuantizedStorage16};
 pub use sparse::{CooStorage, CscStorage, CsrStorage, SparseFormat};
-pub use sparse_arithmetic::{SparseMatMul, SparseAdd, SparseElementWise, SparseReduce, SparseSub, SparseMul, SparseDiv, SparseTranspose, SparseReshape};
+pub use sparse_arithmetic::{
+    SparseAdd, SparseDiv, SparseElementWise, SparseMatMul, SparseMul, SparseReduce, SparseReshape,
+    SparseSub, SparseTranspose,
+};
 
 /// Storage-level matrix multiplication trait
 ///
@@ -200,7 +256,7 @@ pub type Result<T> = core::result::Result<T, StorageError>;
 /// - Valid memory access within bounds
 /// - Correct stride calculations
 /// - No aliasing violations for mutable access
-pub trait Storage<T: DataType>: Send + Sync + core::fmt::Debug {
+pub trait Storage<T: DataType>: Send + Sync + Clone + core::fmt::Debug + 'static {
     /// Returns a reference to the underlying data as a slice.
     ///
     /// # Examples
@@ -243,7 +299,5 @@ pub trait Storage<T: DataType>: Send + Sync + core::fmt::Debug {
     fn is_contiguous(&self) -> bool;
 
     /// Returns a reference to self as a Storage trait object.
-    ///
-    /// This method enables runtime type checking for storage-specific operations.
-    fn as_storage_ref(&self) -> &dyn Storage<T>;
+    fn as_storage_ref(&self) -> &Self;
 }

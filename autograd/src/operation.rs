@@ -296,8 +296,8 @@ impl<T: DataType + std::ops::Neg<Output = T> + FloatExt + PartialOrd + std::ops:
     /// Vector of gradients with respect to each input variable
     pub fn backward(
         &self,
-        grad_output: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Vec<Tensor<CpuBackend, DenseStorage<T>, T>>> {
+        grad_output: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Vec<Tensor<CpuBackend<T>, DenseStorage<T>, T>>> {
         match self {
             Operation::Conv2D {
                 input,
@@ -335,15 +335,15 @@ impl<T: DataType + std::ops::Neg<Output = T> + FloatExt + PartialOrd + std::ops:
     /// - ∇weight = conv2d(∇output_rotated_180, input_rotated_180, groups=1)
     /// - ∇bias = sum(∇output, axis=[0,2,3]) if bias exists
     fn conv2d_backward(
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-        weight: &Tensor<CpuBackend, DenseStorage<T>, T>,
-        bias: Option<&Tensor<CpuBackend, DenseStorage<T>, T>>,
-        grad_output: &Tensor<CpuBackend, DenseStorage<T>, T>,
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        weight: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        bias: Option<&Tensor<CpuBackend<T>, DenseStorage<T>, T>>,
+        grad_output: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
         stride_h: usize,
         stride_w: usize,
         padding_h: usize,
         padding_w: usize,
-    ) -> Result<Vec<Tensor<CpuBackend, DenseStorage<T>, T>>> {
+    ) -> Result<Vec<Tensor<CpuBackend<T>, DenseStorage<T>, T>>> {
         let input_shape = input.shape().dims();
         let weight_shape = weight.shape().dims();
         let grad_output_shape = grad_output.shape().dims();
@@ -397,14 +397,14 @@ impl<T: DataType + std::ops::Neg<Output = T> + FloatExt + PartialOrd + std::ops:
 
     /// Compute input gradient for Conv2D backward pass using transposed convolution
     fn conv2d_transpose_backward_input(
-        grad_output: &Tensor<CpuBackend, DenseStorage<T>, T>,
-        weight: &Tensor<CpuBackend, DenseStorage<T>, T>,
+        grad_output: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        weight: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
         input_shape: &[usize],
         stride_h: usize,
         stride_w: usize,
         padding_h: usize,
         padding_w: usize,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let grad_output_shape = grad_output.shape().dims();
         let batch_size = input_shape[0];
         let in_channels = input_shape[1];
@@ -472,14 +472,14 @@ impl<T: DataType + std::ops::Neg<Output = T> + FloatExt + PartialOrd + std::ops:
 
     /// Compute weight gradient for Conv2D backward pass
     fn conv2d_backward_weight(
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-        grad_output: &Tensor<CpuBackend, DenseStorage<T>, T>,
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        grad_output: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
         weight_shape: &[usize],
         stride_h: usize,
         stride_w: usize,
         padding_h: usize,
         padding_w: usize,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         let grad_output_shape = grad_output.shape().dims();
 
@@ -548,8 +548,8 @@ impl<T: DataType + std::ops::Neg<Output = T> + FloatExt + PartialOrd + std::ops:
 
     /// Compute bias gradient for Conv2D backward pass
     fn conv2d_backward_bias(
-        grad_output: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        grad_output: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let grad_output_shape = grad_output.shape().dims();
         let batch_size = grad_output_shape[0];
         let out_channels = grad_output_shape[1];
@@ -585,14 +585,14 @@ mod tests {
 
     #[test]
     fn test_add_backward() {
-        let t1 = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let t1 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
         )
         .unwrap();
         let v1 = Variable::new(t1);
 
-        let t2 = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let t2 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(3.0), Float32::new(4.0)],
             &[2],
         )
@@ -608,3 +608,4 @@ mod tests {
         assert_eq!(v2.grad().unwrap().as_slice(), &[Float32::new(1.0), Float32::new(1.0)]);
     }
 }
+

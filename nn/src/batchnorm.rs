@@ -3,7 +3,6 @@
 use std::cell::RefCell;
 use std::marker::PhantomData;
 
-
 use coeus_backend::{Backend, CpuBackend};
 use coeus_dtype::{traits::FloatExt, DataType};
 use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
@@ -48,16 +47,16 @@ use crate::parameter::Parameter;
 /// use coeus_dtype::float::Float32;
 ///
 /// // Create BatchNorm2d for 64 channels
-/// let mut batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
+/// let mut batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
 ///
 /// // Set to training mode
-/// <BatchNorm2d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+/// <BatchNorm2d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
 ///
 /// // Input: [batch_size=2, channels=64, height=32, width=32]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 64, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 64, 32, 32]).unwrap();
 ///
 /// // Output: Same shape, normalized
-/// let output = <BatchNorm2d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input).unwrap();
+/// let output = <BatchNorm2d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input).unwrap();
 /// assert_eq!(output.shape().dims(), &[2, 64, 32, 32]);
 /// ```
 #[derive(Debug)]
@@ -117,24 +116,24 @@ where
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let requires_grad = input.requires_grad();
         // For now, BatchNorm2d only works with dense tensors
         // Convert to dense, compute, then convert back if needed
         let input_dense = input.to_dense_generic()?;
         // Inline batch normalization computation
         let input_shape = input_dense.shape().dims();
-        if input_shape.len() != 4 {
+        if input_shape.len() != 4usize {
             return Err(NNError::InvalidInput {
                 message: "Input must be 4D [N, C, H, W]".to_string(),
             });
         }
         if input_shape[1] != self.num_features {
             return Err(NNError::InvalidInput {
-                message: format!("Input channels ({}) must match num_features ({})", input_shape[1], self.num_features),
+                message: format!(
+                    "Input channels ({}) must match num_features ({})",
+                    input_shape[1], self.num_features
+                ),
             });
         }
 
@@ -283,7 +282,12 @@ where
     /// - `bias` (β): Initialized to 0
     /// - `running_mean`: Initialized to 0
     /// - `running_var`: Initialized to 1
-    pub fn new_with_backend(backend: B, num_features: usize, eps: f64, momentum: f64) -> Result<Self> {
+    pub fn new_with_backend(
+        backend: B,
+        num_features: usize,
+        eps: f64,
+        momentum: f64,
+    ) -> Result<Self> {
         if num_features == 0 {
             return Err(NNError::InvalidConfiguration {
                 message: "num_features must be > 0".to_string(),
@@ -356,7 +360,7 @@ where
     }
 
     /// Update running statistics with exponential moving average.
-
+    ///
     /// Update running statistics with exponential moving average.
     ///
     /// This method is called automatically during training forward passes.
@@ -441,16 +445,16 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// // Create BatchNorm1d for 128 features
-/// let mut batchnorm = BatchNorm1d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 128, 1e-5, 0.1).unwrap();
+/// let mut batchnorm = BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 128, 1e-5, 0.1).unwrap();
 ///
 /// // Set to training mode
-/// <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+/// <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
 ///
 /// // Input: [batch_size=32, features=128, sequence_length=100]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[32, 128, 100]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[32, 128, 100]).unwrap();
 ///
 /// // Output: Same shape, normalized
-/// let output = <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input).unwrap();
+/// let output = <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input).unwrap();
 /// assert_eq!(output.shape().dims(), &[32, 128, 100]);
 /// ```
 ///
@@ -542,7 +546,12 @@ where
     /// - `bias` (β): Initialized to 0
     /// - `running_mean`: Initialized to 0
     /// - `running_var`: Initialized to 1
-    pub fn new_with_backend(backend: B, num_features: usize, eps: f64, momentum: f64) -> Result<Self> {
+    pub fn new_with_backend(
+        backend: B,
+        num_features: usize,
+        eps: f64,
+        momentum: f64,
+    ) -> Result<Self> {
         if num_features == 0 {
             return Err(NNError::InvalidConfiguration {
                 message: "num_features must be > 0".to_string(),
@@ -657,14 +666,17 @@ where
     ) -> Result<Tensor<B, DenseStorage<T>, T>> {
         // Input: [N, C, L]
         let input_shape = input.shape().dims();
-        if input_shape.len() != 3 {
+        if input_shape.len() != 3usize {
             return Err(NNError::InvalidInput {
                 message: "Input must be 3D [N, C, L]".to_string(),
             });
         }
         if input_shape[1] != self.num_features {
             return Err(NNError::InvalidInput {
-                message: format!("Input channels ({}) must match num_features ({})", input_shape[1], self.num_features),
+                message: format!(
+                    "Input channels ({}) must match num_features ({})",
+                    input_shape[1], self.num_features
+                ),
             });
         }
 
@@ -772,18 +784,20 @@ where
     pub fn compute_batch_norm(
         &self,
         input: Tensor<B, DenseStorage<T>, T>,
-    ) -> Result<Tensor<B, DenseStorage<T>, T>>
-    {
+    ) -> Result<Tensor<B, DenseStorage<T>, T>> {
         // Input: [N, C, H, W]
         let input_shape = input.shape().dims();
-        if input_shape.len() != 4 {
+        if input_shape.len() != 4usize {
             return Err(NNError::InvalidInput {
                 message: "Input must be 4D [N, C, H, W]".to_string(),
             });
         }
         if input_shape[1] != self.num_features {
             return Err(NNError::InvalidInput {
-                message: format!("Input channels ({}) must match num_features ({})", input_shape[1], self.num_features),
+                message: format!(
+                    "Input channels ({}) must match num_features ({})",
+                    input_shape[1], self.num_features
+                ),
             });
         }
 
@@ -862,7 +876,8 @@ where
                 }
             }
 
-            Tensor::from_vec(output_data, &[batch_size, channels, height, width]).map_err(Into::into)
+            Tensor::from_vec(output_data, &[batch_size, channels, height, width])
+                .map_err(Into::into)
         } else {
             // Evaluation mode: Use running statistics
             let running_mean_data = self.running_mean.borrow();
@@ -890,7 +905,8 @@ where
                 }
             }
 
-            Tensor::from_vec(output_data, &[batch_size, channels, height, width]).map_err(Into::into)
+            Tensor::from_vec(output_data, &[batch_size, channels, height, width])
+                .map_err(Into::into)
         }
     }
 }
@@ -901,10 +917,7 @@ where
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // Convert to dense for batch normalization computation
         let input_dense = input.to_dense_generic()?;
         let result_dense = self.compute_batch_norm_1d(input_dense)?;
@@ -971,16 +984,16 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// // Create BatchNorm3d for 64 channels
-/// let mut batchnorm = BatchNorm3d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
+/// let mut batchnorm = BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
 ///
 /// // Set to training mode
-/// <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+/// <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
 ///
 /// // Input: [batch_size=2, channels=64, depth=16, height=32, width=32]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 64, 16, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 64, 16, 32, 32]).unwrap();
 ///
 /// // Output: Same shape, normalized
-/// let output = <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input).unwrap();
+/// let output = <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input).unwrap();
 /// assert_eq!(output.shape().dims(), &[2, 64, 16, 32, 32]);
 /// ```
 ///
@@ -1072,7 +1085,12 @@ where
     /// - `bias` (β): Initialized to 0
     /// - `running_mean`: Initialized to 0
     /// - `running_var`: Initialized to 1
-    pub fn new_with_backend(backend: B, num_features: usize, eps: f64, momentum: f64) -> Result<Self> {
+    pub fn new_with_backend(
+        backend: B,
+        num_features: usize,
+        eps: f64,
+        momentum: f64,
+    ) -> Result<Self> {
         if num_features == 0 {
             return Err(NNError::InvalidConfiguration {
                 message: "num_features must be > 0".to_string(),
@@ -1183,18 +1201,21 @@ where
     /// It operates on dense CPU tensors for computation.
     fn compute_batch_norm_3d(
         &self,
-        input: Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         // Input: [N, C, D, H, W]
         let input_shape = input.shape().dims();
-        if input_shape.len() != 5 {
+        if input_shape.len() != 5usize {
             return Err(NNError::InvalidInput {
                 message: "Input must be 5D [N, C, D, H, W]".to_string(),
             });
         }
         if input_shape[1] != self.num_features {
             return Err(NNError::InvalidInput {
-                message: format!("Input channels ({}) must match num_features ({})", input_shape[1], self.num_features),
+                message: format!(
+                    "Input channels ({}) must match num_features ({})",
+                    input_shape[1], self.num_features
+                ),
             });
         }
 
@@ -1322,15 +1343,12 @@ where
     }
 }
 
-impl<S, T> Module<CpuBackend, S, T> for BatchNorm3d<CpuBackend, S, T>
+impl<S, T> Module<CpuBackend<T>, S, T> for BatchNorm3d<CpuBackend<T>, S, T>
 where
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
-    fn forward(
-        &self,
-        input: &Tensor<CpuBackend, S, T>,
-    ) -> Result<Tensor<CpuBackend, S, T>> {
+    fn forward(&self, input: &Tensor<CpuBackend<T>, S, T>) -> Result<Tensor<CpuBackend<T>, S, T>> {
         // Convert to dense for batch normalization computation
         let input_dense = input.to_dense_generic()?;
         let result_dense = self.compute_batch_norm_3d(input_dense)?;
@@ -1341,11 +1359,11 @@ where
         Ok(Tensor::from_storage(result_storage, CpuBackend::default()))
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, S, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, S, T>> {
         vec![self.weight.clone(), self.bias.clone()]
     }
 
-    fn modules(&self) -> Vec<&dyn Module<CpuBackend, S, T>> {
+    fn modules(&self) -> Vec<&dyn Module<CpuBackend<T>, S, T>> {
         vec![]
     }
 
@@ -1370,7 +1388,14 @@ mod tests {
 
     #[test]
     fn test_batchnorm2d_constructor() {
-        let batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
+        let batchnorm =
+            BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                64,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
         assert_eq!(batchnorm.num_features, 64);
         assert_eq!(batchnorm.eps, 1e-5);
         assert_eq!(batchnorm.momentum, 0.1);
@@ -1380,7 +1405,14 @@ mod tests {
 
     #[test]
     fn test_batchnorm2d_parameter_initialization() {
-        let batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 3, 1e-5, 0.1).unwrap();
+        let batchnorm =
+            BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                3,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
 
         // Weight (γ) should be initialized to 1
         let weight_data = batchnorm.weight.data().as_slice();
@@ -1415,7 +1447,14 @@ mod tests {
 
     #[test]
     fn test_batchnorm2d_forward_training() {
-        let batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 2, 1e-5, 0.1).unwrap();
+        let batchnorm =
+            BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                2,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
 
         // Input: [batch_size=2, channels=2, height=2, width=2]
         let input_data = vec![
@@ -1427,15 +1466,18 @@ mod tests {
         ];
         let input_data_f32: Vec<Float32> =
             input_data.iter().map(|&x| Float32::new(x as f32)).collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data_f32,
             &[2, 2, 2, 2],
         )
         .unwrap();
 
-        let output =
-            <BatchNorm2d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input)
-                .unwrap();
+        let output = <BatchNorm2d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::forward(&batchnorm, &input)
+        .unwrap();
 
         // Output shape should match input shape
         assert_eq!(output.shape().dims(), &[2, 2, 2, 2]);
@@ -1470,7 +1512,14 @@ mod tests {
 
     #[test]
     fn test_batchnorm2d_running_stats_update() {
-        let batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 2, 1e-5, 0.1).unwrap();
+        let batchnorm =
+            BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                2,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
 
         // Input: [batch_size=2, channels=2, height=2, width=2]
         let input_data = vec![
@@ -1482,7 +1531,7 @@ mod tests {
         ];
         let input_data_f32: Vec<Float32> =
             input_data.iter().map(|&x| Float32::new(x as f32)).collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data_f32,
             &[2, 2, 2, 2],
         )
@@ -1496,8 +1545,12 @@ mod tests {
 
         // Forward pass (training mode) - running stats should be updated automatically
         let _output =
-            <BatchNorm2d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input)
-                .unwrap();
+            <BatchNorm2d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+                CpuBackend<Float32>,
+                DenseStorage<Float32>,
+                Float32,
+            >>::forward(&batchnorm, &input)
+            .unwrap();
 
         // After forward pass, running stats should be updated
         let running_mean_after = batchnorm.running_mean();
@@ -1511,26 +1564,55 @@ mod tests {
 
     #[test]
     fn test_batchnorm2d_parameters() {
-        let batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
-        let params = <BatchNorm2d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::parameters(&batchnorm);
+        let batchnorm =
+            BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                64,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
+        let params = <BatchNorm2d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::parameters(&batchnorm);
         assert_eq!(params.len(), 2); // weight and bias
     }
 
     #[test]
     fn test_batchnorm2d_invalid_num_features() {
-        let result = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 0, 1e-5, 0.1);
+        let result =
+            BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                0,
+                1e-5,
+                0.1,
+            );
         assert!(result.is_err());
     }
 
     #[test]
     fn test_batchnorm2d_invalid_eps() {
-        let result = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 0.0, 0.1);
+        let result =
+            BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                64,
+                0.0,
+                0.1,
+            );
         assert!(result.is_err());
     }
 
     #[test]
     fn test_batchnorm2d_invalid_momentum() {
-        let result = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 1.5);
+        let result =
+            BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                64,
+                1e-5,
+                1.5,
+            );
         assert!(result.is_err());
     }
 
@@ -1538,7 +1620,14 @@ mod tests {
 
     #[test]
     fn test_batchnorm1d_constructor() {
-        let batchnorm = BatchNorm1d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 128, 1e-5, 0.1).unwrap();
+        let batchnorm =
+            BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                128,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
         assert_eq!(batchnorm.num_features, 128);
         assert_eq!(batchnorm.eps, 1e-5);
         assert_eq!(batchnorm.momentum, 0.1);
@@ -1548,8 +1637,19 @@ mod tests {
 
     #[test]
     fn test_batchnorm1d_forward_training() {
-        let mut batchnorm = BatchNorm1d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 2, 1e-5, 0.1).unwrap();
-        <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+        let mut batchnorm =
+            BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                2,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
+        <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, true);
 
         // Input: [batch_size=2, features=2, length=3]
         // Simple sequential data
@@ -1562,15 +1662,18 @@ mod tests {
         ];
         let input_data_f32: Vec<Float32> =
             input_data.iter().map(|&x| Float32::new(x as f32)).collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data_f32,
             &[2, 2, 3],
         )
         .unwrap();
 
-        let output =
-            <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input)
-                .unwrap();
+        let output = <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::forward(&batchnorm, &input)
+        .unwrap();
 
         // Output shape should match input shape
         assert_eq!(output.shape().dims(), &[2, 2, 3]);
@@ -1582,27 +1685,48 @@ mod tests {
 
     #[test]
     fn test_batchnorm1d_forward_eval() {
-        let mut batchnorm = BatchNorm1d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 2, 1e-5, 0.1).unwrap();
+        let mut batchnorm =
+            BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                2,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
 
         // First, run in training mode to update running stats
-        <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+        <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, true);
         let input_train =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 2, 3]).unwrap();
-        let _ = <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(
-            &batchnorm,
-            &input_train,
-        )
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 2, 3])
+                .unwrap();
+        let _ = <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::forward(&batchnorm, &input_train)
         .unwrap();
 
         // Now switch to eval mode
-        <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, false);
+        <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, false);
 
         // Input: [batch_size=1, features=2, length=3]
         let input_eval =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 2, 3]).unwrap();
-        let output =
-            <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input_eval)
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 2, 3])
                 .unwrap();
+        let output = <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::forward(&batchnorm, &input_eval)
+        .unwrap();
 
         // Output shape should match input shape
         assert_eq!(output.shape().dims(), &[1, 2, 3]);
@@ -1614,8 +1738,19 @@ mod tests {
 
     #[test]
     fn test_batchnorm1d_running_stats_update() {
-        let mut batchnorm = BatchNorm1d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 2, 1e-5, 0.1).unwrap();
-        <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+        let mut batchnorm =
+            BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                2,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
+        <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, true);
 
         // Input: [batch_size=2, features=2, length=4]
         let input_data = vec![
@@ -1627,7 +1762,7 @@ mod tests {
         ];
         let input_data_f32: Vec<Float32> =
             input_data.iter().map(|&x| Float32::new(x as f32)).collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data_f32,
             &[2, 2, 4],
         )
@@ -1643,8 +1778,12 @@ mod tests {
         assert_eq!(running_var_before.as_slice()[1].get(), 1.0);
 
         // Forward pass updates running stats
-        let _ = <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input)
-            .unwrap();
+        let _ = <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::forward(&batchnorm, &input)
+        .unwrap();
 
         // After forward pass, running stats should be updated
         let running_mean_after = batchnorm.running_mean();
@@ -1661,8 +1800,19 @@ mod tests {
 
     #[test]
     fn test_batchnorm1d_parameters() {
-        let batchnorm = BatchNorm1d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 128, 1e-5, 0.1).unwrap();
-        let params = <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::parameters(&batchnorm);
+        let batchnorm =
+            BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                128,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
+        let params = <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::parameters(&batchnorm);
 
         // Should have 2 parameters: weight and bias
         assert_eq!(params.len(), 2);
@@ -1672,31 +1822,61 @@ mod tests {
 
     #[test]
     fn test_batchnorm1d_train_mode_toggle() {
-        let mut batchnorm = BatchNorm1d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
+        let mut batchnorm =
+            BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                64,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
 
         // Initially in training mode
         assert!(batchnorm.training);
 
         // Switch to eval mode
-        <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, false);
+        <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, false);
         assert!(!batchnorm.training);
 
         // Switch back to training mode
-        <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+        <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, true);
         assert!(batchnorm.training);
     }
 
     #[test]
     fn test_batchnorm1d_rnn_sequence() {
-        let mut batchnorm = BatchNorm1d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 256, 1e-5, 0.1).unwrap();
-        <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+        let mut batchnorm =
+            BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                256,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
+        <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, true);
 
         // RNN hidden states: [batch_size=32, hidden_size=256, sequence_length=50]
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[32, 256, 50]).unwrap();
-        let output =
-            <BatchNorm1d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input)
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[32, 256, 50])
                 .unwrap();
+        let output = <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::forward(&batchnorm, &input)
+        .unwrap();
 
         // Output shape should match input shape
         assert_eq!(output.shape().dims(), &[32, 256, 50]);
@@ -1704,19 +1884,37 @@ mod tests {
 
     #[test]
     fn test_batchnorm1d_invalid_num_features() {
-        let result = BatchNorm1d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 0, 1e-5, 0.1);
+        let result =
+            BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                0,
+                1e-5,
+                0.1,
+            );
         assert!(result.is_err());
     }
 
     #[test]
     fn test_batchnorm1d_invalid_eps() {
-        let result = BatchNorm1d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 128, 0.0, 0.1);
+        let result =
+            BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                128,
+                0.0,
+                0.1,
+            );
         assert!(result.is_err());
     }
 
     #[test]
     fn test_batchnorm1d_invalid_momentum() {
-        let result = BatchNorm1d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 128, 1e-5, 1.5);
+        let result =
+            BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                128,
+                1e-5,
+                1.5,
+            );
         assert!(result.is_err());
     }
 
@@ -1724,7 +1922,14 @@ mod tests {
 
     #[test]
     fn test_batchnorm3d_constructor() {
-        let batchnorm = BatchNorm3d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
+        let batchnorm =
+            BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                64,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
         assert_eq!(batchnorm.num_features, 64);
         assert_eq!(batchnorm.eps, 1e-5);
         assert_eq!(batchnorm.momentum, 0.1);
@@ -1734,8 +1939,19 @@ mod tests {
 
     #[test]
     fn test_batchnorm3d_forward_training() {
-        let mut batchnorm = BatchNorm3d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 2, 1e-5, 0.1).unwrap();
-        <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+        let mut batchnorm =
+            BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                2,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
+        <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, true);
 
         // Input: [batch_size=2, channels=2, depth=2, height=2, width=2]
         let input_data = vec![
@@ -1751,15 +1967,18 @@ mod tests {
         ];
         let input_data_f32: Vec<Float32> =
             input_data.iter().map(|&x| Float32::new(x as f32)).collect();
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data_f32,
             &[2, 2, 2, 2, 2],
         )
         .unwrap();
 
-        let output =
-            <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input)
-                .unwrap();
+        let output = <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::forward(&batchnorm, &input)
+        .unwrap();
 
         // Output shape should match input shape
         assert_eq!(output.shape().dims(), &[2, 2, 2, 2, 2]);
@@ -1771,27 +1990,48 @@ mod tests {
 
     #[test]
     fn test_batchnorm3d_forward_eval() {
-        let mut batchnorm = BatchNorm3d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 2, 1e-5, 0.1).unwrap();
+        let mut batchnorm =
+            BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                2,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
 
         // First, run in training mode to update running stats
-        <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+        <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, true);
         let input_train =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 2, 2, 2, 2]).unwrap();
-        let _ = <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(
-            &batchnorm,
-            &input_train,
-        )
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 2, 2, 2, 2])
+                .unwrap();
+        let _ = <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::forward(&batchnorm, &input_train)
         .unwrap();
 
         // Now switch to eval mode
-        <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, false);
+        <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, false);
 
         // Input: [batch_size=1, channels=2, depth=2, height=2, width=2]
         let input_eval =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 2, 2, 2, 2]).unwrap();
-        let output =
-            <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input_eval)
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 2, 2, 2, 2])
                 .unwrap();
+        let output = <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::forward(&batchnorm, &input_eval)
+        .unwrap();
 
         // Output shape should match input shape
         assert_eq!(output.shape().dims(), &[1, 2, 2, 2, 2]);
@@ -1803,12 +2043,24 @@ mod tests {
 
     #[test]
     fn test_batchnorm3d_running_stats_update() {
-        let mut batchnorm = BatchNorm3d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 2, 1e-5, 0.1).unwrap();
-        <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+        let mut batchnorm =
+            BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                2,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
+        <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, true);
 
         // Input: [batch_size=2, channels=2, depth=2, height=2, width=2]
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 2, 2, 2, 2]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 2, 2, 2, 2])
+                .unwrap();
 
         // Before forward pass, running stats should be initialized
         let running_mean_before = batchnorm.running_mean();
@@ -1820,8 +2072,12 @@ mod tests {
         assert_eq!(running_var_before.as_slice()[1].get(), 1.0);
 
         // Forward pass updates running stats
-        let _ = <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input)
-            .unwrap();
+        let _ = <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::forward(&batchnorm, &input)
+        .unwrap();
 
         // After forward pass, running stats should be updated
         let running_mean_after = batchnorm.running_mean();
@@ -1838,8 +2094,19 @@ mod tests {
 
     #[test]
     fn test_batchnorm3d_parameters() {
-        let batchnorm = BatchNorm3d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
-        let params = <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::parameters(&batchnorm);
+        let batchnorm =
+            BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                64,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
+        let params = <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::parameters(&batchnorm);
 
         // Should have 2 parameters: weight and bias
         assert_eq!(params.len(), 2);
@@ -1849,32 +2116,62 @@ mod tests {
 
     #[test]
     fn test_batchnorm3d_train_mode_toggle() {
-        let mut batchnorm = BatchNorm3d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
+        let mut batchnorm =
+            BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                64,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
 
         // Initially in training mode
         assert!(batchnorm.training);
 
         // Switch to eval mode
-        <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, false);
+        <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, false);
         assert!(!batchnorm.training);
 
         // Switch back to training mode
-        <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+        <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, true);
         assert!(batchnorm.training);
     }
 
     #[test]
     fn test_batchnorm3d_video_classification() {
-        let mut batchnorm = BatchNorm3d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
-        <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+        let mut batchnorm =
+            BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                64,
+                1e-5,
+                0.1,
+            )
+            .unwrap();
+        <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::train(&mut batchnorm, true);
 
         // Video data: [batch_size=8, channels=64, depth=16, height=32, width=32]
-        let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[8, 64, 16, 32, 32])
-                .unwrap();
-        let output =
-            <BatchNorm3d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input)
-                .unwrap();
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[
+            8, 64, 16, 32, 32,
+        ])
+        .unwrap();
+        let output = <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >>::forward(&batchnorm, &input)
+        .unwrap();
 
         // Output shape should match input shape
         assert_eq!(output.shape().dims(), &[8, 64, 16, 32, 32]);
@@ -1882,21 +2179,37 @@ mod tests {
 
     #[test]
     fn test_batchnorm3d_invalid_num_features() {
-        let result = BatchNorm3d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 0, 1e-5, 0.1);
+        let result =
+            BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                0,
+                1e-5,
+                0.1,
+            );
         assert!(result.is_err());
     }
 
     #[test]
     fn test_batchnorm3d_invalid_eps() {
-        let result = BatchNorm3d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 0.0, 0.1);
+        let result =
+            BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                64,
+                0.0,
+                0.1,
+            );
         assert!(result.is_err());
     }
 
     #[test]
     fn test_batchnorm3d_invalid_momentum() {
-        let result = BatchNorm3d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 1.5);
+        let result =
+            BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
+                CpuBackend::default(),
+                64,
+                1e-5,
+                1.5,
+            );
         assert!(result.is_err());
     }
 }
-
-

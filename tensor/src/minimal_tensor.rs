@@ -3,8 +3,8 @@
 //! This provides a basic tensor implementation that compiles and allows
 //! the neural network crate to be tested properly.
 
+use std::ops::{Add, Div, Mul, Sub};
 use std::vec::Vec;
-use std::ops::{Add, Sub, Mul, Div};
 
 /// Minimal tensor implementation for testing
 #[derive(Debug, Clone)]
@@ -59,11 +59,19 @@ impl<B, S, T> MinimalTensor<B, S, T> {
             });
         }
 
-        let result_data: Vec<T> = self.data.iter().zip(&other.data)
+        let result_data: Vec<T> = self
+            .data
+            .iter()
+            .zip(&other.data)
             .map(|(&a, &b)| a + b)
             .collect();
 
-        Ok(Self::new(result_data, self.shape.clone(), self._backend.clone(), self._storage.clone()))
+        Ok(Self::new(
+            result_data,
+            self.shape.clone(),
+            self._backend.clone(),
+            self._storage.clone(),
+        ))
     }
 
     /// SIMD ReLU
@@ -74,11 +82,18 @@ impl<B, S, T> MinimalTensor<B, S, T> {
         S: Clone,
     {
         let zero = T::zero();
-        let result_data: Vec<T> = self.data.iter()
+        let result_data: Vec<T> = self
+            .data
+            .iter()
             .map(|&val| if val > zero { val } else { zero })
             .collect();
 
-        Ok(Self::new(result_data, self.shape.clone(), self._backend.clone(), self._storage.clone()))
+        Ok(Self::new(
+            result_data,
+            self.shape.clone(),
+            self._backend.clone(),
+            self._storage.clone(),
+        ))
     }
 
     /// SIMD sum
@@ -133,10 +148,13 @@ impl<B, S, T> MinimalTensor<B, S, T> {
         B: Clone,
         S: Clone,
     {
-        let result_data: Vec<T> = self.data.iter()
-            .map(|&x| x.sqrt())
-            .collect();
-        Ok(Self::new(result_data, self.shape.clone(), self._backend.clone(), self._storage.clone()))
+        let result_data: Vec<T> = self.data.iter().map(|&x| x.sqrt()).collect();
+        Ok(Self::new(
+            result_data,
+            self.shape.clone(),
+            self._backend.clone(),
+            self._storage.clone(),
+        ))
     }
 }
 
@@ -159,7 +177,9 @@ where
             self.data.iter().map(|&x| x + other.data[0]).collect()
         } else if self.data.len() == other.data.len() {
             // Element-wise addition
-            self.data.iter().zip(&other.data)
+            self.data
+                .iter()
+                .zip(&other.data)
                 .map(|(&a, &b)| a + b)
                 .collect()
         } else {
@@ -167,7 +187,12 @@ where
             vec![self.data[0] + other.data[0]]
         };
 
-        MinimalTensor::new(result_data, self.shape.clone(), self._backend.clone(), self._storage.clone())
+        MinimalTensor::new(
+            result_data,
+            self.shape.clone(),
+            self._backend.clone(),
+            self._storage.clone(),
+        )
     }
 }
 
@@ -185,14 +210,21 @@ where
         } else if other.data.len() == 1 && self.data.len() > 1 {
             self.data.iter().map(|&x| x - other.data[0]).collect()
         } else if self.data.len() == other.data.len() {
-            self.data.iter().zip(&other.data)
+            self.data
+                .iter()
+                .zip(&other.data)
                 .map(|(&a, &b)| a - b)
                 .collect()
         } else {
             vec![self.data[0] - other.data[0]]
         };
 
-        MinimalTensor::new(result_data, self.shape.clone(), self._backend.clone(), self._storage.clone())
+        MinimalTensor::new(
+            result_data,
+            self.shape.clone(),
+            self._backend.clone(),
+            self._storage.clone(),
+        )
     }
 }
 
@@ -210,14 +242,21 @@ where
         } else if other.data.len() == 1 && self.data.len() > 1 {
             self.data.iter().map(|&x| x * other.data[0]).collect()
         } else if self.data.len() == other.data.len() {
-            self.data.iter().zip(&other.data)
+            self.data
+                .iter()
+                .zip(&other.data)
                 .map(|(&a, &b)| a * b)
                 .collect()
         } else {
             vec![self.data[0] * other.data[0]]
         };
 
-        MinimalTensor::new(result_data, self.shape.clone(), self._backend.clone(), self._storage.clone())
+        MinimalTensor::new(
+            result_data,
+            self.shape.clone(),
+            self._backend.clone(),
+            self._storage.clone(),
+        )
     }
 }
 
@@ -235,13 +274,20 @@ where
         } else if other.data.len() == 1 && self.data.len() > 1 {
             self.data.iter().map(|&x| x / other.data[0]).collect()
         } else if self.data.len() == other.data.len() {
-            self.data.iter().zip(&other.data)
+            self.data
+                .iter()
+                .zip(&other.data)
                 .map(|(&a, &b)| a / b)
                 .collect()
         } else {
             vec![self.data[0] / other.data[0]]
         };
 
-        MinimalTensor::new(result_data, self.shape.clone(), self._backend.clone(), self._storage.clone())
+        MinimalTensor::new(
+            result_data,
+            self.shape.clone(),
+            self._backend.clone(),
+            self._storage.clone(),
+        )
     }
 }

@@ -13,19 +13,33 @@ keywords = ["machine-learning", "neural-networks", "deep-learning", "pytorch", "
 categories = ["science", "algorithms"]
 
 [features]
-default = ["std", "autograd"]
+default = ["std", "autograd", "attention", "normalization"]
 std = []
 autograd = ["coeus-autograd"]
 quantized = ["coeus-dtype/quantized", "coeus-dtype/std"]
+attention = []
+normalization = []
+model_surgery = []
+onnx = []
+safetensors = []
+distributed = []
+dropout = []
+embedding = []
+functional = []
 
 [dependencies]
 # Workspace dependencies
-coeus-dtype = { path = "../dtype", version = "0.1", features = ["serde"] }
+coeus-dtype = { path = "../dtype", version = "0.1", features = ["serde", "half"] }
 coeus-storage = { path = "../storage", version = "0.1" }
 coeus-backend = { path = "../backend", version = "0.1" }
 coeus-tensor = { path = "../tensor", version = "0.1" }
 coeus-autograd = { path = "../autograd", version = "0.1", optional = true }
-coeus-optim = { path = "../optim", version = "0.1" }
+coeus-optim = { path = "../optim", version = "0.1" }  # Re-enabled for complete async training support
+
+# Async ecosystem
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+futures = "0.3"
 
 # External dependencies
 num-traits = { workspace = true }
@@ -35,16 +49,20 @@ serde_json = "1.0"
 serde_bytes = "0.11"
 rand = "0.8"
 rand_distr = "0.4"
+rand_pcg = "0.3"
 half = { workspace = true }
+rayon = "1.8"
 
 [dev-dependencies]
 proptest = { workspace = true }
 approx = { workspace = true }
 tempfile = "3.0"
 criterion.workspace = true
+insta = "1.34"
+arbitrary = { version = "1.3", features = ["derive"] }
+fastrand = "2.0"
 
 [[bench]]
 name = "neural_networks"
 path = "benches/neural_networks.rs"
 harness = false
-rand = "0.8"

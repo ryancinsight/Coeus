@@ -12,7 +12,7 @@
 //! use coeus_storage::DenseStorage;
 //! use coeus_dtype::float::Float32;
 //!
-//! let mut layer = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 128).unwrap();
+//! let mut layer = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 128).unwrap();
 //!
 //! // Initialize with Kaiming/He initialization (recommended for ReLU)
 //! // Note: Apply to weight tensor directly
@@ -118,11 +118,11 @@ fn calculate_fan_in_fan_out(shape: &[usize]) -> (usize, usize) {
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let mut tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
+/// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
 /// init::uniform_(&mut tensor, -0.1, 0.1).unwrap();
 /// ```
 pub fn uniform_<T: DataType + FloatExt>(
-    tensor: &mut Tensor<CpuBackend, DenseStorage<T>, T>,
+    tensor: &mut Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     a: f64,
     b: f64,
 ) -> Result<()> {
@@ -154,11 +154,11 @@ pub fn uniform_<T: DataType + FloatExt>(
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let mut tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
+/// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
 /// init::normal_(&mut tensor, 0.0, 0.01).unwrap();
 /// ```
 pub fn normal_<T: DataType + FloatExt>(
-    tensor: &mut Tensor<CpuBackend, DenseStorage<T>, T>,
+    tensor: &mut Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     mean: f64,
     std: f64,
 ) -> Result<()> {
@@ -188,11 +188,11 @@ pub fn normal_<T: DataType + FloatExt>(
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let mut tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
+/// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
 /// init::constant_(&mut tensor, 0.5).unwrap();
 /// ```
 pub fn constant_<T: DataType + FloatExt>(
-    tensor: &mut Tensor<CpuBackend, DenseStorage<T>, T>,
+    tensor: &mut Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     value: f64,
 ) -> Result<()> {
     let val = T::from(value).unwrap();
@@ -213,11 +213,11 @@ pub fn constant_<T: DataType + FloatExt>(
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let mut tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[10, 10]).unwrap();
+/// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[10, 10]).unwrap();
 /// init::zeros_(&mut tensor).unwrap();
 /// ```
 pub fn zeros_<T: DataType + FloatExt>(
-    tensor: &mut Tensor<CpuBackend, DenseStorage<T>, T>,
+    tensor: &mut Tensor<CpuBackend<T>, DenseStorage<T>, T>,
 ) -> Result<()> {
     constant_(tensor, 0.0)
 }
@@ -232,11 +232,11 @@ pub fn zeros_<T: DataType + FloatExt>(
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let mut tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
+/// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
 /// init::ones_(&mut tensor).unwrap();
 /// ```
 pub fn ones_<T: DataType + FloatExt>(
-    tensor: &mut Tensor<CpuBackend, DenseStorage<T>, T>,
+    tensor: &mut Tensor<CpuBackend<T>, DenseStorage<T>, T>,
 ) -> Result<()> {
     constant_(tensor, 1.0)
 }
@@ -260,14 +260,14 @@ pub fn ones_<T: DataType + FloatExt>(
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let mut tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
+/// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
 /// init::xavier_uniform_(&mut tensor, 1.0).unwrap();
 /// ```
 ///
 /// # References
 /// - Glorot & Bengio (2010): "Understanding the difficulty of training deep feedforward neural networks"
 pub fn xavier_uniform_<T: DataType + FloatExt>(
-    tensor: &mut Tensor<CpuBackend, DenseStorage<T>, T>,
+    tensor: &mut Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     gain: f64,
 ) -> Result<()> {
     let (fan_in, fan_out) = calculate_fan_in_fan_out(tensor.shape().dims());
@@ -295,14 +295,14 @@ pub fn xavier_uniform_<T: DataType + FloatExt>(
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let mut tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
+/// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
 /// init::xavier_normal_(&mut tensor, 1.0).unwrap();
 /// ```
 ///
 /// # References
 /// - Glorot & Bengio (2010): "Understanding the difficulty of training deep feedforward neural networks"
 pub fn xavier_normal_<T: DataType + FloatExt>(
-    tensor: &mut Tensor<CpuBackend, DenseStorage<T>, T>,
+    tensor: &mut Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     gain: f64,
 ) -> Result<()> {
     let (fan_in, fan_out) = calculate_fan_in_fan_out(tensor.shape().dims());
@@ -330,14 +330,14 @@ pub fn xavier_normal_<T: DataType + FloatExt>(
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let mut tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
+/// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
 /// init::kaiming_uniform_(&mut tensor, 0.0, init::NonLinearity::ReLU).unwrap();
 /// ```
 ///
 /// # References
 /// - He et al. (2015): "Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification"
 pub fn kaiming_uniform_<T: DataType + FloatExt>(
-    tensor: &mut Tensor<CpuBackend, DenseStorage<T>, T>,
+    tensor: &mut Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     a: f64,
     nonlinearity: NonLinearity,
 ) -> Result<()> {
@@ -368,14 +368,14 @@ pub fn kaiming_uniform_<T: DataType + FloatExt>(
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let mut tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
+/// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
 /// init::kaiming_normal_(&mut tensor, 0.0, init::NonLinearity::ReLU).unwrap();
 /// ```
 ///
 /// # References
 /// - He et al. (2015): "Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification"
 pub fn kaiming_normal_<T: DataType + FloatExt>(
-    tensor: &mut Tensor<CpuBackend, DenseStorage<T>, T>,
+    tensor: &mut Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     a: f64,
     nonlinearity: NonLinearity,
 ) -> Result<()> {
@@ -406,14 +406,14 @@ pub fn kaiming_normal_<T: DataType + FloatExt>(
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let mut tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[128, 128]).unwrap();
+/// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[128, 128]).unwrap();
 /// init::orthogonal_(&mut tensor, 1.0).unwrap();
 /// ```
 ///
 /// # References
 /// - Saxe et al. (2013): "Exact solutions to the nonlinear dynamics of learning in deep linear neural networks"
 pub fn orthogonal_<T: DataType + FloatExt + PartialOrd>(
-    tensor: &mut Tensor<CpuBackend, DenseStorage<T>, T>,
+    tensor: &mut Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     gain: f64,
 ) -> Result<()> {
     let shape = tensor.shape().dims();
@@ -496,7 +496,8 @@ mod tests {
     #[test]
     fn test_uniform_initialization() {
         let mut tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[100, 100]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[100, 100])
+                .unwrap();
         uniform_(&mut tensor, -0.5, 0.5).unwrap();
 
         let data = tensor.as_slice();
@@ -507,28 +508,35 @@ mod tests {
         }
 
         // Check not all zeros
-        assert!(data.iter().any(|&v| v.get().abs() > 1e-6));
+        assert!(data.iter().any(|&v: &Float32| v.get().abs() > 1e-6));
     }
 
     #[test]
     fn test_normal_initialization() {
         let mut tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[100, 100]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[100, 100])
+                .unwrap();
         normal_(&mut tensor, 0.0, 0.1).unwrap();
 
         let data = tensor.as_slice();
 
         // Check not all zeros
-        assert!(data.iter().any(|&v| v.get().abs() > 1e-6));
+        assert!(data.iter().any(|&v: &Float32| v.get().abs() > 1e-6));
 
         // Rough check: most values should be within 3 standard deviations
-        let within_3std = data.iter().filter(|&&v| v.get().abs() <= 0.3).count();
+        let within_3std = data
+            .iter()
+            .filter(|&&v: &&Float32| v.get().abs() <= 0.3)
+            .count();
         assert!(within_3std as f32 / data.len() as f32 > 0.95);
 
         // Calculate sample mean and std to verify distribution
-        let mean: f32 = data.iter().map(|v| v.get()).sum::<f32>() / data.len() as f32;
-        let variance: f32 =
-            data.iter().map(|v| (v.get() - mean).powi(2)).sum::<f32>() / data.len() as f32;
+        let mean: f32 = data.iter().map(|v: &Float32| v.get()).sum::<f32>() / data.len() as f32;
+        let variance: f32 = data
+            .iter()
+            .map(|v: &Float32| (v.get() - mean).powi(2))
+            .sum::<f32>()
+            / data.len() as f32;
         let std = variance.sqrt();
 
         // Mean should be close to 0.0 (within 3 standard errors)
@@ -546,49 +554,55 @@ mod tests {
     #[test]
     fn test_constant_initialization() {
         let mut tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10, 10])
+                .unwrap();
         constant_(&mut tensor, 0.42).unwrap();
 
         let data = tensor.as_slice();
         for &val in data {
-            assert!((val.get() - 0.42).abs() < 1e-6);
+            let val_f32: f32 = val.get();
+            assert!((val_f32 - 0.42).abs() < 1e-6);
         }
     }
 
     #[test]
     fn test_zeros_initialization() {
         let mut tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[10, 10]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[10, 10]).unwrap();
         zeros_(&mut tensor).unwrap();
 
         let data = tensor.as_slice();
         for &val in data {
-            assert_eq!(val.get(), 0.0);
+            let val_f32: f32 = val.get();
+            assert_eq!(val_f32, 0.0);
         }
     }
 
     #[test]
     fn test_ones_initialization() {
         let mut tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10, 10])
+                .unwrap();
         ones_(&mut tensor).unwrap();
 
         let data = tensor.as_slice();
         for &val in data {
-            assert_eq!(val.get(), 1.0);
+            let val_f32: f32 = val.get();
+            assert_eq!(val_f32, 1.0);
         }
     }
 
     #[test]
     fn test_xavier_uniform_initialization() {
         let mut tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[100, 200]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[100, 200])
+                .unwrap();
         xavier_uniform_(&mut tensor, 1.0).unwrap();
 
         let data = tensor.as_slice();
 
         // Check not all zeros
-        assert!(data.iter().any(|&v| v.get().abs() > 1e-6));
+        assert!(data.iter().any(|&v: &Float32| v.get().abs() > 1e-6));
 
         // Calculate expected bound: gain * sqrt(6 / (fan_in + fan_out)) * sqrt(3)
         let fan_in = 200;
@@ -597,32 +611,35 @@ mod tests {
 
         // All values should be within bounds
         for &val in data {
-            assert!(val.get().abs() <= expected_bound * 1.1); // Allow 10% tolerance
+            let val_f32: f32 = val.get();
+            assert!(val_f32.abs() <= expected_bound * 1.1); // Allow 10% tolerance
         }
     }
 
     #[test]
     fn test_xavier_normal_initialization() {
         let mut tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[100, 200]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[100, 200])
+                .unwrap();
         xavier_normal_(&mut tensor, 1.0).unwrap();
 
         let data = tensor.as_slice();
 
         // Check not all zeros
-        assert!(data.iter().any(|&v| v.get().abs() > 1e-6));
+        assert!(data.iter().any(|&v: &Float32| v.get().abs() > 1e-6));
     }
 
     #[test]
     fn test_kaiming_uniform_initialization() {
         let mut tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[100, 200]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[100, 200])
+                .unwrap();
         kaiming_uniform_(&mut tensor, 0.0, NonLinearity::ReLU).unwrap();
 
         let data = tensor.as_slice();
 
         // Check not all zeros
-        assert!(data.iter().any(|&v| v.get().abs() > 1e-6));
+        assert!(data.iter().any(|&v: &Float32| v.get().abs() > 1e-6));
 
         // Calculate expected bound: sqrt(2) / sqrt(fan_in) * sqrt(3)
         let fan_in = 200;
@@ -630,38 +647,41 @@ mod tests {
 
         // All values should be within bounds
         for &val in data {
-            assert!(val.get().abs() <= expected_bound * 1.1); // Allow 10% tolerance
+            let val_f32: f32 = val.get();
+            assert!(val_f32.abs() <= expected_bound * 1.1); // Allow 10% tolerance
         }
     }
 
     #[test]
     fn test_kaiming_normal_initialization() {
         let mut tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[100, 200]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[100, 200])
+                .unwrap();
         kaiming_normal_(&mut tensor, 0.0, NonLinearity::ReLU).unwrap();
 
         let data = tensor.as_slice();
 
         // Check not all zeros
-        assert!(data.iter().any(|&v| v.get().abs() > 1e-6));
+        assert!(data.iter().any(|&v: &Float32| v.get().abs() > 1e-6));
     }
 
     #[test]
     fn test_orthogonal_initialization() {
         let mut tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[50, 50]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[50, 50])
+                .unwrap();
         orthogonal_(&mut tensor, 1.0).unwrap();
 
         let data = tensor.as_slice();
 
         // Check not all zeros
-        assert!(data.iter().any(|&v| v.get().abs() > 1e-6));
+        assert!(data.iter().any(|&v: &Float32| v.get().abs() > 1e-6));
 
         // Check orthogonality: columns should be orthonormal
         // For a 50x50 matrix, check a few column pairs
         for i in 0..5 {
             for j in (i + 1)..5 {
-                let mut dot = 0.0;
+                let mut dot: f32 = 0.0;
                 for row in 0..50 {
                     dot += data[row * 50 + i].get() * data[row * 50 + j].get();
                 }
@@ -678,7 +698,7 @@ mod tests {
 
         // Check normalization: column norms should be ~1 (scaled by gain)
         for i in 0..5 {
-            let mut norm_sq = 0.0;
+            let mut norm_sq: f32 = 0.0;
             for row in 0..50 {
                 let val = data[row * 50 + i].get();
                 norm_sq += val * val;

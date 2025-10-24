@@ -36,7 +36,7 @@ impl ToTensor {
     pub fn apply_f32(
         &self,
         input: Vec<f32>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, TransformError> {
+    ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, TransformError> {
         let len = input.len();
         // Convert f32 values to Float32 dtype
         let data: Vec<Float32> = input.into_iter().map(Float32::new).collect();
@@ -49,7 +49,7 @@ impl ToTensor {
     pub fn apply_f64(
         &self,
         input: Vec<f64>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, TransformError> {
+    ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, TransformError> {
         let len = input.len();
         // Convert f64 to f32, then to Float32 dtype
         let data: Vec<Float32> = input.into_iter().map(|x| Float32::new(x as f32)).collect();
@@ -61,7 +61,7 @@ impl ToTensor {
     pub fn apply_f32_2d(
         &self,
         input: Vec<Vec<f32>>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, TransformError> {
+    ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, TransformError> {
         // Validate that all inner vectors have the same length
         if input.is_empty() {
             return Err(TransformError::InvalidInput {
@@ -88,7 +88,7 @@ impl ToTensor {
     pub fn apply_u8(
         &self,
         input: Vec<u8>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, TransformError> {
+    ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, TransformError> {
         let len = input.len();
         // Convert u8 to f32, then to Float32 dtype (normalize to [0, 1])
         let data: Vec<Float32> = input

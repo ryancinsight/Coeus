@@ -42,7 +42,7 @@ use crate::error::{NNError, Result};
 use crate::module::Module;
 use coeus_backend::{Backend, CpuBackend};
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::Storage;
+use coeus_storage::{Storage, StorageFromVec, StorageToDense};
 use coeus_tensor::{DenseStorage, Tensor};
 use std::collections::HashMap;
 
@@ -207,7 +207,7 @@ impl OnnxExporter {
     where
         M: Module<B, S, T>,
         B: Backend + Clone,
-        S: Storage<T> + Clone + 'static,
+        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
         T: DataType,
     {
         // Create ONNX graph from model
@@ -233,7 +233,7 @@ impl OnnxExporter {
     where
         M: Module<B, S, T>,
         B: Backend + Clone,
-        S: Storage<T> + Clone + 'static,
+        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
         T: DataType,
     {
         let mut inputs = Vec::new();
@@ -299,7 +299,7 @@ impl OnnxExporter {
     where
         M: Module<B, S, T>,
         B: Backend + Clone,
-        S: Storage<T> + Clone + 'static,
+        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
         T: DataType,
     {
         match module.name() {
@@ -336,7 +336,7 @@ impl OnnxExporter {
     where
         M: Module<B, S, T>,
         B: Backend + Clone,
-        S: Storage<T> + Clone + 'static,
+        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
         T: DataType,
     {
         // Get parameters
@@ -399,14 +399,17 @@ impl OnnxExporter {
     ) -> Result<OnnxTensor>
     where
         B: Backend,
-        S: Storage<T> + 'static,
+        S: Storage<T> + StorageToDense<T> + 'static,
         T: DataType,
     {
+        // Convert tensor to dense for serialization
+        let dense_tensor = tensor.to_dense_generic()?;
+
         // Convert tensor data to bytes
         let raw_data = unsafe {
             std::slice::from_raw_parts(
-                tensor.as_slice().as_ptr() as *const u8,
-                std::mem::size_of_val(tensor.as_slice()),
+                dense_tensor.as_slice().as_ptr() as *const u8,
+                std::mem::size_of_val(dense_tensor.as_slice()),
             )
         }
         .to_vec();
@@ -461,7 +464,7 @@ impl OnnxImporter {
     where
         M: Module<B, S, T>,
         B: Backend + Clone,
-        S: Storage<T> + Clone + 'static,
+        S: Storage<T> + StorageFromVec<T> + Clone + 'static,
         T: DataType + serde::de::DeserializeOwned,
     {
         // For now, support JSON-based import (matches our export format)
@@ -484,7 +487,7 @@ impl OnnxImporter {
     where
         M: Module<B, S, T>,
         B: Backend + Clone,
-        S: Storage<T> + Clone + 'static,
+        S: Storage<T> + StorageFromVec<T> + Clone + 'static,
         T: DataType,
     {
         // Generic conversion is not feasible due to type erasure
@@ -523,9 +526,8 @@ impl OnnxImporter {
     pub fn import_linear_from_onnx<T: DataType + FloatExt>(
         &self,
         onnx_model: &OnnxModel,
-    ) -> Result<crate::linear::Linear<CpuBackend, DenseStorage<T>, T>> {
+    ) -> Result<crate::linear::Linear<CpuBackend<T>, DenseStorage<T>, T>> {
         use crate::linear::Linear;
-        
 
         // Find MatMul and Add nodes in graph
         let graph = &onnx_model.graph;
@@ -587,7 +589,7 @@ impl OnnxImporter {
 
         // Extract dimensions
         let weight_shape = weight.shape().dims();
-        if weight_shape.len() != 2 {
+        if weight_shape.len() != 2usize {
             return Err(NNError::SerializationError {
                 message: format!("Weight tensor must be 2D, got shape {:?}", weight_shape),
             });
@@ -597,8 +599,12 @@ impl OnnxImporter {
         let in_features = weight_shape[1];
 
         // Create Linear layer with loaded weights
-        let weight_param = crate::parameter::Parameter::new(weight.clone().requires_grad_(true), "weight".to_string());
-        let bias_param = crate::parameter::Parameter::new(bias.requires_grad_(true), "bias".to_string());
+        let weight_param = crate::parameter::Parameter::new(
+            weight.clone().requires_grad_(true),
+            "weight".to_string(),
+        );
+        let bias_param =
+            crate::parameter::Parameter::new(bias.requires_grad_(true), "bias".to_string());
 
         // Cache transposed weight for ONNX-loaded layers too
         let weight_t = Some(weight.to_dense_generic()?.transpose(1, 0)?);
@@ -616,7 +622,7 @@ impl OnnxImporter {
     fn onnx_tensor_to_tensor<T: DataType>(
         &self,
         onnx_tensor: &OnnxTensor,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         // Convert dimensions from i64 to usize
         let dims: Vec<usize> = onnx_tensor.dims.iter().map(|&d| d as usize).collect();
 
@@ -680,8 +686,14 @@ mod tests {
     fn test_onnx_importer_invalid_json() {
         let importer = OnnxImporter::new();
         let invalid_json = b"invalid json";
-        let result: std::result::Result<crate::Sequential<coeus_backend::CpuBackend, crate::DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>, _> =
-            importer.import(invalid_json);
+        let result: std::result::Result<
+            crate::Sequential<
+                coeus_backend::CpuBackend,
+                crate::DenseStorage<coeus_dtype::float::Float32>,
+                coeus_dtype::float::Float32,
+            >,
+            _,
+        > = importer.import(invalid_json);
         assert!(result.is_err());
     }
 
@@ -770,7 +782,8 @@ mod tests {
 
         // Import Linear layer from ONNX
         let importer = OnnxImporter::new();
-        let linear: Linear<CpuBackend, DenseStorage<Float32>, Float32> = importer.import_linear_from_onnx(&onnx_model).unwrap();
+        let linear: Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32> =
+            importer.import_linear_from_onnx(&onnx_model).unwrap();
 
         // Verify dimensions
         assert_eq!(linear.in_features, 2);
@@ -815,8 +828,9 @@ mod tests {
         };
 
         let importer = OnnxImporter::new();
-        let result: Result<crate::linear::Linear<CpuBackend, DenseStorage<Float32>, Float32>> =
-            importer.import_linear_from_onnx(&onnx_model);
+        let result: Result<
+            crate::linear::Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+        > = importer.import_linear_from_onnx(&onnx_model);
 
         assert!(result.is_err());
         if let Err(NNError::SerializationError { message }) = result {
@@ -829,5 +843,3 @@ mod tests {
     // Note: Full export/import tests would require protobuf implementation
     // These are placeholder tests for the basic structure
 }
-
-

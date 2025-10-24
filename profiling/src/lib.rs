@@ -104,7 +104,6 @@ use std::{
 #[cfg(not(feature = "std"))]
 use core::time::Duration;
 
-use instant::Instant;
 
 #[cfg(all(feature = "memory_profiling", feature = "std"))]
 use memory_stats::memory_stats;
@@ -1135,8 +1134,8 @@ impl TrainingReport {
             .fold(None, |max, val| Some(max.map_or(val, |m| m.max(val))));
 
         // Calculate loss trend (recent vs early)
-        let early_loss = losses.iter().take(100).sum::<f32>() / 100.0.min(losses.len() as f32);
-        let recent_loss = losses.iter().rev().take(100).sum::<f32>() / 100.0.min(losses.len() as f32);
+        let early_loss = losses.iter().take(100).sum::<f32>() / 100.0_f32.min(losses.len() as f32);
+        let recent_loss = losses.iter().rev().take(100).sum::<f32>() / 100.0_f32.min(losses.len() as f32);
         let loss_trend = early_loss - recent_loss; // Positive = improving
 
         // Learning rate statistics
@@ -1240,7 +1239,7 @@ impl TrainingReport {
         }
 
         let mean_norm = grad_norms.iter().sum::<f32>() / grad_norms.len() as f32;
-        let max_norm = grad_norms.iter().fold(0.0, |a, &b| a.max(b));
+        let max_norm = grad_norms.iter().fold(0.0_f32, |a, &b| a.max(b));
         let min_norm = grad_norms.iter().fold(f32::INFINITY, |a, &b| a.min(b));
 
         let variance = grad_norms
@@ -1267,7 +1266,7 @@ impl TrainingReport {
         }
 
         let mean_step_time_ms = step_times.iter().sum::<f32>() / step_times.len() as f32;
-        let max_step_time_ms = step_times.iter().fold(0.0, |a, &b| a.max(b));
+        let max_step_time_ms = step_times.iter().fold(0.0_f32, |a, &b| a.max(b));
 
         // Assume batch size of 32 for throughput calculation
         let batch_size = 32.0;
@@ -1320,7 +1319,7 @@ impl TrainingReport {
              - Total Epochs: {}\n\
              - Best Loss: {:.4}\n\
              - Loss Trend: {:.4} (positive = improving)\n\
-             - Learning Rate: {:.2e} -> {:.2e} (decay: {:.2f}x)\n\
+              - Learning Rate: {:.2e} -> {:.2e} (decay: {:.2}x)\n\
              - Gradient Norm: mean={:.4}, max={:.4}\n\
              - Performance: {:.2}ms/step, {:.0} samples/sec\n\
              - Memory: peak GPU={:.0}MB, peak CPU={:.0}MB",
@@ -1603,12 +1602,8 @@ impl CommunicationReport {
     }
 }
 
-// Re-export training monitoring and communication profiling types
-#[cfg(feature = "std")]
-pub use self::{
-    TrainingMonitor, TrainingMetrics, TrainingReport, TrainingAlertThresholds,
-    CommunicationProfiler, CommunicationReport, CommunicationStats,
-};
+mod training_monitor;
+mod communication_profiler;
 
 #[cfg(test)]
 mod tests {

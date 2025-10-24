@@ -16,8 +16,8 @@ fn bench_tensor_addition(c: &mut Criterion) {
         let data1: Vec<Float32> = (0..size).map(|i| Float32::new(i as f32)).collect();
         let data2: Vec<Float32> = (0..size).map(|i| Float32::new((i + 1) as f32)).collect();
 
-        let tensor1 = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data1, &[size]).unwrap();
-        let tensor2 = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data2, &[size]).unwrap();
+        let tensor1 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data1, &[size]).unwrap();
+        let tensor2 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data2, &[size]).unwrap();
 
         group.bench_function(format!("add_{}", size), |b| {
             b.iter(|| {
@@ -38,7 +38,7 @@ fn bench_gradient_accumulation(c: &mut Criterion) {
 
     for &size in &sizes {
         let grad_data: Vec<Float32> = (0..size).map(|_| Float32::new(1.0)).collect();
-        let grad_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(grad_data, &[size]).unwrap();
+        let grad_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(grad_data, &[size]).unwrap();
 
         group.bench_function(format!("accumulate_{}", size), |b| {
             b.iter(|| {
@@ -61,8 +61,8 @@ fn bench_broadcasting_operations(c: &mut Criterion) {
         let data1: Vec<Float32> = (0..dim1).map(|i| Float32::new(i as f32)).collect();
         let data2: Vec<Float32> = (0..dim2).map(|i| Float32::new((i + 1) as f32)).collect();
 
-        let tensor1 = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data1, &[dim1]).unwrap();
-        let tensor2 = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data2, &[dim2]).unwrap();
+        let tensor1 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data1, &[dim1]).unwrap();
+        let tensor2 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data2, &[dim2]).unwrap();
 
         group.bench_function(format!("broadcast_{}x{}", dim1, dim2), |b| {
             b.iter(|| {
@@ -82,3 +82,4 @@ criterion_group!(
     bench_broadcasting_operations
 );
 criterion_main!(benches);
+

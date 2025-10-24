@@ -19,9 +19,11 @@ fn bench_tensor_addition(c: &mut Criterion) {
         let data2: Vec<Float32> = (0..size).map(|i| Float32::new((i + 1) as f32)).collect();
 
         let tensor1 =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data1, &[size]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data1, &[size])
+                .unwrap();
         let tensor2 =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data2, &[size]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data2, &[size])
+                .unwrap();
 
         group.bench_function(format!("add_{}", size), |b| {
             b.iter(|| {
@@ -42,9 +44,11 @@ fn bench_gradient_accumulation(c: &mut Criterion) {
 
     for &size in &sizes {
         let grad_data: Vec<Float32> = (0..size).map(|_| Float32::new(1.0)).collect();
-        let grad_tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(grad_data, &[size])
-                .unwrap();
+        let grad_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            grad_data,
+            &[size],
+        )
+        .unwrap();
 
         group.bench_function(format!("accumulate_{}", size), |b| {
             b.iter(|| {
@@ -69,9 +73,11 @@ fn bench_broadcasting_operations(c: &mut Criterion) {
         let data2: Vec<Float32> = (0..dim2).map(|i| Float32::new((i + 1) as f32)).collect();
 
         let tensor1 =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data1, &[dim1]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data1, &[dim1])
+                .unwrap();
         let tensor2 =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data2, &[dim2]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data2, &[dim2])
+                .unwrap();
 
         group.bench_function(format!("broadcast_{}x{}", dim1, dim2), |b| {
             b.iter(|| {
@@ -94,10 +100,16 @@ fn bench_matrix_operations(c: &mut Criterion) {
         let data1: Vec<Float32> = (0..size).map(|i| Float32::new(i as f32)).collect();
         let data2: Vec<Float32> = (0..size).map(|i| Float32::new((i + 1) as f32)).collect();
 
-        let matrix1 =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data1, &[rows, cols]).unwrap();
-        let matrix2 =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data2, &[rows, cols]).unwrap();
+        let matrix1 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            data1,
+            &[rows, cols],
+        )
+        .unwrap();
+        let matrix2 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            data2,
+            &[rows, cols],
+        )
+        .unwrap();
 
         group.bench_function(format!("matmul_{}x{}", rows, cols), |b| {
             b.iter(|| {
@@ -120,9 +132,11 @@ fn bench_elementwise_operations(c: &mut Criterion) {
         let data2: Vec<Float32> = (0..size).map(|i| Float32::new((i + 1) as f32)).collect();
 
         let tensor1 =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data1, &[size]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data1, &[size])
+                .unwrap();
         let tensor2 =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data2, &[size]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data2, &[size])
+                .unwrap();
 
         group.bench_function(format!("add_{}", size), |b| {
             b.iter(|| {
@@ -140,7 +154,8 @@ fn bench_elementwise_operations(c: &mut Criterion) {
 
         group.bench_function(format!("exp_{}", size), |b| {
             b.iter(|| {
-                let result = black_box(crate::ops::arithmetic::exp(&tensor1).unwrap());
+                let result =
+                    black_box(crate::coeus_tensor::ops::arithmetic::exp(&tensor1).unwrap());
                 assert_eq!(result.shape().dims(), &[size]);
             });
         });
@@ -156,8 +171,11 @@ fn bench_reduction_operations(c: &mut Criterion) {
 
     for &(total_size, reduce_size) in &sizes {
         let data: Vec<Float32> = (0..total_size).map(|i| Float32::new(i as f32)).collect();
-        let tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data, &[total_size]).unwrap();
+        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            data,
+            &[total_size],
+        )
+        .unwrap();
 
         group.bench_function(format!("sum_{}", total_size), |b| {
             b.iter(|| {
@@ -187,7 +205,11 @@ fn bench_memory_operations(c: &mut Criterion) {
             b.iter(|| {
                 let data: Vec<Float32> = (0..size).map(|i| Float32::new(i as f32)).collect();
                 let tensor = black_box(
-                    Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data, &[size]).unwrap()
+                    Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                        data,
+                        &[size],
+                    )
+                    .unwrap(),
                 );
                 assert_eq!(tensor.shape().dims(), &[size]);
             });
@@ -195,8 +217,11 @@ fn bench_memory_operations(c: &mut Criterion) {
 
         group.bench_function(format!("clone_tensor_{}", size), |b| {
             let data: Vec<Float32> = (0..size).map(|i| Float32::new(i as f32)).collect();
-            let tensor =
-                Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data, &[size]).unwrap();
+            let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                data,
+                &[size],
+            )
+            .unwrap();
 
             b.iter(|| {
                 let cloned = black_box(tensor.clone());
@@ -216,7 +241,8 @@ fn bench_simd_operations(c: &mut Criterion) {
     for &size in &sizes {
         let data: Vec<Float32> = (0..size).map(|i| Float32::new(i as f32)).collect();
         let tensor =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data, &[size]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[size])
+                .unwrap();
 
         group.bench_function(format!("add_simd_{}", size), |b| {
             b.iter(|| {

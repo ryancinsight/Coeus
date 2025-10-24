@@ -34,12 +34,12 @@ statrs = "0.4"
 proptest.workspace = true
 approx.workspace = true
 criterion.workspace = true
+pollster = "0.3"
 
 [[test]]
 name = "proptest"
 path = "tests/proptest.rs"
 harness = false
-pollster = "0.3"
 
 [[test]]
 name = "concurrency"

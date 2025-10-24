@@ -9,10 +9,10 @@ use coeus_nn::loss::mse_loss;
 
 fn test_sequential_dense() {
     // Test Sequential with dense storage
-    let mut seq = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
-    seq.add_module("linear".to_string(), Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 5).unwrap());
+    let mut seq = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
+    seq.add_module("linear".to_string(), Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap());
 
-    let input = coeus_tensor::Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 10]).unwrap();
+    let input = coeus_tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 10]).unwrap();
     let output = seq.forward(&input).unwrap();
     assert_eq!(output.shape().dims(), &[2, 5]);
 }
@@ -27,11 +27,11 @@ fn test_sequential_sparse() {
 
 fn test_loss_dense() {
     // Test loss functions with dense storage
-    let predictions = coeus_tensor::Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let predictions = coeus_tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(1.0), Float32::new(2.0)],
         &[2]
     ).unwrap();
-    let targets = coeus_tensor::Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let targets = coeus_tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(1.5), Float32::new(2.5)],
         &[2]
     ).unwrap();
@@ -46,3 +46,4 @@ fn main() {
     test_loss_dense();
     println!("All generic abstraction tests passed!");
 }
+

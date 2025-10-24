@@ -9,28 +9,39 @@
 
 use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
+use coeus_optim::{Optimizer, SGD};
 use coeus_storage::DenseStorage;
 use coeus_tensor::Tensor;
-use coeus_optim::{Optimizer, SGD};
 
-type TestTensor = Tensor<CpuBackend, DenseStorage<Float32>, Float32>;
+type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
 /// Helper to create a tensor with requires_grad=true
 fn tensor_with_grad(data: Vec<Float32>, dims: &[usize]) -> TestTensor {
-    TestTensor::from_vec(data, dims).unwrap().requires_grad_(true)
+    TestTensor::from_vec(data, dims)
+        .unwrap()
+        .requires_grad_(true)
 }
 
 #[test]
 fn test_sgd_basic() {
     // Test basic SGD without momentum
-    let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)], &[3]);
-    let grad = TestTensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2), Float32::new(0.3)], &[3]).unwrap();
+    let mut param = tensor_with_grad(
+        vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+        &[3],
+    );
+    let grad = TestTensor::from_vec(
+        vec![Float32::new(0.1), Float32::new(0.2), Float32::new(0.3)],
+        &[3],
+    )
+    .unwrap();
 
     // Set gradient manually (simulating backward pass)
     param.set_grad(grad).unwrap();
 
-    let mut optimizer = SGD::basic(0.1).unwrap();
-    optimizer.add_param(&mut param).unwrap();
+    let mut optimizer = SGD::new(0.1, 0.0, 0.0, 0.0, false);
+    optimizer
+        .add_param(&mut param, "param".to_string())
+        .unwrap();
 
     let updated = optimizer.step().unwrap();
     assert_eq!(updated, 1);
@@ -48,11 +59,15 @@ fn test_sgd_momentum() {
     // Test SGD with momentum
     let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
 
-    let mut optimizer = SGD::with_momentum(0.1, 0.9).unwrap();
-    optimizer.add_param(&mut param).unwrap();
+    let mut optimizer = SGD::with_momentum(0.1, 0.9);
+    optimizer
+        .add_param(&mut param, "param".to_string())
+        .unwrap();
 
     // First step: grad = [1.0, 1.0]
-    param.set_grad(TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(1.0)], &[2]).unwrap()).unwrap();
+    param
+        .set_grad(TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(1.0)], &[2]).unwrap())
+        .unwrap();
     optimizer.step().unwrap();
 
     // v = 0.9 * 0 + 1.0 * [1.0, 1.0] = [1.0, 1.0]
@@ -62,7 +77,9 @@ fn test_sgd_momentum() {
     assert!((data[1].get() - 1.9).abs() < 1e-6);
 
     // Second step: grad = [1.0, 1.0] (same gradient)
-    param.set_grad(TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(1.0)], &[2]).unwrap()).unwrap();
+    param
+        .set_grad(TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(1.0)], &[2]).unwrap())
+        .unwrap();
     optimizer.step().unwrap();
 
     // v = 0.9 * [1.0, 1.0] + 1.0 * [1.0, 1.0] = [1.9, 1.9]
@@ -79,8 +96,10 @@ fn test_sgd_weight_decay() {
     let grad = TestTensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2)], &[2]).unwrap();
     param.set_grad(grad).unwrap();
 
-    let mut optimizer = SGD::new(0.1, 0.0, 0.01, 0.0, false).unwrap();
-    optimizer.add_param(&mut param).unwrap();
+    let mut optimizer = SGD::new(0.1, 0.0, 0.01, 0.0, false);
+    optimizer
+        .add_param(&mut param, "param".to_string())
+        .unwrap();
 
     optimizer.step().unwrap();
 
@@ -96,11 +115,15 @@ fn test_sgd_nesterov() {
     // Test SGD with Nesterov momentum
     let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
 
-    let mut optimizer = SGD::new(0.1, 0.9, 0.0, 0.0, true).unwrap();
-    optimizer.add_param(&mut param).unwrap();
+    let mut optimizer = SGD::new(0.1, 0.9, 0.0, 0.0, true);
+    optimizer
+        .add_param(&mut param, "param".to_string())
+        .unwrap();
 
     // First step
-    param.set_grad(TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(1.0)], &[2]).unwrap()).unwrap();
+    param
+        .set_grad(TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(1.0)], &[2]).unwrap())
+        .unwrap();
     optimizer.step().unwrap();
 
     // v = 0.9 * 0 + 1.0 * [1.0, 1.0] = [1.0, 1.0]
@@ -115,10 +138,14 @@ fn test_sgd_nesterov() {
 fn test_sgd_zero_grad() {
     // Test that zero_grad clears gradients
     let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
-    param.set_grad(TestTensor::from_vec(vec![Float32::new(0.5), Float32::new(0.5)], &[2]).unwrap()).unwrap();
+    param
+        .set_grad(TestTensor::from_vec(vec![Float32::new(0.5), Float32::new(0.5)], &[2]).unwrap())
+        .unwrap();
 
-    let mut optimizer = SGD::basic(0.1).unwrap();
-    optimizer.add_param(&mut param).unwrap();
+    let mut optimizer = SGD::new(0.1, 0.0, 0.0, 0.0, false);
+    optimizer
+        .add_param(&mut param, "param".to_string())
+        .unwrap();
 
     optimizer.zero_grad();
 
@@ -132,8 +159,10 @@ fn test_sgd_no_grad() {
     let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
     // Don't set gradient
 
-    let mut optimizer = SGD::basic(0.1).unwrap();
-    optimizer.add_param(&mut param).unwrap();
+    let mut optimizer = SGD::new(0.1, 0.0, 0.0, 0.0, false);
+    optimizer
+        .add_param(&mut param, "param".to_string())
+        .unwrap();
 
     let updated = optimizer.step().unwrap();
     assert_eq!(updated, 0); // No parameters updated
@@ -147,7 +176,7 @@ fn test_sgd_no_grad() {
 #[test]
 fn test_sgd_learning_rate() {
     // Test learning rate getter/setter
-    let mut optimizer: SGD<CpuBackend, DenseStorage<Float32>, Float32> = SGD::basic(0.1).unwrap();
+    let mut optimizer: SGD<CpuBackend<Float32>, Float32> = SGD::new(0.1, 0.0, 0.0, 0.0, false);
     assert_eq!(optimizer.learning_rate(), 0.1);
 
     optimizer.set_learning_rate(0.01).unwrap();
@@ -164,8 +193,10 @@ fn test_sgd_requires_grad() {
     let mut param = TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
     // Don't set requires_grad
 
-    let mut optimizer = SGD::basic(0.1).unwrap();
-    assert!(optimizer.add_param(&mut param).is_err());
+    let mut optimizer = SGD::new(0.1, 0.0, 0.0, 0.0, false);
+    assert!(optimizer
+        .add_param(&mut param, "param".to_string())
+        .is_err());
 }
 
 #[test]
@@ -174,12 +205,20 @@ fn test_sgd_multiple_params() {
     let mut param1 = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
     let mut param2 = tensor_with_grad(vec![Float32::new(3.0), Float32::new(4.0)], &[2]);
 
-    param1.set_grad(TestTensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2)], &[2]).unwrap()).unwrap();
-    param2.set_grad(TestTensor::from_vec(vec![Float32::new(0.3), Float32::new(0.4)], &[2]).unwrap()).unwrap();
+    param1
+        .set_grad(TestTensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2)], &[2]).unwrap())
+        .unwrap();
+    param2
+        .set_grad(TestTensor::from_vec(vec![Float32::new(0.3), Float32::new(0.4)], &[2]).unwrap())
+        .unwrap();
 
-    let mut optimizer = SGD::basic(0.1).unwrap();
-    optimizer.add_param(&mut param1).unwrap();
-    optimizer.add_param(&mut param2).unwrap();
+    let mut optimizer = SGD::new(0.1, 0.0, 0.0, 0.0, false);
+    optimizer
+        .add_param(&mut param1, "param1".to_string())
+        .unwrap();
+    optimizer
+        .add_param(&mut param2, "param2".to_string())
+        .unwrap();
 
     let updated = optimizer.step().unwrap();
     assert_eq!(updated, 2);
@@ -201,11 +240,15 @@ fn test_sgd_dampening() {
     let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
 
     // momentum=0.9, dampening=0.5
-    let mut optimizer = SGD::new(0.1, 0.9, 0.0, 0.5, false).unwrap();
-    optimizer.add_param(&mut param).unwrap();
+    let mut optimizer = SGD::new(0.1, 0.9, 0.0, 0.5, false);
+    optimizer
+        .add_param(&mut param, "param".to_string())
+        .unwrap();
 
     // First step
-    param.set_grad(TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(1.0)], &[2]).unwrap()).unwrap();
+    param
+        .set_grad(TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(1.0)], &[2]).unwrap())
+        .unwrap();
     optimizer.step().unwrap();
 
     // v = 0.9 * 0 + (1 - 0.5) * [1.0, 1.0] = [0.5, 0.5]
@@ -221,8 +264,10 @@ fn test_sgd_convergence() {
     // f(x) = x^2, gradient = 2x, minimum at x=0
     let mut param = tensor_with_grad(vec![Float32::new(10.0)], &[1]);
 
-    let mut optimizer = SGD::basic(0.1).unwrap();
-    optimizer.add_param(&mut param).unwrap();
+    let mut optimizer = SGD::new(0.1, 0.0, 0.0, 0.0, false);
+    optimizer
+        .add_param(&mut param, "param".to_string())
+        .unwrap();
 
     // Run 100 steps
     for _ in 0..100 {
@@ -236,6 +281,9 @@ fn test_sgd_convergence() {
 
     // Should converge close to 0
     let final_x = param.as_slice()[0].get();
-    assert!(final_x.abs() < 0.1, "SGD should converge to minimum, got {}", final_x);
+    assert!(
+        final_x.abs() < 0.1,
+        "SGD should converge to minimum, got {}",
+        final_x
+    );
 }
-

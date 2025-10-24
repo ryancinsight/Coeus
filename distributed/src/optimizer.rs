@@ -6,37 +6,41 @@
 use crate::error::Result;
 use crate::process_group::ProcessGroup;
 use crate::reducer::GradientReducer;
-use coeus_backend::CpuBackend;
-use coeus_dtype::traits::FloatExt;
-use coeus_nn::Parameter;
+use coeus_dtype::float::Float32;
 use coeus_optim::Optimizer;
-use coeus_storage::DenseStorage;
+use coeus_tensor::Tensor;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Distributed optimizer wrapper
 ///
 /// This wraps any optimizer to add distributed gradient synchronization.
 /// Gradients are accumulated across all devices before optimizer updates.
+/// Currently constrained to Float32 dtype for distributed training compatibility.
 #[derive(Debug)]
-pub struct DistributedOptimizer<O, B, S, T> {
+pub struct DistributedOptimizer<O, B, S> {
     /// The underlying optimizer
     optimizer: O,
     /// Process group for communication
-    process_group: ProcessGroup,
+    process_group: Arc<ProcessGroup>,
     /// Gradient reducer for synchronization
     gradient_reducer: GradientReducer,
     /// Step counter for synchronization
     step_count: usize,
     /// Phantom data for type parameters
-    _phantom: std::marker::PhantomData<(B, S, T)>,
+    _phantom: std::marker::PhantomData<(B, S)>,
 }
 
-impl<O, B, S, T> DistributedOptimizer<O, B, S, T>
+impl<O, B, S> DistributedOptimizer<O, B, S>
 where
-    O: Optimizer<B, S, T>,
+    O: Optimizer<B, S, Float32>,
     B: Send + Sync + coeus_backend::Backend,
-    S: Send + Sync + coeus_storage::Storage<T> + 'static,
-    T: Send + Sync + coeus_dtype::DataType + FloatExt,
+    S: Send
+        + Sync
+        + coeus_storage::Storage<Float32>
+        + Clone
+        + coeus_storage::StorageFromVec<Float32>
+        + 'static,
 {
     /// Create a new distributed optimizer wrapper
     ///
@@ -45,10 +49,10 @@ where
     /// * `rank` - This process's rank in the distributed group
     /// * `world_size` - Total number of processes in the group
     pub fn new(optimizer: O, rank: usize, world_size: usize) -> Result<Self> {
-        let process_group = ProcessGroup::new(
+        let process_group = Arc::new(ProcessGroup::new(
             crate::process_group::Rank(rank),
             crate::process_group::WorldSize(world_size),
-        )?;
+        )?);
         let gradient_reducer = GradientReducer::new(process_group.clone());
 
         Ok(Self {
@@ -102,10 +106,26 @@ where
             synced_gradients.insert(name.clone(), reduced_grads);
         }
 
-        // Delegate to the underlying optimizer with synchronized gradients
-        // Note: In a real implementation, this would need to be adapted
-        // to work with the specific optimizer's step interface
-        // For now, this is a conceptual implementation
+        // Apply synchronized gradients to the underlying optimizer
+        // For each parameter in the optimizer, set its gradient to the synchronized version
+        let optimizer_params = self.optimizer.parameters();
+        for (i, parameter) in optimizer_params.into_iter().enumerate() {
+            if let Some(grad_data) = synced_gradients.get(&format!("param_{}", i)) {
+                // Convert the synchronized gradient data back to tensor format
+                let float32_data: Vec<Float32> =
+                    grad_data.iter().map(|&x| Float32::new(x)).collect();
+                // Create gradient tensor using the same backend as the parameter
+                let grad_tensor = Tensor::from_vec_with_backend(
+                    float32_data,
+                    parameter.shape().dims(),
+                    parameter.backend().clone(),
+                )?;
+                parameter.set_grad(grad_tensor)?;
+            }
+        }
+
+        // Perform the optimization step with synchronized gradients
+        self.optimizer.step()?;
 
         Ok(None)
     }
@@ -131,13 +151,23 @@ where
     }
 }
 
-impl<O, B, S, T> DistributedOptimizer<O, B, S, T> {
+impl<O, B, S> DistributedOptimizer<O, B, S>
+where
+    O: Optimizer<B, S, Float32>,
+    B: Send + Sync + coeus_backend::Backend,
+    S: Send
+        + Sync
+        + coeus_storage::Storage<Float32>
+        + Clone
+        + coeus_storage::StorageFromVec<Float32>
+        + 'static,
+{
     /// Create from existing process group (for advanced usage)
     ///
     /// # Arguments
     /// * `optimizer` - The base optimizer to wrap
     /// * `process_group` - Pre-configured process group
-    pub fn with_process_group(optimizer: O, process_group: ProcessGroup) -> Self {
+    pub fn with_process_group(optimizer: O, process_group: Arc<ProcessGroup>) -> Self {
         let gradient_reducer = GradientReducer::new(process_group.clone());
 
         Self {
@@ -154,7 +184,9 @@ impl<O, B, S, T> DistributedOptimizer<O, B, S, T> {
 mod tests {
     use super::*;
     use crate::process_group::{Rank, WorldSize};
+    use coeus_backend::CpuBackend;
     use coeus_dtype::float::Float32;
+    use coeus_storage::DenseStorage;
 
     // Mock optimizer for testing
     #[derive(Debug)]
@@ -166,27 +198,86 @@ mod tests {
         }
     }
 
-    impl Optimizer<CpuBackend, DenseStorage<Float32>, Float32> for MockOptimizer {
-        fn step(&mut self) -> coeus_optim::Result<usize> {
-            Ok(0)
+    impl Optimizer<CpuBackend<Float32>, DenseStorage<Float32>, Float32> for MockOptimizer {
+        fn name(&self) -> &str {
+            "MockOptimizer"
+        }
+
+        fn parameters(&self) -> Vec<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
+            vec![]
+        }
+
+        fn named_parameters(
+            &self,
+        ) -> std::collections::HashMap<
+            String,
+            Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+        > {
+            std::collections::HashMap::new()
+        }
+
+        fn add_param(
+            &mut self,
+            _param: &mut Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+            _name: String,
+        ) -> std::result::Result<(), coeus_optim::error::OptimError> {
+            // No-op for mock
+            Ok(())
+        }
+
+        fn remove_param(&mut self, _name: &str) {
+            // No-op for mock
+        }
+
+        fn has_param(&self, _name: &str) -> bool {
+            false
+        }
+
+        fn lr(&self) -> f64 {
+            0.01
+        }
+
+        fn set_lr(&mut self, _lr: f64) -> std::result::Result<(), coeus_optim::error::OptimError> {
+            // No-op for mock
+            Ok(())
+        }
+
+        fn weight_decay(&self) -> f64 {
+            0.0
+        }
+
+        fn set_weight_decay(
+            &mut self,
+            _weight_decay: f64,
+        ) -> std::result::Result<(), coeus_optim::error::OptimError> {
+            // No-op for mock
+            Ok(())
         }
 
         fn zero_grad(&mut self) {
             // No-op for mock
         }
 
-        fn add_param(
+        fn step(&mut self) -> std::result::Result<usize, coeus_optim::error::OptimError> {
+            Ok(1) // Mock step count
+        }
+
+        fn state_dict(
+            &self,
+        ) -> std::collections::HashMap<
+            String,
+            Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+        > {
+            std::collections::HashMap::new()
+        }
+
+        fn load_state_dict(
             &mut self,
-            _param: &mut coeus_nn::Parameter<CpuBackend, DenseStorage<Float32>, Float32>,
-        ) -> coeus_optim::Result<()> {
-            Ok(())
-        }
-
-        fn learning_rate(&self) -> f64 {
-            0.01
-        }
-
-        fn set_learning_rate(&mut self, _lr: f64) -> coeus_optim::Result<()> {
+            _state_dict: std::collections::HashMap<
+                String,
+                Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+            >,
+        ) -> std::result::Result<(), coeus_optim::error::OptimError> {
             Ok(())
         }
     }

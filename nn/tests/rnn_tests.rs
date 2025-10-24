@@ -4,16 +4,20 @@
 
 use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
-use coeus_nn::{RNN, LSTM, GRU, Module};
+use coeus_nn::{Module, GRU, LSTM, RNN};
 use coeus_storage::DenseStorage;
 use coeus_tensor::Tensor;
 
 #[test]
 fn test_rnn_basic_forward() {
-    let rnn = RNN::<CpuBackend, DenseStorage<Float32>, Float32>::new(4, 2, 1, true, false, false).unwrap();
+    let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        4, 2, 1, true, false, false,
+    )
+    .unwrap();
 
     // Input: [seq_len=3, batch_size=1, input_size=4]
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[3, 1, 4]).unwrap();
+    let input =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[3, 1, 4]).unwrap();
 
     let output = rnn.forward(&input).unwrap();
 
@@ -23,7 +27,10 @@ fn test_rnn_basic_forward() {
 
 #[test]
 fn test_rnn_parameters() {
-    let rnn = RNN::<CpuBackend, DenseStorage<Float32>, Float32>::new(3, 2, 1, true, false, false).unwrap();
+    let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        3, 2, 1, true, false, false,
+    )
+    .unwrap();
 
     let params = rnn.parameters();
 
@@ -36,16 +43,20 @@ fn test_rnn_parameters() {
 
     assert_eq!(params[0].data().shape().dims(), &[2, 3]); // weight_ih
     assert_eq!(params[1].data().shape().dims(), &[2, 2]); // weight_hh
-    assert_eq!(params[2].data().shape().dims(), &[2]);    // bias_ih
-    assert_eq!(params[3].data().shape().dims(), &[2]);    // bias_hh
+    assert_eq!(params[2].data().shape().dims(), &[2]); // bias_ih
+    assert_eq!(params[3].data().shape().dims(), &[2]); // bias_hh
 }
 
 #[test]
 fn test_lstm_forward() {
-    let lstm = LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(4, 2, 1, true, false, false).unwrap();
+    let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        4, 2, 1, true, false, false,
+    )
+    .unwrap();
 
     // Input: [seq_len=2, batch_size=1, input_size=4]
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 1, 4]).unwrap();
+    let input =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 1, 4]).unwrap();
 
     let output = lstm.forward(&input).unwrap();
 
@@ -55,7 +66,10 @@ fn test_lstm_forward() {
 
 #[test]
 fn test_lstm_parameters() {
-    let lstm = LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(3, 2, 1, true, false, false).unwrap();
+    let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        3, 2, 1, true, false, false,
+    )
+    .unwrap();
 
     let params = lstm.parameters();
 
@@ -69,10 +83,14 @@ fn test_lstm_parameters() {
 
 #[test]
 fn test_gru_forward() {
-    let gru = GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(4, 2, 1, true, false, false).unwrap();
+    let gru = GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        4, 2, 1, true, false, false,
+    )
+    .unwrap();
 
     // Input: [seq_len=2, batch_size=1, input_size=4]
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 1, 4]).unwrap();
+    let input =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 1, 4]).unwrap();
 
     let output = gru.forward(&input).unwrap();
 
@@ -82,7 +100,10 @@ fn test_gru_forward() {
 
 #[test]
 fn test_gru_parameters() {
-    let gru = GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(3, 2, 1, true, false, false).unwrap();
+    let gru = GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        3, 2, 1, true, false, false,
+    )
+    .unwrap();
 
     let params = gru.parameters();
 
@@ -96,10 +117,13 @@ fn test_gru_parameters() {
 
 #[test]
 fn test_rnn_bidirectional() {
-    let rnn = RNN::<CpuBackend, DenseStorage<Float32>, Float32>::new(4, 2, 1, true, false, true).unwrap();
+    let rnn =
+        RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(4, 2, 1, true, false, true)
+            .unwrap();
 
     // Input: [seq_len=2, batch_size=1, input_size=4]
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 1, 4]).unwrap();
+    let input =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 1, 4]).unwrap();
 
     let output = rnn.forward(&input).unwrap();
 
@@ -110,10 +134,14 @@ fn test_rnn_bidirectional() {
 
 #[test]
 fn test_rnn_multiple_layers() {
-    let rnn = RNN::<CpuBackend, DenseStorage<Float32>, Float32>::new(4, 2, 2, true, false, false).unwrap();
+    let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        4, 2, 2, true, false, false,
+    )
+    .unwrap();
 
     // Input: [seq_len=2, batch_size=1, input_size=4]
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 1, 4]).unwrap();
+    let input =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 1, 4]).unwrap();
 
     let output = rnn.forward(&input).unwrap();
 
@@ -124,10 +152,13 @@ fn test_rnn_multiple_layers() {
 
 #[test]
 fn test_rnn_batch_first() {
-    let rnn = RNN::<CpuBackend, DenseStorage<Float32>, Float32>::new(4, 2, 1, true, true, false).unwrap();
+    let rnn =
+        RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(4, 2, 1, true, true, false)
+            .unwrap();
 
     // Input: [batch_size=1, seq_len=2, input_size=4] (batch_first=True)
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 2, 4]).unwrap();
+    let input =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 2, 4]).unwrap();
 
     let output = rnn.forward(&input).unwrap();
 
@@ -137,12 +168,22 @@ fn test_rnn_batch_first() {
 
 #[test]
 fn test_rnn_gradient_flow() {
-    let rnn = RNN::<CpuBackend, DenseStorage<Float32>, Float32>::new(2, 1, 1, true, false, false).unwrap();
+    let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        2, 1, 1, true, false, false,
+    )
+    .unwrap();
 
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+        ],
         &[2, 1, 2], // [seq_len=2, batch_size=1, input_size=2]
-    ).unwrap().requires_grad_(true);
+    )
+    .unwrap()
+    .requires_grad_(true);
 
     let output = rnn.forward(&input).unwrap();
 

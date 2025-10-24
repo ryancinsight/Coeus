@@ -2,12 +2,14 @@
 
 use std::collections::HashMap;
 
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{DataType, float::Float32};
-use coeus_storage::{Storage, DenseStorage};
+use coeus_backend::Backend;
+use coeus_dtype::DataType;
+use coeus_storage::{Storage, StorageFromVec};
 use coeus_tensor::Tensor;
 
-use crate::error::{NNError, Result};
+#[cfg(feature = "safetensors")]
+use crate::error::NNError;
+use crate::error::Result;
 use crate::parameter::Parameter;
 
 /// Core trait for neural network modules.
@@ -29,24 +31,24 @@ use crate::parameter::Parameter;
 /// use coeus_backend::CpuBackend;
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
-/// 
+///
 ///
 /// struct MyModule {
-///     weight: Parameter<CpuBackend, DenseStorage<Float32>, Float32>,
+///     weight: Parameter<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
 /// }
 ///
-/// impl Module<CpuBackend, DenseStorage<Float32>, Float32> for MyModule {
-///     fn forward(&self, input: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>)
-///         -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, error::NNError> {
+/// impl Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32> for MyModule {
+///     fn forward(&self, input: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>)
+///         -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, error::NNError> {
 ///         // Implementation here
 ///         Ok(Tensor::zeros(&input.shape().dims())?) // Placeholder
 ///     }
 ///
-///     fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<Float32>, Float32>> {
+///     fn parameters(&self) -> Vec<Parameter<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
 ///         vec![self.weight.clone()]
 ///     }
 ///
-///     fn modules(&self) -> Vec<&dyn Module<CpuBackend, DenseStorage<Float32>, Float32>> {
+///     fn modules(&self) -> Vec<&dyn Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
 ///         vec![]
 ///     }
 ///
@@ -63,10 +65,10 @@ use crate::parameter::Parameter;
 ///     }
 /// }
 /// ```
-pub trait Module<B, S, T>
+pub trait Module<B, S, T>: core::fmt::Debug + std::any::Any
 where
     B: Backend + Clone,
-    S: Storage<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
     /// Perform forward pass through the module.
@@ -76,10 +78,7 @@ where
     ///
     /// # Returns
     /// Result containing the output tensor, or an error if the forward pass fails.
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>>;
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>;
 
     /// Get all learnable parameters in this module.
     ///
@@ -128,10 +127,28 @@ where
     fn child_module_names(&self) -> Vec<(usize, String)> {
         Vec::new() // Default: no custom names
     }
+
+    /// Get this module as an Any trait object for downcasting.
+    ///
+    /// This is used for runtime type checking and downcasting to concrete module types.
+    ///
+    /// # Returns
+    /// This module as a trait object that can be downcast.
+    fn as_any(&self) -> &dyn std::any::Any
+    where
+        Self: Sized,
+    {
+        self as &dyn std::any::Any
+    }
 }
 
 /// Extension methods for Module trait.
-pub trait ModuleExt<B: Backend + Clone, S: Storage<T> + Clone + 'static, T: DataType>: Module<B, S, T> {
+pub trait ModuleExt<
+    B: Backend + Clone,
+    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    T: DataType,
+>: Module<B, S, T>
+{
     /// Count total number of parameters in this module.
     ///
     /// # Returns
@@ -162,7 +179,14 @@ pub trait ModuleExt<B: Backend + Clone, S: Storage<T> + Clone + 'static, T: Data
 }
 
 // Auto-implement ModuleExt for all Module implementors
-impl<B: Backend + Clone, S: Storage<T> + Clone + 'static, T: DataType, M: Module<B, S, T>> ModuleExt<B, S, T> for M {}
+impl<
+        B: Backend + Clone,
+        S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+        T: DataType,
+        M: Module<B, S, T>,
+    > ModuleExt<B, S, T> for M
+{
+}
 
 /// State dictionary for serializing and deserializing model parameters.
 ///
@@ -184,7 +208,7 @@ pub type StateDict<T> = HashMap<String, Vec<T>>;
 /// use std::path::Path;
 ///
 /// // Create and train a model
-/// let mut model = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
+/// let mut model = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
 ///
 /// // Get current parameters
 /// let state_dict = model.state_dict();
@@ -194,12 +218,16 @@ pub type StateDict<T> = HashMap<String, Vec<T>>;
 /// model.save(Path::new("model.json")).unwrap();
 ///
 /// // Load from file
-/// let mut new_model = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
+/// let mut new_model = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
 /// new_model.load(Path::new("model.json")).unwrap();
 /// # std::fs::remove_file("model.json").ok(); // Cleanup
 /// ```
-pub trait ModuleSerialize<B: Backend + Clone + std::default::Default, S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T>, T: DataType + serde::Serialize + serde::de::DeserializeOwned>:
-    Module<B, S, T>
+#[cfg(feature = "safetensors")]
+pub trait ModuleSerialize<
+    B: Backend + Clone + std::default::Default,
+    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T>,
+    T: DataType + serde::Serialize + serde::de::DeserializeOwned,
+>: Module<B, S, T>
 {
     /// Recursively collect parameters from this module and submodules.
     ///
@@ -233,7 +261,13 @@ pub trait ModuleSerialize<B: Backend + Clone + std::default::Default, S: Storage
             } else {
                 format!("{}.{}", prefix, param.name())
             };
-            state.insert(full_name, (param.data().as_slice().to_vec(), param.data().shape().dims().to_vec()));
+            state.insert(
+                full_name,
+                (
+                    param.data().as_slice().to_vec(),
+                    param.data().shape().dims().to_vec(),
+                ),
+            );
         }
     }
     /// Get the state dictionary containing all learnable parameters.
@@ -277,16 +311,18 @@ pub trait ModuleSerialize<B: Backend + Clone + std::default::Default, S: Storage
     ///
     /// # Returns
     /// Result indicating success or failure of the load operation.
-    fn load_state_dict_with_prefix(&mut self, prefix: &str, state_dict: &StateDict<T>) -> Result<()> {
+    fn load_state_dict_with_prefix(
+        &mut self,
+        prefix: &str,
+        state_dict: &StateDict<T>,
+    ) -> Result<()> {
         let modules = self.modules();
 
         // If this module has submodules, only load from them (not from self.parameters())
         // to avoid duplicates, since self.parameters() includes submodule parameters
         if !modules.is_empty() {
-            // This is a simplified implementation for the trait
-            // Real implementation would need mutable access to submodules
-            // For now, this is a placeholder that needs to be implemented properly
-            // in concrete module types
+            // Trait-level implementation is limited - concrete module types
+            // should override this method for proper submodule parameter loading
             Ok(())
         } else {
             // Leaf module: load its own parameters
@@ -405,7 +441,6 @@ pub trait ModuleSerialize<B: Backend + Clone + std::default::Default, S: Storage
     }
 }
 
-
 /// Helper macro for implementing Module trait.
 ///
 /// This macro reduces boilerplate when implementing the Module trait
@@ -436,12 +471,12 @@ macro_rules! module {
             }
 
             /// Get all parameters in this module.
-            pub fn parameters(&self) -> Vec<&dyn crate::parameter::ParameterTrait> {
+            pub fn parameters(&self) -> Vec<&dyn $crate::parameter::ParameterTrait> {
                 vec![] // Default: no parameters
             }
 
             /// Get mutable references to all parameters.
-            pub fn parameters_mut(&mut self) -> Vec<&mut dyn crate::parameter::ParameterTrait> {
+            pub fn parameters_mut(&mut self) -> Vec<&mut dyn $crate::parameter::ParameterTrait> {
                 vec![] // Default: no parameters
             }
 
@@ -472,24 +507,13 @@ macro_rules! module {
 mod tests {
     use super::*;
     use crate::error::NNError;
-use coeus_tensor::Tensor;
-    use std::collections::HashMap;
-
-    // Mock storage and backend for testing
-    struct MockStorage<T> {
-        data: Vec<T>,
-        shape: Vec<usize>,
-    }
-
-    impl<T> MockStorage<T> {
-        fn new(data: Vec<T>, shape: Vec<usize>) -> Self {
-            Self { data, shape }
-        }
-    }
-
-    struct MockBackend;
+    use coeus_backend::CpuBackend;
+    use coeus_dtype::float::Float32;
+    use coeus_storage::DenseStorage;
+    use coeus_tensor::Tensor;
 
     // Mock parameter for testing
+    #[derive(Debug)]
     struct MockParameter {
         name: String,
         data: Vec<f32>,
@@ -502,27 +526,14 @@ use coeus_tensor::Tensor;
                 data,
             }
         }
-    }
-
-    impl crate::parameter::ParameterTrait for MockParameter {
-        fn name(&self) -> &str {
-            &self.name
-        }
-
-        fn data(&self) -> &[f32] {
-            &self.data
-        }
-
-        fn data_mut(&mut self) -> &mut [f32] {
-            &mut self.data
-        }
 
         fn zero_grad(&mut self) {
-            // Mock implementation
+            // Mock implementation - do nothing
         }
     }
 
     // Mock module for testing
+    #[derive(Debug)]
     struct MockModule {
         param1: MockParameter,
         param2: MockParameter,
@@ -537,25 +548,31 @@ use coeus_tensor::Tensor;
         }
     }
 
-    impl Module<MockBackend, MockStorage<f32>, f32> for MockModule {
+    impl Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32> for MockModule {
         fn forward(
             &self,
-            _input: &crate::Tensor<MockBackend, MockStorage<f32>, f32>,
-        ) -> Result<crate::Tensor<MockBackend, MockStorage<f32>, f32>, NNError> {
+            _input: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+        ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
             // Mock implementation
             Err(NNError::InvalidInput {
                 message: "Mock forward not implemented".to_string(),
             })
         }
 
-        fn parameters(&self) -> Vec<crate::Parameter<MockBackend, MockStorage<f32>, f32>> {
+        fn parameters(
+            &self,
+        ) -> Vec<crate::Parameter<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
             vec![
                 crate::Parameter::new(
-                    crate::Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3]).unwrap(),
+                    Tensor::from_vec(
+                        vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+                        &[3],
+                    )
+                    .unwrap(),
                     "param1".to_string(),
                 ),
                 crate::Parameter::new(
-                    crate::Tensor::from_vec(vec![4.0, 5.0], &[2]).unwrap(),
+                    Tensor::from_vec(vec![Float32::new(4.0), Float32::new(5.0)], &[2]).unwrap(),
                     "param2".to_string(),
                 ),
             ]

@@ -22,14 +22,11 @@
 
 use std::time::{Duration, Instant};
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::{traits::FloatExt, float::Float32, num_traits::ToPrimitive};
-use coeus_storage::{Storage, StorageFromVec, DenseStorage};
+use coeus_dtype::float::Float32;
+use coeus_nn::{functional::mse_loss, Linear, Module, ReLU, Sequential};
+use coeus_storage::DenseStorage;
+use coeus_tensor::CpuBackend;
 use coeus_tensor::Tensor;
-use coeus_nn::{
-    Module, Sequential, Linear, ReLU, MultiHeadAttention,
-    SparseAttention, functional::mse_loss
-};
 
 /// Result type for integration tests
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -48,15 +45,18 @@ fn test_sparse_neural_network_integration() -> Result<()> {
 
     // Test configuration
     let batch_size = 32;
-    let seq_len = 128;
+    let _seq_len = 128;
     let embed_dim = 256;
     let hidden_dim = 512;
-    let num_heads = 8;
+    let _num_heads = 8;
     let num_classes = 10;
 
     // Create test input data for MLP (batch_size, input_dim)
     let input_data = create_test_input(batch_size, embed_dim)?;
-    println!("✓ Created test input: shape [{}, {}]", batch_size, embed_dim);
+    println!(
+        "✓ Created test input: shape [{}, {}]",
+        batch_size, embed_dim
+    );
 
     // ============================================================================
     // Test 1: Sparse MLP Network Construction and Forward Pass
@@ -65,11 +65,17 @@ fn test_sparse_neural_network_integration() -> Result<()> {
 
     // Build dense MLP
     let dense_mlp = create_dense_mlp(embed_dim, hidden_dim, num_classes)?;
-    println!("✓ Built dense MLP: {} -> {} -> {}", embed_dim, hidden_dim, num_classes);
+    println!(
+        "✓ Built dense MLP: {} -> {} -> {}",
+        embed_dim, hidden_dim, num_classes
+    );
 
     // Build sparse MLP with sparse weight matrices
     let sparse_mlp = create_sparse_mlp(embed_dim, hidden_dim, num_classes, 0.8)?;
-    println!("✓ Built sparse MLP: {} -> {} -> {} (80% sparsity)", embed_dim, hidden_dim, num_classes);
+    println!(
+        "✓ Built sparse MLP: {} -> {} -> {} (80% sparsity)",
+        embed_dim, hidden_dim, num_classes
+    );
 
     // Forward pass comparison
     let dense_output = dense_mlp.forward(&input_data)?;
@@ -79,8 +85,11 @@ fn test_sparse_neural_network_integration() -> Result<()> {
     println!("✓ Sparse output shape: {:?}", sparse_output.shape().dims());
 
     // Validate output shapes match
-    assert_eq!(dense_output.shape().dims(), sparse_output.shape().dims(),
-        "Dense and sparse outputs must have same shape");
+    assert_eq!(
+        dense_output.shape().dims(),
+        sparse_output.shape().dims(),
+        "Dense and sparse outputs must have same shape"
+    );
 
     // ============================================================================
     // Test 2: Sparse Network with Different Sparsity Levels
@@ -103,7 +112,11 @@ fn test_sparse_neural_network_integration() -> Result<()> {
     }
 
     println!("✓ Overall max difference: {:.6}", max_diff);
-    assert!(max_diff < 1e-2, "Numerical differences should be small: max_diff = {}", max_diff);
+    assert!(
+        max_diff < 1e-2,
+        "Numerical differences should be small: max_diff = {}",
+        max_diff
+    );
 
     // ============================================================================
     // Test 3: Memory Usage Validation
@@ -151,8 +164,11 @@ fn test_sparse_neural_network_integration() -> Result<()> {
 
     // Validate losses are reasonably close (allowing for numerical differences)
     let loss_diff = (dense_loss - sparse_loss).abs();
-    assert!(loss_diff < 1e-3, "Losses should be numerically close: diff = {}", loss_diff);
-
+    assert!(
+        loss_diff < 1e-3,
+        "Losses should be numerically close: diff = {}",
+        loss_diff
+    );
 
     println!("\n🎉 All Sparse Neural Network Integration Tests Passed!");
     println!("======================================================");
@@ -167,7 +183,10 @@ fn test_sparse_neural_network_integration() -> Result<()> {
 }
 
 /// Create test input data for neural network evaluation
-fn create_test_input(batch_size: usize, features: usize) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>> {
+fn create_test_input(
+    batch_size: usize,
+    features: usize,
+) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
     // Create deterministic but varied input data
     let total_elements = batch_size * features;
     let mut data = Vec::with_capacity(total_elements);
@@ -182,7 +201,10 @@ fn create_test_input(batch_size: usize, features: usize) -> Result<Tensor<CpuBac
 }
 
 /// Create training targets for loss computation
-fn create_training_targets(batch_size: usize, num_classes: usize) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>> {
+fn create_training_targets(
+    batch_size: usize,
+    num_classes: usize,
+) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
     let mut data = Vec::with_capacity(batch_size * num_classes);
 
     for i in 0..batch_size {
@@ -202,11 +224,12 @@ fn create_dense_mlp(
     input_dim: usize,
     hidden_dim: usize,
     output_dim: usize,
-) -> Result<Sequential<CpuBackend, DenseStorage<Float32>, Float32>> {
+) -> Result<Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
     let mut mlp = Sequential::new();
 
     // Input layer
-    let linear1 = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(input_dim, hidden_dim)?;
+    let linear1 =
+        Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(input_dim, hidden_dim)?;
     mlp.add_module("linear1".to_string(), linear1);
 
     // Activation
@@ -214,7 +237,8 @@ fn create_dense_mlp(
     mlp.add_module("relu".to_string(), relu);
 
     // Output layer
-    let linear2 = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(hidden_dim, output_dim)?;
+    let linear2 =
+        Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(hidden_dim, output_dim)?;
     mlp.add_module("linear2".to_string(), linear2);
 
     Ok(mlp)
@@ -225,12 +249,13 @@ fn create_sparse_mlp(
     input_dim: usize,
     hidden_dim: usize,
     output_dim: usize,
-    sparsity: f32,
-) -> Result<Sequential<CpuBackend, DenseStorage<Float32>, Float32>> {
+    _sparsity: f32,
+) -> Result<Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
     let mut mlp = Sequential::new();
 
     // Input layer (keep dense for now - sparse weights would be future extension)
-    let linear1 = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(input_dim, hidden_dim)?;
+    let linear1 =
+        Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(input_dim, hidden_dim)?;
     mlp.add_module("linear1".to_string(), linear1);
 
     // Sparse activation
@@ -238,17 +263,17 @@ fn create_sparse_mlp(
     mlp.add_module("relu".to_string(), relu);
 
     // Output layer (keep dense for now)
-    let linear2 = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(hidden_dim, output_dim)?;
+    let linear2 =
+        Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(hidden_dim, output_dim)?;
     mlp.add_module("linear2".to_string(), linear2);
 
     Ok(mlp)
 }
 
-
 /// Compare memory usage between dense and sparse networks
 fn compare_memory_usage(
-    dense: &Sequential<CpuBackend, DenseStorage<Float32>, Float32>,
-    sparse: &Sequential<CpuBackend, DenseStorage<Float32>, Float32>,
+    dense: &Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    sparse: &Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
 ) -> Result<(usize, usize)> {
     // Calculate approximate memory usage based on parameters
     let dense_memory = calculate_network_memory(dense)?;
@@ -258,7 +283,10 @@ fn compare_memory_usage(
 }
 
 /// Calculate approximate memory usage of a network
-fn calculate_network_memory(network: &Sequential<CpuBackend, DenseStorage<Float32>, Float32>) -> Result<usize> {
+#[allow(clippy::manual_slice_size_calculation)]
+fn calculate_network_memory(
+    network: &Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+) -> Result<usize> {
     let parameters = network.parameters();
     let mut total_memory = 0;
 
@@ -272,9 +300,9 @@ fn calculate_network_memory(network: &Sequential<CpuBackend, DenseStorage<Float3
 
 /// Benchmark performance of dense vs sparse networks
 fn benchmark_performance(
-    dense: &Sequential<CpuBackend, DenseStorage<Float32>, Float32>,
-    sparse: &Sequential<CpuBackend, DenseStorage<Float32>, Float32>,
-    input: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
+    dense: &Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    sparse: &Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    input: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
 ) -> Result<(Duration, Duration)> {
     const NUM_ITERATIONS: u32 = 100;
 
@@ -297,19 +325,19 @@ fn benchmark_performance(
 
 /// Compute loss for a network
 fn compute_loss(
-    network: &Sequential<CpuBackend, DenseStorage<Float32>, Float32>,
-    input: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
-    targets: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
+    network: &Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    input: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    targets: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
 ) -> Result<f32> {
     let output = network.forward(input)?;
     let loss = mse_loss(&output, targets)?;
-    Ok(loss.as_slice()[0].to_f32().unwrap_or(0.0))
+    Ok(loss.as_slice()[0].get())
 }
 
 /// Compute maximum absolute difference between two tensors
 fn compute_max_difference(
-    a: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
-    b: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
+    a: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    b: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
 ) -> Result<f32> {
     let a_slice = a.as_slice();
     let b_slice = b.as_slice();
@@ -318,7 +346,7 @@ fn compute_max_difference(
 
     let mut max_diff = 0.0f32;
     for (x, y) in a_slice.iter().zip(b_slice.iter()) {
-        let diff = (x.to_f32().unwrap_or(0.0) - y.to_f32().unwrap_or(0.0)).abs();
+        let diff = (x.get() - y.get()).abs();
         max_diff = max_diff.max(diff);
     }
 
@@ -337,7 +365,8 @@ fn test_sparse_weight_matrix_support() -> Result<()> {
     let hidden_dim = 256;
 
     // Create a linear layer
-    let linear = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(embed_dim, hidden_dim)?;
+    let linear =
+        Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(embed_dim, hidden_dim)?;
 
     // Get weight parameters
     let weight_param = &linear.weight;

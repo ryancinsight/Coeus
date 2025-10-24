@@ -117,7 +117,7 @@ where
 }
 
 /// Fusion policy for automatic layer fusion decisions
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FusionPolicy {
     /// Minimum performance gain threshold for fusion
     pub min_gain_threshold: f64,

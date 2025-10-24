@@ -7,7 +7,7 @@ use crate::module::Module;
 use crate::parameter::Parameter;
 use coeus_backend::{Backend, CpuBackend};
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use coeus_tensor::Tensor;
 use std::marker::PhantomData;
 
@@ -32,8 +32,8 @@ use std::marker::PhantomData;
 /// use coeus_dtype::float::Float32;
 ///
 /// // Audio processing: 1 channel input, 64 filters, kernel size 3
-/// let conv = Conv1D::<CpuBackend, DenseStorage<Float32>, Float32>::new(1, 64, 3, None, None, None).unwrap();
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 1, 1000]).unwrap();
+/// let conv = Conv1D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, 64, 3, None, None, None).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 1000]).unwrap();
 /// let output = conv.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 998]);
 /// ```
@@ -54,10 +54,6 @@ where
     bias: Option<Parameter<B, S, T>>,
     /// Number of input channels
     in_channels: usize,
-    /// Number of output channels
-    out_channels: usize,
-    /// Kernel size
-    kernel_size: usize,
     /// Stride
     stride: usize,
     /// Padding
@@ -81,14 +77,14 @@ where
     /// * `padding` - Padding added to input (default: 0)
     /// * `bias` - Whether to include bias terms (default: true)
     ///
-/// # Examples
-/// ```rust
-/// use coeus_nn::Conv1D;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+    /// # Examples
+    /// ```rust
+    /// use coeus_nn::Conv1D;
+    /// use coeus_backend::CpuBackend;
+    /// use coeus_storage::DenseStorage;
+    /// use coeus_dtype::float::Float32;
     ///
-    /// let conv = Conv1D::<CpuBackend, DenseStorage<Float32>, Float32>::new(1, 64, 3, None, None, None).unwrap();
+    /// let conv = Conv1D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, 64, 3, None, None, None).unwrap();
     /// ```
     pub fn new(
         in_channels: usize,
@@ -110,7 +106,10 @@ where
         let bias_param = if use_bias {
             let zeros_data = vec![T::zero(); out_channels];
             let bias_data = Tensor::<B, S, T>::from_vec(zeros_data, &[out_channels])?;
-            Some(Parameter::new(bias_data.requires_grad_(true), "bias".to_string()))
+            Some(Parameter::new(
+                bias_data.requires_grad_(true),
+                "bias".to_string(),
+            ))
         } else {
             None
         };
@@ -119,8 +118,6 @@ where
             weight,
             bias: bias_param,
             in_channels,
-            out_channels,
-            kernel_size,
             stride,
             padding,
             _phantom: PhantomData,
@@ -128,10 +125,7 @@ where
     }
 
     /// Xavier uniform initialization for weights.
-    fn xavier_uniform_init(
-        shape: &[usize],
-        fan_out: usize,
-    ) -> Tensor<B, S, T>
+    fn xavier_uniform_init(shape: &[usize], fan_out: usize) -> Tensor<B, S, T>
     where
         T: num_traits::Float + num_traits::FromPrimitive,
     {
@@ -162,12 +156,12 @@ where
 
     /// Perform 1D convolution on CPU dense tensors.
     fn conv1d_cpu_dense(
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-        weight: &Tensor<CpuBackend, DenseStorage<T>, T>,
-        bias: Option<&Tensor<CpuBackend, DenseStorage<T>, T>>,
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        weight: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        bias: Option<&Tensor<CpuBackend<T>, DenseStorage<T>, T>>,
         stride: usize,
         padding: usize,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         let weight_shape = weight.shape().dims();
 
@@ -222,7 +216,8 @@ where
                         for k in 0..kernel_size {
                             let input_pos = ol * stride + k;
                             if input_pos < padded_length {
-                                let input_idx = ((b * in_channels + ic) * padded_length) + input_pos;
+                                let input_idx =
+                                    ((b * in_channels + ic) * padded_length) + input_pos;
                                 let weight_idx = ((oc * in_channels + ic) * kernel_size) + k;
                                 sum = sum + padded_input[input_idx] * weight.as_slice()[weight_idx];
                             }
@@ -240,7 +235,10 @@ where
             }
         }
 
-        Ok(Tensor::from_vec(output_data, &[batch_size, out_channels, output_length])?)
+        Ok(Tensor::from_vec(
+            output_data,
+            &[batch_size, out_channels, output_length],
+        )?)
     }
 }
 
@@ -250,14 +248,11 @@ where
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + PartialOrd + num_traits::Float + num_traits::FromPrimitive + 'static,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let input_shape = input.shape().dims();
 
         // Validate input shape: [batch_size, in_channels, length]
-        if input_shape.len() != 3 {
+        if input_shape.len() != 3usize {
             return Err(NNError::ShapeMismatch {
                 operation: "Conv1D forward".to_string(),
                 expected: vec![0, self.in_channels, 0],
@@ -280,7 +275,11 @@ where
         // Convert to CPU dense for computation (maintains compatibility while allowing future generic implementation)
         let input_cpu = input.to_cpu_dense()?;
         let weight_cpu = self.weight.data().to_cpu_dense()?;
-        let bias_cpu = self.bias.as_ref().map(|b| b.data().to_cpu_dense()).transpose()?;
+        let bias_cpu = self
+            .bias
+            .as_ref()
+            .map(|b| b.data().to_cpu_dense())
+            .transpose()?;
 
         // Perform convolution
         let output_cpu = Self::conv1d_cpu_dense(
@@ -354,7 +353,7 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// // Audio upsampling: 64 channels input, 1 channel output, kernel size 4, stride 2
-/// let conv_transpose = ConvTranspose1d::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 1, 4, Some(2), Some(1), Some(0), Some(true)).unwrap();
+/// let conv_transpose = ConvTranspose1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(64, 1, 4, Some(2), Some(1), Some(0), Some(true)).unwrap();
 /// // Layer created successfully
 /// ```
 ///
@@ -375,8 +374,6 @@ where
     bias: Option<Parameter<B, S, T>>,
     /// Number of input channels
     in_channels: usize,
-    /// Number of output channels
-    out_channels: usize,
     /// Kernel size
     kernel_size: usize,
     /// Stride
@@ -426,7 +423,10 @@ where
         let bias_param = if use_bias {
             let zeros_data = vec![T::zero(); out_channels];
             let bias_data = Tensor::<B, S, T>::from_vec(zeros_data, &[out_channels])?;
-            Some(Parameter::new(bias_data.requires_grad_(true), "bias".to_string()))
+            Some(Parameter::new(
+                bias_data.requires_grad_(true),
+                "bias".to_string(),
+            ))
         } else {
             None
         };
@@ -435,7 +435,6 @@ where
             weight,
             bias: bias_param,
             in_channels,
-            out_channels,
             kernel_size,
             stride,
             padding,
@@ -476,13 +475,13 @@ where
 
     /// Perform 1D transposed convolution on CPU dense tensors.
     fn conv_transpose_1d_cpu_dense(
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-        weight: &Tensor<CpuBackend, DenseStorage<T>, T>,
-        bias: Option<&Tensor<CpuBackend, DenseStorage<T>, T>>,
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        weight: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        bias: Option<&Tensor<CpuBackend<T>, DenseStorage<T>, T>>,
         stride: usize,
         padding: usize,
         output_padding: usize,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         let weight_shape = weight.shape().dims();
 
@@ -492,7 +491,8 @@ where
         let out_channels = weight_shape[1];
         let kernel_size = weight_shape[2];
 
-        let output_length = (input_length - 1) * stride - 2 * padding + kernel_size + output_padding;
+        let output_length =
+            (input_length - 1) * stride - 2 * padding + kernel_size + output_padding;
 
         // Initialize output tensor
         let output_size = batch_size * out_channels * output_length;
@@ -504,14 +504,24 @@ where
                 for il in 0..input_length {
                     for oc in 0..out_channels {
                         for k in 0..kernel_size {
-                            let output_pos = il * stride + k - padding;
-                            if output_pos < output_length {
-                                let input_idx = ((b * in_channels + ic) * input_length) + il;
-                                let weight_idx = ((ic * out_channels + oc) * kernel_size) + k;
-                                let output_idx = ((b * out_channels + oc) * output_length) + output_pos;
+                            // Calculate output position: careful with underflow
+                            let stride_term = il * stride;
+                            let kernel_term = k;
+                            let padding_term = padding;
 
-                                output_data[output_idx] = output_data[output_idx] +
-                                    input.as_slice()[input_idx] * weight.as_slice()[weight_idx];
+                            // Check bounds to prevent underflow
+                            if stride_term + kernel_term >= padding_term {
+                                let output_pos = stride_term + kernel_term - padding_term;
+                                if output_pos < output_length {
+                                    let input_idx = ((b * in_channels + ic) * input_length) + il;
+                                    let weight_idx = ((ic * out_channels + oc) * kernel_size) + k;
+                                    let output_idx =
+                                        ((b * out_channels + oc) * output_length) + output_pos;
+
+                                    output_data[output_idx] = output_data[output_idx]
+                                        + input.as_slice()[input_idx]
+                                            * weight.as_slice()[weight_idx];
+                                }
                             }
                         }
                     }
@@ -525,13 +535,17 @@ where
                 for oc in 0..out_channels {
                     for ol in 0..output_length {
                         let output_idx = ((b * out_channels + oc) * output_length) + ol;
-                        output_data[output_idx] = output_data[output_idx] + bias_tensor.as_slice()[oc];
+                        output_data[output_idx] =
+                            output_data[output_idx] + bias_tensor.as_slice()[oc];
                     }
                 }
             }
         }
 
-        Ok(Tensor::from_vec(output_data, &[batch_size, out_channels, output_length])?)
+        Ok(Tensor::from_vec(
+            output_data,
+            &[batch_size, out_channels, output_length],
+        )?)
     }
 }
 
@@ -541,21 +555,18 @@ where
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + PartialOrd + num_traits::Float + num_traits::FromPrimitive + 'static,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let input_shape = input.shape().dims();
 
-        if input_shape.len() != 3 {
+        if input_shape.len() != 3usize {
             return Err(NNError::InvalidInput {
                 message: format!("Expected 3D input (N, C, L), got {}D", input_shape.len()),
             });
         }
 
-        let batch_size = input_shape[0];
+        let _batch_size = input_shape[0];
         let in_channels = input_shape[1];
-        let input_length = input_shape[2];
+        let _input_length = input_shape[2];
 
         if in_channels != self.in_channels {
             return Err(NNError::InvalidInput {
@@ -569,7 +580,11 @@ where
         // Convert to CPU dense for computation (maintains compatibility while allowing future generic implementation)
         let input_cpu = input.to_cpu_dense()?;
         let weight_cpu = self.weight.data().to_cpu_dense()?;
-        let bias_cpu = self.bias.as_ref().map(|b| b.data().to_cpu_dense()).transpose()?;
+        let bias_cpu = self
+            .bias
+            .as_ref()
+            .map(|b| b.data().to_cpu_dense())
+            .transpose()?;
 
         // Perform transposed convolution
         let output_cpu = Self::conv_transpose_1d_cpu_dense(
@@ -619,11 +634,20 @@ mod tests {
 
     #[test]
     fn test_conv1d_creation() {
-        let conv = Conv1D::<CpuBackend, DenseStorage<Float32>, Float32>::new(3, 64, 5, Some(1), Some(2), Some(true)).unwrap();
+        let conv = Conv1D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            3,
+            64,
+            5,
+            Some(1),
+            Some(2),
+            Some(true),
+        )
+        .unwrap();
 
         assert_eq!(conv.in_channels, 3);
-        assert_eq!(conv.out_channels, 64);
-        assert_eq!(conv.kernel_size, 5);
+        let weight_shape = conv.weight.data().shape().dims();
+        assert_eq!(weight_shape[0], 64); // out_channels
+        assert_eq!(weight_shape[2], 5); // kernel_size
         assert_eq!(conv.stride, 1);
         assert_eq!(conv.padding, 2);
         assert!(conv.bias.is_some());
@@ -636,11 +660,29 @@ mod tests {
 
     #[test]
     fn test_conv1d_forward() {
-        let conv = Conv1D::<CpuBackend, DenseStorage<Float32>, Float32>::new(1, 2, 3, Some(1), Some(1), Some(false)).unwrap();
+        let conv = Conv1D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            1,
+            2,
+            3,
+            Some(1),
+            Some(1),
+            Some(false),
+        )
+        .unwrap();
 
         // Input: [batch_size=1, channels=1, length=5]
-        let input_data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0), Float32::new(5.0)];
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(input_data, &[1, 1, 5]).unwrap();
+        let input_data = vec![
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+            Float32::new(5.0),
+        ];
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            input_data,
+            &[1, 1, 5],
+        )
+        .unwrap();
 
         let output = conv.forward(&input).unwrap();
         let output_shape = output.shape().dims();
@@ -652,10 +694,20 @@ mod tests {
 
     #[test]
     fn test_conv_transpose_1d_creation() {
-        let conv = ConvTranspose1d::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 1, 4, Some(2), Some(1), Some(0), Some(true)).unwrap();
+        let conv = ConvTranspose1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            64,
+            1,
+            4,
+            Some(2),
+            Some(1),
+            Some(0),
+            Some(true),
+        )
+        .unwrap();
 
         assert_eq!(conv.in_channels, 64);
-        assert_eq!(conv.out_channels, 1);
+        let weight_shape = conv.weight.data().shape().dims();
+        assert_eq!(weight_shape[1], 1); // out_channels
         assert_eq!(conv.kernel_size, 4);
         assert_eq!(conv.stride, 2);
         assert_eq!(conv.padding, 1);
@@ -665,30 +717,76 @@ mod tests {
 
     #[test]
     fn test_conv_transpose_1d_forward() {
-        let conv = ConvTranspose1d::<CpuBackend, DenseStorage<Float32>, Float32>::new(2, 3, 3, Some(2), Some(1), Some(0), Some(false)).unwrap();
+        let conv = ConvTranspose1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            2,
+            3,
+            3,
+            Some(2),
+            Some(1),
+            Some(0),
+            Some(false),
+        )
+        .unwrap();
 
         // Input: [batch_size=1, channels=2, length=4]
-        let input_data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0), Float32::new(5.0), Float32::new(6.0), Float32::new(7.0), Float32::new(8.0)];
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(input_data, &[1, 2, 4]).unwrap();
+        let input_data = vec![
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+            Float32::new(5.0),
+            Float32::new(6.0),
+            Float32::new(7.0),
+            Float32::new(8.0),
+        ];
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            input_data,
+            &[1, 2, 4],
+        )
+        .unwrap();
 
         let output = conv.forward(&input).unwrap();
         let output_shape = output.shape().dims();
 
-        // Expected output length: (4 - 1) * 2 - 2 * 1 + 3 + 0 = 6
-        assert_eq!(output_shape, &[1, 3, 6]);
+        // Expected output length: (4 - 1) * 2 - 2 * 1 + 3 + 0 = 7
+        assert_eq!(output_shape, &[1, 3, 7]);
     }
 
     #[test]
     fn test_conv1d_output_length_calculation() {
         // Test various configurations
-        assert_eq!(Conv1D::<CpuBackend, DenseStorage<Float32>, Float32>::compute_output_length(10, 3, 1, 0), 8);
-        assert_eq!(Conv1D::<CpuBackend, DenseStorage<Float32>, Float32>::compute_output_length(10, 3, 1, 1), 10);
-        assert_eq!(Conv1D::<CpuBackend, DenseStorage<Float32>, Float32>::compute_output_length(10, 3, 2, 0), 4);
+        assert_eq!(
+            Conv1D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::compute_output_length(
+                10, 3, 1, 0
+            ),
+            8
+        );
+        assert_eq!(
+            Conv1D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::compute_output_length(
+                10, 3, 1, 1
+            ),
+            10
+        );
+        assert_eq!(
+            Conv1D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::compute_output_length(
+                10, 3, 2, 0
+            ),
+            4
+        );
     }
 
     #[test]
     fn test_conv_transpose_1d_output_size() {
-        let conv = ConvTranspose1d::<CpuBackend, DenseStorage<Float32>, Float32>::new(1, 1, 4, Some(2), Some(1), Some(0), Some(true)).unwrap();
+        let conv = ConvTranspose1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            1,
+            1,
+            4,
+            Some(2),
+            Some(1),
+            Some(0),
+            Some(true),
+        )
+        .unwrap();
         assert_eq!(conv.output_size(100), 200); // (100 - 1) * 2 - 2 * 1 + 4 + 0 = 200
     }
 }

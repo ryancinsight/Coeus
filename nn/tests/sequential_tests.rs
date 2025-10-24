@@ -4,13 +4,13 @@
 
 use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
-use coeus_nn::{Linear, Sequential, Module};
+use coeus_nn::{Linear, Module, Sequential};
 use coeus_storage::DenseStorage;
 use coeus_tensor::Tensor;
 
 #[test]
 fn test_sequential_empty() {
-    let model = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+    let model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
 
     // Empty model should have no parameters
     assert_eq!(model.parameters().len(), 0);
@@ -19,7 +19,7 @@ fn test_sequential_empty() {
 
 #[test]
 fn test_sequential_add_modules() {
-    let mut model = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+    let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
 
     // Add linear layers
     model.add_module("fc1".to_string(), Linear::new(10, 5).unwrap());
@@ -34,17 +34,23 @@ fn test_sequential_add_modules() {
 
 #[test]
 fn test_sequential_forward_pass() {
-    let mut model = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+    let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
 
     // Create a 2-layer network: 4 -> 3 -> 2
     model.add_module("fc1".to_string(), Linear::new(4, 3).unwrap());
     model.add_module("fc2".to_string(), Linear::new(3, 2).unwrap());
 
     // Input: [batch_size=1, input_features=4]
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
-        &[1, 4]
-    ).unwrap();
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+        ],
+        &[1, 4],
+    )
+    .unwrap();
 
     let output = model.forward(&input).unwrap();
 
@@ -54,15 +60,17 @@ fn test_sequential_forward_pass() {
 
 #[test]
 fn test_sequential_gradient_flow() {
-    let mut model = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+    let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
 
     // Add layers
     model.add_module("fc1".to_string(), Linear::new(3, 2).unwrap());
 
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
-        &[1, 3]
-    ).unwrap().requires_grad_(true);
+        &[1, 3],
+    )
+    .unwrap()
+    .requires_grad_(true);
 
     let output = model.forward(&input).unwrap();
 
@@ -76,7 +84,7 @@ fn test_sequential_gradient_flow() {
 
 #[test]
 fn test_sequential_zero_grad() {
-    let mut model = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+    let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
 
     model.add_module("fc1".to_string(), Linear::new(4, 2).unwrap());
     model.add_module("fc2".to_string(), Linear::new(2, 1).unwrap());
@@ -93,7 +101,7 @@ fn test_sequential_zero_grad() {
 
 #[test]
 fn test_sequential_train_eval_modes() {
-    let mut model = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+    let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
 
     model.add_module("fc1".to_string(), Linear::new(3, 2).unwrap());
 
@@ -104,10 +112,11 @@ fn test_sequential_train_eval_modes() {
     model.train(false);
 
     // Functionality should work in both modes
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
-        &[1, 3]
-    ).unwrap();
+        &[1, 3],
+    )
+    .unwrap();
 
     let output = model.forward(&input).unwrap();
     assert_eq!(output.shape().dims(), &[1, 2]);
@@ -115,7 +124,7 @@ fn test_sequential_train_eval_modes() {
 
 #[test]
 fn test_sequential_module_api() {
-    let mut model = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+    let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
 
     model.add_module("fc1".to_string(), Linear::new(4, 2).unwrap());
 
@@ -133,7 +142,7 @@ fn test_sequential_module_api() {
 
 #[test]
 fn test_sequential_complex_network() {
-    let mut model = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+    let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
 
     // Build a more complex network
     model.add_module("fc1".to_string(), Linear::new(10, 8).unwrap());
@@ -142,7 +151,8 @@ fn test_sequential_complex_network() {
     model.add_module("fc4".to_string(), Linear::new(4, 2).unwrap());
 
     // Input: [batch_size=2, input_features=10]
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 10]).unwrap();
+    let input =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 10]).unwrap();
 
     let output = model.forward(&input).unwrap();
 
@@ -156,7 +166,7 @@ fn test_sequential_complex_network() {
 
 #[test]
 fn test_sequential_different_batch_sizes() {
-    let mut model = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+    let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
 
     model.add_module("fc1".to_string(), Linear::new(4, 2).unwrap());
 
@@ -164,7 +174,9 @@ fn test_sequential_different_batch_sizes() {
     let batch_sizes = vec![1, 2, 4, 8];
 
     for &batch_size in &batch_sizes {
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[batch_size, 4]).unwrap();
+        let input =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[batch_size, 4])
+                .unwrap();
         let output = model.forward(&input).unwrap();
 
         assert_eq!(output.shape().dims(), &[batch_size, 2]);
@@ -173,7 +185,7 @@ fn test_sequential_different_batch_sizes() {
 
 #[test]
 fn test_sequential_module_removal() {
-    let mut model = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+    let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
 
     model.add_module("fc1".to_string(), Linear::new(4, 2).unwrap());
     model.add_module("fc2".to_string(), Linear::new(2, 1).unwrap());
@@ -187,17 +199,18 @@ fn test_sequential_module_removal() {
 
 #[test]
 fn test_sequential_gradient_consistency() {
-    let mut model1 = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
-    let mut model2 = Sequential::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+    let mut model1 = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
+    let mut model2 = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
 
     // Same architecture
     model1.add_module("fc1".to_string(), Linear::new(3, 2).unwrap());
     model2.add_module("fc1".to_string(), Linear::new(3, 2).unwrap());
 
-    let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
-        &[1, 3]
-    ).unwrap();
+        &[1, 3],
+    )
+    .unwrap();
 
     let output1 = model1.forward(&input).unwrap();
     let output2 = model2.forward(&input).unwrap();

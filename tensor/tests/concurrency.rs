@@ -9,7 +9,7 @@ use coeus_tensor::Tensor;
 use std::sync::Arc;
 use std::thread;
 
-type CpuTensorF32 = Tensor<CpuBackend, DenseStorage<Float32>, Float32>;
+type CpuTensorF32 = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
 /// Test concurrent reads of a shared tensor
 #[test]

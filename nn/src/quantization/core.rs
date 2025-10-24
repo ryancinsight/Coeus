@@ -4,7 +4,10 @@ use crate::error::{NNError, Result};
 
 use coeus_backend::Backend;
 use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec, QuantizedStorage, QuantizedStorage4, QuantizedStorage8, QuantizedStorage16};
+use coeus_storage::{
+    QuantizedStorage, QuantizedStorage16, QuantizedStorage4, QuantizedStorage8, Storage,
+    StorageFromVec,
+};
 use coeus_tensor::Tensor;
 
 use serde::{Deserialize, Serialize};
@@ -26,10 +29,9 @@ pub struct SerializableQuantizedWeights {
 
 /// Enum for different quantized weight storage types
 #[derive(Debug)]
-pub enum QuantizedWeights<B, S, T>
+pub enum QuantizedWeights<B, T>
 where
     B: Backend,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
     /// 4-bit quantized weights
@@ -40,10 +42,9 @@ where
     Bits16(Tensor<B, QuantizedStorage<T, 16>, T>),
 }
 
-impl<B, S, T> QuantizedWeights<B, S, T>
+impl<B, T> QuantizedWeights<B, T>
 where
     B: Backend,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
     /// Get the bitwidth of the weights
@@ -74,9 +75,15 @@ where
         f64: From<T>,
     {
         match self {
-            Self::Bits4(tensor) => Self::tensor_to_serializable(tensor, QuantizationBitwidth::Bits4),
-            Self::Bits8(tensor) => Self::tensor_to_serializable(tensor, QuantizationBitwidth::Bits8),
-            Self::Bits16(tensor) => Self::tensor_to_serializable(tensor, QuantizationBitwidth::Bits16),
+            Self::Bits4(tensor) => {
+                Self::tensor_to_serializable(tensor, QuantizationBitwidth::Bits4)
+            }
+            Self::Bits8(tensor) => {
+                Self::tensor_to_serializable(tensor, QuantizationBitwidth::Bits8)
+            }
+            Self::Bits16(tensor) => {
+                Self::tensor_to_serializable(tensor, QuantizationBitwidth::Bits16)
+            }
         }
     }
 
@@ -90,7 +97,11 @@ where
         f64: From<T>,
     {
         let shape = tensor.shape().dims();
-        let data: Vec<f64> = tensor.as_slice().iter().map(|&x| f64::from(x.clone())).collect();
+        let data: Vec<f64> = tensor
+            .as_slice()
+            .iter()
+            .map(|&x| f64::from(x.clone()))
+            .collect();
 
         // For now, use default scale/zero_point. In a real implementation,
         // these would be extracted from the QuantizedStorage metadata
@@ -107,10 +118,7 @@ where
     }
 
     /// Create from serializable representation
-    pub fn from_serializable(
-        serializable: SerializableQuantizedWeights,
-        backend: B,
-    ) -> Result<Self>
+    pub fn from_serializable(serializable: SerializableQuantizedWeights, backend: B) -> Result<Self>
     where
         T: From<f64>,
     {
@@ -247,12 +255,14 @@ where
         let mean = T::from(sum / sorted_data.len() as f64);
 
         // Calculate standard deviation
-        let variance: f64 = sorted_data.iter()
+        let variance: f64 = sorted_data
+            .iter()
             .map(|x| {
                 let diff = f64::from(x.clone()) - f64::from(mean.clone());
                 diff * diff
             })
-            .sum::<f64>() / sorted_data.len() as f64;
+            .sum::<f64>()
+            / sorted_data.len() as f64;
         let std = T::from(variance.sqrt());
 
         // Calculate percentiles
@@ -270,12 +280,17 @@ where
 
     /// Calculate percentile values from sorted data
     fn calculate_percentiles(sorted_data: &[T]) -> Vec<T> {
-        let percentiles_to_calculate = [0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 0.999, 0.9999];
+        let percentiles_to_calculate = [
+            0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 0.999, 0.9999,
+        ];
 
-        percentiles_to_calculate.iter().map(|&p| {
-            let index = (p * (sorted_data.len() - 1) as f64) as usize;
-            sorted_data[index].clone()
-        }).collect()
+        percentiles_to_calculate
+            .iter()
+            .map(|&p| {
+                let index = (p * (sorted_data.len() - 1) as f64) as usize;
+                sorted_data[index].clone()
+            })
+            .collect()
     }
 
     /// Get optimal scale and zero_point using the specified calibration method

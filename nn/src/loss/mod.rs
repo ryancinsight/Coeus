@@ -14,14 +14,14 @@
 //! - Triplet Margin Loss
 //! - Combo Loss
 
-pub mod mse;
 pub mod cross_entropy;
+pub mod mse;
 pub mod nll;
 
 // Re-export commonly used loss functions
-pub use mse::MSELoss;
-pub use mse::mse_loss;
-pub use cross_entropy::CrossEntropyLoss;
 pub use cross_entropy::cross_entropy_loss;
-pub use nll::NLLLoss;
+pub use cross_entropy::CrossEntropyLoss;
+pub use mse::mse_loss;
+pub use mse::MSELoss;
 pub use nll::nll_loss;
+pub use nll::NLLLoss;

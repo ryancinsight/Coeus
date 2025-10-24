@@ -13,6 +13,12 @@
 //! - **Recomputation**: During backward pass, intermediate values are recomputed as needed
 //! - **Memory Trade-off**: Reduces peak memory usage at the cost of additional computation
 //!
+//! ## Current Implementation
+//!
+//! The current implementation provides the API but applies functions normally without
+//! actual checkpointing. Full gradient checkpointing requires deeper integration
+//! with the autograd system and will be completed in a future sprint.
+//!
 //! ## Example
 //!
 //! ```rust,ignore
@@ -20,7 +26,7 @@
 //! use coeus_tensor::Tensor;
 //! use coeus_dtype::float::Float32;
 //!
-//! // Single checkpoint
+//! // Single checkpoint (currently just applies function normally)
 //! let input_tensor = Tensor::from_vec(vec![1.0, 2.0], &[2]).unwrap();
 //! let result = checkpoint(
 //!     |input: &Tensor| {
@@ -30,7 +36,7 @@
 //!     &input_tensor,
 //! );
 //!
-//! // Sequential checkpointing
+//! // Sequential checkpointing (currently just applies to each segment)
 //! let input1 = Tensor::from_vec(vec![1.0], &[1]).unwrap();
 //! let input2 = Tensor::from_vec(vec![2.0], &[1]).unwrap();
 //! let input3 = Tensor::from_vec(vec![3.0], &[1]).unwrap();
@@ -49,72 +55,11 @@ use alloc::vec::Vec;
 use core::any::Any;
 
 use coeus_backend::Backend;
-use coeus_storage::Storage;
 use coeus_dtype::DataType;
+use coeus_storage::Storage;
+use coeus_tensor::Tensor;
 
 use crate::Result;
-use alloc::sync::Arc;
-
-/// Custom function for gradient checkpointing
-struct CheckpointFunction<F, B, S, T>
-where
-    B: Backend,
-    S: Storage<T> + std::clone::Clone,
-    T: DataType,
-{
-    /// The function to checkpoint
-    function: F,
-    /// Saved input for recomputation during backward
-    saved_input: crate::functions::TensorRef<B, S, T>,
-}
-
-impl<F, B, S, T> CheckpointFunction<F, B, S, T>
-where
-    B: Backend + Clone,
-    S: Storage<T> + Clone + 'static,
-    T: DataType,
-    F: Fn(&coeus_tensor::Tensor<B, S, T>)
-        -> Result<coeus_tensor::Tensor<B, S, T>>
-        + Send + Sync + 'static,
-{
-    fn new(
-        function: F,
-        input: &coeus_tensor::Tensor<B, S, T>,
-    ) -> Self {
-        Self {
-            function,
-            saved_input: Arc::new(input.clone()),
-        }
-    }
-
-    fn forward(
-        &self,
-    ) -> Result<coeus_tensor::Tensor<B, S, T>> {
-        (self.function)(&self.saved_input)
-    }
-
-    fn backward(
-        &self,
-        grad_output: &coeus_tensor::Tensor<B, S, T>,
-    ) -> Result<Vec<coeus_tensor::Tensor<B, S, T>>> {
-        // Recompute the forward pass to get intermediate values
-        let output = self.forward()?;
-
-        // Compute gradients through the recomputed graph
-        // This requires the output to have autograd enabled
-        // TODO: Enable autograd on the recomputed output when tensor API supports it
-
-        // Call backward on the recomputed output
-        // For now, this is a placeholder - full implementation needs tensor API support
-        let _output = output;
-        let _grad_output = grad_output;
-
-        // Extract gradients from the saved input
-        // This is a simplified version - in practice, we'd need to extract
-        // gradients from the input tensor after backward pass
-        Ok(vec![grad_output.clone()]) // Placeholder - full implementation would recompute
-    }
-}
 
 /// Checkpoint a single computation segment
 ///
@@ -128,36 +73,34 @@ where
 /// # Returns
 /// Output tensor with gradient checkpointing applied
 ///
+/// # Note
+/// Current implementation applies the function normally. Full gradient checkpointing
+/// with memory savings requires deeper autograd integration in a future sprint.
+///
 /// # Example
 /// ```rust,ignore
 /// use coeus_tensor::Tensor;
 /// let input = Tensor::from_vec(vec![1.0, 2.0], &[2]).unwrap();
 /// let result = checkpoint(|x: &Tensor| x.exp().sum(), &input);
 /// ```
-pub fn checkpoint<F, B, S, T>(
-    function: F,
-    input: &coeus_tensor::Tensor<B, S, T>,
-) -> Result<coeus_tensor::Tensor<B, S, T>>
+#[allow(clippy::missing_errors_doc)]
+pub fn checkpoint<F, B, S, T>(function: F, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend,
-    S: Storage<T> + std::clone::Clone,
+    S: Storage<T>,
     T: DataType,
-    F: Fn(&coeus_tensor::Tensor<B, S, T>) -> Result<coeus_tensor::Tensor<B, S, T>> + Send + Sync + 'static,
+    F: Fn(&Tensor<B, S, T>) -> Result<Tensor<B, S, T>>,
 {
-    // TODO: Implement full checkpointing with autograd integration
-    // For now, this is a basic implementation that just applies the function
-    // Full implementation would:
-    // 1. Create a custom autograd function that saves only inputs
-    // 2. During backward, recompute forward pass to get intermediate values
-    // 3. Compute gradients through the recomputed graph
-
+    // Current implementation: just apply the function normally
+    // Full checkpointing requires integration with tensor autograd system
+    // This provides the API but not the memory optimization yet
     function(input)
 }
 
 /// Checkpoint a sequential computation with multiple segments
 ///
-/// This divides a long computation into segments and checkpoints each segment
-/// independently, allowing memory-efficient processing of sequential operations.
+/// This divides a long computation into segments and processes each segment.
+/// Full implementation would provide memory-efficient sequential processing.
 ///
 /// # Arguments
 /// * `segment_function` - Function to apply to each segment
@@ -165,6 +108,10 @@ where
 ///
 /// # Returns
 /// Vector of output tensors, one for each segment
+///
+/// # Note
+/// Current implementation processes segments normally. Full sequential checkpointing
+/// with memory optimization requires future autograd integration.
 ///
 /// # Example
 /// ```rust,ignore
@@ -177,26 +124,23 @@ where
 ///     &[&input1, &input2, &input3],
 /// )?;
 /// ```
+#[allow(clippy::missing_errors_doc)]
 pub fn checkpoint_sequential<F, B, S, T>(
     segment_function: F,
-    segments: &[&coeus_tensor::Tensor<B, S, T>],
-) -> Result<Vec<coeus_tensor::Tensor<B, S, T>>>
+    segments: &[&Tensor<B, S, T>],
+) -> Result<Vec<Tensor<B, S, T>>>
 where
     B: Backend,
     S: Storage<T>,
     T: DataType,
-    F: Fn(&coeus_tensor::Tensor<B, S, T>) -> Result<coeus_tensor::Tensor<B, S, T>> + Send + Sync + 'static,
+    F: Fn(&Tensor<B, S, T>) -> Result<Tensor<B, S, T>> + Clone,
 {
-    // For now, process all segments normally
-    // Full implementation would:
-    // 1. Process segments in groups
-    // 2. Checkpoint intermediate results
-    // 3. Allow memory-efficient backward pass
-
+    // Current implementation: process each segment normally
+    // Full implementation would provide memory-efficient sequential processing
     let mut outputs = Vec::with_capacity(segments.len());
 
     for segment in segments {
-        let output = segment_function(segment)?;
+        let output = checkpoint(segment_function.clone(), segment)?;
         outputs.push(output);
     }
 
@@ -225,14 +169,18 @@ impl Default for CheckpointConfig {
 }
 
 /// Internal state for managing checkpointed computations
+#[allow(dead_code)]
 struct CheckpointState {
     /// Saved inputs for recomputation
     saved_inputs: Vec<Box<dyn Any + Send + Sync>>,
     /// Functions for recomputation
-    recompute_functions: Vec<Box<dyn Fn(&dyn Any) -> Result<Box<dyn Any + Send + Sync>> + Send + Sync>>,
+    #[allow(clippy::type_complexity)]
+    recompute_functions:
+        Vec<Box<dyn Fn(&dyn Any) -> Result<Box<dyn Any + Send + Sync>> + Send + Sync>>,
 }
 
 impl CheckpointState {
+    #[allow(dead_code)]
     fn new() -> Self {
         Self {
             saved_inputs: Vec::new(),
@@ -244,15 +192,20 @@ impl CheckpointState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use coeus_dtype::traits::FloatExt;
+    use coeus_dtype::{float::Float32, DataType};
     use coeus_tensor::Tensor;
-    use coeus_dtype::float::Float32;
 
     #[test]
     fn test_checkpoint_basic() {
         let input = Tensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
         let result = checkpoint(
-            |x: &Tensor<coeus_backend::CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>| {
+            |x: &Tensor<
+                coeus_backend::CpuBackend<Float32>,
+                coeus_storage::DenseStorage<Float32>,
+                Float32,
+            >| {
                 Ok(x.clone()) // Identity for now
             },
             &input,
@@ -269,13 +222,20 @@ mod tests {
             Tensor::from_vec(vec![Float32::new(3.0)], &[]).unwrap(),
         ];
 
-        let input_refs: Vec<&Tensor<coeus_backend::CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>> =
-            inputs.iter().collect();
+        let input_refs: Vec<
+            &Tensor<
+                coeus_backend::CpuBackend<Float32>,
+                coeus_storage::DenseStorage<Float32>,
+                Float32,
+            >,
+        > = inputs.iter().collect();
 
         let result = checkpoint_sequential(
-            |x: &Tensor<coeus_backend::CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>| {
-                Ok(x.clone())
-            },
+            |x: &Tensor<
+                coeus_backend::CpuBackend<Float32>,
+                coeus_storage::DenseStorage<Float32>,
+                Float32,
+            >| { Ok(x.clone()) },
             &input_refs,
         );
 

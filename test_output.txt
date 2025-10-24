@@ -1,0 +1,619 @@
+warning: unused import: `std::collections::HashMap`
+   --> nn\src\module.rs:490:9
+    |
+490 |     use std::collections::HashMap;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `super::*`
+    --> nn\src\activation.rs:1723:9
+     |
+1723 |     use super::*;
+     |         ^^^^^^^^
+
+warning: unused import: `coeus_dtype::float::Float32`
+    --> nn\src\activation.rs:1725:9
+     |
+1725 |     use coeus_dtype::float::Float32;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `coeus_tensor::Tensor`
+    --> nn\src\activation.rs:1726:9
+     |
+1726 |     use coeus_tensor::Tensor;
+     |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+   --> nn\src\dropout.rs:791:9
+    |
+791 |     use super::*;
+    |         ^^^^^^^^
+
+warning: unused import: `coeus_dtype::float::Float32`
+   --> nn\src\dropout.rs:792:9
+    |
+792 |     use coeus_dtype::float::Float32;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `coeus_tensor::Tensor`
+   --> nn\src\dropout.rs:793:9
+    |
+793 |     use coeus_tensor::Tensor;
+    |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+ --> nn\src\rnn\gru_tests.rs:9:9
+  |
+9 |     use super::*;
+  |         ^^^^^^^^
+
+warning: unused variable: `backend`
+   --> nn\src\amp.rs:399:13
+    |
+399 |         let backend = CpuBackend::default();
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_backend`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `backend`
+   --> nn\src\amp.rs:416:13
+    |
+416 |         let backend = CpuBackend::default();
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_backend`
+
+warning: unused variable: `backend`
+   --> nn\src\amp.rs:429:13
+    |
+429 |         let backend = CpuBackend::default();
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_backend`
+
+warning: fields `name` and `data` are never read
+   --> nn\src\module.rs:496:9
+    |
+495 |     struct MockParameter {
+    |            ------------- fields in this struct
+496 |         name: String,
+    |         ^^^^
+497 |         data: Vec<f32>,
+    |         ^^^^
+    |
+    = note: `MockParameter` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `coeus-nn` (lib test) generated 12 warnings (run `cargo fix --lib -p coeus-nn --tests` to apply 8 suggestions)
+warning: unused import: `approx::assert_relative_eq`
+ --> nn\tests\generic_tests.rs:7:5
+  |
+7 | use approx::assert_relative_eq;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: type alias `TestTensor` is never used
+  --> nn\tests\generic_tests.rs:17:6
+   |
+17 | type TestTensor = Tensor<CpuBackend, DenseStorage<Float32>, Float32>;
+   |      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `arb_nn_shape` is never used
+  --> nn\tests\generic_tests.rs:28:4
+   |
+28 | fn arb_nn_shape() -> impl Strategy<Value = Vec<usize>> {
+   |    ^^^^^^^^^^^^
+
+warning: function `arb_linear_shapes` is never used
+  --> nn\tests\generic_tests.rs:36:4
+   |
+36 | fn arb_linear_shapes() -> impl Strategy<Value = (usize, usize)> {
+   |    ^^^^^^^^^^^^^^^^^
+
+warning: function `arb_batchnorm2d_shapes` is never used
+  --> nn\tests\generic_tests.rs:41:4
+   |
+41 | fn arb_batchnorm2d_shapes() -> impl Strategy<Value = Vec<usize>> {
+   |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `batch_size`
+   --> nn\tests\fuzz_targets.rs:105:9
+    |
+105 |     let batch_size = input_data.shape[0];
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_batch_size`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `approx::assert_relative_eq`
+  --> nn\tests\linear_tests.rs:10:5
+   |
+10 | use approx::assert_relative_eq;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `approx::assert_relative_eq`
+ --> nn\tests\generic_tests.rs:7:5
+  |
+7 | use approx::assert_relative_eq;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `weight`
+  --> nn\tests\linear_tests.rs:58:9
+   |
+58 |     let weight = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `bias`
+  --> nn\tests\linear_tests.rs:62:9
+   |
+62 |     let bias = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+   |         ^^^^ help: if this is intentional, prefix it with an underscore: `_bias`
+
+warning: unused variable: `output`
+  --> nn\tests\attention_tests.rs:99:9
+   |
+99 |     let output = attention.forward(&input).unwrap();
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_output`
+
+warning: unused variable: `output`
+  --> nn\tests\attention_tests.rs:99:9
+   |
+99 |     let output = attention.forward(&input).unwrap();
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_output`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary parentheses around pattern
+  --> nn\tests\prop_tests.rs:67:27
+   |
+67 |     fn test_sigmoid_range((values) in prop::collection::vec(-100.0..100.0f32, 1..50)) {
+   |                           ^      ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+67 -     fn test_sigmoid_range((values) in prop::collection::vec(-100.0..100.0f32, 1..50)) {
+67 +     fn test_sigmoid_range(values in prop::collection::vec(-100.0..100.0f32, 1..50)) {
+   |
+
+warning: unnecessary parentheses around pattern
+  --> nn\tests\prop_tests.rs:83:24
+   |
+83 |     fn test_tanh_range((values) in prop::collection::vec(-100.0..100.0f32, 1..50)) {
+   |                        ^      ^
+   |
+help: remove these parentheses
+   |
+83 -     fn test_tanh_range((values) in prop::collection::vec(-100.0..100.0f32, 1..50)) {
+83 +     fn test_tanh_range(values in prop::collection::vec(-100.0..100.0f32, 1..50)) {
+   |
+
+warning: unnecessary parentheses around pattern
+  --> nn\tests\prop_tests.rs:99:29
+   |
+99 |     fn test_gelu_properties((values) in prop::collection::vec(-5.0..5.0f32, 1..30)) {
+   |                             ^      ^
+   |
+help: remove these parentheses
+   |
+99 -     fn test_gelu_properties((values) in prop::collection::vec(-5.0..5.0f32, 1..30)) {
+99 +     fn test_gelu_properties(values in prop::collection::vec(-5.0..5.0f32, 1..30)) {
+   |
+
+warning: unnecessary parentheses around pattern
+   --> nn\tests\prop_tests.rs:210:32
+    |
+210 |     fn test_softmax_properties((values) in prop::collection::vec(-10.0..10.0f32, 2..16)) {
+    |                                ^      ^
+    |
+help: remove these parentheses
+    |
+210 -     fn test_softmax_properties((values) in prop::collection::vec(-10.0..10.0f32, 2..16)) {
+210 +     fn test_softmax_properties(values in prop::collection::vec(-10.0..10.0f32, 2..16)) {
+    |
+
+warning: function `arb_tensor_pair` is never used
+  --> nn\tests\prop_tests.rs:25:4
+   |
+25 | fn arb_tensor_pair(shape: Vec<usize>) -> impl Strategy<Value = (
+   |    ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `approx::assert_relative_eq`
+ --> nn\tests\sparse_linear_tests.rs:3:5
+  |
+3 | use approx::assert_relative_eq;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `Linear` and `Parameter`
+ --> nn\tests\sparse_linear_tests.rs:7:30
+  |
+7 | use coeus_nn::{SparseLinear, Linear, Module, Parameter};
+  |                              ^^^^^^          ^^^^^^^^^
+
+warning: unused import: `CsrStorage`
+ --> nn\tests\sparse_linear_tests.rs:8:35
+  |
+8 | use coeus_storage::{DenseStorage, CsrStorage};
+  |                                   ^^^^^^^^^^
+
+warning: unused variable: `dense_layer`
+  --> nn\tests\sparse_linear_tests.rs:68:9
+   |
+68 |     let dense_layer = coeus_nn::Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(out_features, in_features).unwrap();
+   |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dense_layer`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `coeus-nn` (test "generic_tests") generated 5 warnings (run `cargo fix --test "generic_tests"` to apply 1 suggestion)
+warning: `coeus-nn` (test "fuzz_targets") generated 1 warning
+warning: `coeus-nn` (test "mod") generated 9 warnings (4 duplicates) (run `cargo fix --test "mod"` to apply 2 suggestions)
+warning: `coeus-nn` (test "attention_tests") generated 1 warning
+warning: `coeus-nn` (test "linear_tests") generated 3 warnings (3 duplicates)
+warning: `coeus-nn` (test "prop_tests") generated 5 warnings (run `cargo fix --test "prop_tests"` to apply 4 suggestions)
+warning: `coeus-nn` (test "sparse_linear_tests") generated 4 warnings (run `cargo fix --test "sparse_linear_tests"` to apply 3 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src\lib.rs (target\debug\deps\coeus_nn-90f926e5f712b1ce.exe)
+
+running 300 tests
+test activation::tests::test_activation_construction ... ok
+test activation::tests::test_elu_forward ... ok
+test activation::tests::test_gelu_edge_cases ... ok
+test activation::tests::test_gelu_forward ... ok
+test activation::tests::test_hardsigmoid_clipping ... ok
+test activation::tests::test_hardsigmoid_forward ... ok
+test activation::tests::test_hardswish_edge_cases ... ok
+test activation::tests::test_hardswish_forward ... ok
+test activation::tests::test_hardswish_intermediate_values ... ok
+test activation::tests::test_leaky_relu_forward ... ok
+test activation::tests::test_log_softmax_forward ... ok
+test activation::tests::test_mish_edge_cases ... ok
+test activation::tests::test_mish_forward ... ok
+test activation::tests::test_prelu_forward ... ok
+test activation::tests::test_prelu_parameters ... ok
+test activation::tests::test_relu_forward ... ok
+test activation::tests::test_sigmoid_forward ... ok
+test activation::tests::test_softmax_forward ... ok
+test activation::tests::test_softmax_numerical_stability ... ok
+test activation::tests::test_swish_forward ... ok
+test activation::tests::test_tanh_forward ... ok
+test amp::tests::test_gradient_scaler_creation ... ok
+test amp::tests::test_inf_detection ... ok
+test amp::tests::test_loss_scaling ... ok
+test amp::tests::test_mixed_precision_creation ... ok
+test amp::tests::test_nan_detection ... ok
+test attention::sparse::multihead_tests::test_kv_cache ... ok
+test attention::sparse::multihead_tests::test_multihead_attention_creation ... ok
+test attention::sparse::multihead_tests::test_multihead_attention_cross_attention ... ok
+test attention::sparse::multihead_tests::test_multihead_attention_cross_attention_batch2 ... ok
+test attention::sparse::multihead_tests::test_multihead_attention_display ... ignored, Sparse attention display test incomplete
+test attention::sparse::multihead_tests::test_multihead_attention_forward_shape ... ignored, Sparse attention batched input handling incomplete
+test attention::sparse::multihead_tests::test_multihead_attention_forward_shape_batch2 ... ignored, Sparse attention batched input handling incomplete
+test attention::sparse::multihead_tests::test_multihead_attention_forward_shape_batch4 ... ignored, Sparse attention batched input handling incomplete
+test attention::sparse::multihead_tests::test_multihead_attention_forward_shape_batch8 ... ignored, Sparse attention batched input handling incomplete
+test attention::sparse::multihead_tests::test_multihead_attention_invalid_embed_dim ... ok
+test attention::sparse::tests::test_sparse_attention_creation ... ignored, Sparse attention implementation incomplete
+test attention::sparse::tests::test_sparse_attention_display ... ok
+test attention::sparse::tests::test_sparse_attention_forward_shape ... ok
+test attention::sparse::tests::test_sparse_attention_invalid_input_shape ... ok
+test batchnorm::tests::test_batchnorm1d_constructor ... ok
+test batchnorm::tests::test_batchnorm1d_forward_eval ... ok
+test batchnorm::tests::test_batchnorm1d_forward_training ... ok
+test batchnorm::tests::test_batchnorm1d_invalid_eps ... ok
+test batchnorm::tests::test_batchnorm1d_invalid_momentum ... ok
+test batchnorm::tests::test_batchnorm1d_invalid_num_features ... ok
+test batchnorm::tests::test_batchnorm1d_parameters ... ok
+test batchnorm::tests::test_batchnorm1d_rnn_sequence ... ok
+test batchnorm::tests::test_batchnorm1d_running_stats_update ... ok
+test batchnorm::tests::test_batchnorm1d_train_mode_toggle ... ok
+test batchnorm::tests::test_batchnorm2d_constructor ... ok
+test batchnorm::tests::test_batchnorm2d_forward_training ... ok
+test batchnorm::tests::test_batchnorm2d_invalid_eps ... ok
+test batchnorm::tests::test_batchnorm2d_invalid_momentum ... ok
+test batchnorm::tests::test_batchnorm2d_invalid_num_features ... ok
+test batchnorm::tests::test_batchnorm2d_parameter_initialization ... ok
+test batchnorm::tests::test_batchnorm2d_parameters ... ok
+test batchnorm::tests::test_batchnorm2d_running_stats_update ... ok
+test batchnorm::tests::test_batchnorm3d_constructor ... ok
+test batchnorm::tests::test_batchnorm3d_forward_eval ... ok
+test batchnorm::tests::test_batchnorm3d_forward_training ... ok
+test batchnorm::tests::test_batchnorm3d_invalid_eps ... ok
+test batchnorm::tests::test_batchnorm3d_invalid_momentum ... ok
+test batchnorm::tests::test_batchnorm3d_invalid_num_features ... ok
+test batchnorm::tests::test_batchnorm3d_parameters ... ok
+test batchnorm::tests::test_batchnorm3d_running_stats_update ... ok
+test batchnorm::tests::test_batchnorm3d_train_mode_toggle ... ok
+test batchnorm::tests::test_batchnorm3d_video_classification ... ok
+test conv1d::tests::test_conv1d_creation ... ok
+test conv1d::tests::test_conv1d_forward ... ok
+test conv1d::tests::test_conv1d_output_length_calculation ... ok
+test conv1d::tests::test_conv_transpose_1d_creation ... ok
+test conv1d::tests::test_conv_transpose_1d_forward ... ok
+test conv1d::tests::test_conv_transpose_1d_output_size ... ok
+test conv2d::tests::test_conv2d_backward_basic ... ok
+test conv2d::tests::test_conv2d_backward_no_bias ... ok
+test conv2d::tests::test_conv2d_creation ... ok
+test conv2d::tests::test_conv2d_forward ... ok
+test conv2d::tests::test_conv2d_output_size ... ok
+test conv3d::tests::test_conv3d_creation ... ok
+test conv3d::tests::test_conv3d_forward ... ok
+test conv3d::tests::test_conv3d_output_size ... ok
+test dropout::tests::test_dropout_eval_mode ... ok
+test dropout::tests::test_dropout_invalid_probability - should panic ... ok
+test dropout::tests::test_dropout_no_parameters ... ok
+test dropout::tests::test_dropout_p_one ... ok
+test dropout::tests::test_dropout_p_zero ... ok
+test dropout::tests::test_dropout_training_mode ... ok
+test dropout::tests_dropout2d::test_dropout2d_cnn_regularization ... ok
+test dropout::tests_dropout2d::test_dropout2d_eval_mode ... ok
+test dropout::tests_dropout2d::test_dropout2d_invalid_input_shape - should panic ... ok
+test dropout::tests_dropout2d::test_dropout2d_p_one ... ok
+test dropout::tests_dropout2d::test_dropout2d_p_zero ... ok
+test dropout::tests_dropout2d::test_dropout2d_training_mode ... ok
+test dropout::tests_dropout3d::test_dropout3d_eval_mode ... ok
+test dropout::tests_dropout3d::test_dropout3d_invalid_input_shape - should panic ... ok
+test dropout::tests_dropout3d::test_dropout3d_p_one ... ok
+test dropout::tests_dropout3d::test_dropout3d_p_zero ... ok
+test dropout::tests_dropout3d::test_dropout3d_training_mode ... ok
+test dropout::tests_dropout3d::test_dropout3d_video_classification ... ok
+test embedding::tests::test_embedding_1d_input ... ok
+test embedding::tests::test_embedding_forward ... ok
+test embedding::tests::test_embedding_lookup_correctness ... ok
+test embedding::tests::test_embedding_out_of_bounds - should panic ... ok
+test embedding::tests::test_embedding_parameters ... ok
+test functional::tests::test_functional_cross_entropy ... ok
+test functional::tests::test_functional_mse_loss ... ok
+test functional::tests::test_functional_relu ... ok
+test functional::tests::test_functional_sigmoid ... ok
+test functional::tests::test_functional_softmax ... ok
+test functional::tests::test_functional_tanh ... ok
+test functional::tests::test_simd_accumulate_gradients ... ok
+test grad_clip::tests::test_clip_config ... ok
+test grad_clip::tests::test_gradient_health_check ... ok
+test groupnorm::tests::test_groupnorm_creation ... ok
+test groupnorm::tests::test_groupnorm_forward_basic ... ok
+test groupnorm::tests::test_groupnorm_forward_computation ... ok
+test groupnorm::tests::test_groupnorm_invalid_channels ... ok
+test groupnorm::tests::test_groupnorm_multiple_groups ... ok
+test groupnorm::tests::test_groupnorm_parameters_affine ... ok
+test groupnorm::tests::test_groupnorm_parameters_no_affine ... ok
+test groupnorm::tests::test_instancenorm_batch_independence ... ok
+test groupnorm::tests::test_instancenorm_creation ... ok
+test groupnorm::tests::test_instancenorm_forward_basic ... ok
+test groupnorm::tests::test_instancenorm_forward_computation ... ok
+test groupnorm::tests::test_instancenorm_parameters_affine ... ok
+test groupnorm::tests::test_instancenorm_parameters_no_affine ... ok
+test init::tests::test_calculate_fan_in_fan_out_2d ... ok
+test init::tests::test_calculate_fan_in_fan_out_conv ... ok
+test init::tests::test_constant_initialization ... ok
+test init::tests::test_kaiming_normal_initialization ... ok
+test init::tests::test_kaiming_uniform_initialization ... ok
+test init::tests::test_nonlinearity_gain ... ok
+test init::tests::test_normal_initialization ... ok
+test init::tests::test_ones_initialization ... ok
+test init::tests::test_orthogonal_initialization ... ok
+test init::tests::test_uniform_initialization ... ok
+test init::tests::test_xavier_normal_initialization ... ok
+test init::tests::test_xavier_uniform_initialization ... ok
+test init::tests::test_zeros_initialization ... ok
+test layernorm::tests::test_layernorm_3d_input ... ok
+test layernorm::tests::test_layernorm_affine_transform ... ok
+test layernorm::tests::test_layernorm_forward ... ok
+test layernorm::tests::test_layernorm_numerical_stability ... ok
+test layernorm::tests::test_layernorm_parameters ... ok
+test linear::tests::test_parameter_creation ... ok
+test linear::tests::test_parameter_creation_no_grad ... ok
+test linear::tests::test_parameter_update_data ... ok
+test linear::tests::test_parameter_zero_grad ... ok
+test linear::tests::test_sparse_weight_initialization ... ok
+test loss::cross_entropy::tests::test_cross_entropy_loss_basic ... ok
+test loss::cross_entropy::tests::test_cross_entropy_loss_perfect_prediction ... ok
+test loss::cross_entropy::tests::test_cross_entropy_loss_shape_mismatch ... ok
+test loss::mse::tests::test_mse_loss_basic ... ok
+test loss::mse::tests::test_mse_loss_perfect_prediction ... ok
+test loss::mse::tests::test_mse_loss_shape_mismatch ... ok
+test loss::nll::tests::test_nll_loss_basic ... ok
+test loss::nll::tests::test_nll_loss_invalid_class ... ok
+test loss::nll::tests::test_nll_loss_perfect_prediction ... ok
+test loss::nll::tests::test_nll_loss_shape_mismatch ... ok
+test module::tests::test_module_name ... ok
+test module::tests::test_module_parameters ... ok
+test module::tests::test_module_summary ... ok
+test parameter::tests::test_empty_sparse_parameters ... ignored, Sparse parameter implementation incomplete
+test parameter::tests::test_parameter_creation ... ok
+test parameter::tests::test_parameter_creation_no_grad ... ok
+test parameter::tests::test_parameter_update_data ... ok
+test parameter::tests::test_parameter_zero_grad ... ok
+test parameter::tests::test_sparse_coo_parameter_creation ... ok
+test parameter::tests::test_sparse_csc_parameter_creation ... ok
+test parameter::tests::test_sparse_csr_parameter_creation ... ok
+test parameter::tests::test_sparse_parameter_validation ... ok
+test pooling::tests::test_adaptive_avgpool1d_creation ... ok
+test pooling::tests::test_adaptive_avgpool1d_forward_basic ... ok
+test pooling::tests::test_adaptive_avgpool1d_forward_computation ... ok
+test pooling::tests::test_adaptive_avgpool1d_forward_upsampling ... ok
+test pooling::tests::test_adaptive_avgpool2d_3d_input ... ok
+test pooling::tests::test_adaptive_avgpool2d_constructor ... ok
+test pooling::tests::test_adaptive_avgpool2d_forward_shape ... ok
+test pooling::tests::test_adaptive_avgpool2d_global_pooling ... ok
+test pooling::tests::test_adaptive_maxpool2d_3d_input ... ok
+test pooling::tests::test_adaptive_maxpool2d_constructor ... ok
+test pooling::tests::test_adaptive_maxpool2d_forward_shape ... ok
+test pooling::tests::test_adaptive_maxpool2d_global_pooling ... ok
+test pooling::tests::test_avgpool1d_creation ... ok
+test pooling::tests::test_avgpool1d_forward_basic ... ok
+test pooling::tests::test_avgpool1d_forward_computation ... ok
+test pooling::tests::test_avgpool2d_constructor ... ok
+test pooling::tests::test_avgpool2d_forward_correctness ... ok
+test pooling::tests::test_avgpool2d_forward_shape ... ok
+test pooling::tests::test_avgpool2d_invalid_kernel_size - should panic ... ok
+test pooling::tests::test_avgpool2d_stride_default ... ok
+test pooling::tests::test_avgpool3d_batch_processing ... ok
+test pooling::tests::test_avgpool3d_constructor ... ok
+test pooling::tests::test_avgpool3d_forward_computation ... ok
+test pooling::tests::test_avgpool3d_forward_shape ... ok
+test pooling::tests::test_avgpool3d_video_classification ... ok
+test pooling::tests::test_avgpool3d_with_stride ... ok
+test pooling::tests::test_maxpool1d_creation ... ok
+test pooling::tests::test_maxpool1d_forward_basic ... ok
+test pooling::tests::test_maxpool1d_forward_computation ... ok
+test pooling::tests::test_maxpool1d_forward_with_stride ... ok
+test pooling::tests::test_maxpool2d_constructor ... ok
+test pooling::tests::test_maxpool2d_forward_correctness ... ok
+test pooling::tests::test_maxpool2d_forward_shape ... ok
+test pooling::tests::test_maxpool2d_invalid_kernel_size - should panic ... ok
+test pooling::tests::test_maxpool2d_stride_default ... ok
+test pooling::tests::test_maxpool3d_batch_processing ... ok
+test pooling::tests::test_maxpool3d_constructor ... ok
+test pooling::tests::test_maxpool3d_forward_computation ... ok
+test pooling::tests::test_maxpool3d_forward_shape ... ok
+test pooling::tests::test_maxpool3d_video_classification ... ok
+test pooling::tests::test_maxpool3d_with_stride ... ok
+test rnn::gru_tests::gru_tests::test_gru_batch_first ... ok
+test rnn::gru_tests::gru_tests::test_gru_bidirectional ... ok
+test rnn::gru_tests::gru_tests::test_gru_creation ... ok
+test rnn::gru_tests::gru_tests::test_gru_forward_shape ... ok
+test rnn::gru_tests::gru_tests::test_gru_invalid_hidden_size - should panic ... ok
+test rnn::gru_tests::gru_tests::test_gru_invalid_input_size - should panic ... ok
+test rnn::gru_tests::gru_tests::test_gru_invalid_num_layers - should panic ... ok
+test rnn::gru_tests::gru_tests::test_gru_multilayer ... ok
+test rnn::gru_tests::gru_tests::test_gru_multilayer_state_propagation ... ok
+test rnn::gru_tests::gru_tests::test_gru_no_bias ... ok
+test rnn::gru_tests::gru_tests::test_gru_parameters ... ok
+test rnn::lstm::lstm_tests::test_lstm_batch_first ... ok
+test rnn::lstm::lstm_tests::test_lstm_bidirectional ... ok
+test rnn::lstm::lstm_tests::test_lstm_bidirectional_batch_first ... ok
+test rnn::lstm::lstm_tests::test_lstm_bidirectional_multilayer ... ok
+test rnn::lstm::lstm_tests::test_lstm_bidirectional_numerical ... ok
+test rnn::lstm::lstm_tests::test_lstm_bidirectional_reverse_sequence ... ok
+test rnn::lstm::lstm_tests::test_lstm_bidirectional_shape ... ok
+test rnn::lstm::lstm_tests::test_lstm_creation ... ok
+test rnn::lstm::lstm_tests::test_lstm_forward_shape ... ok
+test rnn::lstm::lstm_tests::test_lstm_invalid_hidden_size - should panic ... ok
+test rnn::lstm::lstm_tests::test_lstm_invalid_input_size - should panic ... ok
+test rnn::lstm::lstm_tests::test_lstm_invalid_num_layers - should panic ... ok
+test rnn::lstm::lstm_tests::test_lstm_multilayer ... ok
+test rnn::lstm::lstm_tests::test_lstm_multilayer_state_propagation ... ok
+test rnn::lstm::lstm_tests::test_lstm_no_bias ... ok
+test rnn::lstm::lstm_tests::test_lstm_parameters ... ok
+test rnn::lstm::lstm_tests::test_lstm_weight_initialization ... ok
+test rnn::rnn::rnn_forward_var_tests::test_rnn_forward_var ... ok
+test rnn::rnn::tests::test_rnn_batch_first ... ok
+test rnn::rnn::tests::test_rnn_bidirectional ... ok
+test rnn::rnn::tests::test_rnn_bidirectional_batch_first ... ignored, Bidirectional RNN not yet implemented
+test rnn::rnn::tests::test_rnn_bidirectional_multi_layer ... ignored, Bidirectional RNN not yet implemented
+test rnn::rnn::tests::test_rnn_bidirectional_numerical ... ignored, Bidirectional RNN not yet implemented
+test rnn::rnn::tests::test_rnn_bidirectional_shape ... ignored, Bidirectional RNN not yet implemented
+test rnn::rnn::tests::test_rnn_creation ... ok
+test rnn::rnn::tests::test_rnn_forward_shape ... ok
+test rnn::rnn::tests::test_rnn_invalid_hidden_size - should panic ... ok
+test rnn::rnn::tests::test_rnn_invalid_input_size - should panic ... ok
+test rnn::rnn::tests::test_rnn_invalid_num_layers - should panic ... ok
+test rnn::rnn::tests::test_rnn_multilayer ... ok
+test rnn::rnn::tests::test_rnn_multilayer_state_propagation ... ok
+test rnn::rnn::tests::test_rnn_no_bias ... ok
+test rnn::rnn::tests::test_rnn_parameters ... ok
+test rnn::rnn::tests::test_rnn_reverse_sequence ... ok
+test rnn::rnn::tests::test_rnn_weight_initialization ... ok
+test sequential::tests::test_sequential_add_module ... ok
+test sequential::tests::test_sequential_duplicate_names - should panic ... ok
+test sequential::tests::test_sequential_empty ... ok
+test sequential::tests::test_sequential_forward ... ok
+test sequential::tests::test_sequential_get_module ... ok
+test sequential::tests::test_sequential_module_not_found ... ok
+test sequential::tests::test_sequential_parameters ... ok
+test sparse_linear::tests::test_sparse_linear_creation ... ok
+test sparse_linear::tests::test_sparse_linear_forward ... ok
+test sparse_linear::tests::test_sparse_to_dense_conversion ... ignored, Sparse storage conversion incomplete
+test transformer::tests::test_transformer_decoder_creation ... ok
+test transformer::tests::test_transformer_decoder_forward_shape ... ok
+test transformer::tests::test_transformer_decoder_forward_shape_batch2 ... ok
+test transformer::tests::test_transformer_decoder_forward_with_memory_shape ... ignored, Transformer decoder batched input handling incomplete
+test transformer::tests::test_transformer_decoder_forward_with_memory_shape_batch4 ... ok
+test transformer::tests::test_transformer_decoder_invalid_d_model ... ok
+test transformer::tests::test_transformer_decoder_invalid_dim_feedforward ... ok
+test transformer::tests::test_transformer_decoder_invalid_divisibility ... ok
+test transformer::tests::test_transformer_decoder_invalid_nhead ... ok
+test transformer::tests::test_transformer_decoder_parameters ... ok
+test transformer::tests::test_transformer_decoder_small_model ... ok
+test transformer::tests::test_transformer_encoder_creation ... ok
+test transformer::tests::test_transformer_encoder_forward_shape ... ok
+test transformer::tests::test_transformer_encoder_forward_shape_batch2 ... ok
+test transformer::tests::test_transformer_encoder_forward_shape_batch4 ... ok
+test transformer::tests::test_transformer_encoder_invalid_d_model ... ok
+test transformer::tests::test_transformer_encoder_invalid_dim_feedforward ... ok
+test transformer::tests::test_transformer_encoder_invalid_divisibility ... ok
+test transformer::tests::test_transformer_encoder_invalid_nhead ... ok
+test transformer::tests::test_transformer_encoder_parameters ... ok
+test transformer::tests::test_transformer_encoder_small_model ... ok
+test upsample::tests::test_upsample_batch_processing ... ok
+test upsample::tests::test_upsample_bilinear_computation ... ok
+test upsample::tests::test_upsample_bilinear_scale_factor ... ok
+test upsample::tests::test_upsample_both_none - should panic ... ok
+test upsample::tests::test_upsample_both_some - should panic ... ok
+test upsample::tests::test_upsample_invalid_scale_factor - should panic ... ok
+test upsample::tests::test_upsample_nearest_scale_factor ... ok
+test upsample::tests::test_upsample_nearest_size ... ok
+test upsample::tests::test_upsample_super_resolution ... ok
+test upsample::tests::test_upsample_unet_decoder ... ok
+
+test result: ok. 287 passed; 0 failed; 13 ignored; 0 measured; 0 filtered out; finished in 15.94s
+
+     Running tests\activation_tests.rs (target\debug\deps\activation_tests-fc373bcecc6581e9.exe)
+
+running 9 tests
+test test_prelu_different_shapes ... ok
+test test_prelu_forward ... ok
+test test_prelu_gradient_flow ... FAILED
+test test_prelu_module_api ... ok
+test test_prelu_parameters ... FAILED
+test test_prelu_per_channel ... ok
+test test_prelu_shared_parameter ... FAILED
+test test_prelu_train_eval_modes ... ok
+test test_prelu_zero_grad ... FAILED
+
+failures:
+
+---- test_prelu_gradient_flow stdout ----
+
+thread 'test_prelu_gradient_flow' (89816) panicked at nn\tests\activation_tests.rs:77:5:
+assertion failed: output.requires_grad()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- test_prelu_parameters stdout ----
+
+thread 'test_prelu_parameters' (56448) panicked at nn\tests\activation_tests.rs:45:5:
+assertion `left == right` failed
+  left: 1
+ right: 3
+
+---- test_prelu_shared_parameter stdout ----
+
+thread 'test_prelu_shared_parameter' (92024) panicked at nn\tests\activation_tests.rs:62:5:
+assertion `left == right` failed
+  left: [1]
+ right: [0]
+
+---- test_prelu_zero_grad stdout ----
+
+thread 'test_prelu_zero_grad' (63480) panicked at nn\tests\activation_tests.rs:93:5:
+assertion `left == right` failed
+  left: 1
+ right: 2
+
+
+failures:
+    test_prelu_gradient_flow
+    test_prelu_parameters
+    test_prelu_shared_parameter
+    test_prelu_zero_grad
+
+test result: FAILED. 5 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p coeus-nn --test activation_tests`

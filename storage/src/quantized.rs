@@ -4,7 +4,7 @@
 //! Supports 4-bit, 8-bit, and 16-bit quantization with proper packing.
 
 use crate::{DataType, Result, Shape, Storage, StorageError, StorageFromVec};
-use alloc::{format, vec, vec::Vec};
+use alloc::{vec, vec::Vec};
 
 /// Quantized storage with configurable bitwidth.
 ///
@@ -14,7 +14,7 @@ use alloc::{format, vec, vec::Vec};
 /// # Examples
 ///
 /// ```
-/// use coeus_storage::QuantizedStorage;
+/// use coeus_storage::{QuantizedStorage, Storage};
 /// use coeus_dtype::float::Float32;
 ///
 /// // Create 4-bit quantized storage
@@ -35,13 +35,18 @@ pub struct QuantizedStorage<T: DataType, const BITS: usize> {
     zero_point: T,
 }
 
-impl<T: DataType + core::cmp::PartialOrd, const BITS: usize> QuantizedStorage<T, BITS> {
-    /// Values per byte for different bitwidths
-    const VALUES_PER_BYTE: usize = 8 / BITS;
-
+impl<
+        T: DataType
+            + core::cmp::PartialOrd
+            + num_traits::Float
+            + num_traits::FromPrimitive
+            + num_traits::ToPrimitive,
+        const BITS: usize,
+    > QuantizedStorage<T, BITS>
+{
     /// Creates quantized storage from a vector with specified shape.
     ///
-    /// Uses default quantization parameters (scale=1.0, zero_point=0.0).
+    /// Uses default quantization parameters (scale=1.0, `zero_point=0.0`).
     /// For custom quantization parameters, use `from_vec_with_params`.
     ///
     /// # Arguments
@@ -54,8 +59,9 @@ impl<T: DataType + core::cmp::PartialOrd, const BITS: usize> QuantizedStorage<T,
     /// # Errors
     ///
     /// Returns error if data size doesn't match shape or invalid bitwidth.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn from_vec(data: Vec<T>, shape: &[usize]) -> Result<Self> {
-        Self::from_vec_with_params(data, shape, T::one(), T::zero())
+        Self::from_vec_with_params(&data, shape, T::one(), T::zero())
     }
 
     /// Creates quantized storage from a vector with custom quantization parameters.
@@ -69,7 +75,12 @@ impl<T: DataType + core::cmp::PartialOrd, const BITS: usize> QuantizedStorage<T,
     /// # Errors
     ///
     /// Returns error if data size doesn't match shape or invalid bitwidth.
-    pub fn from_vec_with_params(data: Vec<T>, shape: &[usize], scale: T, zero_point: T) -> Result<Self> {
+    pub fn from_vec_with_params(
+        data: &[T],
+        shape: &[usize],
+        scale: T,
+        zero_point: T,
+    ) -> Result<Self> {
         // Validate bitwidth
         if BITS != 4 && BITS != 8 && BITS != 16 {
             return Err(StorageError::InvalidShape {
@@ -87,7 +98,7 @@ impl<T: DataType + core::cmp::PartialOrd, const BITS: usize> QuantizedStorage<T,
         }
 
         // Quantize and pack data
-        let packed_data = Self::quantize_and_pack(&data, scale, zero_point)?;
+        let packed_data = Self::quantize_and_pack(data, scale, zero_point)?;
 
         // Calculate strides (row-major)
         let mut strides = vec![1; shape.len()];
@@ -142,70 +153,152 @@ impl<T: DataType + core::cmp::PartialOrd, const BITS: usize> QuantizedStorage<T,
     /// # Returns
     /// Packed quantized data as bytes
     fn quantize_and_pack(data: &[T], scale: T, zero_point: T) -> Result<Vec<u8>> {
-        let mut packed = Vec::new();
+        let num_elements = data.len();
+        let max_value = (1 << BITS) - 1; // e.g., 15 for 4-bit
 
-        // For each group of values that fit in a byte
-        for chunk in data.chunks(Self::VALUES_PER_BYTE) {
-            let mut byte = 0u8;
+        // Quantize: q = round(x / scale + zero_point)
+        let quantized: Vec<usize> = data
+            .iter()
+            .map(|&x| {
+                let scaled = x / scale + zero_point;
+                let max_val = T::from_usize(max_value).unwrap_or(T::zero());
+                let clamped = scaled.max(T::zero()).min(max_val);
+                clamped.to_usize().unwrap_or(0)
+            })
+            .collect();
 
-            for (i, &value) in chunk.iter().enumerate() {
-                // Quantize: q = round((x - zero_point) / scale)
-                let quantized = if value >= zero_point {
-                    ((value - zero_point) / scale).to_f64().unwrap_or(0.0).round() as i32
-                } else {
-                    -((zero_point - value) / scale).to_f64().unwrap_or(0.0).round() as i32
-                };
-
-                // Clamp to quantization range
-                let (qmin, qmax) = Self::quantization_range();
-                let clamped = quantized.max(qmin).min(qmax);
-
-                // Pack into byte based on bitwidth
-                match BITS {
-                    4 => {
-                        let nibble = (clamped as u8) & 0x0F;
-                        if i % 2 == 0 {
-                            byte = nibble;
-                        } else {
-                            byte |= nibble << 4;
-                            packed.push(byte);
-                        }
+        // Pack based on bitwidth
+        match BITS {
+            4 => {
+                // Pack 2 values per byte
+                let packed_len = (num_elements + 1) / 2;
+                let mut packed = vec![0u8; packed_len];
+                for (i, &quantized_val) in quantized.iter().enumerate().take(num_elements) {
+                    let byte_idx = i / 2;
+                    let is_high_nibble = i % 2 == 0;
+                    if is_high_nibble {
+                        packed[byte_idx] |= u8::try_from(quantized_val).unwrap_or(0) << 4;
+                    } else {
+                        packed[byte_idx] |= u8::try_from(quantized_val).unwrap_or(0);
                     }
-                    8 => {
-                        packed.push(clamped as u8);
-                    }
-                    16 => {
-                        // For 16-bit, we store as two bytes
-                        let value = clamped as u16;
-                        packed.push((value & 0xFF) as u8);
-                        packed.push((value >> 8) as u8);
-                    }
-                    _ => unreachable!("Validated at creation"),
+                }
+                Ok(packed)
+            }
+            8 => {
+                // Direct byte mapping
+                Ok(quantized
+                    .iter()
+                    .map(|&q| u8::try_from(q).unwrap_or(0))
+                    .collect())
+            }
+            16 => {
+                // Pack 2 bytes per value
+                let mut packed = Vec::with_capacity(num_elements * 2);
+                for &q in &quantized {
+                    packed.push(u8::try_from(q & 0xFF).unwrap_or(0));
+                    packed.push(u8::try_from((q >> 8) & 0xFF).unwrap_or(0));
+                }
+                Ok(packed)
+            }
+            _ => Err(StorageError::InvalidShape {
+                reason: "Unsupported bitwidth",
+            }),
+        }
+    }
+
+    /// Unpacks and dequantizes data
+    /// # Errors
+    /// Returns error if unpacking fails due to invalid data format
+    pub fn unpack_and_dequantize(&self) -> Result<Vec<T>> {
+        let num_elements = self.len();
+        let mut values = Vec::with_capacity(num_elements);
+
+        match BITS {
+            4 => {
+                for i in 0..num_elements {
+                    let byte_idx = i / 2;
+                    let is_high_nibble = i % 2 == 0;
+                    let quantized = if is_high_nibble {
+                        (self.data[byte_idx] >> 4) & 0x0F
+                    } else {
+                        self.data[byte_idx] & 0x0F
+                    };
+                    let dequantized = (T::from_usize(quantized as usize).unwrap_or(T::zero())
+                        - self.zero_point)
+                        * self.scale;
+                    values.push(dequantized);
                 }
             }
-
-            // Handle partial byte for 4-bit quantization
-            if BITS == 4 && chunk.len() % 2 == 1 {
-                packed.push(byte);
+            8 => {
+                for &byte in &self.data {
+                    let dequantized = (T::from_usize(byte as usize).unwrap_or(T::zero())
+                        - self.zero_point)
+                        * self.scale;
+                    values.push(dequantized);
+                }
+            }
+            16 => {
+                for i in 0..num_elements {
+                    let low = self.data[i * 2] as usize;
+                    let high = self.data[i * 2 + 1] as usize;
+                    let quantized = low | (high << 8);
+                    let dequantized = (T::from_usize(quantized).unwrap_or(T::zero())
+                        - self.zero_point)
+                        * self.scale;
+                    values.push(dequantized);
+                }
+            }
+            _ => {
+                return Err(StorageError::InvalidShape {
+                    reason: "Unsupported bitwidth",
+                })
             }
         }
 
-        Ok(packed)
+        Ok(values)
+    }
+
+    /// Get dequantized element at index
+    /// # Errors
+    /// Returns error if index is out of bounds
+    pub fn get(&self, index: usize) -> Result<T> {
+        if index >= self.len() {
+            return Err(StorageError::IndexOutOfBounds {
+                index,
+                bound: self.len(),
+            });
+        }
+
+        let quantized = match BITS {
+            4 => {
+                let byte_idx = index / 2;
+                let is_high_nibble = index % 2 == 0;
+                if is_high_nibble {
+                    (self.data[byte_idx] >> 4) & 0x0F
+                } else {
+                    self.data[byte_idx] & 0x0F
+                }
+            }
+            8 => self.data[index],
+            16 => {
+                let low = u16::from(self.data[index * 2]);
+                let high = u16::from(self.data[index * 2 + 1]);
+                u8::try_from((high << 8) | low).unwrap_or(0)
+            }
+            _ => {
+                return Err(StorageError::InvalidShape {
+                    reason: "Unsupported bitwidth",
+                })
+            }
+        };
+
+        Ok((T::from_usize(quantized as usize).unwrap_or(T::zero()) - self.zero_point) * self.scale)
     }
 
     /// Returns quantization range based on bitwidth and sign.
     ///
     /// # Returns
-    /// (min, max) quantization values
-    fn quantization_range() -> (i32, i32) {
-        match BITS {
-            4 => (-8, 7),    // Signed 4-bit: -8 to 7
-            8 => (-128, 127), // Signed 8-bit: -128 to 127
-            16 => (-32768, 32767), // Signed 16-bit
-            _ => (0, 0), // Should not happen
-        }
-    }
-
+    /// `(min, max)` quantization values
     /// Gets quantization scale factor.
     #[must_use]
     pub const fn scale(&self) -> T {
@@ -225,17 +318,25 @@ impl<T: DataType + core::cmp::PartialOrd, const BITS: usize> QuantizedStorage<T,
     }
 }
 
-impl<T: DataType + core::cmp::PartialOrd, const BITS: usize> StorageFromVec<T> for QuantizedStorage<T, BITS> {
+impl<
+        T: DataType
+            + core::cmp::PartialOrd
+            + num_traits::Float
+            + num_traits::FromPrimitive
+            + num_traits::ToPrimitive,
+        const BITS: usize,
+    > StorageFromVec<T> for QuantizedStorage<T, BITS>
+{
     fn from_vec(data: Vec<T>, shape: &[usize]) -> Result<Self> {
-        Self::from_vec(data, shape)
+        QuantizedStorage::from_vec(data, shape)
     }
 
     fn zeros(shape: &[usize]) -> Result<Self> {
-        Self::zeros(shape)
+        QuantizedStorage::zeros(shape)
     }
 
     fn ones(shape: &[usize]) -> Result<Self> {
-        Self::ones(shape)
+        QuantizedStorage::ones(shape)
     }
 }
 
@@ -274,7 +375,7 @@ impl<T: DataType, const BITS: usize> Storage<T> for QuantizedStorage<T, BITS> {
         true
     }
 
-    fn as_storage_ref(&self) -> &dyn Storage<T> {
+    fn as_storage_ref(&self) -> &Self {
         self
     }
 }
@@ -290,7 +391,6 @@ pub type QuantizedStorage16<T> = QuantizedStorage<T, 16>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::StorageFromVec;
     use coeus_dtype::float::Float32;
 
     type TestStorage4 = QuantizedStorage<Float32, 4>;
@@ -305,7 +405,13 @@ mod tests {
             Float32::new(3.0),
             Float32::new(4.0),
         ];
-        let storage = TestStorage4::from_vec_with_params(data, &[2, 2], Float32::new(1.0), Float32::new(0.0)).unwrap();
+        let storage = TestStorage4::from_vec_with_params(
+            &data,
+            &[2, 2],
+            Float32::new(1.0),
+            Float32::new(0.0),
+        )
+        .unwrap();
 
         assert_eq!(storage.shape().dims(), &[2, 2]);
         assert_eq!(storage.len(), 4);
@@ -316,12 +422,10 @@ mod tests {
 
     #[test]
     fn test_quantized_storage_8bit_creation() {
-        let data = vec![
-            Float32::new(-1.0),
-            Float32::new(0.0),
-            Float32::new(1.0),
-        ];
-        let storage = TestStorage8::from_vec_with_params(data, &[3], Float32::new(0.1), Float32::new(0.0)).unwrap();
+        let data = vec![Float32::new(-1.0), Float32::new(0.0), Float32::new(1.0)];
+        let storage =
+            TestStorage8::from_vec_with_params(&data, &[3], Float32::new(0.1), Float32::new(0.0))
+                .unwrap();
 
         assert_eq!(storage.shape().dims(), &[3]);
         assert_eq!(storage.len(), 3);
@@ -330,11 +434,10 @@ mod tests {
 
     #[test]
     fn test_quantized_storage_16bit_creation() {
-        let data = vec![
-            Float32::new(100.0),
-            Float32::new(200.0),
-        ];
-        let storage = TestStorage16::from_vec_with_params(data, &[2], Float32::new(10.0), Float32::new(0.0)).unwrap();
+        let data = vec![Float32::new(100.0), Float32::new(200.0)];
+        let storage =
+            TestStorage16::from_vec_with_params(&data, &[2], Float32::new(10.0), Float32::new(0.0))
+                .unwrap();
 
         assert_eq!(storage.shape().dims(), &[2]);
         assert_eq!(storage.len(), 2);
@@ -360,14 +463,41 @@ mod tests {
     #[test]
     fn test_quantized_storage_invalid_bitwidth() {
         let data = vec![Float32::new(1.0)];
-        let result = QuantizedStorage::<Float32, 3>::from_vec_with_params(data, &[1], Float32::new(1.0), Float32::new(0.0));
+        let result = QuantizedStorage::<Float32, 3>::from_vec_with_params(
+            &data,
+            &[1],
+            Float32::new(1.0),
+            Float32::new(0.0),
+        );
         assert!(result.is_err());
     }
 
     #[test]
     fn test_quantized_storage_shape_mismatch() {
         let data = vec![Float32::new(1.0), Float32::new(2.0)];
-        let result = TestStorage8::from_vec_with_params(data, &[3], Float32::new(1.0), Float32::new(0.0));
+        let result =
+            TestStorage8::from_vec_with_params(&data, &[3], Float32::new(1.0), Float32::new(0.0));
         assert!(result.is_err());
+    }
+}
+
+impl<T, const BITS: usize> crate::StorageToDense<T> for QuantizedStorage<T, BITS>
+where
+    T: crate::DataType
+        + core::cmp::PartialOrd
+        + num_traits::Float
+        + num_traits::FromPrimitive
+        + num_traits::ToPrimitive,
+{
+    fn to_dense(&self) -> crate::Result<crate::DenseStorage<T>> {
+        // Dequantize all values to dense storage
+        let mut dense_data = Vec::with_capacity(self.len());
+
+        for i in 0..self.len() {
+            let quantized_val = self.get(i)?;
+            dense_data.push(quantized_val);
+        }
+
+        crate::DenseStorage::from_vec(dense_data, self.shape.dims())
     }
 }

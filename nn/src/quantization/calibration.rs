@@ -69,7 +69,11 @@ where
     }
 
     /// Add calibration data for a layer
-    pub fn add_calibration_data(&mut self, layer_name: &str, tensor: &Tensor<impl Backend, impl Storage<T>, T>) -> Result<()> {
+    pub fn add_calibration_data(
+        &mut self,
+        layer_name: &str,
+        tensor: &Tensor<impl Backend, impl Storage<T>, T>,
+    ) -> Result<()> {
         let data = tensor.as_slice();
 
         // Collect statistics
@@ -95,10 +99,12 @@ where
 
     /// Get optimal quantization parameters for a layer
     pub fn get_optimal_params(&self, layer_name: &str, bits: usize) -> Result<(T, T)> {
-        let layer_samples = self.layer_stats.get(layer_name)
-            .ok_or_else(|| NNError::InvalidInput {
-                message: format!("No calibration data found for layer: {}", layer_name),
-            })?;
+        let layer_samples =
+            self.layer_stats
+                .get(layer_name)
+                .ok_or_else(|| NNError::InvalidInput {
+                    message: format!("No calibration data found for layer: {}", layer_name),
+                })?;
 
         if layer_samples.is_empty() {
             return Err(NNError::InvalidInput {
@@ -164,7 +170,11 @@ where
                     max: f64::from(stats.max.clone()),
                     mean: f64::from(stats.mean.clone()),
                     std: f64::from(stats.std.clone()),
-                    percentiles: stats.percentiles.iter().map(|&p| f64::from(p.clone())).collect(),
+                    percentiles: stats
+                        .percentiles
+                        .iter()
+                        .map(|&p| f64::from(p.clone()))
+                        .collect(),
                     sample_count: 1, // Each CalibrationStats represents one sample batch
                 })
                 .collect();

@@ -99,3 +99,4 @@ impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default, S: TensorStorage<T
         Tensor::from_vec(backend, data_init, shape).unwrap()
     }
 }
+

@@ -8,7 +8,7 @@ use coeus_dtype::float::Float32;
 use coeus_storage::DenseStorage;
 use coeus_tensor::Tensor;
 
-use super::TransformError;
+use super::{Transform, TransformError};
 
 /// Transform that normalizes tensor data
 ///
@@ -82,14 +82,16 @@ impl Normalize {
     pub fn std(&self) -> &[f32] {
         &self.std
     }
-}
 
-impl Normalize {
-    /// Apply normalization to a tensor
+    /// Legacy method for backward compatibility - deprecated
     pub fn apply_tensor(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, TransformError> {
+        input: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, TransformError> {
+        // Convert to f64 for precision, then back to original type
+        let mean_f64: Vec<f64> = self.mean.iter().map(|&x| x as f64).collect();
+        let std_f64: Vec<f64> = self.std.iter().map(|&x| x as f64).collect();
+
         let shape = input.shape().dims();
 
         // Handle different tensor shapes
@@ -105,7 +107,7 @@ impl Normalize {
                         actual: format!("1D tensor with shape {:?}", shape),
                     });
                 }
-                normalize_1d(input, self.mean[0], self.std[0])
+                self.normalize_generic(input, &mean_f64, &std_f64, shape)
             }
             2 => {
                 // 2D tensor - sequence or feature matrix
@@ -119,7 +121,7 @@ impl Normalize {
                         actual: format!("2D tensor with shape {:?}", shape),
                     });
                 }
-                normalize_2d(input, &self.mean, &self.std)
+                self.normalize_generic(input, &mean_f64, &std_f64, shape)
             }
             3 => {
                 // 3D tensor - image-like (C, H, W)
@@ -133,7 +135,7 @@ impl Normalize {
                         actual: format!("3D tensor with shape {:?}", shape),
                     });
                 }
-                normalize_3d(input, &self.mean, &self.std)
+                self.normalize_generic(input, &mean_f64, &std_f64, shape)
             }
             4 => {
                 // 4D tensor - batch of images (N, C, H, W)
@@ -147,100 +149,160 @@ impl Normalize {
                         actual: format!("4D tensor with shape {:?}", shape),
                     });
                 }
-                normalize_4d(input, &self.mean, &self.std)
+                self.normalize_generic(input, &mean_f64, &std_f64, shape)
             }
             _ => Err(TransformError::UnsupportedType {
                 type_name: format!("{}-dimensional tensor", shape.len()),
             }),
         }
     }
-}
 
-/// Normalize 1D tensor and return new tensor
-fn normalize_1d(
-    tensor: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
-    mean: f32,
-    std: f32,
-) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, TransformError> {
-    let slice = tensor.as_slice();
-    let normalized_data: Vec<Float32> = slice
-        .iter()
-        .map(|val| Float32::new((val.get() - mean) / std))
-        .collect();
+    fn normalize_generic(
+        &self,
+        input: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+        mean: &[f64],
+        std: &[f64],
+        shape: &[usize],
+    ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, TransformError> {
+        let slice = input.as_slice();
 
-    Tensor::from_vec(normalized_data, tensor.shape().dims()).map_err(TransformError::TensorError)
-}
+        // Apply normalization in the appropriate dimension
+        let normalized_values: Vec<Float32> = self.normalize_slice(slice, mean, std, shape);
 
-/// Normalize 2D tensor and return new tensor (features x sequence_length)
-fn normalize_2d(
-    tensor: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
-    mean: &[f32],
-    std: &[f32],
-) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, TransformError> {
-    let slice = tensor.as_slice();
-    let shape = tensor.shape().dims();
-    let (features, seq_len) = (shape[0], shape[1]);
+        // Create new tensor with normalized values - always Dense for now
+        let normalized_tensor =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                normalized_values,
+                shape,
+            )?;
 
-    let mut normalized_data = Vec::with_capacity(slice.len());
-    for i in 0..features {
-        for j in 0..seq_len {
-            let idx = i * seq_len + j;
-            let val = slice[idx].get();
-            normalized_data.push(Float32::new((val - mean[i]) / std[i]));
+        Ok(normalized_tensor)
+    }
+
+    fn normalize_slice(
+        &self,
+        slice: &[Float32],
+        mean: &[f64],
+        std: &[f64],
+        shape: &[usize],
+    ) -> Vec<Float32> {
+        match shape.len() {
+            1 => self.normalize_1d_slice(slice, mean, std),
+            2 => self.normalize_2d_slice(slice, mean, std, shape),
+            3 => self.normalize_3d_slice(slice, mean, std, shape),
+            4 => self.normalize_4d_slice(slice, mean, std, shape),
+            _ => unreachable!("Shape validation already performed"),
         }
     }
 
-    Tensor::from_vec(normalized_data, shape).map_err(TransformError::TensorError)
-}
+    fn normalize_1d_slice(&self, slice: &[Float32], mean: &[f64], _std: &[f64]) -> Vec<Float32> {
+        slice
+            .iter()
+            .map(|&val| {
+                let val_f64 = val.get() as f64;
+                let normalized = (val_f64 - mean[0]) / self.std[0] as f64;
+                Float32::new(normalized as f32)
+            })
+            .collect()
+    }
 
-/// Normalize 3D tensor and return new tensor (channels x height x width)
-fn normalize_3d(
-    tensor: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
-    mean: &[f32],
-    std: &[f32],
-) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, TransformError> {
-    let slice = tensor.as_slice();
-    let shape = tensor.shape().dims();
-    let (channels, height, width) = (shape[0], shape[1], shape[2]);
+    fn normalize_2d_slice(
+        &self,
+        slice: &[Float32],
+        mean: &[f64],
+        std: &[f64],
+        shape: &[usize],
+    ) -> Vec<Float32> {
+        let (_, seq_len) = (shape[0], shape[1]);
+        let mut result = Vec::with_capacity(slice.len());
 
-    let mut normalized_data = Vec::with_capacity(slice.len());
-    for c in 0..channels {
-        for h in 0..height {
-            for w in 0..width {
-                let idx = c * height * width + h * width + w;
-                let val = slice[idx].get();
-                normalized_data.push(Float32::new((val - mean[c]) / std[c]));
+        for i in 0..shape[0] {
+            for j in 0..seq_len {
+                let idx = i * seq_len + j;
+                let val_f64 = slice[idx].get() as f64;
+                let normalized = (val_f64 - mean[i]) / std[i];
+                result.push(Float32::new(normalized as f32));
             }
         }
+        result
     }
 
-    Tensor::from_vec(normalized_data, shape).map_err(TransformError::TensorError)
-}
+    fn normalize_3d_slice(
+        &self,
+        slice: &[Float32],
+        mean: &[f64],
+        std: &[f64],
+        shape: &[usize],
+    ) -> Vec<Float32> {
+        let (channels, height, width) = (shape[0], shape[1], shape[2]);
+        let mut result = Vec::with_capacity(slice.len());
 
-/// Normalize 4D tensor and return new tensor (batch x channels x height x width)
-fn normalize_4d(
-    tensor: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
-    mean: &[f32],
-    std: &[f32],
-) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>, TransformError> {
-    let slice = tensor.as_slice();
-    let shape = tensor.shape().dims();
-    let (batch, channels, height, width) = (shape[0], shape[1], shape[2], shape[3]);
-
-    let mut normalized_data = Vec::with_capacity(slice.len());
-    for b in 0..batch {
         for c in 0..channels {
             for h in 0..height {
                 for w in 0..width {
-                    let idx = b * channels * height * width + c * height * width + h * width + w;
-                    let val = slice[idx].get();
-                    normalized_data.push(Float32::new((val - mean[c]) / std[c]));
+                    let idx = c * height * width + h * width + w;
+                    let val_f64 = slice[idx].get() as f64;
+                    let normalized = (val_f64 - mean[c]) / std[c];
+                    result.push(Float32::new(normalized as f32));
                 }
             }
         }
+        result
     }
 
-    Tensor::from_vec(normalized_data, shape).map_err(TransformError::TensorError)
+    fn normalize_4d_slice(
+        &self,
+        slice: &[Float32],
+        mean: &[f64],
+        std: &[f64],
+        shape: &[usize],
+    ) -> Vec<Float32> {
+        let (batch, channels, height, width) = (shape[0], shape[1], shape[2], shape[3]);
+        let mut result = Vec::with_capacity(slice.len());
+
+        for b in 0..batch {
+            for c in 0..channels {
+                for h in 0..height {
+                    for w in 0..width {
+                        let idx =
+                            b * channels * height * width + c * height * width + h * width + w;
+                        let val_f64 = slice[idx].get() as f64;
+                        let normalized = (val_f64 - mean[c]) / std[c];
+                        result.push(Float32::new(normalized as f32));
+                    }
+                }
+            }
+        }
+        result
+    }
+}
+
+impl
+    Transform<
+        &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+        Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    > for Normalize
+{
+    fn apply(
+        &self,
+        input: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, TransformError> {
+        self.apply_tensor(input)
+    }
+}
+
+impl
+    Transform<
+        Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+        Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    > for Normalize
+{
+    fn apply(
+        &self,
+        input: Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, TransformError> {
+        self.apply_tensor(&input)
+    }
 }
 
 #[cfg(test)]
@@ -250,13 +312,13 @@ mod tests {
     #[test]
     fn test_normalize_single_channel() {
         let transform = Normalize::single_channel(2.0, 1.0);
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
         .unwrap();
 
-        let result = transform.apply_tensor(&input).unwrap();
+        let result = transform.apply(&input).unwrap();
         let slice = result.as_slice();
 
         // (1-2)/1 = -1, (2-2)/1 = 0, (3-2)/1 = 1
@@ -268,7 +330,7 @@ mod tests {
     #[test]
     fn test_normalize_3d_image() {
         let transform = Normalize::new(vec![0.5, 1.0], vec![0.5, 0.5]);
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(0.0),
                 Float32::new(1.0),
@@ -279,7 +341,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = transform.apply_tensor(&input).unwrap();
+        let result = transform.apply(&input).unwrap();
         let slice = result.as_slice();
 
         // Channel 0: (0-0.5)/0.5 = -1, (1-0.5)/0.5 = 1
@@ -307,13 +369,13 @@ mod tests {
     #[test]
     fn test_normalize_invalid_shape() {
         let transform = Normalize::new(vec![0.5, 1.0], vec![0.5, 0.5]);
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0)], // Wrong number of channels
             &[1],
         )
         .unwrap();
 
-        let result = transform.apply_tensor(&input);
+        let result = transform.apply(&input);
         assert!(result.is_err());
         match result.unwrap_err() {
             TransformError::ShapeMismatch { .. } => {}

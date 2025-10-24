@@ -3,7 +3,6 @@
 //! This module provides normalization layers that are independent of batch size,
 //! making them suitable for small batch training and inference.
 
-
 use std::marker::PhantomData;
 
 use coeus_backend::{Backend, CpuBackend};
@@ -45,10 +44,10 @@ use crate::parameter::Parameter;
 /// use coeus_dtype::float::Float32;
 ///
 /// // 32 channels, 8 groups (4 channels per group)
-/// let groupnorm = GroupNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(8, 32, 1e-5, true).unwrap();
+/// let groupnorm = GroupNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(8, 32, 1e-5, true).unwrap();
 ///
 /// // Input: [batch_size=2, channels=32, height=16, width=16]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 32, 16, 16]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 32, 16, 16]).unwrap();
 ///
 /// // Output: Same shape, normalized per group
 /// let output = groupnorm.forward(&input).unwrap();
@@ -104,24 +103,31 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let groupnorm = GroupNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(8, 32, 1e-5, true).unwrap();
+    /// let groupnorm = GroupNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(8, 32, 1e-5, true).unwrap();
     /// ```
     pub fn new(num_groups: usize, num_channels: usize, eps: f64, affine: bool) -> Result<Self> {
         if num_channels % num_groups != 0 {
             return Err(crate::error::NNError::InvalidConfiguration {
-                message: format!("num_channels ({}) must be divisible by num_groups ({})", num_channels, num_groups),
+                message: format!(
+                    "num_channels ({}) must be divisible by num_groups ({})",
+                    num_channels, num_groups
+                ),
             });
         }
 
         let weight_data = if affine {
-            Tensor::<B, S, T>::from_vec(vec![T::one(); num_channels], &[num_channels]).unwrap().requires_grad_(true)
+            Tensor::<B, S, T>::from_vec(vec![T::one(); num_channels], &[num_channels])
+                .unwrap()
+                .requires_grad_(true)
         } else {
             Tensor::<B, S, T>::from_vec(vec![T::one(); num_channels], &[num_channels]).unwrap()
         };
         let weight = Parameter::<B, S, T>::new(weight_data, "weight".to_string());
 
         let bias_data = if affine {
-            Tensor::<B, S, T>::from_vec(vec![T::zero(); num_channels], &[num_channels]).unwrap().requires_grad_(true)
+            Tensor::<B, S, T>::from_vec(vec![T::zero(); num_channels], &[num_channels])
+                .unwrap()
+                .requires_grad_(true)
         } else {
             Tensor::<B, S, T>::from_vec(vec![T::zero(); num_channels], &[num_channels]).unwrap()
         };
@@ -139,17 +145,17 @@ where
     }
 }
 
-impl<T> Module<CpuBackend, DenseStorage<T>, T> for GroupNorm<CpuBackend, DenseStorage<T>, T>
+impl<T> Module<CpuBackend<T>, DenseStorage<T>, T> for GroupNorm<CpuBackend<T>, DenseStorage<T>, T>
 where
     T: DataType + FloatExt + PartialOrd,
 {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
 
-        if input_shape.len() != 4 {
+        if input_shape.len() != 4usize {
             return Err(NNError::InvalidInput {
                 message: format!("Expected 4D input (N, C, H, W), got {}D", input_shape.len()),
             });
@@ -243,7 +249,7 @@ where
         Tensor::from_vec(output_data, input_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         if self.affine {
             vec![self.weight.clone(), self.bias.clone()]
         } else {
@@ -294,8 +300,8 @@ where
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let instancenorm = InstanceNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 1e-5, true).unwrap();
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
+/// let instancenorm = InstanceNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(64, 1e-5, true).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
 /// let output = instancenorm.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 32, 32]);
 /// ```
@@ -334,7 +340,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let instancenorm = InstanceNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 1e-5, true).unwrap();
+    /// let instancenorm = InstanceNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(64, 1e-5, true).unwrap();
     /// ```
     pub fn new(num_channels: usize, eps: f64, affine: bool) -> Result<Self> {
         // InstanceNorm is GroupNorm with num_groups = num_channels
@@ -369,18 +375,19 @@ where
     }
 }
 
-impl<T> Module<CpuBackend, DenseStorage<T>, T> for InstanceNorm<CpuBackend, DenseStorage<T>, T>
+impl<T> Module<CpuBackend<T>, DenseStorage<T>, T>
+    for InstanceNorm<CpuBackend<T>, DenseStorage<T>, T>
 where
     T: DataType + FloatExt + PartialOrd,
 {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         self.group_norm.forward(input)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         self.group_norm.parameters()
     }
 
@@ -404,29 +411,41 @@ mod tests {
 
     #[test]
     fn test_groupnorm_creation() {
-        let groupnorm = GroupNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(8, 32, 1e-5, true).unwrap();
+        let groupnorm = GroupNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            8, 32, 1e-5, true,
+        )
+        .unwrap();
         assert_eq!(groupnorm.num_groups, 8);
         assert_eq!(groupnorm.num_channels, 32);
     }
 
     #[test]
     fn test_groupnorm_invalid_channels() {
-        let result = GroupNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(8, 30, 1e-5, true); // 30 not divisible by 8
+        let result = GroupNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            8, 30, 1e-5, true,
+        ); // 30 not divisible by 8
         assert!(result.is_err());
     }
 
     #[test]
     fn test_groupnorm_forward_basic() {
-        let groupnorm = GroupNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(8, 32, 1e-5, true).unwrap();
+        let groupnorm = GroupNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            8, 32, 1e-5, true,
+        )
+        .unwrap();
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 32, 16, 16]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 32, 16, 16])
+                .unwrap();
         let output = groupnorm.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[2, 32, 16, 16]);
     }
 
     #[test]
     fn test_groupnorm_forward_computation() {
-        let groupnorm = GroupNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(1, 2, 1e-5, false).unwrap(); // 1 group, 2 channels, no affine
+        let groupnorm = GroupNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            1, 2, 1e-5, false,
+        )
+        .unwrap(); // 1 group, 2 channels, no affine
 
         // Input: [1, 2, 2, 2] with known values
         let input_data = vec![
@@ -441,7 +460,7 @@ mod tests {
             Float32::new(7.0),
             Float32::new(8.0),
         ];
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 2, 2, 2],
         )
@@ -463,46 +482,68 @@ mod tests {
 
     #[test]
     fn test_groupnorm_multiple_groups() {
-        let groupnorm = GroupNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(4, 8, 1e-5, true).unwrap();
+        let groupnorm =
+            GroupNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(4, 8, 1e-5, true)
+                .unwrap();
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 8, 4, 4]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 8, 4, 4])
+                .unwrap();
         let output = groupnorm.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[2, 8, 4, 4]);
     }
 
     #[test]
     fn test_groupnorm_parameters_affine() {
-        let groupnorm = GroupNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(8, 32, 1e-5, true).unwrap();
+        let groupnorm = GroupNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            8, 32, 1e-5, true,
+        )
+        .unwrap();
         let params = groupnorm.parameters();
         assert_eq!(params.len(), 2); // weight + bias
     }
 
     #[test]
     fn test_groupnorm_parameters_no_affine() {
-        let groupnorm = GroupNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(8, 32, 1e-5, false).unwrap();
+        let groupnorm = GroupNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            8, 32, 1e-5, false,
+        )
+        .unwrap();
         let params = groupnorm.parameters();
         assert_eq!(params.len(), 0); // no parameters
     }
 
     #[test]
     fn test_instancenorm_creation() {
-        let instancenorm = InstanceNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 1e-5, true).unwrap();
+        let instancenorm =
+            InstanceNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                64, 1e-5, true,
+            )
+            .unwrap();
         assert_eq!(instancenorm.group_norm.num_channels, 64);
         assert_eq!(instancenorm.group_norm.num_groups, 64); // num_groups = num_channels
     }
 
     #[test]
     fn test_instancenorm_forward_basic() {
-        let instancenorm = InstanceNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(32, 1e-5, true).unwrap();
+        let instancenorm =
+            InstanceNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                32, 1e-5, true,
+            )
+            .unwrap();
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 32, 16, 16]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 32, 16, 16])
+                .unwrap();
         let output = instancenorm.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[1, 32, 16, 16]);
     }
 
     #[test]
     fn test_instancenorm_forward_computation() {
-        let instancenorm = InstanceNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(1, 1e-5, false).unwrap(); // 1 channel, no affine
+        let instancenorm =
+            InstanceNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                1, 1e-5, false,
+            )
+            .unwrap(); // 1 channel, no affine
 
         // Input: [1, 1, 2, 2] with known values
         let input_data = vec![
@@ -511,7 +552,7 @@ mod tests {
             Float32::new(3.0),
             Float32::new(4.0),
         ];
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 1, 2, 2],
         )
@@ -532,7 +573,11 @@ mod tests {
 
     #[test]
     fn test_instancenorm_batch_independence() {
-        let instancenorm = InstanceNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(2, 1e-5, false).unwrap();
+        let instancenorm =
+            InstanceNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                2, 1e-5, false,
+            )
+            .unwrap();
 
         // Two different instances in batch
         let input_data = vec![
@@ -557,7 +602,7 @@ mod tests {
             Float32::new(70.0),
             Float32::new(80.0),
         ];
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[2, 2, 2, 2],
         )
@@ -593,9 +638,8 @@ mod tests {
 
 /// Type alias for GroupNorm layer with CPU backend.
 /// This provides backward compatibility with existing code.
-pub type GroupNormCpu<T> = GroupNorm<CpuBackend, DenseStorage<T>, T>;
+pub type GroupNormCpu<T> = GroupNorm<CpuBackend<T>, DenseStorage<T>, T>;
 
 /// Type alias for InstanceNorm layer with CPU backend.
 /// This provides backward compatibility with existing code.
-pub type InstanceNormCpu<T> = InstanceNorm<CpuBackend, DenseStorage<T>, T>;
-
+pub type InstanceNormCpu<T> = InstanceNorm<CpuBackend<T>, DenseStorage<T>, T>;

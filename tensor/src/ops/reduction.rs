@@ -11,7 +11,7 @@ use std::{collections::BTreeSet, vec, vec::Vec};
 /// all dimensions, resulting in scalar tensors.
 impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
 where
-    B: crate::Backend + Default,
+    B: crate::Backend + Clone + Default,
     T: crate::DataType,
 {
     /// Computes the sum of all elements in the tensor.
@@ -41,7 +41,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
     ///     &[3]
     /// ).unwrap();
@@ -97,7 +97,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
     ///     &[3]
     /// ).unwrap();
@@ -158,7 +158,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
     ///     &[2, 2]
     /// ).unwrap();
@@ -214,7 +214,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
     ///     &[2, 2]
     /// ).unwrap();
@@ -241,7 +241,11 @@ where
         {
             let sum_data = sum.as_slice();
             let count_data = count.as_slice();
-            let result_data: Vec<T> = sum_data.iter().zip(count_data.iter()).map(|(s, c)| *s / *c).collect();
+            let result_data: Vec<T> = sum_data
+                .iter()
+                .zip(count_data.iter())
+                .map(|(s, c)| *s / *c)
+                .collect();
             let result_shape = sum.shape().dims().to_vec();
             crate::Tensor::from_vec(result_data, &result_shape)
         }
@@ -429,7 +433,7 @@ where
         if self.is_empty() {
             return Err(crate::error::TensorError::EmptyTensor);
         }
-        let first_elem = self.as_slice()[0].clone();
+        let first_elem = self.as_slice()[0];
         self.reduce_dims(dims, keepdim, |a, b| if a > b { a } else { b }, first_elem)
     }
 
@@ -462,7 +466,7 @@ where
         if self.is_empty() {
             return Err(crate::error::TensorError::EmptyTensor);
         }
-        let first_elem = self.as_slice()[0].clone();
+        let first_elem = self.as_slice()[0];
         self.reduce_dims(dims, keepdim, |a, b| if a < b { a } else { b }, first_elem)
     }
 

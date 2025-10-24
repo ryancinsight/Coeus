@@ -38,7 +38,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{NNError, Result};
 use coeus_dtype::DataType;
-use coeus_storage::Storage;
+use coeus_storage::{Storage, StorageFromVec};
 
 /// Supported data types in SafeTensors format.
 ///
@@ -363,7 +363,7 @@ pub mod conversion {
     where
         M: Module<B, S, Float32>,
         B: Backend + Clone,
-        S: Storage<Float32> + Clone + 'static,
+        S: Storage<Float32> + StorageFromVec<Float32> + Clone + 'static,
     {
         let mut safetensors_data = HashMap::new();
 
@@ -395,9 +395,13 @@ pub mod conversion {
     /// # Errors
     /// Returns `NNError::SerializationError` if conversion fails
     #[allow(clippy::type_complexity)]
-    pub fn safetensors_to_state_dict(
+    pub fn safetensors_to_state_dict<T>(
         safetensors: &SafeTensors,
-    ) -> Result<std::collections::HashMap<String, Tensor<CpuBackend, DenseStorage<Float32>, Float32>>>
+    ) -> Result<
+        std::collections::HashMap<String, Tensor<CpuBackend<T>, DenseStorage<Float32>, Float32>>,
+    >
+    where
+        T: DataType,
     {
         let mut state_dict = std::collections::HashMap::new();
         let safetensors_dict: StateDict<Float32> = safetensors.to_state_dict()?;
@@ -547,13 +551,14 @@ pub mod conversion {
         #[test]
         fn test_module_conversion() {
             // Create a simple linear layer
-            let layer = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
+            let layer =
+                Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
 
             // Convert to SafeTensors
             let safetensors = module_to_safetensors(&layer).unwrap();
 
             // Convert back to tensors
-            let recovered_state_dict = safetensors_to_state_dict(&safetensors).unwrap();
+            let recovered_state_dict = safetensors_to_state_dict::<Float32>(&safetensors).unwrap();
 
             // Get original parameters
             let original_params = layer.parameters();
@@ -707,4 +712,4 @@ mod tests {
     }
 }
 
-// TODO: Add rkyv zero-copy serialization for state dictionaries in future sprint
+// Future enhancement: Add rkyv zero-copy serialization for state dictionaries

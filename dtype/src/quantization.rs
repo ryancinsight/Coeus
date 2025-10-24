@@ -5,7 +5,7 @@
 //! ## Dynamic Quantization
 //!
 //! Dynamic quantization analyzes tensor values at runtime to compute optimal
-//! scale and zero_point parameters for affine quantization.
+//! scale and `zero_point` parameters for affine quantization.
 //!
 //! ## Static Quantization
 //!
@@ -16,7 +16,7 @@
 extern crate std;
 
 #[cfg(feature = "std")]
-use std::{vec, vec::Vec};
+use std::vec::Vec;
 
 /// Quantization parameters for affine quantization
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -81,10 +81,13 @@ impl MinMaxQuantizer {
     /// # Arguments
     /// * `data` - The floating-point data to analyze
     /// * `num_bits` - Number of bits for quantization (8 for QInt8/QUInt8)
-    /// * `signed` - Whether to use signed quantization (QInt8) or unsigned (QUInt8)
+    /// * `signed` - Whether to use signed quantization (`QInt8`) or unsigned (`QUInt8`)
     ///
     /// # Returns
     /// Optimal quantization parameters
+    ///
+    /// # Panics
+    /// Panics if `data` is empty
     #[must_use]
     pub fn compute_params(data: &[f32], num_bits: u32, signed: bool) -> QuantizationParams {
         assert!(!data.is_empty(), "Cannot quantize empty data");
@@ -137,7 +140,10 @@ impl MinMaxQuantizer {
         let scale = if (max_val - min_val).abs() < f32::EPSILON {
             1.0 // Avoid division by zero for constant tensors
         } else {
-            (max_val - min_val) / (qmax - qmin) as f32
+            #[allow(clippy::cast_precision_loss)]
+            {
+                (max_val - min_val) / (qmax - qmin) as f32
+            }
         };
 
         // For simplicity, use zero_point = 0 (symmetric around zero)
@@ -155,6 +161,8 @@ impl MinMaxQuantizer {
     ///
     /// # Returns
     /// Quantization error metrics
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn analyze_error(data: &[f32], params: &QuantizationParams) -> QuantizationError {
         let result = Self::quantize_data(data, params, true);
         let mut errors = Vec::new();
@@ -162,7 +170,8 @@ impl MinMaxQuantizer {
         let mut mse = 0.0_f32;
 
         for (i, &original) in data.iter().enumerate() {
-            let quantized_val = result.data[i] as f32 * params.scale + params.zero_point as f32;
+            #[allow(clippy::cast_precision_loss)]
+            let quantized_val = f32::from(result.data[i]) * params.scale + params.zero_point as f32;
             let error = (original - quantized_val).abs();
             errors.push(error);
             max_error = max_error.max(error);
@@ -188,6 +197,11 @@ impl MinMaxQuantizer {
     /// # Returns
     /// Detailed noise analysis including SNR, PSNR, and error distribution
     #[must_use]
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )]
     pub fn analyze_noise(data: &[f32], params: &QuantizationParams) -> QuantizationNoiseAnalysis {
         let error_stats = Self::analyze_error(data, params);
 
@@ -263,7 +277,9 @@ impl MinMaxQuantizer {
     /// * `signed` - Whether to use signed quantization
     ///
     /// # Returns
-    /// Quantized data as QInt8 or QUInt8 values
+    /// Quantized data as `QInt8` or `QUInt8` values
+    #[must_use]
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
     pub fn quantize_data(
         data: &[f32],
         params: &QuantizationParams,
@@ -275,9 +291,9 @@ impl MinMaxQuantizer {
                 // q = round((x - zero_point) / scale)
                 let quantized = ((x - params.zero_point as f32) / params.scale).round();
                 if signed {
-                    quantized.clamp(i8::MIN as f32, i8::MAX as f32) as i8
+                    quantized.clamp(f32::from(i8::MIN), f32::from(i8::MAX)) as i8
                 } else {
-                    quantized.clamp(u8::MIN as f32, u8::MAX as f32) as i8
+                    quantized.clamp(f32::from(u8::MIN), f32::from(u8::MAX)) as i8
                 }
             })
             .collect();
@@ -293,13 +309,15 @@ impl MinMaxQuantizer {
 pub struct SymmetricQuantizer;
 
 impl SymmetricQuantizer {
-    /// Compute symmetric quantization parameters (zero_point = 0)
+    /// Compute symmetric quantization parameters (`zero_point` = 0)
     ///
     /// # Arguments
     /// * `data` - The floating-point data to analyze
     ///
     /// # Returns
     /// Symmetric quantization parameters
+    /// # Panics
+    /// Panics if `data` is empty
     #[must_use]
     pub fn compute_params(data: &[f32]) -> QuantizationParams {
         assert!(!data.is_empty(), "Cannot quantize empty data");
@@ -343,7 +361,14 @@ impl PercentileQuantizer {
     ///
     /// # Returns
     /// Quantization parameters
+    /// # Panics
+    /// Panics if `data` is empty or percentiles are invalid
     #[must_use]
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
+    )]
     pub fn compute_params(
         data: &[f32],
         lower_percentile: f32,
@@ -352,11 +377,11 @@ impl PercentileQuantizer {
     ) -> QuantizationParams {
         assert!(!data.is_empty(), "Cannot quantize empty data");
         assert!(
-            lower_percentile >= 0.0 && lower_percentile <= 1.0,
+            (0.0..=1.0).contains(&lower_percentile),
             "Lower percentile must be between 0 and 1"
         );
         assert!(
-            upper_percentile >= 0.0 && upper_percentile <= 1.0,
+            (0.0..=1.0).contains(&upper_percentile),
             "Upper percentile must be between 0 and 1"
         );
         assert!(
@@ -396,8 +421,19 @@ impl CalibrationData {
             max_values: Vec::new(),
         }
     }
+}
 
+impl Default for CalibrationData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CalibrationData {
     /// Update calibration data with new tensor values
+    ///
+    /// # Panics
+    /// Panics if data is empty (unwraps on min/max operations)
     pub fn update(&mut self, data: &[f32]) {
         if data.is_empty() {
             return;
@@ -425,6 +461,8 @@ impl CalibrationData {
     ///
     /// # Returns
     /// Quantization parameters based on observed ranges
+    /// # Panics
+    /// Panics if no calibration data is available
     #[must_use]
     pub fn compute_params(&self, signed: bool) -> QuantizationParams {
         assert!(!self.min_values.is_empty(), "No calibration data available");

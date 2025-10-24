@@ -1,9 +1,9 @@
 //! Process group management for distributed training coordination
 
-use crate::communication::{CommunicationBackend, BackendType, create_backend, BackendStats};
+use crate::communication::{create_backend, BackendStats, BackendType, CommunicationBackend};
 use crate::error::{DistributedError, Result};
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
 
 /// Rank identifier for a process in the distributed group
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -43,17 +43,24 @@ impl Default for FaultToleranceConfig {
 /// gradients during distributed training with support for multiple communication
 /// backends (NCCL, Gloo, MPI) and fault tolerance.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ProcessGroup {
     rank: Rank,
     world_size: WorldSize,
     /// Communication backend for distributed operations
-    backend: Arc<Mutex<Box<dyn CommunicationBackend>>>,
+    backend: Arc<Mutex<CommunicationBackend>>,
     /// Fault tolerance configuration
     fault_tolerance: FaultToleranceConfig,
     /// Whether the group has been initialized
-    initialized: bool,
+    initialized: RwLock<bool>,
     /// Health status of the group
-    healthy: bool,
+    healthy: RwLock<bool>,
+    /// Channel for data exchange between processes (simulation)
+    data_tx: mpsc::UnboundedSender<Vec<f32>>,
+    data_rx: mpsc::UnboundedReceiver<Vec<f32>>,
+    /// Broadcast channel for synchronization
+    sync_tx: broadcast::Sender<()>,
+    sync_rx: broadcast::Receiver<()>,
 }
 
 impl ProcessGroup {
@@ -63,28 +70,10 @@ impl ProcessGroup {
     }
 
     /// Create a new process group with specified backend
-    pub fn new_with_backend(rank: Rank, world_size: WorldSize, backend_type: BackendType) -> Result<Self> {
-        if rank.0 >= world_size.0 {
-            return Err(DistributedError::ProcessGroupConfig {
-                message: format!("Rank {} >= world_size {}", rank.0, world_size.0),
-            });
-        }
-
-        Ok(Self {
-            rank,
-            world_size,
-            backend: Arc::new(Mutex::new(create_backend(backend_type))),
-            fault_tolerance: FaultToleranceConfig::default(),
-            initialized: false,
-            healthy: true,
-        })
-    }
-
-    /// Create a new process group with custom backend
-    pub fn with_custom_backend(
+    pub fn new_with_backend(
         rank: Rank,
         world_size: WorldSize,
-        backend: Box<dyn CommunicationBackend>,
+        backend_type: BackendType,
     ) -> Result<Self> {
         if rank.0 >= world_size.0 {
             return Err(DistributedError::ProcessGroupConfig {
@@ -92,26 +81,62 @@ impl ProcessGroup {
             });
         }
 
+        let (data_tx, data_rx) = mpsc::unbounded_channel();
+        let (sync_tx, sync_rx) = broadcast::channel(16);
+
+        Ok(Self {
+            rank,
+            world_size,
+            backend: Arc::new(Mutex::new(create_backend(backend_type))),
+            fault_tolerance: FaultToleranceConfig::default(),
+            initialized: RwLock::new(false),
+            healthy: RwLock::new(true),
+            data_tx,
+            data_rx,
+            sync_tx,
+            sync_rx,
+        })
+    }
+
+    /// Create a new process group with custom backend
+    pub fn with_custom_backend(
+        rank: Rank,
+        world_size: WorldSize,
+        backend: CommunicationBackend,
+    ) -> Result<Self> {
+        if rank.0 >= world_size.0 {
+            return Err(DistributedError::ProcessGroupConfig {
+                message: format!("Rank {} >= world_size {}", rank.0, world_size.0),
+            });
+        }
+
+        let (data_tx, data_rx) = mpsc::unbounded_channel();
+        let (sync_tx, sync_rx) = broadcast::channel(16);
+
         Ok(Self {
             rank,
             world_size,
             backend: Arc::new(Mutex::new(backend)),
             fault_tolerance: FaultToleranceConfig::default(),
-            initialized: false,
-            healthy: true,
+            initialized: RwLock::new(false),
+            healthy: RwLock::new(true),
+            data_tx,
+            data_rx,
+            sync_tx,
+            sync_rx,
         })
     }
 
     /// Initialize the process group and communication backend
-    pub async fn initialize(&mut self) -> Result<()> {
-        if self.initialized {
+    pub async fn initialize(&self) -> Result<()> {
+        if *self.initialized.read().await {
             return Ok(());
         }
 
         let mut backend = self.backend.lock().await;
         backend.initialize(self).await?;
-        self.initialized = true;
-        self.healthy = true;
+        *self.initialized.write().await = true;
+        *self.healthy.write().await = true;
 
         Ok(())
     }
@@ -130,8 +155,8 @@ impl ProcessGroup {
 
     /// Check if the process group is healthy
     #[must_use]
-    pub fn is_healthy(&self) -> bool {
-        self.healthy && self.initialized
+    pub async fn is_healthy(&self) -> bool {
+        *self.healthy.read().await && *self.initialized.read().await
     }
 
     /// Get communication backend statistics
@@ -168,38 +193,47 @@ impl ProcessGroup {
     /// Internal AllReduce with retry logic
     async fn all_reduce_with_retry(&self, buffer: &mut [f32], attempt: usize) -> crate::Result<()> {
         if attempt >= self.fault_tolerance.max_retries {
-            self.healthy = false;
-            return Err(DistributedError::CommunicationError {
+            *self.healthy.write().await = false;
+            return Err(DistributedError::Communication {
                 message: format!("AllReduce failed after {} retries", attempt),
             });
         }
 
-        let backend = self.backend.lock().await;
+        let mut backend = self.backend.lock().await;
         match tokio::time::timeout(
             self.fault_tolerance.operation_timeout,
-            backend.all_reduce_cpu(buffer)
-        ).await {
+            backend.all_reduce_cpu(buffer),
+        )
+        .await
+        {
             Ok(Ok(())) => Ok(()),
-            Ok(Err(e)) => {
+            Ok(Err(_e)) => {
                 // Retry on failure
                 drop(backend); // Release lock before retry
-                tokio::time::sleep(std::time::Duration::from_millis(100 * (attempt + 1) as u64)).await;
-                self.all_reduce_with_retry(buffer, attempt + 1).await
+                tokio::time::sleep(std::time::Duration::from_millis(100 * (attempt + 1) as u64))
+                    .await;
+                Box::pin(self.all_reduce_with_retry(buffer, attempt + 1)).await
             }
             Err(_) => {
                 // Timeout - retry
                 drop(backend);
-                tokio::time::sleep(std::time::Duration::from_millis(200 * (attempt + 1) as u64)).await;
-                self.all_reduce_with_retry(buffer, attempt + 1).await
+                tokio::time::sleep(std::time::Duration::from_millis(200 * (attempt + 1) as u64))
+                    .await;
+                Box::pin(self.all_reduce_with_retry(buffer, attempt + 1)).await
             }
         }
     }
 
     /// Internal GPU AllReduce with retry logic
-    async fn all_reduce_gpu_with_retry(&self, buffer: &wgpu::Buffer, size: usize, attempt: usize) -> crate::Result<()> {
+    async fn all_reduce_gpu_with_retry(
+        &self,
+        buffer: &wgpu::Buffer,
+        size: usize,
+        attempt: usize,
+    ) -> crate::Result<()> {
         if attempt >= self.fault_tolerance.max_retries {
-            self.healthy = false;
-            return Err(DistributedError::CommunicationError {
+            *self.healthy.write().await = false;
+            return Err(DistributedError::Communication {
                 message: format!("GPU AllReduce failed after {} retries", attempt),
             });
         }
@@ -207,20 +241,24 @@ impl ProcessGroup {
         let backend = self.backend.lock().await;
         match tokio::time::timeout(
             self.fault_tolerance.operation_timeout,
-            backend.all_reduce_gpu(buffer, size)
-        ).await {
+            backend.all_reduce_gpu(buffer, size),
+        )
+        .await
+        {
             Ok(Ok(())) => Ok(()),
-            Ok(Err(e)) => {
+            Ok(Err(_e)) => {
                 // Retry on failure
                 drop(backend);
-                tokio::time::sleep(std::time::Duration::from_millis(100 * (attempt + 1) as u64)).await;
-                self.all_reduce_gpu_with_retry(buffer, size, attempt + 1).await
+                tokio::time::sleep(std::time::Duration::from_millis(100 * (attempt + 1) as u64))
+                    .await;
+                Box::pin(self.all_reduce_gpu_with_retry(buffer, size, attempt + 1)).await
             }
             Err(_) => {
                 // Timeout - retry
                 drop(backend);
-                tokio::time::sleep(std::time::Duration::from_millis(200 * (attempt + 1) as u64)).await;
-                self.all_reduce_gpu_with_retry(buffer, size, attempt + 1).await
+                tokio::time::sleep(std::time::Duration::from_millis(200 * (attempt + 1) as u64))
+                    .await;
+                Box::pin(self.all_reduce_gpu_with_retry(buffer, size, attempt + 1)).await
             }
         }
     }
@@ -230,17 +268,16 @@ impl ProcessGroup {
         let mut attempt = 0;
         loop {
             if attempt >= self.fault_tolerance.max_retries {
-                self.healthy = false;
-                return Err(DistributedError::CommunicationError {
+                *self.healthy.write().await = false;
+                return Err(DistributedError::Communication {
                     message: format!("Barrier failed after {} retries", attempt),
                 });
             }
 
             let backend = self.backend.lock().await;
-            match tokio::time::timeout(
-                self.fault_tolerance.operation_timeout,
-                backend.barrier()
-            ).await {
+            match tokio::time::timeout(self.fault_tolerance.operation_timeout, backend.barrier())
+                .await
+            {
                 Ok(Ok(())) => return Ok(()),
                 Ok(Err(_)) | Err(_) => {
                     drop(backend);
@@ -252,15 +289,15 @@ impl ProcessGroup {
     }
 
     /// Shutdown the process group and communication backend
-    pub async fn shutdown(&mut self) -> Result<()> {
-        if !self.initialized {
+    pub async fn shutdown(&self) -> Result<()> {
+        if !*self.initialized.read().await {
             return Ok(());
         }
 
         let mut backend = self.backend.lock().await;
         backend.shutdown().await?;
-        self.initialized = false;
-        self.healthy = false;
+        *self.initialized.write().await = false;
+        *self.healthy.write().await = false;
 
         Ok(())
     }
@@ -304,7 +341,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_all_reduce_simulation() {
-        let pg = ProcessGroup::new(Rank(0), WorldSize(2)).unwrap();
+        let mut pg = ProcessGroup::new(Rank(0), WorldSize(2)).unwrap();
 
         // Test with sample data
         let mut data = vec![1.0, 2.0, 3.0];
@@ -318,7 +355,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_barrier_synchronization() {
-        let pg = ProcessGroup::new(Rank(1), WorldSize(3)).unwrap();
+        let mut pg = ProcessGroup::new(Rank(1), WorldSize(3)).unwrap();
 
         // Barrier should complete without error
         let result = pg.barrier().await;

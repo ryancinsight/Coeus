@@ -10,19 +10,21 @@
 use std::sync::Arc;
 use std::thread;
 
-use proptest::prelude::*;
 use approx::assert_relative_eq;
+use proptest::prelude::*;
 
-use coeus_tensor::*;
 use coeus_backend::CpuBackend;
-use coeus_storage::DenseStorage;
 use coeus_dtype::{float::Float32, num_traits::ToPrimitive};
+use coeus_storage::DenseStorage;
+use coeus_tensor::*;
 
 /// Test basic tensor creation and properties
 #[test]
 fn test_tensor_creation() {
     let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-    let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data.clone(), &[3]).unwrap();
+    let tensor =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data.clone(), &[3])
+            .unwrap();
 
     assert_eq!(tensor.shape().dims(), &[3]);
     assert_eq!(tensor.numel(), 3);
@@ -32,45 +34,76 @@ fn test_tensor_creation() {
 /// Test tensor arithmetic operations
 #[test]
 fn test_tensor_arithmetic() {
-    let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)], &[3]
-    ).unwrap();
-    let b = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(4.0), Float32::new(5.0), Float32::new(6.0)], &[3]
-    ).unwrap();
+    let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+        &[3],
+    )
+    .unwrap();
+    let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(4.0), Float32::new(5.0), Float32::new(6.0)],
+        &[3],
+    )
+    .unwrap();
 
     // Test addition
     let c = &a + &b;
-    assert_eq!(c.as_slice(), &[Float32::new(5.0), Float32::new(7.0), Float32::new(9.0)]);
+    assert_eq!(
+        c.as_slice(),
+        &[Float32::new(5.0), Float32::new(7.0), Float32::new(9.0)]
+    );
 
     // Test multiplication
     let d = &a * &b;
-    assert_eq!(d.as_slice(), &[Float32::new(4.0), Float32::new(10.0), Float32::new(18.0)]);
+    assert_eq!(
+        d.as_slice(),
+        &[Float32::new(4.0), Float32::new(10.0), Float32::new(18.0)]
+    );
 }
 
 /// Test broadcasting functionality
 #[test]
 fn test_broadcasting() {
-    let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)], &[3]
-    ).unwrap();
-    let b = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(2.0)], &[1]
-    ).unwrap();
+    let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+        &[3],
+    )
+    .unwrap();
+    let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(2.0)],
+        &[1],
+    )
+    .unwrap();
 
     let c = &a + &b;
-    assert_eq!(c.as_slice(), &[Float32::new(3.0), Float32::new(4.0), Float32::new(5.0)]);
+    assert_eq!(
+        c.as_slice(),
+        &[Float32::new(3.0), Float32::new(4.0), Float32::new(5.0)]
+    );
 }
 
 /// Test SIMD operations
 #[test]
 fn test_simd_operations() {
-    let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)], &[4]
-    ).unwrap();
-    let b = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(2.0), Float32::new(3.0), Float32::new(4.0), Float32::new(5.0)], &[4]
-    ).unwrap();
+    let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+        ],
+        &[4],
+    )
+    .unwrap();
+    let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+            Float32::new(5.0),
+        ],
+        &[4],
+    )
+    .unwrap();
 
     // Test SIMD addition
     let c_simd = a.add_simd(&b).unwrap();
@@ -83,7 +116,10 @@ fn test_simd_operations() {
 
     // Test SIMD sum
     let sum_simd = a.sum_simd().unwrap();
-    let sum_scalar = a.as_slice().iter().fold(Float32::new(0.0), |acc, &x| acc + x);
+    let sum_scalar = a
+        .as_slice()
+        .iter()
+        .fold(Float32::new(0.0), |acc, &x| acc + x);
     assert_eq!(sum_simd.as_slice()[0], sum_scalar);
 }
 
@@ -91,28 +127,40 @@ fn test_simd_operations() {
 #[test]
 fn test_edge_cases() {
     // Empty tensor
-    let empty = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(vec![], &[0]).unwrap();
+    let empty =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(vec![], &[0])
+            .unwrap();
     assert_eq!(empty.numel(), 0);
 
     // Single element tensor
-    let single = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(42.0)], &[1]
-    ).unwrap();
+    let single = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(42.0)],
+        &[1],
+    )
+    .unwrap();
     assert_eq!(single.numel(), 1);
     assert_eq!(single.as_slice()[0], Float32::new(42.0));
 
     // Large tensor (stress test)
     let large_data: Vec<Float32> = (0..10000).map(|x| Float32::new(x as f32)).collect();
-    let large = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(large_data, &[10000]).unwrap();
+    let large = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        large_data,
+        &[10000],
+    )
+    .unwrap();
     assert_eq!(large.numel(), 10000);
 }
 
 /// Test multi-threaded tensor operations
 #[test]
 fn test_multithreaded_operations() {
-    let tensor = Arc::new(Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(1.0); 1000], &[1000]
-    ).unwrap());
+    let tensor = Arc::new(
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(1.0); 1000],
+            &[1000],
+        )
+        .unwrap(),
+    );
 
     let mut handles = vec![];
 
@@ -137,14 +185,21 @@ fn test_multithreaded_operations() {
 /// Test zero-copy operations using GATs
 #[test]
 fn test_zero_copy_operations() {
-    let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)];
-    let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data, &[2, 2]).unwrap();
+    let data = vec![
+        Float32::new(1.0),
+        Float32::new(2.0),
+        Float32::new(3.0),
+        Float32::new(4.0),
+    ];
+    let tensor =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[2, 2])
+            .unwrap();
 
-    // Test chunking (placeholder implementation - returns full tensor)
-    // TODO: Implement proper tensor indexing and slicing
+    // Test chunking - split 2x2 tensor along dimension 0 with chunk_size 1
     let chunks: Vec<_> = tensor.chunks(0, 1).collect();
-    assert_eq!(chunks.len(), 1); // Current placeholder returns 1 full tensor
-    assert_eq!(chunks[0].shape().dims(), &[2, 2]); // Same shape as original
+    assert_eq!(chunks.len(), 2); // Should return 2 chunks of size [1, 2] each
+    assert_eq!(chunks[0].shape().dims(), &[1, 2]); // First chunk shape
+    assert_eq!(chunks[1].shape().dims(), &[1, 2]); // Second chunk shape
 }
 
 /// Property-based tests for mathematical correctness
@@ -153,10 +208,10 @@ fn test_zero_copy_operations() {
 proptest! {
     #[test]
     fn test_addition_commutativity(a: f32, b: f32) {
-        let a_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let a_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(a)], &[1]
         ).unwrap();
-        let b_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let b_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(b)], &[1]
         ).unwrap();
 
@@ -168,13 +223,13 @@ proptest! {
 
     #[test]
     fn test_multiplication_associativity(a: f32, b: f32, c: f32) {
-        let a_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let a_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(a)], &[1]
         ).unwrap();
-        let b_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let b_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(b)], &[1]
         ).unwrap();
-        let c_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let c_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(c)], &[1]
         ).unwrap();
 
@@ -187,7 +242,7 @@ proptest! {
     #[test]
     fn test_relu_properties(values: Vec<f32>) {
         let data: Vec<Float32> = values.iter().map(|&x| Float32::new(x)).collect();
-        let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             data.clone(), &[data.len() as usize]
         ).unwrap();
 
@@ -211,7 +266,7 @@ proptest! {
     #[test]
     fn test_sum_invariants(values in prop::collection::vec(-1000.0..1000.0, 1..100)) {
         let data: Vec<Float32> = values.iter().map(|&x| Float32::new(x)).collect();
-        let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             data.clone(), &[data.len() as usize]
         ).unwrap();
 
@@ -231,15 +286,23 @@ proptest! {
 #[test]
 fn test_numerical_stability() {
     // Test with very small numbers
-    let small_data = vec![Float32::new(1e-20), Float32::new(1e-20), Float32::new(1e-20)];
-    let small_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(small_data, &[3]).unwrap();
+    let small_data = vec![
+        Float32::new(1e-20),
+        Float32::new(1e-20),
+        Float32::new(1e-20),
+    ];
+    let small_tensor =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(small_data, &[3])
+            .unwrap();
 
     let sum = small_tensor.sum_simd().unwrap();
     assert!(sum.as_slice()[0].to_f64().unwrap() > 0.0); // Should not be zero due to underflow
 
     // Test with very large numbers
     let large_data = vec![Float32::new(1e20), Float32::new(1e20), Float32::new(1e20)];
-    let large_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(large_data, &[3]).unwrap();
+    let large_tensor =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(large_data, &[3])
+            .unwrap();
 
     let sum_large = large_tensor.sum_simd().unwrap();
     assert!(sum_large.as_slice()[0].to_f64().unwrap().is_finite()); // Should not overflow
@@ -249,7 +312,9 @@ fn test_numerical_stability() {
 #[test]
 fn test_memory_safety() {
     let data = vec![Float32::new(1.0); 100];
-    let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data, &[10, 10]).unwrap();
+    let tensor =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[10, 10])
+            .unwrap();
 
     // Test that view operations work correctly
     let view_result = tensor.view();
@@ -268,7 +333,9 @@ fn test_performance_baseline() {
     // Create a reasonably large tensor for performance testing
     let size = 10000;
     let data: Vec<Float32> = (0..size).map(|x| Float32::new(x as f32)).collect();
-    let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data, &[size]).unwrap();
+    let tensor =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[size])
+            .unwrap();
 
     // Time SIMD sum operation
     let start = Instant::now();
@@ -276,7 +343,11 @@ fn test_performance_baseline() {
     let duration = start.elapsed();
 
     // Performance should be reasonable (less than 1ms for 10k elements)
-    assert!(duration.as_millis() < 10, "SIMD sum took too long: {:?}", duration);
+    assert!(
+        duration.as_millis() < 10,
+        "SIMD sum took too long: {:?}",
+        duration
+    );
 }
 
 /// Test concurrent access patterns
@@ -285,9 +356,11 @@ fn test_concurrent_access() {
     use std::sync::RwLock;
 
     let tensor = Arc::new(RwLock::new(
-        Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(1.0); 1000], &[1000]
-        ).unwrap()
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(1.0); 1000],
+            &[1000],
+        )
+        .unwrap(),
     ));
 
     let mut handles = vec![];

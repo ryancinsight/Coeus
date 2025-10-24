@@ -5,10 +5,11 @@
 
 use coeus_backend::Backend;
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::{Tensor, relu_simd};
+#[allow(unused_imports)]
+use coeus_storage::{DenseStorage, Storage, StorageToDense};
+use coeus_tensor::Tensor;
 
-use crate::error::{NNError, Result};
+use crate::error::Result;
 
 /// Applies the Rectified Linear Unit (ReLU) activation function.
 ///
@@ -28,7 +29,7 @@ use crate::error::{NNError, Result};
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(-1.0), Float32::new(0.5), Float32::new(2.0)],
 ///     &[1, 3]
 /// ).unwrap();
@@ -36,30 +37,28 @@ use crate::error::{NNError, Result};
 /// let output = relu(&input).unwrap();
 /// // output: [0.0, 0.5, 2.0]
 /// ```
-pub fn relu<T: DataType + PartialOrd>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+pub fn relu<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone,
+    B: Backend + Clone,
+    T: DataType + FloatExt + PartialOrd + Clone,
 {
     let input_dense = input.to_dense_generic()?;
     let data = input_dense.as_slice();
     let mut result_data = vec![T::from(0.0).unwrap(); data.len()];
 
-    // Use SIMD acceleration for f32 tensors
-    if let Ok(cpu_tensor) = input_dense.as_any().downcast_ref::<Tensor<coeus_backend::CpuBackend, DenseStorage<f32>, f32>>() {
-        relu_simd(cpu_tensor.as_slice(), &mut result_data);
-    } else {
-        // Fallback to scalar implementation for other types
-        let zero = T::from(0.0).unwrap();
-        for (i, &val) in data.iter().enumerate() {
-            result_data[i] = if val > zero { val } else { zero };
-        }
+    // Apply ReLU element-wise: max(0, x)
+    let zero = T::from(0.0).unwrap();
+    for (i, &val) in data.iter().enumerate() {
+        result_data[i] = if val > zero { val } else { zero };
     }
 
-    Tensor::from_vec(result_data, &input_dense.shape().dims())
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        result_data,
+        input.shape().dims(),
+        input.backend().clone(),
+    )?)
 }
 
 /// Applies the Sigmoid activation function.
@@ -71,11 +70,12 @@ where
 ///
 /// # Returns
 /// Tensor with sigmoid applied element-wise
-pub fn sigmoid<T: DataType + FloatExt + std::ops::Neg<Output = T>>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+pub fn sigmoid<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone,
+    B: Backend + Clone + Default,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Clone,
 {
     let input_dense = input.to_dense_generic()?;
     let data = input_dense.as_slice();
@@ -89,9 +89,11 @@ where
         result_data.push(one / denom);
     }
 
-    Tensor::from_vec(result_data, &input_dense.shape().dims())
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        result_data,
+        input.shape().dims(),
+        input.backend().clone(),
+    )?)
 }
 
 /// Applies the Hyperbolic Tangent (tanh) activation function.
@@ -103,11 +105,12 @@ where
 ///
 /// # Returns
 /// Tensor with tanh applied element-wise
-pub fn tanh<T: DataType + FloatExt>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+pub fn tanh<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone,
+    B: Backend + Clone,
+    T: DataType + FloatExt,
 {
     let input_dense = input.to_dense_generic()?;
     let data = input_dense.as_slice();
@@ -117,9 +120,11 @@ where
         result_data.push(val.tanh());
     }
 
-    Tensor::from_vec(result_data, &input_dense.shape().dims())
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        result_data,
+        input.shape().dims(),
+        input.backend().clone(),
+    )?)
 }
 
 /// Applies the Gaussian Error Linear Unit (GELU) activation function.
@@ -131,11 +136,17 @@ where
 ///
 /// # Returns
 /// Tensor with GELU applied element-wise
-pub fn gelu<T: DataType + FloatExt + std::ops::Neg<Output = T>>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+pub fn gelu<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone + std::ops::Mul<Output = T> + std::ops::Add<Output = T>,
+    B: Backend,
+    T: DataType
+        + FloatExt
+        + std::ops::Neg<Output = T>
+        + Clone
+        + std::ops::Mul<Output = T>
+        + std::ops::Add<Output = T>,
 {
     let input_dense = input.to_dense_generic()?;
     let data = input_dense.as_slice();
@@ -154,9 +165,11 @@ where
         result_data.push(gelu_val);
     }
 
-    Tensor::from_vec(result_data, &input_dense.shape().dims())
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        result_data,
+        input.shape().dims(),
+        input.backend().clone(),
+    )?)
 }
 
 /// Applies the Sigmoid Linear Unit (SiLU) activation function.
@@ -168,11 +181,12 @@ where
 ///
 /// # Returns
 /// Tensor with SiLU applied element-wise
-pub fn silu<T: DataType + FloatExt + std::ops::Neg<Output = T>>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+pub fn silu<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone + std::ops::Mul<Output = T>,
+    B: Backend,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Clone + std::ops::Mul<Output = T>,
 {
     let input_dense = input.to_dense_generic()?;
     let data = input_dense.as_slice();
@@ -187,9 +201,11 @@ where
         result_data.push(silu_val);
     }
 
-    Tensor::from_vec(result_data, &input_dense.shape().dims())
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        result_data,
+        input.shape().dims(),
+        input.backend().clone(),
+    )?)
 }
 
 /// Applies the Leaky Rectified Linear Unit (Leaky ReLU) activation function.
@@ -202,12 +218,13 @@ where
 ///
 /// # Returns
 /// Tensor with Leaky ReLU applied element-wise
-pub fn leaky_relu<T: DataType + FloatExt + PartialOrd>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
+pub fn leaky_relu<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
     negative_slope: T,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone + std::ops::Mul<Output = T>,
+    B: Backend,
+    T: DataType + FloatExt + PartialOrd + Clone + std::ops::Mul<Output = T>,
 {
     let input_dense = input.to_dense_generic()?;
     let data = input_dense.as_slice();
@@ -223,9 +240,11 @@ where
         result_data.push(result);
     }
 
-    Tensor::from_vec(result_data, &input_dense.shape().dims())
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        result_data,
+        input.shape().dims(),
+        input.backend().clone(),
+    )?)
 }
 
 /// Applies the Exponential Linear Unit (ELU) activation function.
@@ -238,12 +257,18 @@ where
 ///
 /// # Returns
 /// Tensor with ELU applied element-wise
-pub fn elu<T: DataType + FloatExt + PartialOrd>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
+pub fn elu<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
     alpha: T,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone + std::ops::Mul<Output = T> + std::ops::Sub<Output = T>,
+    B: Backend,
+    T: DataType
+        + FloatExt
+        + PartialOrd
+        + Clone
+        + std::ops::Mul<Output = T>
+        + std::ops::Sub<Output = T>,
 {
     let input_dense = input.to_dense_generic()?;
     let data = input_dense.as_slice();
@@ -252,15 +277,13 @@ where
     let zero = T::from(0.0).unwrap();
     let one = T::from(1.0).unwrap();
     for &x in data {
-        let result = if x > zero {
-            x
-        } else {
-            alpha * (x.exp() - one)
-        };
+        let result = if x > zero { x } else { alpha * (x.exp() - one) };
         result_data.push(result);
     }
 
-    Tensor::from_vec(result_data, &input_dense.shape().dims())
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        result_data,
+        input.shape().dims(),
+        input.backend().clone(),
+    )?)
 }

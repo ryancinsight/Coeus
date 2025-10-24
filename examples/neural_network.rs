@@ -3,10 +3,10 @@
 //! This example demonstrates building and training a neural network
 //! with Coeus, showing the complete ML workflow from data to training.
 
-use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
 use coeus_nn::{Linear, Module, Sequential};
 use coeus_storage::DenseStorage;
+use coeus_tensor::CpuBackend;
 use coeus_tensor::Tensor;
 use std::io::{self, Write};
 
@@ -17,8 +17,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a simple neural network: Linear(2, 4) -> Linear(4, 1)
     println!("1. Building the neural network:");
     let mut model = Sequential::new();
-    model.add_module("fc1".to_string(), Linear::new(2, 4).unwrap());
-    model.add_module("fc2".to_string(), Linear::new(4, 1).unwrap());
+    model.add_module("fc1", Linear::new(2, 4).unwrap());
+    model.add_module("fc2", Linear::new(4, 1).unwrap());
 
     println!("   Network architecture:");
     println!("   Input (2) -> Linear(2→4) -> Linear(4→1) -> Output (1)");
@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Forward pass through the network
     println!("\n3. Forward pass through untrained network:");
     for (i, input_data) in test_inputs.iter().enumerate() {
-        let input_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data.clone(),
             &[1, 2], // [batch_size=1, input_features=2]
         )?;

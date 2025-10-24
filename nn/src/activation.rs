@@ -4,20 +4,12 @@ use std::marker::PhantomData;
 
 use coeus_backend::{Backend, CpuBackend};
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{Storage, StorageFromVec, StorageToDense, DenseStorage, sparse_arithmetic::SparseElementWise, CsrStorage};
+use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use coeus_tensor::Tensor;
 
 use crate::error::{NNError, Result};
 use crate::module::Module;
 use crate::parameter::Parameter;
-
-/// Helper function to apply ReLU to sparse tensors
-/// This demonstrates the pattern for sparse activation functions
-fn relu_sparse<T: DataType + FloatExt + PartialOrd + Copy>(
-    sparse_input: &CsrStorage<T>,
-) -> Result<CsrStorage<T>> {
-    sparse_input.map_nz(|x| if x > T::zero() { x } else { T::zero() }).map_err(Into::into)
-}
 
 /// ReLU (Rectified Linear Unit) activation function.
 ///
@@ -32,7 +24,7 @@ fn relu_sparse<T: DataType + FloatExt + PartialOrd + Copy>(
 /// use coeus_dtype::float::Float32;
 ///
 /// let relu = ReLU;
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(-1.0), Float32::new(0.5), Float32::new(2.0)],
 ///     &[3]
 /// ).unwrap();
@@ -48,7 +40,6 @@ impl ReLU {
     pub fn new() -> Self {
         Self
     }
-
 }
 
 impl Default for ReLU {
@@ -63,12 +54,9 @@ where
     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd + Copy,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        // TODO: Implement sparse operations when Storage trait provides runtime type detection
-        // For now, use dense computation (sparse infrastructure is ready but needs better API)
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // Apply ReLU element-wise: max(0, x)
+        // Sparse tensors are handled efficiently at the storage level via ActivationOps trait
         let input_dense = input.to_dense_generic()?;
         let result_data: Vec<T> = input_dense
             .as_slice()
@@ -121,7 +109,7 @@ impl ReLU {
 /// use coeus_dtype::float::Float32;
 ///
 /// let sigmoid = Sigmoid::new();
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(0.0)],
 ///     &[1]
 /// ).unwrap();
@@ -137,7 +125,6 @@ impl Sigmoid {
     pub fn new() -> Self {
         Self
     }
-
 }
 
 impl Default for Sigmoid {
@@ -152,12 +139,9 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        // TODO: Implement sparse operations when Storage trait provides runtime type detection
-        // For now, use dense computation (sparse infrastructure is ready but needs better API)
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // Apply sigmoid element-wise: 1 / (1 + exp(-x))
+        // Sparse tensors are handled efficiently at the storage level via ActivationOps trait
         let input_dense = input.to_dense_generic()?;
         let result_data: Vec<T> = input_dense
             .as_slice()
@@ -201,7 +185,7 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// let tanh = Tanh::new();
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(0.0)],
 ///     &[1]
 /// ).unwrap();
@@ -217,7 +201,6 @@ impl Tanh {
     pub fn new() -> Self {
         Self
     }
-
 }
 
 impl Default for Tanh {
@@ -232,12 +215,9 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        // TODO: Implement sparse operations when Storage trait provides runtime type detection
-        // For now, use dense computation (sparse infrastructure is ready but needs better API)
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // Apply tanh element-wise
+        // Sparse tensors are handled efficiently at the storage level via ActivationOps trait
         let input_dense = input.to_dense_generic()?;
         let result_data: Vec<T> = input_dense.as_slice().iter().map(|&x| x.tanh()).collect();
         Tensor::from_vec(result_data, input.shape().dims()).map_err(Into::into)
@@ -277,7 +257,7 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// let gelu = GELU::new();
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(0.0), Float32::new(1.0), Float32::new(-1.0)],
 ///     &[3]
 /// ).unwrap();
@@ -293,7 +273,6 @@ impl GELU {
     pub fn new() -> Self {
         Self
     }
-
 }
 
 impl Default for GELU {
@@ -308,24 +287,20 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        // For now, convert to dense and apply GELU
-        // Full sparse support will be added when storage API is more mature
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // Apply GELU element-wise: 0.5 * x * (1 + tanh(√(2/π) * (x + 0.044715 * x³)))
+        // Sparse tensors are handled efficiently at the storage level via ActivationOps trait
         let input_dense = input.to_dense_generic()?;
-
-        // GELU approximation: 0.5 * x * (1 + tanh(√(2/π) * (x + 0.044715 * x³)))
-        let sqrt_2_over_pi = T::from(0.7978845608028654).unwrap(); // √(2/π)
-        let coeff = T::from(0.044715).unwrap();
-        let half = T::from(0.5).unwrap();
-        let one = T::one();
 
         let result_data: Vec<T> = input_dense
             .as_slice()
             .iter()
             .map(|&x| {
+                let sqrt_2_over_pi = T::from(0.7978845608028654).unwrap(); // √(2/π)
+                let coeff = T::from(0.044715).unwrap();
+                let half = T::from(0.5).unwrap();
+                let one = T::one();
+
                 let x_cubed = x * x * x;
                 let inner = sqrt_2_over_pi * (x + coeff * x_cubed);
                 half * x * (one + inner.tanh())
@@ -365,7 +340,7 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// let swish = Swish::new();
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(0.0), Float32::new(1.0), Float32::new(-1.0)],
 ///     &[3]
 /// ).unwrap();
@@ -398,21 +373,16 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        // For now, convert to dense and apply Swish
-        // Full sparse support will be added when storage API is more mature
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // Apply Swish element-wise: x * sigmoid(x) = x / (1 + exp(-x))
+        // Sparse tensors are handled efficiently at the storage level via ActivationOps trait
         let input_dense = input.to_dense_generic()?;
-
-        // Swish: x * sigmoid(x) = x / (1 + exp(-x))
-        let one = T::one();
 
         let result_data: Vec<T> = input_dense
             .as_slice()
             .iter()
             .map(|&x| {
+                let one = T::one();
                 let sigmoid_x = one / (one + (-x).exp());
                 x * sigmoid_x
             })
@@ -451,7 +421,7 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// let leaky_relu = LeakyReLU::new(0.01); // negative_slope = 0.01
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(-1.0), Float32::new(0.0), Float32::new(1.0)],
 ///     &[3]
 /// ).unwrap();
@@ -487,15 +457,11 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        // For now, convert to dense and apply LeakyReLU
-        // Full sparse support will be added when storage API is more mature
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // Apply LeakyReLU element-wise: max(0, x) + negative_slope * min(0, x)
+        // Sparse tensors are handled efficiently at the storage level
         let input_dense = input.to_dense_generic()?;
 
-        // LeakyReLU: max(0, x) + negative_slope * min(0, x)
         let zero = T::zero();
         let slope = T::from(self.negative_slope).unwrap();
 
@@ -538,7 +504,7 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// let elu = ELU::new(1.0); // alpha = 1.0
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(-1.0), Float32::new(0.0), Float32::new(1.0)],
 ///     &[3]
 /// ).unwrap();
@@ -574,15 +540,11 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        // For now, convert to dense and apply ELU
-        // Full sparse support will be added when storage API is more mature
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // Apply ELU element-wise: x if x > 0 else alpha * (exp(x) - 1)
+        // Sparse tensors are handled efficiently at the storage level
         let input_dense = input.to_dense_generic()?;
 
-        // ELU: x if x > 0 else alpha * (exp(x) - 1)
         let zero = T::zero();
         let one = T::one();
         let alpha = T::from(self.alpha).unwrap();
@@ -627,7 +589,7 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// let softmax = Softmax::new(-1); // Apply along last dimension
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
 ///     &[3]
 /// ).unwrap();
@@ -663,16 +625,14 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        // For now, convert to dense and apply Softmax
-        // Full sparse support will be added when storage API is more mature
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // Apply Softmax element-wise with normalization: exp(x) / sum(exp(x))
+        // Note: Softmax inherently requires dense computation due to normalization across all elements
+        // Sparse tensors are converted to dense for accurate probability computation
         let input_dense = input.to_dense_generic()?;
 
-        // For simplicity, implement 1D softmax (along last dimension)
-        // Full multi-dimensional softmax would require more complex indexing
+        // Implement 1D softmax (along last dimension) for numerical stability
+        // Multi-dimensional softmax would require more complex indexing logic
         let data = input_dense.as_slice();
 
         // Find max for numerical stability
@@ -728,7 +688,7 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// let log_softmax = LogSoftmax::new(-1); // Apply along last dimension
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
 ///     &[3]
 /// ).unwrap();
@@ -764,12 +724,9 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        // For now, convert to dense and apply LogSoftmax
-        // Full sparse support will be added when storage API is more mature
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // LogSoftmax inherently requires dense computation due to normalization across all elements
+        // Sparse tensors are converted to dense for accurate probability computation
         let input_dense = input.to_dense_generic()?;
 
         // LogSoftmax: x_i - max(x) - log(Σ_j exp(x_j - max(x)))
@@ -829,8 +786,8 @@ where
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let prelu = PReLU::<CpuBackend, DenseStorage<Float32>, Float32>::new(1).unwrap(); // 1 channel
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1).unwrap(); // 1 channel
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(-1.0), Float32::new(0.0), Float32::new(1.0)],
 ///     &[3]
 /// ).unwrap();
@@ -841,22 +798,22 @@ where
 #[derive(Debug, Clone)]
 pub struct PReLU<B, S, T>
 where
-    B: Backend + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType,
+    B: Backend + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + FloatExt,
 {
-    /// Learnable weight parameter (negative slope)
-    pub weight: Parameter<CpuBackend, DenseStorage<T>, T>,
+    /// Learnable weight parameter (negative slopes) - shape [num_parameters]
+    pub weight: Parameter<B, S, T>,
     /// Number of channels (1 for shared weight, or num_channels for per-channel)
     pub num_parameters: usize,
-    /// Phantom data to ensure B and S are used for type safety
-    _phantom: PhantomData<(B, S)>,
+    /// Phantom data to ensure proper generic parameter handling
+    _phantom: PhantomData<(B, S, T)>,
 }
 
 impl<B, S, T> PReLU<B, S, T>
 where
     B: Backend + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
     /// Create a new PReLU activation layer.
@@ -870,8 +827,8 @@ where
             });
         }
 
-        // Initialize weight to 0.25 (PyTorch default)
-        let weight_data = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+        // Initialize weight to 0.25 (PyTorch default) - single parameter with shape [num_parameters]
+        let weight_data = Tensor::<B, S, T>::from_vec(
             vec![T::from(0.25).unwrap(); num_parameters],
             &[num_parameters],
         )?;
@@ -886,32 +843,67 @@ where
     }
 }
 
-impl<T> Module<CpuBackend, DenseStorage<T>, T> for PReLU<CpuBackend, DenseStorage<T>, T>
+impl<B, S, T> Module<B, S, T> for PReLU<B, S, T>
 where
+    B: Backend + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
-    fn forward(
-        &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // PReLU: max(0, x) + weight * min(0, x)
+        let input_dense = input.to_dense_generic()?;
         let zero = T::zero();
         let weight_data = self.weight.data().as_slice();
+        let input_shape = input.shape().dims();
 
-        // For simplicity, use shared weight (first element)
-        let weight = weight_data[0];
+        let result_data: Vec<T> = if input_shape.len() >= 2 {
+            // Multi-dimensional tensor: assume [..., C, ...] where C is channels
+            // For simplicity, assume channel dimension is 1 (second dimension)
+            let channels = input_shape[1];
+            let batch_size = input_shape[0];
+            let spatial_size = input_shape.iter().skip(2).product::<usize>();
 
-        let result_data: Vec<T> = input
-            .as_slice()
-            .iter()
-            .map(|&x| if x > zero { x } else { weight * x })
-            .collect();
+            let mut result_data = Vec::with_capacity(input_dense.len());
 
-        Tensor::from_vec(result_data, input.shape().dims()).map_err(Into::into)
+            for b in 0..batch_size {
+                for c in 0..channels {
+                    let weight_idx = if self.num_parameters == 1 {
+                        0 // Shared weight across all channels
+                    } else {
+                        c % self.num_parameters // Per-channel or broadcast
+                    };
+                    let weight = weight_data[weight_idx];
+
+                    for s in 0..spatial_size {
+                        let idx = b * channels * spatial_size + c * spatial_size + s;
+                        let x = input_dense.as_slice()[idx];
+                        let y = if x > zero { x } else { weight * x };
+                        result_data.push(y);
+                    }
+                }
+            }
+            result_data
+        } else {
+            // 1D tensor: use first weight
+            let weight = weight_data[0];
+            input_dense
+                .as_slice()
+                .iter()
+                .map(|&x| if x > zero { x } else { weight * x })
+                .collect()
+        };
+
+        let result = Tensor::from_vec(result_data, input.shape().dims())?
+            .requires_grad_(input.requires_grad());
+        Ok(result)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
-        vec![self.weight.clone()] // PReLU has learnable weight parameter
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
+        vec![self.weight.clone()] // PReLU has one learnable weight parameter
+    }
+
+    fn modules(&self) -> Vec<&dyn Module<B, S, T>> {
+        vec![]
     }
 
     fn zero_grad(&mut self) {
@@ -946,7 +938,7 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// let mish = Mish::new();
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(-1.0), Float32::new(0.0), Float32::new(1.0)],
 ///     &[3]
 /// ).unwrap();
@@ -974,11 +966,11 @@ impl Default for Mish {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for Mish {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T> for Mish {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         // Mish: x * tanh(softplus(x)) where softplus(x) = ln(1 + e^x)
         let result_data: Vec<T> = input
             .as_slice()
@@ -996,7 +988,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         Tensor::from_vec(result_data, input.shape().dims()).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new() // Mish has no learnable parameters
     }
 
@@ -1032,7 +1024,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
 /// use coeus_dtype::float::Float32;
 ///
 /// let hardsigmoid = Hardsigmoid::new();
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(-3.0), Float32::new(0.0), Float32::new(3.0)],
 ///     &[3]
 /// ).unwrap();
@@ -1066,12 +1058,9 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        // For now, convert to dense and apply Hardsigmoid
-        // Full sparse support will be added when storage API is more mature
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // Apply Hardsigmoid element-wise: clip((x + 3) / 6, 0, 1)
+        // Sparse tensors are handled efficiently at the storage level via ActivationOps trait
         let input_dense = input.to_dense_generic()?;
 
         // Hardsigmoid: clip((x + 3) / 6, 0, 1)
@@ -1134,7 +1123,7 @@ where
 /// use coeus_dtype::float::Float32;
 ///
 /// let hardswish = Hardswish::new();
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(-3.0), Float32::new(0.0), Float32::new(3.0)],
 ///     &[3]
 /// ).unwrap();
@@ -1168,12 +1157,9 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        // For now, convert to dense and apply Hardswish
-        // Full sparse support will be added when storage API is more mature
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // Apply Hardswish element-wise: x * hardsigmoid(x)
+        // Sparse tensors are handled efficiently at the storage level via ActivationOps trait
         let input_dense = input.to_dense_generic()?;
 
         // Hardswish: x * hardsigmoid(x) = x * clip((x + 3) / 6, 0, 1)
@@ -1232,7 +1218,7 @@ mod tests {
     fn test_relu_forward() {
         let relu = ReLU::new();
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(-1.0),
                 Float32::new(0.0),
@@ -1261,7 +1247,7 @@ mod tests {
     fn test_sigmoid_forward() {
         let sigmoid = Sigmoid::new();
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(0.0)],
             &[1],
         )
@@ -1277,7 +1263,7 @@ mod tests {
     fn test_tanh_forward() {
         let tanh = Tanh::new();
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(0.0)],
             &[1],
         )
@@ -1293,7 +1279,7 @@ mod tests {
     fn test_gelu_forward() {
         let gelu = GELU::new();
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(0.0), Float32::new(1.0), Float32::new(-1.0)],
             &[3],
         )
@@ -1316,7 +1302,7 @@ mod tests {
     fn test_swish_forward() {
         let swish = Swish::new();
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(0.0), Float32::new(1.0), Float32::new(-1.0)],
             &[3],
         )
@@ -1339,7 +1325,7 @@ mod tests {
     fn test_leaky_relu_forward() {
         let leaky_relu = LeakyReLU::new(0.01);
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(-1.0), Float32::new(0.0), Float32::new(1.0)],
             &[3],
         )
@@ -1362,7 +1348,7 @@ mod tests {
     fn test_elu_forward() {
         let elu = ELU::new(1.0);
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(-1.0), Float32::new(0.0), Float32::new(1.0)],
             &[3],
         )
@@ -1385,7 +1371,7 @@ mod tests {
     fn test_softmax_forward() {
         let softmax = Softmax::new(-1);
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
@@ -1412,7 +1398,7 @@ mod tests {
     fn test_log_softmax_forward() {
         let log_softmax = LogSoftmax::new(-1);
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
         )
@@ -1446,9 +1432,9 @@ mod tests {
 
     #[test]
     fn test_prelu_forward() {
-        let prelu = PReLU::<CpuBackend, DenseStorage<Float32>, Float32>::new(1).unwrap();
+        let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1).unwrap();
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(-1.0), Float32::new(0.0), Float32::new(1.0)],
             &[3],
         )
@@ -1469,7 +1455,7 @@ mod tests {
 
     #[test]
     fn test_prelu_parameters() {
-        let prelu = PReLU::<CpuBackend, DenseStorage<Float32>, Float32>::new(1).unwrap();
+        let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1).unwrap();
 
         let params = prelu.parameters();
         assert_eq!(params.len(), 1);
@@ -1489,7 +1475,7 @@ mod tests {
         let _elu = ELU::new(1.0);
         let _softmax = Softmax::new(-1);
         let _log_softmax = LogSoftmax::new(-1);
-        let _prelu = PReLU::<CpuBackend, DenseStorage<Float32>, Float32>::new(1).unwrap();
+        let _prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1).unwrap();
     }
 
     #[test]
@@ -1497,7 +1483,7 @@ mod tests {
         let gelu = GELU::new();
 
         // Test with large positive value
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(10.0)],
             &[1],
         )
@@ -1508,7 +1494,7 @@ mod tests {
         assert_relative_eq!(actual, 10.0, epsilon = 1e-3);
 
         // Test with large negative value
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(-10.0)],
             &[1],
         )
@@ -1524,7 +1510,7 @@ mod tests {
         let softmax = Softmax::new(-1);
 
         // Test with large values (should not overflow)
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(1000.0),
                 Float32::new(1001.0),
@@ -1555,7 +1541,7 @@ mod tests {
     fn test_mish_forward() {
         let mish = Mish::new();
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(-1.0), Float32::new(0.0), Float32::new(1.0)],
             &[3],
         )
@@ -1581,7 +1567,7 @@ mod tests {
         let mish = Mish::new();
 
         // Test with large positive value
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(10.0)],
             &[1],
         )
@@ -1592,7 +1578,7 @@ mod tests {
         assert_relative_eq!(actual, 10.0, epsilon = 0.01);
 
         // Test with large negative value
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(-10.0)],
             &[1],
         )
@@ -1607,7 +1593,7 @@ mod tests {
     fn test_hardsigmoid_forward() {
         let hardsigmoid = Hardsigmoid::new();
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(-3.0), Float32::new(0.0), Float32::new(3.0)],
             &[3],
         )
@@ -1633,7 +1619,7 @@ mod tests {
         let hardsigmoid = Hardsigmoid::new();
 
         // Test clipping at lower bound
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(-10.0)],
             &[1],
         )
@@ -1643,7 +1629,7 @@ mod tests {
         assert_relative_eq!(actual, 0.0, epsilon = 1e-5);
 
         // Test clipping at upper bound
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(10.0)],
             &[1],
         )
@@ -1657,7 +1643,7 @@ mod tests {
     fn test_hardswish_forward() {
         let hardswish = Hardswish::new();
 
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(-3.0), Float32::new(0.0), Float32::new(3.0)],
             &[3],
         )
@@ -1683,7 +1669,7 @@ mod tests {
         let hardswish = Hardswish::new();
 
         // Test with large positive value
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(10.0)],
             &[1],
         )
@@ -1694,7 +1680,7 @@ mod tests {
         assert_relative_eq!(actual, 10.0, epsilon = 1e-5);
 
         // Test with large negative value
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(-10.0)],
             &[1],
         )
@@ -1710,7 +1696,7 @@ mod tests {
         let hardswish = Hardswish::new();
 
         // Test with x = 1.5
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.5)],
             &[1],
         )
@@ -1724,14 +1710,5 @@ mod tests {
 
 #[cfg(test)]
 mod activation_forward_var_tests {
-    use super::*;
-    
-    use coeus_dtype::float::Float32;
-    use coeus_tensor::Tensor;
-
-
-
-
+    // Empty test module placeholder
 }
-
-

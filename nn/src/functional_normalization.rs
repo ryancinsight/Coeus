@@ -5,7 +5,8 @@
 
 use coeus_backend::Backend;
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+#[allow(unused_imports)]
+use coeus_storage::{Storage, StorageFromVec, StorageToDense};
 use coeus_tensor::Tensor;
 
 use crate::error::{NNError, Result};
@@ -39,7 +40,7 @@ use crate::error::{NNError, Result};
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
 ///     &[1, 3]
 /// ).unwrap();
@@ -47,15 +48,24 @@ use crate::error::{NNError, Result};
 /// let output = layer_norm(&input, &[3], None, None, 1e-5).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 3]);
 /// ```
-pub fn layer_norm<T: DataType + FloatExt>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
+#[allow(clippy::multiple_bound_locations)]
+pub fn layer_norm<
+    B: Backend,
+    S: StorageToDense<T> + StorageFromVec<T> + 'static,
+    T: DataType + FloatExt,
+>(
+    input: &Tensor<B, S, T>,
     normalized_shape: &[usize],
-    weight: Option<&Tensor<impl Backend, impl Storage<T>, T>>,
-    bias: Option<&Tensor<impl Backend, impl Storage<T>, T>>,
+    weight: Option<&Tensor<B, S, T>>,
+    bias: Option<&Tensor<B, S, T>>,
     eps: f64,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+) -> Result<Tensor<B, S, T>>
 where
-    T: Clone + std::ops::Add<Output = T> + std::ops::Sub<Output = T> + std::ops::Mul<Output = T> + std::ops::Div<Output = T>,
+    T: Clone
+        + std::ops::Add<Output = T>
+        + std::ops::Sub<Output = T>
+        + std::ops::Mul<Output = T>
+        + std::ops::Div<Output = T>,
 {
     let input_dense = input.to_dense_generic()?;
     let input_shape = input_dense.shape().dims();
@@ -79,7 +89,8 @@ where
             return Err(NNError::InvalidInput {
                 message: format!(
                     "weight shape {:?} must match normalized_shape {:?}",
-                    w.shape().dims(), normalized_shape
+                    w.shape().dims(),
+                    normalized_shape
                 ),
             });
         }
@@ -90,7 +101,8 @@ where
             return Err(NNError::InvalidInput {
                 message: format!(
                     "bias shape {:?} must match normalized_shape {:?}",
-                    b.shape().dims(), normalized_shape
+                    b.shape().dims(),
+                    normalized_shape
                 ),
             });
         }
@@ -100,7 +112,9 @@ where
     let mut output_data = Vec::with_capacity(input_data.len());
 
     // Calculate dimensions
-    let batch_size: usize = input_shape[..input_shape.len() - normalized_shape.len()].iter().product();
+    let batch_size: usize = input_shape[..input_shape.len() - normalized_shape.len()]
+        .iter()
+        .product();
     let feature_size = normalized_size;
 
     for batch in 0..batch_size {
@@ -118,8 +132,8 @@ where
         // Compute variance
         let mut var_sum = T::from(0.0).unwrap();
         for &val in features {
-            let diff = val - mean.clone();
-            var_sum = var_sum + (diff * diff.clone());
+            let diff = val - mean;
+            var_sum = var_sum + (diff * diff);
         }
         let variance = var_sum / T::from(feature_size as f64).unwrap();
 
@@ -128,26 +142,28 @@ where
         let std = (variance + eps_t).sqrt();
 
         for (i, &val) in features.iter().enumerate() {
-            let normalized = (val - mean.clone()) / std.clone();
+            let normalized = (val - mean) / std;
 
             // Apply weight and bias if provided
             let mut result = normalized;
             if let Some(w) = weight {
                 let weight_data = w.as_slice();
-                result = result * weight_data[i].clone();
+                result = result * weight_data[i];
             }
             if let Some(b) = bias {
                 let bias_data = b.as_slice();
-                result = result + bias_data[i].clone();
+                result = result + bias_data[i];
             }
 
             output_data.push(result);
         }
     }
 
-    Tensor::from_vec(output_data, &input_shape)
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        output_data,
+        input_shape,
+        input.backend().clone(),
+    )?)
 }
 
 /// Applies Batch Normalization over the batch dimension.
@@ -179,7 +195,7 @@ where
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
 ///     &[2, 2]
 /// ).unwrap();
@@ -187,14 +203,23 @@ where
 /// let output = batch_norm(&input, None, None, 1e-5).unwrap();
 /// assert_eq!(output.shape().dims(), &[2, 2]);
 /// ```
-pub fn batch_norm<T: DataType + FloatExt>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
-    weight: Option<&Tensor<impl Backend, impl Storage<T>, T>>,
-    bias: Option<&Tensor<impl Backend, impl Storage<T>, T>>,
+#[allow(clippy::multiple_bound_locations)]
+pub fn batch_norm<
+    B: Backend,
+    S: StorageToDense<T> + StorageFromVec<T> + 'static,
+    T: DataType + FloatExt,
+>(
+    input: &Tensor<B, S, T>,
+    weight: Option<&Tensor<B, S, T>>,
+    bias: Option<&Tensor<B, S, T>>,
     eps: f64,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+) -> Result<Tensor<B, S, T>>
 where
-    T: Clone + std::ops::Add<Output = T> + std::ops::Sub<Output = T> + std::ops::Mul<Output = T> + std::ops::Div<Output = T>,
+    T: Clone
+        + std::ops::Add<Output = T>
+        + std::ops::Sub<Output = T>
+        + std::ops::Mul<Output = T>
+        + std::ops::Div<Output = T>,
 {
     let input_dense = input.to_dense_generic()?;
     let input_shape = input_dense.shape().dims();
@@ -211,23 +236,21 @@ where
 
     // Validate weight and bias shapes if provided
     if let Some(w) = weight {
-        if w.shape().dims() != &[channels] {
+        if w.shape().dims() != [channels] {
             return Err(NNError::InvalidInput {
                 message: format!(
                     "weight shape {:?} must be [{:?}]",
-                    w.shape().dims(), channels
+                    w.shape().dims(),
+                    channels
                 ),
             });
         }
     }
 
     if let Some(b) = bias {
-        if b.shape().dims() != &[channels] {
+        if b.shape().dims() != [channels] {
             return Err(NNError::InvalidInput {
-                message: format!(
-                    "bias shape {:?} must be [{:?}]",
-                    b.shape().dims(), channels
-                ),
+                message: format!("bias shape {:?} must be [{:?}]", b.shape().dims(), channels),
             });
         }
     }
@@ -243,21 +266,21 @@ where
         for n in 0..batch_size {
             for s in 0..spatial_size {
                 let idx = (n * channels + c) * spatial_size + s;
-                channel_data.push(input_data[idx].clone());
+                channel_data.push(input_data[idx]);
             }
         }
 
         // Compute batch statistics for this channel
         let mut sum = T::from(0.0).unwrap();
         for val in &channel_data {
-            sum = sum.clone() + val.clone();
+            sum = sum + *val;
         }
         let total_elements = T::from(channel_data.len() as f64).unwrap();
-        let mean = sum / total_elements.clone();
+        let mean = sum / total_elements;
 
         let mut var_sum = T::from(0.0).unwrap();
         for val in &channel_data {
-            let diff = val.clone() - mean.clone();
+            let diff = *val - mean;
             var_sum = var_sum + (diff * diff);
         }
         let variance = var_sum / total_elements;
@@ -266,17 +289,17 @@ where
         let eps_t = T::from(eps).unwrap();
         let std = (variance + eps_t).sqrt();
 
-        let weight_val = weight.map(|w| w.as_slice()[c].clone());
-        let bias_val = bias.map(|b| b.as_slice()[c].clone());
+        let weight_val = weight.map(|w| w.as_slice()[c]);
+        let bias_val = bias.map(|b| b.as_slice()[c]);
 
         for val in channel_data {
-            let normalized = (val - mean.clone()) / std.clone();
+            let normalized = (val - mean) / std;
 
             let mut result = normalized;
-            if let Some(w) = weight_val.clone() {
+            if let Some(w) = weight_val {
                 result = result * w;
             }
-            if let Some(b) = bias_val.clone() {
+            if let Some(b) = bias_val {
                 result = result + b;
             }
 
@@ -284,7 +307,9 @@ where
         }
     }
 
-    Tensor::from_vec(output_data, &input_shape)
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        output_data,
+        input_shape,
+        input.backend().clone(),
+    )?)
 }

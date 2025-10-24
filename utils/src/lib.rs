@@ -24,11 +24,11 @@
 //! use coeus_dtype::int::Int32;
 //!
 //! // Create a simple dataset from tensors
-//! let data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+//! let data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 //!     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
 //!     &[4]
 //! ).unwrap();
-//! let targets = Tensor::<CpuBackend, DenseStorage<Int32>, Int32>::from_vec(
+//! let targets = Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec(
 //!     vec![Int32::new(0), Int32::new(1), Int32::new(0), Int32::new(1)],
 //!     &[4]
 //! ).unwrap();
@@ -59,7 +59,7 @@ mod integration_tests {
     #[test]
     fn test_dataloader_nn_integration() {
         // Create synthetic training data
-        let inputs = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let inputs = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(0.1),
                 Float32::new(0.2),
@@ -74,7 +74,7 @@ mod integration_tests {
         )
         .unwrap();
 
-        let targets = Tensor::<CpuBackend, DenseStorage<Int32>, Int32>::from_vec(
+        let targets = Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec(
             vec![
                 Int32::new(0),
                 Int32::new(1),
@@ -136,11 +136,12 @@ pub mod datasets {
     pub mod tensor;
 }
 
-pub use datasets::tensor::{TensorDataset, TensorSample};
+pub use datasets::tensor::{ConcatDataset, Subset, TensorDataset, TensorSample};
 
 pub use dataloader::DataLoader;
 pub use dataset::{Dataset, DatasetExt};
 pub use error::DataError;
 pub use sampler::{BatchSampler, RandomSampler, Sampler, SequentialSampler};
-pub use transforms::compose::ComposableTransform;
-pub use transforms::{Compose, Normalize, ToTensor, Transform, TransformError};
+pub use transforms::compose::{ComposableTransform, SimdCompose};
+pub use transforms::random_apply::{ConditionalTransform, RandomApply};
+pub use transforms::{Compose, Normalize, Resize, ToTensor, Transform, TransformError};

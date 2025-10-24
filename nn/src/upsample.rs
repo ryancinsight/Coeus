@@ -39,7 +39,7 @@ pub enum InterpolationMode {
 ///
 /// // Upsample by scale factor 2 using nearest neighbor
 /// let upsample = Upsample::new(None, Some(2.0), InterpolationMode::Nearest);
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
 /// let output = upsample.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 64, 64]);
 /// ```
@@ -105,10 +105,10 @@ impl Upsample {
     /// Nearest neighbor interpolation for 2D input.
     fn nearest_2d<T: DataType + FloatExt>(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
         output_h: usize,
         output_w: usize,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         let batch_size = input_shape[0];
         let channels = input_shape[1];
@@ -146,10 +146,10 @@ impl Upsample {
     /// Bilinear interpolation for 2D input.
     fn bilinear_2d<T: DataType + FloatExt>(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
         output_h: usize,
         output_w: usize,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         let batch_size = input_shape[0];
         let channels = input_shape[1];
@@ -206,11 +206,11 @@ impl Upsample {
     }
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for Upsample {
+impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Upsample {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
 
         match input_shape.len() {
@@ -224,21 +224,23 @@ impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for Upsample
                 match self.mode {
                     InterpolationMode::Nearest => self.nearest_2d(input, output_h, output_w),
                     InterpolationMode::Bilinear => self.bilinear_2d(input, output_h, output_w),
-                    InterpolationMode::Trilinear => {
-                        panic!("Trilinear interpolation requires 5D input (N, C, D, H, W)");
-                    }
+                    InterpolationMode::Trilinear => Err(crate::error::NNError::InvalidInput {
+                        message:
+                            "Trilinear interpolation requires 5D input (N, C, D, H, W), got 4D"
+                                .to_string(),
+                    }),
                 }
             }
-            _ => {
-                panic!(
+            _ => Err(crate::error::NNError::InvalidInput {
+                message: format!(
                     "Unsupported input dimensions: {}D (expected 4D for 2D upsampling)",
                     input_shape.len()
-                );
-            }
+                ),
+            }),
         }
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new() // No learnable parameters
     }
 
@@ -271,13 +273,17 @@ mod tests {
             Float32::new(3.0),
             Float32::new(4.0),
         ];
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 1, 2, 2],
         )
         .unwrap();
 
-        let output = <Upsample as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&upsample, &input).unwrap();
+        let output =
+            <Upsample as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &upsample, &input,
+            )
+            .unwrap();
 
         // Output should be [1, 1, 4, 4]
         assert_eq!(output.shape().dims(), &[1, 1, 4, 4]);
@@ -289,8 +295,13 @@ mod tests {
 
         // Input: [1, 1, 2, 2]
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 1, 2, 2]).unwrap();
-        let output = <Upsample as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&upsample, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 2, 2])
+                .unwrap();
+        let output =
+            <Upsample as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &upsample, &input,
+            )
+            .unwrap();
 
         // Output should be [1, 1, 4, 4]
         assert_eq!(output.shape().dims(), &[1, 1, 4, 4]);
@@ -307,20 +318,24 @@ mod tests {
             Float32::new(3.0),
             Float32::new(4.0),
         ];
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 1, 2, 2],
         )
         .unwrap();
 
-        let output = <Upsample as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&upsample, &input).unwrap();
+        let output =
+            <Upsample as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &upsample, &input,
+            )
+            .unwrap();
 
         // Output should be [1, 1, 4, 4]
         assert_eq!(output.shape().dims(), &[1, 1, 4, 4]);
 
         // Bilinear interpolation should produce smooth transitions
         let output_data = output.as_slice();
-        assert!(output_data.iter().all(|&x| x.get().is_finite()));
+        assert!(output_data.iter().all(|&x: &Float32| x.get().is_finite()));
     }
 
     #[test]
@@ -334,13 +349,17 @@ mod tests {
             Float32::new(2.0),
             Float32::new(3.0),
         ];
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 1, 2, 2],
         )
         .unwrap();
 
-        let output = <Upsample as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&upsample, &input).unwrap();
+        let output =
+            <Upsample as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &upsample, &input,
+            )
+            .unwrap();
 
         // Output should be [1, 1, 3, 3]
         assert_eq!(output.shape().dims(), &[1, 1, 3, 3]);
@@ -359,8 +378,13 @@ mod tests {
 
         // Input: [4, 3, 16, 16]
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[4, 3, 16, 16]).unwrap();
-        let output = <Upsample as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&upsample, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[4, 3, 16, 16])
+                .unwrap();
+        let output =
+            <Upsample as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &upsample, &input,
+            )
+            .unwrap();
 
         // Output should be [4, 3, 32, 32]
         assert_eq!(output.shape().dims(), &[4, 3, 32, 32]);
@@ -372,8 +396,13 @@ mod tests {
 
         // U-Net decoder: [1, 512, 7, 7] → [1, 512, 14, 14]
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 512, 7, 7]).unwrap();
-        let output = <Upsample as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&upsample, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 512, 7, 7])
+                .unwrap();
+        let output =
+            <Upsample as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &upsample, &input,
+            )
+            .unwrap();
 
         assert_eq!(output.shape().dims(), &[1, 512, 14, 14]);
     }
@@ -384,8 +413,13 @@ mod tests {
 
         // Super-resolution: [1, 64, 32, 32] → [1, 64, 128, 128]
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
-        let output = <Upsample as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&upsample, &input).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32])
+                .unwrap();
+        let output =
+            <Upsample as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &upsample, &input,
+            )
+            .unwrap();
 
         assert_eq!(output.shape().dims(), &[1, 64, 128, 128]);
     }

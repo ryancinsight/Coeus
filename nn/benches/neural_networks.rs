@@ -7,18 +7,18 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::prelude::*;
 
+use coeus_autograd::ops::backward_with_grad;
 use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
 use coeus_nn::{
-    Linear, Conv2D, BatchNorm2d, Dropout, LayerNorm, MultiHeadAttention,
-    Sequential, Module, functional, ReLU, SparseAttention
+    activation::GELU, dropout::Dropout, functional, BatchNorm2d, Conv2D, LayerNorm, Linear, Module,
+    MultiHeadAttention, ReLU, Sequential, SparseAttention,
 };
-use coeus_storage::{DenseStorage, CsrStorage, SparseFormat};
+use coeus_storage::{CsrStorage, DenseStorage, SparseFormat};
 use coeus_tensor::Tensor;
-use coeus_autograd::ops::backward_with_grad;
 
 /// Create random tensor with specified shape
-fn random_tensor(shape: &[usize]) -> Tensor<CpuBackend, DenseStorage<Float32>, Float32> {
+fn random_tensor(shape: &[usize]) -> Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> {
     let mut rng = rand::thread_rng();
     let size: usize = shape.iter().product();
     let data: Vec<Float32> = (0..size)
@@ -29,7 +29,9 @@ fn random_tensor(shape: &[usize]) -> Tensor<CpuBackend, DenseStorage<Float32>, F
 }
 
 /// Create random tensor requiring gradients
-fn random_tensor_grad(shape: &[usize]) -> Tensor<CpuBackend, DenseStorage<Float32>, Float32> {
+fn random_tensor_grad(
+    shape: &[usize],
+) -> Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> {
     random_tensor(shape).requires_grad_(true)
 }
 
@@ -39,7 +41,8 @@ fn bench_linear_forward(c: &mut Criterion) {
 
     // Small: 784 -> 128 (typical MNIST)
     group.bench_function("small_784_128", |b| {
-        let layer = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 128).unwrap();
+        let layer =
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 128).unwrap();
         let input = random_tensor(&[32, 784]); // batch_size=32
 
         b.iter(|| {
@@ -50,7 +53,8 @@ fn bench_linear_forward(c: &mut Criterion) {
 
     // Medium: 2048 -> 512
     group.bench_function("medium_2048_512", |b| {
-        let layer = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(2048, 512).unwrap();
+        let layer =
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(2048, 512).unwrap();
         let input = random_tensor(&[16, 2048]); // batch_size=16
 
         b.iter(|| {
@@ -61,7 +65,8 @@ fn bench_linear_forward(c: &mut Criterion) {
 
     // Large: 4096 -> 1024
     group.bench_function("large_4096_1024", |b| {
-        let layer = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(4096, 1024).unwrap();
+        let layer =
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(4096, 1024).unwrap();
         let input = random_tensor(&[8, 4096]); // batch_size=8
 
         b.iter(|| {
@@ -79,7 +84,8 @@ fn bench_linear_backward(c: &mut Criterion) {
 
     // Small: 784 -> 128
     group.bench_function("small_784_128", |b| {
-        let layer = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 128).unwrap();
+        let layer =
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 128).unwrap();
         let input = random_tensor_grad(&[32, 784]);
         let target = random_tensor(&[32, 128]);
 
@@ -88,26 +94,37 @@ fn bench_linear_backward(c: &mut Criterion) {
             let output = layer.forward(&input).unwrap();
 
             // Compute loss
-            let loss = (&output - &target).powf(Float32::new(2.0)).sum(None, false).unwrap();
+            let loss = (&output - &target)
+                .powf(Float32::new(2.0))
+                .sum(None, false)
+                .unwrap();
 
             // Backward pass
             let loss_shape = loss.shape().dims();
-            let grad = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(loss_shape).unwrap();
+            let grad =
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(loss_shape)
+                    .unwrap();
             black_box(backward_with_grad(&loss, &grad).unwrap());
         });
     });
 
     // Medium: 2048 -> 512
     group.bench_function("medium_2048_512", |b| {
-        let layer = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(2048, 512).unwrap();
+        let layer =
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(2048, 512).unwrap();
         let input = random_tensor_grad(&[16, 2048]);
         let target = random_tensor(&[16, 512]);
 
         b.iter(|| {
             let output = layer.forward(&input).unwrap();
-            let loss = (&output - &target).powf(Float32::new(2.0)).sum(None, false).unwrap();
+            let loss = (&output - &target)
+                .powf(Float32::new(2.0))
+                .sum(None, false)
+                .unwrap();
             let loss_shape = loss.shape().dims();
-            let grad = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(loss_shape).unwrap();
+            let grad =
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(loss_shape)
+                    .unwrap();
             black_box(backward_with_grad(&loss, &grad).unwrap());
         });
     });
@@ -121,7 +138,15 @@ fn bench_conv2d_forward(c: &mut Criterion) {
 
     // Small: 32x32 RGB images, 3->64 channels
     group.bench_function("small_32x32_3_64", |b| {
-        let conv = Conv2D::<CpuBackend, DenseStorage<Float32>, Float32>::new(3, 64, (3, 3), Some((1, 1)), Some((1, 1)), Some(true)).unwrap();
+        let conv = Conv2D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            3,
+            64,
+            (3, 3),
+            Some((1, 1)),
+            Some((1, 1)),
+            Some(true),
+        )
+        .unwrap();
         let input = random_tensor(&[8, 3, 32, 32]); // batch_size=8
 
         b.iter(|| {
@@ -132,7 +157,15 @@ fn bench_conv2d_forward(c: &mut Criterion) {
 
     // Medium: 64x64 images, 64->128 channels
     group.bench_function("medium_64x64_64_128", |b| {
-        let conv = Conv2D::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 128, (3, 3), Some((1, 1)), Some((1, 1)), Some(true)).unwrap();
+        let conv = Conv2D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            64,
+            128,
+            (3, 3),
+            Some((1, 1)),
+            Some((1, 1)),
+            Some(true),
+        )
+        .unwrap();
         let input = random_tensor(&[4, 64, 64, 64]); // batch_size=4
 
         b.iter(|| {
@@ -150,7 +183,9 @@ fn bench_attention_forward(c: &mut Criterion) {
 
     // Small: embed_dim=256, num_heads=8, seq_len=32
     group.bench_function("small_embed256_heads8_seq32", |b| {
-        let attention = MultiHeadAttention::<CpuBackend, DenseStorage<Float32>, Float32>::new(256, 8).unwrap();
+        let attention =
+            MultiHeadAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(256, 8)
+                .unwrap();
         let input = random_tensor(&[4, 32, 256]); // batch_size=4, seq_len=32
 
         b.iter(|| {
@@ -161,7 +196,9 @@ fn bench_attention_forward(c: &mut Criterion) {
 
     // Medium: embed_dim=512, num_heads=16, seq_len=64
     group.bench_function("medium_embed512_heads16_seq64", |b| {
-        let attention = MultiHeadAttention::<CpuBackend, DenseStorage<Float32>, Float32>::new(512, 16).unwrap();
+        let attention =
+            MultiHeadAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(512, 16)
+                .unwrap();
         let input = random_tensor(&[2, 64, 512]); // batch_size=2, seq_len=64
 
         b.iter(|| {
@@ -179,14 +216,26 @@ fn bench_sequential_forward(c: &mut Criterion) {
 
     // Small MLP: 784 -> 512 -> 256 -> 128 -> 10
     group.bench_function("small_mlp_784_512_256_128_10", |b| {
-        let mut model = Sequential::<CpuBackend, Float32>::new();
-        model.add_module("fc1".to_string(), Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 512).unwrap());
+        let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
+        model.add_module(
+            "fc1".to_string(),
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 512).unwrap(),
+        );
         model.add_module("relu1".to_string(), coeus_nn::ReLU);
-        model.add_module("fc2".to_string(), Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(512, 256).unwrap());
+        model.add_module(
+            "fc2".to_string(),
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(512, 256).unwrap(),
+        );
         model.add_module("relu2".to_string(), coeus_nn::ReLU);
-        model.add_module("fc3".to_string(), Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(256, 128).unwrap());
+        model.add_module(
+            "fc3".to_string(),
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(256, 128).unwrap(),
+        );
         model.add_module("relu3".to_string(), coeus_nn::ReLU);
-        model.add_module("fc4".to_string(), Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(128, 10).unwrap());
+        model.add_module(
+            "fc4".to_string(),
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(128, 10).unwrap(),
+        );
 
         let input = random_tensor(&[32, 784]); // batch_size=32
 
@@ -205,10 +254,16 @@ fn bench_sequential_backward(c: &mut Criterion) {
 
     // Small MLP backward
     group.bench_function("small_mlp_backward", |b| {
-        let mut model = Sequential::<CpuBackend, Float32>::new();
-        model.add_module("fc1".to_string(), Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 256).unwrap());
+        let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
+        model.add_module(
+            "fc1".to_string(),
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 256).unwrap(),
+        );
         model.add_module("relu1".to_string(), coeus_nn::ReLU);
-        model.add_module("fc2".to_string(), Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(256, 10).unwrap());
+        model.add_module(
+            "fc2".to_string(),
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(256, 10).unwrap(),
+        );
 
         let input = random_tensor_grad(&[16, 784]);
         let target = random_tensor(&[16, 10]);
@@ -218,11 +273,16 @@ fn bench_sequential_backward(c: &mut Criterion) {
             let output = model.forward(&input).unwrap();
 
             // Compute loss (MSE)
-            let loss = (&output - &target).powf(Float32::new(2.0)).mean(None, false).unwrap();
+            let loss = (&output - &target)
+                .powf(Float32::new(2.0))
+                .mean(None, false)
+                .unwrap();
 
             // Backward pass
             let loss_shape = loss.shape().dims();
-            let grad = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(loss_shape).unwrap();
+            let grad =
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(loss_shape)
+                    .unwrap();
             black_box(backward_with_grad(&loss, &grad).unwrap());
         });
     });
@@ -236,7 +296,9 @@ fn bench_batchnorm_forward(c: &mut Criterion) {
 
     // Small: 64 channels, 32x32 features
     group.bench_function("small_64ch_32x32", |b| {
-        let mut batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 1e-5, 0.1).unwrap();
+        let mut batchnorm =
+            BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(64, 1e-5, 0.1)
+                .unwrap();
         let input = random_tensor(&[8, 64, 32, 32]); // batch_size=8
 
         b.iter(|| {
@@ -254,7 +316,8 @@ fn bench_layernorm_forward(c: &mut Criterion) {
 
     // Small: 512 features
     group.bench_function("small_512_features", |b| {
-        let mut layernorm = LayerNorm::<CpuBackend, DenseStorage<Float32>, Float32>::new(vec![512], 1e-5);
+        let mut layernorm =
+            LayerNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(vec![512], 1e-5);
         let input = random_tensor(&[16, 32, 512]); // batch_size=16, seq_len=32
 
         b.iter(|| {
@@ -273,7 +336,10 @@ fn bench_dropout_forward(c: &mut Criterion) {
     // Training mode: 2048 features
     group.bench_function("training_2048_features", |b| {
         let mut dropout = Dropout::new(0.1);
-        <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, true);
+        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
         let input = random_tensor(&[32, 2048]);
 
         b.iter(|| {
@@ -285,7 +351,10 @@ fn bench_dropout_forward(c: &mut Criterion) {
     // Evaluation mode: 2048 features
     group.bench_function("eval_2048_features", |b| {
         let mut dropout = Dropout::new(0.1);
-        <Dropout as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut dropout, false);
+        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            false,
+        );
         let input = random_tensor(&[32, 2048]);
 
         b.iter(|| {
@@ -343,7 +412,7 @@ fn bench_activations(c: &mut Criterion) {
 
     // GELU
     group.bench_function("gelu_32x1024", |b| {
-        let gelu = coeus_nn::GELU;
+        let gelu = GELU;
         b.iter(|| {
             let output = black_box(gelu.forward(&input).unwrap());
             black_box(output);
@@ -394,18 +463,18 @@ fn bench_computation_time(c: &mut Criterion) {
     let mut group = c.benchmark_group("computation_time");
 
     // Matrix multiplication benchmarks
-    group.bench_function("dense_matmul_256x256", |b| {
+    group.bench_function("dense_matmul_256x256", |bencher| {
         let a = random_tensor(&[256, 256]);
         let b = random_tensor(&[256, 256]);
 
-        b.iter(|| {
+        bencher.iter(|| {
             let result = black_box(a.matmul(&b).unwrap());
             black_box(result);
         });
     });
 
     // Sparse matrix multiplication (simulated with 90% sparsity)
-    group.bench_function("sparse_matmul_256x256_90pct", |b| {
+    group.bench_function("sparse_matmul_256x256_90pct", |bencher| {
         let a_dense = random_tensor(&[256, 256]);
         let b_dense = random_tensor(&[256, 256]);
 
@@ -427,7 +496,7 @@ fn bench_computation_time(c: &mut Criterion) {
             }
         }
 
-        b.iter(|| {
+        bencher.iter(|| {
             // For sparse matmul, we'd use specialized sparse operations
             // For now, benchmark the dense operation (which would be the fallback)
             let result = black_box(a_dense.matmul(&b_dense).unwrap());
@@ -446,7 +515,7 @@ fn bench_activation_sparse_vs_dense(c: &mut Criterion) {
 
     // Dense ReLU
     group.bench_function("relu_dense_10k", |b| {
-        let relu = ReLU::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+        let relu = ReLU::new();
         let input = random_tensor(&[size]).requires_grad_(true);
 
         b.iter(|| {
@@ -457,7 +526,7 @@ fn bench_activation_sparse_vs_dense(c: &mut Criterion) {
 
     // Sparse ReLU (90% sparsity)
     group.bench_function("relu_sparse_10k_90pct", |b| {
-        let relu = ReLU::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+        let relu = ReLU::new();
         let mut sparse_data = random_tensor(&[size]).as_slice().to_vec();
 
         // Make 90% sparse
@@ -472,9 +541,12 @@ fn bench_activation_sparse_vs_dense(c: &mut Criterion) {
             sparse_data[idx] = Float32::new(0.0);
         }
 
-        let sparse_input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-            sparse_data, &[size]
-        ).unwrap().requires_grad_(true);
+        let sparse_input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            sparse_data,
+            &[size],
+        )
+        .unwrap()
+        .requires_grad_(true);
 
         b.iter(|| {
             let output = black_box(relu.forward(&sparse_input).unwrap());
@@ -496,9 +568,11 @@ fn bench_attention_sparse_vs_dense(c: &mut Criterion) {
 
     // Dense MultiHeadAttention
     group.bench_function("multihead_dense_32seq", |b| {
-        let attention = MultiHeadAttention::<CpuBackend, DenseStorage<Float32>, Float32>::new(
-            embed_dim, num_heads
-        ).unwrap();
+        let attention =
+            MultiHeadAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                embed_dim, num_heads,
+            )
+            .unwrap();
 
         let input = random_tensor(&[batch_size, seq_len, embed_dim]).requires_grad_(true);
 
@@ -510,12 +584,16 @@ fn bench_attention_sparse_vs_dense(c: &mut Criterion) {
 
     // Sparse MultiHeadAttention (using sparse input detection)
     group.bench_function("multihead_sparse_32seq_80pct", |b| {
-        let attention = MultiHeadAttention::<CpuBackend, DenseStorage<Float32>, Float32>::new(
-            embed_dim, num_heads
-        ).unwrap();
+        let attention =
+            MultiHeadAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                embed_dim, num_heads,
+            )
+            .unwrap();
 
         // Create input with some sparsity to trigger sparse path
-        let mut input_data = random_tensor(&[batch_size, seq_len, embed_dim]).as_slice().to_vec();
+        let mut input_data = random_tensor(&[batch_size, seq_len, embed_dim])
+            .as_slice()
+            .to_vec();
 
         // Make 80% sparse by zeroing most elements
         let mut rng = rand::thread_rng();
@@ -529,9 +607,12 @@ fn bench_attention_sparse_vs_dense(c: &mut Criterion) {
             input_data[idx] = Float32::new(0.0);
         }
 
-        let sparse_input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-            input_data, &[batch_size, seq_len, embed_dim]
-        ).unwrap().requires_grad_(true);
+        let sparse_input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            input_data,
+            &[batch_size, seq_len, embed_dim],
+        )
+        .unwrap()
+        .requires_grad_(true);
 
         b.iter(|| {
             let output = black_box(attention.forward(&sparse_input).unwrap());
@@ -541,9 +622,11 @@ fn bench_attention_sparse_vs_dense(c: &mut Criterion) {
 
     // SparseAttention
     group.bench_function("sparse_attention_32seq_75pct", |b| {
-        let attention = SparseAttention::<CpuBackend, DenseStorage<Float32>, Float32>::new(
-            embed_dim, num_heads, 0.75 // 75% sparsity
-        ).unwrap();
+        let attention =
+            SparseAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                embed_dim, num_heads, 0.75, // 75% sparsity
+            )
+            .unwrap();
 
         let input = random_tensor(&[batch_size, seq_len, embed_dim]).requires_grad_(true);
 
@@ -567,7 +650,7 @@ fn bench_sparsity_scalability(c: &mut Criterion) {
 
     for sparsity in sparsity_levels {
         group.bench_function(&format!("relu_sparsity_{:.0}pct", sparsity * 100.0), |b| {
-            let relu = ReLU::<CpuBackend, DenseStorage<Float32>, Float32>::new();
+            let relu = ReLU::new();
 
             // Create sparse input
             let mut sparse_data = random_tensor(&[size]).as_slice().to_vec();
@@ -583,9 +666,13 @@ fn bench_sparsity_scalability(c: &mut Criterion) {
                 sparse_data[idx] = Float32::new(0.0);
             }
 
-            let sparse_input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
-                sparse_data, &[size]
-            ).unwrap().requires_grad_(true);
+            let sparse_input =
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    sparse_data,
+                    &[size],
+                )
+                .unwrap()
+                .requires_grad_(true);
 
             b.iter(|| {
                 let output = black_box(relu.forward(&sparse_input).unwrap());

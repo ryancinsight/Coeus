@@ -23,19 +23,25 @@ pub mod compiler;
 pub mod error;
 pub mod fusion;
 pub mod graph;
+pub mod hardware;
 pub mod memory;
 pub mod optimizer;
 pub mod shapes;
+pub mod simd;
 pub mod torchscript;
 pub mod tracing;
 
 pub use cache::KernelCache;
-pub use compiler::JitCompiler;
+pub use compiler::{AotCompiledKernel, CompiledKernel, JitCompiler, KernelMetadata};
 pub use error::{JitError, Result};
 pub use fusion::{FusedKernel, FusionDetector};
 pub use graph::{ComputationGraph, Node, NodeId, Operation};
+pub use hardware::{
+    get_hardware_capabilities, Architecture, HardwareCapabilities, HardwareCostModel, SimdLevel,
+};
 pub use memory::MemoryArena;
 pub use optimizer::{OptimizationPass, Optimizer};
 pub use shapes::ShapeSpecializer;
+pub use simd::{PrefetchOptimizer, SimdKernelGenerator, SimdSpecialization};
 pub use torchscript::TorchScript;
 pub use tracing::{TracingContext, TracingGuard};

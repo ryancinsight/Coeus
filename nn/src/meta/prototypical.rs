@@ -1,0 +1,669 @@
+//! Prototypical Networks.
+//!
+//! This module implements Prototypical Networks, a metric-based few-shot learning
+//! approach that learns to compute class prototypes and classify by nearest neighbor
+//! in the learned embedding space.
+
+use rand::Rng;
+
+use crate::error::{NNError, Result};
+use crate::Module;
+use crate::Parameter;
+use coeus_backend::{Backend, DataType, Storage};
+use coeus_dtype::traits::FloatExt;
+use coeus_storage::StorageFromVec;
+use coeus_tensor::ops::arithmetic::scalar_div;
+use coeus_tensor::{ops::arithmetic, Tensor};
+
+/// Few-shot episode (task) definition
+#[derive(Debug, Clone)]
+pub struct Episode<B, S, T>
+where
+    B: Backend,
+    S: Storage<T>,
+    T: DataType,
+{
+    /// Support set: (input, label) pairs for learning class prototypes
+    pub support_set: Vec<(Tensor<B, S, T>, usize)>,
+    /// Query set: (input, label) pairs for evaluation
+    pub query_set: Vec<(Tensor<B, S, T>, usize)>,
+    /// Number of classes in this episode
+    pub num_classes: usize,
+    /// Episode identifier
+    pub episode_id: String,
+}
+
+/// Prototypical Network implementation
+#[derive(Debug)]
+pub struct PrototypicalNetwork<M, B, S, T> {
+    /// Embedding network that maps inputs to feature space
+    pub encoder: M,
+    /// Distance metric for prototype computation
+    pub distance_metric: DistanceMetric,
+    /// Scaling factor for distance computation
+    pub scale: f64,
+    /// Training temperature for softmax
+    pub temperature: f64,
+    /// Phantom data to indicate usage of generic parameters in impl
+    _phantom: std::marker::PhantomData<(B, S, T)>,
+}
+
+#[derive(Debug, Clone)]
+pub enum DistanceMetric {
+    /// Euclidean distance
+    Euclidean,
+    /// Cosine similarity
+    Cosine,
+    /// Learned metric (requires additional parameters)
+    Learned,
+}
+
+impl<M, B, S, T> PrototypicalNetwork<M, B, S, T>
+where
+    M: Clone + Module<B, S, T>,
+    B: Backend + Default,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType
+        + FloatExt
+        + std::ops::Add<Output = T>
+        + std::ops::Sub<Output = T>
+        + std::ops::Mul<Output = T>
+        + std::ops::Div<Output = T>
+        + Clone
+        + Copy
+        + From<f64>
+        + Into<f64>,
+{
+    /// Create a new Prototypical Network
+    pub fn new(encoder: M) -> Self {
+        Self {
+            encoder,
+            distance_metric: DistanceMetric::Euclidean,
+            scale: 1.0,
+            temperature: 1.0,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Set distance metric
+    pub fn with_distance_metric(mut self, metric: DistanceMetric) -> Self {
+        self.distance_metric = metric;
+        self
+    }
+
+    /// Set scaling factor
+    pub fn with_scale(mut self, scale: f64) -> Self {
+        self.scale = scale;
+        self
+    }
+
+    /// Set temperature
+    pub fn with_temperature(mut self, temperature: f64) -> Self {
+        self.temperature = temperature;
+        self
+    }
+
+    /// Compute class prototypes from support set
+    pub fn compute_prototypes(
+        &self,
+        support_set: &[(Tensor<B, S, T>, usize)],
+        num_classes: usize,
+    ) -> Result<Vec<Tensor<B, S, T>>> {
+        // Group examples by class
+        let mut class_examples: Vec<Vec<Tensor<B, S, T>>> = vec![Vec::new(); num_classes];
+
+        // Extract features for each support example
+        for (input, class_id) in support_set {
+            // Use encoder to extract features
+            let features = self.encoder.forward(input)?;
+            class_examples[*class_id].push(features);
+        }
+
+        // Compute prototypes (mean of features per class)
+        let mut prototypes = Vec::new();
+
+        for class_features in class_examples {
+            if class_features.is_empty() {
+                return Err(NNError::InvalidConfiguration {
+                    message: "No examples found for a class".to_string(),
+                });
+            }
+
+            let mut prototype = class_features[0].clone();
+            for features in class_features.iter().skip(1) {
+                prototype = arithmetic::add(&prototype, features)?;
+            }
+
+            // Average the features
+            let count = num_traits::cast::cast(class_features.len() as f64).unwrap();
+            prototype = scalar_div(&prototype, count)?;
+
+            // For prototypical networks, we want the prototype to have shape [feature_dim]
+            // Since the encoder outputs [batch_size, feature_dim] and we average over batch_size,
+            // we need to remove the batch dimension. For DenseStorage, we can extract the data
+            // and create a new tensor with the correct shape.
+            // This is a limitation of the generic storage interface - in practice, most
+            // neural networks use DenseStorage where reshape is available.
+
+            prototypes.push(prototype);
+        }
+
+        Ok(prototypes)
+    }
+
+    /// Classify a query example using prototypes
+    pub fn classify(
+        &self,
+        query: &Tensor<B, S, T>,
+        prototypes: &[Tensor<B, S, T>],
+    ) -> Result<Vec<f64>> {
+        // Use encoder to extract features
+        let query_features = self.encoder.forward(query)?;
+
+        // Compute distances to all prototypes
+        let mut distances = Vec::new();
+        for prototype in prototypes {
+            let distance = self.compute_distance(&query_features, prototype)?;
+            distances.push(distance);
+        }
+
+        // Convert distances to probabilities using softmax
+        self.distances_to_probabilities(&distances)
+    }
+
+    /// Compute distance between two feature vectors
+    fn compute_distance(&self, x: &Tensor<B, S, T>, y: &Tensor<B, S, T>) -> Result<f64>
+    where
+        T: Into<f64>,
+    {
+        match self.distance_metric {
+            DistanceMetric::Euclidean => {
+                // Simple Euclidean distance calculation
+                let x_data = x.as_slice();
+                let y_data = y.as_slice();
+                let mut sum = 0.0;
+                for (a, b) in x_data.iter().zip(y_data.iter()) {
+                    let a_f64: f64 = (*a).into();
+                    let b_f64: f64 = (*b).into();
+                    let diff = a_f64 - b_f64;
+                    sum += diff * diff;
+                }
+                Ok(sum.sqrt())
+            }
+            DistanceMetric::Cosine => {
+                // Simple cosine distance
+                let x_data = x.as_slice();
+                let y_data = y.as_slice();
+                let mut dot_product = 0.0;
+                let mut x_norm = 0.0;
+                let mut y_norm = 0.0;
+
+                for (a, b) in x_data.iter().zip(y_data.iter()) {
+                    let a_f64: f64 = (*a).into();
+                    let b_f64: f64 = (*b).into();
+                    dot_product += a_f64 * b_f64;
+                    x_norm += a_f64 * a_f64;
+                    y_norm += b_f64 * b_f64;
+                }
+
+                x_norm = x_norm.sqrt();
+                y_norm = y_norm.sqrt();
+                let cosine_sim = dot_product / (x_norm * y_norm + 1e-8);
+                Ok(1.0 - cosine_sim) // Convert similarity to distance
+            }
+            DistanceMetric::Learned => {
+                // Fall back to Euclidean for now
+                let x_data = x.as_slice();
+                let y_data = y.as_slice();
+                let mut sum = 0.0;
+                for (a, b) in x_data.iter().zip(y_data.iter()) {
+                    let a_f64: f64 = (*a).into();
+                    let b_f64: f64 = (*b).into();
+                    let diff = a_f64 - b_f64;
+                    sum += diff * diff;
+                }
+                Ok(sum.sqrt())
+            }
+        }
+    }
+
+    /// Convert distances to probability distribution
+    fn distances_to_probabilities(&self, distances: &[f64]) -> Result<Vec<f64>> {
+        // Convert distances to similarities (negative distance)
+        let similarities: Vec<f64> = distances.iter().map(|&d| -d / self.scale).collect();
+
+        // Apply softmax
+        let max_sim = similarities
+            .iter()
+            .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+
+        let exp_sims: Vec<f64> = similarities
+            .iter()
+            .map(|&s| ((s - max_sim) / self.temperature).exp())
+            .collect();
+
+        let sum_exp = exp_sims.iter().sum::<f64>();
+        let probabilities: Vec<f64> = exp_sims.iter().map(|&e| e / sum_exp).collect();
+
+        Ok(probabilities)
+    }
+
+    /// Compute episode loss (negative log likelihood)
+    pub fn episode_loss(&self, episode: &Episode<B, S, T>) -> Result<f64> {
+        let prototypes = self.compute_prototypes(&episode.support_set, episode.num_classes)?;
+
+        let mut total_loss = 0.0;
+
+        for (query_input, true_class) in &episode.query_set {
+            let probabilities = self.classify(query_input, &prototypes)?;
+
+            // Compute negative log likelihood loss
+            let log_prob = (probabilities[*true_class] + 1e-8).ln();
+            total_loss -= log_prob;
+        }
+
+        Ok(total_loss / episode.query_set.len() as f64)
+    }
+
+    /// Compute accuracy on an episode
+    pub fn episode_accuracy(&self, episode: &Episode<B, S, T>) -> Result<f64> {
+        let prototypes = self.compute_prototypes(&episode.support_set, episode.num_classes)?;
+
+        let mut num_correct = 0;
+
+        for (query_input, true_class) in &episode.query_set {
+            let probabilities = self.classify(query_input, &prototypes)?;
+
+            let predicted_class = probabilities
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+
+            if predicted_class == *true_class {
+                num_correct += 1;
+            }
+        }
+
+        Ok(num_correct as f64 / episode.query_set.len() as f64)
+    }
+
+    /// Fine-tune the encoder on an episode (optional)
+    pub fn adapt_episode(
+        &mut self,
+        _episode: &Episode<B, S, T>,
+        _num_steps: usize,
+        _lr: f64,
+    ) -> Result<()> {
+        // Simplified adaptation - in practice would update encoder parameters
+        Ok(())
+    }
+
+    /// Extract features for a batch of inputs
+    pub fn encode_batch(&self, inputs: &[Tensor<B, S, T>]) -> Result<Vec<Tensor<B, S, T>>> {
+        let mut features = Vec::new();
+
+        for input in inputs {
+            // Use encoder to extract features
+            let feature = self.encoder.forward(input)?;
+            features.push(feature);
+        }
+
+        Ok(features)
+    }
+}
+
+/// Episode generator for few-shot classification tasks
+#[derive(Debug)]
+pub struct FewShotEpisodeGenerator<B, S, T>
+where
+    B: Backend,
+    S: Storage<T>,
+    T: DataType,
+{
+    /// Available classes (each class has multiple examples)
+    pub class_examples: Vec<Vec<Tensor<B, S, T>>>,
+    /// Number of classes per episode (N-way)
+    pub n_way: usize,
+    /// Number of support examples per class (K-shot)
+    pub k_shot: usize,
+    /// Number of query examples per class
+    pub n_query: usize,
+}
+
+impl<B, S, T> FewShotEpisodeGenerator<B, S, T>
+where
+    B: Backend + Default,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType + Clone + Into<f64>,
+{
+    /// Create a new episode generator
+    pub fn new(
+        class_examples: Vec<Vec<Tensor<B, S, T>>>,
+        n_way: usize,
+        k_shot: usize,
+        n_query: usize,
+    ) -> Self {
+        Self {
+            class_examples,
+            n_way,
+            k_shot,
+            n_query,
+        }
+    }
+
+    /// Generate a random few-shot episode
+    pub fn generate_episode(&self) -> Result<Episode<B, S, T>>
+    where
+        B: Backend + Default,
+        S: Storage<T> + StorageFromVec<T>,
+        T: DataType,
+    {
+        let mut rng = rand::thread_rng();
+
+        // Select N random classes
+        let mut selected_classes = Vec::new();
+        let mut available_indices: Vec<usize> = (0..self.class_examples.len()).collect();
+
+        for _ in 0..self.n_way {
+            let idx = rng.gen_range(0..available_indices.len());
+            let class_idx = available_indices.swap_remove(idx);
+            selected_classes.push(class_idx);
+        }
+
+        let mut support_set = Vec::new();
+        let mut query_set = Vec::new();
+
+        // For each selected class, sample K-shot support and N-query query examples
+        for (episode_class_id, &global_class_id) in selected_classes.iter().enumerate() {
+            let class_examples = &self.class_examples[global_class_id];
+
+            if class_examples.len() < self.k_shot + self.n_query {
+                return Err(NNError::InvalidConfiguration {
+                    message: format!("Class {} has insufficient examples", global_class_id),
+                });
+            }
+
+            // Shuffle examples for this class
+            let mut example_indices: Vec<usize> = (0..class_examples.len()).collect();
+            for i in (1..example_indices.len()).rev() {
+                let j = rng.gen_range(0..=i);
+                example_indices.swap(i, j);
+            }
+
+            // Add support examples
+            for &idx in example_indices.iter().take(self.k_shot) {
+                support_set.push((class_examples[idx].clone(), episode_class_id));
+            }
+
+            // Add query examples
+            for &idx in example_indices.iter().skip(self.k_shot).take(self.n_query) {
+                query_set.push((class_examples[idx].clone(), episode_class_id));
+            }
+        }
+
+        Ok(Episode {
+            support_set,
+            query_set,
+            num_classes: self.n_way,
+            episode_id: format!("episode_{}", rng.gen::<u64>()),
+        })
+    }
+
+    /// Generate multiple episodes
+    pub fn generate_episodes(&self, num_episodes: usize) -> Result<Vec<Episode<B, S, T>>> {
+        let mut episodes: Vec<Episode<B, S, T>> = Vec::new();
+
+        for _ in 0..num_episodes {
+            episodes.push(self.generate_episode()?);
+        }
+
+        Ok(episodes)
+    }
+}
+
+/// Meta-training loop for Prototypical Networks
+pub fn train_prototypical_network<M, B, S, T>(
+    network: &mut PrototypicalNetwork<M, B, S, T>,
+    episode_generator: &FewShotEpisodeGenerator<B, S, T>,
+    num_episodes: usize,
+    adaptation_steps: usize,
+    adaptation_lr: f64,
+) -> Result<Vec<f64>>
+where
+    M: Clone + Module<B, S, T>,
+    B: Backend + Default,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType
+        + FloatExt
+        + std::ops::Add<Output = T>
+        + std::ops::Sub<Output = T>
+        + std::ops::Div<Output = T>
+        + Clone
+        + Copy
+        + From<f64>
+        + Into<f64>,
+{
+    let mut losses = Vec::new();
+
+    for episode_idx in 0..num_episodes {
+        // Generate an episode
+        let episode: Episode<B, S, T> = episode_generator.generate_episode()?;
+
+        // Adapt the network to this episode
+        network.adapt_episode(&episode, adaptation_steps, adaptation_lr)?;
+
+        // Compute loss after adaptation
+        let loss = network.episode_loss(&episode)?;
+        losses.push(loss);
+
+        if episode_idx % 100 == 0 {
+            println!("Episode {}: Loss = {:.4}", episode_idx, loss);
+        }
+    }
+
+    Ok(losses)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::linear::Linear;
+    use coeus_backend::CpuBackend;
+    use coeus_dtype::float::Float32;
+    use coeus_storage::DenseStorage;
+    use coeus_tensor::Tensor;
+
+    #[test]
+    fn test_prototypical_network_creation() {
+        let encoder =
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
+        let proto_net: PrototypicalNetwork<
+            Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        > = PrototypicalNetwork::new(encoder);
+
+        assert_eq!(proto_net.scale, 1.0);
+        assert_eq!(proto_net.temperature, 1.0);
+    }
+
+    #[test]
+    fn test_episode_generator() {
+        // Create mock class examples
+        let class_examples = vec![
+            vec![
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(1.0), Float32::new(2.0)],
+                    &[2],
+                )
+                .unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(1.1), Float32::new(2.1)],
+                    &[2],
+                )
+                .unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(0.9), Float32::new(1.9)],
+                    &[2],
+                )
+                .unwrap(),
+            ],
+            vec![
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(3.0), Float32::new(4.0)],
+                    &[2],
+                )
+                .unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(3.1), Float32::new(4.1)],
+                    &[2],
+                )
+                .unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(2.9), Float32::new(3.9)],
+                    &[2],
+                )
+                .unwrap(),
+            ],
+        ];
+
+        let generator = FewShotEpisodeGenerator::<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >::new(class_examples, 2, 2, 1);
+
+        let episode = generator.generate_episode().unwrap();
+
+        assert_eq!(episode.num_classes, 2);
+        assert_eq!(episode.support_set.len(), 4); // 2 classes * 2 shots
+        assert_eq!(episode.query_set.len(), 2); // 2 classes * 1 query
+    }
+
+    #[test]
+    fn test_prototype_computation() {
+        let encoder =
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(2, 3).unwrap();
+        let proto_net = PrototypicalNetwork::new(encoder);
+
+        // Create support set for 2 classes
+        let support_set = vec![
+            (
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(1.0), Float32::new(2.0)],
+                    &[1, 2],
+                )
+                .unwrap(),
+                0,
+            ),
+            (
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(1.1), Float32::new(2.1)],
+                    &[1, 2],
+                )
+                .unwrap(),
+                0,
+            ),
+            (
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(3.0), Float32::new(4.0)],
+                    &[1, 2],
+                )
+                .unwrap(),
+                1,
+            ),
+            (
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(3.1), Float32::new(4.1)],
+                    &[1, 2],
+                )
+                .unwrap(),
+                1,
+            ),
+        ];
+
+        let prototypes = proto_net.compute_prototypes(&support_set, 2).unwrap();
+        assert_eq!(prototypes.len(), 2);
+
+        // Check that prototypes have the right dimensions
+        for prototype in &prototypes {
+            // Should match encoder output dimension [1, 3] (batch_size=1, feature_dim=3)
+            let dims = prototype.shape().dims();
+            assert_eq!(dims, &[1, 3]);
+        }
+    }
+
+    #[test]
+    fn test_classification() {
+        let mut encoder =
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(2, 3).unwrap();
+        // Set encoder weights to identity-like for predictable mapping
+        let weight_data = vec![
+            Float32::new(1.0),
+            Float32::new(0.0),
+            Float32::new(0.0),
+            Float32::new(1.0),
+            Float32::new(0.0),
+            Float32::new(0.0),
+        ];
+        let weight_tensor =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec_with_backend(
+                weight_data,
+                &[3, 2],
+                CpuBackend::<Float32>::default(),
+            )
+            .unwrap();
+        encoder.weight = Parameter::new(
+            weight_tensor.clone().requires_grad_(true),
+            "weight".to_string(),
+        );
+        encoder.weight_t = Some(
+            weight_tensor
+                .to_dense_generic()
+                .unwrap()
+                .transpose(1, 0)
+                .unwrap(),
+        );
+        let bias_data = vec![Float32::new(0.0), Float32::new(0.0), Float32::new(0.0)];
+        encoder.bias = Parameter::new(
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec_with_backend(
+                bias_data,
+                &[3],
+                CpuBackend::<Float32>::default(),
+            )
+            .unwrap()
+            .requires_grad_(true),
+            "bias".to_string(),
+        );
+
+        let proto_net: PrototypicalNetwork<
+            Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        > = PrototypicalNetwork::new(encoder);
+
+        // Create simple prototypes (manually set for testing)
+        let prototypes =
+            vec![
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec_with_backend(vec![Float32::new(0.1), Float32::new(0.9), Float32::new(0.0)], &[3], CpuBackend::<Float32>::default()).unwrap(), // Class 0 prototype (close to query)
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec_with_backend(vec![Float32::new(1.0), Float32::new(0.0), Float32::new(0.0)], &[3], CpuBackend::<Float32>::default()).unwrap(), // Class 1 prototype (far from query)
+        ];
+
+        // Test query close to class 0 prototype
+        let query =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec_with_backend(
+                vec![Float32::new(0.1), Float32::new(0.9)],
+                &[1, 2],
+                CpuBackend::<Float32>::default(),
+            )
+            .unwrap();
+        let probabilities = proto_net.classify(&query, &prototypes).unwrap();
+
+        assert_eq!(probabilities.len(), 2);
+        assert!(probabilities[0] > probabilities[1]); // Should prefer class 0
+    }
+}

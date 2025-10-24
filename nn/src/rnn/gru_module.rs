@@ -12,12 +12,11 @@ use crate::module::Module;
 use crate::parameter::Parameter;
 use crate::rnn::gru_core::GRU;
 use crate::rnn::gru_forward::GRUForward;
-use crate::rnn::gru_display;
 
 /// Type aliases to reduce complexity
-type CpuTensor<T> = Tensor<CpuBackend, DenseStorage<T>, T>;
+type CpuTensor<T> = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
 
-impl<T> GRUForward<CpuBackend, DenseStorage<T>, T> for GRU<CpuBackend, DenseStorage<T>, T>
+impl<T> GRUForward<CpuBackend<T>, DenseStorage<T>, T> for GRU<CpuBackend<T>, DenseStorage<T>, T>
 where
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
@@ -38,7 +37,7 @@ where
         let layer_offset = weight_idx * batch_size * self.hidden_size;
         let h_prev_flat =
             h.as_slice()[layer_offset..layer_offset + batch_size * self.hidden_size].to_vec();
-        let h_prev = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+        let h_prev = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
             h_prev_flat.clone(),
             &[batch_size, self.hidden_size],
         )?;
@@ -47,11 +46,11 @@ where
         let weight_hh_data = self.weight_hh[weight_idx].data().as_slice().to_vec();
 
         // weight_ih/hh have shape (3*hidden_size, input_size/hidden_size) for GRU (r, z, n gates)
-        let weight_ih = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+        let weight_ih = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
             weight_ih_data,
             &[3 * self.hidden_size, input_size],
         )?;
-        let weight_hh = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+        let weight_hh = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
             weight_hh_data,
             &[3 * self.hidden_size, self.hidden_size],
         )?;
@@ -62,7 +61,7 @@ where
 
         // Expand hh_gates to match sequence length
         let hh_gates_expanded_data = hh_gates.as_slice().repeat(seq_len);
-        let hh_gates_expanded = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+        let hh_gates_expanded = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
             hh_gates_expanded_data,
             &[seq_len * batch_size, 3 * self.hidden_size],
         )?;
@@ -73,11 +72,11 @@ where
             let bias_hh_data = self.bias_hh[weight_idx].data().as_slice();
 
             // Create bias tensor with correct shape
-            let bias_ih_tensor = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+            let bias_ih_tensor = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
                 bias_ih_data.to_vec(),
                 &[3 * self.hidden_size],
             )?;
-            let bias_hh_tensor = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+            let bias_hh_tensor = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
                 bias_hh_data.to_vec(),
                 &[3 * self.hidden_size],
             )?;
@@ -86,7 +85,7 @@ where
 
             // Expand to match sequence length
             let bias_expanded_data = bias_combined.as_slice().repeat(seq_len * batch_size);
-            let bias_expanded = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+            let bias_expanded = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
                 bias_expanded_data,
                 &[seq_len * batch_size, 3 * self.hidden_size],
             )?;
@@ -112,15 +111,15 @@ where
         }
 
         // Create tensors for each gate
-        let r_gate = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+        let r_gate = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
             r_gate_data,
             &[total_elements, self.hidden_size],
         )?;
-        let z_gate = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+        let z_gate = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
             z_gate_data,
             &[total_elements, self.hidden_size],
         )?;
-        let n_gate = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+        let n_gate = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
             n_gate_data,
             &[total_elements, self.hidden_size],
         )?;
@@ -137,14 +136,14 @@ where
             .cycle()
             .take(total_elements * self.hidden_size)
             .collect();
-        let h_prev_expanded = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+        let h_prev_expanded = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
             h_prev_expanded_data,
             &[total_elements, self.hidden_size],
         )?;
 
         // Compute hidden state: h_t = (1 - z_t) ? h_{t-1} + z_t ? n_t
         let ones =
-            Tensor::<CpuBackend, DenseStorage<T>, T>::ones(&[total_elements, self.hidden_size])?;
+            Tensor::<CpuBackend<T>, DenseStorage<T>, T>::ones(&[total_elements, self.hidden_size])?;
         let one_minus_z = &ones - &z_activated;
 
         let h_prev_component = &one_minus_z * &h_prev_expanded;
@@ -162,14 +161,14 @@ where
     }
 }
 
-impl<T> Module<CpuBackend, DenseStorage<T>, T> for GRU<CpuBackend, DenseStorage<T>, T>
+impl<T> Module<CpuBackend<T>, DenseStorage<T>, T> for GRU<CpuBackend<T>, DenseStorage<T>, T>
 where
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
 
         // Determine actual dimensions based on batch_first
@@ -183,7 +182,7 @@ where
 
         // Initialize hidden state
         let num_directions = if self.bidirectional { 2 } else { 1 };
-        let h = Tensor::<CpuBackend, DenseStorage<T>, T>::zeros(&[
+        let h = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[
             self.num_layers * num_directions,
             batch_size,
             self.hidden_size,
@@ -289,7 +288,7 @@ where
         Ok(output)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         let mut params = Vec::new();
         params.extend(self.weight_ih.iter().cloned());
         params.extend(self.weight_hh.iter().cloned());

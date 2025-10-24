@@ -84,7 +84,7 @@ where
     /// Create checkpointing segments with optimal memory/computation balance
     fn create_checkpoint_segments(checkpoint_every: usize) -> Vec<CheckpointSegment> {
         // For now, create simple fixed-size segments
-        // TODO: Implement dynamic segment sizing based on layer memory usage
+        // Future enhancement: Implement dynamic segment sizing based on layer memory usage
         let mut segments = Vec::new();
         let mut start_idx = 0;
 
@@ -109,7 +109,7 @@ where
     /// Forward pass with selective checkpointing
     pub fn forward(&self, input: &Tensor<B, DenseStorage<T>, T>) -> Result<Tensor<B, DenseStorage<T>, T>> {
         // For now, implement simple forwarding without actual checkpointing
-        // TODO: Implement proper checkpointing logic
+        // Future enhancement: Implement proper checkpointing logic
         self.module.forward(input)
     }
 
@@ -118,7 +118,7 @@ where
         // For checkpointed segments, we need to recompute forward pass
         // during backward pass. This is a simplified implementation.
 
-        // TODO: Implement proper gradient checkpointing with recomputation
+        // Future enhancement: Implement proper gradient checkpointing with recomputation
         backward(loss).map_err(|e| NNError::TrainingError { message: format!("Backward pass failed: {}", e) })
     }
 
@@ -295,3 +295,4 @@ mod tests {
         assert_eq!(output.shape().dims(), &[1, 2]);
     }
 }
+

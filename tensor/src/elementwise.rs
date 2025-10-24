@@ -12,8 +12,8 @@ use std::vec::Vec;
 /// element of a tensor, resulting in a new tensor with the same shape.
 impl<B, S, T> crate::Tensor<B, S, T>
 where
-    B: crate::Backend + Default + Clone,
-    S: crate::Storage<T> + Clone + crate::StorageFromVec<T> + 'static,
+    B: crate::Backend + Clone,
+    S: crate::Storage<T> + Clone + crate::StorageFromVec<T>,
     T: crate::DataType + crate::FloatExt,
 {
     /// Computes the exponential of each element in the tensor.
@@ -43,7 +43,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_slice(
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(0.0), Float32::new(1.0)], &[2]
     /// ).unwrap();
     ///
@@ -96,7 +96,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_slice(
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(1.0), Float32::new(std::f32::consts::E)], &[2]
     /// ).unwrap();
     ///
@@ -149,7 +149,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_slice(
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(0.0), Float32::new(std::f32::consts::PI / 2.0)], &[2]
     /// ).unwrap();
     ///
@@ -202,7 +202,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_slice(
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(0.0), Float32::new(std::f32::consts::PI / 2.0)], &[2]
     /// ).unwrap();
     ///
@@ -259,7 +259,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_slice(
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(2.0), Float32::new(3.0)], &[2]
     /// ).unwrap();
     ///
@@ -312,7 +312,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_slice(
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(2.0), Float32::new(3.0)], &[2]
     /// ).unwrap();
     ///
@@ -365,7 +365,7 @@ where
     /// use coeus_storage::DenseStorage;
     /// use coeus_dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_slice(
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(4.0), Float32::new(9.0)], &[2]
     /// ).unwrap();
     ///

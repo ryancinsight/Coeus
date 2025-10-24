@@ -4,9 +4,9 @@
 //! showing how to create tensors, perform arithmetic, and work with
 //! the type-safe tensor hierarchy.
 
-use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
 use coeus_storage::DenseStorage;
+use coeus_tensor::CpuBackend;
 use coeus_tensor::Tensor;
 use std::io::{self, Write};
 
@@ -16,13 +16,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Creating tensors from vectors
     println!("1. Creating tensors from vectors:");
-    let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
         &[3],
     )?;
     println!("   a = {:?}", a.as_slice());
 
-    let b = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(4.0), Float32::new(5.0), Float32::new(6.0)],
         &[3],
     )?;
@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   a + b = {:?}", c.as_slice());
 
     // Element-wise scaling (multiply by scalar tensor)
-    let scalar = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let scalar = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(2.0)],
         &[1],
     )?;
@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Broadcasting
     println!("\n3. Broadcasting operations:");
-    let scalar = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let scalar = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(10.0)],
         &[1],
     )?;
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Shape operations
     println!("\n4. Shape manipulation:");
-    let matrix = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let matrix = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(1.0),
             Float32::new(2.0),
@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Matrix operations
     println!("\n5. Matrix operations:");
-    let m1 = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let m1 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(1.0),
             Float32::new(2.0),
@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ],
         &[2, 2],
     )?;
-    let m2 = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let m2 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(5.0),
             Float32::new(6.0),
@@ -94,7 +94,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Reduction operations
     println!("\n6. Reduction operations:");
-    let data = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![
             Float32::new(1.0),
             Float32::new(2.0),

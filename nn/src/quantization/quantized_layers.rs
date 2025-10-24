@@ -8,7 +8,10 @@ use crate::quantization::quantization_ops::QuantizationOps;
 
 use coeus_backend::Backend;
 use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec, QuantizedStorage, QuantizedStorage4, QuantizedStorage8, QuantizedStorage16};
+use coeus_storage::{
+    QuantizedStorage, QuantizedStorage16, QuantizedStorage4, QuantizedStorage8, Storage,
+    StorageFromVec,
+};
 use coeus_tensor::Tensor;
 
 /// Quantized linear layer for inference
@@ -92,7 +95,8 @@ where
         }
 
         // Quantize weights to quantized storage
-        let quantized_weight = Self::quantize_weights(&weight, weight_scale.clone(), weight_zero_point.clone())?;
+        let quantized_weight =
+            Self::quantize_weights(&weight, weight_scale.clone(), weight_zero_point.clone())?;
 
         Ok(Self {
             weight: quantized_weight,
@@ -153,7 +157,10 @@ where
     ///
     /// # Returns
     /// Quantized input tensor
-    fn quantize_input(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, QuantizedStorage<T, BITS>, T>> {
+    fn quantize_input(
+        &self,
+        input: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, QuantizedStorage<T, BITS>, T>> {
         // Use common quantization operations
         <T as QuantizationOps<T>>::tensor_to_quantized::<BITS>(
             input,

@@ -33,20 +33,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting Coeus tracing example");
 
     // Import Coeus crates
-    use coeus_backend::CpuBackend;
     use coeus_dtype::float::Float32;
     use coeus_storage::DenseStorage;
+    use coeus_tensor::CpuBackend;
     use coeus_tensor::Tensor;
 
     info!("Creating tensors for demonstration");
 
     // Create some tensors - these operations will be traced
-    let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
         &[3],
     )?;
 
-    let b = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(4.0), Float32::new(5.0), Float32::new(6.0)],
         &[3],
     )?;
@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let c = &a + &b;
 
     info!("Performing scalar multiplication");
-    let scalar_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let scalar_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(2.0)],
         &[1],
     )?;
@@ -64,7 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Broadcasting example
     info!("Broadcasting scalar to vector");
-    let scalar = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let scalar = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(10.0)],
         &[1],
     )?;
@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Backward pass will show autograd spans
     info!("Running backward pass");
-    let w_grad = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    let w_grad = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(1.0)],
         &[1],
     )?;

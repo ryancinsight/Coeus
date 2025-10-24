@@ -81,6 +81,12 @@ pub trait DeviceInfo: Send + Sync {
 
     /// Returns true if the device is available
     fn is_available(&self) -> bool;
+
+    /// Returns memory capacity in GB
+    fn memory_gb(&self) -> usize;
+
+    /// Returns number of compute units
+    fn compute_units(&self) -> usize;
 }
 
 impl DeviceInfo for Device {
@@ -91,8 +97,26 @@ impl DeviceInfo for Device {
     fn is_available(&self) -> bool {
         match self {
             Device::Cpu | Device::Gpu { .. } => true, // CPU always available, assume GPU available if we have device info
-            Device::Npu { .. } => true,                // NPU available if device info present
-            Device::Tpu { .. } => true,                // TPU available if device info present
+            Device::Npu { .. } => true,               // NPU available if device info present
+            Device::Tpu { .. } => true,               // TPU available if device info present
+        }
+    }
+
+    fn memory_gb(&self) -> usize {
+        match self {
+            Device::Cpu => 16,       // Assume 16GB system RAM for CPU
+            Device::Gpu { .. } => 8, // Assume 8GB VRAM for GPU
+            Device::Npu { memory_mb, .. } => memory_mb / 1024,
+            Device::Tpu { memory_gb, .. } => *memory_gb,
+        }
+    }
+
+    fn compute_units(&self) -> usize {
+        match self {
+            Device::Cpu => num_cpus::get(),
+            Device::Gpu { .. } => 1, // GPU has single device
+            Device::Npu { compute_units, .. } => *compute_units,
+            Device::Tpu { cores, .. } => *cores,
         }
     }
 }

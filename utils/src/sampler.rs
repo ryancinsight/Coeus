@@ -139,6 +139,7 @@ pub struct BatchSampler<S: Sampler> {
     sampler: S,
     batch_size: usize,
     drop_last: bool,
+    current_batch: usize,
 }
 
 impl<S: Sampler> BatchSampler<S> {
@@ -153,6 +154,7 @@ impl<S: Sampler> BatchSampler<S> {
             sampler,
             batch_size,
             drop_last,
+            current_batch: 0,
         }
     }
 
@@ -169,14 +171,33 @@ impl<S: Sampler> BatchSampler<S> {
 
 impl<S: Sampler> Sampler for BatchSampler<S> {
     fn next(&mut self) -> Option<usize> {
-        // BatchSampler doesn't yield individual indices - it yields batch indices
-        // This implementation is a placeholder; the actual batching logic
-        // is handled in DataLoader
-        unimplemented!("BatchSampler should be used with DataLoader's batching logic")
+        // BatchSampler yields batch indices (0, 1, 2, ...) rather than individual sample indices
+        // The DataLoader uses these batch indices to collect the appropriate samples
+        // This is a common pattern in PyTorch and other ML frameworks
+
+        let total_samples = self.sampler.len();
+        if total_samples == usize::MAX {
+            // For infinite samplers, yield batches indefinitely
+            let batch_index = self.current_batch;
+            self.current_batch += 1;
+            Some(batch_index)
+        } else {
+            let total_batches = self.len();
+
+            if self.current_batch >= total_batches {
+                self.current_batch = 0;
+                None
+            } else {
+                let batch_index = self.current_batch;
+                self.current_batch += 1;
+                Some(batch_index)
+            }
+        }
     }
 
     fn reset(&mut self) {
         self.sampler.reset();
+        self.current_batch = 0;
     }
 
     fn len(&self) -> usize {

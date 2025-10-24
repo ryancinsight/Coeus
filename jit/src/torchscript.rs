@@ -59,7 +59,7 @@ impl TorchScript {
     where
         M: coeus_nn::Module<B, S, T> + Clone,
         B: coeus_backend::Backend,
-        S: coeus_storage::Storage<T> + Clone + 'static,
+        S: coeus_storage::Storage<T> + coeus_tensor::StorageFromVec<T> + Clone + 'static,
         T: coeus_dtype::DataType,
     {
         // Record the execution by running forward pass with tracing
@@ -121,7 +121,7 @@ impl Tracer {
     where
         M: coeus_nn::Module<B, S, T>,
         B: coeus_backend::Backend,
-        S: coeus_storage::Storage<T> + Clone + 'static,
+        S: coeus_storage::Storage<T> + coeus_tensor::StorageFromVec<T> + Clone + 'static,
         T: coeus_dtype::DataType,
     {
         // Reset tracer state
@@ -380,7 +380,7 @@ impl JitRuntime {
         // Create a simple output tensor (placeholder)
         let output_shape = input.shape().clone();
         use coeus_tensor::Tensor;
-        Tensor::zeros(&output_shape.dims()).map_err(|e| JitError::ExecutionFailed {
+        Tensor::zeros(output_shape.dims()).map_err(|e| JitError::ExecutionFailed {
             message: format!("Failed to create output tensor: {:?}", e),
         })
     }
@@ -534,7 +534,7 @@ mod tests {
             assert!(!compiled.kernel_id.is_empty());
             assert!(compiled.memory_requirements > 0);
             assert!(compiled.performance_estimate > 0.0);
-            assert!(!compiled.code_placeholder.is_empty());
+            assert!(!compiled.machine_code.is_empty());
         }
 
         // Test JIT runtime compilation

@@ -10,7 +10,7 @@ impl HubManager {
     #[new]
     fn new() -> PyResult<Self> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "Hub manager not yet implemented in Coeus"
+            "Hub manager not yet implemented in Coeus",
         ))
     }
 }
@@ -24,7 +24,7 @@ impl ModelInfo {
     #[new]
     fn new() -> PyResult<Self> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "Model info not yet implemented in Coeus"
+            "Model info not yet implemented in Coeus",
         ))
     }
 }

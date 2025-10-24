@@ -2,7 +2,9 @@
 
 use crate::error::Result;
 use crate::quantization::calibration::{CalibrationPipeline, SerializableCalibrationPipeline};
-use crate::quantization::core::{CalibrationConfig, MixedPrecisionConfig, QuantizationScheme, QuantizedWeights};
+use crate::quantization::core::{
+    CalibrationConfig, MixedPrecisionConfig, QuantizationScheme, QuantizedWeights,
+};
 
 use coeus_backend::Backend;
 use coeus_dtype::DataType;

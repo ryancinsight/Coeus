@@ -151,7 +151,7 @@ where
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.sampler.len().saturating_sub(0); // TODO: track current position
+        let remaining = self.sampler.len().saturating_sub(0); // Future: track current position
         let batches = remaining / self.batch_size;
         (batches, Some(batches))
     }

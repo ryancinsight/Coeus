@@ -2,20 +2,22 @@
 //!
 //! Comprehensive tests for GRU layer functionality.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
-
-use crate::rnn::gru_core::GRU;
-
 #[cfg(test)]
 mod gru_tests {
     use super::*;
+    use crate::module::Module;
+    use crate::rnn::GRU;
+    use coeus_backend::CpuBackend;
+    use coeus_dtype::float::Float32;
+    use coeus_storage::DenseStorage;
+    use coeus_tensor::Tensor;
 
     #[test]
     fn test_gru_creation() {
-        let gru = GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, false).unwrap();
+        let gru = GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            10, 20, 1, true, false, false,
+        )
+        .unwrap();
         assert_eq!(gru.input_size, 10);
         assert_eq!(gru.hidden_size, 20);
         assert_eq!(gru.num_layers, 1);
@@ -26,7 +28,10 @@ mod gru_tests {
 
     #[test]
     fn test_gru_bidirectional() {
-        let gru = GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 2, true, false, true).unwrap();
+        let gru = GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            10, 20, 2, true, false, true,
+        )
+        .unwrap();
         assert!(gru.bidirectional);
         assert_eq!(gru.num_layers, 2);
         // Bidirectional GRU has 2x parameters per layer
@@ -35,9 +40,13 @@ mod gru_tests {
 
     #[test]
     fn test_gru_forward_shape() {
-        let gru = GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, false).unwrap();
+        let gru = GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            10, 20, 1, true, false, false,
+        )
+        .unwrap();
         let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[5, 3, 10]).unwrap();
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[5, 3, 10])
+                .unwrap();
         let output = gru.forward(&input).unwrap();
         // GRU outputs (seq_len, batch_size, hidden_size) = (5, 3, 20)
         assert_eq!(output.shape().dims(), &[5, 3, 20]);
@@ -45,7 +54,10 @@ mod gru_tests {
 
     #[test]
     fn test_gru_parameters() {
-        let gru = GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, false).unwrap();
+        let gru = GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            10, 20, 1, true, false, false,
+        )
+        .unwrap();
         let params = gru.parameters();
         // 1 layer, 1 direction: weight_ih, weight_hh, bias_ih, bias_hh
         assert_eq!(params.len(), 4);
@@ -53,7 +65,10 @@ mod gru_tests {
 
     #[test]
     fn test_gru_no_bias() {
-        let gru = GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, false, false, false).unwrap();
+        let gru = GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            10, 20, 1, false, false, false,
+        )
+        .unwrap();
         let params = gru.parameters();
         // 1 layer, 1 direction, no bias: weight_ih, weight_hh only
         assert_eq!(params.len(), 2);
@@ -61,7 +76,10 @@ mod gru_tests {
 
     #[test]
     fn test_gru_multilayer() {
-        let gru = GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 3, true, false, false).unwrap();
+        let gru = GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            10, 20, 3, true, false, false,
+        )
+        .unwrap();
         assert_eq!(gru.num_layers, 3);
         let params = gru.parameters();
         // 3 layers, 1 direction: 4 params per layer
@@ -70,32 +88,47 @@ mod gru_tests {
 
     #[test]
     fn test_gru_batch_first() {
-        let gru = GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, true, false).unwrap();
+        let gru = GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            10, 20, 1, true, true, false,
+        )
+        .unwrap();
         assert!(gru.batch_first);
     }
 
     #[test]
     #[should_panic(expected = "input_size must be > 0")]
     fn test_gru_invalid_input_size() {
-        GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(0, 20, 1, true, false, false).unwrap();
+        GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            0, 20, 1, true, false, false,
+        )
+        .unwrap();
     }
 
     #[test]
     #[should_panic(expected = "hidden_size must be > 0")]
     fn test_gru_invalid_hidden_size() {
-        GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 0, 1, true, false, false).unwrap();
+        GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            10, 0, 1, true, false, false,
+        )
+        .unwrap();
     }
 
     #[test]
     #[should_panic(expected = "num_layers must be > 0")]
     fn test_gru_invalid_num_layers() {
-        GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 0, true, false, false).unwrap();
+        GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            10, 20, 0, true, false, false,
+        )
+        .unwrap();
     }
 
     #[test]
     fn test_gru_multilayer_state_propagation() {
         // Test that multi-layer GRUs properly propagate hidden states between layers
-        let gru = GRU::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 2, true, false, false).unwrap();
+        let gru = GRU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            10, 20, 2, true, false, false,
+        )
+        .unwrap();
 
         // Create input: (seq_len=3, batch_size=2, input_size=10) with some non-zero values
         let input_data: Vec<Float32> = vec![
@@ -107,8 +140,11 @@ mod gru_tests {
         .into_iter()
         .map(Float32::new)
         .collect();
-        let input =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(input_data, &[3, 2, 10]).unwrap();
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            input_data,
+            &[3, 2, 10],
+        )
+        .unwrap();
 
         let output = gru.forward(&input).unwrap();
 

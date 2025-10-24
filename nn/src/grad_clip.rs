@@ -25,6 +25,11 @@
 //! - Custom training loops
 
 use crate::error::NNError;
+use coeus_backend::Backend;
+use coeus_dtype::traits;
+use coeus_dtype::DataType;
+use coeus_storage::{Storage, StorageFromVec};
+use coeus_tensor::Tensor;
 
 /// Result type for gradient clipping operations
 pub type Result<T> = std::result::Result<T, NNError>;
@@ -97,15 +102,15 @@ impl ClipConfig {
 /// let total_norm = clip_grad_norm_(&mut gradients, 0.1, f32::INFINITY, 1e-6)?;
 /// ```
 pub fn clip_grad_norm_<B, S, T>(
-    gradients: &mut [&mut crate::Tensor<B, S, T>],
+    gradients: &mut [&mut Tensor<B, S, T>],
     max_norm: f32,
     norm_type: f32,
     error_tol: f32,
 ) -> Result<f32>
 where
-    B: crate::Backend,
-    S: crate::Storage<T> + Clone + 'static,
-    T: crate::DataType + num_traits::Float + num_traits::FromPrimitive,
+    B: Backend,
+    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
     // Calculate total norm across all gradients
     let total_norm = compute_global_norm(gradients, norm_type)?;
@@ -115,8 +120,8 @@ where
         let clip_coef = max_norm / (total_norm + error_tol);
         let clip_coef_t = T::from(clip_coef).unwrap();
 
-        for grad in gradients {
-            *grad = grad.mul_scalar(clip_coef_t)?;
+        for _grad in gradients {
+            _grad.mul_scalar_(clip_coef_t)?;
         }
     }
 
@@ -131,14 +136,11 @@ where
 ///
 /// # Returns
 /// Total norm of gradients before clipping
-pub fn clip_grad_norm<B, S, T>(
-    gradients: &mut [&mut crate::Tensor<B, S, T>],
-    max_norm: f32,
-) -> Result<f32>
+pub fn clip_grad_norm<B, S, T>(gradients: &mut [&mut Tensor<B, S, T>], max_norm: f32) -> Result<f32>
 where
-    B: crate::Backend,
-    S: crate::Storage<T> + Clone + 'static,
-    T: crate::DataType + num_traits::Float + num_traits::FromPrimitive,
+    B: Backend,
+    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
     clip_grad_norm_(gradients, max_norm, 2.0, 1e-6)
 }
@@ -152,15 +154,20 @@ where
 /// # Returns
 /// Total norm of gradients before clipping
 pub fn clip_grad_norm_config<B, S, T>(
-    gradients: &mut [&mut crate::Tensor<B, S, T>],
+    gradients: &mut [&mut Tensor<B, S, T>],
     config: &ClipConfig,
 ) -> Result<f32>
 where
-    B: crate::Backend,
-    S: crate::Storage<T> + Clone + 'static,
-    T: crate::DataType + num_traits::Float + num_traits::FromPrimitive,
+    B: Backend,
+    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
-    clip_grad_norm_(gradients, config.max_norm, config.norm_type, config.error_tol)
+    clip_grad_norm_(
+        gradients,
+        config.max_norm,
+        config.norm_type,
+        config.error_tol,
+    )
 }
 
 /// Clip individual gradient values to specified range
@@ -181,23 +188,22 @@ where
 /// let clipped_count = clip_grad_value_(&mut gradients, 1.0)?;
 /// ```
 pub fn clip_grad_value_<B, S, T>(
-    gradients: &mut [&mut crate::Tensor<B, S, T>],
+    gradients: &mut [&mut Tensor<B, S, T>],
     clip_value: f32,
 ) -> Result<usize>
 where
-    B: crate::Backend,
-    S: crate::Storage<T> + Clone + 'static,
-    T: crate::DataType + num_traits::Float + num_traits::FromPrimitive,
+    B: Backend,
+    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
     let mut clipped_count = 0;
     let min_val = T::from(-clip_value).unwrap();
     let max_val = T::from(clip_value).unwrap();
 
-    for grad in gradients {
+    for _grad in gradients {
         // In practice, this would iterate through all elements and clamp
         // For now, implement a simplified version
-        if let Ok(clamped) = grad.clamp(min_val, max_val) {
-            *grad = clamped;
+        if _grad.clamp_(min_val, max_val).is_ok() {
             // Count would be calculated by comparing original vs clamped
             clipped_count += 1; // Placeholder
         }
@@ -219,14 +225,14 @@ where
 /// # Returns
 /// (total_norm, adaptive_threshold) - norm before clipping and adaptive threshold used
 pub fn clip_grad_norm_adaptive<B, S, T>(
-    gradients: &mut [&mut crate::Tensor<B, S, T>],
+    gradients: &mut [&mut Tensor<B, S, T>],
     history: &[f32],
     sensitivity: f32,
 ) -> Result<(f32, f32)>
 where
-    B: crate::Backend,
-    S: crate::Storage<T> + Clone + 'static,
-    T: crate::DataType + num_traits::Float + num_traits::FromPrimitive,
+    B: Backend,
+    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
     // Calculate current total norm
     let total_norm = compute_global_norm(gradients, 2.0)?;
@@ -237,7 +243,8 @@ where
     } else {
         let mean_norm: f32 = history.iter().sum::<f32>() / history.len() as f32;
         let std_norm: f32 = (history.iter().map(|x| (x - mean_norm).powi(2)).sum::<f32>()
-                           / history.len() as f32).sqrt();
+            / history.len() as f32)
+            .sqrt();
 
         // Adaptive threshold: mean + sensitivity * std_dev
         mean_norm + sensitivity * std_norm
@@ -248,8 +255,8 @@ where
         let clip_coef = adaptive_threshold / total_norm;
         let clip_coef_t = T::from(clip_coef).unwrap();
 
-        for grad in gradients {
-            *grad = grad.mul_scalar(clip_coef_t)?;
+        for _grad in gradients {
+            _grad.mul_scalar_(clip_coef_t)?;
         }
     }
 
@@ -264,30 +271,46 @@ where
 ///
 /// # Returns
 /// Global norm across all gradients
-fn compute_global_norm<B, S, T>(
-    gradients: &[&mut crate::Tensor<B, S, T>],
-    norm_type: f32,
-) -> Result<f32>
+fn compute_global_norm<B, S, T>(gradients: &[&mut Tensor<B, S, T>], norm_type: f32) -> Result<f32>
 where
-    B: crate::Backend,
-    S: crate::Storage<T> + Clone + 'static,
-    T: crate::DataType + num_traits::Float + num_traits::FromPrimitive,
+    B: Backend,
+    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
-    let mut total_norm_sq = 0.0;
+    let mut total_norm_sq: f32 = 0.0;
 
     for grad in gradients {
-        // In practice, compute the norm of each gradient tensor
-        // For now, return a placeholder norm
-        let grad_norm_sq = 1.0; // Placeholder - would compute actual norm
-        total_norm_sq += grad_norm_sq;
+        // Compute the appropriate norm for each gradient tensor
+        if norm_type == 2.0 {
+            // L2 norm: sqrt(sum(x^2)) = sum(x^2) since we'll sqrt the total
+            let grad_norm_sq: f32 = grad
+                .as_slice()
+                .iter()
+                .map(|&x| {
+                    let x_f64 = x.to_f64().unwrap_or(0.0);
+                    (x_f64 * x_f64) as f32
+                })
+                .sum();
+            total_norm_sq += grad_norm_sq;
+        } else if norm_type == f32::INFINITY {
+            // L-inf norm: max absolute value across all gradients
+            let grad_linf: f32 = grad
+                .as_slice()
+                .iter()
+                .map(|&x| x.to_f64().unwrap_or(0.0).abs() as f32)
+                .fold(0.0f32, f32::max);
+            total_norm_sq = total_norm_sq.max(grad_linf);
+        }
     }
 
     if norm_type == 2.0 {
         Ok(total_norm_sq.sqrt())
     } else if norm_type == f32::INFINITY {
-        Ok(total_norm_sq) // Placeholder for L-inf norm
+        Ok(total_norm_sq)
     } else {
-        Err(NNError::InvalidInput(format!("Unsupported norm type: {}", norm_type)))
+        Err(NNError::InvalidInput {
+            message: format!("Unsupported norm type: {}", norm_type),
+        })
     }
 }
 
@@ -303,21 +326,21 @@ pub mod utils {
     /// # Returns
     /// (has_nan, has_inf) indicating gradient health
     #[must_use]
-    pub fn check_gradient_health<B, S, T>(gradients: &[&crate::Tensor<B, S, T>]) -> (bool, bool)
+    pub fn check_gradient_health<B, S, T>(gradients: &[&Tensor<B, S, T>]) -> (bool, bool)
     where
-        B: crate::Backend,
-        S: crate::Storage<T> + Clone + 'static,
-        T: crate::DataType + num_traits::Float,
+        B: Backend,
+        S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+        T: DataType + num_traits::Float + traits::FloatExt,
     {
         let mut has_nan = false;
         let mut has_inf = false;
 
-        for grad in gradients {
+        for _grad in gradients {
             // Check each gradient tensor for NaN/Inf
-            if grad.is_nan() {
+            if _grad.is_nan() {
                 has_nan = true;
             }
-            if grad.is_inf() {
+            if _grad.is_inf() {
                 has_inf = true;
             }
             if has_nan && has_inf {
@@ -336,11 +359,11 @@ pub mod utils {
     /// # Returns
     /// (mean, std, min, max) gradient statistics
     #[must_use]
-    pub fn gradient_stats<B, S, T>(gradients: &[&crate::Tensor<B, S, T>]) -> (f32, f32, f32, f32)
+    pub fn gradient_stats<B, S, T>(_gradients: &[&Tensor<B, S, T>]) -> (f32, f32, f32, f32)
     where
-        B: crate::Backend,
-        S: crate::Storage<T> + Clone + 'static,
-        T: crate::DataType + num_traits::Float,
+        B: Backend,
+        S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+        T: DataType + num_traits::Float,
     {
         // Placeholder statistics - would compute actual stats
         (0.0, 1.0, -1.0, 1.0)

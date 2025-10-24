@@ -87,13 +87,12 @@ pub trait DataType:
     ///
     /// Returns an error if the conversion would lose precision or overflow.
     fn checked_cast_to<T: DataType>(self) -> crate::Result<T> {
-        self.cast_to::<T>().ok_or_else(|| {
-            crate::DtypeError::CastError {
+        self.cast_to::<T>()
+            .ok_or_else(|| crate::DtypeError::CastError {
                 from: Self::dtype(),
                 to: T::dtype(),
-                value: "value", // TODO: Add proper string formatting when std is available
-            }
-        })
+                value: "[cast failed - value not representable in target type]",
+            })
     }
 }
 

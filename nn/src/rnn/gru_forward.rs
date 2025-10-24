@@ -4,13 +4,13 @@
 
 use coeus_backend::{Backend, CpuBackend};
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use coeus_storage::{DenseStorage, Storage, StorageFromVec};
 use coeus_tensor::Tensor;
 
 use crate::error::Result;
 
 /// Type aliases to reduce complexity
-type CpuTensor<T> = Tensor<CpuBackend, DenseStorage<T>, T>;
+type CpuTensor<T> = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
 
 /// GRU forward pass utilities
 pub trait GRUForward<B, S, T>

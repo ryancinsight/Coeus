@@ -438,7 +438,7 @@ mod tests {
             Float32::new(1.0), Float32::new(2.0), Float32::new(3.0),
             Float32::new(4.0), Float32::new(5.0), Float32::new(6.0),
         ];
-        let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             data, &[2, 3]
         ).unwrap();
 
@@ -454,7 +454,7 @@ mod tests {
     #[test]
     fn test_conv_window() {
         let data = vec![Float32::new(1.0); 64]; // 1x1x8x8 tensor
-        let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             data, &[1, 1, 8, 8]
         ).unwrap();
 

@@ -64,14 +64,22 @@ path = "gpu_basic.rs"
 name = "advanced_features"
 path = "advanced_features.rs"
 
+[[bin]]
+name = "mixed_precision"
+path = "mixed_precision.rs"
+
+[[bin]]
+name = "gpu_optimizer_acceleration"
+path = "gpu_optimizer_acceleration.rs"
+
 [dependencies]
 # Workspace dependencies
-coeus-dtype = { path = "../dtype" }
+coeus-dtype = { path = "../dtype", features = ["half"] }
 coeus-storage = { path = "../storage" }
 coeus-backend = { path = "../backend" }
 coeus-tensor = { path = "../tensor" }
-# coeus-autograd = { path = "../autograd" }  # Temporarily disabled for NN decoupling testing
-coeus-nn = { path = "../nn" }
+coeus-autograd = { path = "../autograd" }
+coeus-nn = { path = "../nn", features = ["safetensors"] }
 coeus-optim = { path = "../optim" }
 distributed = { path = "../distributed" }
 

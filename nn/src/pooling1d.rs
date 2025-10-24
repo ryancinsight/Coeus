@@ -30,7 +30,7 @@ use crate::module::Module;
 /// use coeus_dtype::float::Float32;
 ///
 /// let pool = MaxPool1d::new(2, Some(2), 0);
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
 /// let output = pool.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 50]);
 /// ```
@@ -56,14 +56,14 @@ impl MaxPool1d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for MaxPool1d {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T> for MaxPool1d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
 
-        if input_shape.len() != 3 {
+        if input_shape.len() != 3usize {
             return Err(NNError::InvalidInput {
                 message: format!(
                     "Expected 3D input (batch, channels, length), got {}D",
@@ -110,7 +110,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new()
     }
 
@@ -144,7 +144,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
 /// use coeus_dtype::float::Float32;
 ///
 /// let pool = AvgPool1d::new(2, Some(2), 0);
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
 /// let output = pool.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 50]);
 /// ```
@@ -170,14 +170,14 @@ impl AvgPool1d {
     }
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for AvgPool1d {
+impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for AvgPool1d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
 
-        if input_shape.len() != 3 {
+        if input_shape.len() != 3usize {
             return Err(NNError::InvalidInput {
                 message: format!(
                     "Expected 3D input (batch, channels, length), got {}D",
@@ -228,7 +228,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for AvgPool1
         Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new()
     }
 
@@ -262,7 +262,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for AvgPool1
 /// use coeus_dtype::float::Float32;
 ///
 /// let pool = AdaptiveAvgPool1d::new(10);
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
 /// let output = pool.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 10]);
 /// ```
@@ -280,14 +280,14 @@ impl AdaptiveAvgPool1d {
     }
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for AdaptiveAvgPool1d {
+impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for AdaptiveAvgPool1d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
 
-        if input_shape.len() != 3 {
+        if input_shape.len() != 3usize {
             return Err(NNError::InvalidInput {
                 message: format!(
                     "Expected 3D input (batch, channels, length), got {}D",
@@ -327,7 +327,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for Adaptive
         Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new()
     }
 
@@ -373,3 +373,4 @@ impl fmt::Display for AdaptiveAvgPool1d {
         write!(f, "AdaptiveAvgPool1d(output_size={})", self.output_size)
     }
 }
+

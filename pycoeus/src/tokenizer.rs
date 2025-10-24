@@ -30,7 +30,7 @@ impl BpeTokenizer {
     #[new]
     fn new() -> PyResult<Self> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "BPE tokenizer not yet implemented"
+            "BPE tokenizer not yet implemented",
         ))
     }
 }
@@ -44,7 +44,7 @@ impl GPT2Tokenizer {
     #[new]
     fn new() -> PyResult<Self> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "GPT-2 tokenizer not yet implemented"
+            "GPT-2 tokenizer not yet implemented",
         ))
     }
 }
@@ -58,7 +58,7 @@ impl CLIPTokenizer {
     #[new]
     fn new() -> PyResult<Self> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "CLIP tokenizer not yet implemented"
+            "CLIP tokenizer not yet implemented",
         ))
     }
 }
@@ -72,7 +72,7 @@ impl BERTTokenizer {
     #[new]
     fn new() -> PyResult<Self> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "BERT tokenizer not yet implemented"
+            "BERT tokenizer not yet implemented",
         ))
     }
 }

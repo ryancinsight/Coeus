@@ -3,9 +3,8 @@
 //! Provides memory-efficient tensor views with custom strides for operations
 //! like transpose, slicing, and broadcasting without copying data.
 
-use crate::{Result, Shape, Storage, StorageError, AsAny};
-use alloc::{vec, vec::Vec, string::ToString};
-use core::fmt;
+use crate::{AsAny, Result, Shape, Storage, StorageError};
+use alloc::{vec, vec::Vec};
 
 /// Strided storage with custom memory layout
 ///
@@ -41,11 +40,18 @@ impl<T: crate::DataType> StridedStorage<T> {
             });
         }
 
-        let strides = shape.iter().rev().scan(1, |stride, &dim| {
-            let current_stride = *stride;
-            *stride *= dim;
-            Some(current_stride)
-        }).collect::<Vec<_>>().into_iter().rev().collect();
+        let strides = shape
+            .iter()
+            .rev()
+            .scan(1, |stride, &dim| {
+                let current_stride = *stride;
+                *stride *= dim;
+                Some(current_stride)
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
 
         Ok(Self {
             data,
@@ -73,9 +79,13 @@ impl<T: crate::DataType> StridedStorage<T> {
         }
 
         // Validate that offset + computed size doesn't exceed data buffer
-        let max_index = offset + shape.iter().zip(strides.iter()).fold(0, |acc, (&dim, &stride)| {
-            acc + (dim.saturating_sub(1)) * stride
-        });
+        let max_index = offset
+            + shape
+                .iter()
+                .zip(strides.iter())
+                .fold(0, |acc, (&dim, &stride)| {
+                    acc + (dim.saturating_sub(1)) * stride
+                });
 
         if max_index >= data.len() {
             return Err(StorageError::IndexOutOfBounds {
@@ -153,12 +163,7 @@ impl<T: crate::DataType> StridedStorage<T> {
             new_strides[i] = self.strides[axis];
         }
 
-        Self::view(
-            self.data.clone(),
-            &new_shape,
-            &new_strides,
-            self.offset,
-        )
+        Self::view(self.data.clone(), &new_shape, &new_strides, self.offset)
     }
 
     /// Creates a sliced view of this strided storage
@@ -184,7 +189,11 @@ impl<T: crate::DataType> StridedStorage<T> {
         let mut new_offset = self.offset;
 
         for (dim_idx, &(start_opt, end_opt, step)) in slices.iter().enumerate() {
-            let dim_size = self.shape.dims()[dim_idx] as i32;
+            let dim_size = i32::try_from(self.shape.dims()[dim_idx]).map_err(|_| {
+                StorageError::InvalidShape {
+                    reason: "Dimension too large",
+                }
+            })?;
             let stride = self.strides[dim_idx];
 
             // Resolve start and end bounds
@@ -197,36 +206,44 @@ impl<T: crate::DataType> StridedStorage<T> {
 
             // Validate bounds
             if start_idx < 0 || start_idx >= dim_size || end_idx < -1 || end_idx > dim_size {
-                return Err(StorageError::IndexOutOfBounds {
-                    index: if start_idx < 0 { start_idx as usize } else { end_idx as usize },
-                    bound: dim_size as usize,
-                });
+                let index = if start_idx < 0 {
+                    usize::try_from(-start_idx).unwrap_or(0)
+                } else {
+                    usize::try_from(end_idx).unwrap_or(0)
+                };
+                let bound = usize::try_from(dim_size).unwrap_or(0);
+                return Err(StorageError::IndexOutOfBounds { index, bound });
             }
 
             // Calculate slice length
-            let slice_len = if step > 0 {
-                if end_idx > start_idx {
-                    ((end_idx - start_idx - 1) / step) + 1
-                } else {
-                    0
+            let slice_len = match step.cmp(&0) {
+                std::cmp::Ordering::Greater => {
+                    if end_idx > start_idx {
+                        ((end_idx - start_idx - 1) / step) + 1
+                    } else {
+                        0
+                    }
                 }
-            } else if step < 0 {
-                if start_idx > end_idx {
-                    ((start_idx - end_idx - 1) / (-step)) + 1
-                } else {
-                    0
+                std::cmp::Ordering::Less => {
+                    if start_idx > end_idx {
+                        ((start_idx - end_idx - 1) / (-step)) + 1
+                    } else {
+                        0
+                    }
                 }
-            } else {
-                return Err(StorageError::InvalidShape {
-                    reason: "Slice step cannot be zero",
-                });
+                std::cmp::Ordering::Equal => {
+                    return Err(StorageError::InvalidShape {
+                        reason: "Slice step cannot be zero",
+                    });
+                }
             };
 
-            new_shape.push(slice_len as usize);
-            new_strides.push((stride as i32 * step) as usize);
+            new_shape.push(usize::try_from(slice_len).unwrap_or(0));
+            new_strides
+                .push(usize::try_from(i32::try_from(stride).unwrap_or(0) * step).unwrap_or(0));
 
             // Update offset
-            new_offset += (start_idx as usize) * stride;
+            new_offset += usize::try_from(start_idx).unwrap_or(0) * stride;
         }
 
         Self::view(self.data.clone(), &new_shape, &new_strides, new_offset)
@@ -235,6 +252,9 @@ impl<T: crate::DataType> StridedStorage<T> {
     /// Converts this strided storage to contiguous dense storage
     ///
     /// This copies the data to ensure contiguous memory layout.
+    ///
+    /// # Panics
+    /// Panics if the strided data cannot be reshaped into a dense storage.
     #[must_use]
     pub fn to_dense(&self) -> crate::DenseStorage<T>
     where
@@ -259,15 +279,23 @@ impl<T: crate::DataType> StridedStorage<T> {
     }
 
     /// Recursive helper for copying strided data
-    fn copy_strided_recursive(&self, output_idx: &mut usize, output: &mut [T], indices: &mut [usize], dim: usize)
-    where
+    fn copy_strided_recursive(
+        &self,
+        output_idx: &mut usize,
+        output: &mut [T],
+        indices: &mut [usize],
+        dim: usize,
+    ) where
         T: Copy,
     {
         if dim == self.shape.ndim() {
             // Compute flat index in strided storage
-            let flat_idx = self.offset + indices.iter().zip(&self.strides)
-                .map(|(&idx, &stride)| idx * stride)
-                .sum::<usize>();
+            let flat_idx = self.offset
+                + indices
+                    .iter()
+                    .zip(&self.strides)
+                    .map(|(&idx, &stride)| idx * stride)
+                    .sum::<usize>();
 
             output[*output_idx] = self.data[flat_idx];
             *output_idx += 1;
@@ -310,7 +338,7 @@ impl<T: crate::DataType> Storage<T> for StridedStorage<T> {
         self.strides == row_major_strides && self.offset == 0
     }
 
-    fn as_storage_ref(&self) -> &dyn Storage<T> {
+    fn as_storage_ref(&self) -> &Self {
         self
     }
 }
@@ -355,7 +383,14 @@ mod tests {
 
     #[test]
     fn test_strided_storage_creation() {
-        let data = vec![F32::new(1.0), F32::new(2.0), F32::new(3.0), F32::new(4.0), F32::new(5.0), F32::new(6.0)];
+        let data = vec![
+            F32::new(1.0),
+            F32::new(2.0),
+            F32::new(3.0),
+            F32::new(4.0),
+            F32::new(5.0),
+            F32::new(6.0),
+        ];
         let storage = StridedStorage::new(data, &[2, 3]).unwrap();
 
         assert_eq!(storage.shape().dims(), &[2, 3]);
@@ -366,7 +401,14 @@ mod tests {
 
     #[test]
     fn test_strided_transpose() {
-        let data = vec![F32::new(1.0), F32::new(2.0), F32::new(3.0), F32::new(4.0), F32::new(5.0), F32::new(6.0)];
+        let data = vec![
+            F32::new(1.0),
+            F32::new(2.0),
+            F32::new(3.0),
+            F32::new(4.0),
+            F32::new(5.0),
+            F32::new(6.0),
+        ];
         let storage = StridedStorage::new(data, &[2, 3]).unwrap();
 
         // Transpose 2x3 -> 3x2
@@ -378,7 +420,14 @@ mod tests {
 
     #[test]
     fn test_strided_slice() {
-        let data = vec![F32::new(0.0), F32::new(1.0), F32::new(2.0), F32::new(3.0), F32::new(4.0), F32::new(5.0)];
+        let data = vec![
+            F32::new(0.0),
+            F32::new(1.0),
+            F32::new(2.0),
+            F32::new(3.0),
+            F32::new(4.0),
+            F32::new(5.0),
+        ];
         let storage = StridedStorage::new(data, &[6]).unwrap();
 
         // Slice [1:5:2] -> elements at indices 1, 3
@@ -392,7 +441,14 @@ mod tests {
 
     #[test]
     fn test_strided_to_dense() {
-        let data = vec![F32::new(1.0), F32::new(2.0), F32::new(3.0), F32::new(4.0), F32::new(5.0), F32::new(6.0)];
+        let data = vec![
+            F32::new(1.0),
+            F32::new(2.0),
+            F32::new(3.0),
+            F32::new(4.0),
+            F32::new(5.0),
+            F32::new(6.0),
+        ];
         let storage = StridedStorage::new(data, &[2, 3]).unwrap();
 
         // Transpose and convert to dense
@@ -400,6 +456,16 @@ mod tests {
         let dense = transposed.to_dense();
 
         // Transposed 2x3 matrix: [[1, 4], [2, 5], [3, 6]]
-        assert_eq!(dense.as_slice(), &[F32::new(1.0), F32::new(4.0), F32::new(2.0), F32::new(5.0), F32::new(3.0), F32::new(6.0)]);
+        assert_eq!(
+            dense.as_slice(),
+            &[
+                F32::new(1.0),
+                F32::new(4.0),
+                F32::new(2.0),
+                F32::new(5.0),
+                F32::new(3.0),
+                F32::new(6.0)
+            ]
+        );
     }
 }

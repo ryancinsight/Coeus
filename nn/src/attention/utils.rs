@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 use coeus_backend::Backend;
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{Storage, DenseStorage};
+use coeus_storage::{DenseStorage, Storage};
 use coeus_tensor::Tensor;
 
 use crate::error::Result;
@@ -50,10 +50,7 @@ where
     fn get_specialized_impl(&self) -> &Self::AttentionImpl;
 
     /// Compute attention using the specialized implementation
-    fn compute_specialized(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>>;
+    fn compute_specialized(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>;
 }
 
 /// Marker trait for dense storage types that should use dense attention
@@ -75,6 +72,16 @@ where
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     _phantom: PhantomData<(B, T)>,
+}
+
+impl<B, T> Default for DenseAttention<B, T>
+where
+    B: Backend + Clone + Default,
+    T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<B, T> DenseAttention<B, T>
@@ -99,6 +106,16 @@ where
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     _phantom: PhantomData<(B, T)>,
+}
+
+impl<B, T> Default for SparseAttentionImpl<B, T>
+where
+    B: Backend + Clone + Default,
+    T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<B, T> SparseAttentionImpl<B, T>

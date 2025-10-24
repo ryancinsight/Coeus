@@ -10,7 +10,7 @@ impl FFT {
     #[new]
     fn new() -> PyResult<Self> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "FFT not yet implemented in Coeus"
+            "FFT not yet implemented in Coeus",
         ))
     }
 }
@@ -24,7 +24,7 @@ impl IFFT {
     #[new]
     fn new() -> PyResult<Self> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "IFFT not yet implemented in Coeus"
+            "IFFT not yet implemented in Coeus",
         ))
     }
 }

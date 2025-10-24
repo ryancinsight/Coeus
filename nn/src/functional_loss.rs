@@ -5,7 +5,8 @@
 
 use coeus_backend::Backend;
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+#[allow(unused_imports)]
+use coeus_storage::{DenseStorage, Storage, StorageToDense};
 use coeus_tensor::Tensor;
 
 use crate::error::{NNError, Result};
@@ -29,12 +30,12 @@ use crate::error::{NNError, Result};
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let pred = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let pred = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
 ///     &[3]
 /// ).unwrap();
 ///
-/// let target = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let target = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.5), Float32::new(2.5), Float32::new(3.5)],
 ///     &[3]
 /// ).unwrap();
@@ -43,13 +44,12 @@ use crate::error::{NNError, Result};
 /// let loss_val = loss.as_slice()[0];
 /// // loss ≈ 0.25 (mean of (0.5² + 0.5² + 0.5²) = mean of (0.25, 0.25, 0.25))
 /// ```
-pub fn mse_loss<B, S, T>(
-    input: &Tensor<B, S, T>,
-    target: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn mse_loss<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    target: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    B: Backend + Clone + Default,
     T: DataType + FloatExt,
 {
     let input_shape = input.shape().dims();
@@ -75,17 +75,19 @@ where
     let total_elements = input_data.len() as f64;
 
     for (pred, targ) in input_data.iter().zip(target_data.iter()) {
-        let diff = pred.clone() - targ.clone();
-        let squared_diff = diff * diff.clone();
+        let diff = *pred - *targ;
+        let squared_diff = diff * diff;
         squared_diff_sum = squared_diff_sum + squared_diff;
     }
 
     let mean_squared_error = squared_diff_sum / T::from(total_elements).unwrap();
 
     // Return as scalar tensor
-    Tensor::from_vec(vec![mean_squared_error], &[1])
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        vec![mean_squared_error],
+        &[1],
+        input.backend().clone(),
+    )?)
 }
 
 /// Computes cross-entropy loss for classification tasks.
@@ -107,12 +109,12 @@ where
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let pred = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let pred = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(2.0), Float32::new(1.0), Float32::new(0.1)],
 ///     &[1, 3]
 /// ).unwrap();
 ///
-/// let target = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let target = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(0.0), Float32::new(0.0)],
 ///     &[1, 3]
 /// ).unwrap();
@@ -120,12 +122,13 @@ where
 /// let loss = cross_entropy(&pred, &target).unwrap();
 /// // loss = -log(softmax([2.0, 1.0, 0.1])[0])
 /// ```
-pub fn cross_entropy<T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
-    target: &Tensor<impl Backend, impl Storage<T>, T>,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+pub fn cross_entropy<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    target: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone,
+    B: Backend,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + Clone,
 {
     let input_shape = input.shape().dims();
     let target_shape = target.shape().dims();
@@ -145,14 +148,54 @@ where
         });
     }
 
-    // Apply softmax to predictions
-    let softmax_output = crate::functional_attention::softmax(input)?;
+    // Apply softmax to predictions (local implementation)
+    let input_dense = input.to_dense_generic()?;
+    let input_data = input_dense.as_slice();
+    let mut softmax_data = Vec::with_capacity(input_data.len());
 
-    // Convert to dense for computation
-    let softmax_dense = softmax_output.to_dense_generic()?;
+    // Simple softmax: exp(x) / sum(exp(x)) along last dimension
+    let last_dim = *input_shape.last().unwrap();
+    let batch_size = input_data.len() / last_dim;
+
+    for b in 0..batch_size {
+        let start = b * last_dim;
+        let end = start + last_dim;
+        let batch_data = &input_data[start..end];
+
+        // Find max for numerical stability
+        let max_val = batch_data
+            .iter()
+            .fold(T::from(f64::NEG_INFINITY).unwrap(), |a, &b| {
+                if a > b {
+                    a
+                } else {
+                    b
+                }
+            });
+
+        // Compute exp(x - max) and sum
+        let mut exp_vals = Vec::with_capacity(last_dim);
+        let mut sum_exp = T::from(0.0).unwrap();
+
+        for &val in batch_data {
+            let exp_val = (val - max_val).exp();
+            exp_vals.push(exp_val);
+            sum_exp = sum_exp + exp_val;
+        }
+
+        // Normalize by sum
+        for exp_val in exp_vals {
+            softmax_data.push(exp_val / sum_exp);
+        }
+    }
+
+    let softmax_output: Tensor<B, DenseStorage<T>, T> =
+        Tensor::from_vec_with_backend(softmax_data, input.shape().dims(), input.backend().clone())?;
+
+    // Convert target to dense for computation
     let target_dense = target.to_dense_generic()?;
 
-    let softmax_data = softmax_dense.as_slice();
+    let softmax_data = softmax_output.as_slice();
     let target_data = target_dense.as_slice();
 
     let last_dim_size = *input_shape.last().unwrap();
@@ -163,8 +206,8 @@ where
     for batch in 0..batch_size {
         for class in 0..last_dim_size {
             let idx = batch * last_dim_size + class;
-            let softmax_val = softmax_data[idx].clone();
-            let target_val = target_data[idx].clone();
+            let softmax_val = softmax_data[idx];
+            let target_val = target_data[idx];
 
             // Add small epsilon to prevent log(0)
             let epsilon = T::from(1e-12).unwrap();
@@ -178,13 +221,15 @@ where
     }
 
     // Compute mean loss
-    let total_elements = T::from((batch_size * last_dim_size) as f64).unwrap();
+    let total_elements = T::from(softmax_data.len() as f64).unwrap();
     let mean_loss = total_loss / total_elements;
 
     // Return as scalar tensor
-    Tensor::from_vec(vec![mean_loss], &[1])
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        vec![mean_loss],
+        &[1],
+        input.backend().clone(),
+    )?)
 }
 
 /// Computes negative log likelihood (NLL) loss.
@@ -199,12 +244,13 @@ where
 ///
 /// # Returns
 /// Scalar tensor containing the NLL loss value
-pub fn nll_loss<T: DataType + FloatExt + std::ops::Neg<Output = T>>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
-    target: &Tensor<impl Backend, impl Storage<T>, T>,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+pub fn nll_loss<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    target: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone,
+    B: Backend,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Clone,
 {
     let input_shape = input.shape().dims();
     let target_shape = target.shape().dims();
@@ -233,8 +279,8 @@ where
     for batch in 0..batch_size {
         for class in 0..last_dim_size {
             let idx = batch * last_dim_size + class;
-            let log_prob = input_data[idx].clone();
-            let target_val = target_data[idx].clone();
+            let log_prob = input_data[idx];
+            let target_val = target_data[idx];
 
             // Compute -target * log_prob
             let weighted_loss = target_val * log_prob;
@@ -243,11 +289,13 @@ where
     }
 
     // Compute mean loss
-    let total_elements = T::from((batch_size * last_dim_size) as f64).unwrap();
+    let total_elements = T::from(input_data.len() as f64).unwrap();
     let mean_loss = total_loss / total_elements;
 
     // Return as scalar tensor
-    Tensor::from_vec(vec![mean_loss], &[1])
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        vec![mean_loss],
+        &[1],
+        input.backend().clone(),
+    )?)
 }

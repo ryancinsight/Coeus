@@ -3,13 +3,13 @@
 //! Simplified distributed training simulation for demonstrating
 //! multi-device training concepts.
 
-use crate::error::{NNError, Result};
-use crate::module::{Module, StateDict};
-use crate::{ModuleSerialize, Sequential};
-#[cfg(feature = "autograd")]
-use coeus_autograd::backward;
 #[cfg(not(feature = "autograd"))]
 use crate::autograd_stub::backward;
+use crate::error::{NNError, Result};
+use crate::module::{Module, StateDict};
+use crate::Sequential;
+#[cfg(feature = "autograd")]
+use coeus_autograd::backward;
 use coeus_backend::Backend;
 use coeus_dtype::DataType;
 use coeus_storage::DenseStorage;
@@ -51,7 +51,7 @@ where
     pub fn new(model: M, rank: usize, world_size: usize) -> Result<Self> {
         if rank >= world_size {
             return Err(NNError::InvalidConfiguration {
-                message: "Process rank must be less than world size".to_string()
+                message: "Process rank must be less than world size".to_string(),
             });
         }
 
@@ -70,7 +70,10 @@ where
     ///
     /// # Returns
     /// Model output tensor
-    pub fn forward(&self, input: &Tensor<B, DenseStorage<T>, T>) -> Result<Tensor<B, DenseStorage<T>, T>> {
+    pub fn forward(
+        &self,
+        input: &Tensor<B, DenseStorage<T>, T>,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>> {
         self.model.forward(input)
     }
 
@@ -88,7 +91,9 @@ where
         // 3. Average gradients across processes
 
         // For simulation, just perform local backward
-        backward(loss).map_err(|e| NNError::TrainingError { message: format!("Backward pass failed: {}", e) })
+        backward(loss).map_err(|e| NNError::TrainingError {
+            message: format!("Backward pass failed: {}", e),
+        })
     }
 
     /// Get the underlying model (useful for saving checkpoints)
@@ -130,7 +135,7 @@ where
         DistributedStats {
             rank: self.rank,
             world_size: self.world_size,
-            gradient_sync_count: 0, // Simulated
+            gradient_sync_count: 0,    // Simulated
             communication_overhead: 0, // Simulated
         }
     }
@@ -196,9 +201,15 @@ mod tests {
         let mut distributed = Distributed::new(model, 0, 1).unwrap();
 
         let input = Tensor::<CpuBackend, _, Float32>::from_vec(
-            vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
+            vec![
+                Float32::new(1.0),
+                Float32::new(2.0),
+                Float32::new(3.0),
+                Float32::new(4.0),
+            ],
             &[1, 4],
-        ).unwrap();
+        )
+        .unwrap();
 
         let output = distributed.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[1, 2]);

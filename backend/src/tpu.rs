@@ -1,4 +1,4 @@
-//! # TPU Backend for Tensor Processing Units
+﻿//! # TPU Backend for Tensor Processing Units
 //!
 //! Specialized backend for Google's Tensor Processing Units (TPUs) with
 //! massive parallel processing capabilities for large-scale ML training and inference.
@@ -17,12 +17,12 @@
 //! All TPU operations are memory-safe with zero unsafe code. XLA compilation
 //! and runtime provide safe interfaces to TPU-specific operations.
 
-use crate::{Backend, Device, DeviceInfo};
+use crate::{Backend, Device};
 use std::{
+    eprintln,
     string::{String, ToString},
     vec,
     vec::Vec,
-    println,
 };
 
 /// Errors that can occur in TPU backend operations
@@ -69,6 +69,12 @@ pub struct TpuBackend {
     tpu_info: TpuDeviceInfo,
 }
 
+impl Default for TpuBackend {
+    fn default() -> Self {
+        Self::new().unwrap_or_else(|_| panic!("TpuBackend initialization failed. Use TpuBackend::new() instead."))
+    }
+}
+
 impl TpuBackend {
     /// Create a new TPU backend with default configuration
     ///
@@ -95,7 +101,10 @@ impl TpuBackend {
 
     /// Detect available TPU hardware
     ///
-    /// This method would detect various TPU architectures in a real implementation.
+    /// Detect available TPU hardware
+    ///
+    /// Returns device information for available TPU hardware. In production,
+    /// this would detect Cloud TPU v4/v5, Edge TPU, and TPU Pod configurations.
     fn detect_tpu_hardware() -> Result<TpuDeviceInfo, TpuError> {
         // Placeholder implementation - in practice this would:
         // 1. Check for Cloud TPU v4/v5
@@ -103,7 +112,7 @@ impl TpuBackend {
         // 3. Check for TPU Pod configurations
         // 4. Return appropriate device info
 
-        // For now, return a generic TPU device
+        // Return generic TPU device info for framework compatibility
         Ok(TpuDeviceInfo {
             name: "Cloud TPU v4".to_string(),
             generation: "v4".to_string(),
@@ -131,7 +140,10 @@ impl TpuBackend {
     /// # Errors
     ///
     /// Returns `TpuError::XlaCompilationFailed` if compilation fails.
-    pub fn compile_xla(&self, _computation_spec: &[u8]) -> Result<TpuCompiledComputation, TpuError> {
+    pub fn compile_xla(
+        &self,
+        _computation_spec: &[u8],
+    ) -> Result<TpuCompiledComputation, TpuError> {
         // Placeholder - in practice this would:
         // 1. Parse computation specification
         // 2. Apply XLA optimizations (fusion, tiling, etc.)
@@ -142,10 +154,7 @@ impl TpuBackend {
             computation_id: "xla_compiled_001".to_string(),
             input_shapes: vec![vec![32, 512, 512, 3]],
             output_shapes: vec![vec![32, 1000]],
-            operations_fused: vec![
-                "conv2d_fusion".to_string(),
-                "attention_fusion".to_string(),
-            ],
+            operations_fused: vec!["conv2d_fusion".to_string(), "attention_fusion".to_string()],
         })
     }
 
@@ -200,16 +209,413 @@ pub struct TpuCompiledComputation {
     pub operations_fused: Vec<String>,
 }
 
-impl Backend for TpuBackend {
-    type DeviceType = Device;
+impl Default for TpuBackend {
+    fn default() -> Self {
+        Self::new().unwrap_or_else(|_| {
+            // If hardware detection fails, create a placeholder instance
+            Self {
+                device_info: Device::Tpu {
+                    name: "Cloud TPU v4 (Unavailable)".to_string(),
+                    generation: "v4".to_string(),
+                    cores: 0,
+                    peak_tops: 0.0,
+                    memory_gb: 0,
+                },
+                tpu_info: TpuDeviceInfo {
+                    name: "Cloud TPU v4 (Unavailable)".to_string(),
+                    generation: "v4".to_string(),
+                    cores: 0,
+                    peak_tops: 0.0,
+                    memory_gb: 0,
+                    memory_bandwidth_gbps: 0,
+                    supported_ops: vec![],
+                },
+            }
+        })
+    }
+}
+
+impl<T: crate::DataType> Backend for TpuBackend<T> {
+    type Data = T;
+    type Device = Device;
 
     fn device(&self) -> &Self::DeviceType {
         &self.device_info
     }
 
+    fn device_name(&self) -> &str {
+        &self.tpu_info.name
+    }
+
     fn supports(&self, operation: &str) -> bool {
         // Check if operation is supported by this TPU
         self.tpu_info.supported_ops.contains(&operation.to_string())
+    }
+
+    fn add_dense<T>(
+        &self,
+        lhs: &coeus_storage::DenseStorage<T>,
+        rhs: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU add_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().add_dense(lhs, rhs)
+    }
+
+    fn mul_dense<T>(
+        &self,
+        lhs: &coeus_storage::DenseStorage<T>,
+        rhs: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU mul_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().mul_dense(lhs, rhs)
+    }
+
+    fn matmul_dense<T>(
+        &self,
+        lhs: &coeus_storage::DenseStorage<T>,
+        rhs: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU matmul_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().matmul_dense(lhs, rhs)
+    }
+
+    fn exp_dense<T>(
+        &self,
+        input: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU exp_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().exp_dense(input)
+    }
+
+    fn log_dense<T>(
+        &self,
+        input: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU log_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().log_dense(input)
+    }
+
+    fn sin_dense<T>(
+        &self,
+        input: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU sin_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().sin_dense(input)
+    }
+
+    fn cos_dense<T>(
+        &self,
+        input: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU cos_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().cos_dense(input)
+    }
+
+    fn conv2d_dense<T>(
+        &self,
+        input: &coeus_storage::DenseStorage<T>,
+        weight: &coeus_storage::DenseStorage<T>,
+        bias: Option<&coeus_storage::DenseStorage<T>>,
+        stride: (usize, usize),
+        padding: (usize, usize),
+        input_shape: &[usize],
+        weight_shape: &[usize],
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU conv2d_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().conv2d_dense(
+            input,
+            weight,
+            bias,
+            stride,
+            padding,
+            input_shape,
+            weight_shape,
+        )
+    }
+
+    fn spmm_csr<T>(
+        &self,
+        lhs_data: &[T],
+        lhs_indices: &[usize],
+        lhs_indptr: &[usize],
+        rhs_data: &[T],
+        rhs_indices: &[usize],
+        rhs_indptr: &[usize],
+        m: usize,
+        k: usize,
+        n: usize,
+    ) -> crate::Result<(Vec<T>, Vec<usize>, Vec<usize>)>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU spmm_csr not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().spmm_csr(
+            lhs_data,
+            lhs_indices,
+            lhs_indptr,
+            rhs_data,
+            rhs_indices,
+            rhs_indptr,
+            m,
+            k,
+            n,
+        )
+    }
+
+    fn spmv_csr<T>(
+        &self,
+        matrix_data: &[T],
+        matrix_indices: &[usize],
+        matrix_indptr: &[usize],
+        vector: &[T],
+        rows: usize,
+        cols: usize,
+    ) -> crate::Result<Vec<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU spmv_csr not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().spmv_csr(
+            matrix_data,
+            matrix_indices,
+            matrix_indptr,
+            vector,
+            rows,
+            cols,
+        )
+    }
+
+    fn quantize<T>(
+        &self,
+        input: &[T],
+        scale: T,
+        zero_point: T,
+        bits: usize,
+        scheme: &str,
+    ) -> crate::Result<Vec<u8>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU quantize not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().quantize(input, scale, zero_point, bits, scheme)
+    }
+
+    fn dequantize<T>(
+        &self,
+        quantized_data: &[u8],
+        scale: T,
+        zero_point: T,
+        bits: usize,
+        scheme: &str,
+        output_size: usize,
+    ) -> crate::Result<Vec<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU dequantize not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().dequantize(
+            quantized_data,
+            scale,
+            zero_point,
+            bits,
+            scheme,
+            output_size,
+        )
+    }
+
+    fn quantized_matmul<T>(
+        &self,
+        lhs_data: &[u8],
+        lhs_scale: T,
+        lhs_zero_point: T,
+        rhs_data: &[u8],
+        rhs_scale: T,
+        rhs_zero_point: T,
+        bias: Option<&[T]>,
+        m: usize,
+        k: usize,
+        n: usize,
+        bits: usize,
+        scheme: &str,
+    ) -> crate::Result<Vec<T>>
+    where
+        T: crate::DataType,
+    {
+        // Log warning about CPU fallback
+        eprintln!("TPU quantized_matmul not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().quantized_matmul(
+            lhs_data,
+            lhs_scale,
+            lhs_zero_point,
+            rhs_data,
+            rhs_scale,
+            rhs_zero_point,
+            bias,
+            m,
+            k,
+            n,
+            bits,
+            scheme,
+        )
+    }
+
+    fn sub_dense<T>(
+        &self,
+        lhs: &coeus_storage::DenseStorage<T>,
+        rhs: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    where
+        T: crate::DataType,
+    {
+        eprintln!("TPU sub_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().sub_dense(lhs, rhs)
+    }
+
+    fn sum_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    where
+        T: crate::DataType + std::ops::Add<Output = T> + num_traits::Zero + Copy,
+    {
+        eprintln!("TPU sum_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().sum_dense(input)
+    }
+
+    fn mean_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    where
+        T: crate::DataType
+            + std::ops::Add<Output = T>
+            + std::ops::Div<Output = T>
+            + num_traits::Zero
+            + num_traits::One
+            + Copy
+            + From<u32>
+            + num_traits::FromPrimitive,
+    {
+        eprintln!("TPU mean_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().mean_dense(input)
+    }
+
+    fn max_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    where
+        T: crate::DataType + PartialOrd + Copy,
+    {
+        eprintln!("TPU max_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().max_dense(input)
+    }
+
+    fn min_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    where
+        T: crate::DataType + PartialOrd + Copy,
+    {
+        eprintln!("TPU min_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().min_dense(input)
+    }
+
+    fn argmax_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    where
+        T: crate::DataType + PartialOrd + Copy,
+    {
+        eprintln!("TPU argmax_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().argmax_dense(input)
+    }
+
+    fn argmin_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    where
+        T: crate::DataType + PartialOrd + Copy,
+    {
+        eprintln!("TPU argmin_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().argmin_dense(input)
+    }
+
+    fn coo_matmul_sparse<T>(
+        &self,
+        lhs: &coeus_storage::CooStorage<T>,
+        rhs: &coeus_storage::CooStorage<T>,
+    ) -> crate::Result<coeus_storage::CooStorage<T>>
+    where
+        T: crate::DataType
+            + std::ops::Add<Output = T>
+            + std::ops::Mul<Output = T>
+            + num_traits::Zero
+            + Copy,
+    {
+        eprintln!("TPU coo_matmul_sparse not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().coo_matmul_sparse(lhs, rhs)
+    }
+
+    fn coo_matmul_dense<T>(
+        &self,
+        lhs: &coeus_storage::CooStorage<T>,
+        rhs: &[T],
+    ) -> crate::Result<Vec<T>>
+    where
+        T: crate::DataType
+            + std::ops::Add<Output = T>
+            + std::ops::Mul<Output = T>
+            + num_traits::Zero
+            + Copy,
+    {
+        eprintln!("TPU coo_matmul_dense not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().coo_matmul_dense(lhs, rhs)
+    }
+
+    fn coo_add_sparse<T>(
+        &self,
+        lhs: &coeus_storage::CooStorage<T>,
+        rhs: &coeus_storage::CooStorage<T>,
+    ) -> crate::Result<coeus_storage::CooStorage<T>>
+    where
+        T: crate::DataType + std::ops::Add<Output = T> + Copy,
+    {
+        eprintln!("TPU coo_add_sparse not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().coo_add_sparse(lhs, rhs)
+    }
+
+    fn coo_mul_sparse<T>(
+        &self,
+        lhs: &coeus_storage::CooStorage<T>,
+        rhs: &coeus_storage::CooStorage<T>,
+    ) -> crate::Result<coeus_storage::CooStorage<T>>
+    where
+        T: crate::DataType + std::ops::Mul<Output = T> + Copy,
+    {
+        eprintln!("TPU coo_mul_sparse not implemented, falling back to CPU");
+        crate::cpu::CpuBackend::new().coo_mul_sparse(lhs, rhs)
     }
 }
 
@@ -242,7 +648,13 @@ mod tests {
         let backend = TpuBackend::new();
         match backend {
             Ok(backend) => match backend.device() {
-                Device::Tpu { name, generation, cores, peak_tops, memory_gb } => {
+                Device::Tpu {
+                    name,
+                    generation,
+                    cores,
+                    peak_tops,
+                    memory_gb,
+                } => {
                     assert!(!name.is_empty());
                     assert!(!generation.is_empty());
                     assert!(*cores > 0);
@@ -299,10 +711,7 @@ mod tests {
                     .iter()
                     .map(|shape| vec![1.0; shape.iter().product()])
                     .collect();
-                let inputs: Vec<&[f32]> = input_vecs
-                    .iter()
-                    .map(|v| v.as_slice())
-                    .collect();
+                let inputs: Vec<&[f32]> = input_vecs.iter().map(|v| v.as_slice()).collect();
 
                 let outputs = backend.execute_computation(&computation, &inputs);
 
@@ -348,3 +757,4 @@ mod tests {
         }
     }
 }
+

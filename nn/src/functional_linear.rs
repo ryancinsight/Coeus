@@ -30,12 +30,12 @@ use crate::error::{NNError, Result};
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0)],
 ///     &[1, 2]
 /// ).unwrap();
 ///
-/// let weight = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let weight = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(0.5), Float32::new(1.0), Float32::new(1.5), Float32::new(2.0)],
 ///     &[2, 2]
 /// ).unwrap();
@@ -47,16 +47,16 @@ pub fn linear<B, S, T>(
     input: &Tensor<B, S, T>,
     weight: &Tensor<B, S, T>,
     bias: Option<&Tensor<B, S, T>>,
-) -> Result<Tensor<B, S, T>>
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend + Clone,
+    B: Backend + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
     let input_shape = input.shape().dims();
     let weight_shape = weight.shape().dims();
 
-    if weight_shape.len() != 2 {
+    if weight_shape.len() != 2usize {
         return Err(NNError::InvalidInput {
             message: format!("Weight must be 2D, got shape {:?}", weight_shape),
         });
@@ -76,10 +76,15 @@ where
         });
     }
 
+    // Convert all tensors to dense for computation
+    let input_dense = input.to_dense_generic()?;
+    let weight_dense = weight.to_dense_generic()?;
+    let bias_dense = bias.map(|b| b.to_dense_generic()).transpose()?;
+
     // Check bias shape if provided
     if let Some(b) = bias {
         let bias_shape = b.shape().dims();
-        if bias_shape != &[out_features] {
+        if bias_shape != [out_features] {
             return Err(NNError::InvalidInput {
                 message: format!(
                     "Bias shape {:?} does not match out_features {}",
@@ -91,36 +96,40 @@ where
 
     // Flatten input for matrix multiplication
     let batch_size: usize = input_shape[..input_shape.len() - 1].iter().product();
-    let input_flat_shape = vec![batch_size, in_features];
+    let input_flat_shape = vec![batch_size as isize, in_features as isize];
 
-    let input_flat = input.reshape(&input_flat_shape)?;
+    let input_flat = input_dense.reshape(&input_flat_shape)?;
 
     // Perform matrix multiplication: (batch_size, in_features) @ (in_features, out_features)
     // Result: (batch_size, out_features)
-    let weight_t = weight.transpose(1, 0)?;
+    let weight_t = weight_dense.transpose(1, 0)?;
     let output_flat = input_flat.matmul(&weight_t)?;
 
     // Add bias if provided
-    let output = if let Some(b) = bias {
-        let bias_expanded_shape = vec![batch_size, out_features];
-        let bias_data = b.as_slice();
+    let output = if let Some(bias_tensor) = &bias_dense {
+        let _bias_shape = bias_tensor.shape().dims();
+        let bias_data = bias_tensor.as_slice();
         let mut expanded_bias = Vec::with_capacity(batch_size * out_features);
 
         for _ in 0..batch_size {
             expanded_bias.extend_from_slice(bias_data);
         }
 
-        let bias_tensor = Tensor::from_vec(expanded_bias, &bias_expanded_shape)?;
-        output_flat + bias_tensor
+        let bias_expanded =
+            Tensor::<B, DenseStorage<T>, T>::from_vec(expanded_bias, &[batch_size, out_features])?;
+        &output_flat + &bias_expanded
     } else {
         output_flat
     };
 
     // Reshape output to match input batch dimensions
-    let mut output_shape = input_shape[..input_shape.len() - 1].to_vec();
-    output_shape.push(out_features);
+    let mut output_shape: Vec<isize> = input_shape[..input_shape.len() - 1]
+        .iter()
+        .map(|&x| x as isize)
+        .collect();
+    output_shape.push(out_features as isize);
 
-    output.reshape(&output_shape)
+    Ok(output.reshape(&output_shape)?)
 }
 
 /// Applies a sparse linear transformation using sparse weight matrices.
@@ -138,18 +147,24 @@ where
 /// # Returns
 /// Output tensor of shape `(..., out_features)`
 ///
-/// # Note
-/// This is a placeholder implementation. Full sparse linear support
-/// would require integration with sparse storage formats.
-pub fn sparse_linear<T: DataType + FloatExt>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
+/// # Implementation Notes
+/// This implementation converts sparse weight matrices to dense format for computation.
+/// For large sparse matrices, a dedicated sparse storage format with optimized
+/// sparse-dense matrix multiplication would provide better performance.
+/// The current approach is a valid fallback that works correctly but may not be optimal for all use cases.
+pub fn sparse_linear<
+    B: Backend + Default,
+    S: Storage<T> + StorageToDense<T> + Clone + StorageFromVec<T> + 'static,
+    T,
+>(
+    input: &Tensor<B, S, T>,
     weight_data: &[T],
     weight_indices: &[(usize, usize)],
     weight_shape: (usize, usize),
-    bias: Option<&Tensor<impl Backend, impl Storage<T>, T>>,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+    bias: Option<&Tensor<B, S, T>>,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone,
+    T: DataType + FloatExt + Clone,
 {
     // For now, convert sparse representation to dense and use regular linear
     // In a full implementation, this would use sparse matrix multiplication algorithms
@@ -160,7 +175,7 @@ where
     // Populate dense matrix from sparse representation
     for (&val, &(row, col)) in weight_data.iter().zip(weight_indices.iter()) {
         if row < out_features && col < in_features {
-            dense_weight_data[row * in_features + col] = val.clone();
+            dense_weight_data[row * in_features + col] = val;
         }
     }
 

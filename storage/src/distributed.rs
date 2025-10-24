@@ -16,11 +16,10 @@
 //! - **Row-wise Sharding**: Split tensors along the first dimension
 //! - **Column-wise Sharding**: Split tensors along the last dimension
 //! - **Block-wise Sharding**: 2D block decomposition for matrix operations
-//! - **ZeRO Sharding**: Optimizer state partitioning for memory efficiency
+//! - **`ZeRO` Sharding**: Optimizer state partitioning for memory efficiency
 
-use crate::{AsAny, DataType, Result, Shape, Storage, StorageError};
-use alloc::{boxed::Box, vec, vec::Vec};
-use core::fmt;
+use crate::{AsAny, DataType, DenseStorage, Result, Shape, Storage, StorageError};
+use alloc::{vec, vec::Vec};
 
 /// Device identifier for distributed operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -36,7 +35,12 @@ pub enum ShardingStrategy {
     /// Split along last dimension (columns)
     ColumnWise,
     /// 2D block decomposition
-    BlockWise { block_rows: usize, block_cols: usize },
+    BlockWise {
+        /// Number of rows per block
+        block_rows: usize,
+        /// Number of columns per block
+        block_cols: usize,
+    },
     /// ZeRO-style sharding for optimizer states
     ZeroSharding,
 }
@@ -65,7 +69,7 @@ pub enum StorageVariant<T: DataType> {
 impl<T: DataType> StorageVariant<T> {
     /// Get the underlying storage as a trait object reference
     #[must_use]
-    pub fn as_storage(&self) -> &dyn Storage<T> {
+    pub fn as_storage(&self) -> &DenseStorage<T> {
         match self {
             Self::Dense(dense) => dense,
         }
@@ -150,13 +154,14 @@ impl<T: DataType> DistributedStorage<T> {
                     .collect();
                 Ok(shards)
             }
-            ShardingStrategy::RowWise => {
-                Self::compute_row_wise_shards(global_shape, device_ids)
-            }
+            ShardingStrategy::RowWise => Self::compute_row_wise_shards(global_shape, device_ids),
             ShardingStrategy::ColumnWise => {
                 Self::compute_column_wise_shards(global_shape, device_ids)
             }
-            ShardingStrategy::BlockWise { block_rows, block_cols } => {
+            ShardingStrategy::BlockWise {
+                block_rows,
+                block_cols,
+            } => {
                 Self::compute_block_wise_shards(global_shape, *block_rows, *block_cols, device_ids)
             }
             ShardingStrategy::ZeroSharding => {
@@ -187,7 +192,7 @@ impl<T: DataType> DistributedStorage<T> {
         let mut current_offset = 0;
 
         for (i, &device_id) in device_ids.iter().enumerate() {
-            let rows_in_shard = base_rows_per_shard + if i < extra_rows { 1 } else { 0 };
+            let rows_in_shard = base_rows_per_shard + usize::from(i < extra_rows);
             if rows_in_shard == 0 {
                 continue; // Skip devices with no rows
             }
@@ -229,7 +234,7 @@ impl<T: DataType> DistributedStorage<T> {
         let mut current_offset = 0;
 
         for (i, &device_id) in device_ids.iter().enumerate() {
-            let cols_in_shard = base_cols_per_shard + if i < extra_cols { 1 } else { 0 };
+            let cols_in_shard = base_cols_per_shard + usize::from(i < extra_cols);
             if cols_in_shard == 0 {
                 continue;
             }
@@ -305,7 +310,7 @@ impl<T: DataType> DistributedStorage<T> {
         Ok(shards)
     }
 
-    /// Compute ZeRO shards for optimizer state partitioning
+    /// Compute `ZeRO` shards for optimizer state partitioning
     fn compute_zero_shards(
         global_shape: &Shape,
         device_ids: &[DeviceId],
@@ -342,9 +347,7 @@ impl<T: DataType> DistributedStorage<T> {
     /// Check if this device has any local shards
     #[must_use]
     pub fn has_local_shards(&self, device_id: DeviceId) -> bool {
-        self.shards
-            .iter()
-            .any(|shard| shard.device_id == device_id)
+        self.shards.iter().any(|shard| shard.device_id == device_id)
     }
 
     /// Get shards assigned to a specific device
@@ -361,7 +364,13 @@ impl<T: DataType> DistributedStorage<T> {
     /// # Arguments
     /// * `shard_index` - Index of the shard in the global shard list
     /// * `storage` - The actual storage containing the shard data
-    pub fn add_local_shard(&mut self, shard_index: usize, storage: StorageVariant<T>) -> Result<()> {
+    /// # Errors
+    /// Returns error if shard index is invalid or storage is incompatible
+    pub fn add_local_shard(
+        &mut self,
+        shard_index: usize,
+        storage: StorageVariant<T>,
+    ) -> Result<()> {
         if shard_index >= self.shards.len() {
             return Err(StorageError::IndexOutOfBounds {
                 index: shard_index,
@@ -403,7 +412,9 @@ impl<T: DataType> DistributedStorage<T> {
     ///
     /// This requires communication across all devices and should be used sparingly.
     /// In practice, this would involve MPI, NCCL, or similar communication libraries.
-    pub async fn gather(&self) -> Result<Vec<T>> {
+    /// # Errors
+    /// Returns error if gathering fails due to communication issues
+    pub fn gather(&self) -> Result<Vec<T>> {
         // Placeholder implementation - in practice this would:
         // 1. Communicate with all devices to gather their shards
         // 2. Reconstruct the global tensor from shards
@@ -429,7 +440,9 @@ impl<T: DataType> DistributedStorage<T> {
     /// Scatter tensor data to appropriate shards
     ///
     /// Distributes data from a complete tensor to the appropriate device shards.
-    pub async fn scatter(&self, _data: &[T]) -> Result<()> {
+    /// # Errors
+    /// Returns error if scattering fails due to communication issues
+    pub fn scatter(&self, _data: &[T]) -> Result<()> {
         // Placeholder implementation - in practice this would:
         // 1. Split the input data according to shard boundaries
         // 2. Send appropriate chunks to each device
@@ -439,11 +452,13 @@ impl<T: DataType> DistributedStorage<T> {
         Ok(())
     }
 
-    /// Perform AllReduce operation on distributed tensor
+    /// Perform `AllReduce` operation on distributed tensor
     ///
     /// Reduces values across all devices using the specified operation.
     /// This is fundamental for gradient synchronization in distributed training.
-    pub async fn all_reduce(&mut self, _operation: ReduceOperation) -> Result<()> {
+    /// # Errors
+    /// Returns error if reduction fails due to communication issues
+    pub fn all_reduce(&mut self, _operation: ReduceOperation) -> Result<()> {
         // Placeholder implementation - in practice this would:
         // 1. Perform collective reduction across all devices
         // 2. Update local shards with reduced values
@@ -499,7 +514,7 @@ impl<T: DataType> Storage<T> for DistributedStorage<T> {
         false
     }
 
-    fn as_storage_ref(&self) -> &dyn Storage<T> {
+    fn as_storage_ref(&self) -> &Self {
         self
     }
 }
@@ -507,7 +522,7 @@ impl<T: DataType> Storage<T> for DistributedStorage<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{dense::DenseStorage, DataType};
+    use crate::dense::DenseStorage;
     use coeus_dtype::float::F32;
 
     #[test]
@@ -515,12 +530,9 @@ mod tests {
         let global_shape = [100, 50];
         let device_ids = vec![DeviceId(0), DeviceId(1), DeviceId(2)];
 
-        let storage = DistributedStorage::<F32>::new(
-            &global_shape,
-            ShardingStrategy::RowWise,
-            &device_ids,
-        )
-        .unwrap();
+        let storage =
+            DistributedStorage::<F32>::new(&global_shape, ShardingStrategy::RowWise, &device_ids)
+                .unwrap();
 
         assert_eq!(storage.global_shape().dims(), &[100, 50]);
         assert_eq!(storage.shards().len(), 3); // One shard per device
@@ -616,19 +628,12 @@ mod tests {
     #[test]
     fn test_invalid_sharding_configuration() {
         // Test with empty device list
-        let result = DistributedStorage::<F32>::new(
-            &[10, 10],
-            ShardingStrategy::RowWise,
-            &[],
-        );
+        let result = DistributedStorage::<F32>::new(&[10, 10], ShardingStrategy::RowWise, &[]);
         assert!(result.is_err());
 
         // Test column-wise on 1D tensor
-        let result = DistributedStorage::<F32>::new(
-            &[10],
-            ShardingStrategy::ColumnWise,
-            &[DeviceId(0)],
-        );
+        let result =
+            DistributedStorage::<F32>::new(&[10], ShardingStrategy::ColumnWise, &[DeviceId(0)]);
         assert!(result.is_err());
     }
 }
@@ -641,5 +646,155 @@ impl<T: DataType> crate::StorageToDense<T> for DistributedStorage<T> {
         let size = self.global_shape.size();
         let dense_data = vec![T::zero(); size];
         crate::DenseStorage::from_vec(dense_data, self.global_shape.dims())
+    }
+}
+
+/// Sharded storage for distributing tensor data across multiple shards
+///
+/// Manages tensor data that is split into multiple shards along a specified dimension.
+/// Provides efficient access to individual shards while maintaining the global tensor view.
+#[derive(Debug, Clone)]
+pub struct ShardedStorage<T: DataType> {
+    shards: Vec<DenseStorage<T>>,
+    shard_boundaries: Vec<usize>,
+    shape: Shape,
+    shard_dim: usize, // Dimension along which to shard
+}
+
+impl<T: DataType> ShardedStorage<T> {
+    /// Creates sharded storage by splitting tensor along specified dimension
+    /// # Errors
+    /// Returns error if sharding parameters are invalid
+    pub fn new(data: &[T], shape: &[usize], shard_dim: usize, num_shards: usize) -> Result<Self> {
+        // Validate shard_dim
+        if shard_dim >= shape.len() {
+            return Err(StorageError::InvalidShape {
+                reason: "Shard dimension out of bounds",
+            });
+        }
+
+        let dim_size = shape[shard_dim];
+        if dim_size < num_shards {
+            return Err(StorageError::InvalidShape {
+                reason: "Too many shards for dimension size",
+            });
+        }
+
+        // Calculate shard boundaries
+        let shard_size = dim_size / num_shards;
+        let remainder = dim_size % num_shards;
+
+        let mut boundaries = vec![0];
+        for i in 0..num_shards {
+            let extra = usize::from(i < remainder);
+            boundaries.push(boundaries[i] + shard_size + extra);
+        }
+
+        // Create shards
+        let mut shards: Vec<DenseStorage<T>> = Vec::new();
+        let mut offset = 0;
+
+        for i in 0..num_shards {
+            let shard_len = boundaries[i + 1] - boundaries[i];
+            let mut shard_shape = shape.to_vec();
+            shard_shape[shard_dim] = shard_len;
+
+            let shard_data_len: usize = shard_shape.iter().product();
+            let shard_data = data[offset..offset + shard_data_len].to_vec();
+
+            shards.push(DenseStorage::from_vec(shard_data, &shard_shape)?);
+            offset += shard_data_len;
+        }
+
+        Ok(Self {
+            shards,
+            shard_boundaries: boundaries,
+            shape: Shape::new(shape)?,
+            shard_dim,
+        })
+    }
+
+    /// Gets shard containing the specified index
+    /// # Errors
+    /// Returns error if shard index is out of bounds
+    pub fn get_shard(&self, index: usize) -> Result<&DenseStorage<T>> {
+        for (i, &boundary) in self.shard_boundaries.iter().enumerate().skip(1) {
+            if index < boundary {
+                return self
+                    .shards
+                    .get(i - 1)
+                    .ok_or(StorageError::IndexOutOfBounds {
+                        index,
+                        bound: self.shards.len(),
+                    });
+            }
+        }
+        Err(StorageError::IndexOutOfBounds {
+            index,
+            bound: self.shard_boundaries.last().copied().unwrap_or(0),
+        })
+    }
+
+    /// Gets the number of shards
+    #[must_use]
+    pub fn num_shards(&self) -> usize {
+        self.shards.len()
+    }
+
+    /// Gets shard boundaries
+    #[must_use]
+    pub fn shard_boundaries(&self) -> &[usize] {
+        &self.shard_boundaries
+    }
+
+    /// Gets the shard dimension
+    #[must_use]
+    pub fn shard_dim(&self) -> usize {
+        self.shard_dim
+    }
+}
+
+impl<T: DataType> Storage<T> for ShardedStorage<T> {
+    fn as_slice(&self) -> &[T] {
+        // For sharded storage, we can't return a single slice
+        // This would need to be handled differently in practice
+        &[]
+    }
+
+    fn as_mut_slice(&mut self) -> &mut [T] {
+        // For sharded storage, we can't return a single mutable slice
+        &mut []
+    }
+
+    fn shape(&self) -> &Shape {
+        &self.shape
+    }
+
+    fn len(&self) -> usize {
+        self.shape.size()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.shape.size() == 0
+    }
+
+    fn strides(&self) -> &[usize] {
+        // For sharded storage, we can't return a single stride array
+        // This would need to be handled differently in practice
+        &[]
+    }
+
+    fn is_contiguous(&self) -> bool {
+        false // Sharded storage is never contiguous
+    }
+
+    fn as_storage_ref(&self) -> &Self {
+        self
+    }
+}
+
+impl<T: DataType> AsAny for ShardedStorage<T> {
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
     }
 }

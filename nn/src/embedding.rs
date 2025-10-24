@@ -1,11 +1,10 @@
 //! Embedding layers for neural networks.
 
-
 use std::marker::PhantomData;
 
 use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType, float::Float32};
-use coeus_storage::{Storage, StorageFromVec, DenseStorage};
+use coeus_dtype::{traits::FloatExt, DataType};
+use coeus_storage::{DenseStorage, Storage, StorageFromVec};
 use coeus_tensor::Tensor;
 
 use crate::error::Result;
@@ -32,7 +31,7 @@ use crate::parameter::Parameter;
 /// let embedding = Embedding::new(1000, 128, None).unwrap();
 ///
 /// // Input: [batch_size=2, seq_len=5] token IDs
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(0.0), Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0),
 ///          Float32::new(5.0), Float32::new(6.0), Float32::new(7.0), Float32::new(8.0), Float32::new(9.0)],
 ///     &[2, 5]
@@ -76,8 +75,11 @@ where
     /// # Weight Initialization
     /// Weights are initialized using Xavier uniform initialization:
     /// `U(-√(1/embedding_dim), √(1/embedding_dim))`
-    pub fn new(num_embeddings: usize, embedding_dim: usize, padding_idx: Option<usize>) -> Result<Self>
-    {
+    pub fn new(
+        num_embeddings: usize,
+        embedding_dim: usize,
+        padding_idx: Option<usize>,
+    ) -> Result<Self> {
         assert!(num_embeddings > 0, "num_embeddings must be > 0");
         assert!(embedding_dim > 0, "embedding_dim must be > 0");
 
@@ -95,10 +97,8 @@ where
             })
             .collect();
 
-        let weight_tensor = Tensor::<B, S, T>::from_vec(
-            weight_data,
-            &[num_embeddings, embedding_dim],
-        )?;
+        let weight_tensor =
+            Tensor::<B, S, T>::from_vec(weight_data, &[num_embeddings, embedding_dim])?;
 
         let weight = Parameter::new(weight_tensor.requires_grad_(true), "weight".to_string());
 
@@ -116,10 +116,7 @@ where
     /// # Arguments
     /// * `weight` - Pre-trained embedding matrix [num_embeddings, embedding_dim]
     /// * `padding_idx` - Optional padding token index
-    pub fn from_pretrained(
-        weight: Tensor<B, S, T>,
-        padding_idx: Option<usize>,
-    ) -> Result<Self> {
+    pub fn from_pretrained(weight: Tensor<B, S, T>, padding_idx: Option<usize>) -> Result<Self> {
         let shape = weight.shape().dims();
         assert_eq!(
             shape.len(),
@@ -152,10 +149,7 @@ where
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + 'static,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // Input: [batch_size, seq_len] or [seq_len] (integer token IDs)
         // Output: [batch_size, seq_len, embedding_dim] or [seq_len, embedding_dim]
 
@@ -218,10 +212,11 @@ mod tests {
 
     #[test]
     fn test_embedding_forward() {
-        let embedding = Embedding::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 4, None);
+        let embedding =
+            Embedding::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 4, None);
 
         // Input: [2, 3] token IDs
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(0.0),
                 Float32::new(1.0),
@@ -243,10 +238,11 @@ mod tests {
 
     #[test]
     fn test_embedding_1d_input() {
-        let embedding = Embedding::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 4, None);
+        let embedding =
+            Embedding::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 4, None);
 
         // Input: [5] token IDs
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(0.0),
                 Float32::new(1.0),
@@ -269,14 +265,20 @@ mod tests {
     fn test_embedding_lookup_correctness() {
         // Create embedding with known weights
         let weight_data: Vec<Float32> = (0..20).map(|i| Float32::new(i as f32)).collect();
-        let weight =
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(weight_data, &[5, 4])
-                .unwrap();
+        let weight = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            weight_data,
+            &[5, 4],
+        )
+        .unwrap();
 
-        let embedding = Embedding::<CpuBackend, DenseStorage<Float32>, Float32>::from_pretrained(weight, None).unwrap();
+        let embedding =
+            Embedding::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_pretrained(
+                weight, None,
+            )
+            .unwrap();
 
         // Input: [2] token IDs [0, 2]
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(0.0), Float32::new(2.0)],
             &[2],
         )
@@ -310,12 +312,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Index 10 out of bounds")]
+    #[should_panic(expected = "Index 10 out of bounds (num_embeddings=10)")]
     fn test_embedding_out_of_bounds() {
         let embedding = EmbeddingCpu::<Float32>::new(10, 4, None).unwrap();
 
         // Input with out-of-bounds index
-        let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(10.0)], // Index 10 is out of bounds (max is 9)
             &[1],
         )
@@ -331,6 +333,4 @@ mod tests {
 
 /// Type alias for Embedding layer with CPU backend and dense storage.
 /// This provides backward compatibility with existing code.
-pub type EmbeddingCpu<T> = Embedding<CpuBackend, DenseStorage<T>, T>;
-
-
+pub type EmbeddingCpu<T> = Embedding<CpuBackend<T>, DenseStorage<T>, T>;

@@ -52,9 +52,9 @@ fn test_basic_training_pipeline() {
 
     // Create model
     let model = Sequential::new(vec![
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(256, 128).unwrap()),
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(128, 10).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(256, 128).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(128, 10).unwrap()),
     ]);
 
     // Create optimizer
@@ -131,9 +131,9 @@ fn test_distributed_training_pipeline() {
 
     // Create model
     let model = Sequential::new(vec![
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(256, 128).unwrap()),
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(128, 10).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(256, 128).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(128, 10).unwrap()),
     ]);
 
     // Create distributed wrapper
@@ -182,9 +182,9 @@ fn test_mixed_precision_training_pipeline() {
 
     // Create model
     let model = Sequential::new(vec![
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(256, 128).unwrap()),
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(128, 10).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(256, 128).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(128, 10).unwrap()),
     ]);
 
     // Create mixed precision context
@@ -248,10 +248,10 @@ fn test_model_surgery_integration() {
 
     // Create model
     let model = Sequential::new(vec![
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(256, 128).unwrap()),
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(128, 64).unwrap()),
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 10).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(256, 128).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(128, 64).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(64, 10).unwrap()),
     ]);
 
     // Test layer freezing
@@ -320,7 +320,7 @@ fn test_performance_monitoring_integration() {
     let profiler = Profiler::new();
 
     // Simulate training with monitoring
-    let model = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
+    let model = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
 
     for step in 0..3 {
         let timer = Timer::start();
@@ -385,7 +385,7 @@ fn test_checkpoint_management_integration() {
     println!("🧪 Testing Checkpoint Management Integration");
 
     // Create model and optimizer
-    let model = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
+    let model = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
     let optimizer = SGD::new(0.01).unwrap();
 
     // Create metadata
@@ -425,7 +425,7 @@ fn test_cross_platform_compatibility() {
     println!("🧪 Testing Cross-Platform Compatibility");
 
     // Test CPU backend
-    let cpu_model = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
+    let cpu_model = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
     let input = Tensor::randn(Shape::from(vec![1, 784])).unwrap();
 
     let cpu_output = cpu_model.forward(&input).unwrap();
@@ -450,9 +450,9 @@ fn test_performance_validation() {
         .with_measurement_iterations(10);
 
     let model = Sequential::new(vec![
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(256, 128).unwrap()),
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(128, 10).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(256, 128).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(128, 10).unwrap()),
     ]);
 
     // Benchmark inference
@@ -485,8 +485,8 @@ fn test_memory_safety_and_resources() {
     // Create multiple models and operations
     let models: Vec<_> = (0..5).map(|_| {
         Sequential::new(vec![
-            Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
-            Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(256, 10).unwrap()),
+            Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 256).unwrap()),
+            Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(256, 10).unwrap()),
         ])
     }).collect();
 
@@ -518,7 +518,7 @@ fn test_api_documentation_examples() {
     println!("🧪 Testing API Documentation Examples");
 
     // Test basic usage example from documentation
-    let model = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
+    let model = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
     let input = Tensor::randn(Shape::from(vec![3, 10])).unwrap();
     let output = model.forward(&input).unwrap();
     assert_eq!(output.shape(), &Shape::from(vec![3, 5]));
@@ -578,7 +578,7 @@ mod documentation_tests {
         // If documentation examples fail to compile, this test will fail
 
         // Basic usage example
-        let _model = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
+        let _model = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
         let _input = Tensor::randn(Shape::from(vec![32, 784])).unwrap();
 
         // Training monitor example
@@ -590,3 +590,4 @@ mod documentation_tests {
         println!("📖 Documentation compilation test passed");
     }
 }
+

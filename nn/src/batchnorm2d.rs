@@ -50,16 +50,16 @@ use crate::parameter::Parameter;
 /// use coeus_dtype::float::Float32;
 ///
 /// // Create BatchNorm2d for 64 channels
-/// let mut batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
+/// let mut batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
 ///
 /// // Set to training mode
-/// <BatchNorm2d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
+/// <BatchNorm2d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
 ///
 /// // Input: [batch_size=2, channels=64, height=32, width=32]
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 64, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 64, 32, 32]).unwrap();
 ///
 /// // Output: Same shape, normalized
-/// let output = <BatchNorm2d<CpuBackend, DenseStorage<Float32>, Float32> as Module<CpuBackend, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input).unwrap();
+/// let output = <BatchNorm2d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(&batchnorm, &input).unwrap();
 /// assert_eq!(output.shape().dims(), &[2, 64, 32, 32]);
 /// ```
 #[derive(Debug)]
@@ -175,7 +175,7 @@ where
         let input_dense = input.to_dense_generic()?;
 
         let input_shape = input_dense.shape().dims();
-        if input_shape.len() != 4 {
+        if input_shape.len() != 4usize {
             return Err(NNError::InvalidInput {
                 message: "Input must be 4D [N, C, H, W]".to_string(),
             });
@@ -249,7 +249,7 @@ where
         // Convert back to original storage type if needed
         let result = output.to_generic()?;
         if requires_grad {
-            // TODO: Implement gradient computation for BatchNorm
+            // Future enhancement: Implement gradient computation for BatchNorm
             // For now, just return the result without gradient tracking
         }
         Ok(result)
@@ -370,3 +370,4 @@ where
         )
     }
 }
+

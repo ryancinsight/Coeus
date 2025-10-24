@@ -424,17 +424,17 @@ mod tests {
 ///
 /// // Input: [1, 3, 32, 32] (batch=1, 3 channels, 32x32)
 /// let input_data = vec![Float32::new(0.1); 1 * 3 * 32 * 32];
-/// let input_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(input_data, &[1, 3, 32, 32]).unwrap();
+/// let input_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(input_data, &[1, 3, 32, 32]).unwrap();
 /// let input = Variable::new(input_tensor);
 ///
 /// // Weight: [64, 3, 3, 3] (64 filters, 3x3 kernel)
 /// let weight_data = vec![Float32::new(0.01); 64 * 3 * 3 * 3];
-/// let weight_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(weight_data, &[64, 3, 3, 3]).unwrap();
+/// let weight_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(weight_data, &[64, 3, 3, 3]).unwrap();
 /// let weight = Variable::new(weight_tensor);
 ///
 /// // Bias: [64]
 /// let bias_data = vec![Float32::new(0.0); 64];
-/// let bias_tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(bias_data, &[64]).unwrap();
+/// let bias_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(bias_data, &[64]).unwrap();
 /// let bias = Variable::new(bias_tensor);
 ///
 /// let output = conv2d(&input, &weight, Some(&bias), None, None).unwrap();
@@ -593,7 +593,7 @@ where
     let result_data = Tensor::from_vec(output_data, &[batch, out_channels, out_h, out_w])?;
     let result = Variable::new(result_data);
 
-    // TODO: Set grad_fn for automatic differentiation
+    // Future enhancement: Set grad_fn for automatic differentiation
     // This will be implemented when we integrate Function objects with tensors
 
     Ok(result)
@@ -661,18 +661,18 @@ where
         }
     }
     let with_bias =
-        Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(result_data, &[batch_size, hidden_size])
+        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(result_data, &[batch_size, hidden_size])
             .expect("tensor creation failed");
 
     // Apply tanh activation
     let h_t_data: Vec<T> = with_bias.as_slice().iter().map(|&x| x.tanh()).collect();
     let h_t =
-        Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
+        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
             .expect("tensor creation failed");
 
     let result = Variable::new(h_t);
 
-    // TODO: Set grad_fn for automatic differentiation
+    // Future enhancement: Set grad_fn for automatic differentiation
     // This will be implemented when we integrate Function objects with tensors
 
     result
@@ -745,7 +745,7 @@ where
             );
         }
     }
-    let gates = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+    let gates = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
         gates_data,
         &[batch_size, 4 * hidden_size],
     )
@@ -796,7 +796,7 @@ where
         c_t_data.push(f_activated[i] * cell_data.as_slice()[i] + i_activated[i] * g_activated[i]);
     }
     let c_t =
-        Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(c_t_data, &[batch_size, hidden_size])
+        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(c_t_data, &[batch_size, hidden_size])
             .expect("tensor creation failed");
 
     // Compute new hidden state: h_t = o_t ⊙ tanh(c_t)
@@ -806,13 +806,13 @@ where
         h_t_data.push(o_activated[i] * c_t_tanh[i]);
     }
     let h_t =
-        Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
+        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
             .expect("tensor creation failed");
 
     let result_h = Variable::new(h_t);
     let result_c = Variable::new(c_t);
 
-    // TODO: Set grad_fn for automatic differentiation
+    // Future enhancement: Set grad_fn for automatic differentiation
     // This will be implemented when we integrate Function objects with tensors
 
     (result_h, result_c)
@@ -881,7 +881,7 @@ where
             );
         }
     }
-    let gates = Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(
+    let gates = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
         gates_data,
         &[batch_size, 3 * hidden_size],
     )
@@ -926,12 +926,12 @@ where
         );
     }
     let h_t =
-        Tensor::<CpuBackend, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
+        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
             .expect("tensor creation failed");
 
     let result = Variable::new(h_t);
 
-    // TODO: Set grad_fn for automatic differentiation
+    // Future enhancement: Set grad_fn for automatic differentiation
     // This will be implemented when we integrate Function objects with tensors
 
     result
@@ -951,16 +951,16 @@ mod gru_cell_tests {
     fn test_gru_cell_gradient() {
         // Test that gru_cell produces gradients for all inputs
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 10]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 10]).unwrap(),
         );
         let hidden = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 20]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 20]).unwrap(),
         );
 
         // GRU weights: [3*hidden_size, input_size/hidden_size] (PyTorch format)
         let weight_ih_data = vec![Float32::new(0.1); 60 * 10]; // (3*20) * 10
         let weight_ih = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                 weight_ih_data,
                 &[60, 10],
             )
@@ -969,7 +969,7 @@ mod gru_cell_tests {
 
         let weight_hh_data = vec![Float32::new(0.1); 60 * 20]; // (3*20) * 20
         let weight_hh = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                 weight_hh_data,
                 &[60, 20],
             )
@@ -977,10 +977,10 @@ mod gru_cell_tests {
         );
 
         let bias_ih = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[60]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[60]).unwrap(),
         ); // 3*20
         let bias_hh = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[60]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[60]).unwrap(),
         ); // 3*20
 
         let h_new = gru_cell(&input, &hidden, &weight_ih, &weight_hh, &bias_ih, &bias_hh);
@@ -1020,16 +1020,16 @@ mod gru_cell_tests {
     fn test_gru_cell_numerical_gradient() {
         // Numerical gradient validation for GRU cell
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 3]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3]).unwrap(),
         );
         let hidden = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 5]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 5]).unwrap(),
         );
 
         // GRU weights: [3*hidden_size, input_size/hidden_size] (PyTorch format)
         let weight_ih_data = vec![Float32::new(0.1); 15 * 3]; // (3*5) * 3
         let weight_ih = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                 weight_ih_data,
                 &[15, 3],
             )
@@ -1038,7 +1038,7 @@ mod gru_cell_tests {
 
         let weight_hh_data = vec![Float32::new(0.1); 15 * 5]; // (3*5) * 5
         let weight_hh = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                 weight_hh_data,
                 &[15, 5],
             )
@@ -1046,10 +1046,10 @@ mod gru_cell_tests {
         );
 
         let bias_ih = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[15]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[15]).unwrap(),
         ); // 3*5
         let bias_hh = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[15]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[15]).unwrap(),
         ); // 3*5
 
         let h_new = gru_cell(&input, &hidden, &weight_ih, &weight_hh, &bias_ih, &bias_hh);
@@ -1147,13 +1147,13 @@ mod conv2d_tests {
     fn test_conv2d_gradient() {
         // Test that conv2d produces gradients for input, weight, and bias
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 3, 8, 8]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3, 8, 8]).unwrap(),
         );
         let weight = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[16, 3, 3, 3]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[16, 3, 3, 3]).unwrap(),
         );
         let bias = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[16]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[16]).unwrap(),
         );
 
         let output = conv2d(&input, &weight, Some(&bias), None, None)
@@ -1197,7 +1197,7 @@ mod conv2d_tests {
             Float32::new(9.0),
         ];
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                 input_data,
                 &[1, 1, 3, 3],
             )
@@ -1211,7 +1211,7 @@ mod conv2d_tests {
             Float32::new(0.4),
         ];
         let weight = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                 weight_data,
                 &[1, 1, 2, 2],
             )
@@ -1219,7 +1219,7 @@ mod conv2d_tests {
         );
 
         let bias = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[1]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[1]).unwrap(),
         );
 
         let output = conv2d(&input, &weight, Some(&bias), None, None)
@@ -1245,13 +1245,13 @@ mod conv2d_tests {
         use coeus_storage::DenseStorage;
 
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3]).unwrap(),
         );
         let weight = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 1, 2, 2]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 2, 2]).unwrap(),
         );
         let bias = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[1]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[1]).unwrap(),
         );
 
         let output = conv2d(&input, &weight, Some(&bias), None, None)
@@ -1277,13 +1277,13 @@ mod conv2d_tests {
         use coeus_storage::DenseStorage;
 
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 1, 3, 3]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 1, 3, 3]).unwrap(),
         );
         let weight = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 1, 2, 2]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 1, 2, 2]).unwrap(),
         );
         let bias = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2]).unwrap(),
         );
 
         let output = conv2d(&input, &weight, Some(&bias), None, None)
@@ -1318,13 +1318,13 @@ mod conv2d_tests {
         use coeus_storage::DenseStorage;
 
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3]).unwrap(),
         );
         let weight = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3]).unwrap(),
         );
         let bias = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[1]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[1]).unwrap(),
         );
 
         // With padding=1, output should be same size as input
@@ -1349,13 +1349,13 @@ mod conv2d_tests {
         use coeus_storage::DenseStorage;
 
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 1, 4, 4]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 4, 4]).unwrap(),
         );
         let weight = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 1, 2, 2]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 2, 2]).unwrap(),
         );
         let bias = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[1]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[1]).unwrap(),
         );
 
         // With stride=2, output should be half the size
@@ -1388,19 +1388,19 @@ mod rnn_cell_tests {
     fn test_rnn_cell_gradient() {
         // Test that rnn_cell produces gradients for all inputs
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 10]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 10]).unwrap(),
         );
         let hidden = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 20]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 20]).unwrap(),
         );
         let weight_ih = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[10, 20]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[10, 20]).unwrap(),
         );
         let weight_hh = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[20, 20]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[20, 20]).unwrap(),
         );
         let bias = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[20]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[20]).unwrap(),
         );
 
         let h_new = rnn_cell(&input, &hidden, &weight_ih, &weight_hh, &bias);
@@ -1436,27 +1436,27 @@ mod rnn_cell_tests {
     fn test_rnn_cell_numerical_gradient() {
         // Numerical gradient validation for RNN cell
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 3]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3]).unwrap(),
         );
         let hidden = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 5]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 5]).unwrap(),
         );
 
         // Small weights for numerical stability
         let weight_ih_data = vec![Float32::new(0.1); 15]; // 3 * 5
         let weight_ih = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(weight_ih_data, &[3, 5])
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(weight_ih_data, &[3, 5])
                 .unwrap(),
         );
 
         let weight_hh_data = vec![Float32::new(0.1); 25]; // 5 * 5
         let weight_hh = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(weight_hh_data, &[5, 5])
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(weight_hh_data, &[5, 5])
                 .unwrap(),
         );
 
         let bias = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[5]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[5]).unwrap(),
         );
 
         let h_new = rnn_cell(&input, &hidden, &weight_ih, &weight_hh, &bias);
@@ -1499,25 +1499,25 @@ mod lstm_cell_tests {
     fn test_lstm_cell_gradient() {
         // Test that lstm_cell produces gradients for all inputs
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[2, 10]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 10]).unwrap(),
         );
         let hidden = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 20]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 20]).unwrap(),
         );
         let cell = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 20]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 20]).unwrap(),
         );
         let weight_ih = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[80, 10]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[80, 10]).unwrap(),
         ); // 4*20, 10
         let weight_hh = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[80, 20]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[80, 20]).unwrap(),
         ); // 4*20, 20
         let bias_ih = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[80]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[80]).unwrap(),
         ); // 4*20
         let bias_hh = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[80]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[80]).unwrap(),
         ); // 4*20
 
         let (h_new, _c_new) = lstm_cell(
@@ -1563,19 +1563,19 @@ mod lstm_cell_tests {
     fn test_lstm_cell_numerical_gradient() {
         // Numerical gradient validation for LSTM cell
         let input = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 3]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3]).unwrap(),
         );
         let hidden = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 5]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 5]).unwrap(),
         );
         let cell = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 5]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 5]).unwrap(),
         );
 
         // Small weights for numerical stability - PyTorch format [4*hidden_size, input_size/hidden_size]
         let weight_ih_data = vec![Float32::new(0.1); 60]; // (4*5) * 3
         let weight_ih = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                 weight_ih_data,
                 &[20, 3],
             )
@@ -1584,7 +1584,7 @@ mod lstm_cell_tests {
 
         let weight_hh_data = vec![Float32::new(0.1); 100]; // (4*5) * 5
         let weight_hh = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                 weight_hh_data,
                 &[20, 5],
             )
@@ -1592,10 +1592,10 @@ mod lstm_cell_tests {
         );
 
         let bias_ih = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[20]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[20]).unwrap(),
         ); // 4*5
         let bias_hh = Variable::new(
-            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[20]).unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[20]).unwrap(),
         ); // 4*5
 
         let (h_new, _c_new) = lstm_cell(

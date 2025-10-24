@@ -10,10 +10,9 @@ use std::{format, string::ToString, vec, vec::Vec};
 ///
 impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
 where
-    B: crate::Backend + Default,
+    B: crate::Backend + Clone,
     T: crate::DataType,
 {
-
     /// Transposes dimensions of the tensor.
     ///
     /// # Arguments
@@ -32,7 +31,7 @@ where
     /// use coeus_dtype::float::Float32;
     ///
     /// let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)];
-    /// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     data,
     ///     &[2, 2]
     /// ).unwrap();
@@ -81,19 +80,59 @@ where
 
             Ok(Self::from_storage(new_storage, B::default()))
         } else {
-            // For higher dimensions, use a more general approach
-            // This is a simplified implementation - full zero-copy transpose would require stride manipulation
-            Err(crate::TensorError::ShapeError {
-                expected: 2,
-                actual: ndim,
-                message: format!(
-                    "Transpose for {ndim}-D tensors not yet implemented. Only 2D tensors are supported. Use reshape to convert to 2D first."
-                ),
-            })
+            // General N-dimensional transpose implementation
+            let dims = self.shape().dims();
+            let mut new_dims = dims.to_vec();
+            new_dims.swap(dim0, dim1);
+
+            let mut transposed_data = Vec::with_capacity(self.len());
+
+            // Create coordinate arrays for iteration
+            let mut coords = vec![0; ndim];
+
+            // Iterate through all elements in the new transposed tensor
+            loop {
+                // Convert coordinates to linear index in original tensor
+                // by swapping dim0 and dim1 coordinates
+                let mut original_coords = coords.clone();
+                original_coords.swap(dim0, dim1);
+
+                // Compute linear index from coordinates
+                let mut linear_idx = 0;
+                let mut stride = 1;
+                for (i, &coord) in original_coords.iter().enumerate() {
+                    linear_idx += coord * stride;
+                    stride *= dims[i];
+                }
+
+                transposed_data.push(self.as_slice()[linear_idx]);
+
+                // Increment coordinates (like counting in base-dims)
+                let mut carry = 1;
+                for i in (0..ndim).rev() {
+                    coords[i] += carry;
+                    if coords[i] < new_dims[i] {
+                        carry = 0;
+                        break;
+                    }
+                    coords[i] = 0;
+                }
+
+                // If we wrapped around completely, we're done
+                if carry != 0 {
+                    break;
+                }
+            }
+
+            let new_storage = coeus_storage::DenseStorage::from_vec(transposed_data, &new_dims)
+                .map_err(crate::TensorError::StorageError)?;
+
+            Ok(Self::from_storage(new_storage, B::default()))
         }
     }
 
     /// Helper method to resolve reshape dimensions with -1 inference.
+    #[allow(dead_code)]
     fn resolve_reshape_dims(&self, dims: &[isize]) -> crate::Result<Vec<usize>> {
         let mut result = Vec::with_capacity(dims.len());
         let mut infer_idx = None;
@@ -158,7 +197,7 @@ where
 impl<B, S, T> crate::Tensor<B, S, T>
 where
     B: crate::Backend + Default + Clone,
-    S: crate::Storage<T> + crate::StorageFromVec<T> + crate::StorageToDense<T> + 'static,
+    S: crate::Storage<T> + Clone + crate::StorageFromVec<T> + crate::StorageToDense<T> + 'static,
     T: crate::DataType + Clone,
 {
     /// Reshapes the tensor to new dimensions.
@@ -174,12 +213,16 @@ where
     ///
     /// # Errors
     /// Returns error if total element count doesn't match or conversion fails.
-    pub fn reshape(&self, dims: &[isize]) -> crate::Result<crate::Tensor<B, crate::DenseStorage<T>, T>> {
+    pub fn reshape(
+        &self,
+        dims: &[isize],
+    ) -> crate::Result<crate::Tensor<B, crate::DenseStorage<T>, T>> {
         // Convert to dense storage for arbitrary element rearrangement
         let dense_tensor = self.to_dense_generic()?;
 
         // Validate and resolve dimensions
-        let resolved_dims = crate::Tensor::<B, S, T>::resolve_reshape_dims_generic(dense_tensor.len(), dims)?;
+        let resolved_dims =
+            crate::Tensor::<B, S, T>::resolve_reshape_dims_generic(dense_tensor.len(), dims)?;
 
         // Check total element count matches
         let new_size: usize = resolved_dims.iter().product();
@@ -196,6 +239,9 @@ where
         let new_storage = crate::DenseStorage::from_vec(data, &resolved_dims)
             .map_err(crate::TensorError::StorageError)?;
 
-        Ok(crate::Tensor::from_storage(new_storage, dense_tensor.backend))
+        Ok(crate::Tensor::from_storage(
+            new_storage,
+            dense_tensor.backend,
+        ))
     }
 }

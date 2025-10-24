@@ -7,8 +7,51 @@ use coeus_backend::Backend;
 use coeus_dtype::{traits::FloatExt, DataType};
 use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use coeus_tensor::Tensor;
+use std::ops::Mul;
 
 use crate::error::{NNError, Result};
+
+/// Create a dropout mask for attention weights
+///
+/// # Arguments
+/// * `tensor` - The tensor to create mask for
+/// * `dropout_p` - Dropout probability (0.0 to 1.0)
+///
+/// # Returns
+/// A binary mask tensor with the same shape as input
+fn create_dropout_mask<B, S, T>(tensor: &Tensor<B, S, T>, dropout_p: f32) -> Result<Tensor<B, S, T>>
+where
+    B: Backend + Clone + Default,
+    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    T: DataType + FloatExt,
+{
+    use rand::prelude::*;
+
+    // Get tensor shape and size
+    let shape = tensor.shape();
+    let size = shape.dims().iter().product();
+
+    // Create random mask using thread-local RNG for reproducibility
+    let mut rng = rand::thread_rng();
+    let mut mask_data = Vec::with_capacity(size);
+
+    for _ in 0..size {
+        // Keep element with probability (1 - dropout_p)
+        let keep = rng.gen::<f32>() > dropout_p;
+        mask_data.push(if keep {
+            T::from(1.0).unwrap()
+        } else {
+            T::from(0.0).unwrap()
+        });
+    }
+
+    // Create mask tensor with same shape
+    Ok(Tensor::from_vec_with_backend(
+        mask_data,
+        shape.dims(),
+        tensor.backend().clone(),
+    )?)
+}
 
 /// Applies scaled dot-product attention mechanism.
 ///
@@ -44,11 +87,11 @@ use crate::error::{NNError, Result};
 /// let d_k = 64;
 /// let d_v = 64;
 ///
-/// let query = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::randn(&[batch_size, seq_len, d_k]).unwrap();
-/// let key = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::randn(&[batch_size, seq_len, d_k]).unwrap();
-/// let value = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::randn(&[batch_size, seq_len, d_v]).unwrap();
+/// let query = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::randn(&[batch_size, seq_len, d_k]).unwrap();
+/// let key = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::randn(&[batch_size, seq_len, d_k]).unwrap();
+/// let value = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::randn(&[batch_size, seq_len, d_v]).unwrap();
 ///
-/// let output = scaled_dot_product_attention(&query, &key, &value, None, 0.0).unwrap();
+/// let output = scaled_dot_product_attention(&query, &key, &value, None, 0.0, true).unwrap();
 /// assert_eq!(output.shape().dims(), &[batch_size, seq_len, d_v]);
 /// ```
 pub fn scaled_dot_product_attention<B, S, T>(
@@ -57,9 +100,10 @@ pub fn scaled_dot_product_attention<B, S, T>(
     value: &Tensor<B, S, T>,
     attn_mask: Option<&Tensor<B, S, T>>,
     dropout_p: f64,
-) -> Result<Tensor<B, S, T>>
+    training: bool,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend + Clone,
+    B: Backend + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd,
 {
@@ -73,7 +117,7 @@ where
         });
     }
 
-    let query_seq_len = query_shape[query_shape.len() - 2];
+    let _query_seq_len = query_shape[query_shape.len() - 2];
     let key_seq_len = key_shape[key_shape.len() - 2];
     let value_seq_len = value_shape[value_shape.len() - 2];
     let d_k = *query_shape.last().unwrap();
@@ -82,7 +126,8 @@ where
         return Err(NNError::InvalidInput {
             message: format!(
                 "Query and key last dimensions must match, got {} and {}",
-                d_k, key_shape.last().unwrap()
+                d_k,
+                key_shape.last().unwrap()
             ),
         });
     }
@@ -121,7 +166,7 @@ where
 
     // Scale by sqrt(d_k)
     let scale_factor = T::from((d_k as f64).sqrt()).unwrap();
-    let attn_scores_scaled = attn_scores / scale_factor;
+    let attn_scores_scaled = attn_scores.mul_scalar(T::from(1.0).unwrap() / scale_factor)?;
 
     // Apply attention mask if provided
     let attn_scores_masked = if let Some(mask) = attn_mask {
@@ -136,13 +181,29 @@ where
     // Apply softmax to get attention weights
     let attn_weights = softmax(&attn_scores_masked)?;
 
-    // Apply dropout if specified (placeholder for now)
-    let _dropout_p = dropout_p;
+    // Apply dropout to attention weights if specified
+    let attn_weights = if dropout_p > 0.0 {
+        // During training, randomly zero out elements with probability dropout_p
+        // During inference (when requires_grad is false), scale by (1-dropout_p) for expectation preservation
+        if training {
+            // Create dropout mask: keep with probability (1-dropout_p), zero otherwise
+            let dropout_mask = create_dropout_mask(&attn_weights, dropout_p as f32)?;
+            // Apply mask and scale to maintain expected value
+            attn_weights
+                .mul(&dropout_mask)
+                .mul_scalar(T::from(1.0 / (1.0 - dropout_p)).unwrap())?
+        } else {
+            // During inference, no dropout applied
+            attn_weights
+        }
+    } else {
+        attn_weights
+    };
 
     // Apply attention weights to values: attn_weights @ V
     let output = attn_weights.matmul(&value_dense)?;
 
-    output.to_generic()
+    Ok(output)
 }
 
 /// Applies softmax activation function along the last dimension.
@@ -154,11 +215,11 @@ where
 ///
 /// # Returns
 /// Tensor with softmax applied along the last dimension
-pub fn softmax<T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+pub fn softmax<B: Backend + Default, S: Storage<T> + StorageToDense<T> + 'static, T>(
+    input: &Tensor<B, S, T>,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + Clone,
 {
     let input_dense = input.to_dense_generic()?;
     let input_shape = input_dense.shape().dims();
@@ -175,10 +236,10 @@ where
         let slice = &input_data[start_idx..end_idx];
 
         // Find maximum value for numerical stability
-        let mut max_val = slice[0].clone();
+        let mut max_val = slice[0];
         for val in slice {
             if *val > max_val {
-                max_val = val.clone();
+                max_val = *val;
             }
         }
 
@@ -187,19 +248,17 @@ where
         let mut exp_values = Vec::with_capacity(last_dim_size);
 
         for val in slice {
-            let shifted = val.clone() - max_val.clone();
+            let shifted = *val - max_val;
             let exp_val = shifted.exp();
-            exp_values.push(exp_val.clone());
+            exp_values.push(exp_val);
             exp_sum = exp_sum + exp_val;
         }
 
         // Normalize by sum
         for exp_val in exp_values {
-            output_data.push(exp_val / exp_sum.clone());
+            output_data.push(exp_val / exp_sum);
         }
     }
 
-    Tensor::from_vec(output_data, &input_shape)
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec(output_data, input_shape)?)
 }

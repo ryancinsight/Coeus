@@ -20,15 +20,24 @@ Features:
     - Ecosystem: Seamless NumPy and Python integration
 """
 
-from ._coeus import *
+# Selective imports - only import what's actually implemented
+from ._coeus import (
+    # Core tensor operations
+    tensor_zeros, tensor_ones, test_function,
+    # Classes
+    Tensor, Device,
+    # Utils - only the ones we've implemented
+    TensorDataset, ConcatDataset, Subset,
+)
 
 __version__ = "0.1.0"
 __author__ = "Ryan Clanton"
 __email__ = "ryan@coeus.dev"
 
-# Import submodules
+# Import submodules - only import what's working
 from . import nn
-from . import optim
+from . import transforms
+# from . import optim  # Commented out until optimizers are properly implemented
 
 # Expose key classes and functions for PyTorch compatibility
 __all__ = [
@@ -37,6 +46,9 @@ __all__ = [
 
     # Neural network modules
     "nn",
+
+    # Data transformations
+    "transforms",
 
     # Optimization
     "optim",

@@ -1,12 +1,12 @@
 [package]
 name = "pycoeus"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-authors.workspace = true
-repository.workspace = true
-homepage.workspace = true
-rust-version.workspace = true
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Ryan Clanton <ryan@coeus.dev>"]
+repository = "https://github.com/ryancinsight/coeus"
+homepage = "https://github.com/ryancinsight/coeus"
+rust-version = "1.70"
 description = "Python bindings for Coeus deep learning framework"
 readme = "../README.md"
 keywords = ["python", "machine-learning", "deep-learning", "pytorch", "bindings"]
@@ -24,8 +24,9 @@ coeus-dtype = { path = "../dtype" }
 coeus-backend = { path = "../backend" }
 coeus-storage = { path = "../storage" }
 coeus-autograd = { path = "../autograd" }
-coeus-nn = { path = "../nn" }
+coeus-nn = { path = "../nn", features = ["autograd", "dropout"] }
 coeus-optim = { path = "../optim" }
+coeus-utils = { path = "../utils" }  # ENABLED - PyO3 advanced features depend on this
 coeus-tokenizer = { path = "../tokenizer", features = ["all-tokenizers"] }
 num-traits = { workspace = true }
 thiserror = { workspace = true }

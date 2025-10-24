@@ -8,7 +8,7 @@ use std::fmt;
 
 use coeus_backend::Backend;
 use coeus_dtype::DataType;
-use coeus_storage::{DenseStorage, Storage, StorageFromVec};
+use coeus_storage::{Storage, StorageFromVec};
 use coeus_tensor::Tensor;
 
 use crate::Parameter;
@@ -21,7 +21,7 @@ pub trait Optimizer<B, S, T>
 where
     B: Backend + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + crate::FloatExt,
+    T: DataType + coeus_dtype::traits::FloatExt,
 {
     /// Get the name of this optimizer
     fn name(&self) -> &str;
@@ -33,7 +33,14 @@ where
     fn named_parameters(&self) -> HashMap<String, Parameter<B, S, T>>;
 
     /// Add a parameter to be optimized
-    fn add_param(&mut self, param: Parameter<B, S, T>, name: String);
+    ///
+    /// # Errors
+    /// Returns an error if the parameter is invalid or already exists
+    fn add_param(
+        &mut self,
+        param: &mut Parameter<B, S, T>,
+        name: String,
+    ) -> Result<(), crate::error::OptimError>;
 
     /// Remove a parameter from optimization
     fn remove_param(&mut self, name: &str);
@@ -45,7 +52,10 @@ where
     fn lr(&self) -> f64;
 
     /// Set the learning rate
-    fn set_lr(&mut self, lr: f64);
+    ///
+    /// # Errors
+    /// Returns an error if lr <= 0
+    fn set_lr(&mut self, lr: f64) -> Result<(), crate::error::OptimError>;
 
     /// Get the learning rate (alias for lr)
     fn learning_rate(&self) -> f64 {
@@ -53,15 +63,18 @@ where
     }
 
     /// Set the learning rate (alias for set_lr)
-    fn set_learning_rate(&mut self, lr: f64) {
-        self.set_lr(lr);
+    fn set_learning_rate(&mut self, lr: f64) -> Result<(), crate::error::OptimError> {
+        self.set_lr(lr)
     }
 
     /// Get the weight decay (L2 regularization)
     fn weight_decay(&self) -> f64;
 
     /// Set the weight decay
-    fn set_weight_decay(&mut self, weight_decay: f64);
+    ///
+    /// # Errors
+    /// Returns an error if weight_decay < 0
+    fn set_weight_decay(&mut self, weight_decay: f64) -> Result<(), crate::error::OptimError>;
 
     /// Zero all parameter gradients
     fn zero_grad(&mut self);
@@ -71,9 +84,12 @@ where
     /// This method updates all parameters based on their gradients
     /// using the specific optimization algorithm.
     ///
+    /// # Returns
+    /// Returns the number of parameters updated on success
+    ///
     /// # Errors
     /// Returns an error if any parameter update fails
-    fn step(&mut self) -> Result<(), crate::error::OptimError>;
+    fn step(&mut self) -> Result<usize, crate::error::OptimError>;
 
     /// Get current parameter values (for debugging/state inspection)
     fn state_dict(&self) -> HashMap<String, Tensor<B, S, T>>;
@@ -82,7 +98,10 @@ where
     ///
     /// # Errors
     /// Returns an error if parameter shapes don't match or parameters are missing
-    fn load_state_dict(&mut self, state_dict: HashMap<String, Tensor<B, S, T>>) -> Result<(), crate::error::OptimError>;
+    fn load_state_dict(
+        &mut self,
+        state_dict: HashMap<String, Tensor<B, S, T>>,
+    ) -> Result<(), crate::error::OptimError>;
 }
 
 /// Common optimizer hyperparameters
@@ -174,7 +193,9 @@ where
 
     /// Get gradient (returns error if no gradient available)
     pub fn grad(&self) -> Result<&Tensor<B, S, T>, crate::error::OptimError> {
-        self.grad.as_ref().ok_or(crate::error::OptimError::GradientNotAvailable)
+        self.grad
+            .as_ref()
+            .ok_or(crate::error::OptimError::GradientNotAvailable)
     }
 
     /// Check if parameter has gradient

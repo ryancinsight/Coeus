@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 // Import Coeus components
-use coeus_backend::CpuBackend;
+use coeus_tensor::CpuBackend;
 use coeus_dtype::float::Float32;
 use coeus_nn::{
     Linear, Sequential, MSELoss, CrossEntropyLoss, Module,
@@ -35,8 +35,8 @@ use coeus_tensor::{Shape, Tensor};
 
 /// Synthetic dataset for demonstration
 struct SyntheticDataset {
-    pub inputs: Vec<Tensor<CpuBackend, DenseStorage<Float32>, Float32>>,
-    pub targets: Vec<Tensor<CpuBackend, DenseStorage<Float32>, Float32>>,
+    pub inputs: Vec<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>,
+    pub targets: Vec<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>,
 }
 
 impl SyntheticDataset {
@@ -60,7 +60,7 @@ impl SyntheticDataset {
     }
 
     /// Get batch from dataset
-    fn get_batch(&self, start_idx: usize, batch_size: usize) -> (Tensor<CpuBackend, DenseStorage<Float32>, Float32>, Tensor<CpuBackend, DenseStorage<Float32>, Float32>) {
+    fn get_batch(&self, start_idx: usize, batch_size: usize) -> (Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>) {
         let end_idx = (start_idx + batch_size).min(self.inputs.len());
 
         // Stack inputs into batch
@@ -85,14 +85,14 @@ impl SyntheticDataset {
 }
 
 /// Neural network model for binary classification
-fn create_model(input_dim: usize, hidden_dim: usize) -> Sequential<Box<dyn Module<CpuBackend, DenseStorage<Float32>, Float32>>> {
+fn create_model(input_dim: usize, hidden_dim: usize) -> Sequential<Box<dyn Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>> {
     Sequential::new(vec![
         // Input layer
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(input_dim, hidden_dim).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(input_dim, hidden_dim).unwrap()),
         // Hidden layer
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(hidden_dim, hidden_dim / 2).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(hidden_dim, hidden_dim / 2).unwrap()),
         // Output layer (binary classification)
-        Box::new(Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(hidden_dim / 2, 1).unwrap()),
+        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(hidden_dim / 2, 1).unwrap()),
     ])
 }
 
@@ -171,7 +171,7 @@ impl MetricsCollector {
 }
 
 /// Calculate binary classification accuracy
-fn calculate_accuracy(predictions: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>, targets: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>) -> f32 {
+fn calculate_accuracy(predictions: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, targets: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>) -> f32 {
     let pred_data = predictions.data();
     let target_data = targets.data();
 
@@ -193,7 +193,7 @@ fn calculate_accuracy(predictions: &Tensor<CpuBackend, DenseStorage<Float32>, Fl
 
 /// Training loop with monitoring and early stopping
 fn train_model(
-    model: &mut Sequential<Box<dyn Module<CpuBackend, DenseStorage<Float32>, Float32>>>,
+    model: &mut Sequential<Box<dyn Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>>,
     train_dataset: &SyntheticDataset,
     val_dataset: &SyntheticDataset,
     config: &TrainingConfig,
@@ -309,7 +309,7 @@ fn train_model(
 
 /// Evaluate model on test data
 fn evaluate_model(
-    model: &Sequential<Box<dyn Module<CpuBackend, DenseStorage<Float32>, Float32>>>,
+    model: &Sequential<Box<dyn Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>>,
     test_dataset: &SyntheticDataset,
     batch_size: usize,
 ) -> Result<(f32, f32), Box<dyn std::error::Error>> {
@@ -346,7 +346,7 @@ fn evaluate_model(
 
 /// Save model checkpoint
 fn save_checkpoint(
-    model: &Sequential<Box<dyn Module<CpuBackend, DenseStorage<Float32>, Float32>>>,
+    model: &Sequential<Box<dyn Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>>,
     epoch: usize,
     loss: f32,
     accuracy: f32,
@@ -488,3 +488,4 @@ mod tests {
         assert!((accuracy - 0.5).abs() < 0.1); // Approximately 0.5 (1/2 correct)
     }
 }
+

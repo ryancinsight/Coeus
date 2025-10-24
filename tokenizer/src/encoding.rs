@@ -147,13 +147,13 @@ impl BatchEncoding {
         self.encodings.len()
     }
 
-    /// Get all token IDs as a 2D vector [`batch_size`][seq_len].
+    /// Get all token IDs as a 2D vector \[`batch_size`\]\[`seq_len`\].
     #[must_use]
     pub fn input_ids(&self) -> Vec<Vec<u32>> {
         self.encodings.iter().map(|e| e.ids.clone()).collect()
     }
 
-    /// Get all attention masks as a 2D vector [`batch_size`][seq_len].
+    /// Get all attention masks as a 2D vector \[`batch_size`\]\[`seq_len`\].
     #[must_use]
     pub fn attention_mask(&self) -> Vec<Vec<u32>> {
         self.encodings
@@ -162,7 +162,7 @@ impl BatchEncoding {
             .collect()
     }
 
-    /// Get all token type IDs as a 2D vector [`batch_size`][seq_len].
+    /// Get all token type IDs as a 2D vector \[`batch_size`\]\[`seq_len`\].
     #[must_use]
     pub fn token_type_ids(&self) -> Vec<Vec<u32>> {
         self.encodings

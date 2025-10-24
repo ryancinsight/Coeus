@@ -114,8 +114,11 @@ where
             vec![T::zero(); param_shape.iter().product()],
             &param_shape,
             backend,
-            )?;
-        let zero_point = Parameter::new(zero_point_tensor.requires_grad_(true), "zero_point".to_string());
+        )?;
+        let zero_point = Parameter::new(
+            zero_point_tensor.requires_grad_(true),
+            "zero_point".to_string(),
+        );
 
         Ok(Self {
             scale,
@@ -183,7 +186,8 @@ where
 
                 for val in x_data {
                     let quantized = self.quantize_value(val, scale, zero_point, qmin, qmax);
-                    let dequantized = self.dequantize_value(&quantized, scale, zero_point, qmin, qmax);
+                    let dequantized =
+                        self.dequantize_value(&quantized, scale, zero_point, qmin, qmax);
                     quantized_data.push(dequantized);
                 }
             }
@@ -212,7 +216,8 @@ where
                         let zero_point = &zero_points[channel];
 
                         let quantized = self.quantize_value(val, scale, zero_point, qmin, qmax);
-                        let dequantized = self.dequantize_value(&quantized, scale, zero_point, qmin, qmax);
+                        let dequantized =
+                            self.dequantize_value(&quantized, scale, zero_point, qmin, qmax);
                         quantized_data.push(dequantized);
 
                         data_idx += 1;
@@ -232,13 +237,26 @@ where
         T: Clone + PartialOrd,
     {
         // Use common quantization operation, then clamp to range
-        <T as QuantizationOps<T>>::quantize_value(val, scale, zero_point, self.scheme, BITS as usize)
-            .max(qmin)
-            .min(qmax)
+        <T as QuantizationOps<T>>::quantize_value(
+            val,
+            scale,
+            zero_point,
+            self.scheme,
+            BITS as usize,
+        )
+        .max(qmin)
+        .min(qmax)
     }
 
     /// Dequantize a single quantized value
-    fn dequantize_value(&self, quantized: &i32, scale: &T, zero_point: &T, _qmin: i32, _qmax: i32) -> T
+    fn dequantize_value(
+        &self,
+        quantized: &i32,
+        scale: &T,
+        zero_point: &T,
+        _qmin: i32,
+        _qmax: i32,
+    ) -> T
     where
         T: Clone,
     {
@@ -285,9 +303,7 @@ where
         let (qmin, qmax) = Self::quantization_range();
 
         match self.granularity {
-            QuantizationGranularity::PerTensor => {
-                self.update_per_tensor_params(data, qmin, qmax)
-            }
+            QuantizationGranularity::PerTensor => self.update_per_tensor_params(data, qmin, qmax),
             QuantizationGranularity::PerChannel => {
                 self.update_per_channel_params(data, shape, qmin, qmax)
             }
@@ -316,7 +332,8 @@ where
         let max_val = data[max_idx].clone();
 
         // Calculate scale and zero_point
-        let (scale_val, zero_point_val) = self.compute_scale_zero_point(&min_val, &max_val, qmin, qmax);
+        let (scale_val, zero_point_val) =
+            self.compute_scale_zero_point(&min_val, &max_val, qmin, qmax);
 
         // Update parameters efficiently
         self.scale.data_mut().clear();
@@ -329,7 +346,13 @@ where
     }
 
     /// Update parameters for per-channel quantization
-    fn update_per_channel_params(&mut self, data: &[T], shape: &[usize], qmin: i32, qmax: i32) -> Result<()>
+    fn update_per_channel_params(
+        &mut self,
+        data: &[T],
+        shape: &[usize],
+        qmin: i32,
+        qmax: i32,
+    ) -> Result<()>
     where
         T: Clone + PartialOrd,
     {
@@ -376,7 +399,8 @@ where
             let max_val = data[max_idx].clone();
 
             // Calculate scale and zero_point for this channel
-            let (scale_val, zero_point_val) = self.compute_scale_zero_point(&min_val, &max_val, qmin, qmax);
+            let (scale_val, zero_point_val) =
+                self.compute_scale_zero_point(&min_val, &max_val, qmin, qmax);
             scale_data.push(scale_val);
             zero_point_data.push(zero_point_val);
         }

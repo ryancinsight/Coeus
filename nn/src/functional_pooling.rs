@@ -5,7 +5,8 @@
 
 use coeus_backend::Backend;
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+#[allow(unused_imports)]
+use coeus_storage::{DenseStorage, Storage, StorageToDense};
 use coeus_tensor::Tensor;
 
 use crate::error::{NNError, Result};
@@ -31,23 +32,24 @@ use crate::error::{NNError, Result};
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
 /// let output = max_pool2d(&input, (2, 2), Some((2, 2)), (0, 0)).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 16, 16]);
 /// ```
-pub fn max_pool2d<T: DataType + FloatExt + PartialOrd>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
+pub fn max_pool2d<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
     kernel_size: (usize, usize),
     stride: Option<(usize, usize)>,
     padding: (usize, usize),
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone,
+    B: Backend,
+    T: DataType + FloatExt + PartialOrd + Clone,
 {
     let input_dense = input.to_dense_generic()?;
     let input_shape = input_dense.shape().dims();
 
-    if input_shape.len() != 4 {
+    if input_shape.len() != 4usize {
         return Err(NNError::InvalidInput {
             message: format!("Input must be 4D [N, C, H, W], got {}D", input_shape.len()),
         });
@@ -78,14 +80,17 @@ where
                             let w_in = ow * stride.1 + kw;
 
                             // Handle padding
-                            if h_in >= padding.0 && h_in < input_h + padding.0
-                                && w_in >= padding.1 && w_in < input_w + padding.1
+                            if h_in >= padding.0
+                                && h_in < input_h + padding.0
+                                && w_in >= padding.1
+                                && w_in < input_w + padding.1
                             {
                                 let h_actual = h_in - padding.0;
                                 let w_actual = w_in - padding.1;
 
                                 if h_actual < input_h && w_actual < input_w {
-                                    let idx = ((n * channels + c) * input_h + h_actual) * input_w + w_actual;
+                                    let idx = ((n * channels + c) * input_h + h_actual) * input_w
+                                        + w_actual;
                                     let val = input_data[idx];
                                     if val > max_val {
                                         max_val = val;
@@ -102,9 +107,11 @@ where
     }
 
     let output_shape = vec![batch_size, channels, output_h, output_w];
-    Tensor::from_vec(output_data, &output_shape)
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        output_data,
+        &output_shape,
+        input.backend().clone(),
+    )?)
 }
 
 /// Applies 2D average pooling over an input signal.
@@ -127,23 +134,24 @@ where
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
 /// let output = avg_pool2d(&input, (2, 2), Some((2, 2)), (0, 0)).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 16, 16]);
 /// ```
-pub fn avg_pool2d<T: DataType + FloatExt>(
-    input: &Tensor<impl Backend, impl Storage<T>, T>,
+pub fn avg_pool2d<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
     kernel_size: (usize, usize),
     stride: Option<(usize, usize)>,
     padding: (usize, usize),
-) -> Result<Tensor<impl Backend, impl Storage<T>, T>>
+) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: Clone + std::ops::Add<Output = T> + std::ops::Div<Output = T>,
+    B: Backend,
+    T: DataType + FloatExt + Clone + std::ops::Add<Output = T> + std::ops::Div<Output = T>,
 {
     let input_dense = input.to_dense_generic()?;
     let input_shape = input_dense.shape().dims();
 
-    if input_shape.len() != 4 {
+    if input_shape.len() != 4usize {
         return Err(NNError::InvalidInput {
             message: format!("Input must be 4D [N, C, H, W], got {}D", input_shape.len()),
         });
@@ -175,14 +183,17 @@ where
                             let w_in = ow * stride.1 + kw;
 
                             // Handle padding
-                            if h_in >= padding.0 && h_in < input_h + padding.0
-                                && w_in >= padding.1 && w_in < input_w + padding.1
+                            if h_in >= padding.0
+                                && h_in < input_h + padding.0
+                                && w_in >= padding.1
+                                && w_in < input_w + padding.1
                             {
                                 let h_actual = h_in - padding.0;
                                 let w_actual = w_in - padding.1;
 
                                 if h_actual < input_h && w_actual < input_w {
-                                    let idx = ((n * channels + c) * input_h + h_actual) * input_w + w_actual;
+                                    let idx = ((n * channels + c) * input_h + h_actual) * input_w
+                                        + w_actual;
                                     sum = sum + input_data[idx];
                                     count += 1;
                                 }
@@ -202,7 +213,9 @@ where
     }
 
     let output_shape = vec![batch_size, channels, output_h, output_w];
-    Tensor::from_vec(output_data, &output_shape)
-        .map_err(Into::into)
-        .and_then(|t| t.to_generic())
+    Ok(Tensor::from_vec_with_backend(
+        output_data,
+        &output_shape,
+        input.backend().clone(),
+    )?)
 }

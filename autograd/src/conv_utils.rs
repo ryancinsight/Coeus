@@ -31,14 +31,14 @@ use coeus_tensor::Tensor;
 /// # Panics
 /// Panics if input is not 4D or if dimensions are invalid.
 pub fn im2col<T: DataType + FloatExt>(
-    input: &Tensor<CpuBackend, DenseStorage<T>, T>,
+    input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     kernel_h: usize,
     kernel_w: usize,
     stride_h: usize,
     stride_w: usize,
     padding_h: usize,
     padding_w: usize,
-) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
     let input_shape = input.shape().dims();
     if input_shape.len() != 4 {
         return Err(AutogradError::InvalidOperation {
@@ -124,7 +124,7 @@ pub fn im2col<T: DataType + FloatExt>(
 /// # Panics
 /// Panics if column matrix dimensions are invalid.
 pub fn col2im<T: DataType + FloatExt>(
-    col: &Tensor<CpuBackend, DenseStorage<T>, T>,
+    col: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     input_shape: &[usize],
     kernel_h: usize,
     kernel_w: usize,
@@ -132,7 +132,7 @@ pub fn col2im<T: DataType + FloatExt>(
     stride_w: usize,
     padding_h: usize,
     padding_w: usize,
-) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
     if input_shape.len() != 4 {
         return Err(AutogradError::InvalidOperation {
             operation: format!("col2im requires 4D input shape, got {}D", input_shape.len()),
@@ -226,9 +226,9 @@ pub fn col2im<T: DataType + FloatExt>(
 /// # Panics
 /// Panics if tensor is not 4D or if axes are invalid.
 pub fn reduce_sum_4d<T: DataType + FloatExt>(
-    tensor: &Tensor<CpuBackend, DenseStorage<T>, T>,
+    tensor: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
     axes: &[usize],
-) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
     let shape = tensor.shape().dims();
     if shape.len() != 4 {
         return Err(AutogradError::InvalidOperation {
@@ -339,3 +339,4 @@ mod tests {
         }
     }
 }
+

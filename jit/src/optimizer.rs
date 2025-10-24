@@ -180,7 +180,7 @@ impl ConstantFolding {
             Operation::Add | Operation::Multiply => {
                 // Check if all inputs are constants
                 node.inputs.iter().all(|&input_id| {
-                    graph.get_node(input_id).map_or(false, |input_node| {
+                    graph.get_node(input_id).is_some_and(|input_node| {
                         matches!(input_node.operation, Operation::Constant)
                     })
                 })

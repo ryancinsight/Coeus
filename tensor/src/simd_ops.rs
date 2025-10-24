@@ -291,8 +291,8 @@ mod tests {
         let a_data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
         let b_data = vec![Float32::new(4.0), Float32::new(5.0), Float32::new(6.0)];
 
-        let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(a_data, &[3]).unwrap();
-        let b = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(b_data, &[3]).unwrap();
+        let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(a_data, &[3]).unwrap();
+        let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(b_data, &[3]).unwrap();
 
         let result = a.add_simd(&b).unwrap();
         let expected = vec![Float32::new(5.0), Float32::new(7.0), Float32::new(9.0)];
@@ -305,8 +305,8 @@ mod tests {
         let a_data = vec![Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)];
         let b_data = vec![Float32::new(3.0), Float32::new(4.0), Float32::new(5.0)];
 
-        let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(a_data, &[3]).unwrap();
-        let b = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(b_data, &[3]).unwrap();
+        let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(a_data, &[3]).unwrap();
+        let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(b_data, &[3]).unwrap();
 
         let result = a.mul_simd(&b).unwrap();
         let expected = vec![Float32::new(6.0), Float32::new(12.0), Float32::new(20.0)];
@@ -317,7 +317,7 @@ mod tests {
     #[test]
     fn test_simd_relu() {
         let data = vec![Float32::new(-1.0), Float32::new(0.0), Float32::new(2.0)];
-        let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data, &[3]).unwrap();
+        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[3]).unwrap();
 
         let result = tensor.relu_simd().unwrap();
         let expected = vec![Float32::new(0.0), Float32::new(0.0), Float32::new(2.0)];
@@ -328,7 +328,7 @@ mod tests {
     #[test]
     fn test_simd_sum() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)];
-        let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data, &[4]).unwrap();
+        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[4]).unwrap();
 
         let sum = tensor.sum_simd().unwrap();
         assert_eq!(sum, Float32::new(10.0));
@@ -370,7 +370,7 @@ mod tests {
     #[test]
     fn test_simd_operations_consistency() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)];
-        let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(data.clone(), &[4]).unwrap();
+        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data.clone(), &[4]).unwrap();
 
         // Test that SIMD operations produce the same results as scalar operations
         let sum_simd = tensor.sum_simd().unwrap();

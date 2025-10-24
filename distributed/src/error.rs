@@ -29,6 +29,40 @@ pub enum DistributedError {
     #[error("Backend not available: {backend}")]
     BackendUnavailable { backend: String },
 
+    #[error("Tensor operation failed: {source}")]
+    TensorError {
+        source: Box<coeus_tensor::TensorError>,
+    },
+
+    #[error("Optimizer operation failed: {source}")]
+    OptimizerError {
+        source: Box<coeus_optim::error::OptimError>,
+    },
+
     #[error("Gradient buffer overflow: required {required}, available {available}")]
     BufferOverflow { required: usize, available: usize },
+}
+
+impl From<coeus_tensor::TensorError> for DistributedError {
+    fn from(error: coeus_tensor::TensorError) -> Self {
+        DistributedError::TensorError {
+            source: Box::new(error),
+        }
+    }
+}
+
+impl From<coeus_optim::error::OptimError> for DistributedError {
+    fn from(error: coeus_optim::error::OptimError) -> Self {
+        DistributedError::OptimizerError {
+            source: Box::new(error),
+        }
+    }
+}
+
+impl From<std::io::Error> for DistributedError {
+    fn from(error: std::io::Error) -> Self {
+        DistributedError::Communication {
+            message: format!("I/O error: {}", error),
+        }
+    }
 }

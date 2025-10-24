@@ -3,8 +3,8 @@
 //! Provides memory-efficient storage for tensors with many zero elements.
 //! Supports CSR, CSC, and COO sparse matrix formats.
 
-use crate::{AsAny, DataType, Result, Shape, Storage, StorageError};
 use crate::sparse_arithmetic::SparseMatMul;
+use crate::{AsAny, DataType, Result, Shape, Storage, StorageError};
 use alloc::{vec, vec::Vec};
 
 /// Enum representing different sparse matrix formats
@@ -680,7 +680,7 @@ impl<T: DataType> Storage<T> for CsrStorage<T> {
         false
     }
 
-    fn as_storage_ref(&self) -> &dyn Storage<T> {
+    fn as_storage_ref(&self) -> &Self {
         self
     }
 }
@@ -713,7 +713,7 @@ impl<T: DataType> Storage<T> for CscStorage<T> {
         false
     }
 
-    fn as_storage_ref(&self) -> &dyn Storage<T> {
+    fn as_storage_ref(&self) -> &Self {
         self
     }
 }
@@ -746,7 +746,7 @@ impl<T: DataType> Storage<T> for CooStorage<T> {
         false
     }
 
-    fn as_storage_ref(&self) -> &dyn Storage<T> {
+    fn as_storage_ref(&self) -> &Self {
         self
     }
 }
@@ -780,7 +780,7 @@ impl<T: DataType> crate::StorageFromVec<T> for CsrStorage<T> {
                 let val = &data[flat_idx];
 
                 if !val.is_zero() {
-                    csr_data.push(val.clone());
+                    csr_data.push(*val);
                     indices.push(col);
                 }
             }
@@ -839,7 +839,7 @@ impl<T: DataType> crate::StorageFromVec<T> for CscStorage<T> {
                 let val = &data[flat_idx];
 
                 if !val.is_zero() {
-                    csc_data.push(val.clone());
+                    csc_data.push(*val);
                     indices.push(row);
                 }
             }
@@ -898,7 +898,7 @@ impl<T: DataType> crate::StorageFromVec<T> for CooStorage<T> {
                 let val = &data[flat_idx];
 
                 if !val.is_zero() {
-                    coo_data.push(val.clone());
+                    coo_data.push(*val);
                     row_indices.push(row);
                     col_indices.push(col);
                 }
@@ -1280,7 +1280,7 @@ impl<T: DataType> crate::StorageToDense<T> for CsrStorage<T> {
             for i in row_start..row_end {
                 let col = self.indices[i];
                 let flat_idx = row * dims[1] + col;
-                dense_data[flat_idx] = self.data[i].clone();
+                dense_data[flat_idx] = self.data[i];
             }
         }
 
@@ -1300,7 +1300,7 @@ impl<T: DataType> crate::StorageToDense<T> for CscStorage<T> {
             for i in col_start..col_end {
                 let row = self.indices[i];
                 let flat_idx = row * dims[1] + col;
-                dense_data[flat_idx] = self.data[i].clone();
+                dense_data[flat_idx] = self.data[i];
             }
         }
 
@@ -1317,7 +1317,7 @@ impl<T: DataType> crate::StorageToDense<T> for CooStorage<T> {
             let row = self.row_indices[i];
             let col = self.col_indices[i];
             let flat_idx = row * dims[1] + col;
-            dense_data[flat_idx] = self.data[i].clone();
+            dense_data[flat_idx] = self.data[i];
         }
 
         crate::DenseStorage::from_vec(dense_data, dims)

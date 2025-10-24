@@ -2,10 +2,8 @@
 //!
 //! This module provides matrix operations such as matrix multiplication (matmul).
 
-use std::{format, vec::Vec, string::ToString};
+use std::{format, vec::Vec};
 use tracing::instrument;
-use crate::{Storage, StorageToDense};
-use coeus_storage::{SparseMatMul, SparseFormat, MatMulStorage, TransposeStorage};
 
 /// Matrix operations for tensors with dense storage.
 ///
@@ -13,7 +11,7 @@ use coeus_storage::{SparseMatMul, SparseFormat, MatMulStorage, TransposeStorage}
 /// on 2D tensors.
 impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
 where
-    B: crate::Backend + Default,
+    B: crate::Backend + Clone + Default,
     T: crate::DataType,
 {
     /// Compute matrix multiplication with another tensor.
@@ -46,14 +44,14 @@ where
     /// use coeus_dtype::float::Float32;
     ///
     /// // Create 2x3 matrix A
-    /// let a = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0),
     ///          Float32::new(4.0), Float32::new(5.0), Float32::new(6.0)],
     ///     &[2, 3]
     /// ).unwrap();
     ///
     /// // Create 3x2 matrix B
-    /// let b = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+    /// let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(7.0), Float32::new(8.0),
     ///          Float32::new(9.0), Float32::new(10.0),
     ///          Float32::new(11.0), Float32::new(12.0)],
@@ -103,7 +101,6 @@ where
 
         // Use backend's matmul implementation (CPU by default, GPU if available)
         self.matmul_backend(other, m, n, p)
-
     }
 
     /// CPU implementation of matrix multiplication
@@ -134,9 +131,7 @@ where
     #[instrument(level = "trace", skip(self, other))]
     fn matmul_backend(&self, other: &Self, m: usize, n: usize, p: usize) -> crate::Result<Self> {
         // For now, delegate to CPU implementation
-        // TODO: Add GPU support via backend trait extension
+        // Future enhancement: Add GPU support via backend trait extension
         self.matmul_cpu(m, n, p, other)
     }
 }
-
-

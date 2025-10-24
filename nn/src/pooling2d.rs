@@ -31,7 +31,7 @@ use crate::module::Module;
 /// use coeus_dtype::float::Float32;
 ///
 /// let pool = MaxPool2d::new((2, 2), Some((2, 2)), (0, 0));
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
 /// let output = pool.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[1, 64, 16, 16]);
 /// ```
@@ -81,14 +81,14 @@ impl MaxPool2d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for MaxPool2d {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T> for MaxPool2d {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         // Input: [N, C, H_in, W_in]
         let input_shape = input.shape().dims();
-        if input_shape.len() != 4 {
+        if input_shape.len() != 4usize {
             return Err(NNError::InvalidInput {
                 message: format!("Input must be 4D [N, C, H_in, W_in], got {}D", input_shape.len()),
             });
@@ -149,7 +149,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T>
         Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new()
     }
 
@@ -191,18 +191,81 @@ impl AvgPool2d {
     }
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for AvgPool2d {
+impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for AvgPool2d {
     fn forward(
         &self,
-        _input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
-        // Placeholder implementation
-        Err(NNError::NotImplemented {
-            message: "AvgPool2d not yet implemented".to_string(),
-        })
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+        // Input: [N, C, H_in, W_in]
+        let input_shape = input.shape().dims();
+        if input_shape.len() != 4usize {
+            return Err(NNError::InvalidInput {
+                message: format!("Input must be 4D [N, C, H_in, W_in], got {}D", input_shape.len()),
+            });
+        }
+
+        let batch_size = input_shape[0];
+        let channels = input_shape[1];
+        let input_h = input_shape[2];
+        let input_w = input_shape[3];
+
+        let (output_h, output_w) = self.output_size(input_h, input_w);
+        let stride = self.stride.unwrap_or(self.kernel_size);
+
+        let input_data = input.as_slice();
+        let mut output_data = Vec::with_capacity(batch_size * channels * output_h * output_w);
+
+        for n in 0..batch_size {
+            for c in 0..channels {
+                for out_h in 0..output_h {
+                    for out_w in 0..output_w {
+                        let mut sum = T::zero();
+                        let mut count = 0;
+
+                        // Sum values in pooling window
+                        for kh in 0..self.kernel_size.0 {
+                            for kw in 0..self.kernel_size.1 {
+                                let h_in = out_h * stride.0 + kh;
+                                let w_in = out_w * stride.1 + kw;
+
+                                // Handle padding (treat as zero for average pooling)
+                                if h_in >= self.padding.0
+                                    && h_in < input_h + self.padding.0
+                                    && w_in >= self.padding.1
+                                    && w_in < input_w + self.padding.1
+                                {
+                                    let h_actual = h_in - self.padding.0;
+                                    let w_actual = w_in - self.padding.1;
+
+                                    if h_actual < input_h && w_actual < input_w {
+                                        let input_idx = ((n * channels + c) * input_h + h_actual)
+                                            * input_w
+                                            + w_actual;
+                                        sum = sum + input_data[input_idx];
+                                        count += 1;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Compute average
+                        let avg_val = if count > 0 {
+                            sum / T::from(count).unwrap()
+                        } else {
+                            T::zero()
+                        };
+
+                        output_data.push(avg_val);
+                    }
+                }
+            }
+        }
+
+        let output_shape = &[batch_size, channels, output_h, output_w];
+        Tensor::from_vec(output_data, output_shape)
     }
 
-    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new()
     }
 
@@ -232,18 +295,70 @@ impl AdaptiveAvgPool2d {
     }
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend, DenseStorage<T>, T> for AdaptiveAvgPool2d {
+impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for AdaptiveAvgPool2d {
     fn forward(
         &self,
-        _input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
-        // Placeholder implementation
-        Err(NNError::NotImplemented {
-            message: "AdaptiveAvgPool2d not yet implemented".to_string(),
-        })
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+        // Input: [N, C, H_in, W_in]
+        let input_shape = input.shape().dims();
+        if input_shape.len() != 4usize {
+            return Err(NNError::InvalidInput {
+                message: format!("Input must be 4D [N, C, H_in, W_in], got {}D", input_shape.len()),
+            });
+        }
+
+        let batch_size = input_shape[0];
+        let channels = input_shape[1];
+        let input_h = input_shape[2];
+        let input_w = input_shape[3];
+
+        let output_h = self.output_size.0;
+        let output_w = self.output_size.1;
+
+        let input_data = input.as_slice();
+        let mut output_data = Vec::with_capacity(batch_size * channels * output_h * output_w);
+
+        for n in 0..batch_size {
+            for c in 0..channels {
+                for out_h in 0..output_h {
+                    for out_w in 0..output_w {
+                        // Calculate the input region for this output pixel
+                        let h_start = (out_h * input_h) / output_h;
+                        let h_end = ((out_h + 1) * input_h) / output_h;
+                        let w_start = (out_w * input_w) / output_w;
+                        let w_end = ((out_w + 1) * input_w) / output_w;
+
+                        let mut sum = T::zero();
+                        let mut count = 0;
+
+                        // Sum values in the adaptive region
+                        for h in h_start..h_end {
+                            for w in w_start..w_end {
+                                let input_idx = ((n * channels + c) * input_h + h) * input_w + w;
+                                sum = sum + input_data[input_idx];
+                                count += 1;
+                            }
+                        }
+
+                        // Compute average
+                        let avg_val = if count > 0 {
+                            sum / T::from(count).unwrap()
+                        } else {
+                            T::zero()
+                        };
+
+                        output_data.push(avg_val);
+                    }
+                }
+            }
+        }
+
+        let output_shape = &[batch_size, channels, output_h, output_w];
+        Tensor::from_vec(output_data, output_shape)
     }
 
-    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new()
     }
 
@@ -273,18 +388,64 @@ impl AdaptiveMaxPool2d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend, DenseStorage<T>, T> for AdaptiveMaxPool2d {
+impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T> for AdaptiveMaxPool2d {
     fn forward(
         &self,
-        _input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
-        // Placeholder implementation
-        Err(NNError::NotImplemented {
-            message: "AdaptiveMaxPool2d not yet implemented".to_string(),
-        })
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+        // Input: [N, C, H_in, W_in]
+        let input_shape = input.shape().dims();
+        if input_shape.len() != 4usize {
+            return Err(NNError::InvalidInput {
+                message: format!("Input must be 4D [N, C, H_in, W_in], got {}D", input_shape.len()),
+            });
+        }
+
+        let batch_size = input_shape[0];
+        let channels = input_shape[1];
+        let input_h = input_shape[2];
+        let input_w = input_shape[3];
+
+        let output_h = self.output_size.0;
+        let output_w = self.output_size.1;
+
+        let input_data = input.as_slice();
+        let mut output_data = Vec::with_capacity(batch_size * channels * output_h * output_w);
+
+        for n in 0..batch_size {
+            for c in 0..channels {
+                for out_h in 0..output_h {
+                    for out_w in 0..output_w {
+                        // Calculate the input region for this output pixel
+                        let h_start = (out_h * input_h) / output_h;
+                        let h_end = ((out_h + 1) * input_h) / output_h;
+                        let w_start = (out_w * input_w) / output_w;
+                        let w_end = ((out_w + 1) * input_w) / output_w;
+
+                        let mut max_val = T::from(f64::NEG_INFINITY).unwrap();
+
+                        // Find max in the adaptive region
+                        for h in h_start..h_end {
+                            for w in w_start..w_end {
+                                let input_idx = ((n * channels + c) * input_h + h) * input_w + w;
+                                let val = input_data[input_idx];
+                                if val > max_val {
+                                    max_val = val;
+                                }
+                            }
+                        }
+
+                        output_data.push(max_val);
+                    }
+                }
+            }
+        }
+
+        let output_shape = &[batch_size, channels, output_h, output_w];
+        Tensor::from_vec(output_data, output_shape)
     }
 
-    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<crate::parameter::Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
         Vec::new()
     }
 
@@ -344,3 +505,4 @@ impl fmt::Display for AdaptiveMaxPool2d {
         )
     }
 }
+

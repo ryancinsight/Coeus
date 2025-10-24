@@ -43,4 +43,7 @@ pub enum JitError {
 
     #[error("Tracing operation failed: {message}")]
     TracingError { message: String },
+
+    #[error("Cranelift module error: {0}")]
+    ModuleError(#[from] cranelift_module::ModuleError),
 }

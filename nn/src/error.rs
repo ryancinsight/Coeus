@@ -9,24 +9,19 @@ pub enum NNError {
         source: coeus_tensor::TensorError,
     },
 
-    #[cfg(feature = "autograd")]
-    #[error("Autograd operation failed: {source}")]
-    AutogradError {
-        #[from]
-        source: coeus_autograd::AutogradError,
-    },
-
-    #[cfg(not(feature = "autograd"))]
-    #[error("Autograd operation failed: {source}")]
-    AutogradError {
-        #[from]
-        source: crate::autograd_stub::AutogradError,
-    },
+    #[error("Autograd operation failed: {message}")]
+    AutogradError { message: String },
 
     #[error("Storage operation failed: {source}")]
     StorageError {
         #[from]
         source: coeus_storage::StorageError,
+    },
+
+    #[error("Backend operation failed: {source}")]
+    BackendError {
+        #[from]
+        source: coeus_backend::BackendError,
     },
 
     #[error("Invalid parameter shape: expected {expected:?}, got {actual:?}")]
@@ -56,6 +51,18 @@ pub enum NNError {
 
     #[error("Invalid input: {message}")]
     InvalidInput { message: String },
+
+    #[error("Unsupported operation: {operation} - {reason}")]
+    UnsupportedOperation { operation: String, reason: String },
+
+    #[error("Invalid argument '{param}': {message}")]
+    InvalidArgument { param: String, message: String },
+
+    #[error("Numerical error: {message}")]
+    NumericalError { message: String },
+
+    #[error("Not implemented: {operation}")]
+    NotImplemented { operation: String },
 
     #[error("Serialization failed: {message}")]
     SerializationError { message: String },

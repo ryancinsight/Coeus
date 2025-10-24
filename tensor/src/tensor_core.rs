@@ -5,9 +5,9 @@
 //! - Device enumeration and implementations
 //! - Tensor struct definition
 
-use std::sync::Arc;
 use core::any::Any;
 use core::fmt;
+use std::sync::Arc;
 
 /// Extension trait for downcasting Function objects
 ///
@@ -81,9 +81,10 @@ pub use coeus_storage::{DenseStorage, Shape, Storage, StorageFromVec, StorageToD
 /// Represents the different hardware backends available for tensor operations.
 /// Each variant corresponds to a different compute substrate with different
 /// performance characteristics and memory models.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Device {
     /// CPU device (default)
+    #[default]
     Cpu,
     /// GPU device with index
     Gpu(usize),
@@ -127,12 +128,6 @@ impl Device {
     }
 }
 
-impl Default for Device {
-    fn default() -> Self {
-        Self::Cpu
-    }
-}
-
 impl fmt::Display for Device {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -169,7 +164,7 @@ impl fmt::Display for Device {
 /// use num_traits::Zero;
 ///
 /// // Create zeros tensor
-/// let tensor = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 3]).unwrap();
+/// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 3]).unwrap();
 /// assert_eq!(tensor.shape().dims(), &[2, 3]);
 /// assert_eq!(tensor.len(), 6);
 /// ```
@@ -186,6 +181,7 @@ where
     /// Gradient tensor (None if not computed yet)
     /// Stored as Arc<RwLock<>> for thread-safe gradient accumulation
     #[cfg(feature = "std")]
+    #[allow(clippy::type_complexity)]
     pub(crate) grad: Arc<std::sync::RwLock<Option<std::boxed::Box<Tensor<B, S, T>>>>>,
     #[cfg(not(feature = "std"))]
     pub(crate) grad: Arc<spin::RwLock<Option<alloc::boxed::Box<Tensor<B, S, T>>>>>,
@@ -210,14 +206,9 @@ where
             storage: self.storage.clone(),
             backend: self.backend.clone(),
             requires_grad: self.requires_grad,
-            #[cfg(feature = "std")]
-            grad: Arc::new(std::sync::RwLock::new(
-                self.grad.read().unwrap().as_ref().map(|boxed| std::boxed::Box::new((**boxed).clone()))
-            )),
-            #[cfg(not(feature = "std"))]
-            grad: Arc::new(spin::RwLock::new(
-                self.grad.read().as_ref().map(|boxed| alloc::boxed::Box::new((**boxed).clone()))
-            )),
+            // Share gradient storage with the original tensor for autograd
+            // This ensures gradients set on clones are visible to the original
+            grad: self.grad.clone(),
             #[cfg(feature = "std")]
             grad_fn: self.grad_fn.clone(),
             #[cfg(not(feature = "std"))]
@@ -226,4 +217,3 @@ where
         }
     }
 }
-

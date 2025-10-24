@@ -83,8 +83,9 @@ pub use error::TensorError;
 
 // PyTorch-style type aliases for ergonomic API
 /// CPU dense tensor type alias
-pub type TensorCpuDense<T> = Tensor<CpuBackend, DenseStorage<T>, T>;
+pub type TensorCpuDense<T> = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
 
 // Re-export AutoGradTensor from the autograd module
 pub use tensor_autograd::AutoGradTensor;
     #[error("Shape mismatch: expected {expected:?}, got {actual:?}")]
+

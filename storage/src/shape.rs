@@ -162,7 +162,7 @@ mod tests {
         let shape = Shape::new(&[]).unwrap();
         assert_eq!(shape.ndim(), 0);
         assert_eq!(shape.size(), 1);
-        assert_eq!(shape.dims(), &[]);
+        assert!(shape.dims().is_empty());
     }
 
     #[test]

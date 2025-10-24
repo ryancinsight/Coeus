@@ -3,8 +3,8 @@
 //! Provides boolean indexing, fancy indexing, and slicing operations
 //! optimized for sparse matrix formats.
 
-use crate::{Result, CsrStorage, CscStorage, CooStorage, StorageError, Storage};
-use alloc::{vec, vec::Vec};
+use crate::{CooStorage, CscStorage, CsrStorage, Result, Storage, StorageError};
+use alloc::vec::Vec;
 
 /// Boolean indexing for sparse tensors
 pub trait SparseBooleanIndex<T: crate::DataType> {
@@ -74,7 +74,12 @@ impl<T: crate::DataType + Copy> SparseBooleanIndex<T> for CsrStorage<T> {
             }
         }
 
-        CooStorage::new(result_data, result_row_indices, result_col_indices, self.shape().dims())
+        CooStorage::new(
+            result_data,
+            result_row_indices,
+            result_col_indices,
+            self.shape().dims(),
+        )
     }
 }
 
@@ -103,7 +108,7 @@ impl<T: crate::DataType + Copy> SparseBooleanIndex<T> for CooStorage<T> {
         let mut result_row_indices = Vec::new();
         let mut result_col_indices = Vec::new();
 
-        let rows = self.shape().dims()[0];
+        let _rows = self.shape().dims()[0];
         let cols = self.shape().dims()[1];
 
         // Check each non-zero element
@@ -119,20 +124,28 @@ impl<T: crate::DataType + Copy> SparseBooleanIndex<T> for CooStorage<T> {
             }
         }
 
-        CooStorage::new(result_data, result_row_indices, result_col_indices, self.shape().dims())
+        CooStorage::new(
+            result_data,
+            result_row_indices,
+            result_col_indices,
+            self.shape().dims(),
+        )
     }
 }
 
 // CSR Fancy Indexing
 impl<T: crate::DataType + Copy> SparseFancyIndex<T> for CsrStorage<T> {
     fn fancy_index(&self, indices: &[i32]) -> Result<CooStorage<T>> {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let tensor_len = self.shape().size() as i32;
 
         // Validate indices
         for &idx in indices {
             if idx < 0 || idx >= tensor_len {
                 return Err(StorageError::IndexOutOfBounds {
+                    #[allow(clippy::cast_sign_loss)]
                     index: idx as usize,
+                    #[allow(clippy::cast_sign_loss)]
                     bound: tensor_len as usize,
                 });
             }
@@ -142,11 +155,12 @@ impl<T: crate::DataType + Copy> SparseFancyIndex<T> for CsrStorage<T> {
         let mut result_row_indices = Vec::new();
         let mut result_col_indices = Vec::new();
 
-        let rows = self.shape().dims()[0];
+        let _rows = self.shape().dims()[0];
         let cols = self.shape().dims()[1];
 
         // For each requested index
         for &flat_idx in indices {
+            #[allow(clippy::cast_sign_loss)]
             let flat_idx = flat_idx as usize;
             let row = flat_idx / cols;
             let col = flat_idx % cols;
@@ -165,7 +179,12 @@ impl<T: crate::DataType + Copy> SparseFancyIndex<T> for CsrStorage<T> {
             // If not found, it's zero - skip (sparse indexing only returns non-zeros)
         }
 
-        CooStorage::new(result_data, result_row_indices, result_col_indices, self.shape().dims())
+        CooStorage::new(
+            result_data,
+            result_row_indices,
+            result_col_indices,
+            self.shape().dims(),
+        )
     }
 }
 
@@ -180,13 +199,16 @@ impl<T: crate::DataType + Copy> SparseFancyIndex<T> for CscStorage<T> {
 // COO Fancy Indexing
 impl<T: crate::DataType + Copy> SparseFancyIndex<T> for CooStorage<T> {
     fn fancy_index(&self, indices: &[i32]) -> Result<CooStorage<T>> {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let tensor_len = self.shape().size() as i32;
 
         // Validate indices
         for &idx in indices {
             if idx < 0 || idx >= tensor_len {
                 return Err(StorageError::IndexOutOfBounds {
+                    #[allow(clippy::cast_sign_loss)]
                     index: idx as usize,
+                    #[allow(clippy::cast_sign_loss)]
                     bound: tensor_len as usize,
                 });
             }
@@ -196,12 +218,13 @@ impl<T: crate::DataType + Copy> SparseFancyIndex<T> for CooStorage<T> {
         let mut result_row_indices = Vec::new();
         let mut result_col_indices = Vec::new();
 
-        let rows = self.shape().dims()[0];
+        let _rows = self.shape().dims()[0];
         let cols = self.shape().dims()[1];
 
         // Create a set of requested positions for efficient lookup
         let mut requested_positions = alloc::collections::BTreeSet::new();
         for &flat_idx in indices {
+            #[allow(clippy::cast_sign_loss)]
             let flat_idx = flat_idx as usize;
             let row = flat_idx / cols;
             let col = flat_idx % cols;
@@ -220,7 +243,12 @@ impl<T: crate::DataType + Copy> SparseFancyIndex<T> for CooStorage<T> {
             }
         }
 
-        CooStorage::new(result_data, result_row_indices, result_col_indices, self.shape().dims())
+        CooStorage::new(
+            result_data,
+            result_row_indices,
+            result_col_indices,
+            self.shape().dims(),
+        )
     }
 }
 

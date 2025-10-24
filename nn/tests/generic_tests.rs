@@ -3,33 +3,29 @@
 //! These tests validate that neural network components work correctly
 //! with the generic Backend-Storage-DataType architecture.
 
-use proptest::prelude::*;
 use approx::assert_relative_eq;
 use num_traits::Zero;
+use proptest::prelude::*;
 
 use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
+use coeus_nn::{BatchNorm2d, Linear, Module};
 use coeus_storage::DenseStorage;
 use coeus_tensor::Tensor;
-use coeus_nn::{Linear, BatchNorm2d, Module};
 
 /// Type alias for our test tensor type
-type TestTensor = Tensor<CpuBackend, DenseStorage<Float32>, Float32>;
+type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
 /// Generate random tensor data
 fn arb_tensor_data() -> impl Strategy<Value = Vec<Float32>> {
-    prop::collection::vec(
-        prop::num::f32::NORMAL.prop_map(Float32::new),
-        1..=1000
-    )
+    prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), 1..=1000)
 }
 
 /// Generate small tensor shapes suitable for neural network operations
 fn arb_nn_shape() -> impl Strategy<Value = Vec<usize>> {
-    prop::collection::vec(1..=100usize, 2..=4)
-        .prop_filter("Valid NN shapes", |s| {
-            s.iter().all(|&x| x > 0) && s.len() >= 2 && s.len() <= 4
-        })
+    prop::collection::vec(1..=100usize, 2..=4).prop_filter("Valid NN shapes", |s| {
+        s.iter().all(|&x| x > 0) && s.len() >= 2 && s.len() <= 4
+    })
 }
 
 /// Generate compatible input/output shapes for linear layers
@@ -39,8 +35,7 @@ fn arb_linear_shapes() -> impl Strategy<Value = (usize, usize)> {
 
 /// Generate BatchNorm2D compatible shapes [N, C, H, W]
 fn arb_batchnorm2d_shapes() -> impl Strategy<Value = Vec<usize>> {
-    (1..=10usize, 1..=64usize, 1..=32usize, 1..=32usize)
-        .prop_map(|(n, c, h, w)| vec![n, c, h, w])
+    (1..=10usize, 1..=64usize, 1..=32usize, 1..=32usize).prop_map(|(n, c, h, w)| vec![n, c, h, w])
 }
 
 proptest! {
@@ -52,7 +47,7 @@ proptest! {
         data in arb_tensor_data()
     ) {
         // Create a linear layer with the generic B<S<T>> signature
-        let linear = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let linear = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             in_features,
             out_features
         ).unwrap();
@@ -84,7 +79,7 @@ proptest! {
         data in arb_tensor_data()
     ) {
         // Create BatchNorm2d with generic B<S<T>> signature
-        let batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             num_features, 1e-5, 0.1
         ).unwrap();
 
@@ -121,7 +116,7 @@ proptest! {
         in_features in 1..=20usize,
         out_features in 1..=20usize
     ) {
-        let linear = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let linear = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             in_features,
             out_features
         ).unwrap();
@@ -145,7 +140,7 @@ proptest! {
     fn prop_batchnorm2d_parameters_generic(
         num_features in 1..=32usize
     ) {
-        let batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             num_features, 1e-5, 0.1
         ).unwrap();
 
@@ -165,7 +160,7 @@ proptest! {
         in_features in 1..=20usize,
         out_features in 1..=20usize
     ) {
-        let linear = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let linear = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             in_features,
             out_features
         ).unwrap();
@@ -179,7 +174,7 @@ proptest! {
     fn prop_batchnorm2d_modules_generic(
         num_features in 1..=32usize
     ) {
-        let batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             num_features, 1e-5, 0.1
         ).unwrap();
 
@@ -193,7 +188,7 @@ proptest! {
         in_features in 1..=20usize,
         out_features in 1..=20usize
     ) {
-        let mut linear = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let mut linear = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             in_features,
             out_features
         ).unwrap();
@@ -210,7 +205,7 @@ proptest! {
     fn prop_batchnorm2d_zero_grad_generic(
         num_features in 1..=32usize
     ) {
-        let mut batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let mut batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             num_features,
             1e-5,
             0.1
@@ -229,7 +224,7 @@ proptest! {
         in_features in 1..=20usize,
         out_features in 1..=20usize
     ) {
-        let mut linear = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let mut linear = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             in_features,
             out_features
         ).unwrap();
@@ -246,7 +241,7 @@ proptest! {
     fn prop_batchnorm2d_train_mode_generic(
         num_features in 1..=32usize
     ) {
-        let mut batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let mut batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             num_features,
             1e-5,
             0.1
@@ -266,7 +261,7 @@ proptest! {
         in_features in 1..=20usize,
         out_features in 1..=20usize
     ) {
-        let linear = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let linear = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             in_features,
             out_features
         ).unwrap();
@@ -278,7 +273,7 @@ proptest! {
     fn prop_batchnorm2d_name_generic(
         num_features in 1..=32usize
     ) {
-        let batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             num_features, 1e-5, 0.1
         ).unwrap();
 
@@ -292,7 +287,7 @@ proptest! {
         batch_size in 1..=5usize,
         data in arb_tensor_data()
     ) {
-        let linear = Linear::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let linear = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             in_features,
             out_features
         ).unwrap();
@@ -320,7 +315,7 @@ proptest! {
         height in 1..=8usize,
         width in 1..=8usize
     ) {
-        let mut batchnorm = BatchNorm2d::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+        let mut batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             num_features,
             1e-5,
             0.1

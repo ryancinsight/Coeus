@@ -7,7 +7,7 @@
 extern crate alloc;
 
 use crate::Result;
-use coeus_dtype::float::Float32;
+use coeus_dtype::DataType;
 use coeus_tensor::{CpuBackend, DenseStorage, Tensor};
 
 /// Element-wise addition with automatic differentiation
@@ -29,21 +29,22 @@ use coeus_tensor::{CpuBackend, DenseStorage, Tensor};
 /// use coeus_dtype::float::Float32;
 /// use coeus_autograd::tensor_ops::add;
 ///
-/// let x = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0)], &[2]
 /// ).unwrap().requires_grad_(true);
 ///
-/// let y = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
+/// let y = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(3.0), Float32::new(4.0)], &[2]
 /// ).unwrap().requires_grad_(true);
 ///
 /// let z = add(&x, &y).unwrap();
 /// assert!(z.grad_fn().is_some()); // Has AddBackward function attached
 /// ```
-pub fn add(
-    lhs: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
-    rhs: &Tensor<CpuBackend, DenseStorage<Float32>, Float32>,
-) -> Result<Tensor<CpuBackend, DenseStorage<Float32>, Float32>> {
+#[allow(clippy::missing_errors_doc)]
+pub fn add<T: DataType + std::ops::Add<Output = T> + Copy>(
+    lhs: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    rhs: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
     // Use the ops module to get proper grad_fn setting
     Ok(crate::ops::add(lhs, rhs))
 }

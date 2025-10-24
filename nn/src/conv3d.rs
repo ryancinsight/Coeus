@@ -7,7 +7,7 @@ use crate::module::Module;
 use crate::parameter::Parameter;
 use coeus_backend::{Backend, CpuBackend};
 use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use coeus_tensor::Tensor;
 use std::marker::PhantomData;
 
@@ -23,8 +23,8 @@ use std::marker::PhantomData;
 /// use coeus_storage::DenseStorage;
 /// use coeus_dtype::float::Float32;
 ///
-/// let conv3d = Conv3D::<CpuBackend, DenseStorage<Float32>, Float32>::new(1, 64, (3, 3, 3), None, None, None).unwrap();
-/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::ones(&[8, 1, 16, 16, 16]).unwrap();
+/// let conv3d = Conv3D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, 64, (3, 3, 3), None, None, None).unwrap();
+/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[8, 1, 16, 16, 16]).unwrap();
 /// let output = conv3d.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[8, 64, 14, 14, 14]);
 /// ```
@@ -41,8 +41,6 @@ where
     bias: Option<Parameter<B, S, T>>,
     /// Number of input channels
     in_channels: usize,
-    /// Number of output channels
-    out_channels: usize,
     /// Kernel depth
     kernel_depth: usize,
     /// Kernel height
@@ -80,14 +78,14 @@ where
     /// * `padding` - (depth, height, width) padding added to input (default: (0, 0, 0))
     /// * `bias` - Whether to include bias terms (default: true)
     ///
-/// # Examples
-/// ```rust
-/// use coeus_nn::Conv3D;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+    /// # Examples
+    /// ```rust
+    /// use coeus_nn::Conv3D;
+    /// use coeus_backend::CpuBackend;
+    /// use coeus_storage::DenseStorage;
+    /// use coeus_dtype::float::Float32;
     ///
-    /// let conv3d = Conv3D::<CpuBackend, DenseStorage<Float32>, Float32>::new(3, 64, (3, 3, 3), None, None, None).unwrap();
+    /// let conv3d = Conv3D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3, 64, (3, 3, 3), None, None, None).unwrap();
     /// ```
     pub fn new(
         in_channels: usize,
@@ -116,7 +114,10 @@ where
         let bias_param = if use_bias {
             let zeros_data = vec![T::zero(); out_channels];
             let bias_data = Tensor::<B, S, T>::from_vec(zeros_data, &[out_channels])?;
-            Some(Parameter::new(bias_data.requires_grad_(true), "bias".to_string()))
+            Some(Parameter::new(
+                bias_data.requires_grad_(true),
+                "bias".to_string(),
+            ))
         } else {
             None
         };
@@ -125,7 +126,6 @@ where
             weight,
             bias: bias_param,
             in_channels,
-            out_channels,
             kernel_depth,
             kernel_height,
             kernel_width,
@@ -151,13 +151,21 @@ where
         T: num_traits::Float + num_traits::FromPrimitive,
     {
         use rand::distributions::{Distribution, Uniform};
-        let shape = [out_channels, in_channels, kernel_depth, kernel_height, kernel_width];
+        let shape = [
+            out_channels,
+            in_channels,
+            kernel_depth,
+            kernel_height,
+            kernel_width,
+        ];
         let total_elements = shape.iter().product();
         let fan_in = total_elements / out_channels;
         let bound = (6.0 / (fan_in + out_channels) as f64).sqrt();
         let dist = Uniform::new(-bound, bound);
         let mut rng = rand::thread_rng();
-        let data: Vec<T> = (0..total_elements).map(|_| T::from(dist.sample(&mut rng)).unwrap()).collect();
+        let data: Vec<T> = (0..total_elements)
+            .map(|_| T::from(dist.sample(&mut rng)).unwrap())
+            .collect();
         Tensor::<B, S, T>::from_vec(data, &shape).unwrap()
     }
 
@@ -169,60 +177,24 @@ where
         input_width: usize,
     ) -> (usize, usize, usize) {
         let out_depth = (input_depth + 2 * self.padding_d - self.kernel_depth) / self.stride_d + 1;
-        let out_height = (input_height + 2 * self.padding_h - self.kernel_height) / self.stride_h + 1;
+        let out_height =
+            (input_height + 2 * self.padding_h - self.kernel_height) / self.stride_h + 1;
         let out_width = (input_width + 2 * self.padding_w - self.kernel_width) / self.stride_w + 1;
         (out_depth, out_height, out_width)
     }
 
-    /// Pad input tensor with zeros according to padding parameters.
-    fn pad_input(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
-        let input_shape = input.shape().dims();
-        let batch_size = input_shape[0];
-        let in_channels = input_shape[1];
-        let input_depth = input_shape[2];
-        let input_height = input_shape[3];
-        let input_width = input_shape[4];
-
-        let padded_depth = input_depth + 2 * self.padding_d;
-        let padded_height = input_height + 2 * self.padding_h;
-        let padded_width = input_width + 2 * self.padding_w;
-
-        let input_data = input.as_slice();
-        let mut padded_data = vec![T::zero(); batch_size * in_channels * padded_depth * padded_height * padded_width];
-
-        // Copy input data to padded tensor with offset
-        for b in 0..batch_size {
-            for c in 0..in_channels {
-                for d in 0..input_depth {
-                    for h in 0..input_height {
-                        for w in 0..input_width {
-                            let input_idx = (((b * in_channels + c) * input_depth + d) * input_height + h) * input_width + w;
-                            let padded_idx = (((b * in_channels + c) * padded_depth + (d + self.padding_d)) * padded_height + (h + self.padding_h)) * padded_width + (w + self.padding_w);
-                            padded_data[padded_idx] = input_data[input_idx];
-                        }
-                    }
-                }
-            }
-        }
-
-        Tensor::from_vec(padded_data, &[batch_size, in_channels, padded_depth, padded_height, padded_width]).map_err(Into::into)
-    }
-
     /// Perform 3D convolution on CPU dense tensors.
     fn conv3d_cpu_dense(
-        input: &Tensor<CpuBackend, DenseStorage<T>, T>,
-        weight: &Tensor<CpuBackend, DenseStorage<T>, T>,
-        bias: Option<&Tensor<CpuBackend, DenseStorage<T>, T>>,
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        weight: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        bias: Option<&Tensor<CpuBackend<T>, DenseStorage<T>, T>>,
         stride_d: usize,
         stride_h: usize,
         stride_w: usize,
         padding_d: usize,
         padding_h: usize,
         padding_w: usize,
-    ) -> Result<Tensor<CpuBackend, DenseStorage<T>, T>> {
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         let weight_shape = weight.shape().dims();
 
@@ -246,22 +218,43 @@ where
             let padded_depth = input_depth + 2 * padding_d;
             let padded_height = input_height + 2 * padding_h;
             let padded_width = input_width + 2 * padding_w;
-            let mut padded_data = vec![T::zero(); batch_size * in_channels * padded_depth * padded_height * padded_width];
+            let mut padded_data =
+                vec![
+                    T::zero();
+                    batch_size * in_channels * padded_depth * padded_height * padded_width
+                ];
 
             for b in 0..batch_size {
                 for c in 0..in_channels {
                     for d in 0..input_depth {
                         for h in 0..input_height {
                             for w in 0..input_width {
-                                let input_idx = (((b * in_channels + c) * input_depth + d) * input_height + h) * input_width + w;
-                                let padded_idx = (((b * in_channels + c) * padded_depth + (d + padding_d)) * padded_height + (h + padding_h)) * padded_width + (w + padding_w);
+                                let input_idx =
+                                    (((b * in_channels + c) * input_depth + d) * input_height + h)
+                                        * input_width
+                                        + w;
+                                let padded_idx = (((b * in_channels + c) * padded_depth
+                                    + (d + padding_d))
+                                    * padded_height
+                                    + (h + padding_h))
+                                    * padded_width
+                                    + (w + padding_w);
                                 padded_data[padded_idx] = input.as_slice()[input_idx];
                             }
                         }
                     }
                 }
             }
-            Tensor::from_vec(padded_data, &[batch_size, in_channels, padded_depth, padded_height, padded_width])?
+            Tensor::from_vec(
+                padded_data,
+                &[
+                    batch_size,
+                    in_channels,
+                    padded_depth,
+                    padded_height,
+                    padded_width,
+                ],
+            )?
         } else {
             input.clone()
         };
@@ -296,10 +289,25 @@ where
                                             let ih = oh * stride_h + kh;
                                             let iw = ow * stride_w + kw;
 
-                                            if id < padded_depth && ih < padded_height && iw < padded_width {
-                                                let input_idx = (((b * in_channels + ic) * padded_depth + id) * padded_height + ih) * padded_width + iw;
-                                                let weight_idx = (((oc * in_channels + ic) * kernel_depth + kd) * kernel_height + kh) * kernel_width + kw;
-                                                sum = sum + input_data[input_idx] * weight_data[weight_idx];
+                                            if id < padded_depth
+                                                && ih < padded_height
+                                                && iw < padded_width
+                                            {
+                                                let input_idx =
+                                                    (((b * in_channels + ic) * padded_depth + id)
+                                                        * padded_height
+                                                        + ih)
+                                                        * padded_width
+                                                        + iw;
+                                                let weight_idx =
+                                                    (((oc * in_channels + ic) * kernel_depth + kd)
+                                                        * kernel_height
+                                                        + kh)
+                                                        * kernel_width
+                                                        + kw;
+                                                sum = sum
+                                                    + input_data[input_idx]
+                                                        * weight_data[weight_idx];
                                             }
                                         }
                                     }
@@ -312,7 +320,11 @@ where
                                 sum = sum + bias_data[oc];
                             }
 
-                            let output_idx = (((b * out_channels + oc) * output_depth + od) * output_height + oh) * output_width + ow;
+                            let output_idx = (((b * out_channels + oc) * output_depth + od)
+                                * output_height
+                                + oh)
+                                * output_width
+                                + ow;
                             output_data[output_idx] = sum;
                         }
                     }
@@ -320,7 +332,13 @@ where
             }
         }
 
-        let output_shape = [batch_size, out_channels, output_depth, output_height, output_width];
+        let output_shape = [
+            batch_size,
+            out_channels,
+            output_depth,
+            output_height,
+            output_width,
+        ];
         Ok(Tensor::from_vec(output_data, &output_shape)?)
     }
 }
@@ -329,36 +347,49 @@ impl<B, S, T> Module<B, S, T> for Conv3D<B, S, T>
 where
     B: Backend + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt + PartialOrd + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero + 'static,
+    T: DataType
+        + FloatExt
+        + PartialOrd
+        + num_traits::Float
+        + num_traits::FromPrimitive
+        + num_traits::Zero
+        + 'static,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let input_shape = input.shape().dims();
 
-        if input_shape.len() != 5 {
+        if input_shape.len() != 5usize {
             return Err(NNError::InvalidInput {
-                message: format!("Expected 5D input (N, C, D, H, W), got {}D", input_shape.len()),
+                message: format!(
+                    "Expected 5D input (N, C, D, H, W), got {}D",
+                    input_shape.len()
+                ),
             });
         }
 
-        let batch_size = input_shape[0];
+        let _batch_size = input_shape[0];
         let in_channels = input_shape[1];
-        let input_depth = input_shape[2];
-        let input_height = input_shape[3];
-        let input_width = input_shape[4];
+        let _input_depth = input_shape[2];
+        let _input_height = input_shape[3];
+        let _input_width = input_shape[4];
 
         if in_channels != self.in_channels {
             return Err(NNError::InvalidInput {
-                message: format!("Expected {} input channels, got {}", self.in_channels, in_channels),
+                message: format!(
+                    "Expected {} input channels, got {}",
+                    self.in_channels, in_channels
+                ),
             });
         }
 
         // Convert to CPU dense for computation (maintains compatibility while allowing future generic implementation)
         let input_cpu = input.to_cpu_dense()?;
         let weight_cpu = self.weight.data().to_cpu_dense()?;
-        let bias_cpu = self.bias.as_ref().map(|b| b.data().to_cpu_dense()).transpose()?;
+        let bias_cpu = self
+            .bias
+            .as_ref()
+            .map(|b| b.data().to_cpu_dense())
+            .transpose()?;
 
         // Perform convolution
         let output_cpu = Self::conv3d_cpu_dense(
@@ -416,13 +447,22 @@ mod tests {
     use coeus_storage::DenseStorage;
     use coeus_tensor::Tensor;
 
-    type TestTensor = Tensor<CpuBackend, DenseStorage<Float32>, Float32>;
+    type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
     #[test]
     fn test_conv3d_creation() {
-        let conv3d = Conv3D::<CpuBackend, DenseStorage<Float32>, Float32>::new(3, 64, (3, 3, 3), Some((1, 1, 1)), Some((1, 1, 1)), Some(true)).unwrap();
+        let conv3d = Conv3D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            3,
+            64,
+            (3, 3, 3),
+            Some((1, 1, 1)),
+            Some((1, 1, 1)),
+            Some(true),
+        )
+        .unwrap();
         assert_eq!(conv3d.in_channels, 3);
-        assert_eq!(conv3d.out_channels, 64);
+        let weight_shape = conv3d.weight.data().shape().dims();
+        assert_eq!(weight_shape[0], 64); // out_channels
         assert_eq!(conv3d.kernel_depth, 3);
         assert_eq!(conv3d.kernel_height, 3);
         assert_eq!(conv3d.kernel_width, 3);
@@ -439,7 +479,15 @@ mod tests {
 
     #[test]
     fn test_conv3d_forward() {
-        let conv3d = Conv3D::<CpuBackend, DenseStorage<Float32>, Float32>::new(1, 2, (3, 3, 3), Some((1, 1, 1)), Some((1, 1, 1)), Some(false)).unwrap();
+        let conv3d = Conv3D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            1,
+            2,
+            (3, 3, 3),
+            Some((1, 1, 1)),
+            Some((1, 1, 1)),
+            Some(false),
+        )
+        .unwrap();
         let input_data = vec![Float32::new(1.0); 1 * 1 * 5 * 5 * 5];
         let input = TestTensor::from_vec(input_data, &[1, 1, 5, 5, 5]).unwrap();
         let output = conv3d.forward(&input).unwrap();
@@ -450,12 +498,28 @@ mod tests {
 
     #[test]
     fn test_conv3d_output_size() {
-        let conv3d = Conv3D::<CpuBackend, DenseStorage<Float32>, Float32>::new(3, 64, (3, 3, 3), Some((1, 1, 1)), Some((1, 1, 1)), Some(true)).unwrap();
+        let conv3d = Conv3D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            3,
+            64,
+            (3, 3, 3),
+            Some((1, 1, 1)),
+            Some((1, 1, 1)),
+            Some(true),
+        )
+        .unwrap();
         // Input: 8x8x8 with stride=1, padding=1, kernel=3
         // Output: (8 + 2*1 - 3) / 1 + 1 = 8
         assert_eq!(conv3d.output_size(8, 8, 8), (8, 8, 8));
 
-        let conv3d2 = Conv3D::<CpuBackend, DenseStorage<Float32>, Float32>::new(3, 64, (3, 3, 3), Some((2, 2, 2)), Some((0, 0, 0)), Some(true)).unwrap();
+        let conv3d2 = Conv3D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            3,
+            64,
+            (3, 3, 3),
+            Some((2, 2, 2)),
+            Some((0, 0, 0)),
+            Some(true),
+        )
+        .unwrap();
         // Input: 16x16x16 with stride=2, padding=0, kernel=3
         // Output: (16 + 2*0 - 3) / 2 + 1 = 7
         assert_eq!(conv3d2.output_size(16, 16, 16), (7, 7, 7));
