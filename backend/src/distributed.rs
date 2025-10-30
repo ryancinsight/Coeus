@@ -94,6 +94,7 @@ pub struct CoordinationStats {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct FaultToleranceState {
     /// Whether the coordinator is in recovery mode
     pub recovering: bool,
@@ -115,15 +116,6 @@ impl Default for CoordinationStats {
     }
 }
 
-impl Default for FaultToleranceState {
-    fn default() -> Self {
-        Self {
-            recovering: false,
-            failed_backends: HashMap::new(),
-            degraded_mode: false,
-        }
-    }
-}
 
 /// Distributed workload characteristics across multiple GPUs
 #[derive(Debug, Clone)]
@@ -405,7 +397,7 @@ impl DistributedBackendCoordinator {
         let mut homogeneous_groups = HashMap::new();
 
         // Group processes by backend type
-        for (_, backend) in backends {
+        for backend in backends.values() {
             *homogeneous_groups.entry(backend).or_insert(0) += 1;
         }
 
@@ -567,7 +559,7 @@ impl DistributedWorkloadAnalyzer {
         // In real implementation, would gather workload data from all processes
         // For now, simulate aggregate workload
         let aggregate_workload = WorkloadCharacteristics {
-            total_elements: local_workload.total_elements * process_group.world_size().0 as usize,
+            total_elements: local_workload.total_elements * process_group.world_size().0,
             access_pattern: local_workload.access_pattern,
             compute_intensity: local_workload.compute_intensity,
             data_locality: local_workload.data_locality,
@@ -643,7 +635,7 @@ impl DistributedWorkloadAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{DataLocality, MemoryAccessPattern, OperationType};
+    use crate::{DataLocality, MemoryAccessPattern, OperationDype};
 
     fn create_test_workload() -> WorkloadCharacteristics {
         WorkloadCharacteristics {
@@ -651,7 +643,7 @@ mod tests {
             access_pattern: MemoryAccessPattern::Dense,
             compute_intensity: 50.0,
             data_locality: DataLocality::High,
-            operation_type: OperationType::MatrixMultiplication,
+            operation_type: OperationDype::MatrixMultiplication,
         }
     }
 

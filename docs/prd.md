@@ -10,11 +10,13 @@ To create the most reliable, performant, and safe deep learning framework by lev
 
 ## Core Requirements
 
-### 1. System-Wide B<S<T>> Generic Architecture
+### 1. Simplified Generic Architecture with Associated Types
 
-**ALL Coeus components implement the complete `Tensor<B<S<T>>>` generic hierarchy for full backend, sparse, and datatype support - both present and future** (ADR: Generic Architecture Commitment).
+**ALL Coeus components implement the simplified `Tensor<B>` generic hierarchy with associated types for full backend, sparse, and datatype support** (ADR: Generic Architecture Commitment).
 
-The framework is built around a nested trait hierarchy providing maximum type safety and performance through zero-cost abstractions. Every component from tensors to optimizers to loss functions supports the full generic hierarchy.
+The framework is built around a trait hierarchy with associated types providing maximum type safety and performance through zero-cost abstractions. Every component from tensors to optimizers to loss functions supports the full generic hierarchy while maintaining clean API ergonomics.
+
+**Architecture Update (October 2025)**: Simplified from `Tensor<B<S<T>>>` to `Tensor<B>` using associated types on the Backend trait, eliminating redundant generics while maintaining complete extensibility.
 
 - **T (DataType)**: Complete support for all PyTorch dtypes
   - Floating point: f16 (half), f32, f64, bfloat16
@@ -39,12 +41,12 @@ The framework is built around a nested trait hierarchy providing maximum type sa
   - NPU: Future extensibility for neural processing units
   - Distributed: Multi-device/multi-node training support
 
-- **Component Generics**: System-wide B<S<T>> implementation
-  - **Neural Networks**: `Module<B<S<T>>>`, `Conv2D<B<S<T>>>`, `Linear<B<S<T>>>`, etc.
-  - **Optimizers**: `Adam<B<S<T>>>`, `SGD<B<S<T>>>`, `RMSprop<B<S<T>>>`
-  - **Loss Functions**: `MSELoss<B<S<T>>>`, `CrossEntropyLoss<B<S<T>>>`
-  - **Activation**: `ReLU<B<S<T>>>`, `GELU<B<S<T>>>`, `Sigmoid<B<S<T>>>`
-  - **All Components**: Zero-cost compile-time specialization for any B, S, T combination
+- **Component Generics**: Simplified B implementation with associated types
+  - **Neural Networks**: `Module<B>`, `Conv2D<B>`, `Linear<B>`, etc.
+  - **Optimizers**: `Adam<B>`, `SGD<B>`, `RMSprop<B>`
+  - **Loss Functions**: `MSELoss<B>`, `CrossEntropyLoss<B>`
+  - **Activation**: `ReLU<B>`, `GELU<B>`, `Sigmoid<B>`
+  - **All Components**: Zero-cost compile-time specialization for any B with associated S and T types
 
 ### 2. Automatic Differentiation
 

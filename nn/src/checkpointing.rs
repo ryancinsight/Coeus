@@ -53,7 +53,7 @@ struct CheckpointSegment {
 impl<M, B, T> Checkpointed<M, B, T>
 where
     M: Module<B, DenseStorage<T>, T>,
-    B: Backend + Default + Clone,
+    B: Backend<Data = T> + Default + Clone,
     T: DataType + Clone,
 {
     /// Create a new checkpointed wrapper
@@ -149,7 +149,7 @@ where
 impl<M, B, T> Module<B, DenseStorage<T>, T> for Checkpointed<M, B, T>
 where
     M: Module<B, DenseStorage<T>, T> + Clone,
-    B: Backend + Default + Clone,
+    B: Backend<Data = T> + Default + Clone,
     T: DataType + Clone,
 {
     fn forward(&self, input: &Tensor<B, DenseStorage<T>, T>) -> Result<Tensor<B, DenseStorage<T>, T>> {
@@ -176,7 +176,7 @@ where
 impl<M, B, T> ModuleSerialize<B, DenseStorage<T>, T> for Checkpointed<M, B, T>
 where
     M: Module<B, DenseStorage<T>, T> + ModuleSerialize<B, DenseStorage<T>, T> + Clone,
-    B: Backend + Default + Clone,
+    B: Backend<Data = T> + Default + Clone,
     T: DataType + Clone + serde::Serialize + serde::de::DeserializeOwned,
 {
     fn state_dict(&self) -> StateDict<T> {

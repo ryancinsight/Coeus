@@ -1,0 +1,31 @@
+[package]
+name = "coeus-foundation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+coeus-dtype.workspace = true
+coeus-storage.workspace = true
+coeus-tensor.workspace = true
+coeus-autograd.workspace = true
+coeus-nn.workspace = true
+coeus-optim.workspace = true
+coeus-error.workspace = true
+
+# External dependencies
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+half.workspace = true
+rand.workspace = true
+
+[dev-dependencies]
+approx.workspace = true
+proptest.workspace = true

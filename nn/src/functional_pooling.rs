@@ -43,7 +43,7 @@ pub fn max_pool2d<B, T>(
     padding: (usize, usize),
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     T: DataType + FloatExt + PartialOrd + Clone,
 {
     let input_dense = input.to_dense_generic()?;
@@ -145,7 +145,7 @@ pub fn avg_pool2d<B, T>(
     padding: (usize, usize),
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     T: DataType + FloatExt + Clone + std::ops::Add<Output = T> + std::ops::Div<Output = T>,
 {
     let input_dense = input.to_dense_generic()?;

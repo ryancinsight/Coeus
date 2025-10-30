@@ -5,6 +5,7 @@
 
 use coeus_backend::Backend;
 use coeus_dtype::DataType;
+use coeus_storage::DenseStorage;
 use coeus_tensor::Tensor;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -312,7 +313,7 @@ impl TopologicalSorter {
 /// operations needed for gradient accumulation.
 pub struct GradientAccumulator<B, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     T: DataType,
 {
     /// Accumulated gradients for each tensor (keyed by tensor pointer)
@@ -321,7 +322,7 @@ where
 
 impl<B, T> GradientAccumulator<B, T>
 where
-    B: Backend + Default,
+    B: Backend<Data = T> + Default,
     T: DataType + core::ops::Add<Output = T>,
 {
     /// Create a new gradient accumulator
@@ -386,7 +387,7 @@ where
                     accumulated_data.push(*a + *b);
                 }
 
-                let accumulated = Tensor::from_vec(accumulated_data, existing_grad.shape().dims())
+                let accumulated: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec(accumulated_data, existing_grad.shape().dims())
                     .map_err(crate::error::AutogradError::TensorError)?;
 
                 if let Err(e) = tensor.set_grad(accumulated) {
@@ -415,7 +416,7 @@ where
 
 impl<B, T> Default for GradientAccumulator<B, T>
 where
-    B: Backend + Default,
+    B: Backend<Data = T> + Default,
     T: DataType + core::ops::Add<Output = T>,
 {
     fn default() -> Self {

@@ -66,7 +66,7 @@ pub mod async_checkpoint {
         path: &Path,
     ) -> Result<()>
     where
-        B: Backend + Clone + std::default::Default,
+        B: Backend<Data = T> + Clone + std::default::Default,
         S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T>,
         T: DataType + Serialize + for<'de> Deserialize<'de>,
         M: Module<B, S, T> + ModuleSerialize<B, S, T>,
@@ -336,7 +336,7 @@ pub fn save_checkpoint<B, S, T, M>(
     path: &Path,
 ) -> Result<()>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T>,
     T: DataType + Serialize + for<'de> Deserialize<'de>,
     M: Module<B, S, T> + ModuleSerialize<B, S, T>,

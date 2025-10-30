@@ -140,7 +140,7 @@ fn bench_sparse_format_conversions(c: &mut Criterion) {
         let csr = create_sparse_csr(rows, cols, sparsity);
 
         group.bench_function(
-            &format!("csr_to_coo_{}x{}_sparsity_{:.1}", rows, cols, sparsity),
+            format!("csr_to_coo_{}x{}_sparsity_{:.1}", rows, cols, sparsity),
             |b| {
                 b.iter(|| {
                     let _coo = black_box(csr.to_coo());
@@ -149,7 +149,7 @@ fn bench_sparse_format_conversions(c: &mut Criterion) {
         );
 
         group.bench_function(
-            &format!("csr_to_csc_{}x{}_sparsity_{:.1}", rows, cols, sparsity),
+            format!("csr_to_csc_{}x{}_sparsity_{:.1}", rows, cols, sparsity),
             |b| {
                 b.iter(|| {
                     let _csc = black_box(csr.to_csc());
@@ -174,7 +174,7 @@ fn bench_sparse_reductions(c: &mut Criterion) {
         let csr = create_sparse_csr(rows, cols, sparsity);
 
         group.bench_function(
-            &format!("sum_nz_{}x{}_sparsity_{:.1}", rows, cols, sparsity),
+            format!("sum_nz_{}x{}_sparsity_{:.1}", rows, cols, sparsity),
             |b| {
                 b.iter(|| {
                     let _sum = black_box(csr.sum_nz());
@@ -183,7 +183,7 @@ fn bench_sparse_reductions(c: &mut Criterion) {
         );
 
         group.bench_function(
-            &format!("nnz_count_{}x{}_sparsity_{:.1}", rows, cols, sparsity),
+            format!("nnz_count_{}x{}_sparsity_{:.1}", rows, cols, sparsity),
             |b| {
                 b.iter(|| {
                     let _nnz = black_box(csr.nnz());

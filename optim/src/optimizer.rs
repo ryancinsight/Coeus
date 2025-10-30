@@ -10,7 +10,7 @@ use coeus_storage::{Storage, StorageFromVec};
 /// Base trait for all optimizers
 pub trait BaseOptimizer<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -54,7 +54,7 @@ where
 #[derive(Debug, Clone)]
 pub struct ParamGroup<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -66,7 +66,7 @@ where
 
 impl<B, S, T> ParamGroup<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {

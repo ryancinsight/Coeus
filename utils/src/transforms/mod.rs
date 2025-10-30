@@ -57,7 +57,7 @@ pub use totensor::ToTensor;
 /// zero-cost abstractions across different backend, storage, and data type combinations.
 pub trait CoeusTransform<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T>,
     T: DataType,
 {

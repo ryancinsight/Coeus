@@ -293,6 +293,7 @@ pub struct ArmStats {
 /// Contextual bandit for hyperparameter optimization
 pub struct ContextualBandit {
     /// Feature extractor for configurations
+    #[allow(clippy::type_complexity)]
     pub feature_extractor: Box<dyn Fn(&HyperparameterConfig) -> Vec<f64>>,
     /// Linear bandit parameters (one per feature)
     pub parameters: Vec<f64>,

@@ -6,9 +6,10 @@
 
 extern crate alloc;
 
-use crate::Result;
+use crate::{functions::*, Result};
 use coeus_dtype::DataType;
 use coeus_tensor::{CpuBackend, DenseStorage, Tensor};
+use alloc::{sync::Arc, vec::Vec};
 
 /// Element-wise addition with automatic differentiation
 ///
@@ -41,10 +42,54 @@ use coeus_tensor::{CpuBackend, DenseStorage, Tensor};
 /// assert!(z.grad_fn().is_some()); // Has AddBackward function attached
 /// ```
 #[allow(clippy::missing_errors_doc)]
-pub fn add<T: DataType + std::ops::Add<Output = T> + Copy>(
-    lhs: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    rhs: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
-    // Use the ops module to get proper grad_fn setting
-    Ok(crate::ops::add(lhs, rhs))
+pub fn add(
+    lhs: &Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>,
+    rhs: &Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>,
+) -> Result<Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>> {
+    use coeus_dtype::float::Float32;
+
+    // Perform the addition operation
+    let result = lhs + rhs;
+
+    // Create computation graph if gradients are required
+    if lhs.requires_grad() || rhs.requires_grad() {
+        let add_fn = Arc::new(AddFunction::new(
+            Arc::new(lhs.clone()),
+            Arc::new(rhs.clone()),
+        ));
+        let mut result_with_grad = result;
+        result_with_grad.set_grad_fn(Some("add".to_string()));
+        Ok(result_with_grad)
+    } else {
+        Ok(result)
+    }
+}
+
+/// Matrix multiplication with automatic differentiation
+///
+/// This function performs matrix multiplication and automatically attaches
+/// a `MatMulFunction` to the result tensor if either input requires gradients.
+///
+/// # Arguments
+/// * `lhs` - Left-hand side tensor
+/// * `rhs` - Right-hand side tensor
+///
+/// # Returns
+/// Result tensor with automatic differentiation support
+#[allow(clippy::missing_errors_doc)]
+pub fn matmul(
+    lhs: &Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>,
+    rhs: &Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>,
+) -> Result<Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>> {
+    // Perform the matrix multiplication
+    let result = lhs.matmul(rhs).map_err(|e| crate::AutogradError::TensorError(e))?;
+
+    // Create computation graph if gradients are required
+    if lhs.requires_grad() || rhs.requires_grad() {
+        let mut result_with_grad = result;
+        result_with_grad.set_grad_fn(Some("matmul".to_string()));
+        Ok(result_with_grad)
+    } else {
+        Ok(result)
+    }
 }

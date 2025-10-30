@@ -38,7 +38,7 @@ use crate::parameter::Parameter;
 #[derive(Debug, Clone)]
 pub struct Linear<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + 'static,
     T: DataType,
 {
@@ -56,7 +56,7 @@ where
 
 impl<B, S, T> Linear<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive,
 {
@@ -317,7 +317,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for Linear<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + num_traits::Zero + num_traits::One,
 {
@@ -354,31 +354,30 @@ where
             });
         }
 
-        // Use dense computation path for now
-        // Future enhancement: Implement compile-time sparse weight detection and sparse operations
-        // This would require separate trait implementations for sparse storage types
+        // For now, use direct operations - autograd integration will be completed later
+        // TODO: Integrate with working autograd system
         let input_dense = input.to_dense_generic()?;
         let weight_t = self.weight_t.as_ref().unwrap();
         let output = input_dense.matmul(weight_t)?;
 
-        // Add bias manually - add bias to each sample in the batch
-        let bias_data = self.bias.data().as_slice();
-        let mut output_data = output.as_slice().to_vec();
-        let batch_size = input.shape().dims()[0];
-        let out_features = bias_data.len(); // Use bias length as out_features
+            // Add bias manually - add bias to each sample in the batch
+            let bias_data = self.bias.data().as_slice();
+            let mut output_data = output.as_slice().to_vec();
+            let batch_size = input.shape().dims()[0];
+            let out_features = bias_data.len(); // Use bias length as out_features
 
-        for batch in 0..batch_size {
-            for feature in 0..out_features {
-                let idx = batch * out_features + feature;
-                if idx < output_data.len() && feature < bias_data.len() {
-                    output_data[idx] = output_data[idx] + bias_data[feature];
+            for batch in 0..batch_size {
+                for feature in 0..out_features {
+                    let idx = batch * out_features + feature;
+                    if idx < output_data.len() && feature < bias_data.len() {
+                        output_data[idx] = output_data[idx] + bias_data[feature];
+                    }
                 }
             }
-        }
 
-        let result = Tensor::<B, S, T>::from_vec(output_data, output.shape().dims())?;
-        Ok(result)
-    }
+            let result = Tensor::<B, S, T>::from_vec(output_data, output.shape().dims())?;
+            Ok(result)
+        }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         vec![self.weight.clone(), self.bias.clone()]
@@ -400,7 +399,7 @@ where
 
 impl<B, S, T> fmt::Display for Linear<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + 'static,
     T: DataType,
 {
@@ -418,7 +417,7 @@ where
 #[cfg(feature = "safetensors")]
 impl<B, S, T> crate::module::ModuleSerialize<B, S, T> for Linear<B, S, T>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T>
         + Clone
         + 'static

@@ -22,7 +22,7 @@ use crate::quantization::{
 use std::collections::HashMap;
 pub struct KVCache<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + Clone,
 {
@@ -46,7 +46,7 @@ where
 
 impl<B, S, T> KVCache<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + Clone,
 {
@@ -286,7 +286,7 @@ where
 #[derive(Debug)]
 pub struct QuantizedKVCache<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + Clone + PartialOrd + Into<f64> + From<f64>,
     f64: From<T>,
@@ -330,7 +330,7 @@ pub enum KVCacheQuantizationPolicy {
 #[cfg(feature = "quantized")]
 impl<B, S, T> QuantizedKVCache<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + Clone + PartialOrd + Into<f64> + From<f64>,
     f64: From<T>,

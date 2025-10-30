@@ -65,7 +65,7 @@ use crate::Parameter;
 #[derive(Debug)]
 pub struct RMSprop<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + coeus_dtype::num_traits::Float,
 {
@@ -93,7 +93,7 @@ where
 
 impl<B, S, T> RMSprop<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + coeus_dtype::num_traits::Float,
 {
@@ -305,7 +305,7 @@ where
 
 impl<B, S, T> Optimizer<B, S, T> for RMSprop<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + coeus_dtype::num_traits::Float,
 {
@@ -581,7 +581,7 @@ where
 
 impl<B, S, T> Default for RMSprop<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + coeus_dtype::num_traits::Float,
 {
@@ -593,7 +593,7 @@ where
 // Implement GPU-accelerated optimizer trait (simplified)
 impl<B, S, T> GpuAcceleratedOptimizer for RMSprop<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Float,
 {

@@ -94,7 +94,7 @@ pub trait QuantizationOps<T> {
         zero_point: T,
     ) -> Result<Tensor<B, QuantizedStorage<T, BITS>, T>>
     where
-        B: Backend + Clone,
+        B: Backend<Data = T> + Clone,
         S: Storage<T> + Clone + 'static,
         T: Clone,
     {

@@ -60,7 +60,7 @@ use crate::parameter::Parameter;
 #[derive(Debug, Clone)]
 pub struct GroupNorm<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + 'static,
     T: DataType,
 {
@@ -81,7 +81,7 @@ where
 
 impl<B, S, T> GroupNorm<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::One + num_traits::Zero,
 {
@@ -312,7 +312,7 @@ where
 #[derive(Debug, Clone)]
 pub struct InstanceNorm<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + 'static,
     T: DataType,
 {
@@ -322,7 +322,7 @@ where
 
 impl<B, S, T> InstanceNorm<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType + FloatExt,
 {

@@ -41,7 +41,7 @@ pub fn relu<B, T>(
     input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     T: DataType + FloatExt + PartialOrd + Clone,
 {
     let input_dense = input.to_dense_generic()?;
@@ -74,7 +74,7 @@ pub fn sigmoid<B, T>(
     input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + Clone,
 {
     let input_dense = input.to_dense_generic()?;
@@ -109,7 +109,7 @@ pub fn tanh<B, T>(
     input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     T: DataType + FloatExt,
 {
     let input_dense = input.to_dense_generic()?;
@@ -140,7 +140,7 @@ pub fn gelu<B, T>(
     input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     T: DataType
         + FloatExt
         + std::ops::Neg<Output = T>
@@ -185,7 +185,7 @@ pub fn silu<B, T>(
     input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + Clone + std::ops::Mul<Output = T>,
 {
     let input_dense = input.to_dense_generic()?;
@@ -223,7 +223,7 @@ pub fn leaky_relu<B, T>(
     negative_slope: T,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     T: DataType + FloatExt + PartialOrd + Clone + std::ops::Mul<Output = T>,
 {
     let input_dense = input.to_dense_generic()?;
@@ -262,7 +262,7 @@ pub fn elu<B, T>(
     alpha: T,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     T: DataType
         + FloatExt
         + PartialOrd

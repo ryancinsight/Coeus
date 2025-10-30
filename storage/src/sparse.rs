@@ -928,6 +928,149 @@ impl<T: DataType> crate::StorageFromVec<T> for CooStorage<T> {
     }
 }
 
+// StorageToDense implementations for sparse storage types
+
+impl<T: DataType> crate::StorageToDense<T> for CsrStorage<T> {
+    fn to_dense(&self) -> crate::Result<crate::DenseStorage<T>> {
+        let mut dense_data = vec![T::zero(); self.shape().size()];
+        let dims = self.shape().dims();
+
+        for row in 0..dims[0] {
+            let row_start = self.indptr[row];
+            let row_end = self.indptr[row + 1];
+
+            for i in row_start..row_end {
+                let col = self.indices[i];
+                let flat_idx = row * dims[1] + col;
+                dense_data[flat_idx] = self.data[i];
+            }
+        }
+
+        crate::DenseStorage::from_vec(dense_data, dims)
+    }
+}
+
+impl<T: DataType> crate::StorageToDense<T> for CscStorage<T> {
+    fn to_dense(&self) -> crate::Result<crate::DenseStorage<T>> {
+        let mut dense_data = vec![T::zero(); self.shape().size()];
+        let dims = self.shape().dims();
+
+        for col in 0..dims[1] {
+            let col_start = self.indptr[col];
+            let col_end = self.indptr[col + 1];
+
+            for i in col_start..col_end {
+                let row = self.indices[i];
+                let flat_idx = row * dims[1] + col;
+                dense_data[flat_idx] = self.data[i];
+            }
+        }
+
+        crate::DenseStorage::from_vec(dense_data, dims)
+    }
+}
+
+impl<T: DataType> crate::StorageToDense<T> for CooStorage<T> {
+    fn to_dense(&self) -> crate::Result<crate::DenseStorage<T>> {
+        let mut dense_data = vec![T::zero(); self.shape().size()];
+        let dims = self.shape().dims();
+
+        for i in 0..self.nnz() {
+            let row = self.row_indices[i];
+            let col = self.col_indices[i];
+            let flat_idx = row * dims[1] + col;
+            dense_data[flat_idx] = self.data[i];
+        }
+
+        crate::DenseStorage::from_vec(dense_data, dims)
+    }
+}
+
+// Implement MatMulStorage for sparse types using existing sparse arithmetic
+impl<T: DataType> crate::MatMulStorage<T> for CsrStorage<T>
+where
+    T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
+{
+    fn matmul_storage(&self, other: &Self) -> crate::Result<Self> {
+        // Use the existing sparse matrix multiplication
+        let result_coo = self.matmul_sparse(other, crate::SparseFormat::Csr)?;
+        Ok(result_coo.to_csr())
+    }
+}
+
+impl<T: DataType> crate::MatMulStorage<T> for CscStorage<T>
+where
+    T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
+{
+    fn matmul_storage(&self, other: &Self) -> crate::Result<Self> {
+        // Convert to CSR, multiply, convert back to CSC
+        let self_csr = self.to_csr();
+        let other_csr = other.to_csr();
+        let result_csr = self_csr.matmul_sparse(&other_csr, crate::SparseFormat::Csr)?;
+        Ok(result_csr.to_csc())
+    }
+}
+
+impl<T: DataType> crate::MatMulStorage<T> for CooStorage<T>
+where
+    T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
+{
+    fn matmul_storage(&self, other: &Self) -> crate::Result<Self> {
+        // Use COO × COO multiplication
+        self.matmul_sparse(other, crate::SparseFormat::Coo)
+    }
+}
+
+// Implement TransposeStorage for sparse types
+impl<T: DataType> crate::TransposeStorage<T> for CsrStorage<T> {
+    fn transpose_storage(&self, dim0: usize, dim1: usize) -> crate::Result<Self> {
+        if dim0 != 0 || dim1 != 1 {
+            // Only support 2D transpose for now
+            return Err(crate::StorageError::ShapeMismatch {
+                expected: 2,
+                actual: dim0.max(dim1),
+            });
+        }
+
+        // Use existing transpose implementation
+        Ok(self.transpose())
+    }
+}
+
+impl<T: DataType> crate::TransposeStorage<T> for CscStorage<T> {
+    fn transpose_storage(&self, dim0: usize, dim1: usize) -> crate::Result<Self> {
+        if dim0 != 0 || dim1 != 1 {
+            // Only support 2D transpose for now
+            return Err(crate::StorageError::ShapeMismatch {
+                expected: 2,
+                actual: dim0.max(dim1),
+            });
+        }
+
+        // Convert to CSR, transpose, convert back to CSC
+        let csr = self.to_csr();
+        let transposed_csr = csr.transpose();
+        Ok(transposed_csr.to_csc())
+    }
+}
+
+impl<T: DataType> crate::TransposeStorage<T> for CooStorage<T> {
+    fn transpose_storage(&self, dim0: usize, dim1: usize) -> crate::Result<Self> {
+        if dim0 != 0 || dim1 != 1 {
+            // Only support 2D transpose for now
+            return Err(crate::StorageError::ShapeMismatch {
+                expected: 2,
+                actual: dim0.max(dim1),
+            });
+        }
+
+        // Convert to CSR, transpose, convert back to COO
+        let csr = self.to_csr();
+        let transposed_csr = csr.transpose();
+        Ok(transposed_csr.to_coo())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1263,148 +1406,5 @@ mod tests {
         assert_eq!(original.indices, round_trip.indices);
         assert_eq!(original.indptr, round_trip.indptr);
         assert_eq!(original.shape.dims(), round_trip.shape.dims());
-    }
-}
-
-// StorageToDense implementations for sparse storage types
-
-impl<T: DataType> crate::StorageToDense<T> for CsrStorage<T> {
-    fn to_dense(&self) -> crate::Result<crate::DenseStorage<T>> {
-        let mut dense_data = vec![T::zero(); self.shape().size()];
-        let dims = self.shape().dims();
-
-        for row in 0..dims[0] {
-            let row_start = self.indptr[row];
-            let row_end = self.indptr[row + 1];
-
-            for i in row_start..row_end {
-                let col = self.indices[i];
-                let flat_idx = row * dims[1] + col;
-                dense_data[flat_idx] = self.data[i];
-            }
-        }
-
-        crate::DenseStorage::from_vec(dense_data, dims)
-    }
-}
-
-impl<T: DataType> crate::StorageToDense<T> for CscStorage<T> {
-    fn to_dense(&self) -> crate::Result<crate::DenseStorage<T>> {
-        let mut dense_data = vec![T::zero(); self.shape().size()];
-        let dims = self.shape().dims();
-
-        for col in 0..dims[1] {
-            let col_start = self.indptr[col];
-            let col_end = self.indptr[col + 1];
-
-            for i in col_start..col_end {
-                let row = self.indices[i];
-                let flat_idx = row * dims[1] + col;
-                dense_data[flat_idx] = self.data[i];
-            }
-        }
-
-        crate::DenseStorage::from_vec(dense_data, dims)
-    }
-}
-
-impl<T: DataType> crate::StorageToDense<T> for CooStorage<T> {
-    fn to_dense(&self) -> crate::Result<crate::DenseStorage<T>> {
-        let mut dense_data = vec![T::zero(); self.shape().size()];
-        let dims = self.shape().dims();
-
-        for i in 0..self.nnz() {
-            let row = self.row_indices[i];
-            let col = self.col_indices[i];
-            let flat_idx = row * dims[1] + col;
-            dense_data[flat_idx] = self.data[i];
-        }
-
-        crate::DenseStorage::from_vec(dense_data, dims)
-    }
-}
-
-// Implement MatMulStorage for sparse types using existing sparse arithmetic
-impl<T: DataType> crate::MatMulStorage<T> for CsrStorage<T>
-where
-    T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
-{
-    fn matmul_storage(&self, other: &Self) -> crate::Result<Self> {
-        // Use the existing sparse matrix multiplication
-        let result_coo = self.matmul_sparse(other, crate::SparseFormat::Csr)?;
-        Ok(result_coo.to_csr())
-    }
-}
-
-impl<T: DataType> crate::MatMulStorage<T> for CscStorage<T>
-where
-    T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
-{
-    fn matmul_storage(&self, other: &Self) -> crate::Result<Self> {
-        // Convert to CSR, multiply, convert back to CSC
-        let self_csr = self.to_csr();
-        let other_csr = other.to_csr();
-        let result_csr = self_csr.matmul_sparse(&other_csr, crate::SparseFormat::Csr)?;
-        Ok(result_csr.to_csc())
-    }
-}
-
-impl<T: DataType> crate::MatMulStorage<T> for CooStorage<T>
-where
-    T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
-{
-    fn matmul_storage(&self, other: &Self) -> crate::Result<Self> {
-        // Use COO × COO multiplication
-        self.matmul_sparse(other, crate::SparseFormat::Coo)
-    }
-}
-
-// Implement TransposeStorage for sparse types
-impl<T: DataType> crate::TransposeStorage<T> for CsrStorage<T> {
-    fn transpose_storage(&self, dim0: usize, dim1: usize) -> crate::Result<Self> {
-        if dim0 != 0 || dim1 != 1 {
-            // Only support 2D transpose for now
-            return Err(crate::StorageError::ShapeMismatch {
-                expected: 2,
-                actual: dim0.max(dim1),
-            });
-        }
-
-        // Use existing transpose implementation
-        Ok(self.transpose())
-    }
-}
-
-impl<T: DataType> crate::TransposeStorage<T> for CscStorage<T> {
-    fn transpose_storage(&self, dim0: usize, dim1: usize) -> crate::Result<Self> {
-        if dim0 != 0 || dim1 != 1 {
-            // Only support 2D transpose for now
-            return Err(crate::StorageError::ShapeMismatch {
-                expected: 2,
-                actual: dim0.max(dim1),
-            });
-        }
-
-        // Convert to CSR, transpose, convert back to CSC
-        let csr = self.to_csr();
-        let transposed_csr = csr.transpose();
-        Ok(transposed_csr.to_csc())
-    }
-}
-
-impl<T: DataType> crate::TransposeStorage<T> for CooStorage<T> {
-    fn transpose_storage(&self, dim0: usize, dim1: usize) -> crate::Result<Self> {
-        if dim0 != 0 || dim1 != 1 {
-            // Only support 2D transpose for now
-            return Err(crate::StorageError::ShapeMismatch {
-                expected: 2,
-                actual: dim0.max(dim1),
-            });
-        }
-
-        // Convert to CSR, transpose, convert back to COO
-        let csr = self.to_csr();
-        let transposed_csr = csr.transpose();
-        Ok(transposed_csr.to_coo())
     }
 }

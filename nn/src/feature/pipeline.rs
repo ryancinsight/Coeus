@@ -35,6 +35,7 @@ pub struct PipelineResult {
 
 /// Result from a single pipeline step
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum StepResult {
     /// Feature selection result
     Selection(FeatureSelectionResult),

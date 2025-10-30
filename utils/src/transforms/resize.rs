@@ -606,7 +606,7 @@ mod tests {
         let transform = Resize::new((224, 224));
         assert_eq!(transform.size(), (224, 224));
         assert_eq!(transform.mode(), InterpolationMode::Bilinear);
-        assert_eq!(transform.antialias(), false);
+        assert!(!transform.antialias());
     }
 
     #[test]
@@ -621,7 +621,7 @@ mod tests {
         let transform = Resize::with_antialias((32, 32), InterpolationMode::Bicubic, true);
         assert_eq!(transform.size(), (32, 32));
         assert_eq!(transform.mode(), InterpolationMode::Bicubic);
-        assert_eq!(transform.antialias(), true);
+        assert!(transform.antialias());
     }
 
     #[test]

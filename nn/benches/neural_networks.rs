@@ -11,8 +11,10 @@ use coeus_autograd::ops::backward_with_grad;
 use coeus_backend::CpuBackend;
 use coeus_dtype::float::Float32;
 use coeus_nn::{
-    activation::GELU, dropout::Dropout, functional, BatchNorm2d, Conv2D, LayerNorm, Linear, Module,
+    activation::GELU, attention::SparseAttentionPattern, dropout::Dropout, functional, BatchNorm2d, Conv2D, LayerNorm, Linear, Module,
     MultiHeadAttention, ReLU, Sequential, SparseAttention,
+    meta::prototypical::{PrototypicalNetwork, FewShotEpisodeGenerator, DistanceMetric},
+    research::{MAMLResearchAgent, MAMLResearchAgentFactory, ExperimentSpec, ResearchDomain, ResearchAgentFactory},
 };
 use coeus_storage::{CsrStorage, DenseStorage, SparseFormat};
 use coeus_tensor::Tensor;
@@ -624,7 +626,7 @@ fn bench_attention_sparse_vs_dense(c: &mut Criterion) {
     group.bench_function("sparse_attention_32seq_75pct", |b| {
         let attention =
             SparseAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                embed_dim, num_heads, 0.75, // 75% sparsity
+                embed_dim, num_heads, SparseAttentionPattern::Local { window_size: 8 },
             )
             .unwrap();
 
@@ -684,6 +686,318 @@ fn bench_sparsity_scalability(c: &mut Criterion) {
     group.finish();
 }
 
+/// Benchmark prototypical network prototype computation
+fn bench_prototypical_prototype_computation(c: &mut Criterion) {
+    let mut group = c.benchmark_group("prototypical_networks");
+
+    // Create encoder network
+    let encoder = Linear::new(128, 64).unwrap();
+    let proto_net = PrototypicalNetwork::new(encoder)
+        .with_distance_metric(DistanceMetric::Euclidean);
+
+    // Create support set for benchmarking (5 classes, 5 examples each)
+    let support_set = create_support_set(5, 5, 128);
+
+    group.bench_function("prototype_computation_5way_5shot", |b| {
+        b.iter(|| {
+            black_box(proto_net.compute_prototypes(&support_set, 5).unwrap());
+        });
+    });
+
+    group.finish();
+}
+
+/// Benchmark prototypical network classification
+fn bench_prototypical_classification(c: &mut Criterion) {
+    let mut group = c.benchmark_group("prototypical_networks");
+
+    // Create encoder network
+    let encoder = Linear::new(128, 64).unwrap();
+    let proto_net = PrototypicalNetwork::new(encoder)
+        .with_distance_metric(DistanceMetric::Euclidean);
+
+    // Create support set and compute prototypes
+    let support_set = create_support_set(5, 5, 128);
+    let prototypes = proto_net.compute_prototypes(&support_set, 5).unwrap();
+
+    // Create query example
+    let query = random_tensor(&[1, 128]);
+
+    group.bench_function("classification_5way", |b| {
+        b.iter(|| {
+            black_box(proto_net.classify(&query, &prototypes).unwrap());
+        });
+    });
+
+    group.finish();
+}
+
+/// Benchmark episode generation
+fn bench_episode_generation(c: &mut Criterion) {
+    let mut group = c.benchmark_group("prototypical_networks");
+
+    // Create class examples for 10 classes, 20 examples each
+    let class_examples = create_class_examples(10, 20, 128);
+    let generator = FewShotEpisodeGenerator::new(class_examples, 5, 5, 10);
+
+    group.bench_function("episode_generation_5way_5shot_10query", |b| {
+        b.iter(|| {
+            black_box(generator.generate_episode().unwrap());
+        });
+    });
+
+    group.finish();
+}
+
+/// Benchmark complete episode evaluation
+fn bench_episode_evaluation(c: &mut Criterion) {
+    let mut group = c.benchmark_group("prototypical_networks");
+
+    // Create encoder network
+    let encoder = Linear::new(128, 64).unwrap();
+    let proto_net = PrototypicalNetwork::new(encoder)
+        .with_distance_metric(DistanceMetric::Euclidean);
+
+    // Create class examples
+    let class_examples = create_class_examples(10, 20, 128);
+    let generator = FewShotEpisodeGenerator::new(class_examples, 5, 5, 10);
+
+    group.bench_function("episode_evaluation_5way_5shot_10query", |b| {
+        b.iter_batched(
+            || generator.generate_episode().unwrap(),
+            |episode| {
+                black_box(proto_net.episode_accuracy(&episode).unwrap());
+            },
+            criterion::BatchSize::SmallInput,
+        );
+    });
+
+    group.finish();
+}
+
+/// Benchmark different distance metrics
+fn bench_distance_metrics(c: &mut Criterion) {
+    let mut group = c.benchmark_group("prototypical_networks");
+
+    // Create encoder network
+    let encoder = Linear::new(128, 64).unwrap();
+
+    // Create prototypes and query
+    let prototypes = create_prototypes(5, 64);
+    let query = random_tensor(&[1, 128]);
+
+    for metric in &[DistanceMetric::Euclidean, DistanceMetric::Cosine] {
+        let proto_net = PrototypicalNetwork::new(encoder.clone())
+            .with_distance_metric(metric.clone());
+
+        let metric_name = match metric {
+            DistanceMetric::Euclidean => "euclidean",
+            DistanceMetric::Cosine => "cosine",
+            DistanceMetric::Learned => "learned",
+        };
+
+        group.bench_function(format!("classification_{}", metric_name), |b| {
+            b.iter(|| {
+                black_box(proto_net.classify(&query, &prototypes).unwrap());
+            });
+        });
+    }
+
+    group.finish();
+}
+
+/// Helper function to create support set for benchmarking
+fn create_support_set(num_classes: usize, examples_per_class: usize, feature_dim: usize)
+    -> Vec<(Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, usize)>
+{
+    let mut support_set = Vec::new();
+
+    for class_id in 0..num_classes {
+        for _ in 0..examples_per_class {
+            let features = random_tensor(&[1, feature_dim]);
+            support_set.push((features, class_id));
+        }
+    }
+
+    support_set
+}
+
+/// Helper function to create class examples for episode generation
+fn create_class_examples(num_classes: usize, examples_per_class: usize, feature_dim: usize)
+    -> Vec<Vec<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>>
+{
+    (0..num_classes)
+        .map(|_| {
+            (0..examples_per_class)
+                .map(|_| random_tensor(&[1, feature_dim]))
+                .collect()
+        })
+        .collect()
+}
+
+/// Helper function to create prototype tensors
+fn create_prototypes(num_prototypes: usize, feature_dim: usize)
+    -> Vec<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>
+{
+    (0..num_prototypes)
+        .map(|_| random_tensor(&[1, feature_dim]))
+        .collect()
+}
+
+/// Benchmark MAML meta-training performance
+fn bench_maml_meta_training(c: &mut Criterion) {
+    let mut group = c.benchmark_group("maml_research");
+
+    // Create MAML agent
+    let config = serde_json::json!({
+        "id": "bench_maml",
+        "name": "Benchmark MAML Agent",
+        "meta_learning_rate": 0.001,
+        "inner_learning_rate": 0.01,
+        "num_inner_steps": 5,
+        "tasks_per_batch": 4
+    });
+
+    let factory = MAMLResearchAgentFactory;
+    let mut agent = factory.create(config).unwrap();
+
+    // Create meta-training experiment
+    let experiment = ExperimentSpec {
+        id: "meta_train_bench".to_string(),
+        name: "MAML Meta-Training Benchmark".to_string(),
+        domain: ResearchDomain::MetaLearning,
+        agent_type: "maml".to_string(),
+        experiment_config: serde_json::json!({
+            "experiment_type": "meta_training",
+            "tasks_per_batch": 4,
+            "num_inner_steps": 5
+        }),
+        resource_requirements: Default::default(),
+        dependencies: vec![],
+        priority: 1,
+        timeout_secs: Some(300),
+        quality_constraints: Default::default(),
+        metadata: std::collections::HashMap::new(),
+    };
+
+    group.bench_function("meta_training_simulation", |b| {
+        b.iter(|| {
+            black_box(agent.run_step(&experiment).unwrap());
+        });
+    });
+
+    group.finish();
+}
+
+/// Benchmark MAML few-shot evaluation performance
+fn bench_maml_few_shot_evaluation(c: &mut Criterion) {
+    let mut group = c.benchmark_group("maml_research");
+
+    // Create MAML agent with some training history
+    let config = serde_json::json!({
+        "id": "bench_maml_eval",
+        "name": "Benchmark MAML Evaluation Agent",
+        "meta_learning_rate": 0.001,
+        "inner_learning_rate": 0.01,
+        "num_inner_steps": 5,
+        "tasks_per_batch": 4
+    });
+
+    let factory = MAMLResearchAgentFactory;
+    let mut agent = factory.create(config).unwrap();
+
+    // Give the agent some training history
+    for _ in 0..10 {
+        let train_experiment = ExperimentSpec {
+            id: "train_step".to_string(),
+            name: "Training Step".to_string(),
+            domain: ResearchDomain::MetaLearning,
+            agent_type: "maml".to_string(),
+            experiment_config: serde_json::json!({
+                "experiment_type": "meta_training",
+                "tasks_per_batch": 4,
+                "num_inner_steps": 5
+            }),
+            resource_requirements: Default::default(),
+            dependencies: vec![],
+            priority: 1,
+            timeout_secs: Some(300),
+            quality_constraints: Default::default(),
+            metadata: std::collections::HashMap::new(),
+        };
+        agent.run_step(&train_experiment).unwrap();
+    }
+
+    // Create evaluation experiment
+    let eval_experiment = ExperimentSpec {
+        id: "few_shot_eval_bench".to_string(),
+        name: "MAML Few-Shot Evaluation Benchmark".to_string(),
+        domain: ResearchDomain::MetaLearning,
+        agent_type: "maml".to_string(),
+        experiment_config: serde_json::json!({
+            "experiment_type": "few_shot_evaluation",
+            "n_way": 5,
+            "k_shot": 1,
+            "n_query": 15
+        }),
+        resource_requirements: Default::default(),
+        dependencies: vec![],
+        priority: 1,
+        timeout_secs: Some(300),
+        quality_constraints: Default::default(),
+        metadata: std::collections::HashMap::new(),
+    };
+
+    group.bench_function("few_shot_evaluation_simulation", |b| {
+        b.iter(|| {
+            black_box(agent.run_step(&eval_experiment).unwrap());
+        });
+    });
+
+    group.finish();
+}
+
+/// Benchmark MAML agent insight generation
+fn bench_maml_insight_generation(c: &mut Criterion) {
+    let mut group = c.benchmark_group("maml_research");
+
+    // Create MAML agent with extensive training history
+    let config = serde_json::json!({
+        "id": "bench_maml_insights",
+        "name": "Benchmark MAML Insights Agent"
+    });
+
+    let factory = MAMLResearchAgentFactory;
+    let mut agent = factory.create(config).unwrap();
+
+    // Build up training history for insight generation
+    for i in 0..20 {
+        let performance = -2.0 + (i as f64 * 0.05); // Improving performance
+        agent.update_with_results(&[coeus_nn::research::ExperimentResult {
+            experiment_id: format!("exp_{}", i),
+            agent_id: "test".to_string(),
+            status: coeus_nn::research::ExperimentStatus::Completed,
+            final_performance: performance,
+            performance_trajectory: vec![performance],
+            resource_usage: Default::default(),
+            start_time: std::time::Instant::now(),
+            end_time: std::time::Instant::now(),
+            statistics: Default::default(),
+            insights: vec![],
+            artifacts: std::collections::HashMap::new(),
+            metadata: std::collections::HashMap::new(),
+        }]);
+    }
+
+    group.bench_function("insight_generation", |b| {
+        b.iter(|| {
+            black_box(agent.generate_insights());
+        });
+    });
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -702,6 +1016,14 @@ criterion_group!(
     bench_activation_sparse_vs_dense,
     bench_attention_sparse_vs_dense,
     bench_sparsity_scalability,
+    bench_prototypical_prototype_computation,
+    bench_prototypical_classification,
+    bench_episode_generation,
+    bench_episode_evaluation,
+    bench_distance_metrics,
+    bench_maml_meta_training,
+    bench_maml_few_shot_evaluation,
+    bench_maml_insight_generation,
 );
 
 criterion_main!(benches);

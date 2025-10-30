@@ -72,6 +72,22 @@ path = "mixed_precision.rs"
 name = "gpu_optimizer_acceleration"
 path = "gpu_optimizer_acceleration.rs"
 
+[[bin]]
+name = "research_meta_learning_integration"
+path = "research_meta_learning_integration.rs"
+
+[[bin]]
+name = "gpu_backend_integration"
+path = "gpu_backend_integration.rs"
+
+[[bin]]
+name = "gpu_mnist_training"
+path = "gpu_mnist_training.rs"
+
+[[bin]]
+name = "clip_usage"
+path = "clip_usage.rs"
+
 [dependencies]
 # Workspace dependencies
 coeus-dtype = { path = "../dtype", features = ["half"] }
@@ -95,3 +111,12 @@ tracing-subscriber.workspace = true
 
 # Random number generation for examples
 rand = "0.8"
+
+# JSON serialization for examples
+serde_json = "1.0"
+
+# HTTP client for dataset downloads
+reqwest = { version = "0.11", features = ["json"] }
+
+# Gzip decompression for datasets
+flate2 = "1.0"

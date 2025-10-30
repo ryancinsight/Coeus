@@ -45,7 +45,7 @@ use crate::parameter::Parameter;
 #[derive(Debug)]
 pub struct Sequential<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -59,7 +59,7 @@ where
 
 impl<B, S, T> Sequential<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -224,7 +224,7 @@ where
 
 impl<B, S, T> Default for Sequential<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -237,7 +237,7 @@ where
 #[cfg(feature = "safetensors")]
 impl<B, S> Sequential<B, S, coeus_dtype::float::Float32>
 where
-    B: Backend + Clone + Default,
+    B: Backend<coeus_dtype::float::Float32> + Clone + Default,
     S: Storage<coeus_dtype::float::Float32>
         + StorageFromVec<coeus_dtype::float::Float32>
         + Clone
@@ -267,13 +267,13 @@ where
         use crate::safetensors::conversion::safetensors_to_state_dict;
         use coeus_backend::CpuBackend as CpuBackendConcrete;
         use coeus_dtype::float::Float32;
-        use coeus_tensor::{CpuBackend, DenseStorage, Tensor};
+        use coeus_tensor::{DenseStorage, Tensor};
 
         let safetensors = crate::safetensors::SafeTensors::load(path.as_ref())?;
         let state_dict: std::collections::HashMap<
             String,
             Tensor<CpuBackendConcrete<Float32>, DenseStorage<Float32>, Float32>,
-        > = safetensors_to_state_dict::<Float32>(&safetensors)?;
+        > = safetensors_to_state_dict(&safetensors)?;
 
         // Convert state dict to expected format
         let mut converted_state_dict: std::collections::HashMap<
@@ -298,7 +298,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for Sequential<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -521,7 +521,7 @@ mod tests {
         assert_eq!(seq.training, false);
 
         // Test that child modules also get the mode set
-        let modules: Vec<_> = seq.modules();
+        let _modules: Vec<_> = seq.modules();
         // Note: We can't easily test that child modules received the train call
         // without more complex mocking - the behavior is verified in train() method
     }

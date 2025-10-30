@@ -100,91 +100,7 @@ pub trait DataType:
 ///
 /// Provides common mathematical functions that are only meaningful
 /// for floating point types.
-pub trait FloatExt: DataType {
-    /// Compute the natural logarithm
-    #[must_use]
-    fn ln(self) -> Self;
-
-    /// Compute the base-2 logarithm
-    #[must_use]
-    fn log2(self) -> Self;
-
-    /// Compute the base-10 logarithm
-    #[must_use]
-    fn log10(self) -> Self;
-
-    /// Compute the exponential function
-    #[must_use]
-    fn exp(self) -> Self;
-
-    /// Compute the exponential function minus 1
-    #[must_use]
-    fn exp_m1(self) -> Self;
-
-    /// Compute the 2^x function
-    #[must_use]
-    fn exp2(self) -> Self;
-
-    /// Compute the power function
-    #[must_use]
-    fn powf(self, exp: Self) -> Self;
-
-    /// Compute the square root
-    #[must_use]
-    fn sqrt(self) -> Self;
-
-    /// Compute the cube root
-    #[must_use]
-    fn cbrt(self) -> Self;
-
-    /// Compute the sine
-    #[must_use]
-    fn sin(self) -> Self;
-
-    /// Compute the cosine
-    #[must_use]
-    fn cos(self) -> Self;
-
-    /// Compute the tangent
-    #[must_use]
-    fn tan(self) -> Self;
-
-    /// Compute the arcsine
-    #[must_use]
-    fn asin(self) -> Self;
-
-    /// Compute the arccosine
-    #[must_use]
-    fn acos(self) -> Self;
-
-    /// Compute the arctangent
-    #[must_use]
-    fn atan(self) -> Self;
-
-    /// Compute the hyperbolic sine
-    #[must_use]
-    fn sinh(self) -> Self;
-
-    /// Compute the hyperbolic cosine
-    #[must_use]
-    fn cosh(self) -> Self;
-
-    /// Compute the hyperbolic tangent
-    #[must_use]
-    fn tanh(self) -> Self;
-
-    /// Compute the inverse hyperbolic sine
-    #[must_use]
-    fn asinh(self) -> Self;
-
-    /// Compute the inverse hyperbolic cosine
-    #[must_use]
-    fn acosh(self) -> Self;
-
-    /// Compute the inverse hyperbolic tangent
-    #[must_use]
-    fn atanh(self) -> Self;
-
+pub trait FloatExt: DataType + num_traits::Float {
     /// Compute the error function
     #[must_use]
     fn erf(self) -> Self;
@@ -192,46 +108,6 @@ pub trait FloatExt: DataType {
     /// Compute the complementary error function
     #[must_use]
     fn erfc(self) -> Self;
-
-    /// Round to nearest integer
-    #[must_use]
-    fn round(self) -> Self;
-
-    /// Truncate towards zero
-    #[must_use]
-    fn trunc(self) -> Self;
-
-    /// Round towards negative infinity
-    #[must_use]
-    fn floor(self) -> Self;
-
-    /// Round towards positive infinity
-    #[must_use]
-    fn ceil(self) -> Self;
-
-    /// Fractional part
-    #[must_use]
-    fn fract(self) -> Self;
-
-    /// Absolute value
-    #[must_use]
-    fn abs(self) -> Self;
-
-    /// Sign function (+1, 0, or -1)
-    #[must_use]
-    fn signum(self) -> Self;
-
-    /// Check if value is NaN
-    #[must_use]
-    fn is_nan(self) -> bool;
-
-    /// Check if value is infinite
-    #[must_use]
-    fn is_infinite(self) -> bool;
-
-    /// Check if value is finite
-    #[must_use]
-    fn is_finite(self) -> bool;
 }
 
 /// Extension trait for integer operations

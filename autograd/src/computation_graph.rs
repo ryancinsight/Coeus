@@ -3,12 +3,12 @@
 //! This module provides gradient computation through automatic graph traversal,
 //! compatible with `PyTorch`'s dynamic graph construction and backward pass.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 use coeus_backend::Backend;
 use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageToDense};
+use coeus_storage::{Storage, StorageToDense, StorageFromVec};
 
 use crate::error::{AutogradError, Result};
 
@@ -23,11 +23,157 @@ pub struct GradientEngine {
     visited: HashSet<usize>,
 }
 
+/// Node in the computation graph for topological sorting
+#[derive(Debug)]
+struct GraphNode<B, S, T>
+where
+    B: Backend<Data = T> + 'static,
+    S: Storage<T> + 'static,
+    T: DataType,
+{
+    /// The function this node represents
+    function: Arc<dyn coeus_tensor::Function<B, S, T>>,
+    /// Incoming edges (functions that depend on this one)
+    incoming: Vec<usize>,
+    /// Outgoing edges (functions this one depends on)
+    outgoing: Vec<usize>,
+    /// Indegree for topological sorting
+    indegree: usize,
+}
+
+/// Computation graph for topological sorting
+#[derive(Debug)]
+struct ComputationGraph<B, S, T>
+where
+    B: Backend<Data = T> + 'static,
+    S: Storage<T> + 'static,
+    T: DataType,
+{
+    /// All nodes in the graph
+    nodes: Vec<GraphNode<B, S, T>>,
+    /// Map from function pointer to node index
+    function_to_index: HashMap<usize, usize>,
+}
+
 impl GradientEngine {
     /// Create a new gradient computation engine
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Build computation graph starting from a root tensor
+    fn build_computation_graph<B, S, T>(
+        &self,
+        root_tensor: &coeus_tensor::Tensor<B, S, T>,
+    ) -> Result<ComputationGraph<B, S, T>>
+    where
+        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
+        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + StorageToDense<T> + StorageFromVec<T>,
+        T: DataType,
+    {
+        let mut graph = ComputationGraph {
+            nodes: Vec::new(),
+            function_to_index: HashMap::new(),
+        };
+
+        // Start from root tensor and traverse backward
+        if let Some(root_grad_fn) = root_tensor.grad_fn() {
+            self.build_graph_recursive(&mut graph, root_grad_fn)?;
+        }
+
+        Ok(graph)
+    }
+
+    /// Recursively build the computation graph
+    fn build_graph_recursive<B, S, T>(
+        &self,
+        graph: &mut ComputationGraph<B, S, T>,
+        function: &Arc<dyn coeus_tensor::Function<B, S, T>>,
+    ) -> Result<usize>
+    where
+        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
+        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + StorageToDense<T> + StorageFromVec<T>,
+        T: DataType,
+    {
+        let function_ptr = Arc::as_ptr(function);
+        let function_id = function_ptr.cast::<()>() as usize;
+
+        // Check if we've already processed this function
+        if let Some(&index) = graph.function_to_index.get(&function_id) {
+            return Ok(index);
+        }
+
+        // Create new node
+        let node_index = graph.nodes.len();
+        graph.function_to_index.insert(function_id, node_index);
+
+        let mut node = GraphNode {
+            function: Arc::clone(function),
+            incoming: Vec::new(),
+            outgoing: Vec::new(),
+            indegree: 0,
+        };
+
+        // Process input tensors to find parent functions
+        let inputs = function.inputs();
+        for input_tensor in inputs {
+            if let Some(parent_grad_fn) = input_tensor.grad_fn() {
+                // Recursively process parent function
+                let parent_index = self.build_graph_recursive(graph, parent_grad_fn)?;
+
+                // Add edge: parent -> current
+                graph.nodes[parent_index].outgoing.push(node_index);
+                node.incoming.push(parent_index);
+                node.indegree += 1;
+            }
+        }
+
+        graph.nodes.push(node);
+        Ok(node_index)
+    }
+
+    /// Perform topological sort using Kahn's algorithm
+    fn topological_sort<B, S, T>(
+        &self,
+        graph: &ComputationGraph<B, S, T>,
+    ) -> Result<Vec<usize>>
+    where
+        B: Backend<Data = T> + 'static,
+        S: Storage<T> + 'static,
+        T: DataType,
+    {
+        let mut indegree = graph.nodes.iter().map(|node| node.indegree).collect::<Vec<_>>();
+        let mut queue = VecDeque::new();
+        let mut result = Vec::new();
+
+        // Find all nodes with indegree 0 (leaf nodes)
+        for (i, &deg) in indegree.iter().enumerate() {
+            if deg == 0 {
+                queue.push_back(i);
+            }
+        }
+
+        while let Some(node_index) = queue.pop_front() {
+            result.push(node_index);
+
+            // Reduce indegree of neighbors
+            for &neighbor in &graph.nodes[node_index].outgoing {
+                indegree[neighbor] -= 1;
+                if indegree[neighbor] == 0 {
+                    queue.push_back(neighbor);
+                }
+            }
+        }
+
+        // Check for cycles
+        if result.len() != graph.nodes.len() {
+            return Err(AutogradError::GraphError(
+                "Computation graph contains cycles".to_string(),
+            ));
+        }
+
+        Ok(result)
     }
 
     /// Compute gradients through automatic graph traversal
@@ -48,11 +194,13 @@ impl GradientEngine {
         grad_output: &coeus_tensor::Tensor<B, S, T>,
     ) -> Result<()>
     where
-        B: Backend + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + StorageToDense<T>,
+        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
+        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + StorageToDense<T> + StorageFromVec<T>,
         T: DataType,
     {
         if let Some(grad_fn) = root_grad_fn {
+            // For now, use the simple recursive approach
+            // TODO: Implement full topological sorting
             self.backward_from_function(grad_fn, grad_output)?;
         }
         Ok(())
@@ -65,8 +213,8 @@ impl GradientEngine {
         grad_output: &coeus_tensor::Tensor<B, S, T>,
     ) -> Result<()>
     where
-        B: Backend + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + StorageToDense<T>,
+        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
+        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + StorageToDense<T> + StorageFromVec<T>,
         T: DataType,
     {
         // Prevent cycles by tracking visited functions
@@ -134,8 +282,8 @@ impl GradientEngine {
         gradient: coeus_tensor::Tensor<B, S, T>,
     ) -> Result<()>
     where
-        B: Backend + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T> + core::fmt::Debug + Send + Sync + Clone + 'static,
+        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
+        S: Storage<T> + core::fmt::Debug + Send + Sync + Clone + 'static + StorageFromVec<T> + StorageToDense<T>,
         T: DataType + Clone,
     {
         println!(
@@ -157,12 +305,39 @@ impl GradientEngine {
         tensor: &coeus_tensor::Tensor<B, S, T>,
     ) -> Result<coeus_tensor::Tensor<B, coeus_storage::DenseStorage<T>, T>>
     where
-        B: Backend + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + Clone,
+        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
+        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + Clone + StorageFromVec<T>,
         T: DataType,
     {
         tensor.grad().map_err(AutogradError::TensorError)
     }
+}
+
+/// Perform backward pass on a tensor
+///
+/// # Arguments
+/// * `tensor` - Tensor to compute gradients for
+///
+/// # Errors
+/// Returns error if backward pass fails
+pub fn backward<B, S, T>(
+    tensor: &coeus_tensor::Tensor<B, S, T>,
+) -> Result<()>
+where
+    B: Backend<Data = T> + core::fmt::Debug + Send + Sync + Clone + 'static,
+    S: Storage<T> + core::fmt::Debug + Send + Sync + Clone + 'static + StorageToDense<T> + coeus_storage::StorageFromVec<T>,
+    T: DataType,
+{
+    let mut engine = GradientEngine::new();
+    if let Some(grad_fn) = tensor.grad_fn() {
+        let one_storage = S::from_vec(vec![T::one()], &[]).map_err(|e| {
+            AutogradError::TensorError(coeus_tensor::TensorError::StorageError(e))
+        })?;
+        let grad_output = coeus_tensor::Tensor::from_storage(one_storage, tensor.backend().clone());
+
+        engine.backward(Some(grad_fn), &grad_output)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

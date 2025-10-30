@@ -58,7 +58,7 @@ impl TorchScript {
     ) -> Result<TracedModule<M, B, T>>
     where
         M: coeus_nn::Module<B, S, T> + Clone,
-        B: coeus_backend::Backend,
+        B: coeus_backend::Backend<T>,
         S: coeus_storage::Storage<T> + coeus_tensor::StorageFromVec<T> + Clone + 'static,
         T: coeus_dtype::DataType,
     {
@@ -81,7 +81,7 @@ impl TorchScript {
     ) -> Result<coeus_tensor::Tensor<B, coeus_storage::DenseStorage<T>, T>>
     where
         M: coeus_nn::Module<B, coeus_storage::DenseStorage<T>, T>,
-        B: coeus_backend::Backend + Default,
+        B: coeus_backend::Backend<T> + Default,
         T: coeus_dtype::DataType,
     {
         // Compile the traced graph if not already compiled
@@ -120,7 +120,7 @@ impl Tracer {
     ) -> Result<ComputationGraph>
     where
         M: coeus_nn::Module<B, S, T>,
-        B: coeus_backend::Backend,
+        B: coeus_backend::Backend<T>,
         S: coeus_storage::Storage<T> + coeus_tensor::StorageFromVec<T> + Clone + 'static,
         T: coeus_dtype::DataType,
     {
@@ -367,7 +367,7 @@ impl JitRuntime {
         input: &coeus_tensor::Tensor<B, coeus_storage::DenseStorage<T>, T>,
     ) -> Result<coeus_tensor::Tensor<B, coeus_storage::DenseStorage<T>, T>>
     where
-        B: coeus_backend::Backend + Default,
+        B: coeus_backend::Backend<T> + Default,
         T: coeus_dtype::DataType,
     {
         // Placeholder execution - in a real implementation, this would:

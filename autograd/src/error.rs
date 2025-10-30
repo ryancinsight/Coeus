@@ -86,4 +86,8 @@ pub enum AutogradError {
     /// Tensor operation error
     #[error("Tensor error: {0}")]
     TensorError(#[from] TensorError),
+
+    /// Storage operation error
+    #[error("Storage error: {0}")]
+    StorageError(#[from] coeus_storage::StorageError),
 }

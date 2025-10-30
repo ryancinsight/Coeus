@@ -40,7 +40,7 @@ pub enum SparseAttentionPattern {
 #[derive(Debug)]
 pub struct SparseAttention<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -67,7 +67,7 @@ where
 
 impl<B, S, T> SparseAttention<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::Zero,
 {
@@ -377,7 +377,7 @@ where
         // First, find the max for numerical stability
         let max_val = non_zero_values
             .iter()
-            .fold(T::min_value(), |a, &b| if a > b { a } else { b });
+            .fold(<T as num_traits::Bounded>::min_value(), |a, &b| if a > b { a } else { b });
 
         // Compute exp(x - max) for non-zero elements
         let exp_values: Vec<T> = non_zero_values
@@ -403,7 +403,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for SparseAttention<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
@@ -579,7 +579,7 @@ where
 
 impl<B, S, T> SparseAttention<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
@@ -613,7 +613,7 @@ where
 
 impl<B, S, T> fmt::Display for SparseAttention<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType,
 {

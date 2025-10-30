@@ -51,7 +51,7 @@ pub enum ActivationType {
 #[derive(Debug)]
 pub struct FusedConvBatchNorm<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + Clone + PartialOrd + Into<f64> + From<f64>,
     f64: From<T>,
@@ -76,7 +76,7 @@ where
 #[derive(Debug)]
 pub struct FusedConvBatchNormQuantized<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -101,7 +101,7 @@ where
 #[derive(Debug)]
 pub struct FusedLinearActivation<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + Clone + PartialOrd,
 {

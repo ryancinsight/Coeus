@@ -3,7 +3,7 @@
 //! Tests cross-module interactions and type conversions
 
 use coeus_dtype::*;
-use num_traits::{NumCast, One, Zero};
+use num_traits::{Float, NumCast, One, Zero};
 
 #[test]
 fn test_float_to_int_conversion() {

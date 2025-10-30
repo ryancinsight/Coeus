@@ -50,7 +50,7 @@ use crate::error::{NNError, Result};
 /// ```
 #[allow(clippy::multiple_bound_locations)]
 pub fn layer_norm<
-    B: Backend,
+    B: Backend<Data = T>,
     S: StorageToDense<T> + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 >(
@@ -205,7 +205,7 @@ where
 /// ```
 #[allow(clippy::multiple_bound_locations)]
 pub fn batch_norm<
-    B: Backend,
+    B: Backend<Data = T>,
     S: StorageToDense<T> + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 >(

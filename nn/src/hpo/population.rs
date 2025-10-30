@@ -336,7 +336,7 @@ impl PopulationOptimizer {
             }
             PopulationAlgorithm::DifferentialEvolution { .. } => {
                 // DE typically works well with 5-10 * dimension
-                self.population_size = (10.0 * dim as f64).min(100.0).max(20.0) as usize;
+                self.population_size = (10.0 * dim as f64).clamp(20.0, 100.0) as usize;
             }
             PopulationAlgorithm::ParticleSwarm { .. } => {
                 // PSO works with smaller populations
@@ -481,7 +481,7 @@ impl PopulationOptimizer {
             // If no finite fitness, reset positions to bounds
             for particle in &mut self.population {
                 for j in 0..dim {
-                    particle.position[j] = particle.position[j].max(-1e6).min(1e6);
+                    particle.position[j] = particle.position[j].clamp(-1e6, 1e6);
                 }
             }
             return Ok(());
@@ -492,40 +492,36 @@ impl PopulationOptimizer {
 
         // Compute weighted mean of selected individuals
         let mut new_mean = vec![0.0; dim];
-        for i in 0..actual_mu {
-            let weight = if i < actual_mu {
-                1.0 / (i + 1) as f64
-            } else {
-                0.0
-            };
-            let particle = &self.population[finite_indices[i]];
+        for (weight_idx, &finite_idx) in finite_indices.iter().enumerate().take(actual_mu) {
+            let weight = 1.0 / (weight_idx + 1) as f64;
+            let particle = &self.population[finite_idx];
 
-            for j in 0..dim {
+            for (j, mean_val) in new_mean.iter_mut().enumerate().take(dim) {
                 if particle.position[j].is_finite() {
-                    let clamped_pos = particle.position[j].max(-1e6).min(1e6);
+                    let clamped_pos = particle.position[j].clamp(-1e6, 1e6);
                     let weighted_pos = weight * clamped_pos;
                     // Clamp the weighted position to prevent overflow
                     let clamped_weighted = if weighted_pos.is_finite() {
-                        weighted_pos.max(-1e6).min(1e6)
+                        weighted_pos.clamp(-1e6, 1e6)
                     } else {
                         0.0 // Reset to 0 if overflow
                     };
-                    new_mean[j] += clamped_weighted;
+                    *mean_val += clamped_weighted;
                 }
             }
         }
 
         // Clamp new mean to prevent overflow
-        for j in 0..dim {
-            new_mean[j] = new_mean[j].max(-1e6).min(1e6);
+        for mean_val in new_mean.iter_mut().take(dim) {
+            *mean_val = mean_val.clamp(-1e6, 1e6);
         }
 
         // Simple evolutionary strategy with fixed step-size for stability
-        let sigma = initial_sigma.max(1e-6).min(1e3);
+        let sigma = initial_sigma.clamp(1e-6, 1e3);
 
         // Generate new population using simple mutation
         for particle in &mut self.population {
-            for j in 0..dim {
+            for (j, pos) in particle.position.iter_mut().enumerate().take(dim) {
                 // Sample from normal distribution with current sigma
                 let mutation = match rand_distr::Normal::<f64>::new(0.0, sigma) {
                     Ok(normal) => {
@@ -543,11 +539,11 @@ impl PopulationOptimizer {
                 let new_pos = new_mean[j] + mutation;
 
                 // Clamp to prevent overflow and ensure finite values
-                particle.position[j] = new_pos.max(-1e6).min(1e6);
+                *pos = new_pos.clamp(-1e6, 1e6);
 
                 // Emergency reset if still not finite
-                if !particle.position[j].is_finite() {
-                    particle.position[j] = new_mean[j].max(-1e6).min(1e6);
+                if !(*pos).is_finite() {
+                    *pos = new_mean[j].clamp(-1e6, 1e6);
                 }
             }
         }
@@ -582,23 +578,23 @@ impl PopulationOptimizer {
 
             // Create mutant vector: a + F * (b - c) with numerical stability
             let mut mutant = vec![0.0; a.position.len()];
-            for j in 0..mutant.len() {
+            for (j, mutant_val) in mutant.iter_mut().enumerate() {
                 // Clamp individual position values to prevent overflow in difference calculation
-                let a_pos = a.position[j].max(-1e6).min(1e6);
-                let b_pos = b.position[j].max(-1e6).min(1e6);
-                let c_pos = c.position[j].max(-1e6).min(1e6);
+                let a_pos = a.position[j].clamp(-1e6, 1e6);
+                let b_pos = b.position[j].clamp(-1e6, 1e6);
+                let c_pos = c.position[j].clamp(-1e6, 1e6);
 
                 let diff = b_pos - c_pos;
                 let mutation = f * diff;
 
                 // Clamp mutation to reasonable range
-                let clamped_mutation = mutation.max(-1e6).min(1e6);
+                let clamped_mutation = mutation.clamp(-1e6, 1e6);
 
-                mutant[j] = a_pos + clamped_mutation;
+                *mutant_val = a_pos + clamped_mutation;
 
                 // Emergency clamp if mutant is still problematic
-                if !mutant[j].is_finite() {
-                    mutant[j] = a_pos; // Fallback to base vector
+                if !(*mutant_val).is_finite() {
+                    *mutant_val = a_pos; // Fallback to base vector
                 }
             }
 
@@ -611,11 +607,11 @@ impl PopulationOptimizer {
                     mutant[j]
                 } else {
                     // Use clamped current position as fallback
-                    self.population[i].position[j].max(-1e6).min(1e6)
+                    self.population[i].position[j].clamp(-1e6, 1e6)
                 };
 
                 // Clamp trial value to reasonable range
-                trial[j] = donor_value.max(-1e6).min(1e6);
+                trial[j] = donor_value.clamp(-1e6, 1e6);
 
                 // Emergency reset for non-finite values
                 if !trial[j].is_finite() {
@@ -643,8 +639,8 @@ impl PopulationOptimizer {
                     .iter()
                     .zip(&self.global_best)
                     .map(|(x, g)| {
-                        let dx = x.max(-1e6).min(1e6);
-                        let dg = g.max(-1e6).min(1e6);
+                        let dx = x.clamp(-1e6, 1e6);
+                        let dg = g.clamp(-1e6, 1e6);
                         (dx - dg).powi(2)
                     })
                     .sum::<f64>()
@@ -655,8 +651,8 @@ impl PopulationOptimizer {
                     .iter()
                     .zip(&self.global_best)
                     .map(|(x, g)| {
-                        let dx = x.max(-1e6).min(1e6);
-                        let dg = g.max(-1e6).min(1e6);
+                        let dx = x.clamp(-1e6, 1e6);
+                        let dg = g.clamp(-1e6, 1e6);
                         (dx - dg).powi(2)
                     })
                     .sum::<f64>()
@@ -709,7 +705,7 @@ impl PopulationOptimizer {
             let fitness = if fitness.is_nan() {
                 1e10
             } else {
-                fitness.min(1e10).max(-1e10)
+                fitness.clamp(-1e10, 1e10)
             };
 
             // Check for numerical issues after clamping
@@ -882,7 +878,7 @@ impl CmaEs {
 
         Self {
             lambda: 4 + (3.0 * (dim as f64).ln()).floor() as usize,
-            mu: (0.5 * 4.0 + (3.0 * (dim as f64).ln()).floor() as f64) as usize,
+            mu: (0.5 * 4.0 + (3.0 * (dim as f64).ln()).floor()) as usize,
             mean,
             sigma: initial_sigma,
             variances,
@@ -936,10 +932,11 @@ impl CmaEs {
 
         let path_sigma_weight = (1.0 - c_sigma).powf(1.0 / d_sigma);
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..dim {
             let mean_diff = (new_mean[i] - self.mean[i]) / self.sigma;
             self.path_sigma[i] = path_sigma_weight * self.path_sigma[i]
-                + (mu_eff as f64).sqrt() * mean_diff / self.variances[i].sqrt();
+                + mu_eff.sqrt() * mean_diff / self.variances[i].sqrt();
         }
 
         // Update step size

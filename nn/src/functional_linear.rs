@@ -49,7 +49,7 @@ pub fn linear<B, S, T>(
     bias: Option<&Tensor<B, S, T>>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -153,7 +153,7 @@ where
 /// sparse-dense matrix multiplication would provide better performance.
 /// The current approach is a valid fallback that works correctly but may not be optimal for all use cases.
 pub fn sparse_linear<
-    B: Backend + Default,
+    B: Backend<Data = T> + Default,
     S: Storage<T> + StorageToDense<T> + Clone + StorageFromVec<T> + 'static,
     T,
 >(

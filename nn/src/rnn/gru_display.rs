@@ -12,7 +12,7 @@ use crate::rnn::gru_core::GRU;
 
 impl<B, S, T> fmt::Display for GRU<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType,
 {

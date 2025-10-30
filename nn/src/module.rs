@@ -67,7 +67,7 @@ use crate::parameter::Parameter;
 /// ```
 pub trait Module<B, S, T>: core::fmt::Debug + std::any::Any
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -144,7 +144,7 @@ where
 
 /// Extension methods for Module trait.
 pub trait ModuleExt<
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 >: Module<B, S, T>
@@ -180,7 +180,7 @@ pub trait ModuleExt<
 
 // Auto-implement ModuleExt for all Module implementors
 impl<
-        B: Backend + Clone,
+        B: Backend<Data = T> + Clone,
         S: Storage<T> + StorageFromVec<T> + Clone + 'static,
         T: DataType,
         M: Module<B, S, T>,
@@ -224,7 +224,7 @@ pub type StateDict<T> = HashMap<String, Vec<T>>;
 /// ```
 #[cfg(feature = "safetensors")]
 pub trait ModuleSerialize<
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T>,
     T: DataType + serde::Serialize + serde::de::DeserializeOwned,
 >: Module<B, S, T>
@@ -515,7 +515,9 @@ mod tests {
     // Mock parameter for testing
     #[derive(Debug)]
     struct MockParameter {
+        #[allow(dead_code)]
         name: String,
+        #[allow(dead_code)]
         data: Vec<f32>,
     }
 

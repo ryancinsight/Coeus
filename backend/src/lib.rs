@@ -832,15 +832,15 @@ impl From<coeus_storage::StorageError> for BackendError {
     }
 }
 
-// #[cfg(all(feature = "gpu", feature = "std"))]
-// impl From<crate::gpu::GpuError> for BackendError {
-//     fn from(err: crate::gpu::GpuError) -> Self {
-//         BackendError::UnsupportedOperation {
-//             operation: format!("GPU error: {}", err),
-//             backend: String::from("GPU"),
-//         }
-//     }
-// }  // Temporarily excluded - GPU backend incomplete
+#[cfg(feature = "gpu")]
+impl From<crate::gpu::GpuError> for BackendError {
+    fn from(err: crate::gpu::GpuError) -> Self {
+        BackendError::UnsupportedOperation {
+            operation: format!("GPU error: {}", err),
+            backend: String::from("GPU"),
+        }
+    }
+}
 
 // Backend trait using associated types for type safety
 pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
@@ -1231,8 +1231,8 @@ pub use std::fmt;
 pub mod cpu;
 pub mod device;
 
-#[cfg(all(feature = "gpu", feature = "std"))]
-// pub mod gpu;  // Temporarily excluded - major incomplete implementation
+#[cfg(feature = "gpu")]
+pub mod gpu;
 // Distributed backend coordination
 // TODO: NPU backend is incomplete implementation - defer until core system is production ready
 
@@ -1252,7 +1252,8 @@ pub mod memory_integration;
 pub use cpu::CpuBackend;
 pub use device::{Device, DeviceInfo};
 
-// pub use gpu::GpuBackend;  // Temporarily excluded - major incomplete implementation
+#[cfg(feature = "gpu")]
+pub use gpu::GpuBackend;
 
 // TODO: NPU and TPU backends are incomplete implementations - defer until core system is production ready
 // mod npu;

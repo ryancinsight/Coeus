@@ -491,7 +491,7 @@ pub fn linear<B, S, T>(
     bias: Option<&Tensor<B, S, T>>,
 ) -> Result<Tensor<B, S, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -662,6 +662,8 @@ pub fn cross_entropy<T: DataType + FloatExt + std::ops::Neg<Output = T> + Partia
         });
     }
 
+
+    // Use original implementation for inference or non-Float32 types
     let batch_size = logits_shape[0];
     let num_classes = logits_shape[1];
 
@@ -696,6 +698,7 @@ pub fn cross_entropy<T: DataType + FloatExt + std::ops::Neg<Output = T> + Partia
     Tensor::from_vec(vec![mean_loss], &[]).map_err(Into::into)
 }
 
+
 /// Compute mean squared error loss
 ///
 /// # Arguments
@@ -709,7 +712,7 @@ pub fn mse_loss<B, S, T>(
     targets: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + FloatExt,
 {
@@ -885,7 +888,7 @@ fn softmax_rows<T: DataType + FloatExt + num_traits::Bounded + PartialOrd>(
 
     for row in 0..rows {
         // Compute max for numerical stability
-        let mut max_val = T::min_value();
+        let mut max_val = <T as num_traits::Bounded>::min_value();
         for col in 0..cols {
             let idx = row * cols + col;
             let val = logits_slice[idx];

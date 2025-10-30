@@ -9,7 +9,7 @@ use num_traits::{Float, Num};
 /// Element-wise addition with broadcasting support
 pub fn add<
     T: DataType + std::ops::Add<Output = T> + Clone + Copy,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T>,
 >(
     a: &Tensor<B, S, T>,
@@ -41,7 +41,7 @@ pub fn add<
 /// Element-wise multiplication with broadcasting support
 pub fn mul<
     T: DataType + Num + Clone,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T>,
 >(
     a: &Tensor<B, S, T>,
@@ -73,7 +73,7 @@ pub fn mul<
 /// Element-wise division with broadcasting support
 pub fn div<
     T: DataType + Num + Clone,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T>,
 >(
     a: &Tensor<B, S, T>,
@@ -104,7 +104,7 @@ pub fn div<
 /// Element-wise subtraction with broadcasting support
 pub fn sub<
     T: DataType + Num + Clone,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
@@ -135,7 +135,7 @@ pub fn sub<
 /// Element-wise negation
 pub fn neg<
     T: DataType + Num + Clone + std::ops::Neg<Output = T>,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -154,7 +154,7 @@ pub fn neg<
 /// Generic broadcasting for binary operations
 fn broadcast_binary_op<
     T: DataType + Clone,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
@@ -214,7 +214,7 @@ fn broadcast_binary_op<
 /// Pad tensor to target shape for broadcasting
 fn pad_tensor_to_shape<
     T: DataType + Clone,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -290,7 +290,7 @@ fn broadcast_tensor_data<T: DataType + Clone>(
 /// Element-wise maximum
 pub fn maximum<
     T: DataType + Float + Num + Clone,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
@@ -323,7 +323,7 @@ pub fn maximum<
 /// Element-wise minimum
 pub fn minimum<
     T: DataType + Float + Num + Clone,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
@@ -356,7 +356,7 @@ pub fn minimum<
 /// Element-wise power
 pub fn pow<
     T: DataType + Float + Num + Clone,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     base: &Tensor<B, S, T>,
@@ -401,7 +401,7 @@ pub fn pow<
 /// Element-wise absolute value
 pub fn abs<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -420,7 +420,7 @@ pub fn abs<
 /// Element-wise exponential
 pub fn exp<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -439,7 +439,7 @@ pub fn exp<
 /// Element-wise natural logarithm
 pub fn log<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -458,7 +458,7 @@ pub fn log<
 /// Element-wise sine
 pub fn sin<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -477,7 +477,7 @@ pub fn sin<
 /// Element-wise cosine
 pub fn cos<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -496,7 +496,7 @@ pub fn cos<
 /// Element-wise inverse cosine
 pub fn acos<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -515,7 +515,7 @@ pub fn acos<
 /// Element-wise inverse tangent
 pub fn atan<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -534,7 +534,7 @@ pub fn atan<
 /// Element-wise error function
 pub fn erf<
     T: DataType + num_traits::FromPrimitive,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -561,7 +561,7 @@ pub fn erf<
 /// Element-wise base-2 exponential
 pub fn exp2<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -580,7 +580,7 @@ pub fn exp2<
 /// Element-wise base-10 logarithm
 pub fn log10<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -599,7 +599,7 @@ pub fn log10<
 /// Element-wise base-2 logarithm
 pub fn log2<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -618,7 +618,7 @@ pub fn log2<
 /// Element-wise reciprocal square root
 pub fn rsqrt<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -641,7 +641,7 @@ pub fn rsqrt<
 /// Element-wise square root
 pub fn sqrt<
     T: DataType + Float,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -660,7 +660,7 @@ pub fn sqrt<
 /// Scalar addition: tensor + scalar
 pub fn scalar_add<
     T: DataType + std::ops::Add<Output = T> + Clone + Copy,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -681,7 +681,7 @@ pub fn scalar_add<
 /// Scalar multiplication: tensor * scalar
 pub fn scalar_mul<
     T: DataType + std::ops::Mul<Output = T> + Clone + Copy,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -702,7 +702,7 @@ pub fn scalar_mul<
 /// Element-wise division by scalar
 pub fn scalar_div<
     T: DataType + std::ops::Div<Output = T> + Clone + Copy,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -723,7 +723,7 @@ pub fn scalar_div<
 /// Element-wise subtraction of scalar
 pub fn scalar_sub<
     T: DataType + std::ops::Sub<Output = T> + Clone + Copy,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
@@ -744,7 +744,7 @@ pub fn scalar_sub<
 /// Element-wise power with scalar exponent
 pub fn pow_scalar<
     T: DataType + Float + Num + Clone,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     base: &Tensor<B, S, T>,
@@ -786,7 +786,7 @@ pub fn pow_scalar<
 /// A new tensor with the broadcast shape
 pub fn broadcast_to<
     T: DataType + Clone + Copy,
-    B: Backend + Clone + Send + Sync + Default,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,

@@ -3,7 +3,6 @@
 //! These tests validate mathematical invariants, edge cases, and correctness
 //! properties that are difficult to test with traditional unit tests.
 
-use approx::assert_relative_eq;
 use proptest::prelude::*;
 
 use coeus_backend::CpuBackend;

@@ -18,14 +18,14 @@ impl ArchitectureAnalyzer {
         arch1: &Architecture,
         arch2: &Architecture,
     ) -> ArchitectureSimilarity {
-        let mut similarity = ArchitectureSimilarity::default();
-
-        // Compare architecture types
-        similarity.type_match = arch1.architecture_type == arch2.architecture_type;
+        let mut similarity = ArchitectureSimilarity {
+            type_match: arch1.architecture_type == arch2.architecture_type,
+            ..Default::default()
+        };
 
         // Compare layer counts
         similarity.layer_count_diff =
-            ((arch1.layers.len() as isize - arch2.layers.len() as isize).abs()) as usize;
+            (arch1.layers.len() as isize - arch2.layers.len() as isize).unsigned_abs();
 
         // Compare parameter counts
         let params1 = arch1.num_parameters() as f64;
@@ -37,12 +37,11 @@ impl ArchitectureAnalyzer {
         let max_layers = arch1.layers.len().max(arch2.layers.len());
 
         for i in 0..max_layers {
-            if i < arch1.layers.len() && i < arch2.layers.len() {
-                if std::mem::discriminant(&arch1.layers[i])
+            if i < arch1.layers.len() && i < arch2.layers.len()
+                && std::mem::discriminant(&arch1.layers[i])
                     == std::mem::discriminant(&arch2.layers[i])
-                {
-                    layer_type_matches += 1;
-                }
+            {
+                layer_type_matches += 1;
             }
         }
 
@@ -107,6 +106,7 @@ impl ArchitectureAnalyzer {
         architectures: &[Architecture],
         objectives: &[Box<dyn Fn(&Architecture) -> f64>],
     ) -> Vec<usize> {
+        #![allow(clippy::type_complexity)]
         let mut pareto_front = Vec::new();
 
         for (i, arch) in architectures.iter().enumerate() {
@@ -378,7 +378,7 @@ impl NASBenchmarker {
             accuracy,
             training_time: actual_time,
             inference_time: Duration::from_millis((complexity_factor * 10.0) as u64),
-            memory_usage: (architecture.num_parameters() * 4) as usize, // Rough estimate in bytes
+            memory_usage: architecture.num_parameters() * 4, // Rough estimate in bytes
             metrics: HashMap::new(),
         })
     }

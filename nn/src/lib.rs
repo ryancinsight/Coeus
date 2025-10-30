@@ -128,7 +128,7 @@
 //!
 //! struct CustomModel<B, S, T>
 //! where
-//!     B: Backend,
+//!     B: Backend<Data = T>,
 //!     S: Storage<T>,
 //!     T: DataType,
 //! {
@@ -138,7 +138,7 @@
 //!
 //! impl<B, S, T> Module<B, S, T> for CustomModel<B, S, T>
 //! where
-//!     B: Backend,
+//!     B: Backend<Data = T>,
 //!     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
 //!     T: DataType,
 //! {
@@ -357,6 +357,7 @@
 
 // Error handling
 pub mod error;
+pub mod autograd_compat;
 
 // Re-export error types for convenience
 pub use error::{NNError, Result};
@@ -388,6 +389,14 @@ pub mod pooling;
 
 // Recurrent layers
 pub mod rnn;
+
+// Multimodal architectures (Sprint MS-47)
+pub mod multimodal;
+pub mod cross_modal_attention;
+pub mod multitask_learning;
+
+// CLIP vision-language model
+pub mod clip;
 
 // Attention layers
 pub mod attention;

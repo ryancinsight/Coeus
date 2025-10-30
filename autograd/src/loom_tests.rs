@@ -18,7 +18,7 @@ mod loom_tests {
     use coeus_storage::DenseStorage;
     use coeus_tensor::Tensor;
 
-    type TestTensor = Tensor<CpuBackend<T>, DenseStorage<Float32>, Float32>;
+    type TestTensor = Tensor<CpuBackend<Data = T>, DenseStorage<Float32>, Float32>;
 
     /// Test that simultaneous gradient computation on independent graphs is safe
     #[test]

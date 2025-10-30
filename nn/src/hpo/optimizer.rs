@@ -5,7 +5,7 @@
 
 use std::time::{Duration, Instant};
 
-use super::space::{HyperparameterConfig, HyperparameterSpace};
+use super::space::{HyperparameterSpace, HyperparameterConfig};
 use crate::error::{NNError, Result};
 
 /// Optimization result
@@ -40,11 +40,7 @@ pub enum HPOptimizer {
 
 impl HPOptimizer {
     /// Run hyperparameter optimization
-    pub fn optimize<F>(
-        &mut self,
-        objective: F,
-        max_evaluations: usize,
-    ) -> Result<OptimizationResult>
+    pub fn optimize<F>(&mut self, objective: F, max_evaluations: usize) -> Result<OptimizationResult>
     where
         F: Fn(&HyperparameterConfig) -> Result<f64> + Send + Sync,
     {
@@ -56,15 +52,9 @@ impl HPOptimizer {
             HPOptimizer::ParticleSwarm(opt) => opt.optimize(objective, max_evaluations),
             HPOptimizer::CmaEs(opt) => opt.optimize(objective, max_evaluations),
             HPOptimizer::DifferentialEvolution(opt) => opt.optimize(objective, max_evaluations),
-            HPOptimizer::Hyperband(_) => Err(NNError::NotImplemented {
-                operation: "Hyperband optimizer".to_string(),
-            }),
-            HPOptimizer::SuccessiveHalving(_) => Err(NNError::NotImplemented {
-                operation: "SuccessiveHalving optimizer".to_string(),
-            }),
-            HPOptimizer::Bohb(_) => Err(NNError::NotImplemented {
-                operation: "BOHB optimizer".to_string(),
-            }),
+            HPOptimizer::Hyperband(_) => Err(NNError::NotImplemented { operation: "Hyperband optimizer".to_string() }),
+            HPOptimizer::SuccessiveHalving(_) => Err(NNError::NotImplemented { operation: "SuccessiveHalving optimizer".to_string() }),
+            HPOptimizer::Bohb(_) => Err(NNError::NotImplemented { operation: "BOHB optimizer".to_string() }),
         }
     }
 
@@ -103,10 +93,7 @@ impl HPOptimizer {
     }
 
     /// Create production-ready CMA-ES optimizer
-    pub fn create_cmaes(
-        space: HyperparameterSpace,
-        population_size: Option<usize>,
-    ) -> Result<Self> {
+    pub fn create_cmaes(space: HyperparameterSpace, population_size: Option<usize>) -> Result<Self> {
         let algorithm = super::population::PopulationAlgorithm::CmaEs {
             initial_sigma: 0.3,
             tolerance: 1e-6,
@@ -123,8 +110,10 @@ impl HPOptimizer {
 
     /// Create production-ready Differential Evolution optimizer
     pub fn create_de(space: HyperparameterSpace, population_size: Option<usize>) -> Result<Self> {
-        let algorithm =
-            super::population::PopulationAlgorithm::DifferentialEvolution { f: 0.7, cr: 0.9 };
+        let algorithm = super::population::PopulationAlgorithm::DifferentialEvolution {
+            f: 0.7,
+            cr: 0.9,
+        };
 
         let mut optimizer = super::population::PopulationOptimizer::new(space);
         optimizer = optimizer.with_algorithm(algorithm)?;
@@ -252,6 +241,7 @@ impl HyperparameterOptimizer {
 }
 
 /// Optimization benchmark utilities
+#[derive(Default)]
 pub struct BenchmarkRunner {
     /// Available optimizers
     optimizers: Vec<HyperparameterOptimizer>,
@@ -259,14 +249,6 @@ pub struct BenchmarkRunner {
     functions: Vec<Box<dyn BenchmarkFunction>>,
 }
 
-impl Default for BenchmarkRunner {
-    fn default() -> Self {
-        Self {
-            optimizers: Vec::new(),
-            functions: Vec::new(),
-        }
-    }
-}
 
 impl BenchmarkRunner {
     /// Create a new benchmark runner
@@ -301,7 +283,12 @@ impl BenchmarkRunner {
 
                 let elapsed = start_time.elapsed();
 
-                results.add_result(opt_idx, func_idx, opt_result, elapsed);
+                results.add_result(
+                    opt_idx,
+                    func_idx,
+                    opt_result,
+                    elapsed,
+                );
             }
         }
 
@@ -325,6 +312,7 @@ pub trait BenchmarkFunction: Send + Sync {
 }
 
 /// Benchmark results
+#[derive(Default)]
 pub struct BenchmarkResults {
     /// Results for each optimizer-function pair
     pub results: Vec<Vec<Option<OptimizationResult>>>,
@@ -343,16 +331,6 @@ impl BenchmarkResults {
     }
 }
 
-impl Default for BenchmarkResults {
-    fn default() -> Self {
-        Self {
-            results: Vec::new(),
-            times: Vec::new(),
-            optimizer_names: Vec::new(),
-            function_names: Vec::new(),
-        }
-    }
-}
 
 impl BenchmarkResults {
     /// Add a result
@@ -415,8 +393,7 @@ impl BenchmarkResults {
         let mut rankings = Vec::new();
 
         for func_idx in 0..self.function_names.len() {
-            let mut func_results: Vec<(usize, f64)> = summary
-                .iter()
+            let mut func_results: Vec<(usize, f64)> = summary.iter()
                 .enumerate()
                 .map(|(opt_idx, opt_summary)| (opt_idx, opt_summary[func_idx]))
                 .filter(|(_, value)| !value.is_nan())
@@ -548,8 +525,8 @@ pub mod benchmark_functions {
 
 #[cfg(test)]
 mod tests {
-    use super::benchmark_functions::{Rosenbrock, Sphere};
     use super::*;
+    use super::benchmark_functions::{Rosenbrock, Sphere};
 
     #[test]
     fn test_optimizer_interface() {
@@ -574,28 +551,16 @@ mod tests {
 
         // Test Rosenbrock
         let mut config = HyperparameterConfig::new();
-        config.set(
-            "x".to_string(),
-            super::super::space::HyperparameterValue::Float(1.0),
-        );
-        config.set(
-            "y".to_string(),
-            super::super::space::HyperparameterValue::Float(1.0),
-        );
+        config.set("x".to_string(), super::super::space::HyperparameterValue::Float(1.0));
+        config.set("y".to_string(), super::super::space::HyperparameterValue::Float(1.0));
 
         let value = rosenbrock.evaluate(&config).unwrap();
         assert_eq!(value, 0.0); // Rosenbrock minimum at (1,1)
 
         // Test Sphere
         let mut config2 = HyperparameterConfig::new();
-        config2.set(
-            "x0".to_string(),
-            super::super::space::HyperparameterValue::Float(0.0),
-        );
-        config2.set(
-            "x1".to_string(),
-            super::super::space::HyperparameterValue::Float(0.0),
-        );
+        config2.set("x0".to_string(), super::super::space::HyperparameterValue::Float(0.0));
+        config2.set("x1".to_string(), super::super::space::HyperparameterValue::Float(0.0));
 
         let value2 = sphere.evaluate(&config2).unwrap();
         assert_eq!(value2, 0.0); // Sphere minimum at origin

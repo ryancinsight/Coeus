@@ -31,7 +31,7 @@ use std::marker::PhantomData;
 #[derive(Debug, Clone)]
 pub struct Conv3D<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -64,7 +64,7 @@ where
 
 impl<B, S, T> Conv3D<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
 {
@@ -345,7 +345,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for Conv3D<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType
         + FloatExt

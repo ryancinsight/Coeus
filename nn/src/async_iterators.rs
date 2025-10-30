@@ -59,7 +59,7 @@ use std::pin::Pin;
 pub struct StreamingInference<M, B, S, T>
 where
     M: ModuleExt<B, S, T>,
-    B: Backend + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
     T: DataType,
 {
@@ -73,7 +73,7 @@ where
 impl<M, B, S, T> StreamingInference<M, B, S, T>
 where
     M: ModuleExt<B, S, T>,
-    B: Backend + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
     T: DataType,
 {
@@ -114,7 +114,7 @@ where
 /// Async iterator for batch processing of neural network operations
 pub struct BatchAsyncIterator<B, S, T>
 where
-    B: Backend + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
     T: DataType,
 {
@@ -128,7 +128,7 @@ where
 
 impl<B, S, T> BatchAsyncIterator<B, S, T>
 where
-    B: Backend + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
     T: DataType,
 {
@@ -168,7 +168,7 @@ pub struct TrainingStepResult<T: DataType> {
 /// Provides high-level async training orchestration without specific optimizer/loss coupling
 pub struct AsyncTrainingCoordinator<B, S, T>
 where
-    B: Backend + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
     T: DataType,
 {
@@ -179,7 +179,7 @@ where
 
 impl<B, S, T> AsyncTrainingCoordinator<B, S, T>
 where
-    B: Backend + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
     T: DataType,
 {
@@ -235,7 +235,7 @@ where
 
 impl<B, S, T> Default for AsyncTrainingCoordinator<B, S, T>
 where
-    B: Backend + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
     T: DataType,
 {
@@ -249,7 +249,7 @@ type NNError = crate::NNError;
 /// Async iterator for data loading and preprocessing
 pub struct AsyncDataLoader<D, B, S, T>
 where
-    B: Backend + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
     T: DataType,
 {
@@ -263,7 +263,7 @@ where
 impl<D, B, S, T> AsyncDataLoader<D, B, S, T>
 where
     D: Stream<Item = Result<(Tensor<B, S, T>, Tensor<B, S, T>)>> + Send + 'static,
-    B: Backend + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
     T: DataType,
 {
@@ -290,7 +290,7 @@ where
 pub struct BatchedAsyncDataLoader<D, B, S, T>
 where
     D: Stream<Item = Result<(Tensor<B, S, T>, Tensor<B, S, T>)>> + Send + 'static,
-    B: Backend + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
     T: DataType,
 {
@@ -300,7 +300,7 @@ where
 impl<D, B, S, T> BatchedAsyncDataLoader<D, B, S, T>
 where
     D: Stream<Item = Result<(Tensor<B, S, T>, Tensor<B, S, T>)>> + Send + Unpin + 'static,
-    B: Backend + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
     T: DataType,
 {

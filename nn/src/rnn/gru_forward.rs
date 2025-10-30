@@ -15,7 +15,7 @@ type CpuTensor<T> = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
 /// GRU forward pass utilities
 pub trait GRUForward<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {

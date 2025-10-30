@@ -68,7 +68,7 @@ pub struct MixedPrecisionModelArchive {
 /// Trait for mixed precision model serialization
 pub trait MixedPrecisionSerialize<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + Clone + PartialOrd + Into<f64> + From<f64>,
     f64: From<T>,

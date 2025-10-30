@@ -44,7 +44,7 @@ use crate::parameter::Parameter;
 #[derive(Debug, Clone)]
 pub struct Embedding<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -61,7 +61,7 @@ where
 
 impl<B, S, T> Embedding<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Zero,
 {
@@ -145,7 +145,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for Embedding<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + 'static,
 {

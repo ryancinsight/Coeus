@@ -11,7 +11,7 @@ use std::{collections::BTreeSet, vec, vec::Vec};
 /// all dimensions, resulting in scalar tensors.
 impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
 where
-    B: crate::Backend + Clone + Default,
+    B: crate::Backend<Data = T> + Clone + Default,
     T: crate::DataType,
 {
     /// Computes the sum of all elements in the tensor.

@@ -29,6 +29,7 @@ tracing.workspace = true
 bytemuck.workspace = true
 anyhow.workspace = true
 statrs = "0.4"
+rand.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
@@ -49,4 +50,3 @@ path = "tests/concurrency.rs"
 name = "conditional_unsafe"
 path = "tensor/benches/conditional_unsafe/main.rs"
 harness = false
-

@@ -19,7 +19,7 @@ use crate::parameter::Parameter;
 #[derive(Debug)]
 pub struct GRU<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -52,7 +52,7 @@ where
 
 impl<B, S, T> GRU<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {

@@ -52,8 +52,8 @@ impl GaussianProcess {
 
         // Add noise to diagonal
         let mut k_matrix_noisy = k_matrix.clone();
-        for i in 0..k_matrix_noisy.len() {
-            k_matrix_noisy[i][i] += self.noise_var;
+        for (i, row) in k_matrix_noisy.iter_mut().enumerate() {
+            row[i] += self.noise_var;
         }
 
         // Compute predictive mean and variance
@@ -93,9 +93,10 @@ impl GaussianProcess {
         let n = self.inputs.len();
         let mut matrix = vec![vec![0.0; n]; n];
 
-        for i in 0..n {
+        for (i, row) in matrix.iter_mut().enumerate().take(n) {
+            #[allow(clippy::needless_range_loop)]
             for j in 0..n {
-                matrix[i][j] = self.se_kernel(&self.inputs[i], &self.inputs[j]);
+                row[j] = self.se_kernel(&self.inputs[i], &self.inputs[j]);
             }
         }
 
@@ -139,6 +140,7 @@ impl GaussianProcess {
             let mut gradients = vec![0.0; dim + 2]; // length_scales + signal_var + noise_var
 
             // Compute gradients (simplified)
+            #[allow(clippy::needless_range_loop)]
             for i in 0..dim {
                 let eps = 1e-4;
                 let original = self.length_scales[i];
@@ -155,9 +157,9 @@ impl GaussianProcess {
             }
 
             // Update parameters (gradient descent)
-            for i in 0..dim {
-                self.length_scales[i] -= 0.01 * gradients[i];
-                self.length_scales[i] = self.length_scales[i].max(1e-3);
+            for (i, length_scale) in self.length_scales.iter_mut().enumerate().take(dim) {
+                *length_scale -= 0.01 * gradients[i];
+                *length_scale = length_scale.max(1e-3);
             }
         }
     }
@@ -170,8 +172,8 @@ impl GaussianProcess {
 
         let k_matrix = self.compute_covariance_matrix();
         let mut k_noisy = k_matrix.clone();
-        for i in 0..k_noisy.len() {
-            k_noisy[i][i] += self.noise_var;
+        for (i, row) in k_noisy.iter_mut().enumerate() {
+            row[i] += self.noise_var;
         }
 
         // Compute log determinant and quadratic form (simplified)
@@ -403,7 +405,7 @@ impl BayesianOptimizer {
 
 #[cfg(test)]
 mod tests {
-    use super::super::space::{Hyperparameter, HyperparameterValue};
+    use super::super::space::Hyperparameter;
     use super::*;
 
     #[test]

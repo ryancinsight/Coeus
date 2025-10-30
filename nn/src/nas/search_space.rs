@@ -108,10 +108,8 @@ impl Architecture {
 
         // Check all outgoing connections
         for conn in &self.connections {
-            if conn.from == node {
-                if self.has_cycles_util(conn.to, visited, rec_stack) {
-                    return true;
-                }
+            if conn.from == node && self.has_cycles_util(conn.to, visited, rec_stack) {
+                return true;
             }
         }
 

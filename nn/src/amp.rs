@@ -121,7 +121,7 @@ impl MixedPrecision {
     pub fn scale_loss<T, B, S>(&self, loss: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
     where
         T: FloatExt + num_traits::FromPrimitive,
-        B: coeus_backend::Backend,
+        B: coeus_backend::Backend<Data = T>,
         S: coeus_storage::Storage<T> + coeus_storage::StorageFromVec<T> + 'static,
     {
         if !self.enabled {
@@ -142,7 +142,7 @@ impl MixedPrecision {
     pub fn unscale_gradients<T, B, S>(&mut self, gradients: &mut [Tensor<B, S, T>]) -> Result<bool>
     where
         T: FloatExt + num_traits::FromPrimitive,
-        B: coeus_backend::Backend,
+        B: coeus_backend::Backend<Data = T>,
         S: coeus_storage::Storage<T> + coeus_storage::StorageFromVec<T> + 'static,
     {
         if !self.enabled {
@@ -177,7 +177,7 @@ impl MixedPrecision {
     pub fn has_nan_or_inf<T, B, S>(&self, tensor: &Tensor<B, S, T>) -> Result<bool>
     where
         T: FloatExt,
-        B: coeus_backend::Backend,
+        B: coeus_backend::Backend<Data = T>,
         S: coeus_storage::Storage<T> + 'static,
     {
         let data = tensor.storage_ref().as_slice();
@@ -255,7 +255,7 @@ impl GradientScaler {
     pub fn scale_loss<T, B, S>(&self, loss: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
     where
         T: FloatExt + num_traits::FromPrimitive,
-        B: coeus_backend::Backend,
+        B: coeus_backend::Backend<Data = T>,
         S: coeus_storage::Storage<T> + coeus_storage::StorageFromVec<T> + 'static,
     {
         Ok(loss.mul_scalar(T::from_f32(self.scale).unwrap())?)
@@ -294,7 +294,7 @@ impl GradientScaler {
     pub fn check_gradients<T, B, S>(&mut self, gradients: &[&Tensor<B, S, T>]) -> Result<()>
     where
         T: FloatExt,
-        B: coeus_backend::Backend,
+        B: coeus_backend::Backend<Data = T>,
         S: coeus_storage::Storage<T> + 'static,
     {
         for grad in gradients {
@@ -311,7 +311,7 @@ impl GradientScaler {
     fn has_inf_or_nan<T, B, S>(&self, tensor: &Tensor<B, S, T>) -> Result<bool>
     where
         T: FloatExt,
-        B: coeus_backend::Backend,
+        B: coeus_backend::Backend<Data = T>,
         S: coeus_storage::Storage<T> + 'static,
     {
         let data = tensor.storage_ref().as_slice();

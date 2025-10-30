@@ -81,7 +81,7 @@ impl MetaLSTM {
         // Simplified LSTM computation for single gradient input
         // In practice, this would be much more sophisticated
 
-        let _input = vec![gradient, self.hidden_state[param_idx % self.hidden_size]];
+        let _input = [gradient, self.hidden_state[param_idx % self.hidden_size]];
 
         // Compute gates (simplified)
         let forget_gate = 0.5; // sigmoid(w_f * [grad, h] + b_f)

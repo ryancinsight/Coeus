@@ -40,7 +40,6 @@
 #![allow(clippy::module_name_repetitions)]
 
 pub mod checkpointing;
-pub mod computation_graph;
 pub mod custom;
 pub mod functions;
 pub mod graph_node;
@@ -48,14 +47,15 @@ pub mod loss;
 pub mod nn;
 pub mod numerical;
 pub mod ops;
+pub mod sparse_gradients;
 pub mod tensor_ops;
 
 #[cfg(test)]
 mod tests;
 
 // Re-export key types for ergonomics
+pub use coeus_storage::AsAny;
 pub use coeus_tensor::{DifferentiableFunction, Function};
-pub use computation_graph::GradientEngine;
 pub use custom::apply_custom_function;
 
 // Core traits for extensibility

@@ -7,23 +7,24 @@
 //!
 //! ```rust
 //! use coeus_autograd::{custom::apply_custom_function, ops::backward};
+//! use coeus_dtype::float::Float32;
 //!
 //! // Define a custom function that computes x^2
-//! fn square_forward(inputs: &[&coeus_tensor::Tensor<coeus_backend::CpuBackend<T>, coeus_storage::DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>])
-//!     -> Result<coeus_tensor::Tensor<coeus_backend::CpuBackend<T>, coeus_storage::DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>, Box<dyn std::error::Error>> {
+//! fn square_forward(inputs: &[&coeus_tensor::Tensor<coeus_backend::CpuBackend<Float32>, coeus_storage::DenseStorage<Float32>, Float32>])
+//!     -> Result<coeus_tensor::Tensor<coeus_backend::CpuBackend<Float32>, coeus_storage::DenseStorage<Float32>, Float32>, Box<dyn std::error::Error>> {
 //!     let input = &inputs[0];
 //!     // Create a simple squared tensor (placeholder for actual computation)
 //!     Ok((*input).clone()) // Simplified for doctest
 //! }
 //!
-//! fn square_backward(grad_output: &coeus_tensor::Tensor<coeus_backend::CpuBackend<T>, coeus_storage::DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>)
-//!     -> anyhow::Result<Vec<coeus_tensor::Tensor<coeus_backend::CpuBackend<T>, coeus_storage::DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>>> {
+//! fn square_backward(grad_output: &coeus_tensor::Tensor<coeus_backend::CpuBackend<Float32>, coeus_storage::DenseStorage<Float32>, Float32>)
+//!     -> anyhow::Result<Vec<coeus_tensor::Tensor<coeus_backend::CpuBackend<Float32>, coeus_storage::DenseStorage<Float32>, Float32>>> {
 //!     // For f(x) = x², df/dx = 2*x, but simplified for demo
 //!     Ok(vec![grad_output.clone()])
 //! }
 //!
 //! // Use the custom function
-//! let input = coeus_tensor::Tensor::from_vec(vec![coeus_dtype::float::Float32::new(3.0)], &[]).unwrap().requires_grad_(true);
+//! let input = coeus_tensor::Tensor::from_vec(vec![Float32::new(3.0)], &[]).unwrap().requires_grad_(true);
 //! let output = apply_custom_function(&[&input], square_forward, square_backward, "Square").unwrap();
 //! backward(&output).unwrap();
 //! ```
@@ -36,7 +37,7 @@ use core::any::Any;
 
 use coeus_backend::Backend;
 use coeus_dtype::DataType;
-use coeus_storage::Storage;
+use coeus_storage::{Storage, DenseStorage};
 
 use crate::{error::AutogradError, Result};
 
@@ -72,8 +73,8 @@ pub fn apply_custom_function<B, S, T>(
     name: &'static str,
 ) -> Result<coeus_tensor::Tensor<B, S, T>>
 where
-    B: Backend,
-    S: Storage<T> + Clone + 'static,
+    B: Backend<Data = T>,
+    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
     T: DataType,
 {
     // Perform forward pass
@@ -94,10 +95,8 @@ where
             name,
         };
 
-        let function_arc: Arc<dyn coeus_tensor::Function<B, S, T>> = Arc::new(custom_fn);
-
         let mut result = output;
-        result.set_grad_fn(Some(function_arc));
+        result.set_grad_fn(Some("custom".to_string()));
         result
     } else {
         output
@@ -109,7 +108,7 @@ where
 /// Internal wrapper for custom functions
 pub(crate) struct CustomFunction<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + Clone + 'static,
     T: DataType,
 {
@@ -126,7 +125,7 @@ where
 
 impl<B, S, T> core::fmt::Debug for CustomFunction<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + Clone + 'static,
     T: DataType,
 {
@@ -135,31 +134,9 @@ where
     }
 }
 
-impl<B, S, T> crate::functions::DifferentiableFunction<B, S, T> for CustomFunction<B, S, T>
-where
-    B: Backend,
-    S: Storage<T> + Clone + 'static,
-    T: DataType,
-{
-    fn name(&self) -> &'static str {
-        self.name
-    }
-}
-
-impl<B, S, T> crate::traits::AsAny for CustomFunction<B, S, T>
-where
-    B: Backend + core::fmt::Debug + Send + Sync + 'static,
-    S: Storage<T> + Clone + core::fmt::Debug + Send + Sync + 'static,
-    T: DataType,
-{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
 impl<B, S, T> coeus_tensor::AsAny for CustomFunction<B, S, T>
 where
-    B: Backend + core::fmt::Debug + Send + Sync + 'static,
+    B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static,
     S: Storage<T> + Clone + core::fmt::Debug + Send + Sync + 'static,
     T: DataType,
 {
@@ -170,7 +147,7 @@ where
 
 impl<B, S, T> coeus_tensor::DifferentiableFunction<B, S, T> for CustomFunction<B, S, T>
 where
-    B: Backend + core::fmt::Debug + Send + Sync + 'static,
+    B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static,
     S: Storage<T> + Clone + core::fmt::Debug + Send + Sync + 'static,
     T: DataType,
 {
@@ -181,8 +158,8 @@ where
 
 impl<B, S, T> coeus_tensor::Function<B, S, T> for CustomFunction<B, S, T>
 where
-    B: Backend + core::fmt::Debug + Send + Sync + 'static,
-    S: Storage<T> + Clone + core::fmt::Debug + Send + Sync + 'static,
+    B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static,
+    S: Storage<T> + Clone + core::fmt::Debug + Send + Sync + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
     T: DataType,
 {
     fn inputs(&self) -> &[crate::functions::TensorRef<B, S, T>] {
@@ -191,9 +168,18 @@ where
 
     fn backward(
         &self,
-        grad_output: &coeus_tensor::Tensor<B, S, T>,
+        grad_output: &coeus_tensor::Tensor<B, DenseStorage<T>, T>,
     ) -> anyhow::Result<Vec<coeus_tensor::Tensor<B, S, T>>> {
-        (self.backward_fn)(grad_output)
+        // Convert grad_output back to storage type S for the user's function
+        let grad_data = grad_output.storage_ref().as_slice().to_vec();
+        let grad_dims = grad_output.shape().dims().to_vec();
+        let grad_output_converted = coeus_tensor::Tensor::from_vec_with_backend(
+            grad_data,
+            &grad_dims,
+            grad_output.backend().clone()
+        )?;
+
+        (self.backward_fn)(&grad_output_converted)
     }
 }
 

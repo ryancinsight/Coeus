@@ -16,11 +16,20 @@ members = [
     "distributed",  # Re-enabled with optim dependency resolved
     "jit",  # Re-enabled - SIMD implementation appears complete and production-ready
     # "hub",  # Temporarily excluded - experimental
+    "audio",  # MS-46.2 Audio Processing Pipeline
 ]
 
 resolver = "2"
 
 [workspace.dependencies]
+# Internal workspace crates
+coeus-dtype = { path = "./dtype", version = "1.0.0" }
+coeus-storage = { path = "./storage", version = "1.0.0" }
+coeus-backend = { path = "./backend", version = "1.0.0" }
+coeus-tensor = { path = "./tensor", version = "1.0.0" }
+coeus-autograd = { path = "./autograd", version = "1.0.0" }
+coeus-optim = { path = "./optim", version = "1.0.0" }
+
 # Core numeric traits
 num-traits = { version = "0.2", default-features = false, features = ["libm"] }
 num-complex = { version = "0.4", default-features = false }
@@ -38,6 +47,7 @@ tokio = { version = "1.42", features = ["full", "fs", "io-util", "sync", "time"]
 tokio-util = { version = "0.7", features = ["compat"] }
 tokio-stream = "0.1"
 async-trait = "0.1"
+futures = "0.3"
 
 # Logging and tracing
 tracing = "0.1"
@@ -66,12 +76,13 @@ tracing-test = "0.2"
 rand = "0.8"
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["Ryan Clanton"]
 repository = "https://github.com/ryancinsight/coeus"
 homepage = "https://github.com/ryancinsight/coeus"
+documentation = "https://docs.rs/coeus"
 rust-version = "1.70"
 
 # Build optimization profiles for performance and size

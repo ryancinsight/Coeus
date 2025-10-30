@@ -121,7 +121,7 @@ pub struct FreezeConfig {
 #[derive(Debug)]
 pub enum SurgeryOperation<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -195,7 +195,7 @@ pub fn prune_model<B, S, T>(
     config: Option<PruningConfig>,
 ) -> Result<(Box<dyn Module<B, S, T>>, PruningStats)>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + num_traits::Float + num_traits::FromPrimitive + std::cmp::PartialOrd,
 {
@@ -271,7 +271,7 @@ where
 /// Returns error if layer indices are invalid or freezing fails
 pub fn freeze_layers<B, S, T>(model: &mut dyn Module<B, S, T>, config: &FreezeConfig) -> Result<()>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -327,7 +327,7 @@ pub fn unfreeze_layers<B, S, T>(
     layer_indices: &[usize],
 ) -> Result<()>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -375,7 +375,7 @@ pub fn perform_surgery<B, S, T>(
     operation: SurgeryOperation<B, S, T>,
 ) -> Result<Box<dyn Module<B, S, T>>>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -438,7 +438,7 @@ pub fn cut_model_at<B, S, T>(
     layer_index: usize,
 ) -> Result<Sequential<B, S, T>>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -475,7 +475,7 @@ pub fn cut_model<B, S, T>(
     _layer_index: usize,
 ) -> Result<Box<dyn Module<B, S, T>>>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -519,7 +519,7 @@ pub fn concatenate_models_owned<B, S, T>(
     models: Vec<Sequential<B, S, T>>,
 ) -> Result<Sequential<B, S, T>>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -547,7 +547,7 @@ pub fn concatenate_models<B, S, T>(
     _models: &[&dyn Module<B, S, T>],
 ) -> Result<Box<dyn Module<B, S, T>>>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -566,7 +566,7 @@ pub fn insert_layers<B, S, T>(
     new_layers: Vec<Box<dyn Module<B, S, T>>>,
 ) -> Result<Sequential<B, S, T>>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -591,7 +591,7 @@ pub fn remove_layers<B, S, T>(
     layer_indices: &[usize],
 ) -> Result<Sequential<B, S, T>>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -616,7 +616,7 @@ pub fn replace_layer<B, S, T>(
     new_layer: Box<dyn Module<B, S, T>>,
 ) -> Result<Sequential<B, S, T>>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -650,7 +650,7 @@ pub fn manipulate_weights<B, S, T>(
     layer_names: Option<&[&str]>,
 ) -> Result<()>
 where
-    B: Backend + Clone + std::default::Default,
+    B: Backend<Data = T> + Clone + std::default::Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType
         + num_traits::Float
@@ -680,7 +680,7 @@ fn apply_weight_operation<B, S, T>(
     operation: &WeightOperation,
 ) -> Result<()>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + 'static,
     T: DataType
         + num_traits::Float
@@ -746,7 +746,7 @@ fn initialize_weights<B, S, T>(
     method: &WeightInitMethod,
 ) -> Result<()>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + 'static,
     T: DataType
         + num_traits::Float

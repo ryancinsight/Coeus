@@ -16,7 +16,7 @@ use crate::parameter::Parameter;
 /// Common trait for batch normalization operations
 pub trait BatchNormOps<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
@@ -30,7 +30,7 @@ where
 #[derive(Debug)]
 pub struct BatchNormBase<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
@@ -58,7 +58,7 @@ where
 
 impl<B, S, T> BatchNormBase<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
@@ -104,7 +104,7 @@ where
 
 impl<B, S, T> Clone for BatchNormBase<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {

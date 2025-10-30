@@ -62,7 +62,7 @@ impl MSELoss {
         targets: &Tensor<B, S, T>,
     ) -> Result<Tensor<B, S, T>>
     where
-        B: Backend + Clone + Default,
+        B: Backend<Data = T> + Clone + Default,
         S: Storage<T> + StorageFromVec<T> + Clone + 'static,
         T: DataType + FloatExt,
     {
@@ -95,7 +95,7 @@ pub fn mse_loss<B, S, T>(
     targets: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + FloatExt,
 {

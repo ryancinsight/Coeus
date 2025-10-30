@@ -383,7 +383,7 @@ impl MemoryAllocationRLAgent {
         *q_value = new_q_value;
 
         // Check if episode should terminate (critical thresholds exceeded)
-        let done = self.should_terminate_episode(&next_state_ref);
+        let done = self.should_terminate_episode(next_state_ref);
 
         // Store experience for replay
         let experience = Experience {
@@ -517,7 +517,7 @@ impl MemoryAllocationRLAgent {
         for &backend_type in &[
             BackendType::Cpu,
             BackendType::Gpu,
-            BackendType::Tpu,
+            BackendType::Cpu,
             BackendType::Npu,
         ] {
             for numa_node in 0..4 {
@@ -537,13 +537,13 @@ impl MemoryAllocationRLAgent {
         for &source in &[
             BackendType::Cpu,
             BackendType::Gpu,
-            BackendType::Tpu,
+            BackendType::Cpu,
             BackendType::Npu,
         ] {
             for &dest in &[
                 BackendType::Cpu,
                 BackendType::Gpu,
-                BackendType::Tpu,
+                BackendType::Cpu,
                 BackendType::Npu,
             ] {
                 if source != dest {
@@ -559,7 +559,7 @@ impl MemoryAllocationRLAgent {
         }
 
         // Defragmentation actions
-        for &backend_type in &[BackendType::Gpu, BackendType::Tpu, BackendType::Npu] {
+        for &backend_type in &[BackendType::Gpu, BackendType::Cpu, BackendType::Npu] {
             actions.push(MemoryAllocationAction::DefragmentBackend { backend_type });
         }
 

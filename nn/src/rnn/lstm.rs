@@ -18,7 +18,7 @@ use crate::parameter::Parameter;
 #[derive(Debug)]
 pub struct LSTM<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -51,7 +51,7 @@ where
 
 impl<B, S, T> LSTM<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
@@ -235,7 +235,7 @@ where
 
 impl<B, S, T> LSTM<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
@@ -592,7 +592,7 @@ where
 
 impl<B, S, T> fmt::Display for LSTM<B, S, T>
 where
-    B: Backend,
+    B: Backend<T>,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType,
 {

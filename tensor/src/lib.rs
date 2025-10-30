@@ -3,23 +3,27 @@
 //! PyTorch-like tensor library with automatic differentiation, backend abstraction, and higher-order derivatives.
 //!
 //! This crate provides a unified tensor architecture that consolidates all tensor forms
-//! into a single type with generic dtype and backend abstraction.
+//! into a single type with simplified generic backend abstraction.
+//!
+//! ## Architecture Update (October 2025)
+//!
+//! **Major Simplification**: `Tensor<B, S, T>` → `Tensor<B>` using associated types.
+//! The backend trait now encapsulates storage and datatype through associated types,
+//! eliminating redundant generics while maintaining full functionality.
 //!
 //! ## Architecture
 //!
 //! The tensor library provides a single unified tensor type that works across all backends
 //! and supports both regular operations and automatic differentiation:
 //!
-//! ### UnifiedTensor (Single Tensor Type)
+//! ### Simplified Tensor API
 //! ```rust
 //! use coeus_tensor::Tensor;
 //! use coeus_backend::CpuBackend;
-//! use coeus_storage::DenseStorage;
-//! use coeus_dtype::float::Float32;
 //!
-//! // Create CPU tensor with explicit backend, storage, and dtype
-//! let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-//!     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+//! // Create CPU tensor with simplified API - backend encapsulates storage and dtype
+//! let tensor = Tensor::<CpuBackend>::from_vec(
+//!     vec![1.0, 2.0, 3.0],
 //!     &[3]
 //! ).unwrap();
 //!
@@ -42,10 +46,11 @@
 //!
 //! ## Backend Architecture
 //!
-//! The unified tensor uses a backend abstraction system:
-//! - `B: Backend<T>`: Generic backend trait for device-agnostic operations
-//! - `T: Dtype`: Generic data type trait for numeric operations
+//! The simplified tensor uses a backend abstraction with associated types:
+//! - `B: Backend<Data = T, Device = D>`: Backend trait with associated data and device types
+//! - Generic methods support any storage type (dense/sparse) through trait bounds
 //! - Zero unsafe code with proper trait bounds and memory safety
+//! - Complete sparse tensor support through generic operations
 
 // Module declarations
 pub mod ops {
@@ -93,6 +98,9 @@ pub use coeus_backend::CpuBackend;
 // Result type for tensor operations
 pub type Result<T> = std::result::Result<T, TensorError>;
 
+// Re-export convenience functions from ops::creation
+pub use ops::creation::{randn, cat};
+
 /// Creates a thread-safe gradient storage container
 pub fn grad_rwlock<T>(value: T) -> std::sync::RwLock<T> {
     std::sync::RwLock::new(value)
@@ -105,9 +113,6 @@ pub use error::TensorError;
 mod tests {
     use super::*;
     use crate::ops::arithmetic::*;
-    use crate::ops::creation::*;
-    use crate::ops::matrix::*;
-    use crate::ops::reduction::*;
     use coeus_backend::CpuBackend;
     use coeus_dtype::float::Float32;
     use coeus_storage::DenseStorage;

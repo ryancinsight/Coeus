@@ -2,7 +2,7 @@
 //!
 //! This module provides matrix operations such as matrix multiplication (matmul).
 
-use std::{format, vec::Vec};
+use std::vec::Vec;
 use tracing::instrument;
 
 /// Matrix operations for tensors with dense storage.
@@ -11,8 +11,8 @@ use tracing::instrument;
 /// on 2D tensors.
 impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
 where
-    B: crate::Backend + Clone + Default,
-    T: crate::DataType,
+    B: crate::Backend<Data = T> + Clone + Default,
+    T: crate::DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T>,
 {
     /// Compute matrix multiplication with another tensor.
     ///
@@ -62,10 +62,10 @@ where
     /// let c = a.matmul(&b).unwrap();
     /// assert_eq!(c.shape().dims(), &[2, 2]);
     /// ```
-    #[instrument(level = "trace", skip(self, other), fields(lhs_shape = ?self.shape().dims(), rhs_shape = ?other.shape().dims()))]
+    #[instrument(level = "trace", skip(self, other))]
     pub fn matmul(&self, other: &Self) -> crate::Result<Self> {
-        let lhs_shape = self.shape().dims();
-        let rhs_shape = other.shape().dims();
+        let lhs_shape = <coeus_storage::DenseStorage<T> as coeus_storage::Storage<T>>::shape(&self.storage).dims();
+        let rhs_shape = <coeus_storage::DenseStorage<T> as coeus_storage::Storage<T>>::shape(&other.storage).dims();
 
         // Validate 2D matrices
         if lhs_shape.len() != 2 {
@@ -107,8 +107,8 @@ where
     #[instrument(level = "trace", skip(self, other))]
     fn matmul_cpu(&self, m: usize, n: usize, p: usize, other: &Self) -> crate::Result<Self> {
         // Perform matrix multiplication using iterator-based approach
-        let lhs_data = self.as_slice();
-        let rhs_data = other.as_slice();
+        let lhs_data = <coeus_storage::DenseStorage<T> as coeus_storage::Storage<T>>::as_slice(&self.storage);
+        let rhs_data = <coeus_storage::DenseStorage<T> as coeus_storage::Storage<T>>::as_slice(&other.storage);
 
         let result_data: Vec<T> = (0..m)
             .flat_map(|i| {
@@ -119,12 +119,15 @@ where
                             let rhs_idx = k * p + j;
                             lhs_data[lhs_idx] * rhs_data[rhs_idx]
                         })
-                        .fold(T::zero(), |acc, x| acc + x)
+                        .fold(<T as num_traits::Zero>::zero(), |acc, x| acc + x)
                 })
             })
             .collect();
 
-        crate::Tensor::from_vec(result_data, &[m, p])
+        {
+            let storage = coeus_storage::DenseStorage::from_vec(result_data, &[m, p])?;
+            Ok(<crate::Tensor<B, coeus_storage::DenseStorage<T>, T>>::from_storage(storage, self.backend.clone()))
+        }
     }
 
     /// Backend-agnostic matrix multiplication implementation

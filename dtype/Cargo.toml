@@ -27,6 +27,7 @@ serde = ["dep:serde"]
 num-traits.workspace = true
 thiserror.workspace = true
 libm.workspace = true
+bytemuck.workspace = true
 half = { workspace = true, optional = true }
 num-complex = { workspace = true, optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }

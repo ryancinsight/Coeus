@@ -67,7 +67,7 @@ type TensorPair<T> = (CpuTensor<T>, CpuTensor<T>);
 #[derive(Debug)]
 pub struct RNN<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -100,7 +100,7 @@ where
 
 impl<B, S, T> RNN<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -224,7 +224,7 @@ where
 
 impl<B, S, T> RNN<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -688,7 +688,7 @@ where
 
 impl<B, S, T> fmt::Display for RNN<B, S, T>
 where
-    B: Backend,
+    B: Backend<T>,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType,
 {

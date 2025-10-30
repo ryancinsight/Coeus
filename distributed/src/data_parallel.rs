@@ -23,7 +23,7 @@ pub struct DataParallel<M, B, S, T> {
 impl<M, B, S, T> DataParallel<M, B, S, T>
 where
     M: Module<B, S, T> + Send + Sync,
-    B: Send + Sync + coeus_backend::Backend,
+    B: Send + Sync + coeus_backend::Backend<T>,
     S: Send + Sync + coeus_storage::Storage<T> + Clone + coeus_storage::StorageFromVec<T> + 'static,
     T: Send + Sync + coeus_dtype::DataType,
 {

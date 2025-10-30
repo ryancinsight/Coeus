@@ -52,7 +52,7 @@ use crate::parameter::Parameter;
 /// // Set to training mode
 /// <BatchNorm2d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
 ///
-/// // Input: [batch_size=2, channels=64, height=32, width=32]
+/// // Input: \[batch_size=2, channels=64, height=32, width=32\]
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 64, 32, 32]).unwrap();
 ///
 /// // Output: Same shape, normalized
@@ -62,19 +62,19 @@ use crate::parameter::Parameter;
 #[derive(Debug)]
 pub struct BatchNorm2d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
     /// Number of channels (C)
     pub num_features: usize,
-    /// Scale parameter γ [C]
+    /// Scale parameter γ \[C\]
     pub weight: Parameter<B, S, T>,
-    /// Shift parameter β [C]
+    /// Shift parameter β \[C\]
     pub bias: Parameter<B, S, T>,
-    /// Running mean [C] (interior mutability for automatic updates)
+    /// Running mean \[C\] (interior mutability for automatic updates)
     pub running_mean: RefCell<Tensor<B, S, T>>,
-    /// Running variance [C] (interior mutability for automatic updates)
+    /// Running variance \[C\] (interior mutability for automatic updates)
     pub running_var: RefCell<Tensor<B, S, T>>,
     /// Numerical stability constant ε
     pub eps: f64,
@@ -90,7 +90,7 @@ where
 
 impl<B, S, T> Clone for BatchNorm2d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
@@ -112,7 +112,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for BatchNorm2d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -270,7 +270,7 @@ where
 
 impl<B, S, T> BatchNorm2d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -338,7 +338,7 @@ where
             running_var,
             eps,
             momentum,
-            training: true, // Default to training mode
+            training: true, // Default to training mode - CRITICAL for layer behavior
             track_running_stats: true,
             _phantom: PhantomData,
         })
@@ -465,7 +465,7 @@ where
 #[derive(Debug)]
 pub struct BatchNorm1d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
@@ -493,7 +493,7 @@ where
 
 impl<B, S, T> Clone for BatchNorm1d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
@@ -515,7 +515,7 @@ where
 
 impl<B, S, T> BatchNorm1d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -913,7 +913,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for BatchNorm1d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -1004,7 +1004,7 @@ where
 #[derive(Debug)]
 pub struct BatchNorm3d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
@@ -1032,7 +1032,7 @@ where
 
 impl<B, S, T> Clone for BatchNorm3d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
@@ -1054,7 +1054,7 @@ where
 
 impl<B, S, T> BatchNorm3d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {

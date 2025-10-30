@@ -4,12 +4,13 @@
 //! handling scheduling, resource allocation, and result collection.
 
 use crate::error::Result;
-use super::{ExperimentSpec, ExperimentResult, ResearchAgentRegistry, ResearchConfig, UnifiedResearchFramework};
+use super::{ExperimentSpec, ExperimentResult, ResearchAgentRegistry, ResearchConfig};
 
 /// Research experiment orchestrator
 #[derive(Debug)]
 pub struct ResearchOrchestrator {
     /// Orchestrator configuration
+    #[allow(dead_code)]
     config: ResearchConfig,
     // /// Experiment execution queue
     // queue: ExperimentQueue, // Will be implemented
@@ -27,8 +28,8 @@ impl ResearchOrchestrator {
     /// Execute a research workflow
     pub fn execute_workflow(
         &mut self,
-        workflow: &super::ResearchWorkflow,
-        registry: &ResearchAgentRegistry,
+        _workflow: &super::ResearchWorkflow,
+        _registry: &ResearchAgentRegistry,
     ) -> Result<ExperimentResult> {
         // For now, return a placeholder result
         Ok(ExperimentResult::new("workflow_execution".to_string(), "orchestrator".to_string()))

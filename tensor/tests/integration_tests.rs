@@ -10,8 +10,6 @@
 use std::sync::Arc;
 use std::thread;
 
-use approx::assert_relative_eq;
-use proptest::prelude::*;
 
 use coeus_backend::CpuBackend;
 use coeus_dtype::{float::Float32, num_traits::ToPrimitive};

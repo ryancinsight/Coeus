@@ -50,7 +50,7 @@ impl Default for ReLU {
 
 impl<B, S, T> Module<B, S, T> for ReLU
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd + Copy,
 {
@@ -135,7 +135,7 @@ impl Default for Sigmoid {
 
 impl<B, S, T> Module<B, S, T> for Sigmoid
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
@@ -211,7 +211,7 @@ impl Default for Tanh {
 
 impl<B, S, T> Module<B, S, T> for Tanh
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt,
 {
@@ -283,7 +283,7 @@ impl Default for GELU {
 
 impl<B, S, T> Module<B, S, T> for GELU
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt,
 {
@@ -369,7 +369,7 @@ impl Default for Swish {
 
 impl<B, S, T> Module<B, S, T> for Swish
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
@@ -453,7 +453,7 @@ impl Default for LeakyReLU {
 
 impl<B, S, T> Module<B, S, T> for LeakyReLU
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
@@ -536,7 +536,7 @@ impl Default for ELU {
 
 impl<B, S, T> Module<B, S, T> for ELU
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
@@ -621,7 +621,7 @@ impl Default for Softmax {
 
 impl<B, S, T> Module<B, S, T> for Softmax
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
@@ -720,7 +720,7 @@ impl Default for LogSoftmax {
 
 impl<B, S, T> Module<B, S, T> for LogSoftmax
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
@@ -798,7 +798,7 @@ where
 #[derive(Debug, Clone)]
 pub struct PReLU<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -812,7 +812,7 @@ where
 
 impl<B, S, T> PReLU<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -845,7 +845,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for PReLU<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
@@ -1054,7 +1054,7 @@ impl Default for Hardsigmoid {
 
 impl<B, S, T> Module<B, S, T> for Hardsigmoid
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {
@@ -1153,7 +1153,7 @@ impl Default for Hardswish {
 
 impl<B, S, T> Module<B, S, T> for Hardswish
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + PartialOrd,
 {

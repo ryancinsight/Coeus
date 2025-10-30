@@ -25,7 +25,7 @@ use crate::Parameter;
 #[derive(Debug)]
 pub struct Adagrad<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Float,
 {
@@ -40,7 +40,7 @@ where
 
 impl<B, S, T> Adagrad<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Float,
 {
@@ -111,7 +111,7 @@ where
 
 impl<B, S, T> BaseOptimizer<B, S, T> for Adagrad<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Float,
 {
@@ -312,7 +312,7 @@ where
 
 impl<B, S, T> Optimizer<B, S, T> for Adagrad<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Float,
 {

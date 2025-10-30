@@ -661,13 +661,13 @@ where
         }
     }
     let with_bias =
-        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(result_data, &[batch_size, hidden_size])
+        Tensor::<CpuBackend<Data = T>, DenseStorage<T>, T>::from_vec(result_data, &[batch_size, hidden_size])
             .expect("tensor creation failed");
 
     // Apply tanh activation
     let h_t_data: Vec<T> = with_bias.as_slice().iter().map(|&x| x.tanh()).collect();
     let h_t =
-        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
+        Tensor::<CpuBackend<Data = T>, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
             .expect("tensor creation failed");
 
     let result = Variable::new(h_t);
@@ -745,7 +745,7 @@ where
             );
         }
     }
-    let gates = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+    let gates = Tensor::<CpuBackend<Data = T>, DenseStorage<T>, T>::from_vec(
         gates_data,
         &[batch_size, 4 * hidden_size],
     )
@@ -796,7 +796,7 @@ where
         c_t_data.push(f_activated[i] * cell_data.as_slice()[i] + i_activated[i] * g_activated[i]);
     }
     let c_t =
-        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(c_t_data, &[batch_size, hidden_size])
+        Tensor::<CpuBackend<Data = T>, DenseStorage<T>, T>::from_vec(c_t_data, &[batch_size, hidden_size])
             .expect("tensor creation failed");
 
     // Compute new hidden state: h_t = o_t ⊙ tanh(c_t)
@@ -806,7 +806,7 @@ where
         h_t_data.push(o_activated[i] * c_t_tanh[i]);
     }
     let h_t =
-        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
+        Tensor::<CpuBackend<Data = T>, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
             .expect("tensor creation failed");
 
     let result_h = Variable::new(h_t);
@@ -881,7 +881,7 @@ where
             );
         }
     }
-    let gates = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+    let gates = Tensor::<CpuBackend<Data = T>, DenseStorage<T>, T>::from_vec(
         gates_data,
         &[batch_size, 3 * hidden_size],
     )
@@ -926,7 +926,7 @@ where
         );
     }
     let h_t =
-        Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
+        Tensor::<CpuBackend<Data = T>, DenseStorage<T>, T>::from_vec(h_t_data, &[batch_size, hidden_size])
             .expect("tensor creation failed");
 
     let result = Variable::new(h_t);

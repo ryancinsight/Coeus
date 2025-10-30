@@ -23,7 +23,7 @@ pub trait ParameterTrait {
 #[derive(Debug, Clone)]
 pub struct Parameter<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + 'static,
     T: DataType,
 {
@@ -35,7 +35,7 @@ where
 
 impl<B, S, T> Parameter<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + 'static,
     T: DataType,
 {
@@ -65,7 +65,7 @@ where
 
 impl<B, S, T> ParameterTrait for Parameter<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + 'static,
     T: DataType,
 {
@@ -76,7 +76,7 @@ where
 
 impl<B, S, T> Parameter<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + 'static,
     T: DataType,
 {
@@ -460,7 +460,7 @@ where
 
 impl<B, S, T> fmt::Display for Parameter<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + 'static,
     T: DataType,
 {
@@ -686,7 +686,7 @@ mod tests {
 // Parameter acts as a leaf module containing a single tensor
 impl<B, S, T> Module<B, S, T> for Parameter<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {

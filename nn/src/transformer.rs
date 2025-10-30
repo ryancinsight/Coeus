@@ -68,20 +68,20 @@ use crate::parameter::Parameter;
 #[derive(Debug)]
 pub struct TransformerEncoder<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T>,
     T: DataType,
 {
     /// Multi-head self-attention layer
-    pub self_attn: MultiHeadAttention<CpuBackend<T>, DenseStorage<T>, T>,
+    pub self_attn: MultiHeadAttention<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// First layer normalization
-    pub norm1: LayerNorm<CpuBackend<T>, DenseStorage<T>, T>,
+    pub norm1: LayerNorm<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// First linear layer in feedforward network
-    pub linear1: Linear<CpuBackend<T>, DenseStorage<T>, T>,
+    pub linear1: Linear<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// Second linear layer in feedforward network
-    pub linear2: Linear<CpuBackend<T>, DenseStorage<T>, T>,
+    pub linear2: Linear<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// Second layer normalization
-    pub norm2: LayerNorm<CpuBackend<T>, DenseStorage<T>, T>,
+    pub norm2: LayerNorm<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// Dropout layer
     pub dropout: Dropout,
     /// Embedding dimension
@@ -100,7 +100,7 @@ where
 
 impl<B, S, T> TransformerEncoder<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
 {
@@ -137,13 +137,13 @@ where
         }
 
         let self_attn =
-            MultiHeadAttention::<CpuBackend<T>, DenseStorage<T>, T>::new(d_model, nhead)?;
-        let norm1 = LayerNorm::<CpuBackend<T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
+            MultiHeadAttention::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(d_model, nhead)?;
+        let norm1 = LayerNorm::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
         let linear1 =
-            Linear::<CpuBackend<T>, DenseStorage<T>, T>::new(d_model, dim_feedforward).unwrap();
+            Linear::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(d_model, dim_feedforward).unwrap();
         let linear2 =
-            Linear::<CpuBackend<T>, DenseStorage<T>, T>::new(dim_feedforward, d_model).unwrap();
-        let norm2 = LayerNorm::<CpuBackend<T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
+            Linear::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(dim_feedforward, d_model).unwrap();
+        let norm2 = LayerNorm::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
         let dropout_layer = Dropout::new(dropout);
 
         Ok(Self {
@@ -163,15 +163,15 @@ where
     }
 }
 
-impl<T> Module<CpuBackend<T>, DenseStorage<T>, T>
-    for TransformerEncoder<CpuBackend<T>, DenseStorage<T>, T>
+impl<T> Module<CpuBackend<Data = T>, DenseStorage<T>, T>
+    for TransformerEncoder<CpuBackend<Data = T>, DenseStorage<T>, T>
 where
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
 {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         assert!(
             input_shape.len() == 3usize,
@@ -224,7 +224,7 @@ where
         Ok(output)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<Data = T>, DenseStorage<T>, T>> {
         let mut params = Vec::new();
         params.extend(self.self_attn.parameters());
         params.extend(self.norm1.parameters());
@@ -256,7 +256,7 @@ where
 
 impl<B, S, T> fmt::Display for TransformerEncoder<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType,
 {
@@ -319,31 +319,31 @@ where
 #[derive(Clone, Debug)]
 pub struct TransformerDecoder<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T>,
     T: DataType,
 {
     /// Masked multi-head self-attention layer
     #[allow(dead_code)]
-    pub self_attn: MultiHeadAttention<CpuBackend<T>, DenseStorage<T>, T>,
+    pub self_attn: MultiHeadAttention<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// Multi-head cross-attention layer
     #[allow(dead_code)]
-    pub cross_attn: MultiHeadAttention<CpuBackend<T>, DenseStorage<T>, T>,
+    pub cross_attn: MultiHeadAttention<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// First layer normalization (after self-attention)
     #[allow(dead_code)]
-    pub norm1: LayerNorm<CpuBackend<T>, DenseStorage<T>, T>,
+    pub norm1: LayerNorm<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// Second layer normalization (after cross-attention)
     #[allow(dead_code)]
-    pub norm2: LayerNorm<CpuBackend<T>, DenseStorage<T>, T>,
+    pub norm2: LayerNorm<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// First linear layer in feedforward network
     #[allow(dead_code)]
-    pub linear1: Linear<CpuBackend<T>, DenseStorage<T>, T>,
+    pub linear1: Linear<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// Second linear layer in feedforward network
     #[allow(dead_code)]
-    pub linear2: Linear<CpuBackend<T>, DenseStorage<T>, T>,
+    pub linear2: Linear<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// Third layer normalization (after feedforward)
     #[allow(dead_code)]
-    pub norm3: LayerNorm<CpuBackend<T>, DenseStorage<T>, T>,
+    pub norm3: LayerNorm<CpuBackend<Data = T>, DenseStorage<T>, T>,
     /// Dropout layer
     #[allow(dead_code)]
     pub dropout: Dropout,
@@ -359,14 +359,14 @@ where
     /// Training mode flag
     training: bool,
     /// Optional encoder memory for cross-attention (None for decoder-only models)
-    memory: Option<Tensor<CpuBackend<T>, DenseStorage<T>, T>>,
+    memory: Option<Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>>,
     /// Phantom data to ensure B and S are used for type safety
     _phantom: PhantomData<(B, S)>,
 }
 
 impl<B, S, T> TransformerDecoder<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
 {
@@ -403,16 +403,16 @@ where
         }
 
         let self_attn =
-            MultiHeadAttention::<CpuBackend<T>, DenseStorage<T>, T>::new(d_model, nhead)?;
+            MultiHeadAttention::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(d_model, nhead)?;
         let cross_attn =
-            MultiHeadAttention::<CpuBackend<T>, DenseStorage<T>, T>::new(d_model, nhead)?;
-        let norm1 = LayerNorm::<CpuBackend<T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
-        let norm2 = LayerNorm::<CpuBackend<T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
+            MultiHeadAttention::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(d_model, nhead)?;
+        let norm1 = LayerNorm::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
+        let norm2 = LayerNorm::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
         let linear1 =
-            Linear::<CpuBackend<T>, DenseStorage<T>, T>::new(d_model, dim_feedforward).unwrap();
+            Linear::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(d_model, dim_feedforward).unwrap();
         let linear2 =
-            Linear::<CpuBackend<T>, DenseStorage<T>, T>::new(dim_feedforward, d_model).unwrap();
-        let norm3 = LayerNorm::<CpuBackend<T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
+            Linear::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(dim_feedforward, d_model).unwrap();
+        let norm3 = LayerNorm::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
         let dropout_layer = Dropout::new(dropout);
 
         Ok(Self {
@@ -435,7 +435,7 @@ where
     }
 
     /// Set encoder memory for cross-attention
-    pub fn set_memory(&mut self, memory: Option<Tensor<CpuBackend<T>, DenseStorage<T>, T>>) {
+    pub fn set_memory(&mut self, memory: Option<Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>>) {
         self.memory = memory;
     }
 
@@ -449,9 +449,9 @@ where
     /// Output tensor with same shape as target [batch_size, tgt_seq_len, d_model]
     pub fn forward_with_memory(
         &self,
-        tgt: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-        memory: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+        tgt: &Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>,
+        memory: &Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>> {
         let tgt_shape = tgt.shape().dims();
         let memory_shape = memory.shape().dims();
 
@@ -530,15 +530,15 @@ where
     }
 }
 
-impl<T> Module<CpuBackend<T>, DenseStorage<T>, T>
-    for TransformerDecoder<CpuBackend<T>, DenseStorage<T>, T>
+impl<T> Module<CpuBackend<Data = T>, DenseStorage<T>, T>
+    for TransformerDecoder<CpuBackend<Data = T>, DenseStorage<T>, T>
 where
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
 {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         assert!(
             input_shape.len() == 3usize,
@@ -599,7 +599,7 @@ where
         Ok(output)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend<Data = T>, DenseStorage<T>, T>> {
         let mut params = Vec::new();
         params.extend(self.self_attn.parameters());
         params.extend(self.cross_attn.parameters());
@@ -631,7 +631,7 @@ where
 
 impl<B, S, T> fmt::Display for TransformerDecoder<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType,
 {

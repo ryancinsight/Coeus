@@ -26,7 +26,7 @@ use coeus_tensor::Tensor;
 #[derive(Debug)]
 pub struct FakeQuantize<B, S, T, const BITS: usize>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -46,7 +46,7 @@ where
 
 impl<B, S, T, const BITS: usize> FakeQuantize<B, S, T, BITS>
 where
-    B: Backend + Default,
+    B: Backend<Data = T> + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType,
 {
@@ -443,7 +443,7 @@ where
 
 impl<B, S, T, const BITS: usize> Module<B, S, T> for FakeQuantize<B, S, T, BITS>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + Clone + PartialOrd,
 {

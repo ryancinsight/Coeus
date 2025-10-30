@@ -1,16 +1,13 @@
 use pyo3::prelude::*;
 use pyo3::pyclass;
 use pyo3::types::PyList;
-use pyo3::{Py, PyAny, PyResult};
+use pyo3::{PyResult, Py, PyAny};
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::int::Int32;
-use coeus_storage::DenseStorage;
+use coeus_utils::{Dataset, DataLoader as RustDataLoader, TensorDataset as RustTensorDataset, Transform, TensorSample, Subset as RustSubset};
 use coeus_tensor::Tensor;
-use coeus_utils::{
-    DataLoader as RustDataLoader, Dataset, Subset as RustSubset,
-    TensorDataset as RustTensorDataset, TensorSample, Transform,
-};
+use coeus_backend::CpuBackend;
+use coeus_storage::DenseStorage;
+use coeus_dtype::int::Int32;
 
 use super::tensor::PyTensor;
 
@@ -28,13 +25,15 @@ impl PyDataLoader {
     #[pyo3(signature = (dataset, batch_size=1, shuffle=false))]
     fn new(dataset: &PyTensorDataset, batch_size: usize, shuffle: bool) -> PyResult<Self> {
         match &dataset.inner {
-            Some(rust_dataset) => Ok(PyDataLoader {
-                dataset: Some(rust_dataset.clone()),
-                batch_size,
-                shuffle,
-            }),
+            Some(rust_dataset) => {
+                Ok(PyDataLoader {
+                    dataset: Some(rust_dataset.clone()),
+                    batch_size,
+                    shuffle,
+                })
+            }
             None => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-                "Dataset not provided",
+                "Dataset not provided"
             )),
         }
     }
@@ -50,10 +49,9 @@ impl PyDataLoader {
                 }
 
                 let dataloader = builder.build().map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Failed to create DataLoader iterator: {:?}",
-                        e
-                    ))
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                        format!("Failed to create DataLoader iterator: {:?}", e)
+                    )
                 })?;
 
                 Ok(PyDataLoaderIter {
@@ -61,7 +59,7 @@ impl PyDataLoader {
                 })
             }
             None => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-                "DataLoader not initialized",
+                "DataLoader not initialized"
             )),
         }
     }
@@ -75,10 +73,9 @@ impl PyDataLoader {
                     builder = builder.shuffle(true);
                 }
                 let dataloader = builder.build().map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Failed to get DataLoader length: {:?}",
-                        e
-                    ))
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                        format!("Failed to get DataLoader length: {:?}", e)
+                    )
                 })?;
                 Ok(dataloader.len())
             }
@@ -95,16 +92,18 @@ pub struct PyDataLoaderIter {
 
 #[pymethods]
 impl PyDataLoaderIter {
+
     fn __next__(&mut self) -> PyResult<Option<PyTensorBatch>> {
         match &mut self.inner {
             Some(iter) => match iter.next() {
-                Some(batch) => match batch {
-                    Ok(samples) => Ok(Some(PyTensorBatch::from(samples))),
-                    Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Batch processing error: {:?}",
-                        e
-                    ))),
-                },
+                Some(batch) => {
+                    match batch {
+                        Ok(samples) => Ok(Some(PyTensorBatch::from(samples))),
+                        Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                            format!("Batch processing error: {:?}", e)
+                        )),
+                    }
+                }
                 None => Ok(None),
             },
             None => Ok(None),
@@ -125,13 +124,13 @@ impl PyTensorDataset {
         // Validate input lengths
         if inputs.len() != targets.len() {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "inputs and targets must have the same length",
+                "inputs and targets must have the same length"
             ));
         }
 
         if inputs.is_empty() {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Dataset cannot be empty",
+                "Dataset cannot be empty"
             ));
         }
 
@@ -150,35 +149,25 @@ impl PyTensorDataset {
         for target_tensor in targets {
             // For targets, convert Float32 data to Int32
             let shape = target_tensor.inner.shape().dims();
-            let float_data: Vec<f32> = target_tensor
-                .inner
-                .as_slice()
-                .iter()
-                .map(|x| x.get())
-                .collect();
+            let float_data: Vec<f32> = target_tensor.inner.as_slice().iter().map(|x| x.get()).collect();
             let int_data: Vec<i32> = float_data.into_iter().map(|x| x as i32).collect();
 
             // Create Int32 tensor for targets
             let int32_tensor = Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec(
                 int_data.into_iter().map(|x| Int32(x)).collect(),
-                &shape,
-            )
-            .map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "Failed to convert target tensor: {:?}",
-                    e
-                ))
-            })?;
+                &shape
+            ).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                format!("Failed to convert target tensor: {:?}", e)
+            ))?;
 
             rust_targets.push(int32_tensor);
         }
 
         // Create Rust TensorDataset
         let dataset = RustTensorDataset::new(rust_inputs, rust_targets).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Failed to create TensorDataset: {:?}",
-                e
-            ))
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                format!("Failed to create TensorDataset: {:?}", e)
+            )
         })?;
 
         Ok(PyTensorDataset {
@@ -202,7 +191,7 @@ impl PyTensorDataset {
                 Ok(PyTensorSample::from(sample))
             }
             None => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-                "TensorDataset not initialized",
+                "TensorDataset not initialized"
             )),
         }
     }
@@ -219,21 +208,13 @@ impl From<TensorSample> for PyTensorSample {
     fn from(sample: TensorSample) -> Self {
         pyo3::Python::with_gil(|py| {
             PyTensorSample {
-                inputs: sample
-                    .inputs
-                    .into_iter()
-                    .map(|t| PyTensor { inner: t })
-                    .collect(),
-                targets: sample
-                    .targets
-                    .into_iter()
-                    .map(|t| {
-                        // Convert Int32 tensor to Python list for now
-                        // Future enhancement: Create proper PyIntTensor class
-                        let data: Vec<i32> = t.as_slice().iter().map(|x| x.get()).collect();
-                        PyList::new(py, &data).unwrap().into()
-                    })
-                    .collect(),
+                inputs: sample.inputs.into_iter().map(|t| PyTensor { inner: t }).collect(),
+                targets: sample.targets.into_iter().map(|t| {
+                    // Convert Int32 tensor to Python list for now
+                    // Future enhancement: Create proper PyIntTensor class
+                    let data: Vec<i32> = t.as_slice().iter().map(|x| x.get()).collect();
+                    PyList::new(py, &data).unwrap().into()
+                }).collect(),
             }
         })
     }
@@ -262,30 +243,16 @@ pub struct PyTensorBatch {
 impl From<Vec<TensorSample>> for PyTensorBatch {
     fn from(samples: Vec<TensorSample>) -> Self {
         pyo3::Python::with_gil(|py| {
-            let inputs: Vec<Vec<PyTensor>> = samples
-                .iter()
-                .map(|sample| {
-                    sample
-                        .inputs
-                        .iter()
-                        .map(|t| PyTensor { inner: t.clone() })
-                        .collect()
-                })
+            let inputs: Vec<Vec<PyTensor>> = samples.iter()
+                .map(|sample| sample.inputs.iter().map(|t| PyTensor { inner: t.clone() }).collect())
                 .collect();
 
-            let targets: Vec<Vec<Py<PyAny>>> = samples
-                .iter()
-                .map(|sample| {
-                    sample
-                        .targets
-                        .iter()
-                        .map(|t| {
-                            // Convert Int32 tensor to Python list
-                            let data: Vec<i32> = t.as_slice().iter().map(|x| x.get()).collect();
-                            PyList::new(py, &data).unwrap().into()
-                        })
-                        .collect()
-                })
+            let targets: Vec<Vec<Py<PyAny>>> = samples.iter()
+                .map(|sample| sample.targets.iter().map(|t| {
+                    // Convert Int32 tensor to Python list
+                    let data: Vec<i32> = t.as_slice().iter().map(|x| x.get()).collect();
+                    PyList::new(py, &data).unwrap().into()
+                }).collect())
                 .collect();
 
             PyTensorBatch { inputs, targets }
@@ -323,12 +290,10 @@ impl PyToTensor {
 
     /// Apply transform to f32 data
     fn __call__(&self, input: Vec<f32>) -> PyResult<PyTensor> {
-        let tensor = self.inner.apply_f32(input).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "ToTensor transform failed: {:?}",
-                e
-            ))
-        })?;
+        let tensor = self.inner.apply_f32(input)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                format!("ToTensor transform failed: {:?}", e)
+            ))?;
         Ok(PyTensor { inner: tensor })
     }
 }
@@ -354,12 +319,10 @@ impl PyNormalize {
 
     /// Apply transform to tensor
     fn __call__(&self, input: &PyTensor) -> PyResult<PyTensor> {
-        let tensor = self.inner.apply(&input.inner).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Normalize transform failed: {:?}",
-                e
-            ))
-        })?;
+        let tensor = self.inner.apply(&input.inner)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                format!("Normalize transform failed: {:?}", e)
+            ))?;
         Ok(PyTensor { inner: tensor })
     }
 }
@@ -399,7 +362,7 @@ impl PyConcatDataset {
     fn new(datasets: Vec<Py<PyAny>>) -> PyResult<Self> {
         if datasets.is_empty() {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Cannot create ConcatDataset from empty dataset list",
+                "Cannot create ConcatDataset from empty dataset list"
             ));
         }
 
@@ -444,11 +407,9 @@ impl PyConcatDataset {
 
     fn __getitem__(&self, index: usize) -> PyResult<PyTensorSample> {
         if index >= self.__len__() {
-            return Err(PyErr::new::<pyo3::exceptions::PyIndexError, _>(format!(
-                "Index {} out of range for dataset of length {}",
-                index,
-                self.__len__()
-            )));
+            return Err(PyErr::new::<pyo3::exceptions::PyIndexError, _>(
+                format!("Index {} out of range for dataset of length {}", index, self.__len__())
+            ));
         }
 
         // Find which dataset this index belongs to using binary search
@@ -463,12 +424,10 @@ impl PyConcatDataset {
             index - self.cumulative_lengths[dataset_idx - 1]
         };
 
-        let sample = self.datasets[dataset_idx].get(local_index).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Failed to get sample: {:?}",
-                e
-            ))
-        })?;
+        let sample = self.datasets[dataset_idx].get(local_index)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                format!("Failed to get sample: {:?}", e)
+            ))?;
 
         Ok(PyTensorSample::from(sample))
     }
@@ -493,15 +452,14 @@ impl PySubset {
         match &dataset.inner {
             Some(rust_dataset) => {
                 let subset = RustSubset::new(rust_dataset.clone(), indices).map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Failed to create subset: {:?}",
-                        e
-                    ))
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                        format!("Failed to create subset: {:?}", e)
+                    )
                 })?;
                 Ok(PySubset { inner: subset })
             }
             None => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-                "Dataset not initialized",
+                "Dataset not initialized"
             )),
         }
     }
@@ -511,10 +469,9 @@ impl PySubset {
     }
 
     fn __getitem__(&self, index: usize) -> PyResult<PyTensorSample> {
-        let sample = self
-            .inner
-            .get(index)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyIndexError, _>(format!("{:?}", e)))?;
+        let sample = self.inner.get(index).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyIndexError, _>(format!("{:?}", e))
+        })?;
         Ok(PyTensorSample::from(sample))
     }
 

@@ -39,7 +39,7 @@ impl TemplatePostProcessor {
         Self { prefix, suffix }
     }
 
-    /// Create BERT-style post-processor with [CLS] and [SEP].
+    /// Create BERT-style post-processor with \[CLS\] and \[SEP\].
     #[must_use]
     pub fn bert() -> Self {
         Self {

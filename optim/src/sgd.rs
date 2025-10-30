@@ -57,7 +57,7 @@ use crate::optimizer_core::{Optimizer, ParamState};
 #[derive(Debug)]
 pub struct SGD<B, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     T: DataType + FloatExt,
 {
     /// Parameter states
@@ -78,7 +78,7 @@ where
 
 impl<B, T> SGD<B, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     T: DataType + FloatExt,
 {
     /// Create a new SGD optimizer.
@@ -134,7 +134,7 @@ where
 
 impl<B, T> Optimizer<B, DenseStorage<T>, T> for SGD<B, T>
 where
-    B: Backend + Clone + Default + Send + Sync,
+    B: Backend<Data = T> + Clone + Default + Send + Sync,
     T: DataType
         + FloatExt
         + core::ops::Add<Output = T>
@@ -334,7 +334,7 @@ where
 
 impl<B, T> Default for SGD<B, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     T: DataType + FloatExt,
 {
     fn default() -> Self {

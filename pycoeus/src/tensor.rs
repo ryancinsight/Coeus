@@ -122,7 +122,7 @@ impl PyTensor {
     /// Implement __array__ method for NumPy compatibility
     /// This allows direct conversion to NumPy arrays via np.array(tensor)
     #[pyo3(signature = (*, dtype=None, copy=None))]
-    fn __array__(&self, py: Python, dtype: Option<PyObject>, copy: Option<bool>) -> PyResult<Py<PyAny>> {
+    fn __array__(&self, py: Python, dtype: Option<Py<PyAny>>, copy: Option<bool>) -> PyResult<Py<PyAny>> {
         // Get tensor data and shape
         let shape = self.inner.shape().dims().to_vec();
 

@@ -11,6 +11,7 @@ use crate::error::{NNError, Result};
 use super::{ResearchAgent, ResearchAgentFactory};
 
 /// Thread-safe registry for research agents
+#[derive(Default)]
 pub struct ResearchAgentRegistry {
     /// Registered agent factories
     factories: RwLock<HashMap<String, Box<dyn ResearchAgentFactory>>>,

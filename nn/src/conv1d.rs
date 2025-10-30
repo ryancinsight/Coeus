@@ -44,7 +44,7 @@ use std::marker::PhantomData;
 #[derive(Debug, Clone)]
 pub struct Conv1D<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -63,7 +63,7 @@ where
 
 impl<B, S, T> Conv1D<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
 {
@@ -244,7 +244,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for Conv1D<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + PartialOrd + num_traits::Float + num_traits::FromPrimitive + 'static,
 {
@@ -363,7 +363,7 @@ where
 #[derive(Debug, Clone)]
 pub struct ConvTranspose1d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -387,7 +387,7 @@ where
 
 impl<B, S, T> ConvTranspose1d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
 {
@@ -551,7 +551,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for ConvTranspose1d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + PartialOrd + num_traits::Float + num_traits::FromPrimitive + 'static,
 {

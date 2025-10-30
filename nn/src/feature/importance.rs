@@ -75,7 +75,7 @@ impl<M, B, S, T> BasicFeatureImportance<M, B, S, T> {
 impl<M, B, S, T> BasicFeatureImportance<M, B, S, T>
 where
     M: Module<B, S, T> + Clone,
-    B: Backend + Default,
+    B: Backend<Data = T> + Default,
     S: Storage<T> + StorageFromVec<T>,
     T: DataType + Clone + Copy + Into<f64>,
 {
@@ -487,7 +487,7 @@ mod tests {
         let target =
             Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[1, 1]).unwrap();
         assert!(importance
-            .permutation_importance(&input, &target, |a, b| 0.0, 1)
+            .permutation_importance(&input, &target, |_a, _b| 0.0, 1)
             .is_ok());
     }
 

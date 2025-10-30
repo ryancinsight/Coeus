@@ -31,7 +31,7 @@ pub struct SerializableQuantizedWeights {
 #[derive(Debug)]
 pub enum QuantizedWeights<B, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     T: DataType,
 {
     /// 4-bit quantized weights
@@ -44,7 +44,7 @@ where
 
 impl<B, T> QuantizedWeights<B, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     T: DataType,
 {
     /// Get the bitwidth of the weights
@@ -122,7 +122,7 @@ where
     where
         T: From<f64>,
     {
-        let data: Vec<T> = serializable.data.into_iter().map(T::from).collect();
+        let data: Vec<T> = serializable.data.into_iter().map(<T as From<f64>>::from).collect();
 
         match serializable.bitwidth {
             QuantizationBitwidth::Bits4 => {
@@ -252,7 +252,7 @@ where
 
         // Calculate mean
         let sum: f64 = sorted_data.iter().map(|x| f64::from(x.clone())).sum();
-        let mean = T::from(sum / sorted_data.len() as f64);
+        let mean = <T as From<f64>>::from(sum / sorted_data.len() as f64);
 
         // Calculate standard deviation
         let variance: f64 = sorted_data
@@ -263,7 +263,7 @@ where
             })
             .sum::<f64>()
             / sorted_data.len() as f64;
-        let std = T::from(variance.sqrt());
+        let std = <T as From<f64>>::from(variance.sqrt());
 
         // Calculate percentiles
         let percentiles = Self::calculate_percentiles(&sorted_data);
@@ -338,7 +338,7 @@ where
         let range = f64::from(max) - f64::from(min);
         let optimal_range = range * 0.95; // Reduce range slightly for better quantization
 
-        let optimal_max = T::from(f64::from(min) + optimal_range);
+        let optimal_max = <T as From<f64>>::from(f64::from(min) + optimal_range);
         let scale = Self::calculate_scale(min, optimal_max, bits);
         let zero_point = T::zero();
         (scale, zero_point)
@@ -352,7 +352,7 @@ where
         let range = f64::from(max) - f64::from(min);
         let optimal_range = range * 0.90; // More conservative than MSE
 
-        let optimal_max = T::from(f64::from(min) + optimal_range);
+        let optimal_max = <T as From<f64>>::from(f64::from(min) + optimal_range);
         let scale = Self::calculate_scale(min, optimal_max, bits);
         let zero_point = T::zero();
         (scale, zero_point)
@@ -363,9 +363,9 @@ where
         let qmax = (1i64 << bits) - 1;
         let range = f64::from(max) - f64::from(min);
         if range > 0.0 {
-            T::from(range / qmax as f64)
+            <T as From<f64>>::from(range / qmax as f64)
         } else {
-            T::from(1.0) // Fallback for constant tensors
+            <T as From<f64>>::from(1.0) // Fallback for constant tensors
         }
     }
 }

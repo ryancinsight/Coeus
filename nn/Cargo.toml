@@ -29,12 +29,12 @@ functional = []
 
 [dependencies]
 # Workspace dependencies
-coeus-dtype = { path = "../dtype", version = "0.1", features = ["serde", "half"] }
-coeus-storage = { path = "../storage", version = "0.1" }
-coeus-backend = { path = "../backend", version = "0.1" }
-coeus-tensor = { path = "../tensor", version = "0.1" }
-coeus-autograd = { path = "../autograd", version = "0.1", optional = true }
-coeus-optim = { path = "../optim", version = "0.1" }  # Re-enabled for complete async training support
+coeus-dtype = { workspace = true, features = ["serde", "half"] }
+coeus-storage = { workspace = true }
+coeus-backend = { workspace = true }
+coeus-tensor = { workspace = true }
+coeus-autograd = { workspace = true, optional = true }
+coeus-optim = { workspace = true }  # Re-enabled for complete async training support
 
 # Async ecosystem
 tokio = { workspace = true }
@@ -52,6 +52,8 @@ rand_distr = "0.4"
 rand_pcg = "0.3"
 half = { workspace = true }
 rayon = "1.8"
+chrono = { version = "0.4", features = ["serde"] }
+hostname = "0.3"
 
 [dev-dependencies]
 proptest = { workspace = true }

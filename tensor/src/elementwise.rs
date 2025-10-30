@@ -12,7 +12,7 @@ use std::vec::Vec;
 /// element of a tensor, resulting in a new tensor with the same shape.
 impl<B, S, T> crate::Tensor<B, S, T>
 where
-    B: crate::Backend + Clone,
+    B: crate::Backend<Data = T> + Clone,
     S: crate::Storage<T> + Clone + crate::StorageFromVec<T>,
     T: crate::DataType + crate::FloatExt,
 {
@@ -59,14 +59,7 @@ where
         // Create new tensor with result data
         let storage = S::from_vec(result_data, self.shape().dims())
             .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor {
-            storage,
-            backend: self.backend.clone(),
-            requires_grad: false, // Element-wise ops create intermediate tensors
-            grad: std::sync::Arc::new(crate::grad_rwlock(None)),
-            grad_fn: None,
-            _phantom: core::marker::PhantomData,
-        }
+        crate::Tensor::from_storage(storage, self.backend.clone())
     }
 
     /// Computes the natural logarithm of each element in the tensor.
@@ -112,14 +105,7 @@ where
         // Create new tensor with result data
         let storage = S::from_vec(result_data, self.shape().dims())
             .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor {
-            storage,
-            backend: self.backend.clone(),
-            requires_grad: false, // Element-wise ops create intermediate tensors
-            grad: std::sync::Arc::new(crate::grad_rwlock(None)),
-            grad_fn: None,
-            _phantom: core::marker::PhantomData,
-        }
+        crate::Tensor::from_storage(storage, self.backend.clone())
     }
 
     /// Computes the sine of each element in the tensor.
@@ -165,14 +151,7 @@ where
         // Create new tensor with result data
         let storage = S::from_vec(result_data, self.shape().dims())
             .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor {
-            storage,
-            backend: self.backend.clone(),
-            requires_grad: false, // Element-wise ops create intermediate tensors
-            grad: std::sync::Arc::new(crate::grad_rwlock(None)),
-            grad_fn: None,
-            _phantom: core::marker::PhantomData,
-        }
+        crate::Tensor::from_storage(storage, self.backend.clone())
     }
 
     /// Computes the cosine of each element in the tensor.
@@ -218,14 +197,7 @@ where
         // Create new tensor with result data
         let storage = S::from_vec(result_data, self.shape().dims())
             .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor {
-            storage,
-            backend: self.backend.clone(),
-            requires_grad: false, // Element-wise ops create intermediate tensors
-            grad: std::sync::Arc::new(crate::grad_rwlock(None)),
-            grad_fn: None,
-            _phantom: core::marker::PhantomData,
-        }
+        crate::Tensor::from_storage(storage, self.backend.clone())
     }
 
     /// Computes the power of each element in the tensor.
@@ -275,14 +247,7 @@ where
         // Create new tensor with result data
         let storage = S::from_vec(result_data, self.shape().dims())
             .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor {
-            storage,
-            backend: self.backend.clone(),
-            requires_grad: false, // Element-wise ops create intermediate tensors
-            grad: std::sync::Arc::new(crate::grad_rwlock(None)),
-            grad_fn: None,
-            _phantom: core::marker::PhantomData,
-        }
+        crate::Tensor::from_storage(storage, self.backend.clone())
     }
 
     /// Computes the square of each element in the tensor.
@@ -328,14 +293,7 @@ where
         // Create new tensor with result data
         let storage = S::from_vec(result_data, self.shape().dims())
             .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor {
-            storage,
-            backend: self.backend.clone(),
-            requires_grad: false, // Element-wise ops create intermediate tensors
-            grad: std::sync::Arc::new(crate::grad_rwlock(None)),
-            grad_fn: None,
-            _phantom: core::marker::PhantomData,
-        }
+        crate::Tensor::from_storage(storage, self.backend.clone())
     }
 
     /// Computes the square root of each element in the tensor.
@@ -381,13 +339,6 @@ where
         // Create new tensor with result data
         let storage = S::from_vec(result_data, self.shape().dims())
             .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor {
-            storage,
-            backend: self.backend.clone(),
-            requires_grad: false, // Element-wise ops create intermediate tensors
-            grad: std::sync::Arc::new(crate::grad_rwlock(None)),
-            grad_fn: None,
-            _phantom: core::marker::PhantomData,
-        }
+        crate::Tensor::from_storage(storage, self.backend.clone())
     }
 }

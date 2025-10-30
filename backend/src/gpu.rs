@@ -5,7 +5,7 @@
 //! ## Architecture
 //!
 //! ```text
-//! GpuBackend
+//! GpuBackend<f32>
 //! ├── wgpu::Instance      // GPU instance management
 //! ├── wgpu::Adapter       // Physical GPU device selection
 //! ├── wgpu::Device        // Logical device with command queues
@@ -22,75 +22,20 @@ use std::{
     format,
     string::{String, ToString},
     sync::Arc,
-    vec,
     vec::Vec,
 };
-use thiserror::Error;
+use coeus_storage::{Storage, DenseStorage};
 use wgpu::util::DeviceExt;
-
-// Import JIT components for shape specialization
-use jit::shapes;
-
-use coeus_dtype::num_traits;
-use coeus_storage::{DenseStorage, Storage};
-
-/// Memory access pattern for GPU operations
-#[derive(Debug, Clone, Copy)]
-enum MemoryAccessPattern {
-    /// Sequential dense access
-    Dense,
-    /// Sparse with low density (<1% non-zero)
-    Sparse,
-    /// Irregular strided access patterns
-    Strided,
-}
-
-/// Concurrent execution manager for overlapping compute and memory operations
-#[derive(Debug)]
-struct ConcurrentExecutionManager {
-    /// Command encoder for concurrent operations
-    command_encoder: Option<wgpu::CommandEncoder>,
-}
-
-/// GPU operation types for concurrent execution
-#[derive(Debug)]
-enum GpuOperation {
-    Compute {
-        pipeline: Arc<wgpu::ComputePipeline>,
-        bind_group: wgpu::BindGroup,
-        workgroups: (u32, u32, u32),
-    },
-    MemoryTransfer {
-        src_buffer: Arc<wgpu::Buffer>,
-        dst_buffer: Arc<wgpu::Buffer>,
-        size: u64,
-    },
-}
-
-/// Errors that can occur in GPU backend operations
-#[derive(Error, Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum GpuError {
-    #[error("Failed to create wgpu instance: {0}")]
-    InstanceCreation(String),
-
-    #[error("No suitable GPU adapter found")]
+    #[error("No GPU adapter available")]
     NoAdapter,
-
-    #[error("Failed to request GPU device: {0}")]
+    #[error("Failed to request device: {0}")]
     DeviceRequest(String),
-
-    #[error("GPU operation not supported: {0}")]
-    UnsupportedOperation(String),
-
     #[error("Buffer creation failed: {0}")]
     BufferCreation(String),
-
-    #[error("Shader compilation failed: {0}")]
-    ShaderCompilation(String),
-
-    #[error("Compute pipeline creation failed: {0}")]
-    PipelineCreation(String),
 }
+
 
 /// GPU compute pipeline for shader execution
 #[derive(Debug, Clone)]
@@ -105,6 +50,8 @@ struct GpuShaders {
     element_wise: ComputePipeline,
     binary_ops: ComputePipeline,
     matmul: ComputePipeline,
+    squares: ComputePipeline,
+    fft: ComputePipeline,
 }
 
 impl GpuShaders {
@@ -229,10 +176,80 @@ impl GpuShaders {
             }],
         ).await?;
 
+        let squares = Self::create_pipeline(
+            device,
+            include_str!("shaders/squares.wgsl"),
+            "main",
+            &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        ).await?;
+
+        let fft = Self::create_pipeline(
+            device,
+            include_str!("shaders/fft.wgsl"),
+            "fft_forward",
+            &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        ).await?;
+
         Ok(Self {
             element_wise,
             binary_ops,
             matmul,
+            squares,
+            fft,
         })
     }
 
@@ -280,10 +297,9 @@ impl GpuShaders {
 pub struct GpuBackend<T: crate::DataType> {
     device: Arc<wgpu::Device>,
     queue: Arc<wgpu::Queue>,
-    adapter: Arc<wgpu::Adapter>,
     device_info: Device,
     shaders: GpuShaders,
-    shape_specializer: jit::shapes::ShapeSpecializer,
+    // shape_specializer: jit::shapes::ShapeSpecializer,
     _phantom: std::marker::PhantomData<T>,
 }
 
@@ -360,10 +376,9 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
         Ok(Self {
             device: Arc::new(device),
             queue: Arc::new(queue),
-            adapter: Arc::new(adapter),
             device_info,
             shaders,
-            shape_specializer: shapes::ShapeSpecializer::new(),
+            // shape_specializer: shapes::ShapeSpecializer::new(),
             _phantom: std::marker::PhantomData,
         })
     }
@@ -391,7 +406,7 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
         &self,
         buffer: &wgpu::Buffer,
         _size: usize,
-    ) -> Result<Vec<T>, GpuError> {
+    ) -> Result<Vec<U>, GpuError> {
         let buffer_slice = buffer.slice(..);
         let (tx, rx) = tokio::sync::oneshot::channel();
 
@@ -441,121 +456,121 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
         &self.queue
     }
 
-    /// Dispatch operation with dynamic shape specialization
-    /// Records runtime shapes for analysis and selects optimal specialized kernels
-    pub fn dispatch_with_shape_specialization(
-        &mut self,
-        operation: &str,
-        shapes: &[jit::shapes::Shape],
-    ) -> jit::shapes::SpecializedKernel {
-        // Record runtime shapes for pattern analysis
-        self.shape_specializer.record_runtime_shapes(shapes);
+    //     /// Dispatch operation with dynamic shape specialization
+//     /// Records runtime shapes for analysis and selects optimal specialized kernels
+//     pub fn dispatch_with_shape_specialization(
+//         &mut self,
+//         operation: &str,
+//         shapes: &[jit::shapes::Shape],
+//     ) -> jit::shapes::SpecializedKernel {
+//         // Record runtime shapes for pattern analysis
+//         self.shape_specializer.record_runtime_shapes(shapes);
 
-        // Try to select existing specialization for these shapes
-        if let Some(specialized) = self.shape_specializer.select_specialization(shapes) {
-            tracing::info!(
-                "Using specialized kernel {} for operation {}",
-                specialized.kernel_id,
-                operation
-            );
-            return specialized;
-        }
+//         // Try to select existing specialization for these shapes
+//         if let Some(specialized) = self.shape_specializer.select_specialization(shapes) {
+//             //             tracing::info!(
+// //                 "Using specialized kernel {} for operation {}",
+// //                 specialized.kernel_id,
+// //                 operation
+// //             );
+//             return specialized;
+//         }
 
-        // Create a fallback general kernel for this operation and shapes
-        let key = jit::shapes::ShapeKey::from_shapes(shapes);
-        let kernel_id = format!("general_{}_{}_{}x{}",
-            operation,
-            self.shape_specializer.stats().total_specializations,
-            shapes.get(0).map(|s| s.dims.len()).unwrap_or(0),
-            shapes.get(0).map(|s| s.dims.iter().product::<usize>()).unwrap_or(0)
-        );
+//         // Create a fallback general kernel for this operation and shapes
+//         let key = jit::shapes::ShapeKey::from_shapes(shapes);
+//         let kernel_id = format!("general_{}_{}_{}x{}",
+//             operation,
+//             self.shape_specializer.stats().total_specializations,
+//             shapes.get(0).map(|s| s.dims.len()).unwrap_or(0),
+//             shapes.get(0).map(|s| s.dims.iter().product::<usize>()).unwrap_or(0)
+//         );
 
-        // Estimate performance score based on shapes and operation
-        let performance_score = self.estimate_operation_performance(operation, shapes);
+//         // Estimate performance score based on shapes and operation
+//         let performance_score = self.estimate_operation_performance(operation, shapes);
 
-        tracing::info!(
-            "Using general kernel {} for operation {} (performance score: {})",
-            kernel_id,
-            operation,
-            performance_score
-        );
+//         //         tracing::info!(
+// //             "Using general kernel {} for operation {} (performance score: {})",
+// //             kernel_id,
+// //             operation,
+// //             performance_score
+// //         );
 
-        jit::shapes::SpecializedKernel {
-            shape_key: key,
-            kernel_id,
-            performance_score,
-        }
-    }
+//         jit::shapes::SpecializedKernel {
+//             shape_key: key,
+//             kernel_id,
+//             performance_score,
+//         }
+//     }
 
-    /// Estimate performance score for an operation with given shapes
-    fn estimate_operation_performance(&self, operation: &str, shapes: &[jit::shapes::Shape]) -> f32 {
-        let mut score = 1.0;
+    //     /// Estimate performance score for an operation with given shapes
+//     fn estimate_operation_performance(&self, operation: &str, shapes: &[jit::shapes::Shape]) -> f32 {
+//         let mut score = 1.0;
 
-        // Operation-specific base performance
-        score *= match operation {
-            "matmul" => {
-                // Matrix multiplication performance based on dimensions
-                if shapes.len() >= 2 {
-                    let m = shapes[0].dims.get(0).copied().unwrap_or(1);
-                    let k = shapes[0].dims.get(1).copied().unwrap_or(1);
-                    let n = shapes[1].dims.get(1).copied().unwrap_or(1);
-                    (m * k * n) as f32 / 1000000.0 // Normalize large operations
-                } else {
-                    10.0
-                }
-            }
-            "add" | "mul" | "sub" => {
-                // Element-wise operations scale with total elements
-                let total_elements = shapes.iter().map(|s| s.size()).max().unwrap_or(1);
-                (total_elements as f32).sqrt() // Diminishing returns for large tensors
-            }
-            "exp" | "log" | "sin" | "cos" => {
-                // Unary operations
-                let total_elements = shapes.iter().map(|s| s.size()).max().unwrap_or(1);
-                (total_elements as f32).log2().max(1.0)
-            }
-            _ => 5.0, // Default score
-        };
+//         // Operation-specific base performance
+//         score *= match operation {
+//             "matmul" => {
+//                 // Matrix multiplication performance based on dimensions
+//                 if shapes.len() >= 2 {
+//                     let m = shapes[0].dims.get(0).copied().unwrap_or(1);
+//                     let k = shapes[0].dims.get(1).copied().unwrap_or(1);
+//                     let n = shapes[1].dims.get(1).copied().unwrap_or(1);
+//                     (m * k * n) as f32 / 1000000.0 // Normalize large operations
+//                 } else {
+//                     10.0
+//                 }
+//             }
+//             "add" | "mul" | "sub" => {
+//                 // Element-wise operations scale with total elements
+//                 let total_elements = shapes.iter().map(|s| s.size()).max().unwrap_or(1);
+//                 (total_elements as f32).sqrt() // Diminishing returns for large tensors
+//             }
+//             "exp" | "log" | "sin" | "cos" => {
+//                 // Unary operations
+//                 let total_elements = shapes.iter().map(|s| s.size()).max().unwrap_or(1);
+//                 (total_elements as f32).log2().max(1.0)
+//             }
+//             _ => 5.0, // Default score
+//         };
 
-        // Contiguity bonus
-        score *= shapes.iter().all(|s| s.dims.len() <= 4) as i32 as f32 * 0.2 + 0.8;
+//         // Contiguity bonus
+//         score *= shapes.iter().all(|s| s.dims.len() <= 4) as i32 as f32 * 0.2 + 0.8;
 
-        // Power-of-2 dimension bonus (good for GPU)
-        let has_power_of_two = shapes.iter().any(|s|
-            s.dims.iter().any(|&dim| dim & (dim - 1) == 0 && dim > 1)
-        );
-        if has_power_of_two {
-            score *= 1.3;
-        }
+//         // Power-of-2 dimension bonus (good for GPU)
+//         let has_power_of_two = shapes.iter().any(|s|
+//             s.dims.iter().any(|&dim| dim & (dim - 1) == 0 && dim > 1)
+//         );
+//         if has_power_of_two {
+//             score *= 1.3;
+//         }
 
-        score
-    }
+//         score
+//     }
 
-    /// Create specialized kernel for frequently observed shape patterns
-    pub fn create_shape_specialization(
-        &mut self,
-        shapes: &[jit::shapes::Shape],
-        operation: &str,
-    ) -> jit::shapes::SpecializedKernel {
-        // This would be called when shape specializer detects a pattern
-        // For now, create a placeholder specialized kernel
-        let key = jit::shapes::ShapeKey::from_shapes(shapes);
-        let kernel_id = format!("specialized_{}_{}_{}",
-            operation,
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
-                .unwrap().as_nanos(),
-            shapes.iter().map(|s| format!("{}x", s.dims.iter().map(|d| d.to_string()).collect::<Vec<_>>().join("x")))
-                .collect::<Vec<_>>().join("_")
-        );
+    //     /// Create specialized kernel for frequently observed shape patterns
+//     pub fn create_shape_specialization(
+//         &mut self,
+//         shapes: &[jit::shapes::Shape],
+//         operation: &str,
+//     ) -> jit::shapes::SpecializedKernel {
+//         // This would be called when shape specializer detects a pattern
+//         // For now, create a placeholder specialized kernel
+//         let key = jit::shapes::ShapeKey::from_shapes(shapes);
+//         let kernel_id = format!("specialized_{}_{}_{}",
+//             operation,
+//             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+//                 .unwrap().as_nanos(),
+//             shapes.iter().map(|s| format!("{}x", s.dims.iter().map(|d| d.to_string()).collect::<Vec<_>>().join("x")))
+//                 .collect::<Vec<_>>().join("_")
+//         );
 
-        let performance_score = self.estimate_operation_performance(operation, shapes) * 1.5; // Bonus for specialization
+//         let performance_score = self.estimate_operation_performance(operation, shapes) * 1.5; // Bonus for specialization
 
-        jit::shapes::SpecializedKernel {
-            shape_key: key,
-            kernel_id,
-            performance_score,
-        }
-    }
+//         jit::shapes::SpecializedKernel {
+//             shape_key: key,
+//             kernel_id,
+//             performance_score,
+//         }
+//     }
 
     /// Returns true if GPU backend is available on this system
     pub fn is_available() -> bool {
@@ -1001,7 +1016,7 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
     }
 }
 
-impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive> Backend for GpuBackend<T> {
+impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive + std::ops::Add<Output = T> + coeus_dtype::num_traits::Zero + Copy> Backend for GpuBackend<T> {
     type Data = T;
     type Device = Device;
 
@@ -1021,7 +1036,9 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         matches!(
             operation,
             "add" | "mul" | "sub" | "matmul" | "exp" | "log" | "sin" | "cos" | "sum" | "mean"
-                | "max" | "min" | "argmax" | "argmin" | "spmv_csr"
+                | "max" | "min" | "argmax" | "argmin" | "relu" | "spmm_csr" | "spmv_csr"
+                | "coo_matmul_sparse" | "coo_matmul_dense" | "coo_add_sparse" | "coo_mul_sparse"
+                | "quantize"
         )
     }
 
@@ -1029,13 +1046,13 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn spmm_csr(
         &self,
-        _data: &[Self::Data],
+        _data: &[T],
         _indices: &[usize],
         _indptr: &[usize],
-        _other: &coeus_storage::DenseStorage<Self::Data>,
+        _other: &coeus_storage::DenseStorage<T>,
         _num_rows: usize,
         _num_cols: usize,
-    ) -> crate::Result<Vec<Self::Data>> {
+    ) -> crate::Result<Vec<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "spmm_csr".to_string(),
             backend: self.device_name().to_string(),
@@ -1044,13 +1061,13 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn spmv_csr(
         &self,
-        _matrix_data: &[Self::Data],
+        _matrix_data: &[T],
         _matrix_indices: &[usize],
         _matrix_indptr: &[usize],
-        _vector: &[Self::Data],
+        _vector: &[T],
         _rows: usize,
         _cols: usize,
-    ) -> crate::Result<Vec<Self::Data>> {
+    ) -> crate::Result<Vec<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "spmv_csr".to_string(),
             backend: self.device_name().to_string(),
@@ -1059,16 +1076,16 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn coo_matmul_sparse(
         &self,
-        _lhs_data: &[Self::Data],
+        _lhs_data: &[T],
         _lhs_row: &[usize],
         _lhs_col: &[usize],
-        _rhs_data: &[Self::Data],
+        _rhs_data: &[T],
         _rhs_row: &[usize],
         _rhs_col: &[usize],
         _m: usize,
         _k: usize,
         _n: usize,
-    ) -> crate::Result<coeus_storage::CooStorage<Self::Data>> {
+    ) -> crate::Result<coeus_storage::CooStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "coo_matmul_sparse".to_string(),
             backend: self.device_name().to_string(),
@@ -1077,14 +1094,14 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn coo_matmul_dense(
         &self,
-        _lhs_data: &[Self::Data],
+        _lhs_data: &[T],
         _lhs_row: &[usize],
         _lhs_col: &[usize],
         _rhs: &coeus_storage::DenseStorage<Self::Data>,
         _m: usize,
         _k: usize,
         _n: usize,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>> {
+    ) -> crate::Result<coeus_storage::DenseStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "coo_matmul_dense".to_string(),
             backend: self.device_name().to_string(),
@@ -1093,15 +1110,15 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn coo_add_sparse(
         &self,
-        _lhs_data: &[Self::Data],
+        _lhs_data: &[T],
         _lhs_row: &[usize],
         _lhs_col: &[usize],
-        _rhs_data: &[Self::Data],
+        _rhs_data: &[T],
         _rhs_row: &[usize],
         _rhs_col: &[usize],
         _m: usize,
         _n: usize,
-    ) -> crate::Result<coeus_storage::CooStorage<Self::Data>> {
+    ) -> crate::Result<coeus_storage::CooStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "coo_add_sparse".to_string(),
             backend: self.device_name().to_string(),
@@ -1110,15 +1127,15 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn coo_mul_sparse(
         &self,
-        _lhs_data: &[Self::Data],
+        _lhs_data: &[T],
         _lhs_row: &[usize],
         _lhs_col: &[usize],
-        _rhs_data: &[Self::Data],
+        _rhs_data: &[T],
         _rhs_row: &[usize],
         _rhs_col: &[usize],
         _m: usize,
         _n: usize,
-    ) -> crate::Result<coeus_storage::CooStorage<Self::Data>> {
+    ) -> crate::Result<coeus_storage::CooStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "coo_mul_sparse".to_string(),
             backend: self.device_name().to_string(),
@@ -1129,64 +1146,56 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         &self,
         _input: &coeus_storage::DenseStorage<Self::Data>,
         _levels: usize,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>> {
+    ) -> crate::Result<coeus_storage::DenseStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "quantize".to_string(),
             backend: "GPU".to_string(),
         })
     }
 
-    fn sum_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> crate::Result<T>
-    where
-        T: crate::DataType + std::ops::Add<Output = T> + num_traits::Zero + Copy,
-    {
+    fn sum_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T> {
         // Fallback to CPU for all types in GPU backend for now
-        crate::cpu::CpuBackend::<Self::Data>::new().sum_dense(input)
+        crate::cpu::CpuBackend::<T>::new().sum_dense(input)
     }
 
-    fn mean_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>, _axes: Option<&[usize]>) -> crate::Result<coeus_storage::DenseStorage<Self::Data>> {
-        Err(crate::BackendError::UnsupportedOperation {
-            operation: "mean_dense".to_string(),
-            backend: "gpu".to_string(),
-        })
+    fn mean_dense(&self, input: &coeus_storage::DenseStorage<T>, axes: Option<&[usize]>) -> crate::Result<coeus_storage::DenseStorage<T>> {
+        // Fallback to CPU for all types in GPU backend for now
+        crate::cpu::CpuBackend::<T>::new().mean_dense(input, axes)
     }
 
-    fn max_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> crate::Result<T>
+    fn max_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
     where
-        T: crate::DataType + PartialOrd + Copy,
+        T: PartialOrd,
     {
         crate::cpu::CpuBackend::<T>::new().max_dense(input)
     }
 
-    fn min_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> crate::Result<T>
+    fn min_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
     where
-        T: crate::DataType + PartialOrd + Copy,
+        T: PartialOrd,
     {
         crate::cpu::CpuBackend::<T>::new().min_dense(input)
     }
 
-    fn argmax_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> crate::Result<usize>
+    fn argmax_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
     where
-        T: crate::DataType + PartialOrd + Copy,
+        T: PartialOrd,
     {
         crate::cpu::CpuBackend::<T>::new().argmax_dense(input)
     }
 
-    fn argmin_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> crate::Result<usize>
+    fn argmin_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
     where
-        T: crate::DataType + PartialOrd + Copy,
+        T: PartialOrd,
     {
         crate::cpu::CpuBackend::<T>::new().argmin_dense(input)
     }
 
     fn add_dense(
         &self,
-        lhs: &coeus_storage::DenseStorage<Self::Data>,
-        rhs: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
-    where
-        T: crate::DataType,
-    {
+        lhs: &coeus_storage::DenseStorage<T>,
+        rhs: &coeus_storage::DenseStorage<T>,
+    ) -> crate::Result<coeus_storage::DenseStorage<T>> {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
             return crate::cpu::CpuBackend::<T>::new().add_dense(lhs, rhs);
@@ -1265,18 +1274,17 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         ))?;
 
         // Convert back to DenseStorage with proper dimensions
-        let shape = lhs.shape().clone();
-        DenseStorage::from_vec(result_f32_data, &shape)
+        let shape = lhs.shape().dims().to_vec();
+        // Convert f32 results back to original type T
+        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
 
     fn mul_dense(
         &self,
         lhs: &coeus_storage::DenseStorage<Self::Data>,
         rhs: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
-    where
-        T: crate::DataType,
-    {
+    ) -> crate::Result<coeus_storage::DenseStorage<T>> {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
             return crate::cpu::CpuBackend::<T>::new().mul_dense(lhs, rhs);
@@ -1355,8 +1363,10 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         ))?;
 
         // Convert back to DenseStorage with proper dimensions
-        let shape = lhs.shape().clone();
-        DenseStorage::from_vec(result_f32_data, &shape)
+        let shape = lhs.shape().dims().to_vec();
+        // Convert f32 results back to original type T
+        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
 
     fn sub_dense(
@@ -1364,8 +1374,6 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         lhs: &coeus_storage::DenseStorage<Self::Data>,
         rhs: &coeus_storage::DenseStorage<Self::Data>,
     ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
-    where
-        T: crate::DataType,
     {
         crate::cpu::CpuBackend::<T>::new().sub_dense(lhs, rhs)
     }
@@ -1375,8 +1383,6 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         lhs: &coeus_storage::DenseStorage<Self::Data>,
         rhs: &coeus_storage::DenseStorage<Self::Data>,
     ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
-    where
-        T: crate::DataType,
     {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
@@ -1387,14 +1393,14 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         let lhs_shape = lhs.shape();
         let rhs_shape = rhs.shape();
 
-        if lhs_shape.len() != 2 || rhs_shape.len() != 2 {
+        if lhs_shape.dims().len() != 2 || rhs_shape.dims().len() != 2 {
             return Err(crate::BackendError::InvalidInput(
                 "Matrix multiplication requires 2D matrices".to_string(),
             ));
         }
 
-        let (m, k) = (lhs_shape[0], lhs_shape[1]);
-        let (k_rhs, n) = (rhs_shape[0], rhs_shape[1]);
+        let (m, k) = (lhs_shape.dims()[0], lhs_shape.dims()[1]);
+        let (k_rhs, n) = (rhs_shape.dims()[0], rhs_shape.dims()[1]);
 
         if k != k_rhs {
             return Err(crate::BackendError::InvalidInput(
@@ -1470,18 +1476,15 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
         // Convert back to DenseStorage with result dimensions [M, N]
         let result_shape = vec![m, n];
-        Ok(unsafe {
-            // Safety: We know the data is valid f32 and we're converting back to the original type
-            DenseStorage::from_raw_parts(result_f32_data.into(), result_shape)
-        })
+        // Convert f32 results back to original type T
+        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        Ok(DenseStorage::from_vec(result_data, &result_shape)?)
     }
 
     fn exp_dense(
         &self,
         input: &coeus_storage::DenseStorage<Self::Data>,
     ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
-    where
-        T: crate::DataType,
     {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
@@ -1546,19 +1549,17 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         ))?;
 
         // Convert back to DenseStorage with proper dimensions
-        let shape = input.shape().clone();
-        Ok(unsafe {
-            // Safety: We know the data is valid f32 and we're converting back to the original type
-            DenseStorage::from_raw_parts(result_f32_data.into(), shape)
-        })
+        let shape = input.shape().dims().to_vec();
+        // Convert f32 results back to original type T
+        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
+
 
     fn log_dense(
         &self,
         input: &coeus_storage::DenseStorage<Self::Data>,
     ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
-    where
-        T: crate::DataType,
     {
         crate::cpu::CpuBackend::<T>::new().log_dense(input)
     }
@@ -1567,8 +1568,6 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         &self,
         input: &coeus_storage::DenseStorage<Self::Data>,
     ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
-    where
-        T: crate::DataType,
     {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
@@ -1633,19 +1632,16 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         ))?;
 
         // Convert back to DenseStorage with proper dimensions
-        let shape = input.shape().clone();
-        Ok(unsafe {
-            // Safety: We know the data is valid f32 and we're converting back to the original type
-            DenseStorage::from_raw_parts(result_f32_data.into(), shape)
-        })
+        let shape = input.shape().dims().to_vec();
+        // Convert f32 results back to original type T
+        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
 
     fn cos_dense(
         &self,
         input: &coeus_storage::DenseStorage<Self::Data>,
     ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
-    where
-        T: crate::DataType,
     {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
@@ -1710,18 +1706,17 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         ))?;
 
         // Convert back to DenseStorage with proper dimensions
-        let shape = input.shape().clone();
-        Ok(unsafe {
-            // Safety: We know the data is valid f32 and we're converting back to the original type
-            DenseStorage::from_raw_parts(result_f32_data.into(), shape)
-        })
+        let shape = input.shape().dims().to_vec();
+        // Convert f32 results back to original type T
+        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
 
     fn conv2d_dense(
         &self,
         _input: &coeus_storage::DenseStorage<Self::Data>,
         _weight: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>> {
+    ) -> crate::Result<coeus_storage::DenseStorage<T>> {
         crate::cpu::CpuBackend::<T>::new().conv2d_dense(
             _input,
             _weight,
@@ -1733,11 +1728,75 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         input: &coeus_storage::DenseStorage<Self::Data>,
     ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
     where
-        Self::Data: PartialOrd + Default,
+        T: PartialOrd + Default,
     {
-        // For now, delegate to CPU implementation
-        // TODO: Implement GPU-accelerated ReLU when WGSL shader is ready
-        crate::cpu::CpuBackend::<T>::new().relu_dense(input)
+        // For now, only support f32 types for GPU operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+            return crate::cpu::CpuBackend::<T>::new().relu_dense(input);
+        }
+
+        // Convert to f32 slice for GPU computation (unsafe but checked with TypeId)
+        let input_data: &[f32] = unsafe { &*(input.as_slice() as *const [T] as *const [f32]) };
+
+        // Create GPU buffers
+        let input_buffer = self.create_buffer_from_slice(
+            input_data,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        );
+        let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("ReLU Output Buffer"),
+            size: (input_data.len() * std::mem::size_of::<f32>()) as u64,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+
+        // Create bind group for element-wise ops (relu - using op_type 7 for max(0, x))
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("ReLU Bind Group"),
+            layout: &self.shaders.element_wise.bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: input_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: output_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("Op Type Buffer"),
+                            contents: bytemuck::bytes_of(&7u32), // 7 = relu (max(0, x))
+                            usage: wgpu::BufferUsages::UNIFORM,
+                        }),
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+            ],
+        });
+
+        // Execute compute shader
+        let workgroups = ((input_data.len() as u32 + 255) / 256, 1, 1);
+        futures::executor::block_on(self.execute_compute(
+            &self.shaders.element_wise.pipeline,
+            &bind_group,
+            workgroups,
+        ))?;
+
+        // Read back results
+        let result_f32_data = futures::executor::block_on(self.read_buffer::<f32>(
+            &output_buffer,
+            input_data.len(),
+        ))?;
+
+        // Convert back to DenseStorage with proper dimensions
+        let shape = input.shape().dims().to_vec();
+        // Convert f32 results back to original type T
+        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
 }
 

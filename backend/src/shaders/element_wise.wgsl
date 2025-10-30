@@ -51,6 +51,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     } else if (op_type == 6u) {
         // Sigmoid: 1 / (1 + exp(-x))
         result = 1.0 / (1.0 + exp(-x));
+    } else if (op_type == 7u) {
+        // ReLU: max(0, x)
+        result = max(0.0, x);
     }
 
     output[index] = result;

@@ -36,7 +36,7 @@ pub struct Distributed<M, B, T> {
 impl<M, B, T> Distributed<M, B, T>
 where
     M: Module<B, DenseStorage<T>, T> + Send + Sync + Clone,
-    B: Backend + Send + Sync + Default + Clone,
+    B: Backend<Data = T> + Send + Sync + Default + Clone,
     T: DataType + Send + Sync,
 {
     /// Create a new distributed training simulator
@@ -171,8 +171,8 @@ impl DistributedStats {
 }
 
 // Type aliases for common distributed configurations
-/// CPU-based distributed training
-pub type DistributedCpu<M, T> = Distributed<M, coeus_backend::CpuBackend, T>;
+/// CPU-based distributed training - NOTE: CpuBackend now requires generic parameter
+// pub type DistributedCpu<M, T> = Distributed<M, coeus_backend::CpuBackend, T>;
 
 /// GPU-based distributed training
 #[cfg(feature = "gpu")]
@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_distributed_creation() {
-        let model = Linear::<CpuBackend, _, Float32>::new(10, 5).unwrap();
+        let model = Linear::<CpuBackend<Float32>, _, Float32>::new(10, 5).unwrap();
         let distributed = Distributed::new(model, 0, 1).unwrap();
 
         assert_eq!(distributed.rank(), 0);
@@ -197,10 +197,10 @@ mod tests {
 
     #[test]
     fn test_distributed_forward() {
-        let model = Linear::<CpuBackend, _, Float32>::new(4, 2).unwrap();
+        let model = Linear::<CpuBackend<Float32>, _, Float32>::new(4, 2).unwrap();
         let mut distributed = Distributed::new(model, 0, 1).unwrap();
 
-        let input = Tensor::<CpuBackend, _, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, _, Float32>::from_vec(
             vec![
                 Float32::new(1.0),
                 Float32::new(2.0),
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_distributed_stats() {
-        let model = Linear::<CpuBackend, _, Float32>::new(4, 2).unwrap();
+        let model = Linear::<CpuBackend<Float32>, _, Float32>::new(4, 2).unwrap();
         let distributed = Distributed::new(model, 1, 4).unwrap();
 
         let stats = distributed.training_stats();

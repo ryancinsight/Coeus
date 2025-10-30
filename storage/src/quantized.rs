@@ -388,6 +388,27 @@ pub type QuantizedStorage8<T> = QuantizedStorage<T, 8>;
 /// 16-bit quantized storage
 pub type QuantizedStorage16<T> = QuantizedStorage<T, 16>;
 
+impl<T, const BITS: usize> crate::StorageToDense<T> for QuantizedStorage<T, BITS>
+where
+    T: crate::DataType
+        + core::cmp::PartialOrd
+        + num_traits::Float
+        + num_traits::FromPrimitive
+        + num_traits::ToPrimitive,
+{
+    fn to_dense(&self) -> crate::Result<crate::DenseStorage<T>> {
+        // Dequantize all values to dense storage
+        let mut dense_data = Vec::with_capacity(self.len());
+
+        for i in 0..self.len() {
+            let quantized_val = self.get(i)?;
+            dense_data.push(quantized_val);
+        }
+
+        crate::DenseStorage::from_vec(dense_data, self.shape.dims())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -478,26 +499,5 @@ mod tests {
         let result =
             TestStorage8::from_vec_with_params(&data, &[3], Float32::new(1.0), Float32::new(0.0));
         assert!(result.is_err());
-    }
-}
-
-impl<T, const BITS: usize> crate::StorageToDense<T> for QuantizedStorage<T, BITS>
-where
-    T: crate::DataType
-        + core::cmp::PartialOrd
-        + num_traits::Float
-        + num_traits::FromPrimitive
-        + num_traits::ToPrimitive,
-{
-    fn to_dense(&self) -> crate::Result<crate::DenseStorage<T>> {
-        // Dequantize all values to dense storage
-        let mut dense_data = Vec::with_capacity(self.len());
-
-        for i in 0..self.len() {
-            let quantized_val = self.get(i)?;
-            dense_data.push(quantized_val);
-        }
-
-        crate::DenseStorage::from_vec(dense_data, self.shape.dims())
     }
 }

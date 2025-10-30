@@ -3,7 +3,7 @@
 use crate::error::{JitError, Result};
 use crate::fusion::FusedKernel;
 use crate::hardware::get_hardware_capabilities;
-use crate::simd::{PrefetchOptimizer, SimdKernelGenerator};
+use crate::simd::{SimdKernelGenerator, PrefetchOptimizer};
 use coeus_backend::MemoryAccessPattern;
 use std::collections::HashMap;
 
@@ -69,6 +69,7 @@ pub struct JitCompiler {
     cache: HashMap<String, CompiledKernel>,
 }
 
+#[allow(dead_code)]
 impl JitCompiler {
     /// Create a new JIT compiler
     pub fn new() -> Self {
@@ -134,9 +135,7 @@ impl JitCompiler {
         let metadata = KernelMetadata {
             memory_requirements: jit_kernel.memory_requirements,
             performance_estimate: jit_kernel.performance_estimate,
-            supported_operations: kernel
-                .operations
-                .iter()
+            supported_operations: kernel.operations.iter()
                 .map(|op| format!("{:?}", op))
                 .collect(),
         };
@@ -225,12 +224,11 @@ impl JitCompiler {
         let kernel_id = self.generate_kernel_id(kernel);
 
         // Select appropriate kernel generation based on operation type
-        let primary_op = kernel
-            .operations
-            .first()
-            .ok_or_else(|| JitError::CompilationFailed {
+        let primary_op = kernel.operations.first().ok_or_else(|| {
+            JitError::CompilationFailed {
                 message: "No operations in kernel".to_string(),
-            })?;
+            }
+        })?;
 
         // Generate JIT-compiled kernel based on operation type
         // Using SIMD intrinsics for production reliability (direct function pointers, no Cranelift issues)
@@ -252,11 +250,9 @@ impl JitCompiler {
                 let func = SimdKernelGenerator::new().generate_simd_mul()?;
                 func as usize
             }
-            _ => {
-                return Err(JitError::UnsupportedOperation {
-                    operation: format!("{:?} JIT compilation", primary_op),
-                })
-            }
+            _ => return Err(JitError::UnsupportedOperation {
+                operation: format!("{:?} JIT compilation", primary_op),
+            }),
         };
 
         // Generate machine code representation (placeholder for actual extraction)
@@ -291,11 +287,7 @@ impl JitCompiler {
     }
 
     /// Estimate memory requirements considering SIMD optimizations
-    fn estimate_memory_requirements_with_simd(
-        &self,
-        kernel: &FusedKernel,
-        simd_gen: &SimdKernelGenerator,
-    ) -> usize {
+    fn estimate_memory_requirements_with_simd(&self, kernel: &FusedKernel, simd_gen: &SimdKernelGenerator) -> usize {
         let base_memory = kernel.operations.len() * 256; // Base memory per operation
 
         // Add memory for intermediate tensors based on fusion
@@ -310,10 +302,7 @@ impl JitCompiler {
             + kernel.memory_layout.output_strides.len() * 32;
 
         // SIMD operations may need additional alignment
-        let alignment_overhead = if !matches!(
-            simd_gen.specialization(),
-            crate::simd::SimdSpecialization::Scalar
-        ) {
+        let alignment_overhead = if !matches!(simd_gen.specialization(), crate::simd::SimdSpecialization::Scalar) {
             kernel.operations.len() * 64 // Alignment padding per operation
         } else {
             0
@@ -323,11 +312,7 @@ impl JitCompiler {
     }
 
     /// Estimate performance considering SIMD acceleration benefits
-    fn estimate_performance_with_simd(
-        &self,
-        kernel: &FusedKernel,
-        simd_gen: &SimdKernelGenerator,
-    ) -> f32 {
+    fn estimate_performance_with_simd(&self, kernel: &FusedKernel, simd_gen: &SimdKernelGenerator) -> f32 {
         let mut base_performance = 0.0;
 
         // Base performance per operation
@@ -366,13 +351,10 @@ impl JitCompiler {
         let _capabilities = get_hardware_capabilities();
         let prefetch_optimizer = PrefetchOptimizer::new();
         let prefetch_benefit = prefetch_optimizer.estimate_prefetch_benefit(
-            &MemoryAccessPattern::Dense, // Assume dense access for fused kernels
+            &MemoryAccessPattern::Dense // Assume dense access for fused kernels
         );
 
-        (base_performance - fusion_benefit)
-            * opt_multiplier
-            * simd_multiplier
-            * (1.0 + prefetch_benefit)
+        (base_performance - fusion_benefit) * opt_multiplier * simd_multiplier * (1.0 + prefetch_benefit)
     }
 
     /// Generate a structured code representation for the kernel
@@ -514,9 +496,7 @@ impl JitCompiler {
     }
 
     /// JIT compile element-wise addition: output[i] = input1[i] + input2[i]
-    fn jit_compile_elementwise_add(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    fn jit_compile_elementwise_add(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         let jit_builder = JITBuilder::new(cranelift_module::default_libcall_names()).unwrap();
         let mut module = JITModule::new(jit_builder);
 
@@ -577,9 +557,7 @@ impl JitCompiler {
         let i_val = builder.use_var(i);
         let size_val = builder.use_var(size);
         let loop_cond = builder.ins().icmp(IntCC::UnsignedLessThan, i_val, size_val);
-        builder
-            .ins()
-            .brif(loop_cond, loop_body, &[], exit_block, &[]);
+        builder.ins().brif(loop_cond, loop_body, &[], exit_block, &[]);
 
         // Seal loop header after condition
         builder.seal_block(loop_header);
@@ -591,16 +569,12 @@ impl JitCompiler {
         // Load input1[i]
         let input1_ptr_val = builder.use_var(input1_ptr);
         let input1_addr = builder.ins().iadd(input1_ptr_val, offset);
-        let input1_val = builder
-            .ins()
-            .load(types::F32, MemFlags::new(), input1_addr, 0);
+        let input1_val = builder.ins().load(types::F32, MemFlags::new(), input1_addr, 0);
 
         // Load input2[i]
         let input2_ptr_val = builder.use_var(input2_ptr);
         let input2_addr = builder.ins().iadd(input2_ptr_val, offset);
-        let input2_val = builder
-            .ins()
-            .load(types::F32, MemFlags::new(), input2_addr, 0);
+        let input2_val = builder.ins().load(types::F32, MemFlags::new(), input2_addr, 0);
 
         // Add values
         let sum = builder.ins().fadd(input1_val, input2_val);
@@ -637,9 +611,7 @@ impl JitCompiler {
     }
 
     /// JIT compile element-wise multiplication: output[i] = input1[i] * input2[i]
-    fn jit_compile_elementwise_mul(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    fn jit_compile_elementwise_mul(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         let jit_builder = JITBuilder::new(cranelift_module::default_libcall_names()).unwrap();
         let mut module = JITModule::new(jit_builder);
 
@@ -700,9 +672,7 @@ impl JitCompiler {
         let i_val = builder.use_var(i);
         let size_val = builder.use_var(size);
         let loop_cond = builder.ins().icmp(IntCC::UnsignedLessThan, i_val, size_val);
-        builder
-            .ins()
-            .brif(loop_cond, loop_body, &[], exit_block, &[]);
+        builder.ins().brif(loop_cond, loop_body, &[], exit_block, &[]);
 
         // Loop body: output[i] = input1[i] * input2[i]
         builder.switch_to_block(loop_body);
@@ -710,24 +680,18 @@ impl JitCompiler {
 
         let input1_ptr_val = builder.use_var(input1_ptr);
         let input1_addr = builder.ins().iadd(input1_ptr_val, offset);
-        let input1_val = builder
-            .ins()
-            .load(types::F32, MemFlags::new(), input1_addr, 0);
+        let input1_val = builder.ins().load(types::F32, MemFlags::new(), input1_addr, 0);
 
         let input2_ptr_val = builder.use_var(input2_ptr);
         let input2_addr = builder.ins().iadd(input2_ptr_val, offset);
-        let input2_val = builder
-            .ins()
-            .load(types::F32, MemFlags::new(), input2_addr, 0);
+        let input2_val = builder.ins().load(types::F32, MemFlags::new(), input2_addr, 0);
 
         // Multiply values instead of add
         let product = builder.ins().fmul(input1_val, input2_val);
 
         let output_ptr_val = builder.use_var(output_ptr);
         let output_addr = builder.ins().iadd(output_ptr_val, offset);
-        builder
-            .ins()
-            .store(MemFlags::new(), product, output_addr, 0);
+        builder.ins().store(MemFlags::new(), product, output_addr, 0);
 
         let one_val = builder.ins().iconst(types::I64, 1);
         let new_i = builder.ins().iadd(i_val, one_val);
@@ -748,9 +712,7 @@ impl JitCompiler {
     }
 
     /// JIT compile element-wise ReLU: output[i] = max(0, input[i])
-    fn jit_compile_elementwise_relu(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    fn jit_compile_elementwise_relu(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         let jit_builder = JITBuilder::new(cranelift_module::default_libcall_names()).unwrap();
         let mut module = JITModule::new(jit_builder);
 
@@ -811,9 +773,7 @@ impl JitCompiler {
         let i_val = builder.use_var(i);
         let size_val = builder.use_var(size);
         let loop_cond = builder.ins().icmp(IntCC::UnsignedLessThan, i_val, size_val);
-        builder
-            .ins()
-            .brif(loop_cond, loop_body, &[], exit_block, &[]);
+        builder.ins().brif(loop_cond, loop_body, &[], exit_block, &[]);
 
         // Loop body: output[i] = max(0, input[i])
         builder.switch_to_block(loop_body);
@@ -821,9 +781,7 @@ impl JitCompiler {
 
         let input_ptr_val = builder.use_var(input_ptr);
         let input_addr = builder.ins().iadd(input_ptr_val, offset);
-        let input_val = builder
-            .ins()
-            .load(types::F32, MemFlags::new(), input_addr, 0);
+        let input_val = builder.ins().load(types::F32, MemFlags::new(), input_addr, 0);
 
         // max(0, input_val)
         let zero = builder.ins().f32const(0.0);
@@ -853,9 +811,7 @@ impl JitCompiler {
 
     /// JIT compile element-wise matrix multiplication (simplified placeholder)
     /// For now, assumes element-wise multiplication of matrices with same dimensions
-    fn jit_compile_elementwise_matmul(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    fn jit_compile_elementwise_matmul(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         let jit_builder = JITBuilder::new(cranelift_module::default_libcall_names()).unwrap();
         let mut module = JITModule::new(jit_builder);
 
@@ -916,9 +872,7 @@ impl JitCompiler {
         let i_val = builder.use_var(i);
         let size_val = builder.use_var(size);
         let loop_cond = builder.ins().icmp(IntCC::UnsignedLessThan, i_val, size_val);
-        builder
-            .ins()
-            .brif(loop_cond, loop_body, &[], exit_block, &[]);
+        builder.ins().brif(loop_cond, loop_body, &[], exit_block, &[]);
 
         // Seal loop header after condition
         builder.seal_block(loop_header);
@@ -929,24 +883,18 @@ impl JitCompiler {
 
         let input1_ptr_val = builder.use_var(input1_ptr);
         let input1_addr = builder.ins().iadd(input1_ptr_val, offset);
-        let input1_val = builder
-            .ins()
-            .load(types::F32, MemFlags::new(), input1_addr, 0);
+        let input1_val = builder.ins().load(types::F32, MemFlags::new(), input1_addr, 0);
 
         let input2_ptr_val = builder.use_var(input2_ptr);
         let input2_addr = builder.ins().iadd(input2_ptr_val, offset);
-        let input2_val = builder
-            .ins()
-            .load(types::F32, MemFlags::new(), input2_addr, 0);
+        let input2_val = builder.ins().load(types::F32, MemFlags::new(), input2_addr, 0);
 
         // Element-wise multiplication (placeholder for full matrix multiplication)
         let product = builder.ins().fmul(input1_val, input2_val);
 
         let output_ptr_val = builder.use_var(output_ptr);
         let output_addr = builder.ins().iadd(output_ptr_val, offset);
-        builder
-            .ins()
-            .store(MemFlags::new(), product, output_addr, 0);
+        builder.ins().store(MemFlags::new(), product, output_addr, 0);
 
         let one_val = builder.ins().iconst(types::I64, 1);
         let new_i = builder.ins().iadd(i_val, one_val);
@@ -1019,9 +967,7 @@ impl JitCompiler {
         binary.extend_from_slice(&function_entry_placeholder);
 
         // Footer with checksum
-        let checksum = binary
-            .iter()
-            .fold(0u32, |acc, &x| acc.wrapping_add(x as u32));
+        let checksum = binary.iter().fold(0u32, |acc, &x| acc.wrapping_add(x as u32));
         binary.extend_from_slice(&checksum.to_le_bytes());
 
         Ok(binary)

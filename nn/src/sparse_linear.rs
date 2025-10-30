@@ -26,7 +26,7 @@ use coeus_tensor::Tensor;
 #[derive(Debug, Clone)]
 pub struct SparseLinear<B, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     T: DataType,
 {
     /// Weight matrix stored densely but with sparse connectivity pattern
@@ -53,7 +53,7 @@ pub struct CsrData<T: DataType> {
 
 impl<B, T> SparseLinear<B, T>
 where
-    B: Backend + Default + Clone,
+    B: Backend<Data = T> + Default + Clone,
     T: DataType
         + num_traits::Float
         + num_traits::FromPrimitive
@@ -172,7 +172,7 @@ where
 
 impl<B, T> Module<B, DenseStorage<T>, T> for SparseLinear<B, T>
 where
-    B: Backend + Default + Clone,
+    B: Backend<Data = T> + Default + Clone,
     T: DataType
         + num_traits::Float
         + num_traits::FromPrimitive
@@ -286,7 +286,7 @@ where
 #[cfg(feature = "safetensors")]
 impl<B, T> ModuleSerialize<B, DenseStorage<T>, T> for SparseLinear<B, T>
 where
-    B: Backend + Default + Clone,
+    B: Backend<Data = T> + Default + Clone,
     T: DataType
         + num_traits::Float
         + num_traits::FromPrimitive

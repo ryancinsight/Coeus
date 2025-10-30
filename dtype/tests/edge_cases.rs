@@ -11,7 +11,7 @@ use approx::assert_relative_eq;
 use coeus_dtype::float::*;
 use coeus_dtype::int::*;
 use coeus_dtype::traits::{FloatExt, IntExt};
-use num_traits::{NumCast, One, Signed, Zero};
+use num_traits::{Float, NumCast, One, Signed, Zero};
 
 // ============================================================================
 // NEGATIVE NUMBER TESTS

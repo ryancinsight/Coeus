@@ -31,19 +31,19 @@ pub struct HyperbandOptimizer {
 impl HyperbandOptimizer {
     /// Create a new Hyperband optimizer
     pub fn new(space: HyperparameterSpace) -> Self {
-        let max_resource = 100.0; // Maximum "epochs" or resource units
+        let max_resource = 100.0f64; // Maximum "epochs" or resource units
         let reduction_factor = 3.0f64; // Reduce resources by factor of 3 each round
 
         // Calculate number of brackets
-        let num_brackets = ((max_resource as f64).ln() / reduction_factor.ln()) as usize + 1;
+        let num_brackets = ((max_resource).ln() / reduction_factor.ln()) as usize + 1;
 
         let mut bracket_configs = Vec::new();
 
         for bracket in 0..num_brackets {
             let s = bracket as f64;
-            let num_configs = ((reduction_factor.powf(num_brackets as f64 - 1.0 - s)
+            let num_configs = (reduction_factor.powf(num_brackets as f64 - 1.0 - s)
                 * (num_brackets as f64 + 1.0)
-                / (s + 1.0)) as f64)
+                / (s + 1.0))
                 .ceil() as usize;
 
             bracket_configs.push(BracketConfig {

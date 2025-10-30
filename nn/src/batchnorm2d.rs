@@ -65,7 +65,7 @@ use crate::parameter::Parameter;
 #[derive(Debug)]
 pub struct BatchNorm2d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
@@ -75,7 +75,7 @@ where
 
 impl<B, S, T> BatchNorm2d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
@@ -148,7 +148,7 @@ where
 
 impl<B, S, T> Clone for BatchNorm2d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
@@ -161,7 +161,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for BatchNorm2d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -275,7 +275,7 @@ where
 
 impl<B, S, T> BatchNorm2d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -355,7 +355,7 @@ where
 
 impl<B, S, T> fmt::Display for BatchNorm2d<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {

@@ -70,7 +70,7 @@ pub type Result<T> = core::result::Result<T, TensorError>;
 
 // PyTorch-style type aliases for ergonomic API
 /// CPU dense tensor type alias
-pub type TensorCpuDense<T> = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
+pub type TensorCpuDense<T> = Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>;
 
 // Re-export AutoGradTensor from the autograd module
 pub use tensor_autograd::AutoGradTensor;

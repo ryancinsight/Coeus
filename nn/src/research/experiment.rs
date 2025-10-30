@@ -364,6 +364,7 @@ impl Default for ResourceUsage {
 
 /// Statistical analysis results
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct ExperimentStatistics {
     /// Mean performance
     pub mean: Option<f64>,
@@ -385,21 +386,6 @@ pub struct ExperimentStatistics {
     pub distribution: Option<DistributionType>,
 }
 
-impl Default for ExperimentStatistics {
-    fn default() -> Self {
-        Self {
-            mean: None,
-            std_dev: None,
-            variance: None,
-            confidence_interval: None,
-            p_value: None,
-            effect_size: None,
-            statistical_power: None,
-            sample_size: 0,
-            distribution: None,
-        }
-    }
-}
 
 /// Distribution type for statistical analysis
 #[derive(Debug, Clone)]
@@ -517,6 +503,7 @@ impl ExecutionContext {
 
 /// Experiment queue for scheduling
 #[derive(Debug)]
+#[derive(Default)]
 pub struct ExperimentQueue {
     /// Pending experiments
     pending: Vec<ExperimentSpec>,
@@ -603,7 +590,7 @@ mod tests {
 
     #[test]
     fn test_experiment_spec_validation() {
-        let mut spec = ExperimentSpec::new(
+        let spec = ExperimentSpec::new(
             "test_exp".to_string(),
             "Test Experiment".to_string(),
             ResearchDomain::GeneralML,

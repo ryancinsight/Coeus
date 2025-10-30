@@ -49,7 +49,7 @@ pub fn mse_loss<B, T>(
     target: &Tensor<B, impl StorageToDense<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     T: DataType + FloatExt,
 {
     let input_shape = input.shape().dims();
@@ -127,7 +127,7 @@ pub fn cross_entropy<B, T>(
     target: &Tensor<B, impl StorageToDense<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + Clone,
 {
     let input_shape = input.shape().dims();
@@ -249,7 +249,7 @@ pub fn nll_loss<B, T>(
     target: &Tensor<B, impl StorageToDense<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + Clone,
 {
     let input_shape = input.shape().dims();

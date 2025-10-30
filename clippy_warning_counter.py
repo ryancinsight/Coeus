@@ -21,7 +21,8 @@ for line in data.strip().split('\n'):
         obj = json.loads(line)
         if (obj.get('reason') == 'compiler-message' and
             obj.get('message', {}).get('level') == 'warning'):
-            code = obj['message'].get('code', 'UNKNOWN')
+            code_obj = obj['message'].get('code', {})
+            code = code_obj.get('code', 'UNKNOWN') if isinstance(code_obj, dict) else str(code_obj)
             if code:
                 package_id = obj.get('package_id', 'unknown')
                 warnings[code][package_id] += 1

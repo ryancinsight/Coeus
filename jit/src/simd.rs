@@ -1,11 +1,10 @@
 use crate::error::{JitError, Result};
 use crate::hardware::{get_hardware_capabilities, HardwareCapabilities};
 
-// Cranelift JIT compilation for SIMD
-
 /// Prefetch optimization for cache efficiency
 #[derive(Debug)]
 pub struct PrefetchOptimizer {
+    #[allow(dead_code)]
     cache_line_size: usize,
 }
 
@@ -44,6 +43,7 @@ pub enum SimdSpecialization {
 /// SIMD kernel generator for element-wise operations
 #[derive(Debug)]
 pub struct SimdKernelGenerator {
+    #[allow(dead_code)]
     capabilities: &'static HardwareCapabilities,
     specialization: SimdSpecialization,
 }
@@ -212,32 +212,24 @@ impl SimdKernelGenerator {
     }
 
     /// Generate AVX2 addition kernel with FMA support
-    pub fn generate_avx2_add(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    pub fn generate_avx2_add(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         // Prefer direct intrinsics when AVX2 is available
         if cfg!(target_arch = "x86_64") && std::is_x86_feature_detected!("avx2") {
             Ok(Self::avx2_add_kernel)
         } else {
             // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "AVX2 JIT compilation not implemented".to_string(),
-            })
+            Err(JitError::UnsupportedOperation { operation: "AVX2 JIT compilation not implemented".to_string() })
         }
     }
 
     /// Generate AVX2 multiplication kernel with FMA support
-    pub fn generate_avx2_mul(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    pub fn generate_avx2_mul(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         // Prefer direct intrinsics when AVX2 is available
         if cfg!(target_arch = "x86_64") && std::is_x86_feature_detected!("avx2") {
             Ok(Self::avx2_mul_kernel)
         } else {
             // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "AVX2 JIT compilation not implemented".to_string(),
-            })
+            Err(JitError::UnsupportedOperation { operation: "AVX2 JIT compilation not implemented".to_string() })
         }
     }
 
@@ -248,61 +240,45 @@ impl SimdKernelGenerator {
             Ok(Self::avx2_relu_kernel)
         } else {
             // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "AVX2 JIT compilation not implemented".to_string(),
-            })
+            Err(JitError::UnsupportedOperation { operation: "AVX2 JIT compilation not implemented".to_string() })
         }
     }
 
     /// Generate AVX-512 addition kernel with masking
-    pub fn generate_avx512_add(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    pub fn generate_avx512_add(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         // Prefer direct intrinsics when AVX-512 is available
         if cfg!(target_arch = "x86_64") && std::is_x86_feature_detected!("avx512f") {
             Ok(Self::avx512_add_kernel)
         } else {
             // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "AVX-512 JIT compilation not implemented".to_string(),
-            })
+            Err(JitError::UnsupportedOperation { operation: "AVX-512 JIT compilation not implemented".to_string() })
         }
     }
 
     /// Generate AVX-512 multiplication kernel
-    pub fn generate_avx512_mul(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    pub fn generate_avx512_mul(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         // Prefer direct intrinsics when AVX-512 is available
         if cfg!(target_arch = "x86_64") && std::is_x86_feature_detected!("avx512f") {
             Ok(Self::avx512_mul_kernel)
         } else {
             // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "AVX-512 JIT compilation not implemented".to_string(),
-            })
+            Err(JitError::UnsupportedOperation { operation: "AVX-512 JIT compilation not implemented".to_string() })
         }
     }
 
     /// Generate AVX-512 ReLU kernel
-    pub fn generate_avx512_relu(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *mut f32, usize)> {
+    pub fn generate_avx512_relu(&self) -> Result<unsafe extern "C" fn(*const f32, *mut f32, usize)> {
         // Prefer direct intrinsics when AVX-512 is available
         if cfg!(target_arch = "x86_64") && std::is_x86_feature_detected!("avx512f") {
             Ok(Self::avx512_relu_kernel)
         } else {
             // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "AVX-512 JIT compilation not implemented".to_string(),
-            })
+            Err(JitError::UnsupportedOperation { operation: "AVX-512 JIT compilation not implemented".to_string() })
         }
     }
 
     /// Generate NEON addition kernel
-    pub fn generate_neon_add(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    pub fn generate_neon_add(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         // Prefer direct intrinsics when AArch64 NEON is available
         #[cfg(target_arch = "aarch64")]
         {
@@ -311,16 +287,12 @@ impl SimdKernelGenerator {
         #[cfg(not(target_arch = "aarch64"))]
         {
             // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "NEON JIT compilation not implemented".to_string(),
-            })
+            Err(JitError::UnsupportedOperation { operation: "NEON JIT compilation not implemented".to_string() })
         }
     }
 
     /// Generate NEON multiplication kernel
-    pub fn generate_neon_mul(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    pub fn generate_neon_mul(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         // Prefer direct intrinsics when AArch64 NEON is available
         #[cfg(target_arch = "aarch64")]
         {
@@ -329,9 +301,7 @@ impl SimdKernelGenerator {
         #[cfg(not(target_arch = "aarch64"))]
         {
             // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "NEON JIT compilation not implemented".to_string(),
-            })
+            Err(JitError::UnsupportedOperation { operation: "NEON JIT compilation not implemented".to_string() })
         }
     }
 
@@ -345,42 +315,29 @@ impl SimdKernelGenerator {
         #[cfg(not(target_arch = "aarch64"))]
         {
             // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "NEON JIT compilation not implemented".to_string(),
-            })
+            Err(JitError::UnsupportedOperation { operation: "NEON JIT compilation not implemented".to_string() })
         }
     }
 
     /// Generate scalar addition kernel
-    pub fn generate_scalar_add(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    pub fn generate_scalar_add(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         Ok(Self::scalar_add_kernel)
     }
 
     /// Generate scalar multiplication kernel
-    pub fn generate_scalar_mul(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    pub fn generate_scalar_mul(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         Ok(Self::scalar_mul_kernel)
     }
 
     /// Generate scalar ReLU kernel
-    pub fn generate_scalar_relu(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *mut f32, usize)> {
+    pub fn generate_scalar_relu(&self) -> Result<unsafe extern "C" fn(*const f32, *mut f32, usize)> {
         Ok(Self::scalar_relu_kernel)
     }
 
     /// AVX2 optimized addition kernel with FMA support
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2,fma")]
-    unsafe extern "C" fn avx2_add_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn avx2_add_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -405,12 +362,7 @@ impl SimdKernelGenerator {
     /// AVX2 optimized multiplication kernel with FMA support
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2,fma")]
-    unsafe extern "C" fn avx2_mul_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn avx2_mul_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -460,12 +412,7 @@ impl SimdKernelGenerator {
     /// AVX-512 optimized addition kernel with masking
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx512f")]
-    unsafe extern "C" fn avx512_add_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn avx512_add_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -489,12 +436,7 @@ impl SimdKernelGenerator {
     /// AVX-512 optimized multiplication kernel
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx512f")]
-    unsafe extern "C" fn avx512_mul_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn avx512_mul_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -541,12 +483,7 @@ impl SimdKernelGenerator {
 
     /// NEON optimized addition kernel
     #[cfg(target_arch = "aarch64")]
-    unsafe extern "C" fn neon_add_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn neon_add_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::aarch64::*;
 
         let mut i = 0;
@@ -569,12 +506,7 @@ impl SimdKernelGenerator {
 
     /// NEON optimized multiplication kernel
     #[cfg(target_arch = "aarch64")]
-    unsafe extern "C" fn neon_mul_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn neon_mul_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::aarch64::*;
 
         let mut i = 0;
@@ -619,24 +551,14 @@ impl SimdKernelGenerator {
     }
 
     /// Scalar addition kernel (fallback)
-    unsafe extern "C" fn scalar_add_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn scalar_add_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         for i in 0..size {
             *output.add(i) = *input1.add(i) + *input2.add(i);
         }
     }
 
     /// Scalar multiplication kernel (fallback)
-    unsafe extern "C" fn scalar_mul_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn scalar_mul_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         for i in 0..size {
             *output.add(i) = *input1.add(i) * *input2.add(i);
         }
@@ -652,12 +574,7 @@ impl SimdKernelGenerator {
     /// AVX optimized addition kernel
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx")]
-    unsafe extern "C" fn avx_add_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn avx_add_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -681,12 +598,7 @@ impl SimdKernelGenerator {
     /// AVX optimized multiplication kernel
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx")]
-    unsafe extern "C" fn avx_mul_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn avx_mul_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -734,12 +646,7 @@ impl SimdKernelGenerator {
     /// SSE optimized addition kernel
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "sse")]
-    unsafe extern "C" fn sse_add_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn sse_add_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -763,12 +670,7 @@ impl SimdKernelGenerator {
     /// SSE optimized multiplication kernel
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "sse")]
-    unsafe extern "C" fn sse_mul_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    unsafe extern "C" fn sse_mul_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -816,12 +718,7 @@ impl SimdKernelGenerator {
     /// AVX2 optimized addition with hardware prefetching for cache optimization
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2,fma")]
-    pub unsafe extern "C" fn avx2_add_prefetch_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    pub unsafe extern "C" fn avx2_add_prefetch_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -853,12 +750,7 @@ impl SimdKernelGenerator {
     /// AVX-512 optimized addition with advanced prefetching
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx512f")]
-    pub unsafe extern "C" fn avx512_add_prefetch_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    pub unsafe extern "C" fn avx512_add_prefetch_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -872,14 +764,8 @@ impl SimdKernelGenerator {
                 _mm_prefetch(input2.add(i + prefetch_distance) as *const i8, _MM_HINT_T0);
                 _mm_prefetch(output.add(i + prefetch_distance) as *const i8, _MM_HINT_T0);
                 // Additional prefetch for scattered access patterns
-                _mm_prefetch(
-                    input1.add(i + prefetch_distance + 16) as *const i8,
-                    _MM_HINT_T1,
-                );
-                _mm_prefetch(
-                    input2.add(i + prefetch_distance + 16) as *const i8,
-                    _MM_HINT_T1,
-                );
+                _mm_prefetch(input1.add(i + prefetch_distance + 16) as *const i8, _MM_HINT_T1);
+                _mm_prefetch(input2.add(i + prefetch_distance + 16) as *const i8, _MM_HINT_T1);
             }
 
             let a = _mm512_loadu_ps(input1.add(i));
@@ -899,13 +785,7 @@ impl SimdKernelGenerator {
     /// AVX2 FMA-accelerated fused multiply-add: c = a * b + c
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2,fma")]
-    pub unsafe extern "C" fn avx2_fma_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        input3: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    pub unsafe extern "C" fn avx2_fma_kernel(input1: *const f32, input2: *const f32, input3: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -931,12 +811,7 @@ impl SimdKernelGenerator {
     /// AVX-512 masked operation for handling unaligned data
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx512f")]
-    pub unsafe extern "C" fn avx512_masked_add_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    pub unsafe extern "C" fn avx512_masked_add_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         let mut i = 0;
@@ -966,12 +841,7 @@ impl SimdKernelGenerator {
     /// Cache-line aligned AVX2 operations for optimal memory access
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2,fma")]
-    pub unsafe extern "C" fn avx2_cache_aligned_add_kernel(
-        input1: *const f32,
-        input2: *const f32,
-        output: *mut f32,
-        size: usize,
-    ) {
+    pub unsafe extern "C" fn avx2_cache_aligned_add_kernel(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
 
         const CACHE_LINE_SIZE: usize = 64; // 64 bytes = 16 floats
@@ -993,14 +863,8 @@ impl SimdKernelGenerator {
 
             // Prefetch next cache line
             if i + floats_per_cache_line < size {
-                _mm_prefetch(
-                    input1.add(i + floats_per_cache_line) as *const i8,
-                    _MM_HINT_T0,
-                );
-                _mm_prefetch(
-                    input2.add(i + floats_per_cache_line) as *const i8,
-                    _MM_HINT_T0,
-                );
+                _mm_prefetch(input1.add(i + floats_per_cache_line) as *const i8, _MM_HINT_T0);
+                _mm_prefetch(input2.add(i + floats_per_cache_line) as *const i8, _MM_HINT_T0);
             }
         }
 
@@ -1012,9 +876,7 @@ impl SimdKernelGenerator {
     }
 
     /// Generate optimized SIMD kernel with memory optimizations
-    pub fn generate_simd_add_optimized(
-        &self,
-    ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
+    pub fn generate_simd_add_optimized(&self) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
         #[cfg(target_arch = "x86_64")]
         {
             if self.specialization == SimdSpecialization::Avx512 {

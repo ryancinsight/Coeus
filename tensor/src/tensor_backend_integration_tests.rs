@@ -3,11 +3,6 @@
 //! Tests tensor operations that require Clone bounds, memory transfer operations,
 //! and backend-specific optimizations using associated types.
 
-use crate::{Backend, CpuBackend, DenseStorage, Tensor, Result};
-use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
-use coeus_backend::DeviceInfo;
-use coeus_dtype::float::Float32;
-use coeus_storage::StorageFromVec;
 
 /// Tests for tensor.clone() using new Backend clone bounds
 #[cfg(test)]
@@ -87,6 +82,8 @@ mod to_backend_tests {
 
     #[test]
     fn test_tensor_device_info_access() {
+        use coeus_backend::DeviceInfo;
+
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[5]).unwrap();
 
         let device = tensor.device();
@@ -271,6 +268,8 @@ mod backend_optimization_tests {
 
     #[test]
     fn test_backend_device_capabilities() {
+        use coeus_backend::DeviceInfo;
+
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10]).unwrap();
 
         let device = tensor.device();
@@ -286,6 +285,8 @@ mod backend_optimization_tests {
 
     #[test]
     fn test_backend_associated_types() {
+        use coeus_backend::Backend;
+
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[3]).unwrap();
 
         // Test that associated types work correctly

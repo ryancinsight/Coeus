@@ -13,6 +13,10 @@ use coeus_tensor::Tensor;
 use crate::dataset::Dataset;
 use crate::error::{DataError, Result};
 
+// Type aliases to reduce type complexity
+type Float32Tensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
+type Int32Tensor = Tensor<CpuBackend<Int32>, DenseStorage<Int32>, Int32>;
+
 /// A dataset that combines multiple tensors into a single dataset
 ///
 /// Each sample consists of one element from each input tensor.
@@ -43,9 +47,9 @@ use crate::error::{DataError, Result};
 #[derive(Clone)]
 pub struct TensorDataset {
     /// Input tensors (features)
-    inputs: Vec<Arc<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>>,
+    inputs: Vec<Arc<Float32Tensor>>,
     /// Target tensors (labels)
-    targets: Vec<Arc<Tensor<CpuBackend<Int32>, DenseStorage<Int32>, Int32>>>,
+    targets: Vec<Arc<Int32Tensor>>,
     /// Length of the dataset (samples in first dimension)
     length: usize,
 }
@@ -148,12 +152,12 @@ impl TensorDataset {
     }
 
     /// Returns a reference to the input tensors
-    pub fn inputs(&self) -> &[Arc<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>] {
+    pub fn inputs(&self) -> &[Arc<Float32Tensor>] {
         &self.inputs
     }
 
     /// Returns a reference to the target tensors
-    pub fn targets(&self) -> &[Arc<Tensor<CpuBackend<Int32>, DenseStorage<Int32>, Int32>>] {
+    pub fn targets(&self) -> &[Arc<Int32Tensor>] {
         &self.targets
     }
 }
@@ -338,10 +342,8 @@ impl Dataset<TensorSample> for TensorDataset {
             }
             // Create a new 1-element tensor with the sample
             let sample_data = vec![slice[index]];
-            let sample = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                sample_data,
-                &[1],
-            )?;
+            let sample =
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(sample_data, &[1])?;
             inputs.push(sample);
         }
 
@@ -353,10 +355,8 @@ impl Dataset<TensorSample> for TensorDataset {
             }
             // Create a new 1-element tensor with the sample
             let sample_data = vec![slice[index]];
-            let sample = Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec(
-                sample_data,
-                &[1],
-            )?;
+            let sample =
+                Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec(sample_data, &[1])?;
             targets.push(sample);
         }
 

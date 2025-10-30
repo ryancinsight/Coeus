@@ -28,6 +28,8 @@ from ._coeus import (
     Tensor, Device,
     # Utils - only the ones we've implemented
     TensorDataset, ConcatDataset, Subset,
+    # Transform factory functions - PyO3 advanced features
+    to_tensor, normalize, resize, random_apply, compose,
 )
 
 __version__ = "0.1.0"
@@ -37,6 +39,8 @@ __email__ = "ryan@coeus.dev"
 # Import submodules - only import what's working
 from . import nn
 from . import transforms
+from . import utils
+from . import tensor
 # from . import optim  # Commented out until optimizers are properly implemented
 
 # Expose key classes and functions for PyTorch compatibility
@@ -49,6 +53,12 @@ __all__ = [
 
     # Data transformations
     "transforms",
+
+    # Utilities and tensor submodules
+    "utils", "tensor",
+
+    # Transform factory functions - PyO3 advanced features
+    "to_tensor", "normalize", "resize", "random_apply", "compose",
 
     # Optimization
     "optim",

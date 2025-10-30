@@ -53,7 +53,7 @@ use super::utils::{AttentionDispatch, DenseAttention};
 #[derive(Debug, Clone)]
 pub struct MultiHeadAttention<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -78,7 +78,7 @@ where
 
 impl<B, S, T> MultiHeadAttention<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
@@ -292,7 +292,7 @@ where
             let row_data: Vec<T> = input.as_slice()[row_start..row_end].to_vec();
 
             // Find max for numerical stability
-            let mut max_val = T::min_value();
+            let mut max_val = <T as num_traits::Bounded>::min_value();
             for &val in &row_data {
                 if val > max_val {
                     max_val = val;
@@ -320,7 +320,7 @@ where
 
 impl<B, S, T> Module<B, S, T> for MultiHeadAttention<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
@@ -434,7 +434,7 @@ where
 
 impl<B, S, T> fmt::Display for MultiHeadAttention<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -449,7 +449,7 @@ where
 
 impl<B, T> AttentionDispatch<B, DenseStorage<T>, T> for MultiHeadAttention<B, DenseStorage<T>, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     type AttentionImpl = DenseAttention<B, T>;
@@ -476,7 +476,7 @@ where
 
 impl<B, S, T> MultiHeadAttention<B, S, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {

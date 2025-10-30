@@ -92,7 +92,7 @@ impl ArchitectureEvaluator for SimpleEvaluator {
         metrics.insert("complexity_score".to_string(), num_layers);
         metrics.insert(
             "efficiency_ratio".to_string(),
-            accuracy / (num_params.max(1.0) as f64),
+            accuracy / num_params.max(1.0),
         );
 
         Ok(EvaluationResult {

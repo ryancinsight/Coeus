@@ -277,7 +277,7 @@ impl MultiAgentCoordinator {
     }
 
     /// Sequential execution strategy
-    fn execute_sequential(&mut self, context: &ResearchContext) -> Result<CoordinatedResult> {
+    fn execute_sequential(&mut self, _context: &ResearchContext) -> Result<CoordinatedResult> {
         let mut results = Vec::new();
 
         // First pass: collect insights for each agent
@@ -330,7 +330,7 @@ impl MultiAgentCoordinator {
         }
 
         // Third pass: share insights (no mutable borrow conflict)
-        for (agent_id, result) in &execution_results {
+        for (_agent_id, result) in &execution_results {
             results.push(result.clone());
             self.share_insights(result)?;
         }
@@ -367,7 +367,7 @@ impl MultiAgentCoordinator {
             let mut results = Vec::new();
 
             // All agents work on the master's experiment
-            for (agent_id, agent) in &mut self.agents {
+            for agent in self.agents.values_mut() {
                 let result = agent.run_step(&experiment)?;
                 results.push(result);
             }
@@ -383,12 +383,12 @@ impl MultiAgentCoordinator {
     }
 
     /// Collaborative execution strategy
-    fn execute_collaborative(&mut self, context: &ResearchContext) -> Result<CoordinatedResult> {
+    fn execute_collaborative(&mut self, _context: &ResearchContext) -> Result<CoordinatedResult> {
         // Collaborative execution allows agents to share intermediate results
         let mut results = Vec::new();
 
         // First pass: collect collaborative inputs for each agent
-        let collaborative_inputs: HashMap<String, CollaborativeInput> = self.agents
+        let _collaborative_inputs: HashMap<String, CollaborativeInput> = self.agents
             .keys()
             .map(|agent_id| {
                 let input = self.get_collaborative_input(agent_id).unwrap_or_default();
@@ -443,7 +443,7 @@ impl MultiAgentCoordinator {
     }
 
     /// Get collaborative input from other agents
-    fn get_collaborative_input(&self, agent_id: &str) -> Result<CollaborativeInput> {
+    fn get_collaborative_input(&self, _agent_id: &str) -> Result<CollaborativeInput> {
         // Simplified collaborative input generation
         Ok(CollaborativeInput {
             suggestions: Vec::new(),
@@ -453,7 +453,7 @@ impl MultiAgentCoordinator {
     }
 
     /// Share intermediate results with other agents
-    fn share_intermediate_results(&self, agent_id: &str, result: &ExperimentResult) -> Result<()> {
+    fn share_intermediate_results(&self, _agent_id: &str, _result: &ExperimentResult) -> Result<()> {
         // Store intermediate results for collaborative use
         Ok(())
     }
@@ -568,6 +568,7 @@ pub enum MessageType {
 
 /// Shared knowledge base for multi-agent coordination
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct SharedKnowledgeBase {
     /// Stored insights
     pub insights: Vec<ResearchInsight>,

@@ -8,8 +8,6 @@ use std::sync::Arc;
 use super::compose::ComposableTransform;
 use crate::transforms::{Transform, TransformError};
 
-// Type alias to help with trait resolution
-type DynTransform<T> = dyn Transform<T>;
 
 /// A transform that applies sub-transforms with given probability
 ///
@@ -276,7 +274,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transforms::{Normalize, ToTensor};
+    use crate::transforms::Normalize;
     use coeus_backend::CpuBackend;
     use coeus_dtype::float::Float32;
     use coeus_storage::DenseStorage;

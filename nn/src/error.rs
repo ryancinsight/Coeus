@@ -66,6 +66,9 @@ pub enum NNError {
 
     #[error("Serialization failed: {message}")]
     SerializationError { message: String },
+
+    #[error("Invalid state: {message}")]
+    InvalidState { message: String },
 }
 
 /// Result type for neural network operations.

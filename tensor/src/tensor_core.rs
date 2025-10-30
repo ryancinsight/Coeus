@@ -21,7 +21,7 @@ pub trait AsAny {
 
 impl<B, S, T> AsAny for Tensor<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + 'static,
     T: DataType,
 {
@@ -32,7 +32,7 @@ where
 
 pub trait DifferentiableFunction<B, S, T>: Send + Sync + fmt::Debug + AsAny
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T>,
     T: DataType,
 {
@@ -40,17 +40,18 @@ where
     fn name(&self) -> &'static str;
 }
 
-/// Core trait for automatic differentiation functions
+/// Core function trait for automatic differentiation operations
 ///
-/// This trait defines the interface for functions that can participate in
-/// the backward pass of automatic differentiation. It extends DifferentiableFunction
-/// with methods needed for gradient computation.
+/// This trait defines the interface for differentiable operations that can
+/// participate in the computation graph and gradient computation.
 ///
-/// # Generic Support
-/// Fully generic over Backend<B>, Storage<S>, and DataType<T> for zero-cost abstractions.
+/// # Type Parameters
+/// * `B` - Backend type
+/// * `S` - Storage type for inputs
+/// * `T` - Data type
 pub trait Function<B, S, T>: DifferentiableFunction<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T>,
     T: DataType,
 {
@@ -63,12 +64,13 @@ where
     /// Compute gradients with respect to inputs given gradients w.r.t. outputs
     ///
     /// # Arguments
-    /// * `grad_output` - Gradient tensor w.r.t. this function's output
+    /// * `grad_output` - Gradient tensor w.r.t. this function's output (dense)
     ///
     /// # Returns
-    /// Vector of gradient tensors w.r.t. each input, in the same order as inputs
-    fn backward(&self, grad_output: &Tensor<B, S, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>>;
+    /// Vector of gradient tensors w.r.t. each input, in the same order as inputs.
+    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>>;
 }
+
 
 // Re-exports for convenience
 pub use coeus_backend::{Backend, CpuBackend};
@@ -139,39 +141,9 @@ impl fmt::Display for Device {
     }
 }
 
-/// Core tensor type with nested backend/storage/dtype hierarchy.
-///
-/// # Type Parameters
-///
-/// - `B`: Backend implementation (e.g., `CpuBackend`)
-/// - `S`: Storage implementation (e.g., `DenseStorage<T>`)
-/// - `T`: Element data type (e.g., `Float32`)
-///
-/// # Safety
-///
-/// All operations are memory-safe. The type system ensures:
-/// - No dtype mismatches at compile time
-/// - No backend/storage incompatibility
-/// - Thread-safe execution via `Send + Sync` bounds
-///
-/// # Examples
-///
-/// ```
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
-/// use num_traits::Zero;
-///
-/// // Create zeros tensor
-/// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 3]).unwrap();
-/// assert_eq!(tensor.shape().dims(), &[2, 3]);
-/// assert_eq!(tensor.len(), 6);
-/// ```
-#[derive(Debug)]
 pub struct Tensor<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T>,
     T: DataType,
 {
@@ -187,17 +159,13 @@ where
     pub(crate) grad: Arc<spin::RwLock<Option<alloc::boxed::Box<Tensor<B, S, T>>>>>,
     /// Function that created this tensor (for automatic differentiation)
     /// None if this tensor was created directly (leaf tensor)
-    #[cfg(feature = "std")]
-    pub(crate) grad_fn: Option<Arc<dyn Function<B, S, T>>>,
-    #[cfg(not(feature = "std"))]
-    pub(crate) grad_fn: Option<Arc<dyn Function<B, S, T>>>,
-    pub(crate) _phantom: core::marker::PhantomData<T>,
+    pub(crate) grad_fn: Option<String>,
 }
 
 // Implement Clone when all components are Clone
 impl<B, S, T> Clone for Tensor<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone,
     T: DataType + Clone,
 {
@@ -213,7 +181,22 @@ where
             grad_fn: self.grad_fn.clone(),
             #[cfg(not(feature = "std"))]
             grad_fn: self.grad_fn.clone(),
-            _phantom: core::marker::PhantomData,
         }
+    }
+}
+
+impl<B, S, T> fmt::Debug for Tensor<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T>,
+    T: DataType,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Tensor")
+            .field("shape", &self.storage.shape())
+            .field("len", &self.storage.len())
+            .field("requires_grad", &self.requires_grad)
+            .field("has_grad", &true) // Simplified for Debug - checking RwLock would require locking
+            .finish()
     }
 }

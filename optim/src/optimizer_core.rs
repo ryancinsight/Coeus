@@ -19,7 +19,7 @@ use crate::Parameter;
 /// It provides methods for parameter management, state updates, and optimization steps.
 pub trait Optimizer<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + coeus_dtype::traits::FloatExt,
 {
@@ -156,7 +156,7 @@ impl OptimizerConfig {
 #[derive(Debug, Clone)]
 pub struct ParamState<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -172,7 +172,7 @@ where
 
 impl<B, S, T> ParamState<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -226,7 +226,7 @@ where
 
 impl<B, S, T> fmt::Display for ParamState<B, S, T>
 where
-    B: Backend + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {

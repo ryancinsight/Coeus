@@ -4,7 +4,6 @@
 
 #[cfg(test)]
 mod gru_tests {
-    use super::*;
     use crate::module::Module;
     use crate::rnn::GRU;
     use coeus_backend::CpuBackend;

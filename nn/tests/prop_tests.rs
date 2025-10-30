@@ -218,8 +218,8 @@ proptest! {
         prop_assert_eq!(output_shape, &[batch_size, out_features]);
 
         // Basic property: output should not be all zeros for non-zero input
-        let input_sum: Float32 = input.as_slice().iter().cloned().sum();
-        let output_sum: Float32 = linear_result.as_slice().iter().cloned().sum();
+        let input_sum: Float32 = input.as_slice().iter().fold(Float32::new(0.0), |acc, &x| acc + x);
+        let output_sum: Float32 = linear_result.as_slice().iter().fold(Float32::new(0.0), |acc, &x| acc + x);
         prop_assert!(input_sum != Float32::new(0.0) || output_sum == Float32::new(0.0));
     }
 

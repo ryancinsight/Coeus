@@ -108,7 +108,7 @@ pub fn clip_grad_norm_<B, S, T>(
     error_tol: f32,
 ) -> Result<f32>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
@@ -138,7 +138,7 @@ where
 /// Total norm of gradients before clipping
 pub fn clip_grad_norm<B, S, T>(gradients: &mut [&mut Tensor<B, S, T>], max_norm: f32) -> Result<f32>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
@@ -158,7 +158,7 @@ pub fn clip_grad_norm_config<B, S, T>(
     config: &ClipConfig,
 ) -> Result<f32>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
@@ -192,7 +192,7 @@ pub fn clip_grad_value_<B, S, T>(
     clip_value: f32,
 ) -> Result<usize>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
@@ -230,7 +230,7 @@ pub fn clip_grad_norm_adaptive<B, S, T>(
     sensitivity: f32,
 ) -> Result<(f32, f32)>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
@@ -273,7 +273,7 @@ where
 /// Global norm across all gradients
 fn compute_global_norm<B, S, T>(gradients: &[&mut Tensor<B, S, T>], norm_type: f32) -> Result<f32>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + num_traits::Float + num_traits::FromPrimitive,
 {
@@ -328,7 +328,7 @@ pub mod utils {
     #[must_use]
     pub fn check_gradient_health<B, S, T>(gradients: &[&Tensor<B, S, T>]) -> (bool, bool)
     where
-        B: Backend,
+        B: Backend<Data = T>,
         S: Storage<T> + StorageFromVec<T> + Clone + 'static,
         T: DataType + num_traits::Float + traits::FloatExt,
     {
@@ -361,7 +361,7 @@ pub mod utils {
     #[must_use]
     pub fn gradient_stats<B, S, T>(_gradients: &[&Tensor<B, S, T>]) -> (f32, f32, f32, f32)
     where
-        B: Backend,
+        B: Backend<Data = T>,
         S: Storage<T> + StorageFromVec<T> + Clone + 'static,
         T: DataType + num_traits::Float,
     {

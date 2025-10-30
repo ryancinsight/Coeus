@@ -186,7 +186,10 @@ where
     /// # Errors
     /// Returns error if backward pass fails
     #[allow(clippy::missing_errors_doc)]
-    pub fn backward_with_grad(&self, grad_output: &Tensor<B, S, T>) -> Result<()> {
+    pub fn backward_with_grad<GS>(&self, grad_output: &Tensor<B, GS, T>) -> Result<()>
+    where
+        GS: Storage<T> + StorageToDense<T>,
+    {
         if let Some(grad_fn) = self.grad_fn() {
             // For now, implement simple single-function backward
             // Full graph traversal would require more complex implementation

@@ -34,7 +34,7 @@ pub struct DistributedOptimizer<O, B, S> {
 impl<O, B, S> DistributedOptimizer<O, B, S>
 where
     O: Optimizer<B, S, Float32>,
-    B: Send + Sync + coeus_backend::Backend,
+    B: Send + Sync + coeus_backend::Backend<Float32>,
     S: Send
         + Sync
         + coeus_storage::Storage<Float32>
@@ -154,7 +154,7 @@ where
 impl<O, B, S> DistributedOptimizer<O, B, S>
 where
     O: Optimizer<B, S, Float32>,
-    B: Send + Sync + coeus_backend::Backend,
+    B: Send + Sync + coeus_backend::Backend<Float32>,
     S: Send
         + Sync
         + coeus_storage::Storage<Float32>

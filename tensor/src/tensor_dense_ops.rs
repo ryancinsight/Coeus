@@ -82,7 +82,7 @@ include!("tests/autograd/numerical_gradient_tests.rs");
 // Tests are included via include! macros above
 
 /// Const generics/Cow full (example in Tensor impl if not, but for ops in submods)
-impl<T: Dtype, B: Backend<T> + Clone + Send + Sync + Default, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S> {
+impl<T: Dtype, B: Backend<Data = T> + Clone + Send + Sync + Default, S: TensorStorage<T> + Clone + Send + Sync> Tensor<T, B, S> {
     pub fn view_cow(&self) -> Cow<'_, [T]> {
         Cow::Borrowed(self.data())
     }

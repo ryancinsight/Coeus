@@ -36,7 +36,7 @@ pub fn numerical_gradient<T, F>(
     f: F,
     x: &Variable<T>,
     epsilon: T,
-) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>>
+) -> Result<Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>>
 where
     T: DataType + FloatExt,
     F: Fn(&Variable<T>) -> Variable<T>,
@@ -111,8 +111,8 @@ where
 /// ```
 #[must_use]
 pub fn gradients_close<T>(
-    analytical: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    numerical: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    analytical: &Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    numerical: &Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>,
     rtol: T,
     atol: T,
 ) -> bool

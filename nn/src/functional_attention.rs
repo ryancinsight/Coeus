@@ -21,7 +21,7 @@ use crate::error::{NNError, Result};
 /// A binary mask tensor with the same shape as input
 fn create_dropout_mask<B, S, T>(tensor: &Tensor<B, S, T>, dropout_p: f32) -> Result<Tensor<B, S, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + FloatExt,
 {
@@ -103,7 +103,7 @@ pub fn scaled_dot_product_attention<B, S, T>(
     training: bool,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd,
 {
@@ -215,7 +215,7 @@ where
 ///
 /// # Returns
 /// Tensor with softmax applied along the last dimension
-pub fn softmax<B: Backend + Default, S: Storage<T> + StorageToDense<T> + 'static, T>(
+pub fn softmax<B: Backend<Data = T> + Default, S: Storage<T> + StorageToDense<T> + 'static, T>(
     input: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where

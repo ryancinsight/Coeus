@@ -4,14 +4,18 @@
 
 use std::{format, string::ToString, vec, vec::Vec};
 
+use coeus_backend::Backend;
+use coeus_dtype::DataType;
+use coeus_storage::{Storage, StorageFromVec, StorageToDense};
+
 /// Shape manipulation operations for tensors with dense storage.
 ///
 /// This trait provides methods for reshaping and transposing tensors.
 ///
 impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
 where
-    B: crate::Backend + Clone,
-    T: crate::DataType,
+    B: Backend<Data = T> + Clone,
+    T: DataType,
 {
     /// Transposes dimensions of the tensor.
     ///
@@ -196,9 +200,9 @@ where
 /// This converts tensors to dense storage for reshaping operations.
 impl<B, S, T> crate::Tensor<B, S, T>
 where
-    B: crate::Backend + Default + Clone,
-    S: crate::Storage<T> + Clone + crate::StorageFromVec<T> + crate::StorageToDense<T> + 'static,
-    T: crate::DataType + Clone,
+    B: Backend<Data = T> + Default + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + Clone,
 {
     /// Reshapes the tensor to new dimensions.
     ///

@@ -24,7 +24,7 @@ pub fn pad_2d<B, S, T>(
     padding_w: usize,
 ) -> Result<Tensor<B, S, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -82,7 +82,7 @@ pub fn pad_3d<B, S, T>(
     padding_w: usize,
 ) -> Result<Tensor<B, S, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -223,7 +223,7 @@ pub fn conv2d<B, S, T>(
     padding: (usize, usize),
 ) -> Result<Tensor<B, S, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
 {
@@ -344,7 +344,7 @@ pub fn conv3d<B, S, T>(
     padding: (usize, usize, usize),
 ) -> Result<Tensor<B, S, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
 {
@@ -473,7 +473,7 @@ pub fn conv1d<B, S, T>(
     padding: usize,
 ) -> Result<Tensor<B, S, T>>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
 {

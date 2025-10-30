@@ -86,7 +86,7 @@ use crate::Result;
 #[allow(clippy::missing_errors_doc)]
 pub fn checkpoint<F, B, S, T>(function: F, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T>,
     T: DataType,
     F: Fn(&Tensor<B, S, T>) -> Result<Tensor<B, S, T>>,
@@ -130,7 +130,7 @@ pub fn checkpoint_sequential<F, B, S, T>(
     segments: &[&Tensor<B, S, T>],
 ) -> Result<Vec<Tensor<B, S, T>>>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T>,
     T: DataType,
     F: Fn(&Tensor<B, S, T>) -> Result<Tensor<B, S, T>> + Clone,
@@ -192,7 +192,6 @@ impl CheckpointState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::traits::FloatExt;
     use coeus_dtype::{float::Float32, DataType};
     use coeus_tensor::Tensor;
 

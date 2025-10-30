@@ -206,7 +206,7 @@ impl OnnxExporter {
     pub fn export<M, B, S, T>(&mut self, model: &M, input_shape: &[usize]) -> Result<Vec<u8>>
     where
         M: Module<B, S, T>,
-        B: Backend + Clone,
+        B: Backend<Data = T> + Clone,
         S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
         T: DataType,
     {
@@ -232,7 +232,7 @@ impl OnnxExporter {
     fn create_graph<M, B, S, T>(&mut self, model: &M, input_shape: &[usize]) -> Result<OnnxGraph>
     where
         M: Module<B, S, T>,
-        B: Backend + Clone,
+        B: Backend<Data = T> + Clone,
         S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
         T: DataType,
     {
@@ -298,7 +298,7 @@ impl OnnxExporter {
     ) -> Result<()>
     where
         M: Module<B, S, T>,
-        B: Backend + Clone,
+        B: Backend<Data = T> + Clone,
         S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
         T: DataType,
     {
@@ -335,7 +335,7 @@ impl OnnxExporter {
     ) -> Result<()>
     where
         M: Module<B, S, T>,
-        B: Backend + Clone,
+        B: Backend<Data = T> + Clone,
         S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
         T: DataType,
     {
@@ -398,7 +398,7 @@ impl OnnxExporter {
         name: &str,
     ) -> Result<OnnxTensor>
     where
-        B: Backend,
+        B: Backend<Data = T>,
         S: Storage<T> + StorageToDense<T> + 'static,
         T: DataType,
     {
@@ -463,7 +463,7 @@ impl OnnxImporter {
     pub fn import<M, B, S, T>(&self, bytes: &[u8]) -> Result<M>
     where
         M: Module<B, S, T>,
-        B: Backend + Clone,
+        B: Backend<Data = T> + Clone,
         S: Storage<T> + StorageFromVec<T> + Clone + 'static,
         T: DataType + serde::de::DeserializeOwned,
     {
@@ -486,7 +486,7 @@ impl OnnxImporter {
     fn convert_onnx_to_module<M, B, S, T>(&self, _onnx_model: &OnnxModel) -> Result<M>
     where
         M: Module<B, S, T>,
-        B: Backend + Clone,
+        B: Backend<Data = T> + Clone,
         S: Storage<T> + StorageFromVec<T> + Clone + 'static,
         T: DataType,
     {
@@ -688,7 +688,7 @@ mod tests {
         let invalid_json = b"invalid json";
         let result: std::result::Result<
             crate::Sequential<
-                coeus_backend::CpuBackend,
+                coeus_backend::CpuBackend<coeus_dtype::float::Float32>,
                 crate::DenseStorage<coeus_dtype::float::Float32>,
                 coeus_dtype::float::Float32,
             >,

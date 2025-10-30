@@ -3,7 +3,6 @@
 //! This module defines hyperparameter spaces, configurations, and sampling methods
 //! for automated hyperparameter optimization.
 
-use rand::distributions::Distribution;
 use rand::Rng;
 use std::collections::HashMap;
 
@@ -118,6 +117,7 @@ impl Hyperparameter {
 
 /// Complete hyperparameter configuration
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub struct HyperparameterConfig {
     /// Configuration values
     pub values: HashMap<String, HyperparameterValue>,
@@ -130,13 +130,6 @@ impl HyperparameterConfig {
     }
 }
 
-impl Default for HyperparameterConfig {
-    fn default() -> Self {
-        Self {
-            values: HashMap::new(),
-        }
-    }
-}
 
 impl HyperparameterConfig {
     /// Set a hyperparameter value
@@ -312,6 +305,7 @@ impl HyperparameterConfig {
 
 /// Hyperparameter search space definition
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct HyperparameterSpace {
     /// Hyperparameters in the space
     pub parameters: Vec<Hyperparameter>,
@@ -326,14 +320,6 @@ impl HyperparameterSpace {
     }
 }
 
-impl Default for HyperparameterSpace {
-    fn default() -> Self {
-        Self {
-            parameters: Vec::new(),
-            constraints: Vec::new(),
-        }
-    }
-}
 
 impl HyperparameterSpace {
     /// Add a hyperparameter to the space

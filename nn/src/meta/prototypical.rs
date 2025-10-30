@@ -3,12 +3,72 @@
 //! This module implements Prototypical Networks, a metric-based few-shot learning
 //! approach that learns to compute class prototypes and classify by nearest neighbor
 //! in the learned embedding space.
+//!
+//! # Overview
+//!
+//! Prototypical Networks learn a metric space where classification can be performed
+//! by computing class prototypes (mean embeddings) and finding the nearest prototype
+//! for query examples. This approach is particularly effective for few-shot learning
+//! scenarios where only limited examples per class are available.
+//!
+//! # Key Components
+//!
+//! - [`PrototypicalNetwork`]: Main network implementation with encoder and distance metric
+//! - [`Episode`]: Few-shot learning task definition with support and query sets
+//! - [`FewShotEpisodeGenerator`]: Utility for generating random few-shot episodes
+//! - [`DistanceMetric`]: Supported distance/similarity metrics (Euclidean, Cosine, Learned)
+//!
+//! # Example Usage
+//!
+//! ```rust
+//! use coeus_nn::{
+//!     meta::{
+//!         prototypical::{PrototypicalNetwork, FewShotEpisodeGenerator, DistanceMetric},
+//!         Episode,
+//!     },
+//!     linear::Linear,
+//!     Module,
+//! };
+//! use coeus_backend::CpuBackend;
+//! use coeus_dtype::float::Float32;
+//! use coeus_storage::DenseStorage;
+//! use coeus_tensor::Tensor;
+//!
+//! // Create encoder network
+//! let encoder = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 64).unwrap();
+//!
+//! // Create prototypical network with Euclidean distance
+//! let proto_net = PrototypicalNetwork::new(encoder)
+//!     .with_distance_metric(DistanceMetric::Euclidean)
+//!     .with_scale(1.0)
+//!     .with_temperature(1.0);
+//!
+//! // Create episode generator for 5-way, 5-shot, 15-query tasks
+//! let generator = FewShotEpisodeGenerator::new(
+//!     class_examples, // Vec of Vec<Tensor> - examples per class
+//!     5,              // n_way
+//!     5,              // k_shot
+//!     15,             // n_query
+//! );
+//!
+//! // Generate and evaluate an episode
+//! let episode = generator.generate_episode().unwrap();
+//! let prototypes = proto_net.compute_prototypes(&episode.support_set, episode.num_classes).unwrap();
+//!
+//! // Classify a query example
+//! let query_result = proto_net.classify(&episode.query_set[0].0, &prototypes).unwrap();
+//! let predicted_class = query_result.iter().enumerate()
+//!     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+//!     .map(|(i, _)| i).unwrap();
+//!
+//! // Compute episode accuracy
+//! let accuracy = proto_net.episode_accuracy(&episode).unwrap();
+//! ```
 
 use rand::Rng;
 
 use crate::error::{NNError, Result};
 use crate::Module;
-use crate::Parameter;
 use coeus_backend::{Backend, DataType, Storage};
 use coeus_dtype::traits::FloatExt;
 use coeus_storage::StorageFromVec;
@@ -19,7 +79,7 @@ use coeus_tensor::{ops::arithmetic, Tensor};
 #[derive(Debug, Clone)]
 pub struct Episode<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T>,
     T: DataType,
 {
@@ -34,6 +94,32 @@ where
 }
 
 /// Prototypical Network implementation
+///
+/// A Prototypical Network consists of an encoder network that maps inputs to an
+/// embedding space and a distance metric for computing similarities between
+/// embeddings and class prototypes.
+///
+/// # Type Parameters
+///
+/// * `M`: Encoder network type that implements [`Module`]
+/// * `B`: Backend type for tensor operations
+/// * `S`: Storage type for tensor data
+/// * `T`: Data type for tensor elements
+///
+/// # Examples
+///
+/// ```rust
+/// use coeus_nn::meta::prototypical::{PrototypicalNetwork, DistanceMetric};
+/// use coeus_nn::linear::Linear;
+/// use coeus_backend::CpuBackend;
+/// use coeus_dtype::float::Float32;
+/// use coeus_storage::DenseStorage;
+///
+/// let encoder = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 64).unwrap();
+/// let proto_net = PrototypicalNetwork::new(encoder)
+///     .with_distance_metric(DistanceMetric::Cosine)
+///     .with_scale(0.5);
+/// ```
 #[derive(Debug)]
 pub struct PrototypicalNetwork<M, B, S, T> {
     /// Embedding network that maps inputs to feature space
@@ -61,7 +147,7 @@ pub enum DistanceMetric {
 impl<M, B, S, T> PrototypicalNetwork<M, B, S, T>
 where
     M: Clone + Module<B, S, T>,
-    B: Backend + Default,
+    B: Backend<Data = T> + Default,
     S: Storage<T> + StorageFromVec<T>,
     T: DataType
         + FloatExt
@@ -104,6 +190,47 @@ where
     }
 
     /// Compute class prototypes from support set
+    ///
+    /// This method computes the prototype (mean embedding) for each class by:
+    /// 1. Encoding all support examples using the encoder network
+    /// 2. Grouping embeddings by class label
+    /// 3. Computing the mean embedding for each class
+    ///
+    /// # Arguments
+    ///
+    /// * `support_set` - Support examples as (input, class_id) pairs
+    /// * `num_classes` - Total number of classes in the episode
+    ///
+    /// # Returns
+    ///
+    /// A vector of prototype tensors, one per class
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any class has no support examples or if encoding fails
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use coeus_nn::meta::prototypical::PrototypicalNetwork;
+    /// # use coeus_nn::linear::Linear;
+    /// # use coeus_backend::CpuBackend;
+    /// # use coeus_dtype::float::Float32;
+    /// # use coeus_storage::DenseStorage;
+    /// # use coeus_tensor::Tensor;
+    /// # let encoder = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
+    /// # let proto_net = PrototypicalNetwork::new(encoder);
+    /// // Create support set with 2 classes, 2 examples each
+    /// let support_set = vec![
+    ///     (Tensor::from_vec(vec![1.0, 2.0], &[2]).unwrap(), 0),
+    ///     (Tensor::from_vec(vec![1.1, 2.1], &[2]).unwrap(), 0),
+    ///     (Tensor::from_vec(vec![3.0, 4.0], &[2]).unwrap(), 1),
+    ///     (Tensor::from_vec(vec![3.1, 4.1], &[2]).unwrap(), 1),
+    /// ];
+    ///
+    /// let prototypes = proto_net.compute_prototypes(&support_set, 2).unwrap();
+    /// assert_eq!(prototypes.len(), 2); // One prototype per class
+    /// ```
     pub fn compute_prototypes(
         &self,
         support_set: &[(Tensor<B, S, T>, usize)],
@@ -152,6 +279,46 @@ where
     }
 
     /// Classify a query example using prototypes
+    ///
+    /// This method classifies a query example by:
+    /// 1. Encoding the query using the encoder network
+    /// 2. Computing distances/similarities to all class prototypes
+    /// 3. Converting distances to probability distribution using softmax
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Query input tensor to classify
+    /// * `prototypes` - Vector of prototype tensors, one per class
+    ///
+    /// # Returns
+    ///
+    /// A probability distribution over classes as `Vec<f64>`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if encoding fails or if no prototypes are provided
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use coeus_nn::meta::prototypical::PrototypicalNetwork;
+    /// # use coeus_nn::linear::Linear;
+    /// # use coeus_backend::CpuBackend;
+    /// # use coeus_dtype::float::Float32;
+    /// # use coeus_storage::DenseStorage;
+    /// # use coeus_tensor::Tensor;
+    /// # let encoder = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
+    /// # let proto_net = PrototypicalNetwork::new(encoder);
+    /// // Assume we have prototypes and a query
+    /// # let prototypes = vec![Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3]).unwrap()];
+    /// # let query = Tensor::from_vec(vec![1.5, 2.5], &[2]).unwrap();
+    ///
+    /// let probabilities = proto_net.classify(&query, &prototypes).unwrap();
+    /// assert_eq!(probabilities.len(), prototypes.len());
+    /// // Probabilities sum to approximately 1.0
+    /// let sum: f64 = probabilities.iter().sum();
+    /// assert!((sum - 1.0).abs() < 1e-6);
+    /// ```
     pub fn classify(
         &self,
         query: &Tensor<B, S, T>,
@@ -315,10 +482,49 @@ where
 }
 
 /// Episode generator for few-shot classification tasks
+///
+/// Generates random few-shot learning episodes from a collection of class examples.
+/// Each episode consists of:
+/// - Support set: Limited examples per class for learning prototypes
+/// - Query set: Examples for evaluation
+/// - Random class selection (N-way)
+/// - Random example sampling (K-shot, N-query)
+///
+/// # Type Parameters
+///
+/// * `B`: Backend type for tensor operations
+/// * `S`: Storage type for tensor data
+/// * `T`: Data type for tensor elements
+///
+/// # Examples
+///
+/// ```rust
+/// use coeus_nn::meta::prototypical::FewShotEpisodeGenerator;
+/// use coeus_backend::CpuBackend;
+/// use coeus_dtype::float::Float32;
+/// use coeus_storage::DenseStorage;
+/// use coeus_tensor::Tensor;
+///
+/// // Create example data for 3 classes, 10 examples each
+/// let class_examples = vec![
+///     (0..10).map(|_| Tensor::from_vec(vec![1.0, 2.0], &[2]).unwrap()).collect::<Vec<_>>(),
+///     (0..10).map(|_| Tensor::from_vec(vec![3.0, 4.0], &[2]).unwrap()).collect::<Vec<_>>(),
+///     (0..10).map(|_| Tensor::from_vec(vec![5.0, 6.0], &[2]).unwrap()).collect::<Vec<_>>(),
+/// ];
+///
+/// // Create 5-way, 5-shot, 10-query episode generator
+/// let generator = FewShotEpisodeGenerator::new(class_examples, 5, 5, 10);
+///
+/// // Generate a single episode
+/// let episode = generator.generate_episode().unwrap();
+/// assert_eq!(episode.num_classes, 5);
+/// assert_eq!(episode.support_set.len(), 25); // 5 classes × 5 shots
+/// assert_eq!(episode.query_set.len(), 50);   // 5 classes × 10 queries
+/// ```
 #[derive(Debug)]
 pub struct FewShotEpisodeGenerator<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T>,
     T: DataType,
 {
@@ -334,7 +540,7 @@ where
 
 impl<B, S, T> FewShotEpisodeGenerator<B, S, T>
 where
-    B: Backend + Default,
+    B: Backend<Data = T> + Default,
     S: Storage<T> + StorageFromVec<T>,
     T: DataType + Clone + Into<f64>,
 {
@@ -354,9 +560,40 @@ where
     }
 
     /// Generate a random few-shot episode
+    ///
+    /// Randomly selects `n_way` classes and samples `k_shot` support examples
+    /// plus `n_query` query examples from each selected class.
+    ///
+    /// # Returns
+    ///
+    /// A complete episode ready for few-shot learning evaluation
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any selected class doesn't have enough examples
+    /// for the requested k_shot + n_query samples
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use coeus_nn::meta::prototypical::FewShotEpisodeGenerator;
+    /// # use coeus_backend::CpuBackend;
+    /// # use coeus_dtype::float::Float32;
+    /// # use coeus_storage::DenseStorage;
+    /// # use coeus_tensor::Tensor;
+    /// # let class_examples = vec![
+    /// #     (0..10).map(|_| Tensor::from_vec(vec![1.0, 2.0], &[2]).unwrap()).collect::<Vec<_>>(),
+    /// #     (0..10).map(|_| Tensor::from_vec(vec![3.0, 4.0], &[2]).unwrap()).collect::<Vec<_>>(),
+    /// # ];
+    /// # let generator = FewShotEpisodeGenerator::new(class_examples, 2, 3, 5);
+    ///
+    /// let episode = generator.generate_episode().unwrap();
+    /// assert_eq!(episode.support_set.len(), 6);  // 2 classes × 3 shots
+    /// assert_eq!(episode.query_set.len(), 10);   // 2 classes × 5 queries
+    /// ```
     pub fn generate_episode(&self) -> Result<Episode<B, S, T>>
     where
-        B: Backend + Default,
+        B: Backend<Data = T> + Default,
         S: Storage<T> + StorageFromVec<T>,
         T: DataType,
     {
@@ -433,7 +670,7 @@ pub fn train_prototypical_network<M, B, S, T>(
 ) -> Result<Vec<f64>>
 where
     M: Clone + Module<B, S, T>,
-    B: Backend + Default,
+    B: Backend<Data = T> + Default,
     S: Storage<T> + StorageFromVec<T>,
     T: DataType
         + FloatExt
@@ -464,6 +701,123 @@ where
     }
 
     Ok(losses)
+}
+
+#[cfg(test)]
+mod concurrency_tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::thread;
+    use crate::linear::Linear;
+    use coeus_backend::CpuBackend;
+    use coeus_dtype::float::Float32;
+    use coeus_storage::DenseStorage;
+    use coeus_tensor::Tensor;
+
+    #[test]
+    fn test_prototypical_network_thread_safety() {
+        // Create encoder network
+        let encoder = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
+        let proto_net = Arc::new(PrototypicalNetwork::new(encoder));
+
+        // Create support set (10 features to match encoder input)
+        let support_set = vec![
+            (Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                vec![Float32::new(1.0); 10],
+                &[1, 10],
+            ).unwrap(), 0),
+            (Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                vec![Float32::new(1.1); 10],
+                &[1, 10],
+            ).unwrap(), 0),
+            (Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                vec![Float32::new(3.0); 10],
+                &[1, 10],
+            ).unwrap(), 1),
+        ];
+
+        // Test concurrent prototype computation
+        let mut handles = vec![];
+
+        for _ in 0..4 {
+            let proto_net_clone = Arc::clone(&proto_net);
+            let support_set_clone = support_set.clone();
+
+            let handle = thread::spawn(move || {
+                let prototypes = proto_net_clone.compute_prototypes(&support_set_clone, 2).unwrap();
+                assert_eq!(prototypes.len(), 2);
+            });
+
+            handles.push(handle);
+        }
+
+        // Wait for all threads to complete
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn test_episode_generator_thread_safety() {
+        // Create class examples (using 10 features to match encoder)
+        let class_examples = vec![
+            vec![
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(1.0); 10],
+                    &[10],
+                ).unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(1.1); 10],
+                    &[10],
+                ).unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(0.9); 10],
+                    &[10],
+                ).unwrap(),
+            ],
+            vec![
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(3.0); 10],
+                    &[10],
+                ).unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(3.1); 10],
+                    &[10],
+                ).unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(2.9); 10],
+                    &[10],
+                ).unwrap(),
+            ],
+        ];
+
+        let generator = Arc::new(FewShotEpisodeGenerator::<
+            CpuBackend<Float32>,
+            DenseStorage<Float32>,
+            Float32,
+        >::new(class_examples, 2, 2, 1));
+
+        // Test concurrent episode generation
+        let mut handles = vec![];
+
+        for _ in 0..4 {
+            let generator_clone = Arc::clone(&generator);
+
+            let handle = thread::spawn(move || {
+                let episode = generator_clone.generate_episode().unwrap();
+                assert_eq!(episode.num_classes, 2);
+                assert_eq!(episode.support_set.len(), 4); // 2 classes × 2 shots
+                assert_eq!(episode.query_set.len(), 2);   // 2 classes × 1 query
+            });
+
+            handles.push(handle);
+        }
+
+        // Wait for all threads to complete
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -598,6 +952,7 @@ mod tests {
 
     #[test]
     fn test_classification() {
+        use crate::Parameter;
         let mut encoder =
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(2, 3).unwrap();
         // Set encoder weights to identity-like for predictable mapping

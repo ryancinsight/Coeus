@@ -362,7 +362,7 @@ pub mod conversion {
     pub fn module_to_safetensors<M, B, S>(module: &M) -> Result<SafeTensors>
     where
         M: Module<B, S, Float32>,
-        B: Backend + Clone,
+        B: Backend<Float32> + Clone,
         S: Storage<Float32> + StorageFromVec<Float32> + Clone + 'static,
     {
         let mut safetensors_data = HashMap::new();
@@ -395,14 +395,9 @@ pub mod conversion {
     /// # Errors
     /// Returns `NNError::SerializationError` if conversion fails
     #[allow(clippy::type_complexity)]
-    pub fn safetensors_to_state_dict<T>(
+    pub fn safetensors_to_state_dict(
         safetensors: &SafeTensors,
-    ) -> Result<
-        std::collections::HashMap<String, Tensor<CpuBackend<T>, DenseStorage<Float32>, Float32>>,
-    >
-    where
-        T: DataType,
-    {
+    ) -> Result<std::collections::HashMap<String, Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>> {
         let mut state_dict = std::collections::HashMap::new();
         let safetensors_dict: StateDict<Float32> = safetensors.to_state_dict()?;
 
@@ -551,14 +546,13 @@ pub mod conversion {
         #[test]
         fn test_module_conversion() {
             // Create a simple linear layer
-            let layer =
-                Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
+            let layer = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
 
             // Convert to SafeTensors
             let safetensors = module_to_safetensors(&layer).unwrap();
 
             // Convert back to tensors
-            let recovered_state_dict = safetensors_to_state_dict::<Float32>(&safetensors).unwrap();
+            let recovered_state_dict = safetensors_to_state_dict(&safetensors).unwrap();
 
             // Get original parameters
             let original_params = layer.parameters();

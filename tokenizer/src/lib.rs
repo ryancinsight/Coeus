@@ -187,7 +187,7 @@ pub trait PyTorchTokenizer: Tokenizer + BatchTokenizer {
     ///
     /// # Arguments
     /// * `text` - Input text to tokenize
-    /// * `add_special_tokens` - Whether to add special tokens ([CLS], [SEP], etc.)
+    /// * `add_special_tokens` - Whether to add special tokens (\[CLS\], \[SEP\], etc.)
     ///
     /// # Returns
     /// Token IDs as vector

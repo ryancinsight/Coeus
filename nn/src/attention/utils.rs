@@ -31,7 +31,7 @@ use crate::error::Result;
 /// // Dense storage gets dense attention implementation
 /// impl<B, T> AttentionDispatch<B, DenseStorage<T>, T> for MultiHeadAttention<B, DenseStorage<T>, T>
 /// where
-///     B: Backend + Clone + Default,
+///     B: Backend<Data = T> + Clone + Default,
 ///     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 /// {
 ///     type AttentionImpl = DenseAttention<B, T>;
@@ -39,7 +39,7 @@ use crate::error::Result;
 /// ```
 pub trait AttentionDispatch<B, S, T>
 where
-    B: Backend,
+    B: Backend<Data = T>,
     S: Storage<T>,
     T: DataType,
 {
@@ -68,7 +68,7 @@ impl<T: DataType> DenseStorageMarker for DenseStorage<T> {}
 #[derive(Debug, Clone)]
 pub struct DenseAttention<B, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     _phantom: PhantomData<(B, T)>,
@@ -76,7 +76,7 @@ where
 
 impl<B, T> Default for DenseAttention<B, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     fn default() -> Self {
@@ -86,7 +86,7 @@ where
 
 impl<B, T> DenseAttention<B, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     /// Create a new dense attention implementation
@@ -102,7 +102,7 @@ where
 #[derive(Debug, Clone)]
 pub struct SparseAttentionImpl<B, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     _phantom: PhantomData<(B, T)>,
@@ -110,7 +110,7 @@ where
 
 impl<B, T> Default for SparseAttentionImpl<B, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     fn default() -> Self {
@@ -120,7 +120,7 @@ where
 
 impl<B, T> SparseAttentionImpl<B, T>
 where
-    B: Backend + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     /// Create a new sparse attention implementation
