@@ -4,10 +4,10 @@ use crate::error::{NNError, Result};
 
 use crate::quantization::core::{CalibrationConfig, CalibrationMethod, CalibrationStats};
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::Storage;
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::DataType;
+use storage::Storage;
+use tensor::Tensor;
 
 use serde::{Deserialize, Serialize};
 

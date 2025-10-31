@@ -9,7 +9,7 @@ use crate::{
     error::TensorError, grad_rwlock, AsAny, Backend, CpuBackend, DataType, DenseStorage, Function, Result,
     Shape, Storage, StorageToDense, Tensor,
 };
-use coeus_storage::StorageFromVec;
+use storage::StorageFromVec;
 
 impl<B, S, T> Tensor<B, S, T>
 where
@@ -22,10 +22,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let storage = DenseStorage::from_slice(&[Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
     /// let backend = CpuBackend::new();
@@ -53,8 +53,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// use coeus_tensor::{Tensor, CpuBackend, DenseStorage};
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::{Tensor, CpuBackend, DenseStorage};
+    /// use dtype::float::Float32;
     ///
     /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 3]).unwrap();
     /// assert!(!tensor.requires_grad()); // Default is false
@@ -74,8 +74,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// use coeus_tensor::{Tensor, CpuBackend, DenseStorage};
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::{Tensor, CpuBackend, DenseStorage};
+    /// use dtype::float::Float32;
     ///
     /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 3]).unwrap();
     /// let grad_tensor = tensor.requires_grad_(true);
@@ -94,8 +94,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// use coeus_tensor::{Tensor, CpuBackend, DenseStorage};
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::{Tensor, CpuBackend, DenseStorage};
+    /// use dtype::float::Float32;
     ///
     /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 3]).unwrap()
     ///     .requires_grad_(true);
@@ -123,8 +123,8 @@ where
     ///
     /// # Examples
     /// ```ignore
-    /// use coeus_tensor::{Tensor, CpuBackend, DenseStorage};
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::{Tensor, CpuBackend, DenseStorage};
+    /// use dtype::float::Float32;
     ///
     /// let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2]).unwrap()
     ///     .requires_grad_(true);
@@ -229,8 +229,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// use coeus_tensor::{Tensor, CpuBackend, DenseStorage};
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::{Tensor, CpuBackend, DenseStorage};
+    /// use dtype::float::Float32;
     ///
     /// let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2]).unwrap()
     ///     .requires_grad_(true);
@@ -262,8 +262,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// use coeus_tensor::{Tensor, CpuBackend, DenseStorage};
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::{Tensor, CpuBackend, DenseStorage};
+    /// use dtype::float::Float32;
     ///
     /// let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(2.0)], &[1]
@@ -434,8 +434,8 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::{Tensor, CpuBackend, DenseStorage, Function};
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::{Tensor, CpuBackend, DenseStorage, Function};
+    /// use dtype::float::Float32;
     ///
     /// let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2]).unwrap();
     /// assert!(x.grad_fn().is_none()); // Leaf tensor
@@ -513,10 +513,10 @@ where
     ///
     /// # Examples
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
@@ -573,7 +573,7 @@ where
     where
         S: StorageToDense<T>,
         B: Clone,
-        T: Clone,
+        T: Clone + std::cmp::PartialOrd,
     {
         // Convert storage to dense if needed
         let dense_tensor = self.to_dense_generic()?;
@@ -596,14 +596,14 @@ where
     where
         S: StorageToDense<T>,
         B: Clone,
-        T: Clone,
+        T: Clone + std::cmp::PartialOrd,
     {
         self.to_cpu_dense()
     }
 
     /// Returns the dtype of this tensor.
     #[must_use]
-    pub fn dtype() -> coeus_dtype::Dtype {
+    pub fn dtype() -> dtype::Dtype {
         T::dtype()
     }
 
@@ -626,10 +626,10 @@ where
     ///
     /// # Examples
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::{DenseStorage, CsrStorage};
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::{DenseStorage, CsrStorage};
+    /// use dtype::float::Float32;
     ///
     /// let dense_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10]).unwrap();
     /// let storage_ref = dense_tensor.storage_ref();
@@ -830,7 +830,7 @@ where
         // In the future, this will use optimized backend transfer methods
         let data = dense_tensor.as_slice().to_vec();
         let dims = dense_tensor.shape().dims();
-        let storage = coeus_storage::DenseStorage::from_vec(data, dims)
+        let storage = storage::DenseStorage::from_vec(data, dims)
             .map_err(crate::TensorError::StorageError)?;
         Ok(Tensor::from_storage(storage, target_backend))
     }
@@ -845,8 +845,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// use coeus_tensor::{Tensor, CpuBackend, DenseStorage};
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::{Tensor, CpuBackend, DenseStorage};
+    /// use dtype::float::Float32;
     ///
     /// let original = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 3]).unwrap();
     ///

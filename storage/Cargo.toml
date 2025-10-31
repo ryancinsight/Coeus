@@ -1,5 +1,5 @@
 [package]
-name = "coeus-storage"
+name = "storage"
 description = "Memory storage abstractions for Coeus tensors"
 readme = "README.md"
 keywords = ["machine-learning", "deep-learning", "tensor", "storage"]
@@ -19,7 +19,7 @@ default = ["std"]
 std = []
 
 [dependencies]
-coeus-dtype = { path = "../dtype" }
+dtype = { path = "../dtype" }
 num-traits.workspace = true
 thiserror.workspace = true
 

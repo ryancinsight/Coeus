@@ -30,8 +30,8 @@ pub enum SparseFormat {
 ///
 /// # Examples
 /// ```
-/// use coeus_storage::CsrStorage;
-/// use coeus_dtype::float::Float32;
+/// use storage::CsrStorage;
+/// use dtype::float::Float32;
 ///
 /// // 3x3 matrix: [[1, 0, 2], [0, 3, 0], [4, 0, 5]]
 /// // Non-zeros: (0,0)=1, (0,2)=2, (1,1)=3, (2,0)=4, (2,2)=5
@@ -1075,7 +1075,7 @@ impl<T: DataType> crate::TransposeStorage<T> for CooStorage<T> {
 mod tests {
     use super::*;
     use alloc::vec;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_csr_storage_creation() {

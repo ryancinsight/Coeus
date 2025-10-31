@@ -4,7 +4,7 @@ use crate::error::{JitError, Result};
 use crate::fusion::FusedKernel;
 use crate::hardware::get_hardware_capabilities;
 use crate::simd::{SimdKernelGenerator, PrefetchOptimizer};
-use coeus_backend::MemoryAccessPattern;
+use backend::MemoryAccessPattern;
 use std::collections::HashMap;
 
 // Cranelift JIT compilation

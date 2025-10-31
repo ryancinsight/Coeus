@@ -4,15 +4,15 @@
 
 use std::{format, string::ToString, vec, vec::Vec};
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec, StorageToDense};
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec, StorageToDense};
 
 /// Shape manipulation operations for tensors with dense storage.
 ///
 /// This trait provides methods for reshaping and transposing tensors.
 ///
-impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
+impl<B, T> crate::Tensor<B, storage::DenseStorage<T>, T>
 where
     B: Backend<Data = T> + Clone,
     T: DataType,
@@ -29,10 +29,10 @@ where
     ///
     /// # Examples
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)];
     /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
@@ -59,7 +59,7 @@ where
         // If transposing the same dimension, return a copy (identity operation)
         if dim0 == dim1 {
             let data = self.as_slice().to_vec();
-            let new_storage = coeus_storage::DenseStorage::from_vec(data, self.shape().dims())
+            let new_storage = storage::DenseStorage::from_vec(data, self.shape().dims())
                 .map_err(crate::TensorError::StorageError)?;
             return Ok(Self::from_storage(new_storage, B::default()));
         }
@@ -79,7 +79,7 @@ where
             }
 
             let new_dims = vec![cols, rows];
-            let new_storage = coeus_storage::DenseStorage::from_vec(transposed_data, &new_dims)
+            let new_storage = storage::DenseStorage::from_vec(transposed_data, &new_dims)
                 .map_err(crate::TensorError::StorageError)?;
 
             Ok(Self::from_storage(new_storage, B::default()))
@@ -128,7 +128,7 @@ where
                 }
             }
 
-            let new_storage = coeus_storage::DenseStorage::from_vec(transposed_data, &new_dims)
+            let new_storage = storage::DenseStorage::from_vec(transposed_data, &new_dims)
                 .map_err(crate::TensorError::StorageError)?;
 
             Ok(Self::from_storage(new_storage, B::default()))

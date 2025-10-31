@@ -11,10 +11,10 @@ use crate::module::ModuleSerialize;
 #[cfg(feature = "safetensors")]
 use crate::module::StateDict;
 use crate::parameter::Parameter;
-use coeus_backend::{Backend, Storage};
-use coeus_dtype::DataType;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::{Backend, Storage};
+use dtype::DataType;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 /// Sparse linear layer with efficient sparse computation
 ///
@@ -60,7 +60,7 @@ where
         + core::ops::Add<Output = T>
         + core::ops::Mul<Output = T>
         + Copy
-        + coeus_tensor::FloatExt,
+        + tensor::FloatExt,
 {
     /// Create a new sparse linear layer
     ///
@@ -151,7 +151,7 @@ where
     /// Convert to dense linear layer for compatibility
     pub fn to_dense(&self) -> Result<Linear<B, DenseStorage<T>, T>>
     where
-        T: coeus_tensor::FloatExt,
+        T: tensor::FloatExt,
     {
         // Weight is already dense
         let dense_bias = self
@@ -179,7 +179,7 @@ where
         + core::ops::Add<Output = T>
         + core::ops::Mul<Output = T>
         + Copy
-        + coeus_tensor::FloatExt,
+        + tensor::FloatExt,
 {
     fn forward(
         &self,
@@ -191,7 +191,7 @@ where
 
         // Extract CSR data from precomputed cache
         let csr_data = self.csr_data.as_ref().ok_or(NNError::StorageError {
-            source: coeus_storage::StorageError::ShapeMismatch {
+            source: storage::StorageError::ShapeMismatch {
                 expected: 0,
                 actual: 0,
             },
@@ -295,7 +295,7 @@ where
         + Copy
         + serde::Serialize
         + serde::de::DeserializeOwned
-        + coeus_tensor::FloatExt,
+        + tensor::FloatExt,
 {
     fn state_dict(&self) -> StateDict<T> {
         let mut state = StateDict::new();
@@ -340,8 +340,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
 
     #[test]
     fn test_sparse_linear_creation() {

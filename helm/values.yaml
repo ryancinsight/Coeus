@@ -1,0 +1,287 @@
+# Default values for Coeus Helm chart
+# This file contains all configurable values for the Coeus deployment
+
+# Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+  labels: {}
+
+# Image configuration
+image:
+  repository: coeus/semantic-api
+  tag: "v0.2.0"
+  pullPolicy: IfNotPresent
+
+# GPU image configuration (for GPU workloads)
+gpuImage:
+  repository: coeus/semantic-api-gpu
+  tag: "v0.2.0"
+  pullPolicy: IfNotPresent
+
+# Application configuration
+config:
+  server:
+    host: "0.0.0.0"
+    port: 8080
+    workers: 4
+    timeout: 30
+    corsOrigins: ["https://app.coeus.ai"]
+
+  models:
+    clipModel: "CLIP-ViT-B/32"
+    cacheDir: "/app/models"
+    preload: true
+    gpuAcceleration: false
+
+  logging:
+    level: "INFO"
+    format: "json"
+    enableTracing: true
+
+  security:
+    rateLimit: 100
+    authRequired: true
+    tlsEnabled: true
+
+  monitoring:
+    metricsEnabled: true
+    healthCheckInterval: 30
+    profilingEnabled: false
+
+# Deployment configuration
+deployment:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 8Gi
+
+  # GPU resource requests (uncomment for GPU workloads)
+  # gpuResources:
+  #   requests:
+  #     nvidia.com/gpu: 1
+  #   limits:
+  #     nvidia.com/gpu: 1
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - coeus-semantic-api
+          topologyKey: kubernetes.io/hostname
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "10"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+  hosts:
+    - host: api.coeus.ai
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: coeus-api-tls
+      hosts:
+        - api.coeus.ai
+
+# Horizontal Pod Autoscaler configuration
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  customMetrics:
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "100"
+
+# Storage configuration
+storage:
+  modelCache:
+    enabled: true
+    size: 50Gi
+    storageClass: fast-ssd
+    accessMode: ReadWriteOnce
+
+  dataStorage:
+    enabled: true
+    size: 100Gi
+    storageClass: standard
+    accessMode: ReadWriteMany
+
+  logs:
+    enabled: true
+    size: 10Gi
+    storageClass: standard
+
+# Database configuration (for future extensions)
+postgresql:
+  enabled: false
+  auth:
+    postgresPassword: "changeMe123"
+  architecture: standalone
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+
+# Cache configuration (for future extensions)
+redis:
+  enabled: false
+  architecture: standalone
+  auth:
+    password: "changeMe123"
+  master:
+    persistence:
+      enabled: true
+      size: 10Gi
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    namespace: monitoring
+  grafana:
+    enabled: true
+    namespace: monitoring
+    adminPassword: "changeMe123"
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+
+# Alerting configuration
+alerting:
+  enabled: true
+  rules:
+    - alert: CoeusHighCPUUsage
+      expr: rate(container_cpu_usage_seconds_total{pod=~"coeus-semantic-api-.*"}[5m]) > 0.8
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage detected"
+        description: "CPU usage is above 80% for more than 5 minutes"
+
+    - alert: CoeusHighMemoryUsage
+      expr: container_memory_usage_bytes{pod=~"coeus-semantic-api-.*"} / container_spec_memory_limit_bytes > 0.9
+      for: 3m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage detected"
+        description: "Memory usage is above 90% for more than 3 minutes"
+
+    - alert: CoeusPodCrashLooping
+      expr: increase(kube_pod_container_status_restarts_total{pod=~"coeus-semantic-api-.*"}[10m]) > 3
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pod crash looping detected"
+        description: "Pod has restarted more than 3 times in the last 10 minutes"
+
+# Network policies for security
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443  # HTTPS for model downloads
+        - protocol: TCP
+          port: 80   # HTTP for some APIs
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Backup configuration (for future implementation)
+backup:
+  enabled: false
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 7
+
+# Development overrides
+development:
+  enabled: false
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  logging:
+    level: "DEBUG"
+
+
+
+
+

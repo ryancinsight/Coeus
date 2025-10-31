@@ -6,10 +6,10 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
+use tensor::Tensor;
 
 use crate::Parameter;
 
@@ -21,7 +21,7 @@ pub trait Optimizer<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + coeus_dtype::traits::FloatExt,
+    T: DataType + dtype::traits::FloatExt,
 {
     /// Get the name of this optimizer
     fn name(&self) -> &str;

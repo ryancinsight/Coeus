@@ -4,10 +4,10 @@
 //! projection heads, and inference methods.
 
 use std::fmt;
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 use crate::module::Module;
@@ -16,6 +16,7 @@ use crate::attention::MultiHeadAttention;
 use crate::linear::Linear;
 use crate::layernorm::LayerNorm;
 use crate::activation::GELU;
+use crate::conv2d::Conv2D; // For patch extraction in vision transformer
 
 use super::config::{ClipConfig, VisionConfig, TextConfig};
 use super::loss::InfoNCELoss;
@@ -101,20 +102,13 @@ where
             &[batch_size, self.config.image_size, self.config.image_size, self.config.num_channels],
         )?;
 
-        // Forward through ViT (this is a placeholder - would need to adapt the actual ViT forward)
-        // For now, assume ViT returns [batch_size, hidden_size]
-        let hidden_states = self.vision_model_forward_placeholder(&image_tensor)?;
+        // Forward through ViT
+        let hidden_states = self.vision_model.forward(&image_tensor)?;
 
-        // Apply projection head
-        let projected = hidden_states.matmul(&self.projection_head.data().to_dense_generic()?.transpose(0, 1)?)?;
+        // Apply projection head: [batch_size, embed_dim] -> [batch_size, clip_embed_dim]
+        let projected = self.projection_head.forward(&hidden_states)?;
 
         Ok(projected)
-    }
-
-    fn vision_model_forward_placeholder(&self, _input: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>> {
-        // Placeholder - would integrate with actual ViT forward pass
-        // For now, return expected shape: [batch_size, hidden_size]
-        Ok(Tensor::<B, DenseStorage<T>, T>::zeros(&[1, self.config.hidden_size])?)
     }
 
     fn create_projection_matrix(in_features: usize, out_features: usize) -> Tensor<B, S, T> {
@@ -175,66 +169,43 @@ where
         })
     }
 
-    /// Forward pass through Vision Transformer
+    /// Forward pass through Vision Transformer (simplified for implementation)
     pub fn forward(&self, pixel_values: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // pixel_values: [batch_size, height, width, channels]
         let batch_size = pixel_values.shape().dims()[0];
-        let height = pixel_values.shape().dims()[1];
-        let width = pixel_values.shape().dims()[2];
-        let channels = pixel_values.shape().dims()[3];
-
-        let patch_size = self.config.patch_size;
-        let num_patches_h = height / patch_size;
-        let num_patches_w = width / patch_size;
-        let num_patches = num_patches_h * num_patches_w;
         let embed_dim = self.config.hidden_size;
+        let num_patches = (self.config.image_size / self.config.patch_size).pow(2);
 
-        // Extract patches and flatten: [batch_size, num_patches, patch_size*patch_size*channels]
-        let mut patches = Vec::with_capacity(num_patches);
-        for i in 0..num_patches_h {
-            for j in 0..num_patches_w {
-                // Extract patch [batch_size, patch_size, patch_size, channels]
-                // This is a simplified implementation - real ViT would use conv2d with stride=patch_size
-                let patch_start_h = i * patch_size;
-                let patch_start_w = j * patch_size;
+        // Simplified ViT implementation for GPU acceleration
+        // For now, we use the patch embedding linear layer directly
+        // This is a temporary simplification until proper 2D convolution is implemented
 
-                // For now, create a placeholder tensor of the right size
-                // TODO: Implement proper patch extraction
-                let patch_data = vec![T::zero(); batch_size * patch_size * patch_size * channels];
-                let patch_shape = vec![batch_size, patch_size, patch_size, channels];
-                let patch = Tensor::from_vec(patch_data, &patch_shape)?;
-                patches.push(patch);
-            }
-        }
+        // Flatten image patches: [batch_size, H, W, C] -> [batch_size * num_patches, patch_size * patch_size * channels]
+        let patch_data = pixel_values.as_slice().to_vec();
+        let patch_sequence = Tensor::<B, S, T>::from_vec(patch_data, &[batch_size * num_patches, self.config.patch_size * self.config.patch_size * self.config.num_channels])?;
 
-        // Concatenate patches along sequence dimension
-        // patches: [num_patches, batch_size, patch_size*patch_size*channels]
-        // After concatenation: [batch_size, num_patches, patch_size*patch_size*channels]
-        let mut patch_sequence = Vec::with_capacity(batch_size * num_patches * patch_size * patch_size * channels);
-        for patch_idx in 0..num_patches {
-            for batch_idx in 0..batch_size {
-                // This is a placeholder - need proper tensor operations
-                for _ in 0..(patch_size * patch_size * channels) {
-                    patch_sequence.push(T::zero());
-                }
-            }
-        }
+        // Apply patch embedding: [batch_size * num_patches, embed_dim]
+        let patch_embeddings = self.patch_embed.forward(&patch_sequence)?;
 
-        let patch_seq_shape = vec![batch_size, num_patches, patch_size * patch_size * channels];
-        let mut patch_embeddings = Tensor::from_vec(patch_sequence, &patch_seq_shape)?;
+        // Reshape back to [batch_size, num_patches, embed_dim]
+        let patch_embeddings_data = patch_embeddings.as_slice().to_vec();
+        let patch_embeddings_reshaped = Tensor::<B, S, T>::from_vec(patch_embeddings_data, &[batch_size, num_patches, embed_dim])?;
 
-        // Apply patch embedding: [batch_size, num_patches, embed_dim]
-        patch_embeddings = self.patch_embed.forward(&patch_embeddings)?;
+        // Create class token and expand to batch
+        let cls_token_data = vec![T::from(1.0).unwrap(); embed_dim]; // Initialize to non-zero for learning
+        let cls_token = Tensor::<B, S, T>::from_vec(cls_token_data, &[1, embed_dim])?;
+        let cls_tokens = cls_token.broadcast_to(&[batch_size, 1, embed_dim])?;
 
-        // Add class token (learnable [CLS] token)
-        let cls_token = Parameter::new(&[1, embed_dim], &mut rand::thread_rng())?;
-        // TODO: Prepend cls_token to patch_embeddings
+        // Concatenate class token + patch embeddings: [batch_size, num_patches + 1, embed_dim]
+        let sequence_embeddings = &[&cls_tokens, &patch_embeddings_reshaped];
+        let mut hidden_states = crate::tensor::ops::tensor_ops::concatenate_tensors(sequence_embeddings, 1)?;
 
-        // Add position embeddings
-        // TODO: Add position embeddings to patch_embeddings
+        // Add position embeddings (simplified - just add positional offset)
+        let position_embeddings = self.position_embed.data();
+        let position_embeddings_broadcasted = position_embeddings.broadcast_to(&[batch_size, num_patches + 1, embed_dim])?;
+        hidden_states = &hidden_states + &position_embeddings_broadcasted;
 
         // Apply transformer layers
-        let mut hidden_states = patch_embeddings;
         for layer in &self.layers {
             hidden_states = layer.forward(&hidden_states)?;
         }
@@ -242,10 +213,21 @@ where
         // Apply final layer norm
         hidden_states = self.norm.forward(&hidden_states)?;
 
-        // Extract [CLS] token (first token)
-        // TODO: Extract cls_token from hidden_states
+        // Extract class token: [batch_size, num_patches + 1, embed_dim] -> [batch_size, embed_dim]
+        let hidden_shape = hidden_states.shape().dims();
+        let hidden_data = hidden_states.as_slice();
 
-        Ok(hidden_states)
+        // Extract cls token manually: first embed_dim elements per batch
+        let mut cls_output = Vec::new();
+        let seq_length = hidden_shape[1];
+        for b in 0..batch_size {
+            for e in 0..embed_dim {
+                let idx = b * seq_length * embed_dim + e;
+                cls_output.push(hidden_data[idx]);
+            }
+        }
+
+        Tensor::<B, S, T>::from_vec(cls_output, &[batch_size, embed_dim])
     }
 }
 
@@ -722,9 +704,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     type TestBackend = CpuBackend<Float32>;
     type TestStorage = DenseStorage<Float32>;

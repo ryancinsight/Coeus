@@ -10,9 +10,9 @@
 //! - Zero-cost abstractions maintaining compile-time type safety
 //! - Runtime storage type detection via Tensor::storage_ref()
 
-use coeus_dtype::float::Float32;
-use coeus_nn::loss::mse_loss;
-use coeus_nn::{
+use dtype::float::Float32;
+use nn::loss::mse_loss;
+use nn::{
     activation::{
         Hardsigmoid, Hardswish, LeakyReLU, LogSoftmax, ReLU, Sigmoid, Softmax, Swish, Tanh, ELU,
         GELU,
@@ -20,15 +20,15 @@ use coeus_nn::{
     attention::{MultiHeadAttention, SparseAttention},
     Linear, Module, Sequential,
 };
-use coeus_storage::{CsrStorage, DenseStorage};
-use coeus_tensor::CpuBackend;
+use storage::{CsrStorage, DenseStorage};
+use tensor::CpuBackend;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing dense storage pathways across all B<S<T>> components...");
 
     // Create test input tensor
     let test_input =
-        coeus_tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 Float32::new(1.0),
                 Float32::new(-0.5),
@@ -57,12 +57,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test loss functions with dense storage
     println!("Testing MSE loss with dense storage...");
     let predictions =
-        coeus_tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
         )?;
     let targets =
-        coeus_tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.5), Float32::new(2.5)],
             &[2],
         )?;
@@ -145,7 +145,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create attention input: [batch_size=2, seq_len=4, embed_dim=8] = 64 elements
     let attention_input =
-        coeus_tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
                 // Batch 0, sequence elements
                 Float32::new(1.0),
@@ -229,7 +229,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         SparseAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             8,
             2,
-            coeus_nn::attention::SparseAttentionPattern::FixedSparsity { keep_ratio: 0.5 },
+            nn::attention::SparseAttentionPattern::FixedSparsity { keep_ratio: 0.5 },
         )?;
     let sparse_output = sparse_attention.forward(&attention_input)?;
     assert_eq!(sparse_output.shape().dims(), &[2, 4, 8]);
@@ -287,7 +287,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     > = SparseAttention::new(
         8,
         2,
-        coeus_nn::attention::SparseAttentionPattern::FixedSparsity { keep_ratio: 0.5 },
+        nn::attention::SparseAttentionPattern::FixedSparsity { keep_ratio: 0.5 },
     )
     .unwrap();
     println!("✓ Sparse storage types compile successfully");
@@ -311,3 +311,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("All comprehensive B<S<T>> tests passed! 🚀");
     Ok(())
 }
+

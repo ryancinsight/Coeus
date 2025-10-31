@@ -8,8 +8,8 @@ use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
 use crate::{Backend, Tensor};
-use coeus_dtype::DataType;
-use coeus_storage::Storage;
+use dtype::DataType;
+use storage::Storage;
 
 /// Generic Associated Type for tensor views with lifetime polymorphism.
 ///
@@ -20,7 +20,7 @@ use coeus_storage::Storage;
 /// # Examples
 ///
 /// ```rust
-/// use coeus_tensor::zero_copy::{TensorView, ViewGAT};
+/// use tensor::zero_copy::{TensorView, ViewGAT};
 ///
 /// // Create a view that borrows from the tensor
 /// let tensor = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3]).unwrap();

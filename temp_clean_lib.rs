@@ -12,8 +12,8 @@
 //!
 //! ### UnifiedTensor (Single Tensor Type)
 //! ```rust
-//! use coeus_tensor::{Tensor, CpuBackend};
-//! use coeus_dtype::FloatDtype;
+//! use tensor::{Tensor, CpuBackend};
+//! use dtype::FloatDtype;
 //!
 //! // Create CPU tensor with explicit backend and dtype
 //! let backend = CpuBackend::new();
@@ -74,9 +74,9 @@ pub use tensor_core::Tensor;
 pub use tensor_core::Device;
 
 // Re-export storage and dtype traits
-pub use coeus_dtype::traits::FloatExt;
-pub use coeus_dtype::DataType;
-pub use coeus_storage::{DenseStorage, Shape, Storage, StorageFromVec, StorageToDense};
+pub use dtype::traits::FloatExt;
+pub use dtype::DataType;
+pub use storage::{DenseStorage, Shape, Storage, StorageFromVec, StorageToDense};
 
 // Error handling
 pub use error::TensorError;

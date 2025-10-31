@@ -5,10 +5,10 @@
 
 use std::marker::PhantomData;
 
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::{Backend, CpuBackend};
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec};
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 use crate::module::Module;
@@ -37,11 +37,11 @@ use crate::parameter::Parameter;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{GroupNorm, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{GroupNorm, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // 32 channels, 8 groups (4 channels per group)
 /// let groupnorm = GroupNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(8, 32, 1e-5, true).unwrap();
@@ -98,10 +98,10 @@ where
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_nn::GroupNorm;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use nn::GroupNorm;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let groupnorm = GroupNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(8, 32, 1e-5, true).unwrap();
     /// ```
@@ -294,11 +294,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{InstanceNorm, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{InstanceNorm, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let instancenorm = InstanceNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(64, 1e-5, true).unwrap();
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
@@ -335,10 +335,10 @@ where
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_nn::InstanceNorm;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use nn::InstanceNorm;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let instancenorm = InstanceNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(64, 1e-5, true).unwrap();
     /// ```
@@ -407,7 +407,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_groupnorm_creation() {

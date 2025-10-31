@@ -19,15 +19,15 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { version = ">=0.24.1", features = ["extension-module", "abi3-py312"] }
 numpy = ">=0.26"
-coeus-tensor = { path = "../tensor" }
-coeus-dtype = { path = "../dtype" }
-coeus-backend = { path = "../backend" }
-coeus-storage = { path = "../storage" }
-coeus-autograd = { path = "../autograd" }
-coeus-nn = { path = "../nn", features = ["autograd", "dropout"] }
-coeus-optim = { path = "../optim" }
-coeus-utils = { path = "../utils" }  # ENABLED - PyO3 advanced features depend on this
-coeus-tokenizer = { path = "../tokenizer", features = ["all-tokenizers"] }
+tensor = { path = "../tensor" }
+dtype = { path = "../dtype" }
+backend = { path = "../backend" }
+storage = { path = "../storage" }
+autograd = { path = "../autograd" }
+nn = { path = "../nn", features = ["autograd", "dropout"] }
+optim = { path = "../optim" }
+utils = { path = "../utils" }  # ENABLED - PyO3 advanced features depend on this
+tokenizer = { path = "../tokenizer", features = ["all-tokenizers"] }
 num-traits = { workspace = true }
 thiserror = { workspace = true }
 rand = "0.8"

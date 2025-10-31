@@ -14,9 +14,9 @@ use crate::{Backend, DataType, DenseStorage, Function, Result, Tensor};
 /// # Examples
 ///
 /// ```ignore
-/// use coeus_tensor::AutoGradTensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_dtype::float::Float32;
+/// use tensor::AutoGradTensor;
+/// use backend::CpuBackend;
+/// use dtype::float::Float32;
 ///
 /// // Create tensors with gradient tracking
 /// let x = Tensor::from_vec(vec![2.0.into()], &[1]).unwrap().requires_grad_(true);

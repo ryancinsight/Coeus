@@ -58,9 +58,9 @@ pub use tensor_core::Tensor;
 pub use tensor_core::Device;
 
 // Re-export storage and dtype traits
-pub use coeus_dtype::traits::FloatExt;
-pub use coeus_dtype::DataType;
-pub use coeus_storage::{DenseStorage, Shape, Storage, StorageFromVec, StorageToDense};
+pub use dtype::traits::FloatExt;
+pub use dtype::DataType;
+pub use storage::{DenseStorage, Shape, Storage, StorageFromVec, StorageToDense};
 
 // Error handling
 pub use error::TensorError;

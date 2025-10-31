@@ -4,10 +4,10 @@
 //! for padding, stride calculations, and shared convolution algorithms.
 
 use crate::error::{NNError, Result};
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{Storage, DenseStorage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::{Backend, CpuBackend};
+use dtype::{traits::FloatExt, DataType};
+use storage::{Storage, DenseStorage, StorageFromVec};
+use tensor::Tensor;
 
 /// Pad a 2D tensor with zeros according to padding parameters.
 ///
@@ -574,10 +574,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 

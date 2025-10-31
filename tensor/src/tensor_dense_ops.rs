@@ -62,8 +62,8 @@ mod tests {
     }
 }
 
-impl From<coeus_storage::StorageError> for TensorError {
-    fn from(err: coeus_storage::StorageError) -> Self {
+impl From<storage::StorageError> for TensorError {
+    fn from(err: storage::StorageError) -> Self {
         TensorError::StorageError(err.to_string())
     }
 }

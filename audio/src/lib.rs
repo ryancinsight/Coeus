@@ -12,7 +12,7 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use coeus_audio::{Fft, GpuFft};
+//! use audio::{Fft, GpuFft};
 //!
 //! // CPU FFT processing
 //! let mut fft = Fft::new(1024).unwrap();

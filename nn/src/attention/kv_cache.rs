@@ -5,10 +5,10 @@
 
 use std::marker::PhantomData;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 

@@ -2,7 +2,7 @@
 
 use pyo3::prelude::*;
 use pyo3::pyclass;
-use coeus_audio::Fft;
+use audio::Fft;
 
 /// FFT operation for audio processing
 #[pyclass(name = "FFT", module = "_coeus")]

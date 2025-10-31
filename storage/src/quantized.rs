@@ -14,8 +14,8 @@ use alloc::{vec, vec::Vec};
 /// # Examples
 ///
 /// ```
-/// use coeus_storage::{QuantizedStorage, Storage};
-/// use coeus_dtype::float::Float32;
+/// use storage::{QuantizedStorage, Storage};
+/// use dtype::float::Float32;
 ///
 /// // Create 4-bit quantized storage
 /// let storage = QuantizedStorage::<Float32, 4>::zeros(&[2, 3]).unwrap();
@@ -412,7 +412,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     type TestStorage4 = QuantizedStorage<Float32, 4>;
     type TestStorage8 = QuantizedStorage<Float32, 8>;

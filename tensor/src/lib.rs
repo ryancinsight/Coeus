@@ -18,8 +18,8 @@
 //!
 //! ### Simplified Tensor API
 //! ```rust
-//! use coeus_tensor::Tensor;
-//! use coeus_backend::CpuBackend;
+//! use tensor::Tensor;
+//! use backend::CpuBackend;
 //!
 //! // Create CPU tensor with simplified API - backend encapsulates storage and dtype
 //! let tensor = Tensor::<CpuBackend>::from_vec(
@@ -78,7 +78,7 @@ pub use tensor_core::{AsAny, DifferentiableFunction, Function, Tensor};
 // Re-export error types and utilities
 
 // Re-export storage utilities
-pub use coeus_storage::{Shape, StorageFromVec, StorageToDense};
+pub use storage::{Shape, StorageFromVec, StorageToDense};
 
 // Minimal API for testing - full API to be implemented later
 
@@ -87,13 +87,13 @@ pub use coeus_storage::{Shape, StorageFromVec, StorageToDense};
 // pub mod simd_ops;
 
 // Re-export dtype traits for convenience
-pub use coeus_backend::{Backend, BackendError, Device};
-pub use coeus_dtype::float::Float32;
-pub use coeus_dtype::{traits::FloatExt, DataType};
-pub use coeus_storage::{CooStorage, CscStorage, CsrStorage, DenseStorage, Storage};
+pub use backend::{Backend, BackendError, Device};
+pub use dtype::float::Float32;
+pub use dtype::{traits::FloatExt, DataType};
+pub use storage::{CooStorage, CscStorage, CsrStorage, DenseStorage, Storage};
 
 // Re-export CpuBackend with Float32 default for convenience
-pub use coeus_backend::CpuBackend;
+pub use backend::CpuBackend;
 
 // Result type for tensor operations
 pub type Result<T> = std::result::Result<T, TensorError>;
@@ -113,9 +113,9 @@ pub use error::TensorError;
 mod tests {
     use super::*;
     use crate::ops::arithmetic::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     // ===== TENSOR CREATION TESTS =====
 

@@ -249,8 +249,8 @@ impl MemoryTransfer {
 mod tests {
     use super::*;
     use crate::{CpuBackend, DenseStorage, Tensor};
-    use coeus_dtype::float::Float32;
-    use coeus_backend::{cpu::CpuDevice, DeviceInfo};
+    use dtype::float::Float32;
+    use backend::{cpu::CpuDevice, DeviceInfo};
 
     #[test]
     fn test_dispatcher_add() {

@@ -14,7 +14,7 @@
 //! ## Training Monitoring
 //!
 //! ```rust
-//! use coeus_profiling::{TrainingMonitor, TrainingMetrics};
+//! use profiling::{TrainingMonitor, TrainingMetrics};
 //!
 //! let mut monitor = TrainingMonitor::new();
 //!
@@ -48,7 +48,7 @@
 //! ## Performance Profiling
 //!
 //! ```rust
-//! use coeus_profiling::{Timer, Profiler};
+//! use profiling::{Timer, Profiler};
 //!
 //! // Time a tensor operation
 //! let timer = Timer::start();
@@ -67,7 +67,7 @@
 //! ## Communication Monitoring
 //!
 //! ```rust
-//! use coeus_profiling::CommunicationProfiler;
+//! use profiling::CommunicationProfiler;
 //!
 //! let comm_profiler = CommunicationProfiler::new();
 //!
@@ -1126,12 +1126,12 @@ impl TrainingReport {
         let best_validation_loss = metrics
             .iter()
             .filter_map(|m| m.validation_loss)
-            .fold(None, |min, val| Some(min.map_or(val, |m| m.min(val))));
+            .fold(None, |min, val| Some(min.map_or(val, |m: f32| m.min(val))));
 
         let best_validation_accuracy = metrics
             .iter()
             .filter_map(|m| m.validation_accuracy)
-            .fold(None, |max, val| Some(max.map_or(val, |m| m.max(val))));
+            .fold(None, |max, val| Some(max.map_or(val, |m: f32| m.max(val))));
 
         // Calculate loss trend (recent vs early)
         let early_loss = losses.iter().take(100).sum::<f32>() / 100.0_f32.min(losses.len() as f32);
@@ -1216,7 +1216,7 @@ impl TrainingReport {
         let initial_lr = lrs[0];
         let final_lr = lrs[lrs.len() - 1];
         let min_lr = lrs.iter().fold(f32::INFINITY, |a, &b| a.min(b));
-        let max_lr = lrs.iter().fold(0.0, |a, &b| a.max(b));
+        let max_lr = lrs.iter().fold(0.0_f32, |a, &b| a.max(b));
         let decay_factor = if initial_lr > 0.0 { final_lr / initial_lr } else { 1.0 };
 
         LearningRateStats {
@@ -1287,8 +1287,8 @@ impl TrainingReport {
         let gpu_memories: Vec<f32> = metrics.iter().filter_map(|m| m.gpu_memory_mb).collect();
         let cpu_memories: Vec<f32> = metrics.iter().filter_map(|m| m.cpu_memory_mb).collect();
 
-        let peak_gpu_memory_mb = gpu_memories.iter().fold(0.0, |a, &b| a.max(b));
-        let peak_cpu_memory_mb = cpu_memories.iter().fold(0.0, |a, &b| a.max(b));
+        let peak_gpu_memory_mb = gpu_memories.iter().fold(0.0_f32, |a, &b| a.max(b));
+        let peak_cpu_memory_mb = cpu_memories.iter().fold(0.0_f32, |a, &b| a.max(b));
 
         let avg_gpu_memory_mb = if gpu_memories.is_empty() {
             0.0
@@ -1601,6 +1601,9 @@ impl CommunicationReport {
         summary
     }
 }
+
+// Re-export public types from modules
+pub use training_monitor::TrainingMetrics;
 
 mod training_monitor;
 mod communication_profiler;

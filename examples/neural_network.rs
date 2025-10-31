@@ -3,11 +3,11 @@
 //! This example demonstrates building and training a neural network
 //! with Coeus, showing the complete ML workflow from data to training.
 
-use coeus_dtype::float::Float32;
-use coeus_nn::{Linear, Module, Sequential};
-use coeus_storage::DenseStorage;
-use coeus_tensor::CpuBackend;
-use coeus_tensor::Tensor;
+use dtype::float::Float32;
+use nn::{Linear, Module, Sequential};
+use storage::DenseStorage;
+use tensor::CpuBackend;
+use tensor::Tensor;
 use std::io::{self, Write};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -81,3 +81,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     io::stdout().flush()?;
     Ok(())
 }
+

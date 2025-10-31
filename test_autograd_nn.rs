@@ -1,8 +1,8 @@
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::Linear;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::Linear;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing NN Layer Autograd Integration");
@@ -34,5 +34,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✅ NN Layer successfully creates computation graphs!");
     Ok(())
 }
+
+
+
+
+
+
 
 

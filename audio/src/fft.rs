@@ -15,7 +15,7 @@ use {
 };
 
 #[cfg(feature = "gpu")]
-use coeus_backend::gpu::GpuBackend;
+use backend::gpu::GpuBackend;
 
 /// CPU-based FFT processor for 1D forward and inverse transforms
 ///
@@ -46,7 +46,7 @@ impl Fft {
     ///
     /// # Examples
     /// ```
-    /// use coeus_audio::Fft;
+    /// use audio::Fft;
     ///
     /// let fft = Fft::new(1024).expect("Failed to create FFT processor");
     /// assert_eq!(fft.size(), 1024);

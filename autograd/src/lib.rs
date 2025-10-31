@@ -19,10 +19,10 @@
 //! ## Example
 //!
 //! ```rust
-//! use coeus_tensor::Tensor;
-//! use coeus_backend::CpuBackend;
-//! use coeus_storage::DenseStorage;
-//! use coeus_dtype::float::Float32;
+//! use tensor::Tensor;
+//! use backend::CpuBackend;
+//! use storage::DenseStorage;
+//! use dtype::float::Float32;
 //!
 //! // Create tensors with gradient tracking
 //! let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(vec![
@@ -54,8 +54,8 @@ pub mod tensor_ops;
 mod tests;
 
 // Re-export key types for ergonomics
-pub use coeus_storage::AsAny;
-pub use coeus_tensor::{DifferentiableFunction, Function};
+pub use storage::AsAny;
+pub use tensor::{DifferentiableFunction, Function};
 pub use custom::apply_custom_function;
 
 // Core traits for extensibility

@@ -6,9 +6,9 @@ use crate::quantization::core::{
     CalibrationConfig, MixedPrecisionConfig, QuantizationScheme, QuantizedWeights,
 };
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
 
 use serde::{Deserialize, Serialize};
 

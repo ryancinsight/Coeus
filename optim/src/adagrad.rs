@@ -9,10 +9,10 @@
 //! θ_t = θ_{t-1} - (α / √(G_t + ε)) * g_t
 //! ```
 
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
+use storage::{Storage, StorageFromVec};
+use tensor::Tensor;
 
 use crate::optimizer::BaseOptimizer;
 use crate::optimizer_core::{Optimizer, ParamState};
@@ -49,7 +49,7 @@ where
     /// # Arguments
     /// * `params` - Parameter tensors to optimize
     /// * `lr` - Learning rate (must be > 0)
-    pub fn new(params: Vec<coeus_tensor::Tensor<B, S, T>>, lr: f64) -> Self {
+    pub fn new(params: Vec<tensor::Tensor<B, S, T>>, lr: f64) -> Self {
         assert!(lr > 0.0, "Learning rate must be positive, got {}", lr);
         Self::with_hyperparams(params, lr, 0.0, 1e-10, 0.0, 0.0)
     }
@@ -64,7 +64,7 @@ where
     /// * `initial_accumulator_value` - Initial value for gradient accumulator (must be >= 0)
     /// * `eps` - Small constant for numerical stability (must be >= 0)
     pub fn with_hyperparams(
-        params: Vec<coeus_tensor::Tensor<B, S, T>>,
+        params: Vec<tensor::Tensor<B, S, T>>,
         lr: f64,
         lr_decay: f64,
         weight_decay: f64,
@@ -120,7 +120,7 @@ where
     }
 
     fn step_cpu(&mut self) -> Result<usize, crate::OptimError> {
-        use coeus_tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
+        use tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
 
         let lr = T::from(self.lr).unwrap();
         let eps = T::from(self.eps).unwrap();
@@ -199,7 +199,7 @@ where
         }
     }
 
-    fn add_param_group(&mut self, params: Vec<coeus_tensor::Tensor<B, S, T>>) {
+    fn add_param_group(&mut self, params: Vec<tensor::Tensor<B, S, T>>) {
         // Create parameter states for each tensor with Adagrad-specific state
         for tensor in params.clone().into_iter() {
             let mut param_state =
@@ -237,7 +237,7 @@ where
         }
     }
 
-    fn state_dict(&self) -> std::collections::HashMap<String, coeus_tensor::Tensor<B, S, T>> {
+    fn state_dict(&self) -> std::collections::HashMap<String, tensor::Tensor<B, S, T>> {
         let mut state = std::collections::HashMap::new();
 
         // Save parameters and their Adagrad state (gradient accumulator)
@@ -263,7 +263,7 @@ where
 
     fn load_state_dict(
         &mut self,
-        state_dict: std::collections::HashMap<String, coeus_tensor::Tensor<B, S, T>>,
+        state_dict: std::collections::HashMap<String, tensor::Tensor<B, S, T>>,
     ) -> Result<(), crate::OptimError> {
         for param_state in &mut self.param_states {
             // Load parameter

@@ -2,13 +2,13 @@
 
 use crate::error::{NNError, Result};
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{
+use backend::Backend;
+use dtype::DataType;
+use storage::{
     QuantizedStorage, QuantizedStorage16, QuantizedStorage4, QuantizedStorage8, Storage,
     StorageFromVec,
 };
-use coeus_tensor::Tensor;
+use tensor::Tensor;
 
 use serde::{Deserialize, Serialize};
 

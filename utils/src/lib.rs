@@ -16,12 +16,12 @@
 //! ## Example
 //!
 //! ```rust
-//! use coeus_utils::{Dataset, DataLoader, TensorDataset};
-//! use coeus_tensor::Tensor;
-//! use coeus_backend::CpuBackend;
-//! use coeus_storage::DenseStorage;
-//! use coeus_dtype::float::Float32;
-//! use coeus_dtype::int::Int32;
+//! use utils::{Dataset, DataLoader, TensorDataset};
+//! use tensor::Tensor;
+//! use backend::CpuBackend;
+//! use storage::DenseStorage;
+//! use dtype::float::Float32;
+//! use dtype::int::Int32;
 //!
 //! // Create a simple dataset from tensors
 //! let data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
@@ -51,10 +51,10 @@
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::{float::Float32, int::Int32};
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::{float::Float32, int::Int32};
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_dataloader_nn_integration() {

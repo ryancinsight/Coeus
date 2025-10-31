@@ -15,7 +15,7 @@
 //! # Examples
 //!
 //! ```
-//! use coeus_storage::broadcast::broadcast_shapes;
+//! use storage::broadcast::broadcast_shapes;
 //!
 //! // Compatible shapes
 //! assert_eq!(broadcast_shapes(&[3, 1], &[1, 4]).unwrap(), vec![3, 4]);
@@ -49,7 +49,7 @@ use alloc::vec::Vec;
 /// # Examples
 ///
 /// ```
-/// use coeus_storage::broadcast::broadcast_shapes;
+/// use storage::broadcast::broadcast_shapes;
 ///
 /// // Scalar broadcast to vector
 /// let result = broadcast_shapes(&[], &[5]).unwrap();
@@ -110,7 +110,7 @@ pub fn broadcast_shapes(shape_a: &[usize], shape_b: &[usize]) -> Result<Vec<usiz
 /// # Examples
 ///
 /// ```
-/// use coeus_storage::broadcast::broadcast_strides;
+/// use storage::broadcast::broadcast_strides;
 ///
 /// // Shape [1, 4] with row-major strides [4, 1]
 /// // Broadcast to [3, 4] should have strides [0, 1]

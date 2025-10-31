@@ -88,16 +88,57 @@ path = "gpu_mnist_training.rs"
 name = "clip_usage"
 path = "clip_usage.rs"
 
+[[bin]]
+name = "clip_vision_language"
+path = "clip_vision_language.rs"
+
+[[bin]]
+name = "multimodal_transformer_demo"
+path = "multimodal_transformer_demo.rs"
+
+[[bin]]
+name = "clip_training_pipeline"
+path = "clip_training_pipeline.rs"
+
+[[bin]]
+name = "clip_evaluation"
+path = "clip_evaluation.rs"
+
+[[bin]]
+name = "clip_research_integration"
+path = "clip_research_integration.rs"
+
+[[bin]]
+name = "enhanced_clip_training"
+path = "enhanced_clip_training.rs"
+
+[[bin]]
+name = "clip_distributed_training"
+path = "clip_distributed_training.rs"
+
+[[bin]]
+name = "clip_semantic_search"
+path = "clip_semantic_search.rs"
+
+[[bin]]
+name = "automated_clip_research"
+path = "automated_clip_research.rs"
+
+[[bin]]
+name = "end_to_end_integration"
+path = "end_to_end_integration.rs"
+
 [dependencies]
 # Workspace dependencies
-coeus-dtype = { path = "../dtype", features = ["half"] }
-coeus-storage = { path = "../storage" }
-coeus-backend = { path = "../backend" }
-coeus-tensor = { path = "../tensor" }
-coeus-autograd = { path = "../autograd" }
-coeus-nn = { path = "../nn", features = ["safetensors"] }
-coeus-optim = { path = "../optim" }
+dtype = { path = "../dtype", features = ["half"] }
+storage = { path = "../storage" }
+backend = { path = "../backend" }
+tensor = { path = "../tensor" }
+autograd = { path = "../autograd" }
+nn = { path = "../nn", features = ["safetensors"] }
+optim = { path = "../optim" }
 distributed = { path = "../distributed" }
+coeus-semantic-api = { path = "../coeus-semantic-api" }
 
 # Command line argument parsing
 clap = { version = "4.0", features = ["derive"] }

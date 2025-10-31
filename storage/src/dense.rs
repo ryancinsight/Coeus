@@ -14,8 +14,8 @@ use alloc::vec::Vec;
 /// # Examples
 ///
 /// ```
-/// use coeus_storage::{DenseStorage, Storage};
-/// use coeus_dtype::float::Float32;
+/// use storage::{DenseStorage, Storage};
+/// use dtype::float::Float32;
 ///
 /// // Create 2x3 matrix storage
 /// let data = vec![
@@ -43,8 +43,8 @@ impl<T: DataType> DenseStorage<T> {
     /// # Examples
     ///
     /// ```
-    /// use coeus_storage::{DenseStorage, Storage};
-    /// use coeus_dtype::float::Float32;
+    /// use storage::{DenseStorage, Storage};
+    /// use dtype::float::Float32;
     ///
     /// let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
     /// let storage = DenseStorage::from_vec(data, &[3]).unwrap();
@@ -78,8 +78,8 @@ impl<T: DataType> DenseStorage<T> {
     /// # Examples
     ///
     /// ```
-    /// use coeus_storage::{DenseStorage, Storage};
-    /// use coeus_dtype::int::Int32;
+    /// use storage::{DenseStorage, Storage};
+    /// use dtype::int::Int32;
     ///
     /// let data = [Int32::new(1), Int32::new(2), Int32::new(3), Int32::new(4)];
     /// let storage = DenseStorage::from_slice(&data, &[2, 2]).unwrap();
@@ -98,8 +98,8 @@ impl<T: DataType> DenseStorage<T> {
     /// # Examples
     ///
     /// ```
-    /// use coeus_storage::{DenseStorage, Storage};
-    /// use coeus_dtype::float::Float64;
+    /// use storage::{DenseStorage, Storage};
+    /// use dtype::float::Float64;
     /// use num_traits::Zero;
     ///
     /// let storage = DenseStorage::<Float64>::zeros(&[2, 3]).unwrap();
@@ -130,8 +130,8 @@ impl<T: DataType> DenseStorage<T> {
     /// # Examples
     ///
     /// ```
-    /// use coeus_storage::{DenseStorage, Storage};
-    /// use coeus_dtype::float::Float32;
+    /// use storage::{DenseStorage, Storage};
+    /// use dtype::float::Float32;
     /// use num_traits::One;
     ///
     /// let storage = DenseStorage::<Float32>::ones(&[3]).unwrap();
@@ -312,8 +312,8 @@ impl<T: DataType> crate::TransposeStorage<T> for DenseStorage<T> {
 mod tests {
     use super::*;
     use alloc::vec;
-    use coeus_dtype::float::{Float32, Float64};
-    use coeus_dtype::int::Int32;
+    use dtype::float::{Float32, Float64};
+    use dtype::int::Int32;
 
     #[test]
     fn test_from_vec_correct_shape() {

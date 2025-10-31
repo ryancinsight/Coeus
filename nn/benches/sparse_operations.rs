@@ -1,8 +1,8 @@
 #[cfg(feature = "gpu")]
-use coeus_backend::GpuBackend;
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::float::Float32;
-use coeus_storage::DenseStorage;
+use backend::GpuBackend;
+use backend::{Backend, CpuBackend};
+use dtype::float::Float32;
+use storage::DenseStorage;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::time::Duration;
 

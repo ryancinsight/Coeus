@@ -19,7 +19,7 @@ use crate::Dtype;
 /// # Examples
 ///
 /// ```
-/// use coeus_dtype::{Dtype, promotion::promote};
+/// use dtype::{Dtype, promotion::promote};
 ///
 /// assert_eq!(promote(Dtype::Int8, Dtype::Int32), Dtype::Int32);
 /// assert_eq!(promote(Dtype::Float32, Dtype::Int32), Dtype::Float32);
@@ -116,7 +116,7 @@ fn promote_int(left: Dtype, right: Dtype) -> Dtype {
 /// # Examples
 ///
 /// ```
-/// use coeus_dtype::{Dtype, promotion::can_cast};
+/// use dtype::{Dtype, promotion::can_cast};
 ///
 /// assert!(can_cast(Dtype::Int8, Dtype::Int32));  // Widen: safe
 /// assert!(!can_cast(Dtype::Int32, Dtype::Int8)); // Narrow: unsafe

@@ -2,11 +2,11 @@
 //!
 //! Tests for activation functions including PReLU with learnable parameters.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{Module, PReLU};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{Module, PReLU};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 #[test]
 fn test_prelu_forward() {

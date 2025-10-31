@@ -8,12 +8,12 @@
 //! - Multiple optimization steps with running averages
 //! - Custom hyperparameters (alpha, epsilon)
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_optim::gpu_backend::GpuAcceleratedOptimizer;
-use coeus_optim::{Optimizer, RMSprop};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use optim::gpu_backend::GpuAcceleratedOptimizer;
+use optim::{Optimizer, RMSprop};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
@@ -250,7 +250,7 @@ fn test_rmsprop_gpu_acceleration_framework() {
     assert!(optimizer.gpu_config().is_none());
 
     // Enable GPU (should set flag even though backend is not initialized)
-    use coeus_optim::gpu_backend::GpuOptimizerConfig;
+    use optim::gpu_backend::GpuOptimizerConfig;
     let config = GpuOptimizerConfig::default();
     optimizer.set_gpu_config(config);
 

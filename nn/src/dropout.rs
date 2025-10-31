@@ -1,9 +1,9 @@
 //! Dropout layer for regularization.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::{traits::FloatExt, DataType};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 use crate::error::Result;
 use crate::module::Module;
@@ -19,11 +19,11 @@ use crate::parameter::Parameter;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Dropout, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Dropout, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create dropout layer with p=0.5
 /// let mut dropout = Dropout::new(0.5);
@@ -143,7 +143,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropo
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_dropout_eval_mode() {
@@ -328,11 +328,11 @@ mod tests {
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Dropout2d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Dropout2d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create dropout2d layer with p=0.5
 /// let mut dropout = Dropout2d::new(0.5);
@@ -460,11 +460,11 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropo
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Dropout3d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Dropout3d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create dropout3d layer with p=0.5
 /// let mut dropout = Dropout3d::new(0.5);
@@ -580,7 +580,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropo
 #[cfg(test)]
 mod tests_dropout2d {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_dropout2d_eval_mode() {
@@ -744,7 +744,7 @@ mod tests_dropout2d {
 #[cfg(test)]
 mod tests_dropout3d {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_dropout3d_eval_mode() {

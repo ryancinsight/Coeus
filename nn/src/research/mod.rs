@@ -178,6 +178,7 @@ pub mod performance_prediction;
 pub mod joint_search;
 pub mod automated_research;
 pub mod benchmarking;
+pub mod clip_integration;
 
 // Re-export unified types
 pub use agent::{ResearchAgent, ResearchAgentFactory, AgentMetadata};
@@ -186,6 +187,26 @@ pub use meta_agents::{MAMLResearchAgent, MAMLResearchAgentFactory, PrototypicalR
 pub use orchestrator::ResearchOrchestrator;
 pub use registry::ResearchAgentRegistry;
 pub use workflow::{ResearchWorkflow, WorkflowTemplate};
+
+/// Configuration for research workflows
+#[derive(Debug, Clone, Default)]
+pub struct ResearchConfig {
+    /// Maximum number of concurrent experiments
+    pub max_concurrent_experiments: usize,
+    /// Enable GPU acceleration for research
+    pub enable_gpu: bool,
+    /// Research data directory
+    pub data_dir: Option<String>,
+    /// Enable automated research workflows
+    pub enable_automation: bool,
+}
+
+// CLIP research integration
+pub use clip_integration::{
+    ClipResearchConfig, HpoSpace, AblationStudy,
+    ClipExperimentBuilder, ClipExperimentRunner, ExperimentMetadata,
+    ResearchAutomation, AutomatedResearchWorkflow, HpoAutomation, AblationAutomation
+};
 
 // Advanced research system exports
 pub use tracking::{

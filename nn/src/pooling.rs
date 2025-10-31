@@ -1,9 +1,9 @@
 //! Pooling layers for neural networks (1D and 2D).
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::{traits::FloatExt, DataType};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 use crate::module::Module;
@@ -20,11 +20,11 @@ use crate::parameter::Parameter;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{MaxPool1d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{MaxPool1d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let pool = MaxPool1d::new(2, Some(2), 0);
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
@@ -134,11 +134,11 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{AvgPool1d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{AvgPool1d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let pool = AvgPool1d::new(2, Some(2), 0);
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
@@ -254,11 +254,11 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{AdaptiveAvgPool1d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{AdaptiveAvgPool1d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let pool = AdaptiveAvgPool1d::new(10); // Output length = 10
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
@@ -375,11 +375,11 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{MaxPool2d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{MaxPool2d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create MaxPool2d with 2x2 kernel, stride 2
 /// let pool = MaxPool2d::new((2, 2), Some((2, 2)), (0, 0));
@@ -532,11 +532,11 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{AvgPool2d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{AvgPool2d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create AvgPool2d with 2x2 kernel, stride 2
 /// let pool = AvgPool2d::new((2, 2), Some((2, 2)), (0, 0));
@@ -689,11 +689,11 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for AvgPo
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{AdaptiveAvgPool2d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{AdaptiveAvgPool2d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let pool = AdaptiveAvgPool2d::new((1, 1)); // Global average pooling
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3, 224, 224]).unwrap();
@@ -718,7 +718,7 @@ impl AdaptiveAvgPool2d {
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_nn::AdaptiveAvgPool2d;
+    /// use nn::AdaptiveAvgPool2d;
     ///
     /// let pool = AdaptiveAvgPool2d::new((7, 7)); // Output will be 7x7
     /// let global_pool = AdaptiveAvgPool2d::new((1, 1)); // Global average pooling
@@ -846,11 +846,11 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{AdaptiveMaxPool2d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{AdaptiveMaxPool2d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let pool = AdaptiveMaxPool2d::new((1, 1)); // Global max pooling
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3, 224, 224]).unwrap();
@@ -871,7 +871,7 @@ impl AdaptiveMaxPool2d {
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_nn::AdaptiveMaxPool2d;
+    /// use nn::AdaptiveMaxPool2d;
     ///
     /// let pool = AdaptiveMaxPool2d::new((7, 7)); // Output will be 7x7
     /// let global_pool = AdaptiveMaxPool2d::new((1, 1)); // Global max pooling
@@ -994,11 +994,11 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{MaxPool3d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{MaxPool3d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create MaxPool3d with 2x2x2 kernel, stride 2
 /// let pool = MaxPool3d::new((2, 2, 2), Some((2, 2, 2)), (0, 0, 0));
@@ -1181,11 +1181,11 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{AvgPool3d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{AvgPool3d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create AvgPool3d with 2x2x2 kernel, stride 2
 /// let pool = AvgPool3d::new((2, 2, 2), Some((2, 2, 2)), (0, 0, 0));
@@ -1360,7 +1360,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
     use num_traits::ToPrimitive;
 
     #[test]

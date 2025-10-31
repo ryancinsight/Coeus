@@ -6,9 +6,9 @@
 use crate::error::Result;
 use crate::process_group::ProcessGroup;
 use crate::reducer::GradientReducer;
-use coeus_dtype::float::Float32;
-use coeus_optim::Optimizer;
-use coeus_tensor::Tensor;
+use dtype::float::Float32;
+use optim::Optimizer;
+use tensor::Tensor;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -184,9 +184,9 @@ where
 mod tests {
     use super::*;
     use crate::process_group::{Rank, WorldSize};
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     // Mock optimizer for testing
     #[derive(Debug)]

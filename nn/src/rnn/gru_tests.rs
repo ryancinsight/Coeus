@@ -6,10 +6,10 @@
 mod gru_tests {
     use crate::module::Module;
     use crate::rnn::GRU;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_gru_creation() {

@@ -15,7 +15,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use coeus_nn::amp::{MixedPrecision, GradientScaler};
+//! use nn::amp::{MixedPrecision, GradientScaler};
 //!
 //! // Create mixed precision context
 //! let mut amp = MixedPrecision::new();
@@ -40,7 +40,7 @@
 //! ```
 
 use crate::error::{NNError, Result};
-use coeus_tensor::{FloatExt, Tensor};
+use tensor::{FloatExt, Tensor};
 
 /// Automatic Mixed Precision training context
 #[derive(Debug)]
@@ -121,8 +121,8 @@ impl MixedPrecision {
     pub fn scale_loss<T, B, S>(&self, loss: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
     where
         T: FloatExt + num_traits::FromPrimitive,
-        B: coeus_backend::Backend<Data = T>,
-        S: coeus_storage::Storage<T> + coeus_storage::StorageFromVec<T> + 'static,
+        B: backend::Backend<Data = T>,
+        S: storage::Storage<T> + storage::StorageFromVec<T> + 'static,
     {
         if !self.enabled {
             // For disabled AMP, just return a copy of the loss tensor
@@ -142,8 +142,8 @@ impl MixedPrecision {
     pub fn unscale_gradients<T, B, S>(&mut self, gradients: &mut [Tensor<B, S, T>]) -> Result<bool>
     where
         T: FloatExt + num_traits::FromPrimitive,
-        B: coeus_backend::Backend<Data = T>,
-        S: coeus_storage::Storage<T> + coeus_storage::StorageFromVec<T> + 'static,
+        B: backend::Backend<Data = T>,
+        S: storage::Storage<T> + storage::StorageFromVec<T> + 'static,
     {
         if !self.enabled {
             return Ok(true);
@@ -177,8 +177,8 @@ impl MixedPrecision {
     pub fn has_nan_or_inf<T, B, S>(&self, tensor: &Tensor<B, S, T>) -> Result<bool>
     where
         T: FloatExt,
-        B: coeus_backend::Backend<Data = T>,
-        S: coeus_storage::Storage<T> + 'static,
+        B: backend::Backend<Data = T>,
+        S: storage::Storage<T> + 'static,
     {
         let data = tensor.storage_ref().as_slice();
 
@@ -255,8 +255,8 @@ impl GradientScaler {
     pub fn scale_loss<T, B, S>(&self, loss: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
     where
         T: FloatExt + num_traits::FromPrimitive,
-        B: coeus_backend::Backend<Data = T>,
-        S: coeus_storage::Storage<T> + coeus_storage::StorageFromVec<T> + 'static,
+        B: backend::Backend<Data = T>,
+        S: storage::Storage<T> + storage::StorageFromVec<T> + 'static,
     {
         Ok(loss.mul_scalar(T::from_f32(self.scale).unwrap())?)
     }
@@ -294,8 +294,8 @@ impl GradientScaler {
     pub fn check_gradients<T, B, S>(&mut self, gradients: &[&Tensor<B, S, T>]) -> Result<()>
     where
         T: FloatExt,
-        B: coeus_backend::Backend<Data = T>,
-        S: coeus_storage::Storage<T> + 'static,
+        B: backend::Backend<Data = T>,
+        S: storage::Storage<T> + 'static,
     {
         for grad in gradients {
             if self.has_inf_or_nan(grad)? {
@@ -311,8 +311,8 @@ impl GradientScaler {
     fn has_inf_or_nan<T, B, S>(&self, tensor: &Tensor<B, S, T>) -> Result<bool>
     where
         T: FloatExt,
-        B: coeus_backend::Backend<Data = T>,
-        S: coeus_storage::Storage<T> + 'static,
+        B: backend::Backend<Data = T>,
+        S: storage::Storage<T> + 'static,
     {
         let data = tensor.storage_ref().as_slice();
 
@@ -362,10 +362,10 @@ impl<'a> Drop for MixedPrecisionGuard<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::{DenseStorage, Storage};
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::{DenseStorage, Storage};
+    use tensor::Tensor;
 
     #[test]
     fn test_mixed_precision_creation() {

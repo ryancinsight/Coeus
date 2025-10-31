@@ -6,11 +6,11 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::time::Duration;
 
-use coeus_autograd::sparse_gradients::*;
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_storage::{CsrStorage, DenseStorage};
-use coeus_tensor::Tensor;
+use autograd::sparse_gradients::*;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use storage::{CsrStorage, DenseStorage};
+use tensor::Tensor;
 
 /// Generate a sparse matrix with specified sparsity level
 fn generate_sparse_matrix(

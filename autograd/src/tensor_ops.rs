@@ -1,14 +1,14 @@
 //! Automatic differentiation tensor operations
 //!
 //! This module provides tensor operations that automatically construct the computation graph
-//! for gradient computation. These functions mirror the operations in `coeus_tensor::arithmetic`
+//! for gradient computation. These functions mirror the operations in `tensor::arithmetic`
 //! but attach `Function` objects to enable automatic differentiation.
 
 extern crate alloc;
 
 use crate::{functions::*, Result};
-use coeus_dtype::DataType;
-use coeus_tensor::{CpuBackend, DenseStorage, Tensor};
+use dtype::DataType;
+use tensor::{CpuBackend, DenseStorage, Tensor};
 use alloc::{sync::Arc, vec::Vec};
 
 /// Element-wise addition with automatic differentiation
@@ -26,9 +26,9 @@ use alloc::{sync::Arc, vec::Vec};
 /// # Examples
 ///
 /// ```rust
-/// use coeus_tensor::{Tensor, CpuBackend, DenseStorage};
-/// use coeus_dtype::float::Float32;
-/// use coeus_autograd::tensor_ops::add;
+/// use tensor::{Tensor, CpuBackend, DenseStorage};
+/// use dtype::float::Float32;
+/// use autograd::tensor_ops::add;
 ///
 /// let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0)], &[2]
@@ -43,10 +43,10 @@ use alloc::{sync::Arc, vec::Vec};
 /// ```
 #[allow(clippy::missing_errors_doc)]
 pub fn add(
-    lhs: &Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>,
-    rhs: &Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>,
-) -> Result<Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>> {
-    use coeus_dtype::float::Float32;
+    lhs: &Tensor<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
+    rhs: &Tensor<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
+) -> Result<Tensor<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>> {
+    use dtype::float::Float32;
 
     // Perform the addition operation
     let result = lhs + rhs;
@@ -78,9 +78,9 @@ pub fn add(
 /// Result tensor with automatic differentiation support
 #[allow(clippy::missing_errors_doc)]
 pub fn matmul(
-    lhs: &Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>,
-    rhs: &Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>,
-) -> Result<Tensor<CpuBackend<coeus_dtype::float::Float32>, DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>> {
+    lhs: &Tensor<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
+    rhs: &Tensor<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
+) -> Result<Tensor<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>> {
     // Perform the matrix multiplication
     let result = lhs.matmul(rhs).map_err(|e| crate::AutogradError::TensorError(e))?;
 

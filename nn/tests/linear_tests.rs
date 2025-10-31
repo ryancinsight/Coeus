@@ -3,11 +3,11 @@
 //! Comprehensive tests for Linear layer functionality, gradients, and API compatibility.
 
 use approx::assert_relative_eq;
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{Linear, Module};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{Linear, Module};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 #[test]
 fn test_linear_forward_pass() {

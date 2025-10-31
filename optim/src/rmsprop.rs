@@ -5,10 +5,10 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 use crate::gpu_backend::{GpuAcceleratedOptimizer, GpuOptimizerBackend, GpuOptimizerConfig};
 use crate::optimizer_core::{Optimizer, ParamState};
@@ -54,10 +54,10 @@ use crate::Parameter;
 /// # Examples
 ///
 /// ```rust
-/// use coeus_optim::rmsprop::RMSprop;
-/// use coeus_dtype::float::Float32;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
+/// use optim::rmsprop::RMSprop;
+/// use dtype::float::Float32;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
 ///
 /// // Create RMSprop with default hyperparameters
 /// let mut optimizer = RMSprop::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::default(0.01);
@@ -67,7 +67,7 @@ pub struct RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt + coeus_dtype::num_traits::Float,
+    T: DataType + FloatExt + dtype::num_traits::Float,
 {
     /// Parameter states
     param_states: Vec<ParamState<B, S, T>>,
@@ -95,7 +95,7 @@ impl<B, S, T> RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt + coeus_dtype::num_traits::Float,
+    T: DataType + FloatExt + dtype::num_traits::Float,
 {
     /// Create a new RMSprop optimizer.
     ///
@@ -165,7 +165,7 @@ where
     /// * `params` - Parameter tensors to optimize
     /// * `lr` - Learning rate (must be > 0)
     pub fn new_with_gpu(
-        _params: Vec<coeus_tensor::Tensor<B, S, T>>,
+        _params: Vec<tensor::Tensor<B, S, T>>,
         lr: f64,
     ) -> Result<Self, crate::error::OptimError> {
         // For now, this just creates CPU version
@@ -249,7 +249,7 @@ where
             // Update square average: square_avg = alpha * square_avg + (1 - alpha) * grad^2
             let param_name = param_state.name.clone();
 
-            use coeus_tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
+            use tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
 
             {
                 let square_avg = param_state.get_state_mut("square_avg").ok_or_else(|| {
@@ -307,7 +307,7 @@ impl<B, S, T> Optimizer<B, S, T> for RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt + coeus_dtype::num_traits::Float,
+    T: DataType + FloatExt + dtype::num_traits::Float,
 {
     fn name(&self) -> &str {
         "RMSprop"
@@ -474,7 +474,7 @@ where
             // Update square average: square_avg = alpha * square_avg + (1 - alpha) * grad^2
             let param_name = param_state.name.clone();
 
-            use coeus_tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
+            use tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
 
             {
                 let square_avg = param_state.get_state_mut("square_avg").ok_or_else(|| {
@@ -583,7 +583,7 @@ impl<B, S, T> Default for RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt + coeus_dtype::num_traits::Float,
+    T: DataType + FloatExt + dtype::num_traits::Float,
 {
     fn default() -> Self {
         Self::new(0.01, 0.99, 1e-8, 0.0, 0.0, false)

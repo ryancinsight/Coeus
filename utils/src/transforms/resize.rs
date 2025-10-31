@@ -3,10 +3,10 @@
 //! Resizes tensor data to specified dimensions with bilinear/trilinear interpolation.
 //! Optimized for image data preprocessing with SIMD acceleration and zero-copy operations.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 use super::{Transform, TransformError};
 

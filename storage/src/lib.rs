@@ -59,8 +59,8 @@ extern crate std;
 extern crate alloc;
 
 pub use alloc::{vec, vec::Vec};
-use coeus_dtype::traits::FloatExt;
-pub use coeus_dtype::DataType;
+use dtype::traits::FloatExt;
+pub use dtype::DataType;
 pub use num_traits;
 use num_traits::Zero;
 
@@ -262,8 +262,8 @@ pub trait Storage<T: DataType>: Send + Sync + Clone + core::fmt::Debug + 'static
     /// # Examples
     ///
     /// ```
-    /// use coeus_storage::{DenseStorage, Storage};
-    /// use coeus_dtype::float::Float32;
+    /// use storage::{DenseStorage, Storage};
+    /// use dtype::float::Float32;
     ///
     /// let storage = DenseStorage::from_slice(&[Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)], &[3]).unwrap();
     /// assert_eq!(storage.as_slice().len(), 3);

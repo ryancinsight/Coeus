@@ -12,10 +12,10 @@
 //! θ_t = θ_{t-1} - α * m̂_t / (√v̂_t + ε)
 //! ```
 
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 use crate::gpu_backend::GpuAcceleratedOptimizer;
 use crate::optimizer::BaseOptimizer;
@@ -51,7 +51,7 @@ where
     /// # Arguments
     /// * `params` - Parameter tensors to optimize
     /// * `lr` - Learning rate (must be > 0)
-    pub fn new(params: Vec<coeus_tensor::Tensor<B, S, T>>, lr: f64) -> Self {
+    pub fn new(params: Vec<tensor::Tensor<B, S, T>>, lr: f64) -> Self {
         assert!(lr > 0.0, "Learning rate must be positive, got {}", lr);
         Self::with_hyperparams(params, lr, 0.9, 0.999, 1e-8, 0.0)
     }
@@ -66,7 +66,7 @@ where
     /// * `eps` - Small constant for numerical stability (must be >= 0)
     /// * `weight_decay` - L2 regularization factor (must be >= 0)
     pub fn with_hyperparams(
-        params: Vec<coeus_tensor::Tensor<B, S, T>>,
+        params: Vec<tensor::Tensor<B, S, T>>,
         lr: f64,
         beta1: f64,
         beta2: f64,
@@ -112,7 +112,7 @@ where
     /// * `params` - Parameter tensors to optimize
     /// * `lr` - Learning rate (must be > 0)
     pub fn new_with_gpu(
-        params: Vec<coeus_tensor::Tensor<B, S, T>>,
+        params: Vec<tensor::Tensor<B, S, T>>,
         lr: f64,
     ) -> Result<Self, crate::error::OptimError> {
         // For now, this just creates CPU version
@@ -157,7 +157,7 @@ where
     }
 
     fn step_cpu(&mut self) -> Result<usize, crate::OptimError> {
-        use coeus_tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
+        use tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
 
         self.t += 1; // increment timestep for bias correction
 
@@ -258,7 +258,7 @@ where
         }
     }
 
-    fn add_param_group(&mut self, params: Vec<coeus_tensor::Tensor<B, S, T>>) {
+    fn add_param_group(&mut self, params: Vec<tensor::Tensor<B, S, T>>) {
         // Create parameter states for each tensor with Adam-specific state
         for tensor in params.clone().into_iter() {
             let mut param_state =
@@ -296,7 +296,7 @@ where
         }
     }
 
-    fn state_dict(&self) -> std::collections::HashMap<String, coeus_tensor::Tensor<B, S, T>> {
+    fn state_dict(&self) -> std::collections::HashMap<String, tensor::Tensor<B, S, T>> {
         let mut state = std::collections::HashMap::new();
 
         // Save parameters and their Adam state (first and second moments)
@@ -319,7 +319,7 @@ where
 
     fn load_state_dict(
         &mut self,
-        state_dict: std::collections::HashMap<String, coeus_tensor::Tensor<B, S, T>>,
+        state_dict: std::collections::HashMap<String, tensor::Tensor<B, S, T>>,
     ) -> Result<(), crate::OptimError> {
         for param_state in &mut self.param_states {
             // Load parameter

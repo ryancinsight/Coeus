@@ -3,10 +3,10 @@
 //! Converts various data formats (vectors, arrays, etc.) into Coeus tensors.
 //! This is typically the first transformation in a preprocessing pipeline.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 use super::TransformError;
 

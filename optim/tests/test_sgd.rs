@@ -7,11 +7,11 @@
 //! - Nesterov acceleration
 //! - Edge cases (zero gradients, NaN handling)
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_optim::{Optimizer, SGD};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use optim::{Optimizer, SGD};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 

@@ -1102,7 +1102,7 @@ impl<T: crate::DataType + Copy> SparseReshape<T> for CooStorage<T> {
 mod tests {
     use super::*;
     use alloc::vec;
-    use coeus_dtype::float::F32;
+    use dtype::float::F32;
 
     #[test]
     fn test_csr_matmul_sparse() {
@@ -1543,7 +1543,7 @@ impl<T: crate::DataType + core::ops::Mul<Output = T> + Copy> SparseOptimizerOps<
 #[cfg(test)]
 mod optimizer_ops_tests {
     use super::*;
-    use coeus_dtype::float::F32;
+    use dtype::float::F32;
 
     #[test]
     fn test_sparse_scalar_mul() {

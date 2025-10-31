@@ -5,10 +5,10 @@
 use crate::error::{NNError, Result};
 use crate::module::Module;
 use crate::parameter::Parameter;
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::{Backend, CpuBackend};
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 use std::marker::PhantomData;
 
 /// 1D Convolutional layer.
@@ -25,11 +25,11 @@ use std::marker::PhantomData;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Conv1D, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Conv1D, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Audio processing: 1 channel input, 64 filters, kernel size 3
 /// let conv = Conv1D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, 64, 3, None, None, None).unwrap();
@@ -79,10 +79,10 @@ where
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_nn::Conv1D;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use nn::Conv1D;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let conv = Conv1D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, 64, 3, None, None, None).unwrap();
     /// ```
@@ -346,11 +346,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{ConvTranspose1d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{ConvTranspose1d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Audio upsampling: 64 channels input, 1 channel output, kernel size 4, stride 2
 /// let conv_transpose = ConvTranspose1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(64, 1, 4, Some(2), Some(1), Some(0), Some(true)).unwrap();
@@ -630,7 +630,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_conv1d_creation() {

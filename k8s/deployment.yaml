@@ -1,0 +1,268 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coeus-semantic-api
+  namespace: ai-platform
+  labels:
+    app: coeus-semantic-api
+    component: multimodal-ai
+    version: v0.2.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: coeus-semantic-api
+  template:
+    metadata:
+      labels:
+        app: coeus-semantic-api
+        component: multimodal-ai
+        version: v0.2.0
+    spec:
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+
+      # Node affinity for GPU workloads (optional)
+      # affinity:
+      #   nodeAffinity:
+      #     requiredDuringSchedulingIgnoredDuringExecution:
+      #       nodeSelectorTerms:
+      #       - matchExpressions:
+      #         - key: nvidia.com/gpu.present
+      #           operator: In
+      #           values:
+      #           - "true"
+
+      containers:
+      - name: semantic-api
+        image: coeus/semantic-api:v0.2.0
+        imagePullPolicy: Always
+
+        # Resource limits and requests
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 2Gi
+            # GPU resources (uncomment for GPU workloads)
+            # nvidia.com/gpu: 1
+          limits:
+            cpu: 2000m
+            memory: 8Gi
+            # GPU resources (uncomment for GPU workloads)
+            # nvidia.com/gpu: 1
+
+        # Environment variables
+        env:
+        - name: RUST_LOG
+          value: "info,coeus=debug"
+        - name: COEUS_MODEL_CACHE_DIR
+          value: "/app/models"
+        - name: COEUS_DATA_DIR
+          value: "/app/data"
+        - name: COEUS_PORT
+          value: "8080"
+
+        # Ports
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        # Startup probe for slow-starting containers
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+
+        # Volume mounts
+        volumeMounts:
+        - name: model-cache
+          mountPath: /app/models
+        - name: data-storage
+          mountPath: /app/data
+        - name: logs
+          mountPath: /app/logs
+
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+
+      # Init container for model preparation
+      initContainers:
+      - name: model-prep
+        image: busybox:latest
+        command: ['sh', '-c', 'mkdir -p /models /data /logs && chmod 755 /models /data /logs']
+        volumeMounts:
+        - name: model-cache
+          mountPath: /models
+        - name: data-storage
+          mountPath: /data
+        - name: logs
+          mountPath: /logs
+
+      # Volumes
+      volumes:
+      - name: model-cache
+        persistentVolumeClaim:
+          claimName: model-cache-pvc
+      - name: data-storage
+        persistentVolumeClaim:
+          claimName: data-storage-pvc
+      - name: logs
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coeus-semantic-api-service
+  namespace: ai-platform
+  labels:
+    app: coeus-semantic-api
+    component: multimodal-ai
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: coeus-semantic-api
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: coeus-semantic-api-ingress
+  namespace: ai-platform
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "10"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+spec:
+  tls:
+  - hosts:
+    - api.coeus.ai
+    secretName: coeus-api-tls
+  rules:
+  - host: api.coeus.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: coeus-semantic-api-service
+            port:
+              number: 80
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coeus-config
+  namespace: ai-platform
+  labels:
+    app: coeus
+    component: configuration
+data:
+  # Application configuration
+  config.yaml: |
+    server:
+      host: "0.0.0.0"
+      port: 8080
+      workers: 4
+      timeout: 30
+
+    models:
+      clip_model: "CLIP-ViT-B/32"
+      cache_dir: "/app/models"
+      preload: true
+
+    logging:
+      level: "INFO"
+      format: "json"
+      file: "/app/logs/coeus.log"
+
+    security:
+      cors_origins: ["https://app.coeus.ai"]
+      rate_limit: 100
+      auth_required: true
+
+    monitoring:
+      metrics_enabled: true
+      health_check_interval: 30
+      profiling_enabled: false
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache-pvc
+  namespace: ai-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: fast-ssd
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-storage-pvc
+  namespace: ai-platform
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: standard
+
+
+
+
+

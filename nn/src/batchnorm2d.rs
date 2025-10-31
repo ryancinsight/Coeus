@@ -5,10 +5,10 @@
 
 use std::fmt;
 
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 use crate::batchnorm_core::BatchNormBase;
 use crate::error::{NNError, Result};
@@ -43,11 +43,11 @@ use crate::parameter::Parameter;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{BatchNorm2d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{BatchNorm2d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create BatchNorm2d for 64 channels
 /// let mut batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();

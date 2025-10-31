@@ -7,11 +7,11 @@
 //! # Examples
 //!
 //! ```rust
-//! use coeus_nn::functional::{relu, linear};
-//! use coeus_tensor::Tensor;
-//! use coeus_backend::CpuBackend;
-//! use coeus_storage::DenseStorage;
-//! use coeus_dtype::float::Float32;
+//! use nn::functional::{relu, linear};
+//! use tensor::Tensor;
+//! use backend::CpuBackend;
+//! use storage::DenseStorage;
+//! use dtype::float::Float32;
 //!
 //! let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 //!     vec![Float32::new(-1.0), Float32::new(0.5), Float32::new(2.0)],
@@ -34,10 +34,10 @@
 //! let output = linear(&input, &weight, Some(&bias)).unwrap();
 //! ```
 
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::{Backend, CpuBackend};
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 
@@ -926,7 +926,7 @@ fn softmax_rows<T: DataType + FloatExt + num_traits::Bounded + PartialOrd>(
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_functional_relu() {

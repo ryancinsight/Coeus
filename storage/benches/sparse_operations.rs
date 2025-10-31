@@ -3,8 +3,8 @@
 //! Tests CSR-dense matrix multiplication, sparse-sparse multiplication,
 //! and vector operations with various sparsity patterns.
 
-use coeus_dtype::float::F32;
-use coeus_storage::{CsrStorage, SparseFormat, SparseMatMul, SparseReduce};
+use dtype::float::F32;
+use storage::{CsrStorage, SparseFormat, SparseMatMul, SparseReduce};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 /// Create a sparse CSR matrix with given dimensions and sparsity

@@ -2,11 +2,11 @@
 //!
 //! Tests for Sequential model composition and multi-layer networks.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{Linear, Module, Sequential};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{Linear, Module, Sequential};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 #[test]
 fn test_sequential_empty() {

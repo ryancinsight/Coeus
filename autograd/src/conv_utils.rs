@@ -4,11 +4,11 @@
 //! into matrix multiplication, enabling efficient gradient computation.
 
 use crate::error::{AutogradError, Result};
-use coeus_backend::CpuBackend;
-use coeus_dtype::traits::FloatExt;
-use coeus_dtype::DataType;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::traits::FloatExt;
+use dtype::DataType;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 /// Transform 4D input tensor into 2D column matrix for efficient convolution.
 ///
@@ -268,7 +268,7 @@ pub fn reduce_sum_4d<T: DataType + FloatExt>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_im2col_basic() {

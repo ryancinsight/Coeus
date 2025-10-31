@@ -17,7 +17,7 @@
 //!
 //! ## Feature Extraction
 //! ```rust
-//! use coeus_nn::audio::{AudioFeatureExtractor, MFCCExtractor, SpectrogramExtractor};
+//! use nn::audio::{AudioFeatureExtractor, MFCCExtractor, SpectrogramExtractor};
 //!
 //! // Extract MFCC features for speech recognition
 //! let mfcc_extractor = MFCCExtractor::new(13, 23, 16000, 512);
@@ -31,14 +31,14 @@
 //! ## Future APIs (Sprint MS-46 Completion)
 //! ```rust
 //! // Speech Recognition (TODO)
-//! use coeus_nn::audio::{WhisperModel, SpeechRecognizer};
+//! use nn::audio::{WhisperModel, SpeechRecognizer};
 //!
 //! let model = WhisperModel::load("whisper-base")?;
 //! let result = model.transcribe(audio_samples, "en")?;
 //! println!("Transcription: {}", result.text);
 //!
 //! // Text-to-Speech (TODO)
-//! use coeus_nn::audio::TTSModel;
+//! use nn::audio::TTSModel;
 //!
 //! let tts = TTSModel::new("tacotron2")?;
 //! let audio = tts.synthesize("Hello, world!", "en")?;

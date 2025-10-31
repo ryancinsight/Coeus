@@ -1,8 +1,8 @@
-use coeus_autograd::ops::backward;
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use autograd::ops::backward;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use storage::DenseStorage;
+use tensor::Tensor;
 use pyo3::prelude::*;
 use pyo3::pyclass;
 use numpy;

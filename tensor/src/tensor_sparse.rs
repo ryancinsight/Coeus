@@ -87,9 +87,9 @@ where
     ///
     /// # Examples
     /// ```ignore
-    /// # use coeus_tensor::Tensor;
-    /// # use coeus_backend::CpuBackend;
-    /// # use coeus_dtype::float::Float32;
+    /// # use tensor::Tensor;
+    /// # use backend::CpuBackend;
+    /// # use dtype::float::Float32;
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let backend = CpuBackend::new();
     /// // 2×3 sparse matrix * 3×1 vector = 2×1 result

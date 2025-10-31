@@ -5,10 +5,13 @@
 
 use std::collections::HashMap;
 use crate::error::{NNError, Result};
+use backend::Backend;
+use storage::Storage;
+use dtype::DataType;
 use crate::attention::MultiHeadAttention;
 use crate::linear::Linear;
 use crate::layernorm::LayerNorm;
-use crate::activation::GELU;
+use crate::activation::GeLU;
 use crate::multimodal::Modality;
 
 /// Types of cross-modal attention patterns
@@ -36,15 +39,20 @@ pub enum AttentionPattern {
 
 /// Cross-modal transformer layer combining intra and inter-modal attention
 #[derive(Debug)]
-pub struct CrossModalTransformerLayer {
+pub struct CrossModalTransformerLayer<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default,
+    T: DataType + 'static,
+{
     /// Intra-modal self-attention for each modality
-    pub intra_attention: HashMap<Modality, MultiHeadAttention>,
+    pub intra_attention: HashMap<Modality, MultiHeadAttention<B, S, T>>,
     /// Cross-modal attention mechanisms
-    pub cross_attention: Vec<CrossModalAttention>,
+    pub cross_attention: Vec<CrossModalAttention<B, S, T>>,
     /// Feed-forward networks per modality
-    pub feed_forward: HashMap<Modality, FeedForwardNetwork>,
+    pub feed_forward: HashMap<Modality, FeedForwardNetwork<B, S, T>>,
     /// Layer norms
-    pub layer_norms: HashMap<String, LayerNorm>,
+    pub layer_norms: HashMap<String, LayerNorm<B, S, T>>,
     /// Attention pattern for this layer
     pub attention_pattern: AttentionPattern,
     /// Dropout probability
@@ -52,7 +60,12 @@ pub struct CrossModalTransformerLayer {
 }
 
 #[derive(Debug)]
-pub struct CrossModalAttention {
+pub struct CrossModalAttention<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default,
+    T: DataType + 'static,
+{
     /// Query modality
     pub query_modality: Modality,
     /// Key/Value modalities (can be multiple for fusion)
@@ -60,15 +73,15 @@ pub struct CrossModalAttention {
     /// Attention mechanism
     pub attention: MultiHeadAttention<B, S, T>,
     /// Query projection (optional for cross-domain projection)
-    pub query_proj: Option<Linear>,
+    pub query_proj: Option<Linear<B, S, T>>,
     /// Key projection
-    pub key_proj: Option<Linear>,
+    pub key_proj: Option<Linear<B, S, T>>,
     /// Value projection
-    pub value_proj: Option<Linear>,
+    pub value_proj: Option<Linear<B, S, T>>,
     /// Output projection
     pub out_proj: Linear<B, S, T>,
     /// Layer normalization
-    pub norm: LayerNorm,
+    pub norm: LayerNorm<B, S, T>,
     /// Cross-attention type
     pub attention_type: CrossAttentionType,
 }
@@ -95,7 +108,12 @@ pub struct FeedForwardNetwork {
 
 /// Co-Attention mechanism for vision-language tasks
 #[derive(Debug)]
-pub struct CoAttention {
+pub struct CoAttention<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default,
+    T: DataType + 'static,
+{
     /// Vision encoder dimension
     pub vision_dim: usize,
     /// Language encoder dimension
@@ -115,7 +133,12 @@ pub struct CoAttention {
 /// Multi-Modal Fusion Attention (MFA)
 /// Learns attention weights across multiple modalities dynamically
 #[derive(Debug)]
-pub struct MultimodalFusionAttention {
+pub struct MultimodalFusionAttention<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default,
+    T: DataType + 'static,
+{
     /// Number of modalities
     pub num_modalities: usize,
     /// Hidden dimension
@@ -123,7 +146,7 @@ pub struct MultimodalFusionAttention {
     /// Number of attention heads per modality
     pub num_heads: usize,
     /// Modality-specific projections
-    pub modality_projections: HashMap<Modality, Linear>,
+    pub modality_projections: HashMap<Modality, Linear<B, S, T>>,
     /// Multi-head attention for fusion
     pub fusion_attention: MultiHeadAttention<B, S, T>,
     /// Learnable modality importance weights
@@ -134,23 +157,33 @@ pub struct MultimodalFusionAttention {
 
 /// Hierarchical Cross-Attention for complex multimodal tasks
 #[derive(Debug)]
-pub struct HierarchicalCrossAttention {
+pub struct HierarchicalCrossAttention<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default,
+    T: DataType + 'static,
+{
     /// Global attention across all modalities
     pub global_attention: MultiHeadAttention<B, S, T>,
     /// Pairwise attention between modality pairs
-    pub pairwise_attention: HashMap<(Modality, Modality), MultiHeadAttention>,
+    pub pairwise_attention: HashMap<(Modality, Modality), MultiHeadAttention<B, S, T>>,
     /// Local attention within each modality
-    pub local_attention: HashMap<Modality, MultiHeadAttention>,
+    pub local_attention: HashMap<Modality, MultiHeadAttention<B, S, T>>,
     /// Hierarchical levels (coarse to fine)
     pub num_levels: usize,
     /// Downsampling projections for hierarchical processing
-    pub downsample_proj: HashMap<Modality, Vec<Linear>>,
+    pub downsample_proj: HashMap<Modality, Vec<Linear<B, S, T>>>,
 }
 
 /// Attention-based Modality Selector
 /// Dynamically selects which modalities to attend to based on task and input
 #[derive(Debug)]
-pub struct ModalitySelector {
+pub struct ModalitySelector<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default,
+    T: DataType + 'static,
+{
     /// Input dimension for each modality
     pub input_dims: HashMap<Modality, usize>,
     /// Selection network (produces attention weights over modalities)
@@ -197,7 +230,12 @@ pub enum FusionMechanism {
     GatedFusion,
 }
 
-impl CrossModalTransformerLayer {
+impl<B, S, T> CrossModalTransformerLayer<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default,
+    T: DataType + 'static,
+{
     /// Create new cross-modal transformer layer
     pub fn new(
         modalities: &[Modality],
@@ -387,7 +425,12 @@ impl CrossModalTransformerLayer {
     }
 }
 
-impl CrossModalAttention {
+impl<B, S, T> CrossModalAttention<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default,
+    T: DataType + 'static,
+{
     /// Create new cross-modal attention
     pub fn new(
         hidden_dim: usize,
@@ -417,6 +460,12 @@ impl CrossModalAttention {
         self.attention_type = attention_type;
         self
     }
+
+    /// Forward pass for co-attention
+    pub fn forward(&self, _vision: &Vec<f32>, _text: &Vec<f32>) -> Result<(Vec<f32>, Vec<f32>)> {
+        // Stub implementation - return dummy outputs
+        Ok((vec![0.1, 0.2, 0.3], vec![0.4, 0.5, 0.6]))
+    }
 }
 
 impl FeedForwardNetwork {
@@ -430,7 +479,12 @@ impl FeedForwardNetwork {
     }
 }
 
-impl CoAttention {
+impl<B, S, T> CoAttention<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default,
+    T: DataType + 'static,
+{
     /// Create new co-attention mechanism
     pub fn new(vision_dim: usize, text_dim: usize, hidden_dim: usize) -> Result<Self> {
         Ok(Self {
@@ -457,7 +511,12 @@ impl CoAttention {
     }
 }
 
-impl MultimodalFusionAttention {
+impl<B, S, T> MultimodalFusionAttention<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default,
+    T: DataType + 'static,
+{
     /// Create new multimodal fusion attention
     pub fn new(modalities: &[Modality], hidden_dim: usize, num_heads: usize) -> Result<Self> {
         let num_modalities = modalities.len();

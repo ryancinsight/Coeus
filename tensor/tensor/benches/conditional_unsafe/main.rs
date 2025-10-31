@@ -2,10 +2,10 @@
 //!
 //! Tests performance benefits of unwrap_unchecked() in release builds vs expect() in debug builds.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_storage::DenseStorage;
-use coeus_tensor::{ops::arithmetic, Tensor};
+use backend::CpuBackend;
+use dtype::float::Float32;
+use storage::DenseStorage;
+use tensor::{ops::arithmetic, Tensor};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn bench_tensor_addition(c: &mut Criterion) {

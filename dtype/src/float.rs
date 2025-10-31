@@ -123,7 +123,7 @@ impl num_traits::ToPrimitive for Float32 {
 ///
 /// ```
 /// use num_traits::FromPrimitive;
-/// use coeus_dtype::float::Float32;
+/// use dtype::float::Float32;
 ///
 /// let from_int = Float32::from_i64(42).unwrap();
 /// assert_eq!(from_int.get(), 42.0);
@@ -836,7 +836,7 @@ impl num_traits::ToPrimitive for Float64 {
 ///
 /// ```
 /// use num_traits::FromPrimitive;
-/// use coeus_dtype::float::Float64;
+/// use dtype::float::Float64;
 ///
 /// let from_int = Float64::from_i64(42).unwrap();
 /// assert_eq!(from_int.get(), 42.0);

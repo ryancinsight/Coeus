@@ -9,7 +9,7 @@ use std::{collections::BTreeSet, vec, vec::Vec};
 ///
 /// This trait provides methods for aggregating tensor elements across
 /// all dimensions, resulting in scalar tensors.
-impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
+impl<B, T> crate::Tensor<B, storage::DenseStorage<T>, T>
 where
     B: crate::Backend<Data = T> + Clone + Default,
     T: crate::DataType,
@@ -36,10 +36,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
@@ -92,10 +92,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
@@ -153,10 +153,10 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
@@ -209,10 +209,10 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
     ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],

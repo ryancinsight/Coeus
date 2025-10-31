@@ -4,11 +4,11 @@
 
 use std::fmt;
 
-use coeus_backend::Backend;
-use coeus_dtype::traits::FloatExt;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::traits::FloatExt;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 
@@ -19,11 +19,11 @@ use crate::error::{NNError, Result};
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::loss::MSELoss;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::loss::MSELoss;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let loss_fn = MSELoss::new();
 ///
@@ -131,10 +131,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_mse_loss_basic() {

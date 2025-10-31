@@ -1,5 +1,5 @@
 [package]
-name = "coeus-tokenizer"
+name = "tokenizer"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

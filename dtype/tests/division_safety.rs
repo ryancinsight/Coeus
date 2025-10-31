@@ -3,8 +3,8 @@
 //! Validates that division operations handle edge cases correctly
 //! per SRS-REL-ERR-001 (No panics in public APIs)
 
-use coeus_dtype::int::*;
-use coeus_dtype::traits::IntExt;
+use dtype::int::*;
+use dtype::traits::IntExt;
 use num_traits::Zero;
 
 #[test]

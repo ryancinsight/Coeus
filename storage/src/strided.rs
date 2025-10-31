@@ -379,7 +379,7 @@ impl<T: crate::DataType> crate::StorageToDense<T> for StridedStorage<T> {
 mod tests {
     use super::*;
     use alloc::vec;
-    use coeus_dtype::float::F32;
+    use dtype::float::F32;
 
     #[test]
     fn test_strided_storage_creation() {

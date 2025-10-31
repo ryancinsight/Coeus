@@ -3,7 +3,7 @@
 //! Demonstrates the complete GPU backend integration with automatic backend selection.
 //! Shows how the system now automatically selects GPU for large operations.
 
-use coeus_backend::{
+use backend::{
     BackendSelector, WorkloadCharacteristics,
     MemoryAccessPattern, OperationDype, DataLocality
 };
@@ -77,3 +77,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+

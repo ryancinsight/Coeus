@@ -6,9 +6,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageToDense, StorageFromVec};
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageToDense, StorageFromVec};
 
 use crate::error::{AutogradError, Result};
 
@@ -32,7 +32,7 @@ where
     T: DataType,
 {
     /// The function this node represents
-    function: Arc<dyn coeus_tensor::Function<B, S, T>>,
+    function: Arc<dyn tensor::Function<B, S, T>>,
     /// Incoming edges (functions that depend on this one)
     incoming: Vec<usize>,
     /// Outgoing edges (functions this one depends on)
@@ -65,7 +65,7 @@ impl GradientEngine {
     /// Build computation graph starting from a root tensor
     fn build_computation_graph<B, S, T>(
         &self,
-        root_tensor: &coeus_tensor::Tensor<B, S, T>,
+        root_tensor: &tensor::Tensor<B, S, T>,
     ) -> Result<ComputationGraph<B, S, T>>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
@@ -89,7 +89,7 @@ impl GradientEngine {
     fn build_graph_recursive<B, S, T>(
         &self,
         graph: &mut ComputationGraph<B, S, T>,
-        function: &Arc<dyn coeus_tensor::Function<B, S, T>>,
+        function: &Arc<dyn tensor::Function<B, S, T>>,
     ) -> Result<usize>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
@@ -190,8 +190,8 @@ impl GradientEngine {
     /// Returns error if backward pass fails
     pub fn backward<B, S, T>(
         &mut self,
-        root_grad_fn: Option<&Arc<dyn coeus_tensor::Function<B, S, T>>>,
-        grad_output: &coeus_tensor::Tensor<B, S, T>,
+        root_grad_fn: Option<&Arc<dyn tensor::Function<B, S, T>>>,
+        grad_output: &tensor::Tensor<B, S, T>,
     ) -> Result<()>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
@@ -209,8 +209,8 @@ impl GradientEngine {
     /// Recursive backward pass starting from a specific function
     fn backward_from_function<B, S, T>(
         &mut self,
-        function: &Arc<dyn coeus_tensor::Function<B, S, T>>,
-        grad_output: &coeus_tensor::Tensor<B, S, T>,
+        function: &Arc<dyn tensor::Function<B, S, T>>,
+        grad_output: &tensor::Tensor<B, S, T>,
     ) -> Result<()>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
@@ -278,8 +278,8 @@ impl GradientEngine {
     /// Accumulate gradient into a tensor's grad field
     #[allow(clippy::used_underscore_binding)]
     fn accumulate_gradient<B, S, T>(
-        tensor: &coeus_tensor::Tensor<B, S, T>,
-        gradient: coeus_tensor::Tensor<B, S, T>,
+        tensor: &tensor::Tensor<B, S, T>,
+        gradient: tensor::Tensor<B, S, T>,
     ) -> Result<()>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
@@ -302,8 +302,8 @@ impl GradientEngine {
     /// Get accumulated gradient for a tensor (always returns dense tensor)
     #[allow(dead_code)]
     fn get_accumulated_gradient<B, S, T>(
-        tensor: &coeus_tensor::Tensor<B, S, T>,
-    ) -> Result<coeus_tensor::Tensor<B, coeus_storage::DenseStorage<T>, T>>
+        tensor: &tensor::Tensor<B, S, T>,
+    ) -> Result<tensor::Tensor<B, storage::DenseStorage<T>, T>>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
         S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + Clone + StorageFromVec<T>,
@@ -321,19 +321,19 @@ impl GradientEngine {
 /// # Errors
 /// Returns error if backward pass fails
 pub fn backward<B, S, T>(
-    tensor: &coeus_tensor::Tensor<B, S, T>,
+    tensor: &tensor::Tensor<B, S, T>,
 ) -> Result<()>
 where
     B: Backend<Data = T> + core::fmt::Debug + Send + Sync + Clone + 'static,
-    S: Storage<T> + core::fmt::Debug + Send + Sync + Clone + 'static + StorageToDense<T> + coeus_storage::StorageFromVec<T>,
+    S: Storage<T> + core::fmt::Debug + Send + Sync + Clone + 'static + StorageToDense<T> + storage::StorageFromVec<T>,
     T: DataType,
 {
     let mut engine = GradientEngine::new();
     if let Some(grad_fn) = tensor.grad_fn() {
         let one_storage = S::from_vec(vec![T::one()], &[]).map_err(|e| {
-            AutogradError::TensorError(coeus_tensor::TensorError::StorageError(e))
+            AutogradError::TensorError(tensor::TensorError::StorageError(e))
         })?;
-        let grad_output = coeus_tensor::Tensor::from_storage(one_storage, tensor.backend().clone());
+        let grad_output = tensor::Tensor::from_storage(one_storage, tensor.backend().clone());
 
         engine.backward(Some(grad_fn), &grad_output)?;
     }
@@ -343,7 +343,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_gradient_engine_creation() {
@@ -354,9 +354,9 @@ mod tests {
     #[test]
     fn test_backward_with_none_grad_fn() {
         let mut engine = GradientEngine::new();
-        let grad_tensor = coeus_tensor::Tensor::<
-            coeus_backend::CpuBackend<Float32>,
-            coeus_storage::DenseStorage<Float32>,
+        let grad_tensor = tensor::Tensor::<
+            backend::CpuBackend<Float32>,
+            storage::DenseStorage<Float32>,
             Float32,
         >::from_vec(vec![Float32::new(1.0)], &[1])
         .unwrap();

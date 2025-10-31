@@ -5,11 +5,11 @@
 //! 600 examples (84x84 RGB images).
 
 use crate::error::{NNError, Result};
-use coeus_backend::{Backend, DataType, Storage};
-use coeus_dtype::traits::FloatExt;
-use coeus_storage::StorageFromVec;
+use backend::{Backend, DataType, Storage};
+use dtype::traits::FloatExt;
+use storage::StorageFromVec;
 use rand::Rng;
-use coeus_tensor::Tensor;
+use tensor::Tensor;
 
 use super::common::*;
 use super::MetaDataset;
@@ -246,9 +246,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_miniimagenet_dataset_creation() {

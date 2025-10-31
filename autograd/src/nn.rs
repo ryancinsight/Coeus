@@ -43,11 +43,11 @@
 ///
 /// # Examples
 /// ```
-/// use coeus_autograd::{Variable, nn::linear};
-/// use coeus_tensor::Tensor;
-/// use coeus_dtype::float::Float32;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
+/// use autograd::{Variable, nn::linear};
+/// use tensor::Tensor;
+/// use dtype::float::Float32;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
 ///
 /// // Create input [2, 3] (2 samples, 3 input features)
 /// let input = Variable::new(Tensor::from_vec(
@@ -103,8 +103,8 @@ where
 mod tests {
     use super::*;
     use crate::backward;
-    use coeus_dtype::float::Float32;
-    use coeus_tensor::Tensor;
+    use dtype::float::Float32;
+    use tensor::Tensor;
 
     #[test]
     fn test_linear_forward() {
@@ -414,11 +414,11 @@ mod tests {
 ///
 /// # Examples
 /// ```rust
-/// use coeus_autograd::{Variable, nn::conv2d};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use autograd::{Variable, nn::conv2d};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let backend = CpuBackend::new();
 ///
@@ -616,9 +616,9 @@ where
 ///
 /// # Examples
 /// ```ignore
-/// use coeus_autograd::{Variable, nn::rnn_cell};
-/// use coeus_tensor::Tensor;
-/// use coeus_dtype::float::Float32;
+/// use autograd::{Variable, nn::rnn_cell};
+/// use tensor::Tensor;
+/// use dtype::float::Float32;
 ///
 /// let input = Variable::new(Tensor::ones(&[2, 10]).unwrap());  // [batch=2, input_size=10]
 /// let hidden = Variable::new(Tensor::zeros(&[2, 20]).unwrap()); // [batch=2, hidden_size=20]
@@ -941,11 +941,11 @@ where
 mod gru_cell_tests {
     use super::*;
     use crate::backward;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::num_traits::ToPrimitive;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::num_traits::ToPrimitive;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_gru_cell_gradient() {
@@ -1083,11 +1083,11 @@ mod gru_cell_tests {
 mod conv2d_tests {
     use super::*;
     use crate::backward;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_dtype::num_traits::ToPrimitive;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use dtype::num_traits::ToPrimitive;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_conv2d_forward() {
@@ -1181,9 +1181,9 @@ mod conv2d_tests {
     #[test]
     fn test_conv2d_input_gradient_numerical() {
         // Numerical gradient validation for input gradient
-        use coeus_backend::CpuBackend;
-        use coeus_dtype::float::Float32;
-        use coeus_storage::DenseStorage;
+        use backend::CpuBackend;
+        use dtype::float::Float32;
+        use storage::DenseStorage;
 
         let input_data = vec![
             Float32::new(1.0),
@@ -1240,9 +1240,9 @@ mod conv2d_tests {
     #[test]
     fn test_conv2d_weight_gradient_numerical() {
         // Numerical gradient validation for weight gradient
-        use coeus_backend::CpuBackend;
-        use coeus_dtype::float::Float32;
-        use coeus_storage::DenseStorage;
+        use backend::CpuBackend;
+        use dtype::float::Float32;
+        use storage::DenseStorage;
 
         let input = Variable::new(
             Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3]).unwrap(),
@@ -1272,9 +1272,9 @@ mod conv2d_tests {
     #[test]
     fn test_conv2d_bias_gradient() {
         // Test bias gradient computation
-        use coeus_backend::CpuBackend;
-        use coeus_dtype::float::Float32;
-        use coeus_storage::DenseStorage;
+        use backend::CpuBackend;
+        use dtype::float::Float32;
+        use storage::DenseStorage;
 
         let input = Variable::new(
             Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 1, 3, 3]).unwrap(),
@@ -1313,9 +1313,9 @@ mod conv2d_tests {
     #[test]
     fn test_conv2d_with_padding() {
         // Test conv2d with padding
-        use coeus_backend::CpuBackend;
-        use coeus_dtype::float::Float32;
-        use coeus_storage::DenseStorage;
+        use backend::CpuBackend;
+        use dtype::float::Float32;
+        use storage::DenseStorage;
 
         let input = Variable::new(
             Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 3, 3]).unwrap(),
@@ -1344,9 +1344,9 @@ mod conv2d_tests {
     #[test]
     fn test_conv2d_with_stride() {
         // Test conv2d with stride
-        use coeus_backend::CpuBackend;
-        use coeus_dtype::float::Float32;
-        use coeus_storage::DenseStorage;
+        use backend::CpuBackend;
+        use dtype::float::Float32;
+        use storage::DenseStorage;
 
         let input = Variable::new(
             Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 1, 4, 4]).unwrap(),
@@ -1378,11 +1378,11 @@ mod conv2d_tests {
 mod rnn_cell_tests {
     use super::*;
     use crate::backward;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_dtype::num_traits::ToPrimitive;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use dtype::num_traits::ToPrimitive;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_rnn_cell_gradient() {
@@ -1489,11 +1489,11 @@ mod rnn_cell_tests {
 mod lstm_cell_tests {
     use super::*;
     use crate::backward;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_dtype::num_traits::ToPrimitive;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use dtype::num_traits::ToPrimitive;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_lstm_cell_gradient() {

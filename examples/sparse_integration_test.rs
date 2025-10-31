@@ -22,11 +22,11 @@
 
 use std::time::{Duration, Instant};
 
-use coeus_dtype::float::Float32;
-use coeus_nn::{functional::mse_loss, Linear, Module, ReLU, Sequential};
-use coeus_storage::DenseStorage;
-use coeus_tensor::CpuBackend;
-use coeus_tensor::Tensor;
+use dtype::float::Float32;
+use nn::{functional::mse_loss, Linear, Module, ReLU, Sequential};
+use storage::DenseStorage;
+use tensor::CpuBackend;
+use tensor::Tensor;
 
 /// Result type for integration tests
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -412,3 +412,4 @@ fn main() -> Result<()> {
 
     Ok(())
 }
+

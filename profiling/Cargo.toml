@@ -1,5 +1,5 @@
 [package]
-name = "coeus-profiling"
+name = "profiling"
 version = "0.1.0"
 edition = "2021"
 description = "Performance profiling and benchmarking utilities for Coeus"

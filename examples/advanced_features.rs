@@ -3,16 +3,16 @@
 //! Demonstrates sparse neural networks, distributed training,
 //! and gradient checkpointing for memory-efficient deep learning.
 
-use coeus_autograd::{backward, AutogradError};
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{
+use autograd::{backward, AutogradError};
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{
     functional::cross_entropy, functional_activations::relu, Linear, Module, Sequential,
     SparseLinear,
 };
-use coeus_optim::{Adam, BaseOptimizer};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use optim::{Adam, BaseOptimizer};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Coeus Advanced Features Example");
@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n💾 Gradient Checkpointing");
     println!("------------------------");
 
-    use coeus_autograd::{checkpoint, checkpoint_sequential};
+    use autograd::{checkpoint, checkpoint_sequential};
 
     // Create some test tensors with gradient tracking
     let input1: Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> =
@@ -197,3 +197,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+

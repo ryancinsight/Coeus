@@ -3,7 +3,7 @@
 //! This module provides real-world few-shot learning datasets for meta-learning research,
 //! implementing standard benchmarks like Omniglot, miniImageNet, and tieredImageNet.
 
-use coeus_backend::{Backend, DataType, Storage};
+use backend::{Backend, DataType, Storage};
 
 pub mod omniglot;
 pub mod miniimagenet;

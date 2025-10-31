@@ -5,10 +5,10 @@
 use crate::error::{NNError, Result};
 use crate::module::Module;
 use crate::parameter::Parameter;
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::{Backend, CpuBackend};
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 use std::marker::PhantomData;
 use std::ops::Neg;
 
@@ -18,11 +18,11 @@ use std::ops::Neg;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Conv2D, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Conv2D, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let conv = Conv2D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3, 64, (3, 3), None, None, None).unwrap();
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[32, 3, 32, 32]).unwrap();
@@ -77,10 +77,10 @@ where
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_nn::Conv2D;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use nn::Conv2D;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let conv = Conv2D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3, 64, (3, 3), None, None, None).unwrap();
     /// ```
@@ -565,10 +565,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 

@@ -120,3 +120,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     run_fft_benchmarks().await;
     Ok(())
 }
+

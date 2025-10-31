@@ -46,10 +46,10 @@
 //! ```
 
 use crate::{ModuleExt, Result};
-use coeus_backend::Backend;
-use coeus_storage::{Storage, StorageFromVec};
-use coeus_tensor::Tensor;
-use coeus_dtype::DataType;
+use backend::Backend;
+use storage::{Storage, StorageFromVec};
+use tensor::Tensor;
+use dtype::DataType;
 use futures::{Stream, StreamExt};
 use std::collections::VecDeque;
 use std::marker::PhantomData;
@@ -337,9 +337,9 @@ pub trait IntoAsyncIterator {
 mod tests {
     use super::*;
     use crate::Linear;
-    use coeus_backend::cpu::CpuBackend;
-    use coeus_storage::dense::DenseStorage;
-    use coeus_dtype::float::Float32;
+    use backend::cpu::CpuBackend;
+    use storage::dense::DenseStorage;
+    use dtype::float::Float32;
 
     type TestBackend = CpuBackend;
     type TestStorage = DenseStorage<Float32>;

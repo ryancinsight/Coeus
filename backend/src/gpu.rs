@@ -24,7 +24,7 @@ use std::{
     sync::Arc,
     vec::Vec,
 };
-use coeus_storage::{Storage, DenseStorage};
+use storage::{Storage, DenseStorage};
 use wgpu::util::DeviceExt;
 #[derive(Debug, thiserror::Error)]
 pub enum GpuError {
@@ -52,6 +52,8 @@ struct GpuShaders {
     matmul: ComputePipeline,
     squares: ComputePipeline,
     fft: ComputePipeline,
+    clip_attention: ComputePipeline,
+    clip_loss: ComputePipeline,
 }
 
 impl GpuShaders {
@@ -210,6 +212,58 @@ impl GpuShaders {
             }],
         ).await?;
 
+        let clip_attention = Self::create_pipeline(
+            device,
+            include_str!("shaders/clip_attention.wgsl"),
+            "clip_attention",
+            &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 3,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 4,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        ).await?;
+
         let fft = Self::create_pipeline(
             device,
             include_str!("shaders/fft.wgsl"),
@@ -244,12 +298,57 @@ impl GpuShaders {
             }],
         ).await?;
 
+        let clip_loss = Self::create_pipeline(
+            device,
+            include_str!("shaders/clip_loss.wgsl"),
+            "compute_clip_loss",
+            &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }, wgpu::BindGroupLayoutEntry {
+                binding: 3,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        ).await?;
+
         Ok(Self {
             element_wise,
             binary_ops,
             matmul,
             squares,
             fft,
+            clip_attention,
+            clip_loss,
         })
     }
 
@@ -305,7 +404,7 @@ pub struct GpuBackend<T: crate::DataType> {
 
 
 
-impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive> Default for GpuBackend<T> {
+impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive> Default for GpuBackend<T> {
     fn default() -> Self {
         panic!("GpuBackend requires async initialization. Use GpuBackend::new() instead.");
     }
@@ -594,16 +693,16 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
     /// GPU-accelerated sparse matrix multiplication (CSR format) for Float32
     pub fn spmm_csr_float32(
         &self,
-        lhs_data: &[coeus_dtype::float::Float32],
+        lhs_data: &[dtype::float::Float32],
         lhs_indices: &[usize],
         lhs_indptr: &[usize],
-        rhs_data: &[coeus_dtype::float::Float32],
+        rhs_data: &[dtype::float::Float32],
         rhs_indices: &[usize],
         rhs_indptr: &[usize],
         m: usize,
         _k: usize,
         n: usize,
-    ) -> crate::Result<(Vec<coeus_dtype::float::Float32>, Vec<usize>, Vec<usize>)> {
+    ) -> crate::Result<(Vec<dtype::float::Float32>, Vec<usize>, Vec<usize>)> {
         // Convert data to raw f32
         let lhs_data_raw: Vec<f32> = lhs_data.iter().map(|x| x.get()).collect();
         let rhs_data_raw: Vec<f32> = rhs_data.iter().map(|x| x.get()).collect();
@@ -665,9 +764,9 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
         result_col_indices.truncate(result_count);
 
         // Convert back to Float32
-        let result_float32: Vec<coeus_dtype::float::Float32> = result_data
+        let result_float32: Vec<dtype::float::Float32> = result_data
             .into_iter()
-            .map(coeus_dtype::float::Float32::new)
+            .map(dtype::float::Float32::new)
             .collect();
 
         Ok((result_float32, result_row_indices, result_col_indices))
@@ -676,13 +775,13 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
     /// GPU-accelerated sparse matrix-vector multiplication (CSR format) for Float32
     pub fn spmv_csr_float32(
         &self,
-        matrix_data: &[coeus_dtype::float::Float32],
+        matrix_data: &[dtype::float::Float32],
         matrix_indices: &[usize],
         matrix_indptr: &[usize],
-        vector: &[coeus_dtype::float::Float32],
+        vector: &[dtype::float::Float32],
         rows: usize,
         cols: usize,
-    ) -> crate::Result<Vec<coeus_dtype::float::Float32>> {
+    ) -> crate::Result<Vec<dtype::float::Float32>> {
         // Convert data to raw f32
         let matrix_data_raw: Vec<f32> = matrix_data.iter().map(|x| x.get()).collect();
         let vector_raw: Vec<f32> = vector.iter().map(|x| x.get()).collect();
@@ -957,9 +1056,9 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
         staging_buffer.unmap();
 
         // Convert back to Float32
-        let result_float32: Vec<coeus_dtype::float::Float32> = result_data
+        let result_float32: Vec<dtype::float::Float32> = result_data
             .into_iter()
-            .map(coeus_dtype::float::Float32::new)
+            .map(dtype::float::Float32::new)
             .collect();
 
         Ok(result_float32)
@@ -969,14 +1068,14 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
     /// Returns dense matrix result: (m x n)
     pub async fn spmm_dense_float32(
         &self,
-        sparse_matrix_data: &[coeus_dtype::float::Float32],
+        sparse_matrix_data: &[dtype::float::Float32],
         sparse_matrix_indices: &[usize],
         sparse_matrix_indptr: &[usize],
-        dense_matrix: &[coeus_dtype::float::Float32],
+        dense_matrix: &[dtype::float::Float32],
         sparse_rows: usize,
         _sparse_cols: usize,
         dense_cols: usize,
-    ) -> crate::Result<Vec<coeus_dtype::float::Float32>> {
+    ) -> crate::Result<Vec<dtype::float::Float32>> {
         // Convert inputs to f32 for GPU operations
         let sparse_data_raw: Vec<f32> = sparse_matrix_data.iter().map(|x| x.get()).collect();
         let dense_data_raw: Vec<f32> = dense_matrix.iter().map(|x| x.get()).collect();
@@ -1007,16 +1106,16 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
         }
 
         // Convert result back to Float32
-        let result_float32: Vec<coeus_dtype::float::Float32> = result_data
+        let result_float32: Vec<dtype::float::Float32> = result_data
             .into_iter()
-            .map(coeus_dtype::float::Float32::new)
+            .map(dtype::float::Float32::new)
             .collect();
 
         Ok(result_float32)
     }
 }
 
-impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive + std::ops::Add<Output = T> + coeus_dtype::num_traits::Zero + Copy> Backend for GpuBackend<T> {
+impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std::ops::Add<Output = T> + dtype::num_traits::Zero + Copy + std::cmp::PartialOrd> Backend for GpuBackend<T> {
     type Data = T;
     type Device = Device;
 
@@ -1038,7 +1137,7 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
             "add" | "mul" | "sub" | "matmul" | "exp" | "log" | "sin" | "cos" | "sum" | "mean"
                 | "max" | "min" | "argmax" | "argmin" | "relu" | "spmm_csr" | "spmv_csr"
                 | "coo_matmul_sparse" | "coo_matmul_dense" | "coo_add_sparse" | "coo_mul_sparse"
-                | "quantize"
+                | "quantize" | "clip_info_nce_loss" | "clip_attention"
         )
     }
 
@@ -1049,7 +1148,7 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         _data: &[T],
         _indices: &[usize],
         _indptr: &[usize],
-        _other: &coeus_storage::DenseStorage<T>,
+        _other: &storage::DenseStorage<T>,
         _num_rows: usize,
         _num_cols: usize,
     ) -> crate::Result<Vec<T>> {
@@ -1085,7 +1184,7 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         _m: usize,
         _k: usize,
         _n: usize,
-    ) -> crate::Result<coeus_storage::CooStorage<T>> {
+    ) -> crate::Result<storage::CooStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "coo_matmul_sparse".to_string(),
             backend: self.device_name().to_string(),
@@ -1097,11 +1196,11 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         _lhs_data: &[T],
         _lhs_row: &[usize],
         _lhs_col: &[usize],
-        _rhs: &coeus_storage::DenseStorage<Self::Data>,
+        _rhs: &storage::DenseStorage<Self::Data>,
         _m: usize,
         _k: usize,
         _n: usize,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>> {
+    ) -> crate::Result<storage::DenseStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "coo_matmul_dense".to_string(),
             backend: self.device_name().to_string(),
@@ -1118,7 +1217,7 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         _rhs_col: &[usize],
         _m: usize,
         _n: usize,
-    ) -> crate::Result<coeus_storage::CooStorage<T>> {
+    ) -> crate::Result<storage::CooStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "coo_add_sparse".to_string(),
             backend: self.device_name().to_string(),
@@ -1135,7 +1234,7 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         _rhs_col: &[usize],
         _m: usize,
         _n: usize,
-    ) -> crate::Result<coeus_storage::CooStorage<T>> {
+    ) -> crate::Result<storage::CooStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "coo_mul_sparse".to_string(),
             backend: self.device_name().to_string(),
@@ -1144,47 +1243,47 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn quantize(
         &self,
-        _input: &coeus_storage::DenseStorage<Self::Data>,
+        _input: &storage::DenseStorage<Self::Data>,
         _levels: usize,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>> {
+    ) -> crate::Result<storage::DenseStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "quantize".to_string(),
             backend: "GPU".to_string(),
         })
     }
 
-    fn sum_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T> {
+    fn sum_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<T> {
         // Fallback to CPU for all types in GPU backend for now
         crate::cpu::CpuBackend::<T>::new().sum_dense(input)
     }
 
-    fn mean_dense(&self, input: &coeus_storage::DenseStorage<T>, axes: Option<&[usize]>) -> crate::Result<coeus_storage::DenseStorage<T>> {
+    fn mean_dense(&self, input: &storage::DenseStorage<T>, axes: Option<&[usize]>) -> crate::Result<storage::DenseStorage<T>> {
         // Fallback to CPU for all types in GPU backend for now
         crate::cpu::CpuBackend::<T>::new().mean_dense(input, axes)
     }
 
-    fn max_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    fn max_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: PartialOrd,
     {
         crate::cpu::CpuBackend::<T>::new().max_dense(input)
     }
 
-    fn min_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    fn min_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: PartialOrd,
     {
         crate::cpu::CpuBackend::<T>::new().min_dense(input)
     }
 
-    fn argmax_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    fn argmax_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<usize>
     where
         T: PartialOrd,
     {
         crate::cpu::CpuBackend::<T>::new().argmax_dense(input)
     }
 
-    fn argmin_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    fn argmin_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<usize>
     where
         T: PartialOrd,
     {
@@ -1193,9 +1292,9 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn add_dense(
         &self,
-        lhs: &coeus_storage::DenseStorage<T>,
-        rhs: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>> {
+        lhs: &storage::DenseStorage<T>,
+        rhs: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>> {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
             return crate::cpu::CpuBackend::<T>::new().add_dense(lhs, rhs);
@@ -1282,9 +1381,9 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn mul_dense(
         &self,
-        lhs: &coeus_storage::DenseStorage<Self::Data>,
-        rhs: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>> {
+        lhs: &storage::DenseStorage<Self::Data>,
+        rhs: &storage::DenseStorage<Self::Data>,
+    ) -> crate::Result<storage::DenseStorage<T>> {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
             return crate::cpu::CpuBackend::<T>::new().mul_dense(lhs, rhs);
@@ -1371,18 +1470,18 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn sub_dense(
         &self,
-        lhs: &coeus_storage::DenseStorage<Self::Data>,
-        rhs: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
+        lhs: &storage::DenseStorage<Self::Data>,
+        rhs: &storage::DenseStorage<Self::Data>,
+    ) -> crate::Result<storage::DenseStorage<Self::Data>>
     {
         crate::cpu::CpuBackend::<T>::new().sub_dense(lhs, rhs)
     }
 
     fn matmul_dense(
         &self,
-        lhs: &coeus_storage::DenseStorage<Self::Data>,
-        rhs: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
+        lhs: &storage::DenseStorage<Self::Data>,
+        rhs: &storage::DenseStorage<Self::Data>,
+    ) -> crate::Result<storage::DenseStorage<Self::Data>>
     {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
@@ -1483,8 +1582,8 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn exp_dense(
         &self,
-        input: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> crate::Result<storage::DenseStorage<Self::Data>>
     {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
@@ -1558,16 +1657,16 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn log_dense(
         &self,
-        input: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> crate::Result<storage::DenseStorage<Self::Data>>
     {
         crate::cpu::CpuBackend::<T>::new().log_dense(input)
     }
 
     fn sin_dense(
         &self,
-        input: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> crate::Result<storage::DenseStorage<Self::Data>>
     {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
@@ -1640,8 +1739,8 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn cos_dense(
         &self,
-        input: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> crate::Result<storage::DenseStorage<Self::Data>>
     {
         // For now, only support f32 types for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
@@ -1714,9 +1813,9 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn conv2d_dense(
         &self,
-        _input: &coeus_storage::DenseStorage<Self::Data>,
-        _weight: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>> {
+        _input: &storage::DenseStorage<Self::Data>,
+        _weight: &storage::DenseStorage<Self::Data>,
+    ) -> crate::Result<storage::DenseStorage<T>> {
         crate::cpu::CpuBackend::<T>::new().conv2d_dense(
             _input,
             _weight,
@@ -1725,8 +1824,8 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
 
     fn relu_dense(
         &self,
-        input: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> crate::Result<storage::DenseStorage<Self::Data>>
     where
         T: PartialOrd + Default,
     {
@@ -1798,12 +1897,392 @@ impl<T: crate::DataType + bytemuck::Pod + coeus_dtype::num_traits::FromPrimitive
         let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
         Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
+
+    /// Compute CLIP InfoNCE loss using GPU acceleration
+    fn clip_info_nce_loss(
+        &self,
+        image_embeddings: &storage::DenseStorage<Self::Data>,
+        text_embeddings: &storage::DenseStorage<Self::Data>,
+        temperature: f32,
+    ) -> crate::Result<Self::Data> {
+        // For now, only support f32 types for GPU CLIP operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+            return crate::cpu::CpuBackend::<T>::new().clip_info_nce_loss(image_embeddings, text_embeddings, temperature);
+        }
+
+        let image_data: &[f32] = unsafe { &*(image_embeddings.as_slice() as *const [T] as *const [f32]) };
+        let text_data: &[f32] = unsafe { &*(text_embeddings.as_slice() as *const [T] as *const [f32]) };
+
+        let image_shape = image_embeddings.shape().dims();
+        let text_shape = text_embeddings.shape().dims();
+
+        // Validate shapes: both should be [batch_size, embed_dim]
+        if image_shape.len() != 2 || text_shape.len() != 2 {
+            return Err(crate::BackendError::InvalidInput(
+                "Embeddings must be 2D tensors [batch_size, embed_dim]".to_string(),
+            ));
+        }
+
+        let batch_size = image_shape[0];
+        let embed_dim = image_shape[1];
+
+        if text_shape[0] != batch_size || text_shape[1] != embed_dim {
+            return Err(crate::BackendError::InvalidInput(
+                "Image and text embeddings must have same shape [batch_size, embed_dim]".to_string(),
+            ));
+        }
+
+        // Create GPU buffers for embeddings
+        let image_buffer = self.create_buffer_from_slice(
+            image_data,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        );
+        let text_buffer = self.create_buffer_from_slice(
+            text_data,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        );
+
+        // Create output buffer for loss values
+        let loss_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("CLIP Loss Output"),
+            size: (batch_size * std::mem::size_of::<f32>()) as u64,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+
+        // Staging buffer for reading results back to CPU
+        let staging_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Staging Buffer"),
+            size: std::mem::size_of::<f32>() as u64, // We'll store final reduced loss
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        // CLIP loss parameters
+        #[repr(C)]
+        #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+        struct CLIPLossParams {
+            batch_size: u32,
+            embed_dim: u32,
+            temperature: f32,
+        }
+
+        let params = CLIPLossParams {
+            batch_size: batch_size as u32,
+            embed_dim: embed_dim as u32,
+            temperature,
+        };
+
+        let params_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("CLIP Loss Params"),
+            size: std::mem::size_of::<CLIPLossParams>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        // Write parameters to GPU
+        self.queue.write_buffer(&params_buffer, 0, bytemuck::bytes_of(&params));
+
+        // Create bind group for CLIP loss computation
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("CLIP Loss Bind Group"),
+            layout: &self.shaders.clip_loss.bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &image_buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &text_buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &loss_buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &params_buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+            ],
+        });
+
+        // Create command encoder
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("CLIP Loss Encoder"),
+        });
+
+        // Compute loss for each batch element
+        {
+            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("CLIP Loss Compute Pass"),
+                timestamp_writes: None,
+            });
+
+            compute_pass.set_pipeline(&self.shaders.clip_loss.pipeline);
+            compute_pass.set_bind_group(0, &bind_group, &[]);
+
+            // Launch one workgroup per batch element, with 64 threads per workgroup
+            let workgroups_x = (batch_size as u32 + 63) / 64; // Ceiling division
+            compute_pass.dispatch_workgroups(workgroups_x, 1, 1);
+        }
+
+        // Copy final loss from GPU to staging buffer
+        encoder.copy_buffer_to_buffer(&loss_buffer, 0, &staging_buffer, 0, std::mem::size_of::<f32>() as u64);
+
+        // Submit and wait
+        self.queue.submit(Some(encoder.finish()));
+        self.device.poll(wgpu::Maintain::Wait);
+
+        // Read results
+        let buffer_slice = staging_buffer.slice(..);
+        buffer_slice.map_async(wgpu::MapMode::Read, |result| {
+            result.unwrap();
+        });
+        self.device.poll(wgpu::Maintain::Wait);
+
+        let data = buffer_slice.get_mapped_range();
+        let result_data: &[f32] = bytemuck::cast_slice(&data);
+        let loss_value = result_data[0];
+
+        drop(data);
+        staging_buffer.unmap();
+
+        // Return the average loss across batch
+        Ok(T::from_f32(loss_value).unwrap())
+    }
+
+    /// Compute CLIP attention mechanism using GPU acceleration
+    fn clip_attention(
+        &self,
+        queries: &storage::DenseStorage<Self::Data>,
+        keys: &storage::DenseStorage<Self::Data>,
+        values: &storage::DenseStorage<Self::Data>,
+        num_heads: usize,
+    ) -> crate::Result<storage::DenseStorage<Self::Data>> {
+        // For now, only support f32 types for GPU CLIP operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+            return crate::cpu::CpuBackend::<T>::new().clip_attention(queries, keys, values, num_heads);
+        }
+
+        let query_data: &[f32] = unsafe { &*(queries.as_slice() as *const [T] as *const [f32]) };
+        let key_data: &[f32] = unsafe { &*(keys.as_slice() as *const [T] as *const [f32]) };
+        let value_data: &[f32] = unsafe { &*(values.as_slice() as *const [T] as *const [f32]) };
+
+        let query_shape = queries.shape().dims();
+        let key_shape = keys.shape().dims();
+        let value_shape = values.shape().dims();
+
+        // Validate shapes: [batch_size, seq_len, embed_dim]
+        if query_shape.len() != 3 || key_shape.len() != 3 || value_shape.len() != 3 {
+            return Err(crate::BackendError::InvalidInput(
+                "All inputs must be 3D tensors [batch_size, seq_len, embed_dim]".to_string(),
+            ));
+        }
+
+        let batch_size = query_shape[0];
+        let seq_len_q = query_shape[1];
+        let seq_len_kv = key_shape[1];
+        let embed_dim = query_shape[2];
+
+        if key_shape[0] != batch_size || value_shape[0] != batch_size ||
+           key_shape[2] != embed_dim || value_shape[2] != embed_dim {
+            return Err(crate::BackendError::InvalidInput(
+                "Incompatible tensor shapes for attention".to_string(),
+            ));
+        }
+
+        if embed_dim % num_heads != 0 {
+            return Err(crate::BackendError::InvalidInput(
+                format!("embed_dim ({}) must be divisible by num_heads ({})", embed_dim, num_heads),
+            ));
+        }
+
+        let head_dim = embed_dim / num_heads;
+
+        // Create GPU buffers
+        let query_buffer = self.create_buffer_from_slice(
+            query_data,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        );
+        let key_buffer = self.create_buffer_from_slice(
+            key_data,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        );
+        let value_buffer = self.create_buffer_from_slice(
+            value_data,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        );
+
+        // Output buffer for attention results
+        let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("CLIP Attention Output"),
+            size: (query_data.len() * std::mem::size_of::<f32>()) as u64,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+
+        // Attention parameters
+        #[repr(C)]
+        #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+        struct AttentionParams {
+            batch_size: u32,
+            seq_len_q: u32,
+            seq_len_kv: u32,
+            embed_dim: u32,
+            num_heads: u32,
+            head_dim: u32,
+            scale_factor: f32,
+        }
+
+        let params = AttentionParams {
+            batch_size: batch_size as u32,
+            seq_len_q: seq_len_q as u32,
+            seq_len_kv: seq_len_kv as u32,
+            embed_dim: embed_dim as u32,
+            num_heads: num_heads as u32,
+            head_dim: head_dim as u32,
+            scale_factor: 1.0 / (head_dim as f32).sqrt(),
+        };
+
+        let params_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Attention Params"),
+            size: std::mem::size_of::<AttentionParams>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        // Write parameters to GPU
+        self.queue.write_buffer(&params_buffer, 0, bytemuck::bytes_of(&params));
+
+        // Create bind group
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("CLIP Attention Bind Group"),
+            layout: &self.shaders.clip_attention.bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &query_buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &key_buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &value_buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &output_buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &params_buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+            ],
+        });
+
+        // Create staging buffer for reading results
+        let staging_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Attention Staging Buffer"),
+            size: (query_data.len() * std::mem::size_of::<f32>()) as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        // Create command encoder
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("CLIP Attention Encoder"),
+        });
+
+        // Execute attention computation
+        {
+            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("CLIP Attention Compute Pass"),
+                timestamp_writes: None,
+            });
+
+            compute_pass.set_pipeline(&self.shaders.clip_attention.pipeline);
+            compute_pass.set_bind_group(0, &bind_group, &[]);
+
+            // Launch workgroups: one per batch, head, query position, and embedding dimension slice
+            let workgroups_x = (embed_dim + 7) / 8; // head_dim per workgroup x
+            let workgroups_y = seq_len_q; // query positions
+            let workgroups_z = batch_size * num_heads; // batch * heads
+
+            compute_pass.dispatch_workgroups(workgroups_x as u32, workgroups_y as u32, workgroups_z as u32);
+        }
+
+        // Copy results back to staging buffer
+        encoder.copy_buffer_to_buffer(&output_buffer, 0, &staging_buffer, 0,
+                                    (query_data.len() * std::mem::size_of::<f32>()) as u64);
+
+        // Submit and wait
+        self.queue.submit(Some(encoder.finish()));
+        self.device.poll(wgpu::Maintain::Wait);
+
+        // Read results
+        let buffer_slice = staging_buffer.slice(..);
+        buffer_slice.map_async(wgpu::MapMode::Read, |result| {
+            result.unwrap();
+        });
+        self.device.poll(wgpu::Maintain::Wait);
+
+        let data = buffer_slice.get_mapped_range();
+        let result_data: &[f32] = bytemuck::cast_slice(&data);
+
+        // Convert back to DenseStorage
+        let result_f32_data: Vec<f32> = result_data.to_vec();
+
+        drop(data);
+        staging_buffer.unmap();
+        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+
+        Ok(DenseStorage::from_vec(result_data, query_shape)?)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_storage::DenseStorage;
+    use storage::DenseStorage;
     // Note: GPU backend tests use f32 directly since Float32 doesn't implement Pod
 
     // GPU tests disabled - GPU backend is currently a stub implementation

@@ -8,9 +8,9 @@ use std::path::Path;
 use rand::Rng;
 
 use crate::error::{NNError, Result};
-use coeus_backend::{Backend, DataType, Storage};
-use coeus_storage::StorageFromVec;
-use coeus_tensor::Tensor;
+use backend::{Backend, DataType, Storage};
+use storage::StorageFromVec;
+use tensor::Tensor;
 
 use super::common::*;
 use super::MetaDataset;
@@ -338,9 +338,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_omniglot_dataset_creation() {

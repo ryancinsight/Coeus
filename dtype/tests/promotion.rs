@@ -2,7 +2,7 @@
 //!
 //! Validates correct type promotion behavior per SRS § 3.1
 
-use coeus_dtype::{promotion::promote, Dtype};
+use dtype::{promotion::promote, Dtype};
 
 #[test]
 fn test_i64_u64_promotion_to_float() {

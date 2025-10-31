@@ -73,10 +73,10 @@ where
 
 
 // Re-exports for convenience
-pub use coeus_backend::{Backend, CpuBackend};
-pub use coeus_dtype::traits::FloatExt;
-pub use coeus_dtype::DataType;
-pub use coeus_storage::{DenseStorage, Shape, Storage, StorageFromVec, StorageToDense};
+pub use backend::{Backend, CpuBackend};
+pub use dtype::traits::FloatExt;
+pub use dtype::DataType;
+pub use storage::{DenseStorage, Shape, Storage, StorageFromVec, StorageToDense};
 
 /// Compute device enumeration
 ///

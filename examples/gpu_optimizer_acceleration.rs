@@ -4,12 +4,12 @@
 //! The GPU implementation uses WebGPU compute shaders for high-performance
 //! optimization on supported hardware.
 
-use coeus_dtype::float::Float32;
-use coeus_optim::{Optimizer, RMSprop};
-use coeus_storage::num_traits::ToPrimitive;
-use coeus_storage::DenseStorage;
-use coeus_tensor::CpuBackend;
-use coeus_tensor::{ops::arithmetic::scalar_mul, Tensor};
+use dtype::float::Float32;
+use optim::{Optimizer, RMSprop};
+use storage::num_traits::ToPrimitive;
+use storage::DenseStorage;
+use tensor::CpuBackend;
+use tensor::{ops::arithmetic::scalar_mul, Tensor};
 
 /// CPU-based RMSprop optimizer demonstration
 fn cpu_rmsprop_optimizer_demo() {
@@ -202,3 +202,4 @@ fn main() {
     println!("\n✨ Example completed! GPU RMSprop provides significant");
     println!("   performance improvements for deep learning optimization.");
 }
+

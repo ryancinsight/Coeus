@@ -2,9 +2,9 @@
 
 use crate::error::{HubError, Result};
 use crate::registry::ModelEntry;
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_nn::Module;
+use backend::Backend;
+use dtype::DataType;
+use nn::Module;
 
 /// Validation result containing errors and metrics
 #[derive(Debug, Clone)]

@@ -11,7 +11,7 @@
 //!
 //! ## Usage
 //! ```rust
-//! use coeus_nn::clip::{ClipModel, ClipConfig};
+//! use nn::clip::{ClipModel, ClipConfig};
 //!
 //! let config = ClipConfig::default();
 //! let model = ClipModel::new(config).unwrap();
@@ -29,6 +29,7 @@ pub mod model;
 pub mod loss;
 pub mod preprocessing;
 pub mod trainer;
+pub mod enhanced_trainer;
 pub mod zero_shot;
 
 // Re-exports
@@ -37,6 +38,7 @@ pub use model::ClipModel;
 pub use loss::InfoNCELoss;
 pub use preprocessing::{ImageProcessor, TextProcessor};
 pub use trainer::ClipTrainer;
+pub use enhanced_trainer::{EnhancedClipTrainer, EnhancedClipTrainingConfig, TrainingResult};
 pub use zero_shot::{
     ClipClassifier, ClipInference, ClipModelLoader, ImageTextRetriever,
     PromptEngineer, ClassificationResult, RetrievalResult, SimilarityResult

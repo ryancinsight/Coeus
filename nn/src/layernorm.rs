@@ -2,10 +2,10 @@
 
 use std::marker::PhantomData;
 
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::{Backend, CpuBackend};
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 use crate::error::Result;
 use crate::module::Module;
@@ -33,11 +33,11 @@ use crate::parameter::Parameter;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{LayerNorm, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{LayerNorm, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create LayerNorm for [batch_size, seq_len, hidden_dim=128]
 /// let layer_norm = LayerNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(vec![128], 1e-5);
@@ -203,7 +203,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_layernorm_forward() {

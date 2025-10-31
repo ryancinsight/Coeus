@@ -10,8 +10,8 @@
 //! ## Model Pruning
 //!
 //! ```rust
-//! use coeus_nn::{Linear, Sequential, Module};
-//! use coeus_nn::model_surgery::{PruningMethod, prune_model};
+//! use nn::{Linear, Sequential, Module};
+//! use nn::model_surgery::{PruningMethod, prune_model};
 //!
 //! let model = Sequential::new(vec![
 //!     Box::new(Linear::new(784, 256).unwrap()),
@@ -30,7 +30,7 @@
 //! ## Layer Freezing
 //!
 //! ```rust
-//! use coeus_nn::model_surgery::{freeze_layers, unfreeze_layers};
+//! use nn::model_surgery::{freeze_layers, unfreeze_layers};
 //!
 //! // Freeze first two layers for fine-tuning
 //! freeze_layers(&mut model, &[0, 1]).unwrap();
@@ -45,7 +45,7 @@
 //! ## Model Surgery
 //!
 //! ```rust
-//! use coeus_nn::model_surgery::{cut_model, concatenate_models};
+//! use nn::model_surgery::{cut_model, concatenate_models};
 //!
 //! // Cut model at specific layers
 //! let (head, tail) = cut_model(&model, 1).unwrap();
@@ -60,10 +60,10 @@ use crate::module::ModuleSerialize;
 use crate::module::{Module, StateDict};
 use crate::parameter::Parameter;
 use crate::Sequential;
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
-use coeus_tensor::{Shape, Tensor};
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
+use tensor::{Shape, Tensor};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -420,8 +420,8 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Sequential, Linear};
-/// use coeus_nn::model_surgery::cut_model_at;
+/// use nn::{Sequential, Linear};
+/// use nn::model_surgery::cut_model_at;
 ///
 /// let model = Sequential::new(vec![
 ///     Box::new(Linear::new(784, 256).unwrap()),
@@ -499,8 +499,8 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Sequential, Linear};
-/// use coeus_nn::model_surgery::concatenate_models_owned;
+/// use nn::{Sequential, Linear};
+/// use nn::model_surgery::concatenate_models_owned;
 ///
 /// let model1 = Sequential::new(vec![
 ///     Box::new(Linear::new(784, 256).unwrap()),
@@ -1132,9 +1132,9 @@ where
 mod tests {
     use super::*;
     use crate::Linear;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_weight_scaling() {

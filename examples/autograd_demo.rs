@@ -3,10 +3,10 @@
 //! This example demonstrates Coeus's automatic differentiation system,
 //! showing how gradients are computed and propagated through computation graphs.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use storage::DenseStorage;
+use tensor::Tensor;
 use std::io::{self, Write};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Build computation graph using autograd operations
     println!("\n2. Building computation graph:");
-    let z = coeus_autograd::ops::add(&x, &y);
+    let z = autograd::ops::add(&x, &y);
     println!("   z = x + y = {}", z.as_slice()[0].get());
 
     let mut four = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
@@ -39,10 +39,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &[1],
     )?;
     four = four.requires_grad_(true);
-    let w = coeus_autograd::ops::mul(&z, &four)?;
+    let w = autograd::ops::mul(&z, &four)?;
     println!("   w = z * 4 = {}", w.as_slice()[0].get());
 
-    let loss = coeus_autograd::ops::mul(&w, &w)?; // w²
+    let loss = autograd::ops::mul(&w, &w)?; // w²
     println!("   loss = w² = {}", loss.as_slice()[0].get());
 
     // Before backward pass, no gradients
@@ -78,14 +78,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &[1],
     )?;
     two = two.requires_grad_(true);
-    let b = coeus_autograd::ops::mul(&a, &two)?;
+    let b = autograd::ops::mul(&a, &two)?;
 
     let mut three = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(3.0)],
         &[1],
     )?;
     three = three.requires_grad_(true);
-    let c = coeus_autograd::ops::mul(&a, &three)?;
+    let c = autograd::ops::mul(&a, &three)?;
 
     // Backward with respect to both outputs
     b.backward()?;
@@ -117,7 +117,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     exp = exp.requires_grad_(true);
 
-    let product = coeus_autograd::ops::mul(&base, &exp)?;
+    let product = autograd::ops::mul(&base, &exp)?;
     println!(
         "   product = base*exp = {}*{} = {}",
         base.as_slice()[0].get(),
@@ -145,3 +145,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     io::stdout().flush()?;
     Ok(())
 }
+

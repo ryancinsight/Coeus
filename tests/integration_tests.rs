@@ -30,17 +30,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 // Import all necessary crates
-use coeus_backend::{CpuBackend, GpuBackend};
-use coeus_distributed::{DataParallel, ProcessGroup, BackendType, FaultToleranceConfig};
-use coeus_dtype::float::Float32;
-use coeus_nn::{
+use backend::{CpuBackend, GpuBackend};
+use distributed::{DataParallel, ProcessGroup, BackendType, FaultToleranceConfig};
+use dtype::float::Float32;
+use nn::{
     Linear, Sequential, MSELoss, CrossEntropyLoss, Module, Optimizer,
     SGD, Adam, TrainingMonitor, TrainingMetrics, FreezeConfig,
     PruningMethod, PruningConfig, SurgeryOperation,
 };
-use coeus_profiling::{Timer, Profiler};
-use coeus_storage::DenseStorage;
-use coeus_tensor::{Shape, Tensor};
+use profiling::{Timer, Profiler};
+use storage::DenseStorage;
+use tensor::{Shape, Tensor};
 
 /// Basic training pipeline integration test
 ///

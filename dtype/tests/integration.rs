@@ -2,7 +2,7 @@
 //!
 //! Tests cross-module interactions and type conversions
 
-use coeus_dtype::*;
+use dtype::*;
 use num_traits::{Float, NumCast, One, Zero};
 
 #[test]
@@ -171,7 +171,7 @@ mod proptests {
             re in -100.0f32..100.0,
             im in -100.0f32..100.0
         ) {
-            use coeus_dtype::complex::Complex32;
+            use dtype::complex::Complex32;
             let z = Complex32::new(re, im);
             let norm = (z.re * z.re + z.im * z.im).sqrt();
             prop_assert!(norm >= 0.0, "Norm should be non-negative");

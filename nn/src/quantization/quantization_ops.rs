@@ -4,10 +4,10 @@ use crate::error::Result;
 
 use crate::quantization::core::QuantizationScheme;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{QuantizedStorage, Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::DataType;
+use storage::{QuantizedStorage, Storage, StorageFromVec};
+use tensor::Tensor;
 
 /// Common quantization operations that can be shared across different quantization implementations
 pub trait QuantizationOps<T> {

@@ -9,7 +9,7 @@ use tracing::instrument;
 ///
 /// This trait provides methods for matrix algebra operations
 /// on 2D tensors.
-impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
+impl<B, T> crate::Tensor<B, storage::DenseStorage<T>, T>
 where
     B: crate::Backend<Data = T> + Clone + Default,
     T: crate::DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T>,
@@ -38,10 +38,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// // Create 2x3 matrix A
     /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
@@ -64,8 +64,8 @@ where
     /// ```
     #[instrument(level = "trace", skip(self, other))]
     pub fn matmul(&self, other: &Self) -> crate::Result<Self> {
-        let lhs_shape = <coeus_storage::DenseStorage<T> as coeus_storage::Storage<T>>::shape(&self.storage).dims();
-        let rhs_shape = <coeus_storage::DenseStorage<T> as coeus_storage::Storage<T>>::shape(&other.storage).dims();
+        let lhs_shape = <storage::DenseStorage<T> as storage::Storage<T>>::shape(&self.storage).dims();
+        let rhs_shape = <storage::DenseStorage<T> as storage::Storage<T>>::shape(&other.storage).dims();
 
         // Validate 2D matrices
         if lhs_shape.len() != 2 {
@@ -107,8 +107,8 @@ where
     #[instrument(level = "trace", skip(self, other))]
     fn matmul_cpu(&self, m: usize, n: usize, p: usize, other: &Self) -> crate::Result<Self> {
         // Perform matrix multiplication using iterator-based approach
-        let lhs_data = <coeus_storage::DenseStorage<T> as coeus_storage::Storage<T>>::as_slice(&self.storage);
-        let rhs_data = <coeus_storage::DenseStorage<T> as coeus_storage::Storage<T>>::as_slice(&other.storage);
+        let lhs_data = <storage::DenseStorage<T> as storage::Storage<T>>::as_slice(&self.storage);
+        let rhs_data = <storage::DenseStorage<T> as storage::Storage<T>>::as_slice(&other.storage);
 
         let result_data: Vec<T> = (0..m)
             .flat_map(|i| {
@@ -125,8 +125,8 @@ where
             .collect();
 
         {
-            let storage = coeus_storage::DenseStorage::from_vec(result_data, &[m, p])?;
-            Ok(<crate::Tensor<B, coeus_storage::DenseStorage<T>, T>>::from_storage(storage, self.backend.clone()))
+            let storage = storage::DenseStorage::from_vec(result_data, &[m, p])?;
+            Ok(<crate::Tensor<B, storage::DenseStorage<T>, T>>::from_storage(storage, self.backend.clone()))
         }
     }
 

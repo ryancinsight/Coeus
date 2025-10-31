@@ -11,7 +11,7 @@ use core::fmt;
 /// # Examples
 ///
 /// ```
-/// use coeus_storage::Shape;
+/// use storage::Shape;
 ///
 /// // Scalar (0-D tensor)
 /// let scalar = Shape::new(&[]).unwrap();
@@ -92,7 +92,7 @@ impl Shape {
     /// # Examples
     ///
     /// ```
-    /// use coeus_storage::Shape;
+    /// use storage::Shape;
     ///
     /// let shape = Shape::new(&[2, 3, 4]).unwrap();
     /// let strides = shape.row_major_strides();
@@ -118,7 +118,7 @@ impl Shape {
     /// # Examples
     ///
     /// ```
-    /// use coeus_storage::Shape;
+    /// use storage::Shape;
     ///
     /// let shape = Shape::new(&[2, 3, 4]).unwrap();
     /// let strides = shape.column_major_strides();

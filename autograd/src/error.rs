@@ -1,6 +1,6 @@
 //! Error types for the autograd system
 
-use coeus_tensor::TensorError;
+use tensor::TensorError;
 use thiserror::Error;
 
 /// Result type alias for autograd operations
@@ -89,5 +89,5 @@ pub enum AutogradError {
 
     /// Storage operation error
     #[error("Storage error: {0}")]
-    StorageError(#[from] coeus_storage::StorageError),
+    StorageError(#[from] storage::StorageError),
 }

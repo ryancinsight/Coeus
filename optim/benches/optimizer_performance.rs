@@ -12,11 +12,11 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::time::Duration;
 
 // Import our optimizers and dependencies
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_optim::{Adam, BaseOptimizer, ParamGroup};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use optim::{Adam, BaseOptimizer, ParamGroup};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 /// Benchmark configuration parameters
 #[derive(Clone, Copy)]

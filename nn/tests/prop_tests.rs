@@ -6,11 +6,11 @@
 use approx::assert_relative_eq;
 use proptest::prelude::*;
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::*;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::*;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 /// Generate random tensors with specified shape
 fn arb_tensor(

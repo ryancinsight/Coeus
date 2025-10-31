@@ -4,10 +4,10 @@
 
 use std::fmt;
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::{traits::FloatExt, DataType};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 use crate::module::Module;
@@ -23,11 +23,11 @@ use crate::module::Module;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{MaxPool1d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{MaxPool1d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let pool = MaxPool1d::new(2, Some(2), 0);
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
@@ -137,11 +137,11 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{AvgPool1d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{AvgPool1d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let pool = AvgPool1d::new(2, Some(2), 0);
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();
@@ -255,11 +255,11 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for AvgPo
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{AdaptiveAvgPool1d, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{AdaptiveAvgPool1d, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let pool = AdaptiveAvgPool1d::new(10);
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 100]).unwrap();

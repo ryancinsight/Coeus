@@ -1,9 +1,9 @@
 //! Upsampling layers for neural networks.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::{traits::FloatExt, DataType};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 use crate::error::Result;
 use crate::module::Module;
@@ -31,11 +31,11 @@ pub enum InterpolationMode {
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Upsample, InterpolationMode, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Upsample, InterpolationMode, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Upsample by scale factor 2 using nearest neighbor
 /// let upsample = Upsample::new(None, Some(2.0), InterpolationMode::Nearest);
@@ -260,7 +260,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Upsam
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_upsample_nearest_scale_factor() {

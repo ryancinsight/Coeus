@@ -379,7 +379,7 @@ impl JitRuntime {
 
         // Create a simple output tensor (placeholder)
         let output_shape = input.shape().clone();
-        use coeus_tensor::Tensor;
+        use tensor::Tensor;
         Tensor::zeros(output_shape.dims()).map_err(|e| JitError::ExecutionFailed {
             message: format!("Failed to create output tensor: {:?}", e),
         })

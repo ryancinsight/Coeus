@@ -6,9 +6,9 @@ use crate::parameter::Parameter;
 
 use crate::quantization::core::{QuantizationBitwidth, QuantizationScheme};
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
 
 use serde::{Deserialize, Serialize};
 

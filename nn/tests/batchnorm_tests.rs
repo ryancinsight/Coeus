@@ -2,12 +2,12 @@
 //!
 //! Comprehensive tests for BatchNorm1d, BatchNorm2d, BatchNorm3d functionality.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::batchnorm::BatchNorm1d;
-use coeus_nn::{BatchNorm2d, BatchNorm3d, Module};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::batchnorm::BatchNorm1d;
+use nn::{BatchNorm2d, BatchNorm3d, Module};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 #[test]
 fn test_batchnorm1d_forward() {

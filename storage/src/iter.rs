@@ -17,7 +17,7 @@
 /// # Examples
 ///
 /// ```
-/// use coeus_storage::iter::compute_strided_index;
+/// use storage::iter::compute_strided_index;
 ///
 /// // 2D tensor [3, 4] with row-major strides [4, 1]
 /// // Linear index 5 -> multi-index [1, 1] -> strided index 5

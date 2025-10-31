@@ -13,7 +13,7 @@ fn init_tracing() {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                "coeus_tensor=trace,coeus_autograd=trace,coeus_examples=info".into()
+                "tensor=trace,autograd=trace,coeus_examples=info".into()
             }),
         )
         .with(
@@ -33,10 +33,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting Coeus tracing example");
 
     // Import Coeus crates
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::CpuBackend;
-    use coeus_tensor::Tensor;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::CpuBackend;
+    use tensor::Tensor;
 
     info!("Creating tensors for demonstration");
 
@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _broadcasted = &scalar + &a;
 
     // Autograd example with tracing
-    use coeus_autograd::ops::backward_with_grad;
+    use autograd::ops::backward_with_grad;
 
     info!("Creating autograd tensors");
     let mut x = a.clone();
@@ -106,3 +106,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+

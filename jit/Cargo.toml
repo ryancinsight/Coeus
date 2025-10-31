@@ -14,12 +14,12 @@ categories = ["science", "algorithms", "compilers"]
 
 [dependencies]
 # Workspace dependencies
-coeus-tensor = { path = "../tensor" }
-coeus-autograd = { path = "../autograd" }
-coeus-backend = { path = "../backend" }
-coeus-storage = { path = "../storage" }
-coeus-nn = { path = "../nn" }
-coeus-dtype = { path = "../dtype" }
+tensor = { path = "../tensor" }
+autograd = { path = "../autograd" }
+backend = { path = "../backend" }
+storage = { path = "../storage" }
+nn = { path = "../nn" }
+dtype = { path = "../dtype" }
 
 # Error handling
 thiserror = { workspace = true }

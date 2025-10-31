@@ -17,8 +17,8 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use coeus_optim::{Adam, Optimizer};
-//! use coeus_tensor::Tensor;
+//! use optim::{Adam, Optimizer};
+//! use tensor::Tensor;
 //!
 //! // Create some model parameters
 //! let mut param1 = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3]);
@@ -82,16 +82,16 @@ pub use optimizers::*;
 pub use schedulers::*;
 
 /// Parameter type alias for tensor parameters
-pub type Parameter<B, S, T> = coeus_tensor::Tensor<B, S, T>;
+pub type Parameter<B, S, T> = tensor::Tensor<B, S, T>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::optimizers::{Adam, RMSprop, SGD};
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     #[ignore] // API has evolved, test needs updating for new ParamGroup interface

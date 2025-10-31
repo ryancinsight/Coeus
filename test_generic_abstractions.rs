@@ -1,11 +1,11 @@
 // Test file to verify generic abstraction capabilities work correctly
 // This file tests that all components can be instantiated with different B<S<T>> combinations
 
-use coeus_backend::CpuBackend;
-use coeus_storage::{DenseStorage, CsrStorage};
-use coeus_dtype::float::Float32;
-use coeus_nn::{Sequential, Linear, MSELoss};
-use coeus_nn::loss::mse_loss;
+use backend::CpuBackend;
+use storage::{DenseStorage, CsrStorage};
+use dtype::float::Float32;
+use nn::{Sequential, Linear, MSELoss};
+use nn::loss::mse_loss;
 
 fn test_sequential_dense() {
     // Test Sequential with dense storage

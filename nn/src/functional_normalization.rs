@@ -3,11 +3,11 @@
 //! This module provides stateless normalization operations for stabilizing
 //! and improving the training of neural networks.
 
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
 #[allow(unused_imports)]
-use coeus_storage::{Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 
@@ -34,11 +34,11 @@ use crate::error::{NNError, Result};
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::functional_normalization::layer_norm;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::functional_normalization::layer_norm;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
@@ -189,11 +189,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::functional_normalization::batch_norm;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::functional_normalization::batch_norm;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],

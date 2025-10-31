@@ -3,10 +3,10 @@
 //! This module implements a node-based computation graph architecture that
 //! enables dynamic graph construction compatible with `PyTorch`'s autograd system.
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::DataType;
+use storage::DenseStorage;
+use tensor::Tensor;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -317,7 +317,7 @@ where
     T: DataType,
 {
     /// Accumulated gradients for each tensor (keyed by tensor pointer)
-    gradients: std::collections::HashMap<*const (), Tensor<B, coeus_storage::DenseStorage<T>, T>>,
+    gradients: std::collections::HashMap<*const (), Tensor<B, storage::DenseStorage<T>, T>>,
 }
 
 impl<B, T> GradientAccumulator<B, T>
@@ -340,10 +340,10 @@ where
     /// from multiple paths in the computational graph.
     pub fn accumulate(
         &mut self,
-        tensor: &Tensor<B, coeus_storage::DenseStorage<T>, T>,
-        grad: Tensor<B, coeus_storage::DenseStorage<T>, T>,
+        tensor: &Tensor<B, storage::DenseStorage<T>, T>,
+        grad: Tensor<B, storage::DenseStorage<T>, T>,
     ) {
-        let key = (tensor as *const Tensor<B, coeus_storage::DenseStorage<T>, T>).cast::<()>();
+        let key = (tensor as *const Tensor<B, storage::DenseStorage<T>, T>).cast::<()>();
 
         if let Some(existing_grad) = self.gradients.get_mut(&key) {
             // Add the new gradient to the existing one
@@ -359,9 +359,9 @@ where
     #[must_use]
     pub fn get(
         &self,
-        tensor: &Tensor<B, coeus_storage::DenseStorage<T>, T>,
-    ) -> Option<&Tensor<B, coeus_storage::DenseStorage<T>, T>> {
-        let key = (tensor as *const Tensor<B, coeus_storage::DenseStorage<T>, T>).cast::<()>();
+        tensor: &Tensor<B, storage::DenseStorage<T>, T>,
+    ) -> Option<&Tensor<B, storage::DenseStorage<T>, T>> {
+        let key = (tensor as *const Tensor<B, storage::DenseStorage<T>, T>).cast::<()>();
         self.gradients.get(&key)
     }
 
@@ -374,7 +374,7 @@ where
         for (tensor_ptr, grad) in self.gradients.drain() {
             // Convert pointer back to reference (unsafe but controlled)
             let tensor =
-                unsafe { &*tensor_ptr.cast::<Tensor<B, coeus_storage::DenseStorage<T>, T>>() };
+                unsafe { &*tensor_ptr.cast::<Tensor<B, storage::DenseStorage<T>, T>>() };
 
             // Check if tensor already has a gradient and accumulate
             if let Ok(existing_grad) = tensor.grad() {

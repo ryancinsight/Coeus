@@ -8,12 +8,12 @@
 //!
 //! Run with: cargo run --example custom_layer
 
-use coeus_autograd::ops::backward_with_grad;
-use coeus_dtype::float::Float32;
-use coeus_nn::{error::NNError, Linear, Module, Parameter};
-use coeus_storage::DenseStorage;
-use coeus_tensor::CpuBackend;
-use coeus_tensor::Tensor;
+use autograd::ops::backward_with_grad;
+use dtype::float::Float32;
+use nn::{error::NNError, Linear, Module, Parameter};
+use storage::DenseStorage;
+use tensor::CpuBackend;
+use tensor::Tensor;
 
 /// Custom Residual Block Layer
 ///
@@ -286,3 +286,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+

@@ -21,7 +21,7 @@
 //! # Example Usage
 //!
 //! ```rust
-//! use coeus_nn::{
+//! use nn::{
 //!     meta::{
 //!         prototypical::{PrototypicalNetwork, FewShotEpisodeGenerator, DistanceMetric},
 //!         Episode,
@@ -29,10 +29,10 @@
 //!     linear::Linear,
 //!     Module,
 //! };
-//! use coeus_backend::CpuBackend;
-//! use coeus_dtype::float::Float32;
-//! use coeus_storage::DenseStorage;
-//! use coeus_tensor::Tensor;
+//! use backend::CpuBackend;
+//! use dtype::float::Float32;
+//! use storage::DenseStorage;
+//! use tensor::Tensor;
 //!
 //! // Create encoder network
 //! let encoder = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 64).unwrap();
@@ -69,11 +69,11 @@ use rand::Rng;
 
 use crate::error::{NNError, Result};
 use crate::Module;
-use coeus_backend::{Backend, DataType, Storage};
-use coeus_dtype::traits::FloatExt;
-use coeus_storage::StorageFromVec;
-use coeus_tensor::ops::arithmetic::scalar_div;
-use coeus_tensor::{ops::arithmetic, Tensor};
+use backend::{Backend, DataType, Storage};
+use dtype::traits::FloatExt;
+use storage::StorageFromVec;
+use tensor::ops::arithmetic::scalar_div;
+use tensor::{ops::arithmetic, Tensor};
 
 /// Few-shot episode (task) definition
 #[derive(Debug, Clone)]
@@ -109,11 +109,11 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use coeus_nn::meta::prototypical::{PrototypicalNetwork, DistanceMetric};
-/// use coeus_nn::linear::Linear;
-/// use coeus_backend::CpuBackend;
-/// use coeus_dtype::float::Float32;
-/// use coeus_storage::DenseStorage;
+/// use nn::meta::prototypical::{PrototypicalNetwork, DistanceMetric};
+/// use nn::linear::Linear;
+/// use backend::CpuBackend;
+/// use dtype::float::Float32;
+/// use storage::DenseStorage;
 ///
 /// let encoder = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 64).unwrap();
 /// let proto_net = PrototypicalNetwork::new(encoder)
@@ -212,12 +212,12 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// # use coeus_nn::meta::prototypical::PrototypicalNetwork;
-    /// # use coeus_nn::linear::Linear;
-    /// # use coeus_backend::CpuBackend;
-    /// # use coeus_dtype::float::Float32;
-    /// # use coeus_storage::DenseStorage;
-    /// # use coeus_tensor::Tensor;
+    /// # use nn::meta::prototypical::PrototypicalNetwork;
+    /// # use nn::linear::Linear;
+    /// # use backend::CpuBackend;
+    /// # use dtype::float::Float32;
+    /// # use storage::DenseStorage;
+    /// # use tensor::Tensor;
     /// # let encoder = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
     /// # let proto_net = PrototypicalNetwork::new(encoder);
     /// // Create support set with 2 classes, 2 examples each
@@ -301,12 +301,12 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// # use coeus_nn::meta::prototypical::PrototypicalNetwork;
-    /// # use coeus_nn::linear::Linear;
-    /// # use coeus_backend::CpuBackend;
-    /// # use coeus_dtype::float::Float32;
-    /// # use coeus_storage::DenseStorage;
-    /// # use coeus_tensor::Tensor;
+    /// # use nn::meta::prototypical::PrototypicalNetwork;
+    /// # use nn::linear::Linear;
+    /// # use backend::CpuBackend;
+    /// # use dtype::float::Float32;
+    /// # use storage::DenseStorage;
+    /// # use tensor::Tensor;
     /// # let encoder = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
     /// # let proto_net = PrototypicalNetwork::new(encoder);
     /// // Assume we have prototypes and a query
@@ -499,11 +499,11 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use coeus_nn::meta::prototypical::FewShotEpisodeGenerator;
-/// use coeus_backend::CpuBackend;
-/// use coeus_dtype::float::Float32;
-/// use coeus_storage::DenseStorage;
-/// use coeus_tensor::Tensor;
+/// use nn::meta::prototypical::FewShotEpisodeGenerator;
+/// use backend::CpuBackend;
+/// use dtype::float::Float32;
+/// use storage::DenseStorage;
+/// use tensor::Tensor;
 ///
 /// // Create example data for 3 classes, 10 examples each
 /// let class_examples = vec![
@@ -576,11 +576,11 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// # use coeus_nn::meta::prototypical::FewShotEpisodeGenerator;
-    /// # use coeus_backend::CpuBackend;
-    /// # use coeus_dtype::float::Float32;
-    /// # use coeus_storage::DenseStorage;
-    /// # use coeus_tensor::Tensor;
+    /// # use nn::meta::prototypical::FewShotEpisodeGenerator;
+    /// # use backend::CpuBackend;
+    /// # use dtype::float::Float32;
+    /// # use storage::DenseStorage;
+    /// # use tensor::Tensor;
     /// # let class_examples = vec![
     /// #     (0..10).map(|_| Tensor::from_vec(vec![1.0, 2.0], &[2]).unwrap()).collect::<Vec<_>>(),
     /// #     (0..10).map(|_| Tensor::from_vec(vec![3.0, 4.0], &[2]).unwrap()).collect::<Vec<_>>(),
@@ -709,10 +709,10 @@ mod concurrency_tests {
     use std::sync::Arc;
     use std::thread;
     use crate::linear::Linear;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_prototypical_network_thread_safety() {
@@ -824,10 +824,10 @@ mod concurrency_tests {
 mod tests {
     use super::*;
     use crate::linear::Linear;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_prototypical_network_creation() {

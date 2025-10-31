@@ -3,11 +3,11 @@ use pyo3::pyclass;
 use pyo3::types::PyList;
 use pyo3::{PyResult, Py, PyAny};
 
-use coeus_utils::{Dataset, DataLoader as RustDataLoader, TensorDataset as RustTensorDataset, Transform, TensorSample, Subset as RustSubset};
-use coeus_tensor::Tensor;
-use coeus_backend::CpuBackend;
-use coeus_storage::DenseStorage;
-use coeus_dtype::int::Int32;
+use utils::{Dataset, DataLoader as RustDataLoader, TensorDataset as RustTensorDataset, Transform, TensorSample, Subset as RustSubset};
+use tensor::Tensor;
+use backend::CpuBackend;
+use storage::DenseStorage;
+use dtype::int::Int32;
 
 use super::tensor::PyTensor;
 

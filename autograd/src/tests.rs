@@ -1,10 +1,10 @@
 //! Tests for the autograd system
 
 use crate::ops::{add, backward_with_grad, cos, exp, log, matmul, mean, mul, nll_loss, sin, sum};
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
@@ -26,7 +26,7 @@ fn test_basic_addition_grad() {
     y = y.requires_grad_(true);
 
     // Perform addition
-    let z = add::<CpuBackend<Float32>, Float32>(&x, &y);
+    let z = add::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>(&x, &y).unwrap();
 
     // Check forward pass
     assert_eq!(z.as_slice()[0].get(), 5.0);
@@ -111,7 +111,7 @@ fn test_no_grad_tensors() {
     let y = TestTensor::from_vec(vec![Float32::new(3.0)], &[1]).unwrap();
 
     // Perform addition
-    let z = add::<CpuBackend<Float32>, Float32>(&x, &y);
+    let z = add::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>(&x, &y).unwrap();
 
     // Should not have gradients
     assert!(!x.requires_grad());

@@ -1,4 +1,4 @@
-﻿impl<B, T> Tensor<B, CsrStorage<T>, T>
+impl<B, T> Tensor<B, CsrStorage<T>, T>
 where
     B: Backend,
     T: DataType,
@@ -17,10 +17,10 @@ where
     ///
     /// # Examples
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::CsrStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::CsrStorage;
+    /// use dtype::float::Float32;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let backend = CpuBackend::new();
@@ -93,7 +93,7 @@ where
                 expected: n,
                 actual: rhs_shape[0],
                 message: format!(
-                    "Matrix dimension mismatch: {}×{} @ {}×{} (inner dimensions {} ≠ {})",
+                    "Matrix dimension mismatch: {}�{} @ {}�{} (inner dimensions {} ? {})",
                     m, n, rhs_shape[0], p, n, rhs_shape[0]
                 ),
             });
@@ -182,7 +182,7 @@ where
                 expected: n,
                 actual: rhs_shape[0],
                 message: format!(
-                    "Matrix dimension mismatch: {}×{} @ {}×{} (inner dimensions {} ≠ {})",
+                    "Matrix dimension mismatch: {}�{} @ {}�{} (inner dimensions {} ? {})",
                     m, n, rhs_shape[0], p, n, rhs_shape[0]
                 ),
             });
@@ -215,10 +215,10 @@ where
     ///
     /// # Examples
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::CooStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::CooStorage;
+    /// use dtype::float::Float32;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let backend = CpuBackend::new();
@@ -291,7 +291,7 @@ where
                 expected: n,
                 actual: rhs_shape[0],
                 message: format!(
-                    "Matrix dimension mismatch: {}×{} @ {}×{} (inner dimensions {} ≠ {})",
+                    "Matrix dimension mismatch: {}�{} @ {}�{} (inner dimensions {} ? {})",
                     m, n, rhs_shape[0], p, n, rhs_shape[0]
                 ),
             });

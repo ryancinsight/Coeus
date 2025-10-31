@@ -14,12 +14,12 @@ categories = ["science", "algorithms"]
 
 [dependencies]
 # Workspace dependencies
-coeus-tensor = { path = "../tensor" }
-coeus-autograd = { path = "../autograd" }
-coeus-backend = { path = "../backend" }
-coeus-nn = { path = "../nn" }
-coeus-storage = { path = "../storage" }
-coeus-dtype = { path = "../dtype" }
+tensor = { path = "../tensor" }
+autograd = { path = "../autograd" }
+backend = { path = "../backend" }
+nn = { path = "../nn" }
+storage = { path = "../storage" }
+dtype = { path = "../dtype" }
 
 # Async runtime
 tokio = { workspace = true }

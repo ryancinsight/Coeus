@@ -2,10 +2,10 @@
 
 use std::collections::HashMap;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
+use tensor::Tensor;
 
 #[cfg(feature = "safetensors")]
 use crate::error::NNError;
@@ -26,11 +26,11 @@ use crate::parameter::Parameter;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Module, Parameter, error};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Module, Parameter, error};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 ///
 /// struct MyModule {
@@ -200,10 +200,10 @@ pub type StateDict<T> = HashMap<String, Vec<T>>;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Linear, ModuleSerialize};
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Linear, ModuleSerialize};
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 /// use std::collections::HashMap;
 /// use std::path::Path;
 ///
@@ -225,7 +225,7 @@ pub type StateDict<T> = HashMap<String, Vec<T>>;
 #[cfg(feature = "safetensors")]
 pub trait ModuleSerialize<
     B: Backend<Data = T> + Clone + std::default::Default,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T>,
     T: DataType + serde::Serialize + serde::de::DeserializeOwned,
 >: Module<B, S, T>
 {
@@ -507,10 +507,10 @@ macro_rules! module {
 mod tests {
     use super::*;
     use crate::error::NNError;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     // Mock parameter for testing
     #[derive(Debug)]

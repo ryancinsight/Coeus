@@ -4,9 +4,9 @@
 
 use std::fmt;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
 
 use crate::rnn::gru_core::GRU;
 

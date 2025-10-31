@@ -3,10 +3,10 @@
 //! This module provides stateless attention operations including
 //! scaled dot-product attention for transformer architectures.
 
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 use std::ops::Mul;
 
 use crate::error::{NNError, Result};
@@ -76,11 +76,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::functional_attention::scaled_dot_product_attention;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::functional_attention::scaled_dot_product_attention;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let batch_size = 2;
 /// let seq_len = 10;

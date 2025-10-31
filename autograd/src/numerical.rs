@@ -139,7 +139,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     /// Test numerical gradient for simple quadratic function f(x) = x²
     #[test]

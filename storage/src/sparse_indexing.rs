@@ -256,7 +256,7 @@ impl<T: crate::DataType + Copy> SparseFancyIndex<T> for CooStorage<T> {
 mod tests {
     use super::*;
     use alloc::vec;
-    use coeus_dtype::float::F32;
+    use dtype::float::F32;
 
     #[test]
     fn test_csr_boolean_index() {

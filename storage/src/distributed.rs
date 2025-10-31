@@ -523,7 +523,7 @@ impl<T: DataType> Storage<T> for DistributedStorage<T> {
 mod tests {
     use super::*;
     use crate::dense::DenseStorage;
-    use coeus_dtype::float::F32;
+    use dtype::float::F32;
 
     #[test]
     fn test_distributed_storage_creation() {

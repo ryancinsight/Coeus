@@ -6,13 +6,13 @@ use crate::module::Module;
 use crate::quantization::core::{QuantizationScheme, QuantizedWeights};
 use crate::quantization::quantization_ops::QuantizationOps;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{
+use backend::Backend;
+use dtype::DataType;
+use storage::{
     QuantizedStorage, QuantizedStorage16, QuantizedStorage4, QuantizedStorage8, Storage,
     StorageFromVec,
 };
-use coeus_tensor::Tensor;
+use tensor::Tensor;
 
 /// Quantized linear layer for inference
 ///

@@ -1,5 +1,5 @@
 [package]
-name = "coeus-autograd"
+name = "autograd"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,10 +14,10 @@ categories = ["science", "algorithms"]
 
 [dependencies]
 # Workspace dependencies
-coeus-dtype = { path = "../dtype" }
-coeus-storage = { path = "../storage" }
-coeus-backend = { path = "../backend" }
-coeus-tensor = { path = "../tensor" }
+dtype.workspace = true
+storage.workspace = true
+backend.workspace = true
+tensor.workspace = true
 
 # Core numeric traits
 num-traits.workspace = true
@@ -30,10 +30,10 @@ anyhow.workspace = true
 tracing.workspace = true
 
 # Memory management (Copy-on-Write for gradients)
-cow-utils = "0.1"
+cow-utils.workspace = true
 
 # Stack-allocated vectors for small collections
-smallvec = "1.13"
+smallvec.workspace = true
 
 [dev-dependencies]
 # Testing

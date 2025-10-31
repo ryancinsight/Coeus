@@ -8,10 +8,10 @@
 
 use std::any::Any;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 use crate::module::Module;
@@ -24,10 +24,10 @@ use crate::parameter::Parameter;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Sequential, Linear, ReLU};
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Sequential, Linear, ReLU};
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create a simple MLP
 /// let mut model = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
@@ -83,10 +83,10 @@ where
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_nn::{Sequential, Linear};
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use nn::{Sequential, Linear};
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let mut seq = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
     /// seq.add_module("layer1", Linear::new(10, 5).unwrap());
@@ -235,11 +235,11 @@ where
 
 // Specialized implementation for Float32 to enable serialization
 #[cfg(feature = "safetensors")]
-impl<B, S> Sequential<B, S, coeus_dtype::float::Float32>
+impl<B, S> Sequential<B, S, dtype::float::Float32>
 where
-    B: Backend<coeus_dtype::float::Float32> + Clone + Default,
-    S: Storage<coeus_dtype::float::Float32>
-        + StorageFromVec<coeus_dtype::float::Float32>
+    B: Backend<Data = dtype::float::Float32> + Clone + Default,
+    S: Storage<dtype::float::Float32>
+        + StorageFromVec<dtype::float::Float32>
         + Clone
         + 'static,
 {
@@ -265,9 +265,9 @@ where
     /// Result indicating success or failure
     pub fn load<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<()> {
         use crate::safetensors::conversion::safetensors_to_state_dict;
-        use coeus_backend::CpuBackend as CpuBackendConcrete;
-        use coeus_dtype::float::Float32;
-        use coeus_tensor::{DenseStorage, Tensor};
+        use backend::CpuBackend as CpuBackendConcrete;
+        use dtype::float::Float32;
+        use tensor::{DenseStorage, Tensor};
 
         let safetensors = crate::safetensors::SafeTensors::load(path.as_ref())?;
         let state_dict: std::collections::HashMap<
@@ -380,9 +380,9 @@ where
 mod tests {
     use super::*;
     use crate::{Linear, ReLU};
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_empty_sequential() {

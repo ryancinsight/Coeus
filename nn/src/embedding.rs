@@ -2,10 +2,10 @@
 
 use std::marker::PhantomData;
 
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::{Backend, CpuBackend};
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec};
+use tensor::Tensor;
 
 use crate::error::Result;
 use crate::module::Module;
@@ -21,11 +21,11 @@ use crate::parameter::Parameter;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Embedding, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Embedding, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create embedding layer: 1000 tokens, 128-dimensional embeddings
 /// let embedding = Embedding::new(1000, 128, None).unwrap();
@@ -208,7 +208,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_embedding_forward() {

@@ -7,17 +7,17 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::prelude::*;
 
-use coeus_autograd::ops::backward_with_grad;
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{
+use autograd::ops::backward_with_grad;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{
     activation::GELU, attention::SparseAttentionPattern, dropout::Dropout, functional, BatchNorm2d, Conv2D, LayerNorm, Linear, Module,
     MultiHeadAttention, ReLU, Sequential, SparseAttention,
     meta::prototypical::{PrototypicalNetwork, FewShotEpisodeGenerator, DistanceMetric},
     research::{MAMLResearchAgent, MAMLResearchAgentFactory, ExperimentSpec, ResearchDomain, ResearchAgentFactory},
 };
-use coeus_storage::{CsrStorage, DenseStorage, SparseFormat};
-use coeus_tensor::Tensor;
+use storage::{CsrStorage, DenseStorage, SparseFormat};
+use tensor::Tensor;
 
 /// Create random tensor with specified shape
 fn random_tensor(shape: &[usize]) -> Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> {

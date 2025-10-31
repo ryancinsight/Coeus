@@ -1,11 +1,11 @@
 //! Tests for SparseLinear layer
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{Linear, Module, Parameter, SparseLinear};
-use coeus_storage::Storage;
-use coeus_storage::{CsrStorage, DenseStorage};
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{Linear, Module, Parameter, SparseLinear};
+use storage::Storage;
+use storage::{CsrStorage, DenseStorage};
+use tensor::Tensor;
 
 // Note: Direct CsrStorage parameter creation has architectural issues
 // SparseLinear uses dense storage with sparse computation pattern

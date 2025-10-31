@@ -21,23 +21,23 @@
 use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
-use coeus_backend::num_traits::ToPrimitive;
+use backend::num_traits::ToPrimitive;
 
 // Coeus imports
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{
     CrossEntropyLoss,
     Linear, Module,
     ReLU,
     Sequential,
     functional,
 };
-use coeus_optim::{Adam, BaseOptimizer};
+use optim::{Adam, BaseOptimizer};
 // Dropout not used in this example
-// use coeus_nn::dropout::Dropout;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+// use nn::dropout::Dropout;
+use storage::DenseStorage;
+use tensor::Tensor;
 // Autograd setup handled via tensor methods
 
 /// Configuration for MNIST training
@@ -229,7 +229,7 @@ fn differentiable_cross_entropy_loss(
     logits: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
     targets: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
 ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, Box<dyn std::error::Error>> {
-    use coeus_autograd::ops::{add, mul, mean};
+    use autograd::ops::{add, mul, mean};
 
     // Debug: Check input gradients
     println!("Logits requires_grad: {}, targets requires_grad: {}",
@@ -658,3 +658,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+

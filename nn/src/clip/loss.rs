@@ -4,10 +4,10 @@
 //! used in CLIP training.
 
 use std::fmt;
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageToDense};
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 
@@ -262,9 +262,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     type TestBackend = CpuBackend<Float32>;
     type TestStorage = DenseStorage<Float32>;

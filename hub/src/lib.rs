@@ -53,9 +53,9 @@ pub use registry::{ModelEntry, ModelMetadata, ModelRegistry, Task as ModelTask};
 pub use validator::{ModelValidator, ValidationResult};
 
 // Re-export commonly used traits
-pub use coeus_backend::Backend;
-pub use coeus_dtype::DataType;
-pub use coeus_nn::Module;
+pub use backend::Backend;
+pub use dtype::DataType;
+pub use nn::Module;
 
 /// Main hub interface for model management
 #[derive(Debug)]

@@ -2,10 +2,10 @@
 //!
 //! This module contains the forward computation logic for GRU layers.
 
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::{Backend, CpuBackend};
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec};
+use tensor::Tensor;
 
 use crate::error::Result;
 

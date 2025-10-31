@@ -2,10 +2,10 @@
 
 use std::fmt;
 
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 use num_traits;
 
 use crate::error::Result;
@@ -24,11 +24,11 @@ use crate::parameter::Parameter;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Linear, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::{DenseStorage, CsrStorage};
-/// use coeus_dtype::float::Float32;
+/// use nn::{Linear, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::{DenseStorage, CsrStorage};
+/// use dtype::float::Float32;
 ///
 /// // Create a linear layer: 784 -> 128
 /// let layer = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 128).unwrap();
@@ -421,12 +421,12 @@ where
     S: Storage<T>
         + Clone
         + 'static
-        + coeus_storage::StorageFromVec<T>
-        + coeus_storage::StorageToDense<T>,
+        + storage::StorageFromVec<T>
+        + storage::StorageToDense<T>,
     T: DataType
         + serde::Serialize
         + for<'de> serde::Deserialize<'de>
-        + coeus_dtype::traits::FloatExt,
+        + dtype::traits::FloatExt,
 {
     // Default implementation from the trait is sufficient
 }
@@ -434,10 +434,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     type TestParameter = Parameter<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 

@@ -14,12 +14,12 @@ categories = ["science", "algorithms"]
 
 [dependencies]
 # Workspace dependencies
-coeus-tensor = { path = "../tensor" }
-coeus-nn = { path = "../nn" }
-coeus-backend = { path = "../backend" }
-coeus-storage = { path = "../storage" }
-coeus-dtype = { path = "../dtype" }
-coeus-optim = { path = "../optim" }
+tensor = { path = "../tensor" }
+nn = { path = "../nn" }
+backend = { path = "../backend" }
+storage = { path = "../storage" }
+dtype = { path = "../dtype" }
+optim = { path = "../optim" }
 # coeus-autograd = { path = "../autograd" }  # Temporarily disabled for NN decoupling testing
 
 # Async runtime for distributed operations

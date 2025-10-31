@@ -1,6 +1,6 @@
-use coeus_backend::{cpu::CpuBackend, Backend};
-use coeus_dtype::float::Float32;
-use coeus_storage::{DenseStorage, Storage};
+use backend::{cpu::CpuBackend, Backend};
+use dtype::float::Float32;
+use storage::{DenseStorage, Storage};
 
 // Example demonstrating compute_squares functionality
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -33,3 +33,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+

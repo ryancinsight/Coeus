@@ -1,5 +1,5 @@
 [package]
-name = "coeus-backend"
+name = "backend"
 description = "Compute backend abstractions for Coeus tensors"
 readme = "README.md"
 keywords = ["machine-learning", "deep-learning", "tensor", "backend", "cpu"]
@@ -24,11 +24,11 @@ tpu = ["std"]
 serde = ["dep:serde"]
 
 [dependencies]
-coeus-dtype = { path = "../dtype" }
-coeus-storage = { path = "../storage" }
+dtype.workspace = true
+storage.workspace = true
 thiserror.workspace = true
 libm.workspace = true
-rand = "0.8"
+rand.workspace = true
 serde = { version = "1.0", features = ["derive"], optional = true }
 num_cpus = "1.16"
 wgpu = { version = "0.19", optional = true }
@@ -41,4 +41,3 @@ futures = { version = "0.3", optional = true }
 [dev-dependencies]
 proptest.workspace = true
 tokio = { version = "1.0", features = ["macros", "rt"] }
-

@@ -9,8 +9,8 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use crate::error::{NNError, Result};
-use crate::nn::nas::{Architecture, ArchitectureSpace, ArchitectureEvaluator};
-use crate::nn::hpo::{HyperparameterSpace, HyperparameterConfig};
+use crate::research::nas_integration::{Architecture, ArchitectureSpace, ArchitectureEvaluator};
+use crate::research::hpo_integration::{HyperparameterSpace, HyperparameterConfig};
 use crate::research::UnifiedResearchFramework;
 
 /// Joint Search Result
@@ -430,11 +430,11 @@ impl JointSearchFramework {
     fn classify_architecture_family(&self, architecture: &Architecture) -> String {
         // Simple classification logic
         let conv_count = architecture.layers.iter()
-            .filter(|layer| matches!(layer, crate::nn::nas::search_space::LayerSpec::Conv2D { .. }))
+            .filter(|layer| matches!(layer, crate::research::nas_integration::LayerSpec::Conv2D { .. }))
             .count();
 
         let attention_count = architecture.layers.iter()
-            .filter(|layer| matches!(layer, crate::nn::nas::search_space::LayerSpec::Attention { .. }))
+            .filter(|layer| matches!(layer, crate::research::nas_integration::LayerSpec::Attention { .. }))
             .count();
 
         if attention_count > conv_count {
@@ -804,7 +804,7 @@ pub mod algorithms {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nn::nas::search_space::{ArchitectureSpace, ArchitectureType};
+    use crate::research::nas_integration::{ArchitectureSpace, ArchitectureType};
 
     #[test]
     fn test_joint_search_framework_creation() {

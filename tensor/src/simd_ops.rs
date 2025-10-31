@@ -5,8 +5,8 @@
 //! automatic fallback to scalar operations.
 
 use crate::{Backend, Tensor};
-use coeus_dtype::DataType;
-use coeus_storage::Storage;
+use dtype::DataType;
+use storage::Storage;
 
 /// SIMD lane count configuration based on target architecture
 #[cfg(target_arch = "x86_64")]

@@ -7,13 +7,13 @@
 //!
 //! Run with: cargo run --example tutorial_validation
 
-use coeus_autograd::ops::backward_with_grad;
-use coeus_dtype::float::Float32;
-use coeus_nn::{Linear, Module, Sequential};
-use coeus_optim::{Adam, SGD};
-use coeus_storage::DenseStorage;
-use coeus_tensor::CpuBackend;
-use coeus_tensor::Tensor;
+use autograd::ops::backward_with_grad;
+use dtype::float::Float32;
+use nn::{Linear, Module, Sequential};
+use optim::{Adam, SGD};
+use storage::DenseStorage;
+use tensor::CpuBackend;
+use tensor::Tensor;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧪 Tutorial Code Validation");
@@ -336,3 +336,4 @@ fn test_optimizer_setup() -> Result<(), Box<dyn std::error::Error>> {
     println!("   ✅ Optimizer setup: PASS");
     Ok(())
 }
+

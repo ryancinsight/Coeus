@@ -11,10 +11,10 @@ use std::sync::Arc;
 use std::thread;
 
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::{float::Float32, num_traits::ToPrimitive};
-use coeus_storage::DenseStorage;
-use coeus_tensor::*;
+use backend::CpuBackend;
+use dtype::{float::Float32, num_traits::ToPrimitive};
+use storage::DenseStorage;
+use tensor::*;
 
 /// Test basic tensor creation and properties
 #[test]

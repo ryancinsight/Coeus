@@ -38,10 +38,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(0.0), Float32::new(1.0)], &[2]
@@ -84,10 +84,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(1.0), Float32::new(std::f32::consts::E)], &[2]
@@ -130,10 +130,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(0.0), Float32::new(std::f32::consts::PI / 2.0)], &[2]
@@ -176,10 +176,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(0.0), Float32::new(std::f32::consts::PI / 2.0)], &[2]
@@ -226,10 +226,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(2.0), Float32::new(3.0)], &[2]
@@ -272,10 +272,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(2.0), Float32::new(3.0)], &[2]
@@ -318,10 +318,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     ///
     /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
     ///     &[Float32::new(4.0), Float32::new(9.0)], &[2]

@@ -15,11 +15,11 @@
 //! ## Example
 //!
 //! ```rust
-//! use coeus_utils::{ComposableTransform, Compose, Normalize, ToTensor};
-//! use coeus_tensor::Tensor;
-//! use coeus_backend::CpuBackend;
-//! use coeus_storage::DenseStorage;
-//! use coeus_dtype::float::Float32;
+//! use utils::{ComposableTransform, Compose, Normalize, ToTensor};
+//! use tensor::Tensor;
+//! use backend::CpuBackend;
+//! use storage::DenseStorage;
+//! use dtype::float::Float32;
 //!
 //! // Create a transformation pipeline
 //! let transform = Compose::new(vec![
@@ -35,9 +35,9 @@
 //! let tensor = transformed.downcast::<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>().unwrap();
 //! ```
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::Storage;
+use backend::Backend;
+use dtype::DataType;
+use storage::Storage;
 
 pub mod compose;
 pub mod normalize;

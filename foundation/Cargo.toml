@@ -1,5 +1,5 @@
 [package]
-name = "coeus-foundation"
+name = "foundation"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,12 +10,12 @@ documentation.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-coeus-dtype.workspace = true
-coeus-storage.workspace = true
-coeus-tensor.workspace = true
-coeus-autograd.workspace = true
-coeus-nn.workspace = true
-coeus-optim.workspace = true
+dtype.workspace = true
+storage.workspace = true
+tensor.workspace = true
+autograd.workspace = true
+nn.workspace = true
+optim.workspace = true
 coeus-error.workspace = true
 
 # External dependencies

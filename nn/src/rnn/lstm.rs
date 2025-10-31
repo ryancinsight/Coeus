@@ -18,18 +18,18 @@ use crate::parameter::Parameter;
 #[derive(Debug)]
 pub struct LSTM<B, S, T>
 where
-    B: Backend<T> + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
     /// Input-to-hidden weights for each gate (i, f, g, o) and layer
-    pub weight_ih: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,
+    pub weight_ih: Vec<Parameter<B, S, T>>,
     /// Hidden-to-hidden weights for each gate (i, f, g, o) and layer
-    pub weight_hh: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,
+    pub weight_hh: Vec<Parameter<B, S, T>>,
     /// Input-to-hidden biases for each gate (i, f, g, o) and layer
-    pub bias_ih: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,
+    pub bias_ih: Vec<Parameter<B, S, T>>,
     /// Hidden-to-hidden biases for each gate (i, f, g, o) and layer
-    pub bias_hh: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,
+    pub bias_hh: Vec<Parameter<B, S, T>>,
     /// Number of expected features in the input
     pub input_size: usize,
     /// Number of features in the hidden state
@@ -51,7 +51,7 @@ where
 
 impl<B, S, T> LSTM<B, S, T>
 where
-    B: Backend<T> + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
@@ -235,7 +235,7 @@ where
 
 impl<B, S, T> LSTM<B, S, T>
 where
-    B: Backend<T> + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
@@ -273,10 +273,8 @@ where
                 batch_size,
                 self.hidden_size,
             ])?;
-            let empty_cell = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[
-                batch_size,
-                self.hidden_size,
-            ])?;
+            let empty_cell =
+                Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[batch_size, self.hidden_size])?;
             return Ok((empty_output, empty_cell));
         }
 
@@ -592,7 +590,7 @@ where
 
 impl<B, S, T> fmt::Display for LSTM<B, S, T>
 where
-    B: Backend<T>,
+    B: Backend<Data = T>,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType,
 {
@@ -617,10 +615,9 @@ mod lstm_tests {
 
     #[test]
     fn test_lstm_creation() {
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, false, false,
-        )
-        .unwrap();
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, false)
+                .unwrap();
         assert_eq!(lstm.input_size, 10);
         assert_eq!(lstm.hidden_size, 20);
         assert_eq!(lstm.num_layers, 1);
@@ -631,10 +628,9 @@ mod lstm_tests {
 
     #[test]
     fn test_lstm_bidirectional() {
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 2, true, false, true,
-        )
-        .unwrap();
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 2, true, false, true)
+                .unwrap();
         assert!(lstm.bidirectional);
         assert_eq!(lstm.num_layers, 2);
         // Bidirectional LSTM has 2x parameters per layer
@@ -643,13 +639,11 @@ mod lstm_tests {
 
     #[test]
     fn test_lstm_forward_shape() {
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, false, false,
-        )
-        .unwrap();
-        let input =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[5, 3, 10])
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, false)
                 .unwrap();
+        let input =
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[5, 3, 10]).unwrap();
         let output = lstm.forward(&input).unwrap();
         // LSTM outputs (seq_len, batch_size, hidden_size) = (5, 3, 20)
         assert_eq!(output.shape().dims(), &[5, 3, 20]);
@@ -657,10 +651,9 @@ mod lstm_tests {
 
     #[test]
     fn test_lstm_parameters() {
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, false, false,
-        )
-        .unwrap();
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, false)
+                .unwrap();
         let params = lstm.parameters();
         // 1 layer, 1 direction: weight_ih, weight_hh, bias_ih, bias_hh
         assert_eq!(params.len(), 4);
@@ -668,10 +661,9 @@ mod lstm_tests {
 
     #[test]
     fn test_lstm_no_bias() {
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, false, false, false,
-        )
-        .unwrap();
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, false, false, false)
+                .unwrap();
         let params = lstm.parameters();
         // 1 layer, 1 direction, no bias: weight_ih, weight_hh only
         assert_eq!(params.len(), 2);
@@ -679,10 +671,9 @@ mod lstm_tests {
 
     #[test]
     fn test_lstm_multilayer() {
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 3, true, false, false,
-        )
-        .unwrap();
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 3, true, false, false)
+                .unwrap();
         assert_eq!(lstm.num_layers, 3);
         let params = lstm.parameters();
         // 3 layers, 1 direction: 4 params per layer
@@ -691,47 +682,39 @@ mod lstm_tests {
 
     #[test]
     fn test_lstm_batch_first() {
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, true, false,
-        )
-        .unwrap();
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, true, false)
+                .unwrap();
         assert!(lstm.batch_first);
     }
 
     #[test]
     #[should_panic(expected = "input_size must be > 0")]
     fn test_lstm_invalid_input_size() {
-        LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            0, 20, 1, true, false, false,
-        )
-        .unwrap();
+        LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(0, 20, 1, true, false, false)
+            .unwrap();
     }
 
     #[test]
     #[should_panic(expected = "hidden_size must be > 0")]
     fn test_lstm_invalid_hidden_size() {
-        LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 0, 1, true, false, false,
-        )
-        .unwrap();
+        LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 0, 1, true, false, false)
+            .unwrap();
     }
 
     #[test]
     #[should_panic(expected = "num_layers must be > 0")]
     fn test_lstm_invalid_num_layers() {
-        LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 0, true, false, false,
-        )
-        .unwrap();
+        LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 0, true, false, false)
+            .unwrap();
     }
 
     #[test]
     fn test_lstm_multilayer_state_propagation() {
         // Test that multi-layer LSTMs properly propagate hidden/cell states between layers
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 2, true, false, false,
-        )
-        .unwrap();
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 2, true, false, false)
+                .unwrap();
 
         // Create input: (seq_len=3, batch_size=2, input_size=10) with some non-zero values
         let input_data: Vec<Float32> = vec![
@@ -743,11 +726,9 @@ mod lstm_tests {
         .into_iter()
         .map(Float32::new)
         .collect();
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            input_data,
-            &[3, 2, 10],
-        )
-        .unwrap();
+        let input =
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(input_data, &[3, 2, 10])
+                .unwrap();
 
         let output = lstm.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[3, 2, 20]); // seq_len, batch_size, hidden_size
@@ -762,7 +743,7 @@ mod lstm_tests {
         .into_iter()
         .map(Float32::new)
         .collect();
-        let input2 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        let input2 = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(
             input2_data,
             &[3, 2, 10],
         )
@@ -779,13 +760,11 @@ mod lstm_tests {
     #[test]
     fn test_lstm_bidirectional_shape() {
         // Test bidirectional LSTM output shape
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, false, true,
-        )
-        .unwrap();
-        let input =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[5, 3, 10])
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, true)
                 .unwrap();
+        let input =
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[5, 3, 10]).unwrap();
         let output = lstm.forward(&input).unwrap();
         // Bidirectional LSTM outputs (seq_len, batch_size, hidden_size * 2) = (5, 3, 40)
         assert_eq!(output.shape().dims(), &[5, 3, 40]);
@@ -794,13 +773,11 @@ mod lstm_tests {
     #[test]
     fn test_lstm_bidirectional_multilayer() {
         // Test multi-layer bidirectional LSTM
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 2, true, false, true,
-        )
-        .unwrap();
-        let input =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[5, 3, 10])
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 2, true, false, true)
                 .unwrap();
+        let input =
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[5, 3, 10]).unwrap();
         let output = lstm.forward(&input).unwrap();
         // Multi-layer bidirectional LSTM outputs (seq_len, batch_size, hidden_size * 2) = (5, 3, 40)
         assert_eq!(output.shape().dims(), &[5, 3, 40]);
@@ -809,16 +786,13 @@ mod lstm_tests {
     #[test]
     fn test_lstm_bidirectional_numerical() {
         // Test bidirectional LSTM with non-zero input
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            3, 4, 1, true, false, true,
-        )
-        .unwrap();
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(3, 4, 1, true, false, true)
+                .unwrap();
         let input_data: Vec<Float32> = (0..18).map(|i| Float32::new(i as f32 * 0.1)).collect();
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            input_data,
-            &[2, 3, 3],
-        )
-        .unwrap();
+        let input =
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(input_data, &[2, 3, 3])
+                .unwrap();
         let output = lstm.forward(&input).unwrap();
         // Bidirectional LSTM outputs (seq_len, batch_size, hidden_size * 2) = (2, 3, 8)
         assert_eq!(output.shape().dims(), &[2, 3, 8]);
@@ -828,13 +802,11 @@ mod lstm_tests {
     #[test]
     fn test_lstm_bidirectional_batch_first() {
         // Test bidirectional LSTM with batch_first=true
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, true, true,
-        )
-        .unwrap();
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, true, true)
+                .unwrap();
         let input =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[3, 5, 10])
-                .unwrap(); // (batch, seq, input)
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[3, 5, 10]).unwrap(); // (batch, seq, input)
         let output = lstm.forward(&input).unwrap();
         // Bidirectional LSTM with batch_first outputs (batch_size, seq_len, hidden_size * 2) = (3, 5, 40)
         assert_eq!(output.shape().dims(), &[3, 5, 40]);
@@ -844,16 +816,12 @@ mod lstm_tests {
     fn test_lstm_bidirectional_reverse_sequence() {
         // Test that reverse_sequence helper works correctly
         let input_data: Vec<Float32> = (0..24).map(|i| Float32::new(i as f32)).collect();
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            input_data,
-            &[2, 3, 4],
-        )
-        .unwrap();
+        let input =
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::from_vec(input_data, &[2, 3, 4])
+                .unwrap();
         let reversed =
-            LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::reverse_sequence(
-                &input, 2, 3, 4,
-            )
-            .unwrap();
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::reverse_sequence(&input, 2, 3, 4)
+                .unwrap();
 
         // Verify shape is preserved
         assert_eq!(reversed.shape().dims(), &[2, 3, 4]);
@@ -875,10 +843,9 @@ mod lstm_tests {
     #[test]
     fn test_lstm_weight_initialization() {
         // Test that LSTM weights are properly initialized with Xavier uniform (non-zero)
-        let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 2, true, false, false,
-        )
-        .unwrap();
+        let lstm =
+            LSTM::<CpuBackend, DenseStorage<Float32>, Float32>::new(10, 20, 2, true, false, false)
+                .unwrap();
 
         // Check weight_ih for first layer (4 gates, so 4*hidden_size rows)
         let w_ih_0 = lstm.weight_ih[0].data();

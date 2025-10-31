@@ -43,7 +43,7 @@ pub trait LRScheduler {
 ///
 /// # Examples
 /// ```rust
-/// use coeus_optim::schedulers::{StepLR, LRScheduler};
+/// use optim::schedulers::{StepLR, LRScheduler};
 ///
 /// let mut scheduler = StepLR::new(0.1, 30, 0.1); // lr=0.1, step every 30 epochs, gamma=0.1
 /// assert_eq!(scheduler.learning_rate(), 0.1);
@@ -124,7 +124,7 @@ impl LRScheduler for StepLR {
 ///
 /// # Examples
 /// ```rust
-/// use coeus_optim::schedulers::{ExponentialLR, LRScheduler};
+/// use optim::schedulers::{ExponentialLR, LRScheduler};
 ///
 /// let mut scheduler = ExponentialLR::new(0.1, 0.9); // lr=0.1, gamma=0.9
 /// assert_eq!(scheduler.learning_rate(), 0.1);
@@ -196,7 +196,7 @@ impl LRScheduler for ExponentialLR {
 ///
 /// # Examples
 /// ```rust
-/// use coeus_optim::schedulers::{CosineAnnealingLR, LRScheduler};
+/// use optim::schedulers::{CosineAnnealingLR, LRScheduler};
 ///
 /// let mut scheduler = CosineAnnealingLR::new(0.1, 0.0001, 100); // lr=0.1 to 0.0001 over 100 epochs
 /// assert_eq!(scheduler.learning_rate(), 0.1);
@@ -288,7 +288,7 @@ impl LRScheduler for CosineAnnealingLR {
 ///
 /// # Examples
 /// ```rust
-/// use coeus_optim::schedulers::{MultiStepLR, LRScheduler};
+/// use optim::schedulers::{MultiStepLR, LRScheduler};
 ///
 /// // Reduce LR by 0.1x at epochs 30, 60, 90
 /// let mut scheduler = MultiStepLR::new(0.1, vec![30, 60, 90], 0.1);
@@ -329,7 +329,7 @@ impl MultiStepLR {
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_optim::schedulers::{MultiStepLR, LRScheduler};
+    /// use optim::schedulers::{MultiStepLR, LRScheduler};
     ///
     /// let scheduler = MultiStepLR::new(0.1, vec![30, 60, 90], 0.1);
     /// ```
@@ -389,7 +389,7 @@ impl LRScheduler for MultiStepLR {
 ///
 /// # Examples
 /// ```rust
-/// use coeus_optim::schedulers::{ReduceLROnPlateau, ReduceLRMode};
+/// use optim::schedulers::{ReduceLROnPlateau, ReduceLRMode};
 ///
 /// // For validation loss (minimize)
 /// let mut scheduler = ReduceLROnPlateau::new(0.1, ReduceLRMode::Min, 0.1, 10, 1e-4, 0, 1e-8);
@@ -456,7 +456,7 @@ impl ReduceLROnPlateau {
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_optim::schedulers::{ReduceLROnPlateau, ReduceLRMode};
+    /// use optim::schedulers::{ReduceLROnPlateau, ReduceLRMode};
     ///
     /// let scheduler = ReduceLROnPlateau::new(0.1, ReduceLRMode::Min, 0.1, 10, 1e-4, 0, 1e-8);
     /// ```
@@ -501,7 +501,7 @@ impl ReduceLROnPlateau {
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_optim::schedulers::{ReduceLROnPlateau, ReduceLRMode};
+    /// use optim::schedulers::{ReduceLROnPlateau, ReduceLRMode};
     ///
     /// let mut scheduler = ReduceLROnPlateau::new(0.1, ReduceLRMode::Min, 0.1, 10, 1e-4, 0, 1e-8);
     /// scheduler.step(0.5); // validation loss = 0.5
@@ -582,7 +582,7 @@ impl ReduceLROnPlateau {
 ///
 /// # Examples
 /// ```rust
-/// use coeus_optim::schedulers::{OneCycleLR, LRScheduler};
+/// use optim::schedulers::{OneCycleLR, LRScheduler};
 ///
 /// // Train for 1000 steps with max_lr=0.1
 /// let mut scheduler = OneCycleLR::new(0.1, 1000, 0.3, 0.001);
@@ -623,7 +623,7 @@ impl OneCycleLR {
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_optim::schedulers::{OneCycleLR, LRScheduler};
+    /// use optim::schedulers::{OneCycleLR, LRScheduler};
     ///
     /// let scheduler = OneCycleLR::new(0.1, 1000, 0.3, 0.001);
     /// assert_eq!(scheduler.learning_rate(), 0.001);
@@ -659,7 +659,7 @@ impl OneCycleLR {
     ///
     /// # Examples
     /// ```rust
-    /// use coeus_optim::schedulers::{OneCycleLR, LRScheduler};
+    /// use optim::schedulers::{OneCycleLR, LRScheduler};
     ///
     /// let scheduler = OneCycleLR::default(0.1, 1000);
     /// ```

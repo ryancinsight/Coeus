@@ -25,11 +25,11 @@
 //! - Custom training loops
 
 use crate::error::NNError;
-use coeus_backend::Backend;
-use coeus_dtype::traits;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::traits;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
+use tensor::Tensor;
 
 /// Result type for gradient clipping operations
 pub type Result<T> = std::result::Result<T, NNError>;

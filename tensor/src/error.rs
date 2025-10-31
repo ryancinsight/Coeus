@@ -7,7 +7,7 @@ use core::fmt;
 #[non_exhaustive]
 pub enum TensorError {
     /// Error from storage layer
-    StorageError(coeus_storage::StorageError),
+    StorageError(storage::StorageError),
 
     /// Shape mismatch in operations
     ShapeMismatch {
@@ -37,7 +37,7 @@ pub enum TensorError {
         /// Operation name
         operation: &'static str,
         /// Dtype that doesn't support it
-        dtype: coeus_dtype::Dtype,
+        dtype: dtype::Dtype,
         /// Reason for failure
         reason: &'static str,
     },
@@ -120,24 +120,24 @@ impl fmt::Display for TensorError {
     }
 }
 
-impl From<coeus_storage::StorageError> for TensorError {
-    fn from(error: coeus_storage::StorageError) -> Self {
+impl From<storage::StorageError> for TensorError {
+    fn from(error: storage::StorageError) -> Self {
         Self::StorageError(error)
     }
 }
 
-impl From<coeus_backend::BackendError> for TensorError {
-    fn from(error: coeus_backend::BackendError) -> Self {
+impl From<backend::BackendError> for TensorError {
+    fn from(error: backend::BackendError) -> Self {
         match error {
-            coeus_backend::BackendError::UnsupportedOperation { operation, backend } => {
+            backend::BackendError::UnsupportedOperation { operation, backend } => {
                 Self::BackendError(std::format!(
                     "Unsupported {operation} operation for {backend} backend"
                 ))
             }
-            coeus_backend::BackendError::InvalidInput(msg) => {
+            backend::BackendError::InvalidInput(msg) => {
                 Self::BackendError(std::format!("Invalid input: {msg}"))
             }
-            coeus_backend::BackendError::StorageError { source } => Self::StorageError(source),
+            backend::BackendError::StorageError { source } => Self::StorageError(source),
         }
     }
 }

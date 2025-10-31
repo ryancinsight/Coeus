@@ -24,7 +24,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use coeus_tokenizer::{Tokenizer, Vocabulary, Encoding};
+//! use tokenizer::{Tokenizer, Vocabulary, Encoding};
 //!
 //! // Create a simple vocabulary
 //! let mut vocab = Vocabulary::new();

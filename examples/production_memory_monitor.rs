@@ -437,3 +437,4 @@ impl AlertCallback for ConsoleAlertCallback {
             AlertLevel::Info => "ℹ️",
             AlertLevel::Warning => "⚠️",
             AlertLevel::High => "🔶
+

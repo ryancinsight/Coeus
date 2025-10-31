@@ -1,7 +1,7 @@
 //! Test that FromPrimitive trait works correctly for optimizer use cases
 
-use coeus_dtype::float::{Float32, Float64};
-use coeus_dtype::traits::FloatExt;
+use dtype::float::{Float32, Float64};
+use dtype::traits::FloatExt;
 use num_traits::FromPrimitive;
 
 #[test]

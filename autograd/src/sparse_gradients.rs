@@ -9,12 +9,12 @@
 use crate::error::{AutogradError, Result};
 extern crate alloc;
 use alloc::{sync::Arc, vec::Vec};
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec, StorageToDense};
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec, StorageToDense};
 
 /// Type alias for tensor references used in sparse gradients
-pub type SparseTensorRef<B, S, T> = Arc<coeus_tensor::Tensor<B, S, T>>;
+pub type SparseTensorRef<B, S, T> = Arc<tensor::Tensor<B, S, T>>;
 
 /// Sparse gradient accumulator optimized for memory efficiency
 ///
@@ -28,7 +28,7 @@ where
     /// Gradients stored by tensor identity, using COO format for sparsity
     gradients: std::collections::HashMap<
         *const (),
-        coeus_storage::CooStorage<T>
+        storage::CooStorage<T>
     >,
     /// Backend for tensor operations
     backend: std::marker::PhantomData<B>,
@@ -59,13 +59,13 @@ where
     /// - Computational benefits of sparsity
     pub fn accumulate_sparse<S>(
         &mut self,
-        tensor: &coeus_tensor::Tensor<B, S, T>,
-        grad: &coeus_tensor::Tensor<B, S, T>,
+        tensor: &tensor::Tensor<B, S, T>,
+        grad: &tensor::Tensor<B, S, T>,
     ) -> Result<()>
     where
         S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + crate::AsAny,
     {
-        let key = (tensor as *const coeus_tensor::Tensor<B, S, T>).cast::<()>();
+        let key = (tensor as *const tensor::Tensor<B, S, T>).cast::<()>();
 
         // Convert gradient to COO for efficient accumulation
         let grad_coo = Self::tensor_to_coo(grad)?;
@@ -88,7 +88,7 @@ where
     {
         for (tensor_ptr, grad_coo) in self.gradients.drain() {
             unsafe {
-                let tensor: &coeus_tensor::Tensor<B, S, T> = &*tensor_ptr.cast();
+                let tensor: &tensor::Tensor<B, S, T> = &*tensor_ptr.cast();
 
                 // Convert COO back to appropriate tensor format
                 let grad_tensor = Self::coo_to_tensor(&grad_coo, tensor)?;
@@ -106,11 +106,11 @@ where
     }
 
     /// Convert tensor to COO format for sparse accumulation
-    fn tensor_to_coo<S>(tensor: &coeus_tensor::Tensor<B, S, T>) -> Result<coeus_storage::CooStorage<T>>
+    fn tensor_to_coo<S>(tensor: &tensor::Tensor<B, S, T>) -> Result<storage::CooStorage<T>>
     where
         S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + crate::AsAny,
     {
-        use coeus_storage::{AsAny, CsrStorage, CscStorage, CooStorage};
+        use storage::{AsAny, CsrStorage, CscStorage, CooStorage};
 
         // Check if tensor is already in sparse format
         if let Some(csr) = tensor.storage_ref().as_any().downcast_ref::<CsrStorage<T>>() {
@@ -142,14 +142,14 @@ where
             }
         }
 
-        coeus_storage::CooStorage::new(coo_data, row_indices, col_indices, shape)
-            .map_err(|e| AutogradError::TensorError(coeus_tensor::TensorError::StorageError(e)))
+        storage::CooStorage::new(coo_data, row_indices, col_indices, shape)
+            .map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))
     }
 
     /// Accumulate gradients in COO format efficiently
     fn accumulate_coo_gradients(
-        existing: &mut coeus_storage::CooStorage<T>,
-        new_grad: &coeus_storage::CooStorage<T>,
+        existing: &mut storage::CooStorage<T>,
+        new_grad: &storage::CooStorage<T>,
     ) -> Result<()> {
         use std::collections::HashMap;
 
@@ -183,21 +183,21 @@ where
             new_col_indices.push(col);
         }
 
-        *existing = coeus_storage::CooStorage::new(
+        *existing = storage::CooStorage::new(
             new_data,
             new_row_indices,
             new_col_indices,
             existing.shape().dims(),
-        ).map_err(|e| AutogradError::TensorError(coeus_tensor::TensorError::StorageError(e)))?;
+        ).map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))?;
 
         Ok(())
     }
 
     /// Convert COO back to tensor with optimal storage format
     fn coo_to_tensor<S>(
-        coo: &coeus_storage::CooStorage<T>,
-        original_tensor: &coeus_tensor::Tensor<B, S, T>,
-    ) -> Result<coeus_tensor::Tensor<B, S, T>>
+        coo: &storage::CooStorage<T>,
+        original_tensor: &tensor::Tensor<B, S, T>,
+    ) -> Result<tensor::Tensor<B, S, T>>
     where
         S: Storage<T> + StorageFromVec<T> + Clone,
     {
@@ -209,24 +209,24 @@ where
             // Use CSR format for very sparse matrices
             let csr = coo.to_csr();
             S::from_vec(csr.as_slice().to_vec(), shape).map_err(|e| {
-                AutogradError::TensorError(coeus_tensor::TensorError::StorageError(e))
+                AutogradError::TensorError(tensor::TensorError::StorageError(e))
             })?
         } else if sparsity_ratio > 0.3 && shape.len() == 2 {
             // Use COO for moderately sparse matrices
             S::from_vec(coo.as_slice().to_vec(), shape).map_err(|e| {
-                AutogradError::TensorError(coeus_tensor::TensorError::StorageError(e))
+                AutogradError::TensorError(tensor::TensorError::StorageError(e))
             })?
         } else {
             // Convert to dense for dense matrices
             let dense = coo.to_dense().map_err(|e| {
-                AutogradError::TensorError(coeus_tensor::TensorError::StorageError(e))
+                AutogradError::TensorError(tensor::TensorError::StorageError(e))
             })?;
             S::from_vec(dense.as_slice().to_vec(), shape).map_err(|e| {
-                AutogradError::TensorError(coeus_tensor::TensorError::StorageError(e))
+                AutogradError::TensorError(tensor::TensorError::StorageError(e))
             })?
         };
 
-        Ok(coeus_tensor::Tensor::from_storage(storage, original_tensor.backend().clone()))
+        Ok(tensor::Tensor::from_storage(storage, original_tensor.backend().clone()))
     }
 }
 
@@ -298,7 +298,7 @@ where
     /// - Memory constraints
     pub fn spmm(
         &self,
-        a_sparse: &coeus_storage::CsrStorage<T>,
+        a_sparse: &storage::CsrStorage<T>,
         b_dense: &[T],
         b_cols: usize,
     ) -> Result<Vec<T>>
@@ -321,7 +321,7 @@ where
     /// CPU implementation of sparse-dense matrix multiplication
     fn spmm_cpu(
         &self,
-        a_sparse: &coeus_storage::CsrStorage<T>,
+        a_sparse: &storage::CsrStorage<T>,
         b_dense: &[T],
         b_cols: usize,
         output: &mut [T],
@@ -362,7 +362,7 @@ where
     /// GPU implementation of sparse-dense matrix multiplication
     fn spmm_gpu(
         &self,
-        a_sparse: &coeus_storage::CsrStorage<T>,
+        a_sparse: &storage::CsrStorage<T>,
         b_dense: &[T],
         b_cols: usize,
         output: &mut [T],
@@ -431,9 +431,9 @@ where
     /// - Symbolic and numeric phases for optimal performance
     pub fn spgemm(
         &self,
-        a_sparse: &coeus_storage::CsrStorage<T>,
-        b_sparse: &coeus_storage::CsrStorage<T>,
-    ) -> Result<coeus_storage::CsrStorage<T>>
+        a_sparse: &storage::CsrStorage<T>,
+        b_sparse: &storage::CsrStorage<T>,
+    ) -> Result<storage::CsrStorage<T>>
     where
         T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
     {
@@ -459,11 +459,11 @@ where
     /// CPU implementation of sparse-sparse matrix multiplication
     fn spgemm_cpu(
         &self,
-        a_sparse: &coeus_storage::CsrStorage<T>,
-        b_sparse: &coeus_storage::CsrStorage<T>,
+        a_sparse: &storage::CsrStorage<T>,
+        b_sparse: &storage::CsrStorage<T>,
         a_rows: usize,
         b_cols: usize,
-    ) -> Result<coeus_storage::CsrStorage<T>>
+    ) -> Result<storage::CsrStorage<T>>
     where
         T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
     {
@@ -517,9 +517,9 @@ where
     /// GPU implementation of sparse-sparse matrix multiplication
     fn spgemm_gpu(
         &self,
-        a_sparse: &coeus_storage::CsrStorage<T>,
-        b_sparse: &coeus_storage::CsrStorage<T>,
-    ) -> Result<coeus_storage::CsrStorage<T>> {
+        a_sparse: &storage::CsrStorage<T>,
+        b_sparse: &storage::CsrStorage<T>,
+    ) -> Result<storage::CsrStorage<T>> {
         // GPU kernel implementation would go here
         let a_rows = a_sparse.shape().dims()[0];
         let b_cols = b_sparse.shape().dims()[1];
@@ -532,7 +532,7 @@ where
         row_data: Vec<Vec<(usize, T)>>,
         rows: usize,
         cols: usize,
-    ) -> Result<coeus_storage::CsrStorage<T>> {
+    ) -> Result<storage::CsrStorage<T>> {
         let mut csr_data = Vec::new();
         let mut indices = Vec::new();
         let mut indptr = vec![0; rows + 1];
@@ -547,8 +547,8 @@ where
             indptr[row + 1] = csr_data.len();
         }
 
-        coeus_storage::CsrStorage::new(csr_data, indices, indptr, &[rows, cols])
-            .map_err(|e| AutogradError::TensorError(coeus_tensor::TensorError::StorageError(e)))
+        storage::CsrStorage::new(csr_data, indices, indptr, &[rows, cols])
+            .map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))
     }
 }
 
@@ -605,7 +605,7 @@ pub mod sparse_utils {
                 }
             }
 
-            let coo = coeus_storage::CooStorage::new(data, row_indices, col_indices, shape)?;
+            let coo = storage::CooStorage::new(data, row_indices, col_indices, shape)?;
             Ok(SparseStorage::Coo(coo))
         } else {
             // Keep as dense for small matrices
@@ -616,15 +616,15 @@ pub mod sparse_utils {
     /// Type for optimal sparse/dense storage selection
     pub enum SparseStorage<T: DataType> {
         Dense(Vec<T>),
-        Coo(coeus_storage::CooStorage<T>),
+        Coo(storage::CooStorage<T>),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::CsrStorage;
+    use dtype::float::Float32;
+    use storage::CsrStorage;
 
     fn create_test_csr() -> CsrStorage<Float32> {
         // 3x3 sparse matrix: [[1, 0, 2], [0, 0, 0], [0, 3, 4]]
@@ -640,7 +640,7 @@ mod tests {
 
     #[test]
     fn test_sparse_matmul_creation() {
-        let backend = coeus_backend::CpuBackend::<Float32>::default();
+        let backend = backend::CpuBackend::<Float32>::default();
         let spmm = SparseMatMul::new(backend);
         assert!(!spmm.use_gpu);
         assert_eq!(spmm.workgroup_size, 256);
@@ -661,7 +661,7 @@ mod tests {
 
     #[test]
     fn test_sparse_accumulator_creation() {
-        let accumulator = SparseGradientAccumulator::<coeus_backend::CpuBackend<Float32>, Float32>::new();
+        let accumulator = SparseGradientAccumulator::<backend::CpuBackend<Float32>, Float32>::new();
         assert!(accumulator.gradients.is_empty());
     }
 

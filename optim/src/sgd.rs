@@ -6,10 +6,10 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::DenseStorage;
-use coeus_tensor::{
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
+use storage::DenseStorage;
+use tensor::{
     ops::arithmetic::{add, scalar_mul, sub},
     Tensor,
 };
@@ -46,10 +46,10 @@ use crate::optimizer_core::{Optimizer, ParamState};
 /// # Examples
 ///
 /// ```rust
-/// use coeus_optim::sgd::SGD;
-/// use coeus_dtype::float::Float32;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
+/// use optim::sgd::SGD;
+/// use dtype::float::Float32;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
 ///
 /// // Create SGD optimizer
 /// let mut optimizer = SGD::<CpuBackend, Float32>::new(0.01, 0.9, 0.0, 0.0, false);

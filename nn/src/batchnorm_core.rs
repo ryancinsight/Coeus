@@ -6,10 +6,10 @@
 use std::cell::RefCell;
 use std::marker::PhantomData;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 use crate::parameter::Parameter;
 

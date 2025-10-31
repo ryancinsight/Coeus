@@ -1,5 +1,5 @@
 [package]
-name = "coeus-tensor"
+name = "tensor"
 description = "Core tensor implementation for Coeus deep learning framework"
 readme = "README.md"
 keywords = ["machine-learning", "deep-learning", "tensor", "pytorch"]
@@ -16,26 +16,26 @@ rust-version.workspace = true
 
 [features]
 default = ["std"]
-std = ["coeus-storage/std"]
-gpu = ["coeus-backend/gpu"]
+std = ["storage/std"]
+gpu = ["backend/gpu"]
 
 [dependencies]
-coeus-dtype = { path = "../dtype" }
-coeus-storage = { path = "../storage" }
-coeus-backend = { path = "../backend" }
+dtype.workspace = true
+storage.workspace = true
+backend.workspace = true
 num-traits.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 bytemuck.workspace = true
 anyhow.workspace = true
-statrs = "0.4"
+statrs.workspace = true
 rand.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
 approx.workspace = true
 criterion.workspace = true
-pollster = "0.3"
+pollster.workspace = true
 
 [[test]]
 name = "proptest"

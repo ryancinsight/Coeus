@@ -10,10 +10,10 @@ use std::collections::HashMap;
 use crate::error::{NNError, Result};
 use crate::parameter::Parameter;
 use crate::Module;
-use coeus_backend::{Backend, DataType, Storage};
-use coeus_dtype::traits::FloatExt;
-use coeus_storage::StorageFromVec;
-use coeus_tensor::{ops::arithmetic, Tensor};
+use backend::{Backend, DataType, Storage};
+use dtype::traits::FloatExt;
+use storage::StorageFromVec;
+use tensor::{ops::arithmetic, Tensor};
 
 // Type aliases for complex generic types
 /// Tensor pair for input-label combinations
@@ -571,10 +571,10 @@ where
 mod tests {
     use super::*;
     use crate::linear::Linear;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_maml_creation() {

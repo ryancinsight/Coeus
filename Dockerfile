@@ -1,19 +1,18 @@
-# Multi-stage Docker build for Coeus Deep Learning Framework
-# Supports both development and production deployments
+# Coeus Multimodal AI Platform - Production Docker Configuration
+# Multi-stage build for optimized production containers
 
 # =============================================================================
-# Base stage with Rust toolchain and dependencies
+# Base Stage: Common dependencies and build tools
 # =============================================================================
-FROM rust:1.75-slim AS base
+FROM rust:1.70-slim AS base
 
-# Install system dependencies for GPU support and development
+# Install system dependencies for Rust compilation and runtime
 RUN apt-get update && apt-get install -y \
-    build-essential \
     pkg-config \
     libssl-dev \
+    build-essential \
+    cmake \
     git \
-    curl \
-    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -22,165 +21,53 @@ WORKDIR /app
 # Copy workspace configuration
 COPY Cargo.toml Cargo.lock ./
 
-# Copy all crate manifests for dependency resolution
-COPY autograd/Cargo.toml ./autograd/
-COPY backend/Cargo.toml ./backend/
-COPY distributed/Cargo.toml ./distributed/
-COPY dtype/Cargo.toml ./dtype/
-COPY examples/Cargo.toml ./examples/
-COPY hub/Cargo.toml ./hub/
-COPY jit/Cargo.toml ./jit/
-COPY nn/Cargo.toml ./nn/
-COPY optim/Cargo.toml ./optim/
-COPY profiling/Cargo.toml ./profiling/
-COPY pycoeus/Cargo.toml ./pycoeus/
-COPY storage/Cargo.toml ./storage/
-COPY tensor/Cargo.toml ./tensor/
-COPY tokenizer/Cargo.toml ./tokenizer/
-COPY utils/Cargo.toml ./utils/
-
-# Create dummy source files for dependency resolution
-RUN mkdir -p \
-    autograd/src backend/src distributed/src dtype/src examples/src \
-    hub/src jit/src nn/src optim/src profiling/src pycoeus/src \
-    storage/src tensor/src tokenizer/src utils/src \
-    && echo "fn main() {}" > examples/src/main.rs \
-    && for crate in autograd backend distributed dtype hub jit nn optim profiling pycoeus storage tensor tokenizer utils; do \
-        echo "fn dummy() {}" > ${crate}/src/lib.rs; \
-    done
+# Copy all crate source files for dependency resolution
+COPY autograd/ ./autograd/
+COPY backend/ ./backend/
+COPY dtype/ ./dtype/
+COPY storage/ ./storage/
+COPY tensor/ ./tensor/
+COPY nn/ ./nn/
+COPY optim/ ./optim/
+COPY distributed/ ./distributed/
+COPY foundation/ ./foundation/
+COPY audio/ ./audio/
+COPY jit/ ./jit/
+COPY profiling/ ./profiling/
+COPY pycoeus/ ./pycoeus/
+COPY tokenizer/ ./tokenizer/
+COPY utils/ ./utils/
+COPY hub/ ./hub/
+COPY coeus-semantic-api/ ./coeus-semantic-api/
+COPY examples/ ./examples/
 
 # Cache dependencies
-RUN cargo check --workspace && rm -rf target/debug/deps/*examples*
+RUN cargo fetch
 
 # =============================================================================
-# Development stage with full development environment
-# =============================================================================
-FROM base AS development
-
-# Install additional development tools
-RUN apt-get update && apt-get install -y \
-    vim \
-    htop \
-    git \
-    curl \
-    wget \
-    python3 \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies for testing and examples
-RUN pip3 install --break-system-packages \
-    torch \
-    torchvision \
-    numpy \
-    matplotlib \
-    jupyter \
-    pytest \
-    black \
-    mypy
-
-# Copy source code
-COPY . .
-
-# Build with development optimizations
-RUN cargo build --workspace
-
-# Set environment variables for development
-ENV RUST_LOG=info
-ENV RUST_BACKTRACE=1
-ENV CARGO_INCREMENTAL=1
-
-# Expose ports for development services
-EXPOSE 8000 8888
-
-# Default command for development
-CMD ["cargo", "test", "--workspace"]
-
-# =============================================================================
-# GPU-enabled development stage
-# =============================================================================
-FROM nvidia/cuda:11.8-devel-ubuntu22.04 AS gpu-development
-
-# Install Rust and system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    pkg-config \
-    libssl-dev \
-    git \
-    curl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-# Set working directory
-WORKDIR /app
-
-# Copy workspace files
-COPY Cargo.toml Cargo.lock ./
-COPY autograd/Cargo.toml ./autograd/
-COPY backend/Cargo.toml ./backend/
-COPY distributed/Cargo.toml ./distributed/
-COPY dtype/Cargo.toml ./dtype/
-COPY examples/Cargo.toml ./examples/
-COPY hub/Cargo.toml ./hub/
-COPY jit/Cargo.toml ./jit/
-COPY nn/Cargo.toml ./nn/
-COPY optim/Cargo.toml ./optim/
-COPY profiling/Cargo.toml ./profiling/
-COPY pycoeus/Cargo.toml ./pycoeus/
-COPY storage/Cargo.toml ./storage/
-COPY tensor/Cargo.toml ./tensor/
-COPY tokenizer/Cargo.toml ./tokenizer/
-COPY utils/Cargo.toml ./utils/
-
-# Cache dependencies
-RUN mkdir -p autograd/src backend/src && \
-    echo "fn main() {}" > examples/src/main.rs && \
-    for crate in autograd backend distributed dtype hub jit nn optim profiling pycoeus storage tensor tokenizer utils; do \
-        mkdir -p ${crate}/src && \
-        echo "fn dummy() {}" > ${crate}/src/lib.rs; \
-    done
-
-RUN cargo check --workspace
-
-# Copy source code and build
-COPY . .
-RUN cargo build --workspace --features gpu
-
-# Set GPU environment variables
-ENV CUDA_VISIBLE_DEVICES=0
-ENV RUST_LOG=info
-
-CMD ["cargo", "test", "--workspace", "--features", "gpu"]
-
-# =============================================================================
-# Production build stage
+# Builder Stage: Compile the application
 # =============================================================================
 FROM base AS builder
 
-# Copy source code
-COPY . .
+# Set build profile for optimized binary
+ENV RUSTFLAGS="-C target-cpu=generic -C opt-level=3 -C codegen-units=1"
+ENV CARGO_PROFILE_RELEASE_LTO=true
+ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+ENV CARGO_PROFILE_RELEASE_PANIC=abort
 
-# Build optimized release binaries
+# Build all binaries in release mode
 RUN cargo build --release --workspace
 
-# Strip debug symbols for smaller binary size
-RUN strip target/release/coeus_tensor && \
-    strip target/release/coeus_nn && \
-    strip target/release/coeus_backend
-
 # =============================================================================
-# Minimal production runtime
+# Runtime Stage: Minimal production container
 # =============================================================================
-FROM debian:bookworm-slim AS production
+FROM debian:bookworm-slim AS runtime
 
 # Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl3 \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
@@ -189,46 +76,43 @@ RUN groupadd -r coeus && useradd -r -g coeus coeus
 # Set working directory
 WORKDIR /app
 
-# Copy built binaries from builder stage
-COPY --from=builder /app/target/release/coeus_tensor /usr/local/bin/
-COPY --from=builder /app/target/release/coeus_nn /usr/local/bin/
-COPY --from=builder /app/target/release/coeus_backend /usr/local/bin/
+# Copy compiled binaries from builder stage
+COPY --from=builder /app/target/release/end_to_end_integration /app/
+COPY --from=builder /app/target/release/semantic_api_server /app/
+COPY --from=builder /app/target/release/automated_clip_research /app/
+COPY --from=builder /app/target/release/enhanced_clip_training /app/
+COPY --from=builder /app/target/release/clip_distributed_training /app/
+COPY --from=builder /app/target/release/clip_training_pipeline /app/
+COPY --from=builder /app/target/release/clip_evaluation /app/
+COPY --from=builder /app/target/release/clip_research_integration /app/
+COPY --from=builder /app/target/release/clip_semantic_search /app/
+COPY --from=builder /app/target/release/benchmark_clip_production /app/
+COPY --from=builder /app/target/release/multimodal_transformer_demo /app/
 
-# Copy examples and documentation
-COPY --from=builder /app/examples /app/examples
-COPY --from=builder /app/docs /app/docs
-COPY --from=builder /app/README.md /app/
-
-# Create directories for model storage and logs
-RUN mkdir -p /app/models /app/logs /app/data && \
+# Create data directories with proper permissions
+RUN mkdir -p /app/data /app/models /app/logs && \
     chown -R coeus:coeus /app
 
 # Switch to non-root user
 USER coeus
 
-# Set environment variables for production
-ENV RUST_LOG=warn
-ENV RUST_BACKTRACE=0
-ENV MODEL_PATH=/app/models
-ENV LOG_PATH=/app/logs
-
-# Health check
+# Health check for container
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD [ "/usr/local/bin/coeus_tensor", "--version" ] || exit 1
+    CMD ["/app/semantic_api_server", "--health-check"] || exit 1
 
-# Default command
-CMD ["/usr/local/bin/coeus_tensor"]
+# Default command - run the integration test suite
+CMD ["/app/end_to_end_integration"]
 
 # =============================================================================
-# Python bindings production stage
+# GPU Runtime Stage: For GPU-accelerated workloads
 # =============================================================================
-FROM python:3.11-slim AS python-production
+FROM nvidia/cuda:12.2-runtime-ubuntu22.04 AS gpu-runtime
 
-# Install system dependencies
+# Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    pkg-config \
-    libssl-dev \
+    ca-certificates \
+    libssl3 \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -236,121 +120,65 @@ RUN groupadd -r coeus && useradd -r -g coeus coeus
 
 WORKDIR /app
 
-# Copy Python package and install
-COPY pycoeus/ /app/
-RUN pip install --no-cache-dir -e .
+# Copy GPU-enabled binaries
+COPY --from=builder /app/target/release/end_to_end_integration /app/
+COPY --from=builder /app/target/release/semantic_api_server /app/
+COPY --from=builder /app/target/release/enhanced_clip_training /app/
+COPY --from=builder /app/target/release/clip_distributed_training /app/
+COPY --from=builder /app/target/release/clip_semantic_search /app/
 
-# Copy examples and documentation
-COPY examples/ /app/examples/
-COPY docs/ /app/docs/
-COPY README.md /app/
-
-# Create directories
-RUN mkdir -p /app/models /app/logs && \
+# Create data directories
+RUN mkdir -p /app/data /app/models /app/logs && \
     chown -R coeus:coeus /app
 
 USER coeus
 
-# Expose port for potential web services
-EXPOSE 8000
-
-# Health check for Python bindings
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import coeus; print('Coeus Python bindings healthy')" || exit 1
-
-CMD ["python", "-c", "import coeus; print('Coeus Python bindings ready')"]
-
-# =============================================================================
-# CI/CD testing stage
-# =============================================================================
-FROM base AS ci
-
-# Install additional testing dependencies
-RUN apt-get update && apt-get install -y \
-    valgrind \
-    gdb \
-    lldb \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install additional Rust tools for CI
-RUN rustup component add clippy rustfmt
-RUN cargo install cargo-audit cargo-tarpaulin cargo-udeps
-
-# Copy source code
-COPY . .
-
-# Set environment for CI testing
-ENV RUST_BACKTRACE=1
-ENV RUST_LOG=debug
-ENV CARGO_INCREMENTAL=0
-
-# Run comprehensive CI pipeline
-RUN cargo check --workspace && \
-    cargo clippy --workspace -- -D warnings && \
-    cargo fmt --check && \
-    cargo test --workspace && \
-    cargo audit && \
-    cargo udeps --workspace
-
-CMD ["cargo", "test", "--workspace", "--doc"]
-
-# =============================================================================
-# Documentation generation stage
-# =============================================================================
-FROM base AS docs
-
-# Install additional documentation tools
-RUN apt-get update && apt-get install -y \
-    graphviz \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install mdBook for documentation
-RUN cargo install mdbook mdbook-mermaid
-
-# Copy source code
-COPY . .
-
-# Generate comprehensive documentation
-RUN cargo doc --workspace --no-deps && \
-    mdbook build docs/ && \
-    cargo doc --workspace --document-private-items
-
-# Create documentation archive
-RUN tar -czf /docs.tar.gz -C target/doc . && \
-    tar -czf /mdbook-docs.tar.gz -C docs/book .
-
-# =============================================================================
-# Enterprise deployment stage with Kubernetes
-# =============================================================================
-FROM production AS enterprise
-
-# Install additional enterprise tools
-RUN apt-get update && apt-get install -y \
-    curl \
-    jq \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy enterprise configuration and scripts
-COPY deployment/enterprise/ /app/deployment/
-COPY scripts/ /app/scripts/
-
-# Create enterprise directories
-RUN mkdir -p /app/config /app/secrets /app/monitoring && \
-    chown -R coeus:coeus /app
-
-# Set enterprise environment variables
-ENV ENTERPRISE_MODE=true
-ENV MONITORING_ENABLED=true
-ENV SECURITY_AUDIT=true
-
-# Enterprise health check with additional validation
+# GPU health check
 HEALTHCHECK --interval=60s --timeout=30s --start-period=30s --retries=3 \
-    CMD /app/scripts/health-check.sh || exit 1
+    CMD nvidia-smi || exit 1
 
-# Default enterprise command
-CMD ["/app/scripts/start-enterprise.sh"]
+CMD ["/app/end_to_end_integration"]
 
 # =============================================================================
-# Default target (production)
+# Development Stage: Full development environment
 # =============================================================================
-FROM production
+FROM base AS development
+
+# Install additional development tools
+RUN apt-get update && apt-get install -y \
+    vim \
+    git \
+    curl \
+    htop \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create development user
+RUN groupadd -r dev && useradd -r -g dev -s /bin/bash dev && \
+    mkdir -p /home/dev && chown dev:dev /home/dev
+
+USER dev
+WORKDIR /home/dev
+
+# Mount source code for development
+VOLUME ["/app"]
+
+CMD ["bash"]
+
+# =============================================================================
+# Labels and metadata
+# =============================================================================
+LABEL org.opencontainers.image.title="Coeus Multimodal AI Platform"
+LABEL org.opencontainers.image.description="Production-ready multimodal AI platform with CLIP, semantic search, and automated research capabilities"
+LABEL org.opencontainers.image.version="0.2.0"
+LABEL org.opencontainers.image.authors="Ryan Clanton <ryanclanton@protomail.com>"
+LABEL org.opencontainers.image.source="https://github.com/ryancinsight/Coeus"
+LABEL org.opencontainers.image.licenses="MIT OR Apache-2.0"
+
+# Security labels
+LABEL org.opencontainers.image.vendor="Coeus AI"
+LABEL org.opencontainers.image.documentation="https://docs.coeus.ai"
+
+# Platform capabilities
+LABEL ai.coeus.capabilities="multimodal,clip,semantic-search,gpu-acceleration,distributed-training"
+LABEL ai.coeus.models="clip-vit-base,clip-vit-large,transformer-xl,attention-mechanisms"
+LABEL ai.coeus.features="hyperparameter-optimization,experiment-tracking,automated-research"

@@ -1,8 +1,8 @@
 //! Common types for few-shot learning datasets
 
 use crate::error::{NNError, Result};
-use coeus_backend::{Backend, DataType, Storage};
-use coeus_tensor::Tensor;
+use backend::{Backend, DataType, Storage};
+use tensor::Tensor;
 use rand::Rng;
 
 /// Dataset split for few-shot learning

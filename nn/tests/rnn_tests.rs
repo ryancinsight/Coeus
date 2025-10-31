@@ -2,11 +2,11 @@
 //!
 //! Comprehensive tests for recurrent neural network functionality.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{Module, GRU, LSTM, RNN};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{Module, GRU, LSTM, RNN};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 #[test]
 fn test_rnn_basic_forward() {

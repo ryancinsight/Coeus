@@ -67,7 +67,7 @@ type TensorPair<T> = (CpuTensor<T>, CpuTensor<T>);
 #[derive(Debug)]
 pub struct RNN<B, S, T>
 where
-    B: Backend<T> + Clone,
+    B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType,
 {
@@ -100,7 +100,7 @@ where
 
 impl<B, S, T> RNN<B, S, T>
 where
-    B: Backend<T> + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -224,7 +224,7 @@ where
 
 impl<B, S, T> RNN<B, S, T>
 where
-    B: Backend<T> + Clone + Default,
+    B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
     T: DataType + FloatExt,
 {
@@ -688,7 +688,7 @@ where
 
 impl<B, S, T> fmt::Display for RNN<B, S, T>
 where
-    B: Backend<T>,
+    B: Backend<Data = T>,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType,
 {
@@ -715,10 +715,9 @@ mod rnn_forward_var_tests {
 
     #[test]
     fn test_rnn_forward_var() {
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 5, 1, false, true, false,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5, 1, false, true, false)
+                .unwrap();
 
         // Create Variable input [seq_len=3, batch_size=2, input_size=10]
         let input_data = vec![Float32::new(1.0); 3 * 2 * 10]; // 60 elements
@@ -742,10 +741,9 @@ mod tests {
 
     #[test]
     fn test_rnn_creation() {
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, false, false,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, false)
+                .unwrap();
         assert_eq!(rnn.input_size, 10);
         assert_eq!(rnn.hidden_size, 20);
         assert_eq!(rnn.num_layers, 1);
@@ -756,10 +754,9 @@ mod tests {
 
     #[test]
     fn test_rnn_bidirectional() {
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 2, true, false, true,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 2, true, false, true)
+                .unwrap();
         assert!(rnn.bidirectional);
         assert_eq!(rnn.num_layers, 2);
         // Bidirectional RNN has 2x parameters per layer
@@ -768,13 +765,11 @@ mod tests {
 
     #[test]
     fn test_rnn_forward_shape() {
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, false, false,
-        )
-        .unwrap();
-        let input =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[5, 3, 10])
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, false)
                 .unwrap();
+        let input =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[5, 3, 10]).unwrap();
         let output = rnn.forward(&input).unwrap();
         // RNN outputs (seq_len, batch_size, hidden_size) = (5, 3, 20)
         assert_eq!(output.shape().dims(), &[5, 3, 20]);
@@ -782,10 +777,9 @@ mod tests {
 
     #[test]
     fn test_rnn_parameters() {
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, false, false,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, false)
+                .unwrap();
         let params = rnn.parameters();
         // 1 layer, 1 direction: weight_ih, weight_hh, bias_ih, bias_hh
         assert_eq!(params.len(), 4);
@@ -793,10 +787,9 @@ mod tests {
 
     #[test]
     fn test_rnn_no_bias() {
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, false, false, false,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 1, false, false, false)
+                .unwrap();
         let params = rnn.parameters();
         // 1 layer, 1 direction, no bias: weight_ih, weight_hh only
         assert_eq!(params.len(), 2);
@@ -804,10 +797,9 @@ mod tests {
 
     #[test]
     fn test_rnn_multilayer() {
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 3, true, false, false,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 3, true, false, false)
+                .unwrap();
         assert_eq!(rnn.num_layers, 3);
         let params = rnn.parameters();
         // 3 layers, 1 direction: 4 params per layer
@@ -816,47 +808,39 @@ mod tests {
 
     #[test]
     fn test_rnn_batch_first() {
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, true, false,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, true, false)
+                .unwrap();
         assert!(rnn.batch_first);
     }
 
     #[test]
     #[should_panic(expected = "input_size must be > 0")]
     fn test_rnn_invalid_input_size() {
-        RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            0, 20, 1, true, false, false,
-        )
-        .unwrap();
+        RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(0, 20, 1, true, false, false)
+            .unwrap();
     }
 
     #[test]
     #[should_panic(expected = "hidden_size must be > 0")]
     fn test_rnn_invalid_hidden_size() {
-        RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 0, 1, true, false, false,
-        )
-        .unwrap();
+        RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 0, 1, true, false, false)
+            .unwrap();
     }
 
     #[test]
     #[should_panic(expected = "num_layers must be > 0")]
     fn test_rnn_invalid_num_layers() {
-        RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 0, true, false, false,
-        )
-        .unwrap();
+        RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 0, true, false, false)
+            .unwrap();
     }
 
     #[test]
     fn test_rnn_multilayer_state_propagation() {
         // Test that multi-layer RNNs properly propagate hidden states between layers
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 2, true, false, false,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 2, true, false, false)
+                .unwrap();
 
         // Create input: (seq_len=3, batch_size=2, input_size=10) with some non-zero values
         let input_data: Vec<Float32> = vec![
@@ -868,11 +852,9 @@ mod tests {
         .into_iter()
         .map(Float32::new)
         .collect();
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            input_data,
-            &[3, 2, 10],
-        )
-        .unwrap();
+        let input =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(input_data, &[3, 2, 10])
+                .unwrap();
 
         let output = rnn.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[3, 2, 20]); // seq_len, batch_size, hidden_size
@@ -905,20 +887,17 @@ mod tests {
     #[ignore = "Bidirectional RNN not yet implemented"]
     fn test_rnn_bidirectional_shape() {
         // Test that bidirectional RNN produces correct output shape
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            5, 8, 1, true, false, true,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(5, 8, 1, true, false, true)
+                .unwrap();
 
         // Create input: (seq_len=3, batch=2, input_size=5)
         let input_data: Vec<Float32> = (0..30)
             .map(|i| Float32::new((i as f32 + 1.0) * 0.1))
             .collect();
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            input_data,
-            &[3, 2, 5],
-        )
-        .unwrap();
+        let input =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(input_data, &[3, 2, 5])
+                .unwrap();
 
         let output = rnn.forward(&input).unwrap();
 
@@ -934,21 +913,18 @@ mod tests {
     #[ignore = "Bidirectional RNN not yet implemented"]
     fn test_rnn_bidirectional_multi_layer() {
         // Test that multi-layer bidirectional RNN works correctly
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            4, 6, 2, true, false, true,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(4, 6, 2, true, false, true)
+                .unwrap();
 
         // Create input: (seq_len=2, batch=1, input_size=4)
         let input_data: Vec<Float32> = vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
             .into_iter()
             .map(Float32::new)
             .collect();
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            input_data,
-            &[2, 1, 4],
-        )
-        .unwrap();
+        let input =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(input_data, &[2, 1, 4])
+                .unwrap();
 
         let output = rnn.forward(&input).unwrap();
 
@@ -964,21 +940,18 @@ mod tests {
     #[ignore = "Bidirectional RNN not yet implemented"]
     fn test_rnn_bidirectional_numerical() {
         // Test that bidirectional RNN computation runs without errors
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            3, 5, 1, true, false, true,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3, 5, 1, true, false, true)
+                .unwrap();
 
         // Create non-zero input: (seq_len=2, batch=1, input_size=3)
         let input_data: Vec<Float32> = vec![0.5, 1.0, -0.5, 0.3, -0.2, 0.9]
             .into_iter()
             .map(Float32::new)
             .collect();
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            input_data,
-            &[2, 1, 3],
-        )
-        .unwrap();
+        let input =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(input_data, &[2, 1, 3])
+                .unwrap();
 
         let output = rnn.forward(&input).unwrap();
 
@@ -1002,20 +975,16 @@ mod tests {
     #[ignore = "Bidirectional RNN not yet implemented"]
     fn test_rnn_bidirectional_batch_first() {
         // Test that bidirectional RNN works with batch_first=true
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            4, 6, 1, true, true, true,
-        )
-        .unwrap();
+        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(4, 6, 1, true, true, true)
+            .unwrap();
 
         // Create input with batch_first: (batch=2, seq_len=3, input_size=4)
         let input_data: Vec<Float32> = (0..24)
             .map(|i| Float32::new((i as f32 + 1.0) * 0.1))
             .collect();
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            input_data,
-            &[2, 3, 4],
-        )
-        .unwrap();
+        let input =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(input_data, &[2, 3, 4])
+                .unwrap();
 
         let output = rnn.forward(&input).unwrap();
 
@@ -1027,17 +996,13 @@ mod tests {
     fn test_rnn_reverse_sequence() {
         // Test the reverse_sequence helper function
         let input_data: Vec<Float32> = (0..12).map(|i| Float32::new(i as f32)).collect();
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            input_data,
-            &[3, 2, 2],
-        )
-        .unwrap();
+        let input =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(input_data, &[3, 2, 2])
+                .unwrap();
 
         let reversed =
-            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::reverse_sequence(
-                &input, 3, 2, 2,
-            )
-            .unwrap();
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::reverse_sequence(&input, 3, 2, 2)
+                .unwrap();
 
         // Verify shape is preserved
         assert_eq!(reversed.shape().dims(), &[3, 2, 2]);
@@ -1055,10 +1020,9 @@ mod tests {
     #[test]
     fn test_rnn_weight_initialization() {
         // Test that RNN weights are properly initialized with Xavier uniform (non-zero)
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 2, true, false, false,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 2, true, false, false)
+                .unwrap();
 
         // Check weight_ih for first layer
         let w_ih_0 = rnn.weight_ih[0].data();
@@ -1102,10 +1066,9 @@ mod tests {
     #[test]
     fn test_rnn_autograd_integration() {
         // Test that RNN creates autograd function when gradients are required
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, false, false,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, false)
+                .unwrap();
 
         // Create input with gradient tracking
         let input_data = vec![Float32::new(1.0); 30]; // 3 time steps, 1 batch, 10 features
@@ -1133,10 +1096,9 @@ mod tests {
     #[test]
     fn test_rnn_no_autograd_when_not_required() {
         // Test that RNN doesn't create autograd function when no gradients required
-        let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            10, 20, 1, true, false, false,
-        )
-        .unwrap();
+        let rnn =
+            RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, false, false)
+                .unwrap();
 
         // Create input without gradient tracking
         let input_data = vec![Float32::new(1.0); 30];

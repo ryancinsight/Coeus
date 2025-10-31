@@ -635,7 +635,7 @@ impl DistributedWorkloadAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{DataLocality, MemoryAccessPattern, OperationDype};
+    use crate::{DataLocality, MemoryAccessPattern, OperationType};
 
     fn create_test_workload() -> WorkloadCharacteristics {
         WorkloadCharacteristics {

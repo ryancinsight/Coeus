@@ -3,8 +3,8 @@
 use crate::error::Result;
 use crate::process_group::{ProcessGroup, Rank, WorldSize};
 use crate::reducer::GradientReducer;
-use coeus_nn::error::NNError;
-use coeus_nn::Module;
+use nn::error::NNError;
+use nn::Module;
 use std::sync::Arc;
 
 /// Data parallel wrapper for distributed training

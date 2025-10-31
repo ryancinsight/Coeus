@@ -3,8 +3,8 @@
 //! Tests performance benefits of unwrap_unchecked() in release builds vs expect() in debug builds.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use coeus_tensor::{Tensor, CpuBackend, DenseStorage};
-use coeus_dtype::float::Float32;
+use tensor::{Tensor, CpuBackend, DenseStorage};
+use dtype::float::Float32;
 
 fn bench_tensor_addition(c: &mut Criterion) {
     let mut group = c.benchmark_group("tensor_addition");

@@ -6,14 +6,24 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
+use std::path::Path;
 
 use crate::error::{NNError, Result};
 use crate::parameter::Parameter;
+use backend::Backend;
 
 use super::config::ClipConfig;
 use super::loss::InfoNCELoss;
 use super::model::ClipModel;
 use super::preprocessing::{ImageProcessor, TextProcessor};
+
+// Enhanced imports for Phase 2 improvements
+use std::fs;
+use std::io::{BufWriter, Write};
+use serde::{Deserialize, Serialize};
+
+// Re-export optimizer and scheduler types for easy access
+pub use optim::{Adam, CosineAnnealingWarmRestarts, ExponentialLR, LambdaLR};
 
 /// CLIP Training Data Batch
 #[derive(Debug)]

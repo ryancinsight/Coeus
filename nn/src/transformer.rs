@@ -9,10 +9,10 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::{Backend, CpuBackend};
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec};
+use tensor::Tensor;
 
 use crate::attention::MultiHeadAttention;
 use crate::dropout::Dropout;
@@ -51,37 +51,37 @@ use crate::parameter::Parameter;
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{TransformerEncoder, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{TransformerEncoder, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create transformer encoder: d_model=512, nhead=8, dim_feedforward=2048
-/// let encoder = TransformerEncoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(512, 8, 2048, 0.1).unwrap();
+/// let encoder = TransformerEncoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(512, 8, 2048, 0.1).unwrap();
 ///
 /// // Input: [batch_size, seq_len, d_model] - supports arbitrary batch sizes
-/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[4, 10, 512]).unwrap();
+/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[4, 10, 512]).unwrap();
 /// let output = encoder.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[4, 10, 512]);
 /// ```
 #[derive(Debug)]
 pub struct TransformerEncoder<B, S, T>
 where
-    B: Backend<Data = T>,
+    B: Backend,
     S: Storage<T>,
     T: DataType,
 {
     /// Multi-head self-attention layer
-    pub self_attn: MultiHeadAttention<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub self_attn: MultiHeadAttention<CpuBackend, DenseStorage<T>, T>,
     /// First layer normalization
-    pub norm1: LayerNorm<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub norm1: LayerNorm<CpuBackend, DenseStorage<T>, T>,
     /// First linear layer in feedforward network
-    pub linear1: Linear<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub linear1: Linear<CpuBackend, DenseStorage<T>, T>,
     /// Second linear layer in feedforward network
-    pub linear2: Linear<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub linear2: Linear<CpuBackend, DenseStorage<T>, T>,
     /// Second layer normalization
-    pub norm2: LayerNorm<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub norm2: LayerNorm<CpuBackend, DenseStorage<T>, T>,
     /// Dropout layer
     pub dropout: Dropout,
     /// Embedding dimension
@@ -100,7 +100,7 @@ where
 
 impl<B, S, T> TransformerEncoder<B, S, T>
 where
-    B: Backend<Data = T> + Clone,
+    B: Backend + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
 {
@@ -136,14 +136,13 @@ where
             });
         }
 
-        let self_attn =
-            MultiHeadAttention::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(d_model, nhead)?;
-        let norm1 = LayerNorm::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
+        let self_attn = MultiHeadAttention::<CpuBackend, DenseStorage<T>, T>::new(d_model, nhead)?;
+        let norm1 = LayerNorm::<CpuBackend, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
         let linear1 =
-            Linear::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(d_model, dim_feedforward).unwrap();
+            Linear::<CpuBackend, DenseStorage<T>, T>::new(d_model, dim_feedforward).unwrap();
         let linear2 =
-            Linear::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(dim_feedforward, d_model).unwrap();
-        let norm2 = LayerNorm::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
+            Linear::<CpuBackend, DenseStorage<T>, T>::new(dim_feedforward, d_model).unwrap();
+        let norm2 = LayerNorm::<CpuBackend, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
         let dropout_layer = Dropout::new(dropout);
 
         Ok(Self {
@@ -163,18 +162,18 @@ where
     }
 }
 
-impl<T> Module<CpuBackend<Data = T>, DenseStorage<T>, T>
-    for TransformerEncoder<CpuBackend<Data = T>, DenseStorage<T>, T>
+impl<T> Module<CpuBackend<T>, DenseStorage<T>, T>
+    for TransformerEncoder<CpuBackend<T>, DenseStorage<T>, T>
 where
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
 {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         assert!(
-            input_shape.len() == 3usize,
+            input_shape.len() == 3,
             "Input must be 3D: [batch_size, seq_len, d_model]"
         );
         assert!(
@@ -224,7 +223,7 @@ where
         Ok(output)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend<Data = T>, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
         let mut params = Vec::new();
         params.extend(self.self_attn.parameters());
         params.extend(self.norm1.parameters());
@@ -256,7 +255,7 @@ where
 
 impl<B, S, T> fmt::Display for TransformerEncoder<B, S, T>
 where
-    B: Backend<Data = T>,
+    B: Backend,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType,
 {
@@ -302,48 +301,48 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{TransformerDecoder, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{TransformerDecoder, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create transformer decoder: d_model=512, nhead=8, dim_feedforward=2048
-/// let decoder = TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(512, 8, 2048, 0.1).unwrap();
+/// let decoder = TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(512, 8, 2048, 0.1).unwrap();
 ///
 /// // Input: [batch_size, seq_len, d_model] - supports arbitrary batch sizes
-/// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[4, 10, 512]).unwrap();
+/// let input = Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[4, 10, 512]).unwrap();
 /// let output = decoder.forward(&input).unwrap();
 /// assert_eq!(output.shape().dims(), &[4, 10, 512]);
 /// ```
 #[derive(Clone, Debug)]
 pub struct TransformerDecoder<B, S, T>
 where
-    B: Backend<Data = T>,
+    B: Backend,
     S: Storage<T>,
     T: DataType,
 {
     /// Masked multi-head self-attention layer
     #[allow(dead_code)]
-    pub self_attn: MultiHeadAttention<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub self_attn: MultiHeadAttention<CpuBackend, DenseStorage<T>, T>,
     /// Multi-head cross-attention layer
     #[allow(dead_code)]
-    pub cross_attn: MultiHeadAttention<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub cross_attn: MultiHeadAttention<CpuBackend, DenseStorage<T>, T>,
     /// First layer normalization (after self-attention)
     #[allow(dead_code)]
-    pub norm1: LayerNorm<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub norm1: LayerNorm<CpuBackend, DenseStorage<T>, T>,
     /// Second layer normalization (after cross-attention)
     #[allow(dead_code)]
-    pub norm2: LayerNorm<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub norm2: LayerNorm<CpuBackend, DenseStorage<T>, T>,
     /// First linear layer in feedforward network
     #[allow(dead_code)]
-    pub linear1: Linear<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub linear1: Linear<CpuBackend, DenseStorage<T>, T>,
     /// Second linear layer in feedforward network
     #[allow(dead_code)]
-    pub linear2: Linear<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub linear2: Linear<CpuBackend, DenseStorage<T>, T>,
     /// Third layer normalization (after feedforward)
     #[allow(dead_code)]
-    pub norm3: LayerNorm<CpuBackend<Data = T>, DenseStorage<T>, T>,
+    pub norm3: LayerNorm<CpuBackend, DenseStorage<T>, T>,
     /// Dropout layer
     #[allow(dead_code)]
     pub dropout: Dropout,
@@ -359,14 +358,14 @@ where
     /// Training mode flag
     training: bool,
     /// Optional encoder memory for cross-attention (None for decoder-only models)
-    memory: Option<Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>>,
+    memory: Option<Tensor<CpuBackend<T>, DenseStorage<T>, T>>,
     /// Phantom data to ensure B and S are used for type safety
     _phantom: PhantomData<(B, S)>,
 }
 
 impl<B, S, T> TransformerDecoder<B, S, T>
 where
-    B: Backend<Data = T> + Clone,
+    B: Backend + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
 {
@@ -402,17 +401,15 @@ where
             });
         }
 
-        let self_attn =
-            MultiHeadAttention::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(d_model, nhead)?;
-        let cross_attn =
-            MultiHeadAttention::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(d_model, nhead)?;
-        let norm1 = LayerNorm::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
-        let norm2 = LayerNorm::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
+        let self_attn = MultiHeadAttention::<CpuBackend, DenseStorage<T>, T>::new(d_model, nhead)?;
+        let cross_attn = MultiHeadAttention::<CpuBackend, DenseStorage<T>, T>::new(d_model, nhead)?;
+        let norm1 = LayerNorm::<CpuBackend, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
+        let norm2 = LayerNorm::<CpuBackend, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
         let linear1 =
-            Linear::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(d_model, dim_feedforward).unwrap();
+            Linear::<CpuBackend, DenseStorage<T>, T>::new(d_model, dim_feedforward).unwrap();
         let linear2 =
-            Linear::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(dim_feedforward, d_model).unwrap();
-        let norm3 = LayerNorm::<CpuBackend<Data = T>, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
+            Linear::<CpuBackend, DenseStorage<T>, T>::new(dim_feedforward, d_model).unwrap();
+        let norm3 = LayerNorm::<CpuBackend, DenseStorage<T>, T>::new(vec![d_model], 1e-5);
         let dropout_layer = Dropout::new(dropout);
 
         Ok(Self {
@@ -435,7 +432,7 @@ where
     }
 
     /// Set encoder memory for cross-attention
-    pub fn set_memory(&mut self, memory: Option<Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>>) {
+    pub fn set_memory(&mut self, memory: Option<Tensor<CpuBackend<T>, DenseStorage<T>, T>>) {
         self.memory = memory;
     }
 
@@ -449,18 +446,18 @@ where
     /// Output tensor with same shape as target [batch_size, tgt_seq_len, d_model]
     pub fn forward_with_memory(
         &self,
-        tgt: &Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>,
-        memory: &Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>> {
+        tgt: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        memory: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let tgt_shape = tgt.shape().dims();
         let memory_shape = memory.shape().dims();
 
         assert!(
-            tgt_shape.len() == 3usize,
+            tgt_shape.len() == 3,
             "Target must be 3D: [batch_size, tgt_seq_len, d_model]"
         );
         assert!(
-            memory_shape.len() == 3usize,
+            memory_shape.len() == 3,
             "Memory must be 3D: [batch_size, src_seq_len, d_model]"
         );
         assert!(
@@ -530,18 +527,18 @@ where
     }
 }
 
-impl<T> Module<CpuBackend<Data = T>, DenseStorage<T>, T>
-    for TransformerDecoder<CpuBackend<Data = T>, DenseStorage<T>, T>
+impl<T> Module<CpuBackend<T>, DenseStorage<T>, T>
+    for TransformerDecoder<CpuBackend<T>, DenseStorage<T>, T>
 where
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
 {
     fn forward(
         &self,
-        input: &Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<Data = T>, DenseStorage<T>, T>> {
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
         let input_shape = input.shape().dims();
         assert!(
-            input_shape.len() == 3usize,
+            input_shape.len() == 3,
             "Input must be 3D: [batch_size, seq_len, d_model]"
         );
         assert!(
@@ -599,7 +596,7 @@ where
         Ok(output)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend<Data = T>, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<CpuBackend, DenseStorage<T>, T>> {
         let mut params = Vec::new();
         params.extend(self.self_attn.parameters());
         params.extend(self.cross_attn.parameters());
@@ -631,7 +628,7 @@ where
 
 impl<B, S, T> fmt::Display for TransformerDecoder<B, S, T>
 where
-    B: Backend<Data = T>,
+    B: Backend,
     S: Storage<T> + Clone + StorageFromVec<T>,
     T: DataType,
 {
@@ -647,16 +644,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     // TransformerEncoder tests
     #[test]
     fn test_transformer_encoder_creation() {
-        let encoder =
-            TransformerEncoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                512, 8, 2048, 0.1,
-            )
-            .unwrap();
+        let encoder = TransformerEncoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+            512, 8, 2048, 0.1,
+        )
+        .unwrap();
         assert_eq!(encoder.d_model, 512);
         assert_eq!(encoder.nhead, 8);
         assert_eq!(encoder.dim_feedforward, 2048);
@@ -665,56 +661,49 @@ mod tests {
 
     #[test]
     fn test_transformer_encoder_forward_shape() {
-        let encoder =
-            TransformerEncoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                512, 8, 2048, 0.1,
-            )
-            .unwrap();
+        let encoder = TransformerEncoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+            512, 8, 2048, 0.1,
+        )
+        .unwrap();
         // Test with batch_size=1
         let input =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[1, 10, 512])
-                .unwrap();
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[1, 10, 512]).unwrap();
         let output = encoder.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[1, 10, 512]);
     }
 
     #[test]
     fn test_transformer_encoder_forward_shape_batch2() {
-        let encoder =
-            TransformerEncoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                512, 8, 2048, 0.1,
-            )
-            .unwrap();
+        let encoder = TransformerEncoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+            512, 8, 2048, 0.1,
+        )
+        .unwrap();
         // Test with batch_size=2
         let input =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 10, 512])
-                .unwrap();
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 10, 512]).unwrap();
         let output = encoder.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[2, 10, 512]);
     }
 
     #[test]
     fn test_transformer_encoder_forward_shape_batch4() {
-        let encoder =
-            TransformerEncoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                512, 8, 2048, 0.1,
-            )
-            .unwrap();
+        let encoder = TransformerEncoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+            512, 8, 2048, 0.1,
+        )
+        .unwrap();
         // Test with batch_size=4
         let input =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[4, 10, 512])
-                .unwrap();
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[4, 10, 512]).unwrap();
         let output = encoder.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[4, 10, 512]);
     }
 
     #[test]
     fn test_transformer_encoder_parameters() {
-        let encoder =
-            TransformerEncoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                512, 8, 2048, 0.1,
-            )
-            .unwrap();
+        let encoder = TransformerEncoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+            512, 8, 2048, 0.1,
+        )
+        .unwrap();
         let params = encoder.parameters();
         // MultiHeadAttention (4 params) + LayerNorm (2 params) + Linear (2 params) + Linear (2 params) + LayerNorm (2 params)
         // = 4 + 2 + 2 + 2 + 2 = 12 parameters
@@ -724,25 +713,22 @@ mod tests {
     #[test]
     fn test_transformer_encoder_small_model() {
         let encoder =
-            TransformerEncoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                64, 4, 256, 0.1,
-            )
-            .unwrap();
+            TransformerEncoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 4, 256, 0.1)
+                .unwrap();
         assert_eq!(encoder.d_model, 64);
         assert_eq!(encoder.nhead, 4);
     }
 
     #[test]
     fn test_transformer_encoder_invalid_d_model() {
-        let result = TransformerEncoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            0, 8, 2048, 0.1,
-        );
+        let result =
+            TransformerEncoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(0, 8, 2048, 0.1);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_transformer_encoder_invalid_nhead() {
-        let result = TransformerEncoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        let result = TransformerEncoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
             512, 0, 2048, 0.1,
         );
         assert!(result.is_err());
@@ -750,15 +736,14 @@ mod tests {
 
     #[test]
     fn test_transformer_encoder_invalid_dim_feedforward() {
-        let result = TransformerEncoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            512, 8, 0, 0.1,
-        );
+        let result =
+            TransformerEncoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(512, 8, 0, 0.1);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_transformer_encoder_invalid_divisibility() {
-        let result = TransformerEncoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        let result = TransformerEncoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
             512, 7, 2048, 0.1,
         );
         assert!(result.is_err());
@@ -767,11 +752,10 @@ mod tests {
     // TransformerDecoder tests
     #[test]
     fn test_transformer_decoder_creation() {
-        let decoder =
-            TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                512, 8, 2048, 0.1,
-            )
-            .unwrap();
+        let decoder = TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+            512, 8, 2048, 0.1,
+        )
+        .unwrap();
         assert_eq!(decoder.d_model, 512);
         assert_eq!(decoder.nhead, 8);
         assert_eq!(decoder.dim_feedforward, 2048);
@@ -780,30 +764,26 @@ mod tests {
 
     #[test]
     fn test_transformer_decoder_forward_shape() {
-        let decoder =
-            TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                512, 8, 2048, 0.1,
-            )
-            .unwrap();
+        let decoder = TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+            512, 8, 2048, 0.1,
+        )
+        .unwrap();
         // Test with batch_size=1
         let input =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[1, 10, 512])
-                .unwrap();
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[1, 10, 512]).unwrap();
         let output = decoder.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[1, 10, 512]);
     }
 
     #[test]
     fn test_transformer_decoder_forward_shape_batch2() {
-        let decoder =
-            TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                512, 8, 2048, 0.1,
-            )
-            .unwrap();
+        let decoder = TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+            512, 8, 2048, 0.1,
+        )
+        .unwrap();
         // Test with batch_size=2
         let input =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 10, 512])
-                .unwrap();
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[2, 10, 512]).unwrap();
         let output = decoder.forward(&input).unwrap();
         assert_eq!(output.shape().dims(), &[2, 10, 512]);
     }
@@ -811,47 +791,40 @@ mod tests {
     #[test]
     #[ignore = "Transformer decoder batched input handling incomplete"]
     fn test_transformer_decoder_forward_with_memory_shape() {
-        let decoder =
-            TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                512, 8, 2048, 0.1,
-            )
-            .unwrap();
+        let decoder = TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+            512, 8, 2048, 0.1,
+        )
+        .unwrap();
         // Test with batch_size=1
         let tgt =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[1, 8, 512])
-                .unwrap(); // target sequence
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[1, 8, 512]).unwrap(); // target sequence
         let memory =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[1, 12, 512])
-                .unwrap(); // encoder output
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[1, 12, 512]).unwrap(); // encoder output
         let output = decoder.forward_with_memory(&tgt, &memory).unwrap();
         assert_eq!(output.shape().dims(), &[1, 8, 512]); // same shape as target
     }
 
     #[test]
     fn test_transformer_decoder_forward_with_memory_shape_batch4() {
-        let decoder =
-            TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                512, 8, 2048, 0.1,
-            )
-            .unwrap();
+        let decoder = TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+            512, 8, 2048, 0.1,
+        )
+        .unwrap();
         // Test with batch_size=4
         let tgt =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[4, 8, 512])
-                .unwrap(); // target sequence
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[4, 8, 512]).unwrap(); // target sequence
         let memory =
-            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[4, 12, 512])
-                .unwrap(); // encoder output
+            Tensor::<CpuBackend, DenseStorage<Float32>, Float32>::zeros(&[4, 12, 512]).unwrap(); // encoder output
         let output = decoder.forward_with_memory(&tgt, &memory).unwrap();
         assert_eq!(output.shape().dims(), &[4, 8, 512]); // same shape as target
     }
 
     #[test]
     fn test_transformer_decoder_parameters() {
-        let decoder =
-            TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                512, 8, 2048, 0.1,
-            )
-            .unwrap();
+        let decoder = TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
+            512, 8, 2048, 0.1,
+        )
+        .unwrap();
         let params = decoder.parameters();
         // MultiHeadAttention (4 params) + MultiHeadAttention (4 params) + LayerNorm (2 params) + LayerNorm (2 params)
         // + Linear (2 params) + Linear (2 params) + LayerNorm (2 params)
@@ -862,25 +835,22 @@ mod tests {
     #[test]
     fn test_transformer_decoder_small_model() {
         let decoder =
-            TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                64, 4, 256, 0.1,
-            )
-            .unwrap();
+            TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 4, 256, 0.1)
+                .unwrap();
         assert_eq!(decoder.d_model, 64);
         assert_eq!(decoder.nhead, 4);
     }
 
     #[test]
     fn test_transformer_decoder_invalid_d_model() {
-        let result = TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            0, 8, 2048, 0.1,
-        );
+        let result =
+            TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(0, 8, 2048, 0.1);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_transformer_decoder_invalid_nhead() {
-        let result = TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        let result = TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
             512, 0, 2048, 0.1,
         );
         assert!(result.is_err());
@@ -888,15 +858,14 @@ mod tests {
 
     #[test]
     fn test_transformer_decoder_invalid_dim_feedforward() {
-        let result = TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            512, 8, 0, 0.1,
-        );
+        let result =
+            TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(512, 8, 0, 0.1);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_transformer_decoder_invalid_divisibility() {
-        let result = TransformerDecoder::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        let result = TransformerDecoder::<CpuBackend, DenseStorage<Float32>, Float32>::new(
             512, 7, 2048, 0.1,
         );
         assert!(result.is_err());

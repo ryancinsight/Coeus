@@ -3,11 +3,11 @@
 //! This module provides stateless pooling operations for spatial downsampling
 //! of feature maps in convolutional neural networks.
 
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
 #[allow(unused_imports)]
-use coeus_storage::{DenseStorage, Storage, StorageToDense};
-use coeus_tensor::Tensor;
+use storage::{DenseStorage, Storage, StorageToDense};
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 
@@ -26,11 +26,11 @@ use crate::error::{NNError, Result};
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::functional_pooling::max_pool2d;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::functional_pooling::max_pool2d;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
 /// let output = max_pool2d(&input, (2, 2), Some((2, 2)), (0, 0)).unwrap();
@@ -128,11 +128,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::functional_pooling::avg_pool2d;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::functional_pooling::avg_pool2d;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 32, 32]).unwrap();
 /// let output = avg_pool2d(&input, (2, 2), Some((2, 2)), (0, 0)).unwrap();

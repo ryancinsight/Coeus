@@ -5,9 +5,9 @@
 
 use crate::error::{NNError, Result};
 use crate::Module;
-use coeus_backend::{Backend, DataType, Storage};
-use coeus_storage::StorageFromVec;
-use coeus_tensor::Tensor;
+use backend::{Backend, DataType, Storage};
+use storage::StorageFromVec;
+use tensor::Tensor;
 use rand::Rng;
 use rand::SeedableRng;
 use std::collections::HashMap;
@@ -471,9 +471,9 @@ impl Default for FeatureImportance {
 mod tests {
     use super::*;
     use crate::linear::Linear;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_basic_feature_importance() {

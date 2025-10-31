@@ -1,4 +1,4 @@
-﻿//! # NPU Backend for Neural Processing Units
+//! # NPU Backend for Neural Processing Units
 //!
 //! Specialized backend for neural processing units (NPUs) with hardware acceleration
 //! for neural network operations. Supports major NPU architectures including
@@ -246,9 +246,9 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn add_dense<T>(
         &self,
-        lhs: &coeus_storage::DenseStorage<T>,
-        rhs: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        lhs: &storage::DenseStorage<T>,
+        rhs: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -259,9 +259,9 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn mul_dense<T>(
         &self,
-        lhs: &coeus_storage::DenseStorage<T>,
-        rhs: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        lhs: &storage::DenseStorage<T>,
+        rhs: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -272,9 +272,9 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn matmul_dense<T>(
         &self,
-        lhs: &coeus_storage::DenseStorage<T>,
-        rhs: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        lhs: &storage::DenseStorage<T>,
+        rhs: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -285,8 +285,8 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn exp_dense<T>(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -297,8 +297,8 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn log_dense<T>(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -309,8 +309,8 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn sin_dense<T>(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -321,8 +321,8 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn cos_dense<T>(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -333,14 +333,14 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn conv2d_dense<T>(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-        weight: &coeus_storage::DenseStorage<T>,
-        bias: Option<&coeus_storage::DenseStorage<T>>,
+        input: &storage::DenseStorage<T>,
+        weight: &storage::DenseStorage<T>,
+        bias: Option<&storage::DenseStorage<T>>,
         stride: (usize, usize),
         padding: (usize, usize),
         input_shape: &[usize],
         weight_shape: &[usize],
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -489,9 +489,9 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn sub_dense<T>(
         &self,
-        lhs: &coeus_storage::DenseStorage<T>,
-        rhs: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        lhs: &storage::DenseStorage<T>,
+        rhs: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -499,7 +499,7 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
         crate::cpu::CpuBackend::new().sub_dense(lhs, rhs)
     }
 
-    fn sum_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    fn sum_dense<T>(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: crate::DataType + std::ops::Add<Output = T> + num_traits::Zero + Copy,
     {
@@ -507,7 +507,7 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
         crate::cpu::CpuBackend::new().sum_dense(input)
     }
 
-    fn mean_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    fn mean_dense<T>(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: crate::DataType
             + std::ops::Add<Output = T>
@@ -522,7 +522,7 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
         crate::cpu::CpuBackend::new().mean_dense(input)
     }
 
-    fn max_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    fn max_dense<T>(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: crate::DataType + PartialOrd + Copy,
     {
@@ -530,7 +530,7 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
         crate::cpu::CpuBackend::new().max_dense(input)
     }
 
-    fn min_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    fn min_dense<T>(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: crate::DataType + PartialOrd + Copy,
     {
@@ -538,7 +538,7 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
         crate::cpu::CpuBackend::new().min_dense(input)
     }
 
-    fn argmax_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    fn argmax_dense<T>(&self, input: &storage::DenseStorage<T>) -> crate::Result<usize>
     where
         T: crate::DataType + PartialOrd + Copy,
     {
@@ -546,7 +546,7 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
         crate::cpu::CpuBackend::new().argmax_dense(input)
     }
 
-    fn argmin_dense<T>(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    fn argmin_dense<T>(&self, input: &storage::DenseStorage<T>) -> crate::Result<usize>
     where
         T: crate::DataType + PartialOrd + Copy,
     {
@@ -556,9 +556,9 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn coo_matmul_sparse<T>(
         &self,
-        lhs: &coeus_storage::CooStorage<T>,
-        rhs: &coeus_storage::CooStorage<T>,
-    ) -> crate::Result<coeus_storage::CooStorage<T>>
+        lhs: &storage::CooStorage<T>,
+        rhs: &storage::CooStorage<T>,
+    ) -> crate::Result<storage::CooStorage<T>>
     where
         T: crate::DataType
             + std::ops::Add<Output = T>
@@ -572,7 +572,7 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn coo_matmul_dense<T>(
         &self,
-        lhs: &coeus_storage::CooStorage<T>,
+        lhs: &storage::CooStorage<T>,
         rhs: &[T],
     ) -> crate::Result<Vec<T>>
     where
@@ -588,9 +588,9 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn coo_add_sparse<T>(
         &self,
-        lhs: &coeus_storage::CooStorage<T>,
-        rhs: &coeus_storage::CooStorage<T>,
-    ) -> crate::Result<coeus_storage::CooStorage<T>>
+        lhs: &storage::CooStorage<T>,
+        rhs: &storage::CooStorage<T>,
+    ) -> crate::Result<storage::CooStorage<T>>
     where
         T: crate::DataType + std::ops::Add<Output = T> + Copy,
     {
@@ -600,9 +600,9 @@ impl<T: crate::DataType> Backend for NpuBackend<T> {
 
     fn coo_mul_sparse<T>(
         &self,
-        lhs: &coeus_storage::CooStorage<T>,
-        rhs: &coeus_storage::CooStorage<T>,
-    ) -> crate::Result<coeus_storage::CooStorage<T>>
+        lhs: &storage::CooStorage<T>,
+        rhs: &storage::CooStorage<T>,
+    ) -> crate::Result<storage::CooStorage<T>>
     where
         T: crate::DataType + std::ops::Mul<Output = T> + Copy,
     {

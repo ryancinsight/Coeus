@@ -6,11 +6,11 @@
 //! # Examples
 //!
 //! ```rust
-//! use coeus_nn::init;
-//! use coeus_nn::Linear;
-//! use coeus_backend::CpuBackend;
-//! use coeus_storage::DenseStorage;
-//! use coeus_dtype::float::Float32;
+//! use nn::init;
+//! use nn::Linear;
+//! use backend::CpuBackend;
+//! use storage::DenseStorage;
+//! use dtype::float::Float32;
 //!
 //! let mut layer = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 128).unwrap();
 //!
@@ -28,10 +28,10 @@
 //! - He et al. (2015): "Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification"
 //! - Saxe et al. (2013): "Exact solutions to the nonlinear dynamics of learning in deep linear neural networks"
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::{traits::FloatExt, DataType};
+use storage::DenseStorage;
+use tensor::Tensor;
 use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
 use rand_distr::StandardNormal;
@@ -112,11 +112,11 @@ fn calculate_fan_in_fan_out(shape: &[usize]) -> (usize, usize) {
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::init;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::init;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
 /// init::uniform_(&mut tensor, -0.1, 0.1).unwrap();
@@ -148,11 +148,11 @@ pub fn uniform_<T: DataType + FloatExt>(
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::init;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::init;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
 /// init::normal_(&mut tensor, 0.0, 0.01).unwrap();
@@ -182,11 +182,11 @@ pub fn normal_<T: DataType + FloatExt>(
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::init;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::init;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
 /// init::constant_(&mut tensor, 0.5).unwrap();
@@ -207,11 +207,11 @@ pub fn constant_<T: DataType + FloatExt>(
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::init;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::init;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[10, 10]).unwrap();
 /// init::zeros_(&mut tensor).unwrap();
@@ -226,11 +226,11 @@ pub fn zeros_<T: DataType + FloatExt>(
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::init;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::init;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
 /// init::ones_(&mut tensor).unwrap();
@@ -254,11 +254,11 @@ pub fn ones_<T: DataType + FloatExt>(
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::init;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::init;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
 /// init::xavier_uniform_(&mut tensor, 1.0).unwrap();
@@ -289,11 +289,11 @@ pub fn xavier_uniform_<T: DataType + FloatExt>(
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::init;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::init;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
 /// init::xavier_normal_(&mut tensor, 1.0).unwrap();
@@ -324,11 +324,11 @@ pub fn xavier_normal_<T: DataType + FloatExt>(
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::init;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::init;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
 /// init::kaiming_uniform_(&mut tensor, 0.0, init::NonLinearity::ReLU).unwrap();
@@ -362,11 +362,11 @@ pub fn kaiming_uniform_<T: DataType + FloatExt>(
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::init;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::init;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[128, 784]).unwrap();
 /// init::kaiming_normal_(&mut tensor, 0.0, init::NonLinearity::ReLU).unwrap();
@@ -400,11 +400,11 @@ pub fn kaiming_normal_<T: DataType + FloatExt>(
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::init;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::init;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[128, 128]).unwrap();
 /// init::orthogonal_(&mut tensor, 1.0).unwrap();
@@ -491,7 +491,7 @@ pub fn orthogonal_<T: DataType + FloatExt + PartialOrd>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_uniform_initialization() {

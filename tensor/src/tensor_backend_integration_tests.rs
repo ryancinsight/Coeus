@@ -10,7 +10,7 @@ mod clone_tests {
     use super::*;
     use crate::{Tensor, CpuBackend, DenseStorage};
     use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_tensor_backend_clone() {
@@ -50,7 +50,7 @@ mod to_backend_tests {
     use super::*;
     use crate::{Tensor, CpuBackend, DenseStorage};
     use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_tensor_to_same_backend() {
@@ -82,7 +82,7 @@ mod to_backend_tests {
 
     #[test]
     fn test_tensor_device_info_access() {
-        use coeus_backend::DeviceInfo;
+        use backend::DeviceInfo;
 
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[5]).unwrap();
 
@@ -105,7 +105,7 @@ mod dispatcher_tests {
     use super::*;
     use crate::{Tensor, CpuBackend, DenseStorage};
     use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_tensor_dispatcher_add() {
@@ -176,7 +176,7 @@ mod memory_transfer_tests {
     use super::*;
     use crate::{Tensor, CpuBackend, DenseStorage};
     use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_memory_transfer_same_backend() {
@@ -209,7 +209,7 @@ mod distributed_sharing_tests {
     use super::*;
     use crate::{Tensor, CpuBackend, DenseStorage};
     use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_distributed_tensor_clone() {
@@ -264,11 +264,11 @@ mod backend_optimization_tests {
     use super::*;
     use crate::{Tensor, CpuBackend, DenseStorage};
     use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_backend_device_capabilities() {
-        use coeus_backend::DeviceInfo;
+        use backend::DeviceInfo;
 
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10]).unwrap();
 
@@ -285,7 +285,7 @@ mod backend_optimization_tests {
 
     #[test]
     fn test_backend_associated_types() {
-        use coeus_backend::Backend;
+        use backend::Backend;
 
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[3]).unwrap();
 
@@ -321,7 +321,7 @@ mod performance_tests {
     use super::*;
     use crate::{Tensor, CpuBackend, DenseStorage};
     use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_clone_performance_bounds() {

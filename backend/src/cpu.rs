@@ -3,7 +3,7 @@
 //! Native CPU execution with SIMD-readiness hooks for future acceleration.
 
 use crate::{Backend, DataType, Device, DeviceInfo};
-use coeus_storage::{AsAny, Storage, StorageFromVec};
+use storage::{AsAny, Storage, StorageFromVec};
 #[cfg(not(feature = "std"))]
 use libm;
 #[cfg(feature = "std")]
@@ -55,33 +55,33 @@ impl DeviceInfo for CpuDevice {
 /// # Examples
 ///
 /// ```
-/// use coeus_backend::{Backend, CpuBackend};
-/// use coeus_dtype::float::Float32;
+/// use backend::{Backend, CpuBackend};
+/// use dtype::float::Float32;
 ///
 /// let backend = CpuBackend::<Float32>::new();
 /// assert_eq!(backend.device_name(), "cpu");
 /// assert!(backend.supports("arithmetic"));
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct CpuBackend<T: crate::DataType> {
+pub struct CpuBackend<T: crate::DataType> where T: PartialOrd {
     device: CpuDevice,
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: crate::DataType> Default for CpuBackend<T> {
+impl<T: crate::DataType + std::cmp::PartialOrd> Default for CpuBackend<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: crate::DataType> CpuBackend<T> {
+impl<T: crate::DataType + std::cmp::PartialOrd> CpuBackend<T> {
     /// Creates a new CPU backend instance.
     ///
     /// # Examples
     ///
     /// ```
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_dtype::float::Float32;
+    /// use backend::CpuBackend;
+    /// use dtype::float::Float32;
     ///
     /// let backend = CpuBackend::<Float32>::new();
     /// ```
@@ -94,7 +94,7 @@ impl<T: crate::DataType> CpuBackend<T> {
     }
 }
 
-impl<T: DataType> Backend for CpuBackend<T>
+impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
 {
     /// Data type supported by this backend
     type Data = T;
@@ -124,9 +124,9 @@ impl<T: DataType> Backend for CpuBackend<T>
     }
     fn add_dense(
         &self,
-        lhs: &coeus_storage::DenseStorage<T>,
-        rhs: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        lhs: &storage::DenseStorage<T>,
+        rhs: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -140,7 +140,7 @@ impl<T: DataType> Backend for CpuBackend<T>
         }
 
         // Create result storage with the same shape
-        coeus_storage::DenseStorage::from_vec(result_data, lhs.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, lhs.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "add".to_string(),
                 backend: "cpu".to_string(),
@@ -150,9 +150,9 @@ impl<T: DataType> Backend for CpuBackend<T>
 
     fn mul_dense(
         &self,
-        lhs: &coeus_storage::DenseStorage<T>,
-        rhs: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        lhs: &storage::DenseStorage<T>,
+        rhs: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -165,7 +165,7 @@ impl<T: DataType> Backend for CpuBackend<T>
             result_data.push(a * b);
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, lhs.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, lhs.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "mul".to_string(),
                 backend: "cpu".to_string(),
@@ -175,9 +175,9 @@ impl<T: DataType> Backend for CpuBackend<T>
 
     fn sub_dense(
         &self,
-        lhs: &coeus_storage::DenseStorage<T>,
-        rhs: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        lhs: &storage::DenseStorage<T>,
+        rhs: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -190,7 +190,7 @@ impl<T: DataType> Backend for CpuBackend<T>
             result_data.push(a - b);
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, lhs.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, lhs.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "sub".to_string(),
                 backend: "cpu".to_string(),
@@ -200,9 +200,9 @@ impl<T: DataType> Backend for CpuBackend<T>
 
     fn matmul_dense(
         &self,
-        lhs: &coeus_storage::DenseStorage<T>,
-        rhs: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        lhs: &storage::DenseStorage<T>,
+        rhs: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -239,7 +239,7 @@ impl<T: DataType> Backend for CpuBackend<T>
             }
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, &[m, n]).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, &[m, n]).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "matmul_dense".to_string(),
                 backend: "cpu".to_string(),
@@ -249,8 +249,8 @@ impl<T: DataType> Backend for CpuBackend<T>
 
     fn exp_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -265,7 +265,7 @@ impl<T: DataType> Backend for CpuBackend<T>
             result_data.push(T::from(exp_result).unwrap_or(x));
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "exp_dense".to_string(),
                 backend: "cpu".to_string(),
@@ -275,8 +275,8 @@ impl<T: DataType> Backend for CpuBackend<T>
 
     fn relu_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: PartialOrd + Default,
     {
@@ -289,7 +289,7 @@ impl<T: DataType> Backend for CpuBackend<T>
             result_data.push(if x > zero { x } else { zero });
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "relu_dense".to_string(),
                 backend: "cpu".to_string(),
@@ -297,7 +297,7 @@ impl<T: DataType> Backend for CpuBackend<T>
         })
     }
 
-    fn sum_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    fn sum_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: crate::DataType,
     {
@@ -311,7 +311,7 @@ impl<T: DataType> Backend for CpuBackend<T>
         Ok(sum)
     }
 
-    fn max_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    fn max_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: PartialOrd,
     {
@@ -333,7 +333,7 @@ impl<T: DataType> Backend for CpuBackend<T>
         Ok(max_val)
     }
 
-    fn min_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<T>
+    fn min_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: PartialOrd,
     {
@@ -355,7 +355,7 @@ impl<T: DataType> Backend for CpuBackend<T>
         Ok(min_val)
     }
 
-    fn argmax_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    fn argmax_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<usize>
     where
         T: PartialOrd,
     {
@@ -380,7 +380,7 @@ impl<T: DataType> Backend for CpuBackend<T>
         Ok(max_idx)
     }
 
-    fn argmin_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    fn argmin_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<usize>
     where
         T: PartialOrd,
     {
@@ -407,8 +407,8 @@ impl<T: DataType> Backend for CpuBackend<T>
 
     fn log_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -422,7 +422,7 @@ impl<T: DataType> Backend for CpuBackend<T>
             result_data.push(T::from(log_result).unwrap_or(x));
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "log_dense".to_string(),
                 backend: "cpu".to_string(),
@@ -432,8 +432,8 @@ impl<T: DataType> Backend for CpuBackend<T>
 
     fn sin_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -447,7 +447,7 @@ impl<T: DataType> Backend for CpuBackend<T>
             result_data.push(T::from(sin_result).unwrap_or(x));
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "sin_dense".to_string(),
                 backend: "cpu".to_string(),
@@ -457,8 +457,8 @@ impl<T: DataType> Backend for CpuBackend<T>
 
     fn cos_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -472,7 +472,7 @@ impl<T: DataType> Backend for CpuBackend<T>
             result_data.push(T::from(cos_result).unwrap_or(x));
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "cos_dense".to_string(),
                 backend: "cpu".to_string(),
@@ -482,9 +482,9 @@ impl<T: DataType> Backend for CpuBackend<T>
 
     fn mean_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
+        input: &storage::DenseStorage<T>,
         _axes: Option<&[usize]>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -505,7 +505,7 @@ impl<T: DataType> Backend for CpuBackend<T>
         let mean = sum / T::from(input_data.len() as f64).unwrap_or(T::one());
         let result_data = vec![mean];
 
-        coeus_storage::DenseStorage::from_vec(result_data, &[1]).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, &[1]).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "mean_dense".to_string(),
                 backend: "cpu".to_string(),
@@ -518,7 +518,7 @@ impl<T: DataType> Backend for CpuBackend<T>
         data: &[Self::Data],
         indices: &[usize],
         indptr: &[usize],
-        other: &coeus_storage::DenseStorage<Self::Data>,
+        other: &storage::DenseStorage<Self::Data>,
         num_rows: usize,
         num_cols: usize,
     ) -> crate::Result<Vec<Self::Data>> {
@@ -597,7 +597,7 @@ impl<T: DataType> Backend for CpuBackend<T>
         _m: usize,
         _k: usize,
         _n: usize,
-    ) -> crate::Result<coeus_storage::CooStorage<T>> {
+    ) -> crate::Result<storage::CooStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "coo_matmul_sparse".to_string(),
             backend: "cpu".to_string(),
@@ -609,11 +609,11 @@ impl<T: DataType> Backend for CpuBackend<T>
         lhs_data: &[Self::Data],
         lhs_row: &[usize],
         lhs_col: &[usize],
-        rhs: &coeus_storage::DenseStorage<Self::Data>,
+        rhs: &storage::DenseStorage<Self::Data>,
         m: usize,
         k: usize,
         n: usize,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>> {
+    ) -> crate::Result<storage::DenseStorage<Self::Data>> {
         // Create dense result matrix initialized to zero
         let total_elements = rhs.len();
         let mut result_data = vec![Self::Data::zero(); total_elements];
@@ -631,7 +631,7 @@ impl<T: DataType> Backend for CpuBackend<T>
         }
 
         // Return the dense result
-        coeus_storage::DenseStorage::from_vec(result_data, &[m, n]).map_err(|_| crate::BackendError::UnsupportedOperation {
+        storage::DenseStorage::from_vec(result_data, &[m, n]).map_err(|_| crate::BackendError::UnsupportedOperation {
             operation: "coo_matmul_dense".to_string(),
             backend: "cpu".to_string(),
         })
@@ -647,7 +647,7 @@ impl<T: DataType> Backend for CpuBackend<T>
         _rhs_col: &[usize],
         _m: usize,
         _n: usize,
-    ) -> crate::Result<coeus_storage::CooStorage<T>> {
+    ) -> crate::Result<storage::CooStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "coo_add_sparse".to_string(),
             backend: "cpu".to_string(),
@@ -664,14 +664,14 @@ impl<T: DataType> Backend for CpuBackend<T>
         _rhs_col: &[usize],
         _m: usize,
         _n: usize,
-    ) -> crate::Result<coeus_storage::CooStorage<T>> {
+    ) -> crate::Result<storage::CooStorage<T>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "coo_mul_sparse".to_string(),
             backend: "cpu".to_string(),
         })
     }
 
-    fn quantize(&self, input: &coeus_storage::DenseStorage<Self::Data>, levels: usize) -> crate::Result<coeus_storage::DenseStorage<Self::Data>>
+    fn quantize(&self, input: &storage::DenseStorage<Self::Data>, levels: usize) -> crate::Result<storage::DenseStorage<Self::Data>>
     where
         Self::Data: PartialOrd,
     {
@@ -681,13 +681,21 @@ impl<T: DataType> Backend for CpuBackend<T>
 
     fn conv2d_dense(
         &self,
-        _input: &coeus_storage::DenseStorage<Self::Data>,
-        _weight: &coeus_storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<coeus_storage::DenseStorage<Self::Data>> {
+        _input: &storage::DenseStorage<Self::Data>,
+        _weight: &storage::DenseStorage<Self::Data>,
+    ) -> crate::Result<storage::DenseStorage<Self::Data>> {
         Err(crate::BackendError::UnsupportedOperation {
             operation: "conv2d_dense".to_string(),
             backend: "cpu".to_string(),
         })
+    }
+
+    fn clip_info_nce_loss(&self, image_embeddings: &storage::DenseStorage<Self::Data>, text_embeddings: &storage::DenseStorage<Self::Data>, temperature: f32) -> crate::Result<Self::Data> {
+        CpuBackend::clip_info_nce_loss(self, image_embeddings, text_embeddings, temperature)
+    }
+
+    fn clip_attention(&self, queries: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>, keys: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>, values: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>, num_heads: usize) -> crate::Result<storage::DenseStorage<<CpuBackend<T> as Backend>::Data>> {
+        CpuBackend::clip_attention(self, queries, keys, values, num_heads)
     }
 }
 
@@ -699,9 +707,9 @@ where
 {
     fn quantize_dense_impl(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
+        input: &storage::DenseStorage<T>,
         levels: usize,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>> {
+    ) -> crate::Result<storage::DenseStorage<T>> {
         if levels == 0 {
             return Err(crate::BackendError::InvalidInput(
                 "Cannot quantize with 0 levels".to_string(),
@@ -757,7 +765,7 @@ where
             result_data.push(quantized);
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "quantize".to_string(),
                 backend: "cpu".to_string(),
@@ -767,8 +775,8 @@ where
 
     fn relu_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: PartialOrd + Default,
     {
@@ -785,7 +793,7 @@ where
             }
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "relu_dense".to_string(),
                 backend: "cpu".to_string(),
@@ -795,7 +803,7 @@ where
 
     fn sum_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
+        input: &storage::DenseStorage<T>,
     ) -> crate::Result<T>
     where
         T: crate::DataType,
@@ -810,7 +818,7 @@ where
 
     fn max_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
+        input: &storage::DenseStorage<T>,
     ) -> crate::Result<T>
     where
         T: PartialOrd,
@@ -833,7 +841,7 @@ where
 
     fn min_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
+        input: &storage::DenseStorage<T>,
     ) -> crate::Result<T>
     where
         T: PartialOrd,
@@ -854,7 +862,7 @@ where
         Ok(min_val)
     }
 
-    fn argmax_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    fn argmax_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<usize>
     where
         T: PartialOrd,
     {
@@ -878,7 +886,7 @@ where
         Ok(max_idx)
     }
 
-    fn argmin_dense(&self, input: &coeus_storage::DenseStorage<T>) -> crate::Result<usize>
+    fn argmin_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<usize>
     where
         T: PartialOrd,
     {
@@ -904,8 +912,8 @@ where
 
     fn log_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -923,7 +931,7 @@ where
             result_data.push(T::from(log_result).unwrap_or(x));
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "log_dense".to_string(),
                 backend: "cpu".to_string(),
@@ -933,8 +941,8 @@ where
 
     fn sin_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -952,7 +960,7 @@ where
             result_data.push(T::from(sin_result).unwrap_or(x));
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "sin_dense".to_string(),
                 backend: "cpu".to_string(),
@@ -962,8 +970,8 @@ where
 
     fn cos_dense(
         &self,
-        input: &coeus_storage::DenseStorage<T>,
-    ) -> crate::Result<coeus_storage::DenseStorage<T>>
+        input: &storage::DenseStorage<T>,
+    ) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -981,7 +989,7 @@ where
             result_data.push(T::from(cos_result).unwrap_or(x));
         }
 
-        coeus_storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
+        storage::DenseStorage::from_vec(result_data, input.shape().dims()).map_err(|_| {
             crate::BackendError::UnsupportedOperation {
                 operation: "cos_dense".to_string(),
                 backend: "cpu".to_string(),
@@ -989,4 +997,215 @@ where
         })
     }
 
+    /// Compute CLIP InfoNCE loss using CPU implementation
+    fn clip_info_nce_loss(
+        &self,
+        image_embeddings: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>,
+        text_embeddings: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>,
+        temperature: f32,
+    ) -> crate::Result<<CpuBackend<T> as Backend>::Data> {
+        use std::collections::HashMap;
+
+        // Get embedding dimensions
+        let image_shape = image_embeddings.shape().dims();
+        let text_shape = text_embeddings.shape().dims();
+
+        // Validate shapes: both should be [batch_size, embed_dim]
+        if image_shape.len() != 2 || text_shape.len() != 2 {
+            return Err(crate::BackendError::InvalidInput(
+                "Embeddings must be 2D tensors [batch_size, embed_dim]".to_string(),
+            ));
+        }
+
+        let batch_size = image_shape[0];
+        let embed_dim = image_shape[1];
+
+        if text_shape[0] != batch_size || text_shape[1] != embed_dim {
+            return Err(crate::BackendError::InvalidInput(
+                "Image and text embeddings must have same shape [batch_size, embed_dim]".to_string(),
+            ));
+        }
+
+        let image_data = image_embeddings.as_slice();
+        let text_data = text_embeddings.as_slice();
+
+        // Compute L2 normalization for all embeddings
+        let mut image_norms = vec![T::zero(); batch_size];
+        let mut text_norms = vec![T::zero(); batch_size];
+
+        for i in 0..batch_size {
+            for j in 0..embed_dim {
+                let img_val = image_data[i * embed_dim + j];
+                let txt_val = text_data[i * embed_dim + j];
+
+                // Convert to f64 for computation
+                let img_f64 = img_val.to_f64().unwrap_or(0.0);
+                let txt_f64 = txt_val.to_f64().unwrap_or(0.0);
+
+                image_norms[i] = T::from(image_norms[i].to_f64().unwrap_or(0.0) + img_f64 * img_f64).unwrap_or(T::zero());
+                text_norms[i] = T::from(text_norms[i].to_f64().unwrap_or(0.0) + txt_f64 * txt_f64).unwrap_or(T::zero());
+            }
+        }
+
+        // Take square roots and handle zeros
+        for i in 0..batch_size {
+            let img_norm_f64 = image_norms[i].to_f64().unwrap_or(0.0).sqrt().max(1e-10);
+            let txt_norm_f64 = text_norms[i].to_f64().unwrap_or(0.0).sqrt().max(1e-10);
+            image_norms[i] = T::from(img_norm_f64).unwrap_or(T::one());
+            text_norms[i] = T::from(txt_norm_f64).unwrap_or(T::one());
+        }
+
+        // Compute similarity matrix [batch_size, batch_size]
+        let mut logits = vec![vec![T::zero(); batch_size]; batch_size];
+
+        for i in 0..batch_size {
+            for j in 0..batch_size {
+                let mut similarity = 0.0;
+
+                for k in 0..embed_dim {
+                    let img_i = image_data[i * embed_dim + k].to_f64().unwrap_or(0.0) / image_norms[i].to_f64().unwrap_or(1.0);
+                    let txt_j = text_data[j * embed_dim + k].to_f64().unwrap_or(0.0) / text_norms[j].to_f64().unwrap_or(1.0);
+                    similarity += img_i * txt_j;
+                }
+
+                // Apply temperature scaling
+                similarity /= temperature as f64;
+                logits[i][j] = T::from(similarity).unwrap_or(T::zero());
+            }
+        }
+
+        // Compute InfoNCE loss
+        let mut total_loss = 0.0;
+
+        for i in 0..batch_size {
+            // Positive pair similarity (diagonal)
+            let pos_sim = logits[i][i].to_f64().unwrap_or(0.0);
+
+            // Negative pair similarities (off-diagonal)
+            let mut neg_sum = 0.0;
+            for j in 0..batch_size {
+                if i != j {
+                    neg_sum += (logits[i][j].to_f64().unwrap_or(0.0)).exp();
+                }
+            }
+
+            // Cross-entropy loss for this positive pair
+            let pos_prob = pos_sim.exp() / (pos_sim.exp() + neg_sum);
+            let loss = -(pos_prob.ln().max(-1e10)); // Clamp for numerical stability
+            total_loss += loss;
+        }
+
+        // Average loss across batch
+        let avg_loss = total_loss / batch_size as f64;
+        Ok(T::from(avg_loss).unwrap_or(T::zero()))
+    }
+
+    /// Compute CLIP attention mechanism using CPU implementation
+    fn clip_attention(
+        &self,
+        queries: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>,
+        keys: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>,
+        values: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>,
+        num_heads: usize,
+    ) -> crate::Result<storage::DenseStorage<<CpuBackend<T> as Backend>::Data>> {
+        let query_shape = queries.shape().dims();
+        let key_shape = keys.shape().dims();
+        let value_shape = values.shape().dims();
+
+        // Validate shapes: [batch_size, seq_len, embed_dim]
+        if query_shape.len() != 3 || key_shape.len() != 3 || value_shape.len() != 3 {
+            return Err(crate::BackendError::InvalidInput(
+                "All inputs must be 3D tensors [batch_size, seq_len, embed_dim]".to_string(),
+            ));
+        }
+
+        let batch_size = query_shape[0];
+        let seq_len_q = query_shape[1];
+        let seq_len_kv = key_shape[1];
+        let embed_dim = query_shape[2];
+
+        if key_shape[0] != batch_size || value_shape[0] != batch_size ||
+           key_shape[2] != embed_dim || value_shape[2] != embed_dim {
+            return Err(crate::BackendError::InvalidInput(
+                "Incompatible tensor shapes for attention".to_string(),
+            ));
+        }
+
+        if embed_dim % num_heads != 0 {
+            return Err(crate::BackendError::InvalidInput(
+                format!("embed_dim ({}) must be divisible by num_heads ({})", embed_dim, num_heads),
+            ));
+        }
+
+        let head_dim = embed_dim / num_heads;
+
+        let query_data = queries.as_slice();
+        let key_data = keys.as_slice();
+        let value_data = values.as_slice();
+
+        // Allocate output tensor
+        let output_size = batch_size * seq_len_q * embed_dim;
+        let mut output_data = vec![T::zero(); output_size];
+
+        // Process each batch, head, and query position
+        for batch_idx in 0..batch_size {
+            for head_idx in 0..num_heads {
+                for query_pos in 0..seq_len_q {
+                    // Compute attention scores for this query against all keys
+                    let mut attention_scores = vec![0.0; seq_len_kv];
+                    let mut max_score = f64::NEG_INFINITY;
+
+                    // First pass: compute raw attention scores and find max for numerical stability
+                    for kv_pos in 0..seq_len_kv {
+                        let mut dot_product = 0.0;
+
+                        for d in 0..head_dim {
+                            let head_offset = head_idx * head_dim;
+                            let q_idx = ((batch_idx * seq_len_q + query_pos) * embed_dim) + head_offset + d;
+                            let k_idx = ((batch_idx * seq_len_kv + kv_pos) * embed_dim) + head_offset + d;
+
+                            let q_val = query_data[q_idx].to_f64().unwrap_or(0.0);
+                            let k_val = key_data[k_idx].to_f64().unwrap_or(0.0);
+                            dot_product += q_val * k_val;
+                        }
+
+                        // Scale by sqrt(head_dim)
+                        let scaled_score = dot_product / (head_dim as f32).sqrt() as f64;
+                        attention_scores[kv_pos] = scaled_score;
+                        max_score = max_score.max(scaled_score);
+                    }
+
+                    // Second pass: compute softmax weights
+                    let mut weights = vec![0.0; seq_len_kv];
+                    let mut weight_sum = 0.0;
+
+                    for kv_pos in 0..seq_len_kv {
+                        let exp_score = (attention_scores[kv_pos] - max_score).exp();
+                        weights[kv_pos] = exp_score;
+                        weight_sum += exp_score;
+                    }
+
+                    // Third pass: apply attention weights to values
+                    for d in 0..head_dim {
+                        let head_offset = head_idx * head_dim;
+                        let out_idx = ((batch_idx * seq_len_q + query_pos) * embed_dim) + head_offset + d;
+                        let mut result = 0.0;
+
+                        for kv_pos in 0..seq_len_kv {
+                            let v_idx = ((batch_idx * seq_len_kv + kv_pos) * embed_dim) + head_offset + d;
+                            let v_val = value_data[v_idx].to_f64().unwrap_or(0.0);
+                            let weight = weights[kv_pos] / weight_sum;
+                            result += weight * v_val;
+                        }
+
+                        output_data[out_idx] = T::from(result).unwrap_or(T::zero());
+                    }
+                }
+            }
+        }
+
+        storage::DenseStorage::from_vec(output_data, query_shape).map_err(|_| {
+            crate::BackendError::InvalidInput("Failed to create output tensor".to_string())
+        })
+    }
 }

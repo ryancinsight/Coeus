@@ -177,3 +177,4 @@ fn test_memory_integration() -> backend::Result<backend::memory_integration::Mem
         memory_manager.analyze_memory_for_selection(&distributed_workload, &available_backends).await
     })
 }
+

@@ -1,1 +1,1 @@
-use coeus_nn::audio::MFCCExtractor;
+use nn::audio::MFCCExtractor;

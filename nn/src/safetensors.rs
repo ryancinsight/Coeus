@@ -37,8 +37,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{NNError, Result};
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
 
 /// Supported data types in SafeTensors format.
 ///
@@ -134,8 +134,8 @@ impl SafeTensors {
         for (name, (tensor_data, shape)) in state_dict {
             // Determine dtype - for now we only support F32 and F64
             let dtype = match std::any::TypeId::of::<T>() {
-                id if id == std::any::TypeId::of::<coeus_dtype::float::Float32>() => SafeDtype::F32,
-                id if id == std::any::TypeId::of::<coeus_dtype::float::Float64>() => SafeDtype::F64,
+                id if id == std::any::TypeId::of::<dtype::float::Float32>() => SafeDtype::F32,
+                id if id == std::any::TypeId::of::<dtype::float::Float64>() => SafeDtype::F64,
                 _ => {
                     return Err(NNError::SerializationError {
                         message: format!("Unsupported data type for tensor '{}'", name),
@@ -345,9 +345,9 @@ pub mod conversion {
     use super::*;
     use crate::error::{NNError, Result};
     use crate::Module;
-    use coeus_backend::{Backend, CpuBackend};
-    use coeus_dtype::float::Float32;
-    use coeus_tensor::{DenseStorage, Tensor};
+    use backend::{Backend, CpuBackend};
+    use dtype::float::Float32;
+    use tensor::{DenseStorage, Tensor};
 
     /// Convert a Coeus module's parameters to SafeTensors format
     ///
@@ -362,7 +362,7 @@ pub mod conversion {
     pub fn module_to_safetensors<M, B, S>(module: &M) -> Result<SafeTensors>
     where
         M: Module<B, S, Float32>,
-        B: Backend<Float32> + Clone,
+        B: Backend<Data = Float32> + Clone,
         S: Storage<Float32> + StorageFromVec<Float32> + Clone + 'static,
     {
         let mut safetensors_data = HashMap::new();
@@ -662,7 +662,7 @@ mod tests {
 
     #[test]
     fn test_safetensors_roundtrip() {
-        use coeus_dtype::float::Float32;
+        use dtype::float::Float32;
 
         // Create test data
         let test_data = vec![

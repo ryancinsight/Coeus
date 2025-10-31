@@ -3,10 +3,10 @@
 //! This example demonstrates how to use MAML for few-shot learning on regression tasks.
 //! MAML learns model parameters that can be quickly adapted to new tasks with just a few examples.
 
-use coeus_nn::{MAML, Linear};
-use coeus_backend::CpuBackend;
-use coeus_storage::DenseStorage;
-use coeus_dtype::float::Float32;
+use nn::{MAML, Linear};
+use backend::CpuBackend;
+use storage::DenseStorage;
+use dtype::float::Float32;
 use rand::Rng;
 
 /// Sine wave regression task generator
@@ -121,11 +121,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &test_task.support_set.iter()
             .map(|(x, y)| {
                 (
-                    coeus_tensor::Tensor::from_vec(
+                    tensor::Tensor::from_vec(
                         vec![Float32::from(*x)],
                         &[1]
                     ).unwrap(),
-                    coeus_tensor::Tensor::from_vec(
+                    tensor::Tensor::from_vec(
                         vec![Float32::from(*y)],
                         &[1]
                     ).unwrap(),
@@ -140,7 +140,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut targets = Vec::new();
 
     for (x, y) in &test_task.query_set {
-        let input = coeus_tensor::Tensor::from_vec(vec![Float32::from(*x)], &[1])?;
+        let input = tensor::Tensor::from_vec(vec![Float32::from(*x)], &[1])?;
         let output = adapted_model.forward(&input)?;
         let pred = output.as_slice()[0].into();
 
@@ -158,3 +158,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+

@@ -1,5 +1,5 @@
 [package]
-name = "coeus-dtype"
+name = "dtype"
 description = "Core data types for Coeus deep learning framework"
 readme = "README.md"
 keywords = ["machine-learning", "deep-learning", "tensor", "dtype", "numerics"]

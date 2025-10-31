@@ -10,15 +10,15 @@
 //! - NaN/Inf detection and handling
 //! - Automatic loss scale adjustment
 
-use coeus_autograd::ops::backward;
-use coeus_dtype::float::Float32;
-use coeus_nn::{
+use autograd::ops::backward;
+use dtype::float::Float32;
+use nn::{
     amp::{GradientScaler, MixedPrecision},
     MSELoss, Module, Sequential,
 };
-use coeus_storage::{DenseStorage, Storage};
-use coeus_tensor::CpuBackend;
-use coeus_tensor::Tensor;
+use storage::{DenseStorage, Storage};
+use tensor::CpuBackend;
+use tensor::Tensor;
 use std::time::Instant;
 
 #[tokio::main]
@@ -140,3 +140,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+

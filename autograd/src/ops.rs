@@ -8,36 +8,36 @@
 //! These operations wrap tensor operations and automatically set `grad_fn`
 //! on result tensors to enable automatic differentiation.
 
-use coeus_tensor::Function;
+use tensor::Function;
 use crate::functions::{
     AddFunction, CosFunction, ExpFunction, LogFunction, MatMulFunction, MeanFunction, MulFunction,
     NLLLossFunction, SinFunction, SumFunction,
 };
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{float::Float32, traits::FloatExt, DataType};
-use coeus_storage::Storage;
+use backend::{Backend, CpuBackend};
+use dtype::{float::Float32, traits::FloatExt, DataType};
+use storage::Storage;
 extern crate alloc;
 use alloc::{sync::Arc, vec::Vec};
-use coeus_storage::DenseStorage;
+use storage::DenseStorage;
 use num_traits::ToPrimitive;
 use std::ops::Add;
 
 /// Type alias for Float32 tensors on CPU backend with dense storage
-type Float32Tensor = coeus_tensor::Tensor<
-    coeus_backend::CpuBackend<Float32>,
-    coeus_storage::DenseStorage<Float32>,
+type Float32Tensor = tensor::Tensor<
+    backend::CpuBackend<Float32>,
+    storage::DenseStorage<Float32>,
     Float32,
 >;
 
 /// Perform element-wise addition with automatic differentiation
 #[must_use]
 pub fn add<B, S, T>(
-    lhs: &coeus_tensor::Tensor<B, S, T>,
-    rhs: &coeus_tensor::Tensor<B, S, T>,
-) -> Result<coeus_tensor::Tensor<B, S, T>, crate::error::AutogradError>
+    lhs: &tensor::Tensor<B, S, T>,
+    rhs: &tensor::Tensor<B, S, T>,
+) -> Result<tensor::Tensor<B, S, T>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + Add<Output = T> + Clone,
 {
     use crate::functions::AddFunction;
@@ -60,12 +60,12 @@ where
 
 /// Perform element-wise multiplication with automatic differentiation
 pub fn mul<B, S, T>(
-    lhs: &coeus_tensor::Tensor<B, S, T>,
-    rhs: &coeus_tensor::Tensor<B, S, T>,
-) -> Result<coeus_tensor::Tensor<B, S, T>, crate::error::AutogradError>
+    lhs: &tensor::Tensor<B, S, T>,
+    rhs: &tensor::Tensor<B, S, T>,
+) -> Result<tensor::Tensor<B, S, T>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType
         + num_traits::Zero
         + std::ops::Mul<Output = T>
@@ -93,18 +93,18 @@ where
 
 /// Perform matrix multiplication with automatic differentiation
 pub fn matmul<B, S, T>(
-    lhs: &coeus_tensor::Tensor<B, S, T>,
-    rhs: &coeus_tensor::Tensor<B, S, T>,
-) -> Result<coeus_tensor::Tensor<B, S, T>, crate::error::AutogradError>
+    lhs: &tensor::Tensor<B, S, T>,
+    rhs: &tensor::Tensor<B, S, T>,
+) -> Result<tensor::Tensor<B, S, T>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + Clone,
 {
     // TODO: Implement proper matrix multiplication
     // For now, return an unsupported operation error to allow compilation
     Err(crate::error::AutogradError::TensorError(
-        coeus_tensor::TensorError::UnsupportedOperation {
+        tensor::TensorError::UnsupportedOperation {
             operation: "matmul".to_string(),
             storage_type: "generic".to_string(),
         }
@@ -113,13 +113,13 @@ where
 
 /// Perform sum reduction with automatic differentiation
 pub fn sum<B, S, T>(
-    input: &coeus_tensor::Tensor<B, S, T>,
+    input: &tensor::Tensor<B, S, T>,
     dims: Option<&[usize]>,
     keepdim: bool,
-) -> Result<coeus_tensor::Tensor<B, DenseStorage<T>, T>, crate::error::AutogradError>
+) -> Result<tensor::Tensor<B, DenseStorage<T>, T>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + Clone,
 {
     let dense_input = input.to_dense_generic()?;
@@ -137,13 +137,13 @@ where
 
 /// Perform mean reduction with automatic differentiation
 pub fn mean<B, S, T>(
-    input: &coeus_tensor::Tensor<B, S, T>,
+    input: &tensor::Tensor<B, S, T>,
     dims: Option<&[usize]>,
     keepdim: bool,
-) -> Result<coeus_tensor::Tensor<B, DenseStorage<T>, T>, crate::error::AutogradError>
+) -> Result<tensor::Tensor<B, DenseStorage<T>, T>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + Clone,
 {
     let dense_input = input.to_dense_generic()?;
@@ -161,11 +161,11 @@ where
 
 /// Perform element-wise exponential with automatic differentiation
 pub fn exp<B, S, T>(
-    input: &coeus_tensor::Tensor<B, S, T>,
-) -> Result<coeus_tensor::Tensor<B, S, T>, crate::error::AutogradError>
+    input: &tensor::Tensor<B, S, T>,
+) -> Result<tensor::Tensor<B, S, T>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + FloatExt + Clone,
 {
     let result = input.exp();
@@ -182,11 +182,11 @@ where
 
 /// Perform element-wise natural logarithm with automatic differentiation
 pub fn log<B, S, T>(
-    input: &coeus_tensor::Tensor<B, S, T>,
-) -> Result<coeus_tensor::Tensor<B, S, T>, crate::error::AutogradError>
+    input: &tensor::Tensor<B, S, T>,
+) -> Result<tensor::Tensor<B, S, T>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + FloatExt + Clone,
 {
     let result = input.log();
@@ -203,11 +203,11 @@ where
 
 /// Perform element-wise sine with automatic differentiation
 pub fn sin<B, S, T>(
-    input: &coeus_tensor::Tensor<B, S, T>,
-) -> Result<coeus_tensor::Tensor<B, S, T>, crate::error::AutogradError>
+    input: &tensor::Tensor<B, S, T>,
+) -> Result<tensor::Tensor<B, S, T>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + FloatExt + Clone,
 {
     let result = input.sin();
@@ -224,11 +224,11 @@ where
 
 /// Perform element-wise cosine with automatic differentiation
 pub fn cos<B, S, T>(
-    input: &coeus_tensor::Tensor<B, S, T>,
-) -> Result<coeus_tensor::Tensor<B, S, T>, crate::error::AutogradError>
+    input: &tensor::Tensor<B, S, T>,
+) -> Result<tensor::Tensor<B, S, T>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + FloatExt + Clone,
 {
     let result = input.cos();
@@ -251,12 +251,12 @@ where
     clippy::missing_errors_doc
 )]
 pub fn nll_loss<B, S, T>(
-    log_probs: &coeus_tensor::Tensor<B, S, T>,
-    targets: &coeus_tensor::Tensor<B, S, T>,
-) -> crate::Result<coeus_tensor::Tensor<B, S, T>>
+    log_probs: &tensor::Tensor<B, S, T>,
+    targets: &tensor::Tensor<B, S, T>,
+) -> crate::Result<tensor::Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T> + coeus_storage::StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + FloatExt + ToPrimitive + num_traits::FromPrimitive + std::fmt::Display + Clone,
 {
     let batch_size = targets.len();
@@ -307,7 +307,7 @@ where
     let batch_size_float = T::from(batch_size as f64).unwrap_or_else(|| T::one());
     let mean_loss = total_loss / batch_size_float;
 
-    let mut result = coeus_tensor::Tensor::from_vec(vec![mean_loss], &[]).map_err(crate::error::AutogradError::TensorError)?;
+    let mut result = tensor::Tensor::from_vec(vec![mean_loss], &[]).map_err(crate::error::AutogradError::TensorError)?;
 
     if log_probs.requires_grad() || targets.requires_grad() {
         let nll_fn = Arc::new(NLLLossFunction::new(
@@ -323,13 +323,13 @@ where
 
 /// Perform backward pass with explicit gradient and higher-order derivative support
 pub fn backward_with_grad_and_options<B, S, T>(
-    tensor: &coeus_tensor::Tensor<B, S, T>,
-    grad_output: &coeus_tensor::Tensor<B, S, T>,
+    tensor: &tensor::Tensor<B, S, T>,
+    grad_output: &tensor::Tensor<B, S, T>,
     _create_graph: bool,
 ) -> Result<(), crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageToDense<T> + coeus_storage::StorageFromVec<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageToDense<T> + storage::StorageFromVec<T>,
     T: DataType,
 {
     // Simplified backward implementation - call backward with explicit gradient
@@ -338,12 +338,12 @@ where
 
 /// Perform backward pass with explicit gradient
 pub fn backward_with_grad<B, S, T>(
-    tensor: &coeus_tensor::Tensor<B, S, T>,
-    grad_output: &coeus_tensor::Tensor<B, S, T>,
+    tensor: &tensor::Tensor<B, S, T>,
+    grad_output: &tensor::Tensor<B, S, T>,
 ) -> Result<(), crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageToDense<T> + coeus_storage::StorageFromVec<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageToDense<T> + storage::StorageFromVec<T>,
     T: DataType + Clone + Copy,
 {
     // Call the tensor's backward_with_grad method directly
@@ -352,11 +352,11 @@ where
 
 /// Perform backward pass on a scalar tensor
 pub fn backward<B, S, T>(
-    tensor: &coeus_tensor::Tensor<B, S, T>,
+    tensor: &tensor::Tensor<B, S, T>,
 ) -> crate::Result<()>
 where
     B: Backend<Data = T> + core::fmt::Debug + Send + Sync + Clone + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageToDense<T> + coeus_storage::StorageFromVec<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageToDense<T> + storage::StorageFromVec<T>,
     T: DataType,
 {
     if tensor.shape().ndim() != 0 {
@@ -366,9 +366,9 @@ where
     }
 
     let one_storage = S::from_vec(vec![T::one()], &[]).map_err(|e| {
-        crate::error::AutogradError::TensorError(coeus_tensor::TensorError::StorageError(e))
+        crate::error::AutogradError::TensorError(tensor::TensorError::StorageError(e))
     })?;
-    let grad_output = coeus_tensor::Tensor::from_storage(one_storage, tensor.backend().clone());
+    let grad_output = tensor::Tensor::from_storage(one_storage, tensor.backend().clone());
 
     backward_with_grad(tensor, &grad_output)
 }
@@ -376,18 +376,18 @@ where
 /// Compute gradient with higher-order derivative support
 #[allow(clippy::missing_panics_doc, clippy::missing_errors_doc, clippy::type_complexity)]
 pub fn grad<B, S, T>(
-    output: &coeus_tensor::Tensor<B, S, T>,
-    inputs: &[&coeus_tensor::Tensor<B, S, T>],
-    grad_outputs: Option<&[coeus_tensor::Tensor<B, S, T>]>,
+    output: &tensor::Tensor<B, S, T>,
+    inputs: &[&tensor::Tensor<B, S, T>],
+    grad_outputs: Option<&[tensor::Tensor<B, S, T>]>,
     _create_graph: bool,
-) -> Result<Vec<coeus_tensor::Tensor<B, coeus_storage::DenseStorage<T>, T>>, crate::error::AutogradError>
+) -> Result<Vec<tensor::Tensor<B, storage::DenseStorage<T>, T>>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageToDense<T> + coeus_storage::StorageFromVec<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageToDense<T> + storage::StorageFromVec<T>,
     T: DataType + Clone,
 {
     let default_grad = if output.shape().dims().is_empty() {
-        coeus_tensor::Tensor::from_vec(vec![T::one()], &[]).map_err(crate::error::AutogradError::TensorError)?
+        tensor::Tensor::from_vec(vec![T::one()], &[]).map_err(crate::error::AutogradError::TensorError)?
     } else {
         return Err(crate::error::AutogradError::InvalidOperation {
             operation: "Non-scalar outputs not supported".to_string(),
@@ -408,7 +408,7 @@ where
             // TODO: Make gradient storage generic
             gradients.push(grad_tensor);
         } else {
-            let zero_grad = coeus_tensor::Tensor::zeros(input.shape().dims()).map_err(crate::error::AutogradError::TensorError)?;
+            let zero_grad = tensor::Tensor::zeros(input.shape().dims()).map_err(crate::error::AutogradError::TensorError)?;
             gradients.push(zero_grad);
         }
     }
@@ -418,13 +418,13 @@ where
 
 /// Compute Hessian-Vector Product (HVP) for higher-order derivatives
 pub fn hvp<B, S, T>(
-    _output: &coeus_tensor::Tensor<B, S, T>,
-    _inputs: &[&coeus_tensor::Tensor<B, S, T>],
-    _v: &[coeus_tensor::Tensor<B, S, T>],
-) -> Result<Vec<coeus_tensor::Tensor<B, S, T>>, crate::error::AutogradError>
+    _output: &tensor::Tensor<B, S, T>,
+    _inputs: &[&tensor::Tensor<B, S, T>],
+    _v: &[tensor::Tensor<B, S, T>],
+) -> Result<Vec<tensor::Tensor<B, S, T>>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageToDense<T> + coeus_storage::StorageFromVec<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageToDense<T> + storage::StorageFromVec<T>,
     T: DataType + Clone,
 {
     // TODO: Implement Hessian-Vector Product computation
@@ -436,13 +436,13 @@ where
 /// Compute Jacobian-Vector Product (JVP) approximation
 pub fn jvp<F, B, S, T>(
     func: F,
-    inputs: &[&coeus_tensor::Tensor<B, S, T>],
-    v: &[coeus_tensor::Tensor<B, S, T>],
-) -> Result<Vec<coeus_tensor::Tensor<B, S, T>>, crate::error::AutogradError>
+    inputs: &[&tensor::Tensor<B, S, T>],
+    v: &[tensor::Tensor<B, S, T>],
+) -> Result<Vec<tensor::Tensor<B, S, T>>, crate::error::AutogradError>
 where
-    F: Fn(&[&coeus_tensor::Tensor<B, S, T>]) -> Result<Vec<coeus_tensor::Tensor<B, S, T>>, crate::error::AutogradError>,
+    F: Fn(&[&tensor::Tensor<B, S, T>]) -> Result<Vec<tensor::Tensor<B, S, T>>, crate::error::AutogradError>,
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageToDense<T> + coeus_storage::StorageFromVec<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageToDense<T> + storage::StorageFromVec<T>,
     T: DataType + Clone,
 {
     // Simplified forward-mode AD approximation
@@ -463,9 +463,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_tensor::Tensor;
-    use coeus_backend::CpuBackend;
-    use coeus_storage::DenseStorage;
+    use tensor::Tensor;
+    use backend::CpuBackend;
+    use storage::DenseStorage;
 
     #[test]
     fn test_add_backward() {

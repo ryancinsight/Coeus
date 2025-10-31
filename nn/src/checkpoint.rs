@@ -7,10 +7,10 @@
 //!
 //! # Examples
 //! ```rust
-//! use coeus_nn::{Linear, Module};
-//! use coeus_backend::CpuBackend;
-//! use coeus_storage::DenseStorage;
-//! use coeus_dtype::float::Float32;
+//! use nn::{Linear, Module};
+//! use backend::CpuBackend;
+//! use storage::DenseStorage;
+//! use dtype::float::Float32;
 //!
 //! // Create a simple model
 //! let model = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
@@ -34,10 +34,10 @@ use crate::module::StateDict;
 #[cfg(feature = "safetensors")]
 use crate::module::{Module, ModuleSerialize};
 #[cfg(feature = "safetensors")]
-use coeus_backend::Backend;
-use coeus_dtype::{float::Float32, DataType};
+use backend::Backend;
+use dtype::{float::Float32, DataType};
 #[cfg(feature = "safetensors")]
-use coeus_storage::Storage;
+use storage::Storage;
 
 /// Async checkpointing functionality for distributed training
 ///
@@ -67,7 +67,7 @@ pub mod async_checkpoint {
     ) -> Result<()>
     where
         B: Backend<Data = T> + Clone + std::default::Default,
-        S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T>,
+        S: Storage<T> + Clone + 'static + storage::StorageFromVec<T>,
         T: DataType + Serialize + for<'de> Deserialize<'de>,
         M: Module<B, S, T> + ModuleSerialize<B, S, T>,
     {
@@ -216,9 +216,9 @@ pub mod async_checkpoint {
     mod tests {
         use super::*;
         use crate::Linear;
-        use coeus_backend::CpuBackend;
-        use coeus_dtype::float::Float32;
-        use coeus_storage::DenseStorage;
+        use backend::CpuBackend;
+        use dtype::float::Float32;
+        use storage::DenseStorage;
         use std::collections::HashMap;
 
         #[tokio::test]
@@ -271,7 +271,7 @@ pub type CheckpointData<T> = (StateDict<T>, HashMap<String, String>);
 
 // Re-export from coeus-optim for convenience
 // coeus_optim temporarily disabled
-// pub use coeus_optim::{OptimizerSerialize, OptimizerStateDict};
+// pub use optim::{OptimizerSerialize, OptimizerStateDict};
 
 /// Training checkpoint containing model state, optimizer state, and metadata.
 ///
@@ -315,10 +315,10 @@ pub struct Checkpoint<T: DataType> {
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Linear, Module};
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Linear, Module};
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 /// use std::collections::HashMap;
 ///
 /// // Create a simple model for demonstration
@@ -337,7 +337,7 @@ pub fn save_checkpoint<B, S, T, M>(
 ) -> Result<()>
 where
     B: Backend<Data = T> + Clone + std::default::Default,
-    S: Storage<T> + Clone + 'static + coeus_storage::StorageFromVec<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T>,
     T: DataType + Serialize + for<'de> Deserialize<'de>,
     M: Module<B, S, T> + ModuleSerialize<B, S, T>,
 {
@@ -375,10 +375,10 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{Linear, Module};
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{Linear, Module};
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create a model for demonstration
 /// let model = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 10).unwrap();
@@ -406,9 +406,9 @@ where
 mod tests {
     use super::*;
     use crate::Linear;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
     use std::collections::HashMap;
     use std::path::Path;
 

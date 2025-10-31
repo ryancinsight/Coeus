@@ -5,8 +5,8 @@
 //! into 34 high-level categories.
 
 use crate::error::Result;
-use coeus_backend::{Backend, DataType, Storage};
-use coeus_dtype::traits::FloatExt;
+use backend::{Backend, DataType, Storage};
+use dtype::traits::FloatExt;
 
 use super::MetaDataset;
 
@@ -103,9 +103,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_tiered_imagenet_stub() {

@@ -7,13 +7,13 @@ use crate::error::{NNError, Result};
 use crate::module::{Module, StateDict};
 use crate::{ModuleSerialize, Sequential};
 #[cfg(feature = "autograd")]
-use coeus_autograd::backward;
+use autograd::backward;
 #[cfg(not(feature = "autograd"))]
 use crate::autograd_stub::backward;
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::DataType;
+use storage::DenseStorage;
+use tensor::Tensor;
 use std::collections::HashMap;
 
 /// Gradient checkpointing wrapper for memory-efficient training
@@ -240,8 +240,8 @@ pub mod utils {
 mod tests {
     use super::*;
     use crate::{Linear, Sequential};
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
 
     #[test]
     fn test_checkpointed_creation() {

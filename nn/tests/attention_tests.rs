@@ -2,12 +2,12 @@
 //!
 //! Comprehensive tests for MultiHeadAttention and SparseAttention functionality.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::attention::SparseAttentionPattern;
-use coeus_nn::{Module, MultiHeadAttention, SparseAttention};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::attention::SparseAttentionPattern;
+use nn::{Module, MultiHeadAttention, SparseAttention};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 #[test]
 fn test_multihead_attention_forward() {

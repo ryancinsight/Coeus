@@ -7,22 +7,22 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use alloc::sync::Arc;
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_dtype::traits::FloatExt;
-use coeus_storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
-pub use coeus_tensor::{Tensor, DifferentiableFunction, Function};
+use backend::Backend;
+use dtype::DataType;
+use dtype::traits::FloatExt;
+use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+pub use tensor::{Tensor, DifferentiableFunction, Function};
 
 /// Type alias for tensor references used in automatic differentiation
 /// Generic over `Backend<B>`, `Storage<S>`, and `DataType<T>`
-pub type TensorRef<B, S, T> = alloc::sync::Arc<coeus_tensor::Tensor<B, S, T>>;
+pub type TensorRef<B, S, T> = alloc::sync::Arc<tensor::Tensor<B, S, T>>;
 
 /// Type-erased function reference for tensor `grad_fn` fields
 /// Uses the existing `DifferentiableFunction` trait for compatibility
 pub type FunctionRef<B, S, T> = alloc::sync::Arc<dyn DifferentiableFunction<B, S, T>>;
 
 // AsAny implementations for all Function structs
-impl<B, S, T> coeus_tensor::AsAny for AddFunction<B, S, T>
+impl<B, S, T> tensor::AsAny for AddFunction<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T>,
@@ -33,7 +33,7 @@ where
     }
 }
 
-impl<B, S, T> coeus_tensor::AsAny for MatMulFunction<B, S, T>
+impl<B, S, T> tensor::AsAny for MatMulFunction<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T>,
@@ -44,7 +44,7 @@ where
     }
 }
 
-impl<B, S, T> coeus_tensor::AsAny for MulFunction<B, S, T>
+impl<B, S, T> tensor::AsAny for MulFunction<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T>,
@@ -55,7 +55,7 @@ where
     }
 }
 
-impl<B, S, T> coeus_tensor::AsAny for SumFunction<B, S, T>
+impl<B, S, T> tensor::AsAny for SumFunction<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T>,
@@ -66,7 +66,7 @@ where
     }
 }
 
-impl<B, S, T> coeus_tensor::AsAny for MeanFunction<B, S, T>
+impl<B, S, T> tensor::AsAny for MeanFunction<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T>,
@@ -77,7 +77,7 @@ where
     }
 }
 
-impl<B, S, T> coeus_tensor::AsAny for ExpFunction<B, S, T>
+impl<B, S, T> tensor::AsAny for ExpFunction<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T>,
@@ -88,7 +88,7 @@ where
     }
 }
 
-impl<B, S, T> coeus_tensor::AsAny for LogFunction<B, S, T>
+impl<B, S, T> tensor::AsAny for LogFunction<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T>,
@@ -99,7 +99,7 @@ where
     }
 }
 
-impl<B, S, T> coeus_tensor::AsAny for SinFunction<B, S, T>
+impl<B, S, T> tensor::AsAny for SinFunction<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T>,
@@ -110,7 +110,7 @@ where
     }
 }
 
-impl<B, S, T> coeus_tensor::AsAny for CosFunction<B, S, T>
+impl<B, S, T> tensor::AsAny for CosFunction<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T>,
@@ -121,7 +121,7 @@ where
     }
 }
 
-impl<B, S, T> coeus_tensor::AsAny for NLLLossFunction<B, S, T>
+impl<B, S, T> tensor::AsAny for NLLLossFunction<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + StorageFromVec<T>,

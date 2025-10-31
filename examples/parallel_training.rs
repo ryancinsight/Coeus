@@ -11,11 +11,11 @@
 //!
 //! Run with: cargo run --example parallel_training
 
-use coeus_dtype::float::Float32;
-use coeus_nn::{Linear, Module};
-use coeus_storage::DenseStorage;
-use coeus_tensor::CpuBackend;
-use coeus_tensor::Tensor;
+use dtype::float::Float32;
+use nn::{Linear, Module};
+use storage::DenseStorage;
+use tensor::CpuBackend;
+use tensor::Tensor;
 use std::sync::{Arc, RwLock};
 use std::thread;
 
@@ -206,3 +206,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+

@@ -7,11 +7,11 @@ use approx::assert_relative_eq;
 use num_traits::Zero;
 use proptest::prelude::*;
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{BatchNorm2d, Linear, Module};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{BatchNorm2d, Linear, Module};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 /// Type alias for our test tensor type
 type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;

@@ -23,15 +23,15 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 // Import Coeus components
-use coeus_tensor::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{
+use tensor::CpuBackend;
+use dtype::float::Float32;
+use nn::{
     Linear, Sequential, MSELoss, CrossEntropyLoss, Module,
     SGD, Adam, TrainingMonitor, TrainingMetrics,
 };
-use coeus_profiling::{Timer, Profiler};
-use coeus_storage::DenseStorage;
-use coeus_tensor::{Shape, Tensor};
+use profiling::{Timer, Profiler};
+use storage::DenseStorage;
+use tensor::{Shape, Tensor};
 
 /// Synthetic dataset for demonstration
 struct SyntheticDataset {
@@ -354,7 +354,7 @@ fn save_checkpoint(
     println!("\n💾 Saving checkpoint...");
 
     // Create mock optimizer for demonstration
-    use coeus_nn::SGD;
+    use nn::SGD;
     let optimizer = SGD::new(0.01).unwrap();
 
     let mut metadata = HashMap::new();
@@ -363,7 +363,7 @@ fn save_checkpoint(
     metadata.insert("accuracy".to_string(), accuracy.to_string());
 
     let checkpoint_path = format!("comprehensive_training_checkpoint_epoch_{}.json", epoch);
-    coeus_nn::save_checkpoint(model, &optimizer, &metadata, &checkpoint_path)?;
+    nn::save_checkpoint(model, &optimizer, &metadata, &checkpoint_path)?;
 
     println!("✅ Checkpoint saved to: {}", checkpoint_path);
     Ok(())
@@ -488,4 +488,5 @@ mod tests {
         assert!((accuracy - 0.5).abs() < 0.1); // Approximately 0.5 (1/2 correct)
     }
 }
+
 

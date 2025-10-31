@@ -3,17 +3,17 @@
 //! This example demonstrates how to integrate MAML and Prototypical Networks
 //! with the unified research framework for comprehensive meta-learning research.
 
-use coeus_nn::error::Result;
-use coeus_nn::meta::adapters::{MAMLAdapter, PrototypicalAdapter};
-use coeus_nn::research::{
+use nn::error::Result;
+use nn::meta::adapters::{MAMLAdapter, PrototypicalAdapter};
+use nn::research::{
     ResearchConfig, UnifiedResearchFramework, WorkflowTemplate,
     ResearchDomain, ExperimentSpec
 };
-use coeus_nn::research::agent::ResearchAgent;
-use coeus_nn::linear::Linear;
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_storage::DenseStorage;
+use nn::research::agent::ResearchAgent;
+use nn::linear::Linear;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use storage::DenseStorage;
 
 fn main() -> Result<()> {
     println!("🧠 Meta-Learning Research Framework Integration");
@@ -176,3 +176,4 @@ fn main() -> Result<()> {
 
     Ok(())
 }
+

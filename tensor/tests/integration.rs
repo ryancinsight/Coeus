@@ -1,15 +1,15 @@
 //! Integration tests for tensor creation and basic operations
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::{Float32, Float64};
-use coeus_dtype::int::{Int32, Int64};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::{Float32, Float64};
+use dtype::int::{Int32, Int64};
+use storage::DenseStorage;
+use tensor::Tensor;
 use num_traits::{One, Zero};
 
 // GPU backend is not implemented - commented out
 // #[cfg(feature = "gpu")]
-// use coeus_backend::GpuBackend;
+// use backend::GpuBackend;
 
 type CpuTensorF32 = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 type CpuTensorF64 = Tensor<CpuBackend<Float64>, DenseStorage<Float64>, Float64>;
@@ -669,7 +669,7 @@ fn test_reshape_and_transpose_chain() {
 #[cfg(feature = "gpu")]
 mod gpu_tests {
     use super::*;
-    use coeus_backend::Backend;
+    use backend::Backend;
     use pollster::FutureExt;
 
     // GPU backend is not implemented - commented out

@@ -6,7 +6,7 @@ pub enum NNError {
     #[error("Tensor operation failed: {source}")]
     TensorError {
         #[from]
-        source: coeus_tensor::TensorError,
+        source: tensor::TensorError,
     },
 
     #[error("Autograd operation failed: {message}")]
@@ -15,13 +15,13 @@ pub enum NNError {
     #[error("Storage operation failed: {source}")]
     StorageError {
         #[from]
-        source: coeus_storage::StorageError,
+        source: storage::StorageError,
     },
 
     #[error("Backend operation failed: {source}")]
     BackendError {
         #[from]
-        source: coeus_backend::BackendError,
+        source: backend::BackendError,
     },
 
     #[error("Invalid parameter shape: expected {expected:?}, got {actual:?}")]

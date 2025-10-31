@@ -45,7 +45,7 @@
 //! ### Basic Training Loop
 //!
 //! ```rust
-//! use coeus_nn::{Sequential, Linear, MSELoss, SGD, Module};
+//! use nn::{Sequential, Linear, MSELoss, SGD, Module};
 //!
 //! let mut model = Sequential::new(vec![
 //!     Box::new(Linear::new(784, 256).unwrap()),
@@ -71,7 +71,7 @@
 //! ### Advanced Training with Monitoring
 //!
 //! ```rust
-//! use coeus_nn::{TrainingMonitor, TrainingMetrics};
+//! use nn::{TrainingMonitor, TrainingMetrics};
 //!
 //! let mut monitor = TrainingMonitor::new();
 //!
@@ -93,7 +93,7 @@
 //! ### Mixed Precision Training
 //!
 //! ```rust
-//! use coeus_nn::MixedPrecisionContextF32;
+//! use nn::MixedPrecisionContextF32;
 //!
 //! let mut amp_context = MixedPrecisionContextF32::new(1.0, 2.0, 0.5, 1000).unwrap();
 //! amp_context.set_enabled(true);
@@ -124,7 +124,7 @@
 //! ### Custom Modules
 //!
 //! ```rust
-//! use coeus_nn::{Module, ModuleExt};
+//! use nn::{Module, ModuleExt};
 //!
 //! struct CustomModel<B, S, T>
 //! where
@@ -173,7 +173,7 @@
 //! ### GPU Acceleration
 //!
 //! ```rust
-//! use coeus_backend::GpuBackend;
+//! use backend::GpuBackend;
 //!
 //! // GPU model
 //! let model = Linear::<GpuBackend, DenseStorage<Float32>, Float32>::new(784, 256).unwrap();
@@ -187,7 +187,7 @@
 //!
 //! ```rust
 //! // Use in-place operations where possible
-//! use coeus_nn::functional::relu_;
+//! use nn::functional::relu_;
 //!
 //! relu_(&mut tensor)?; // In-place ReLU
 //!
@@ -198,7 +198,7 @@
 //! ### Profiling and Monitoring
 //!
 //! ```rust
-//! use coeus_profiling::Profiler;
+//! use profiling::Profiler;
 //!
 //! let profiler = Profiler::new();
 //! let profile = profiler.profile_comprehensive(|| {
@@ -213,7 +213,7 @@
 //! ### Model Pruning
 //!
 //! ```rust
-//! use coeus_nn::{prune_model, PruningMethod};
+//! use nn::{prune_model, PruningMethod};
 //!
 //! let pruned_model = prune_model(
 //!     &model,
@@ -225,7 +225,7 @@
 //! ### Layer Freezing
 //!
 //! ```rust
-//! use coeus_nn::freeze_layers;
+//! use nn::freeze_layers;
 //!
 //! freeze_layers(&mut model, &[0]).unwrap(); // Freeze first layer
 //! ```
@@ -233,7 +233,7 @@
 //! ### Checkpoint Management
 //!
 //! ```rust
-//! use coeus_nn::{save_checkpoint, load_checkpoint};
+//! use nn::{save_checkpoint, load_checkpoint};
 //! use std::collections::HashMap;
 //!
 //! let mut metadata = HashMap::new();
@@ -250,7 +250,7 @@
 //! ### Distributed Training
 //!
 //! ```rust
-//! use coeus_distributed::DataParallel;
+//! use distributed::DataParallel;
 //!
 //! let mut data_parallel = DataParallel::new(model, 0, 2).unwrap();
 //! // Automatic gradient synchronization across GPUs
@@ -259,7 +259,7 @@
 //! ### Performance Profiling
 //!
 //! ```rust
-//! use coeus_profiling::{TrainingMonitor, CommunicationProfiler};
+//! use profiling::{TrainingMonitor, CommunicationProfiler};
 //!
 //! let monitor = TrainingMonitor::new();
 //! let comm_profiler = CommunicationProfiler::new();
@@ -292,7 +292,7 @@
 //! The crate uses comprehensive error handling:
 //!
 //! ```rust
-//! use coeus_nn::NNError;
+//! use nn::NNError;
 //!
 //! match model.forward(&input) {
 //!     Ok(output) => println!("Success: {:?}", output.shape()),
@@ -362,6 +362,9 @@ pub mod autograd_compat;
 // Re-export error types for convenience
 pub use error::{NNError, Result};
 
+// Re-export backend trait for generic implementations
+pub use backend::Backend;
+
 // Core modules
 pub mod module;
 pub mod parameter;
@@ -372,11 +375,13 @@ pub mod sequential;
 
 // Layers
 pub mod activation;
+pub mod rope;
 pub mod batchnorm;
 pub mod dropout;
 pub mod embedding;
 pub mod groupnorm;
 pub mod layernorm;
+pub mod rms_norm;
 pub mod linear;
 
 // Convolutional layers
@@ -398,10 +403,15 @@ pub mod multitask_learning;
 // CLIP vision-language model
 pub mod clip;
 
+// Vision-language datasets (Sprint MS-49)
+pub mod datasets;
+pub mod evaluation;
+
 // Attention layers
 pub mod attention;
 pub mod feature;
 pub mod hpo;
+pub mod experiment_tracking;
 pub mod meta;
 pub mod nas;
 

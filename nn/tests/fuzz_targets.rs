@@ -50,11 +50,11 @@ impl<'a> Arbitrary<'a> for ArbitraryTensorData {
 
 /// Fuzz target for ReLU activation
 pub fn fuzz_relu(data: &[u8]) {
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_nn::functional_activations::relu;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use nn::functional_activations::relu;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     let arb_data = match ArbitraryTensorData::arbitrary(&mut Unstructured::new(data)) {
         Ok(d) => d,
@@ -84,11 +84,11 @@ pub fn fuzz_relu(data: &[u8]) {
 
 /// Fuzz target for convolution operations
 pub fn fuzz_conv2d(data: &[u8]) {
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_nn::functional_conv::conv2d;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use nn::functional_conv::conv2d;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     let mut u = Unstructured::new(data);
 
@@ -160,11 +160,11 @@ pub fn fuzz_conv2d(data: &[u8]) {
 
 /// Fuzz target for max pooling
 pub fn fuzz_max_pool2d(data: &[u8]) {
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_nn::functional_pooling::max_pool2d;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use nn::functional_pooling::max_pool2d;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     let arb_data = match ArbitraryTensorData::arbitrary(&mut Unstructured::new(data)) {
         Ok(d) => d,
@@ -211,11 +211,11 @@ pub fn fuzz_max_pool2d(data: &[u8]) {
 
 /// Fuzz target for linear transformations
 pub fn fuzz_linear(data: &[u8]) {
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_nn::functional_linear::linear;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use nn::functional_linear::linear;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     let mut u = Unstructured::new(data);
 
@@ -271,11 +271,11 @@ pub fn fuzz_linear(data: &[u8]) {
 
 /// Fuzz target for loss functions
 pub fn fuzz_mse_loss(data: &[u8]) {
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_nn::functional_loss::mse_loss;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use nn::functional_loss::mse_loss;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     let arb_data = match ArbitraryTensorData::arbitrary(&mut Unstructured::new(data)) {
         Ok(d) => d,
@@ -312,11 +312,11 @@ pub fn fuzz_mse_loss(data: &[u8]) {
 
 /// Fuzz target for softmax
 pub fn fuzz_softmax(data: &[u8]) {
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_nn::functional_attention::softmax;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use nn::functional_attention::softmax;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     let arb_data = match ArbitraryTensorData::arbitrary(&mut Unstructured::new(data)) {
         Ok(d) => d,

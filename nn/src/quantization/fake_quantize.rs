@@ -7,10 +7,10 @@ use crate::parameter::Parameter;
 use crate::quantization::core::{QuantizationGranularity, QuantizationScheme};
 use crate::quantization::quantization_ops::QuantizationOps;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
+use tensor::Tensor;
 
 /// Fake quantization operation for quantization-aware training
 ///

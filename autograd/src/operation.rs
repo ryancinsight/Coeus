@@ -7,11 +7,11 @@
 //! excessive memory usage (100MB+ per Conv2D operation). The new Function-based
 //! approach will provide automatic graph construction with O(1) memory per operation.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::traits::FloatExt;
-use coeus_dtype::DataType;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::traits::FloatExt;
+use dtype::DataType;
+use storage::DenseStorage;
+use tensor::Tensor;
 use smallvec::{smallvec, SmallVec};
 
 use crate::error::Result;
@@ -581,7 +581,7 @@ impl<T: DataType + std::ops::Neg<Output = T> + FloatExt + PartialOrd + std::ops:
 mod tests {
     use super::*;
     use approx;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_add_backward() {

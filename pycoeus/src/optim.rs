@@ -1,9 +1,9 @@
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_optim::{
+use backend::CpuBackend;
+use dtype::float::Float32;
+use optim::{
     Adagrad as RustAdagrad, Adam as RustAdam, BaseOptimizer, Optimizer, SGD as RustSGD,
 };
-use coeus_storage::DenseStorage;
+use storage::DenseStorage;
 use pyo3::prelude::*;
 use pyo3::pyclass;
 

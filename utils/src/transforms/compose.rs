@@ -7,7 +7,7 @@
 use std::any::{Any, TypeId};
 
 use super::{Transform, TransformError};
-use coeus_dtype::float::Float32;
+use dtype::float::Float32;
 
 /// Trait for transformations that can be composed
 ///
@@ -250,10 +250,10 @@ impl ComposableTransform for super::Normalize {
 mod tests {
     use super::*;
     use crate::transforms::{Normalize, ToTensor};
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_compose_empty() {

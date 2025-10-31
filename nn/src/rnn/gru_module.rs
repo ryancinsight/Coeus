@@ -2,10 +2,10 @@
 //!
 //! This module implements the Module trait for GRU layers.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::{traits::FloatExt, DataType};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 use crate::error::Result;
 use crate::module::Module;

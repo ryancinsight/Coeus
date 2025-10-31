@@ -6,10 +6,10 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{float::Float32, traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::{Backend, CpuBackend};
+use dtype::{float::Float32, traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 use crate::module::Module;
@@ -36,11 +36,11 @@ use super::utils::{AttentionDispatch, DenseAttention};
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{attention::MultiHeadAttention, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{attention::MultiHeadAttention, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create multi-head attention: embed_dim=64, num_heads=8
 /// let attention = MultiHeadAttention::<CpuBackend, DenseStorage<Float32>, Float32>::new(64, 8).unwrap();

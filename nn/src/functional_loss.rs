@@ -3,11 +3,11 @@
 //! This module provides stateless loss function computations
 //! for training neural networks.
 
-use coeus_backend::Backend;
-use coeus_dtype::{traits::FloatExt, DataType};
+use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
 #[allow(unused_imports)]
-use coeus_storage::{DenseStorage, Storage, StorageToDense};
-use coeus_tensor::Tensor;
+use storage::{DenseStorage, Storage, StorageToDense};
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 
@@ -24,11 +24,11 @@ use crate::error::{NNError, Result};
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::functional_loss::mse_loss;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::functional_loss::mse_loss;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let pred = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
@@ -103,11 +103,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::functional_loss::cross_entropy;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::functional_loss::cross_entropy;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let pred = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
 ///     vec![Float32::new(2.0), Float32::new(1.0), Float32::new(0.1)],

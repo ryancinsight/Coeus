@@ -31,8 +31,8 @@
 
 use std::string::String;
 
-pub use coeus_dtype::{num_traits, DataType};
-pub use coeus_storage::Storage;
+pub use dtype::{num_traits, DataType};
+pub use storage::Storage;
 
 /// Workload characteristics for adaptive backend selection
 #[derive(Debug, Clone)]
@@ -803,7 +803,7 @@ pub enum BackendError {
     /// Invalid input parameters
     InvalidInput(String),
     /// Storage operation error
-    StorageError { source: coeus_storage::StorageError },
+    StorageError { source: storage::StorageError },
 }
 
 impl core::fmt::Display for BackendError {
@@ -826,8 +826,8 @@ impl core::fmt::Display for BackendError {
 impl std::error::Error for BackendError {}
 
 #[cfg(feature = "std")]
-impl From<coeus_storage::StorageError> for BackendError {
-    fn from(err: coeus_storage::StorageError) -> Self {
+impl From<storage::StorageError> for BackendError {
+    fn from(err: storage::StorageError) -> Self {
         BackendError::InvalidInput(format!("Storage error: {}", err))
     }
 }
@@ -863,85 +863,91 @@ pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
     fn device_info(&self) -> Box<dyn DeviceInfo>;
 
     /// Add dense storage element-wise
-    fn add_dense(&self, lhs: &coeus_storage::DenseStorage<Self::Data>, rhs: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>>;
+    fn add_dense(&self, lhs: &storage::DenseStorage<Self::Data>, rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Multiply dense storage element-wise
-    fn mul_dense(&self, lhs: &coeus_storage::DenseStorage<Self::Data>, rhs: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>>;
+    fn mul_dense(&self, lhs: &storage::DenseStorage<Self::Data>, rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Matrix multiplication for dense storage
-    fn matmul_dense(&self, lhs: &coeus_storage::DenseStorage<Self::Data>, rhs: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>>;
+    fn matmul_dense(&self, lhs: &storage::DenseStorage<Self::Data>, rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply ReLU activation to dense storage
-    fn relu_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>>
+    fn relu_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
     where
         Self::Data: PartialOrd + Default;
 
     /// Sum all elements in dense storage
-    fn sum_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> Result<Self::Data>;
+    fn sum_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<Self::Data>;
 
     /// Find maximum value in dense storage
-    fn max_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> Result<Self::Data>
+    fn max_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<Self::Data>
     where
         Self::Data: PartialOrd;
 
     /// Find minimum value in dense storage
-    fn min_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> Result<Self::Data>
+    fn min_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<Self::Data>
     where
         Self::Data: PartialOrd;
 
     /// Find index of maximum value in dense storage
-    fn argmax_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> Result<usize>
+    fn argmax_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<usize>
     where
         Self::Data: PartialOrd;
 
     /// Find index of minimum value in dense storage
-    fn argmin_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> Result<usize>
+    fn argmin_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<usize>
     where
         Self::Data: PartialOrd;
 
     /// Subtract dense storages element-wise
-    fn sub_dense(&self, lhs: &coeus_storage::DenseStorage<Self::Data>, rhs: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>>;
+    fn sub_dense(&self, lhs: &storage::DenseStorage<Self::Data>, rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply exponential function element-wise
-    fn exp_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>>;
+    fn exp_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply natural logarithm element-wise
-    fn log_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>>;
+    fn log_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply sine function element-wise
-    fn sin_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>>;
+    fn sin_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply cosine function element-wise
-    fn cos_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>>;
+    fn cos_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply 2D convolution
-    fn conv2d_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>, weight: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>>;
+    fn conv2d_dense(&self, input: &storage::DenseStorage<Self::Data>, weight: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Compute mean along specified axes (dense)
-    fn mean_dense(&self, input: &coeus_storage::DenseStorage<Self::Data>, axes: Option<&[usize]>) -> Result<coeus_storage::DenseStorage<Self::Data>>;
+    fn mean_dense(&self, input: &storage::DenseStorage<Self::Data>, axes: Option<&[usize]>) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Sparse matrix-matrix multiplication (CSR format)
-    fn spmm_csr(&self, data: &[Self::Data], indices: &[usize], indptr: &[usize], other: &coeus_storage::DenseStorage<Self::Data>, num_rows: usize, num_cols: usize) -> Result<Vec<Self::Data>>;
+    fn spmm_csr(&self, data: &[Self::Data], indices: &[usize], indptr: &[usize], other: &storage::DenseStorage<Self::Data>, num_rows: usize, num_cols: usize) -> Result<Vec<Self::Data>>;
 
     /// Sparse matrix-vector multiplication (CSR format)
     fn spmv_csr(&self, data: &[Self::Data], indices: &[usize], indptr: &[usize], vector: &[Self::Data], num_rows: usize, num_cols: usize) -> Result<Vec<Self::Data>>;
 
     /// Coordinate format sparse matrix multiplication (matrix-sparse)
-    fn coo_matmul_sparse(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs_data: &[Self::Data], rhs_row: &[usize], rhs_col: &[usize], m: usize, k: usize, n: usize) -> Result<coeus_storage::CooStorage<Self::Data>>;
+    fn coo_matmul_sparse(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs_data: &[Self::Data], rhs_row: &[usize], rhs_col: &[usize], m: usize, k: usize, n: usize) -> Result<storage::CooStorage<Self::Data>>;
 
     /// Coordinate format sparse matrix multiplication (sparse-dense)
-    fn coo_matmul_dense(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs: &coeus_storage::DenseStorage<Self::Data>, m: usize, k: usize, n: usize) -> Result<coeus_storage::DenseStorage<Self::Data>>;
+    fn coo_matmul_dense(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs: &storage::DenseStorage<Self::Data>, m: usize, k: usize, n: usize) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Coordinate format sparse addition
-    fn coo_add_sparse(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs_data: &[Self::Data], rhs_row: &[usize], rhs_col: &[usize], m: usize, n: usize) -> Result<coeus_storage::CooStorage<Self::Data>>;
+    fn coo_add_sparse(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs_data: &[Self::Data], rhs_row: &[usize], rhs_col: &[usize], m: usize, n: usize) -> Result<storage::CooStorage<Self::Data>>;
 
     /// Coordinate format sparse multiplication
-    fn coo_mul_sparse(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs_data: &[Self::Data], rhs_row: &[usize], rhs_col: &[usize], m: usize, n: usize) -> Result<coeus_storage::CooStorage<Self::Data>>;
+    fn coo_mul_sparse(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs_data: &[Self::Data], rhs_row: &[usize], rhs_col: &[usize], m: usize, n: usize) -> Result<storage::CooStorage<Self::Data>>;
 
     /// Quantization operation
-    fn quantize(&self, input: &coeus_storage::DenseStorage<Self::Data>, levels: usize) -> Result<coeus_storage::DenseStorage<Self::Data>>
+    fn quantize(&self, input: &storage::DenseStorage<Self::Data>, levels: usize) -> Result<storage::DenseStorage<Self::Data>>
     where
         Self::Data: PartialOrd;
+
+    /// Compute CLIP InfoNCE loss for contrastive learning
+    fn clip_info_nce_loss(&self, image_embeddings: &storage::DenseStorage<Self::Data>, text_embeddings: &storage::DenseStorage<Self::Data>, temperature: f32) -> Result<Self::Data>;
+
+    /// Compute CLIP attention mechanism
+    fn clip_attention(&self, queries: &storage::DenseStorage<Self::Data>, keys: &storage::DenseStorage<Self::Data>, values: &storage::DenseStorage<Self::Data>, num_heads: usize) -> Result<storage::DenseStorage<Self::Data>>;
 }
 
 /// Stub backend for compilation - provides minimal interface to allow dependent crate testing
@@ -985,28 +991,28 @@ impl<D: DataType> Backend for StubBackend<D> {
         Box::new(StubDevice)
     }
 
-    fn add_dense(&self, _lhs: &coeus_storage::DenseStorage<Self::Data>, _rhs: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>> {
+    fn add_dense(&self, _lhs: &storage::DenseStorage<Self::Data>, _rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "add_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn mul_dense(&self, _lhs: &coeus_storage::DenseStorage<Self::Data>, _rhs: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>> {
+    fn mul_dense(&self, _lhs: &storage::DenseStorage<Self::Data>, _rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "mul_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn matmul_dense(&self, _lhs: &coeus_storage::DenseStorage<Self::Data>, _rhs: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>> {
+    fn matmul_dense(&self, _lhs: &storage::DenseStorage<Self::Data>, _rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "matmul_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn relu_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>>
+    fn relu_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
     where
         Self::Data: PartialOrd + Default,
     {
@@ -1016,14 +1022,14 @@ impl<D: DataType> Backend for StubBackend<D> {
         })
     }
 
-    fn sum_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>) -> Result<Self::Data> {
+    fn sum_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<Self::Data> {
         Err(BackendError::UnsupportedOperation {
             operation: "sum_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn max_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>) -> Result<Self::Data>
+    fn max_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<Self::Data>
     where
         Self::Data: PartialOrd,
     {
@@ -1033,7 +1039,7 @@ impl<D: DataType> Backend for StubBackend<D> {
         })
     }
 
-    fn min_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>) -> Result<Self::Data>
+    fn min_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<Self::Data>
     where
         Self::Data: PartialOrd,
     {
@@ -1043,7 +1049,7 @@ impl<D: DataType> Backend for StubBackend<D> {
         })
     }
 
-    fn argmax_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>) -> Result<usize>
+    fn argmax_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<usize>
     where
         Self::Data: PartialOrd,
     {
@@ -1053,7 +1059,7 @@ impl<D: DataType> Backend for StubBackend<D> {
         })
     }
 
-    fn argmin_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>) -> Result<usize>
+    fn argmin_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<usize>
     where
         Self::Data: PartialOrd,
     {
@@ -1063,56 +1069,56 @@ impl<D: DataType> Backend for StubBackend<D> {
         })
     }
 
-    fn sub_dense(&self, _lhs: &coeus_storage::DenseStorage<Self::Data>, _rhs: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>> {
+    fn sub_dense(&self, _lhs: &storage::DenseStorage<Self::Data>, _rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "sub_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn exp_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>> {
+    fn exp_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "exp_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn log_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>> {
+    fn log_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "log_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn sin_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>> {
+    fn sin_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "sin_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn cos_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>> {
+    fn cos_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "cos_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn conv2d_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>, _weight: &coeus_storage::DenseStorage<Self::Data>) -> Result<coeus_storage::DenseStorage<Self::Data>> {
+    fn conv2d_dense(&self, _input: &storage::DenseStorage<Self::Data>, _weight: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "conv2d_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn mean_dense(&self, _input: &coeus_storage::DenseStorage<Self::Data>, _axes: Option<&[usize]>) -> Result<coeus_storage::DenseStorage<Self::Data>> {
+    fn mean_dense(&self, _input: &storage::DenseStorage<Self::Data>, _axes: Option<&[usize]>) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "mean_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn spmm_csr(&self, _data: &[Self::Data], _indices: &[usize], _indptr: &[usize], _other: &coeus_storage::DenseStorage<Self::Data>, _num_rows: usize, _num_cols: usize) -> Result<Vec<Self::Data>> {
+    fn spmm_csr(&self, _data: &[Self::Data], _indices: &[usize], _indptr: &[usize], _other: &storage::DenseStorage<Self::Data>, _num_rows: usize, _num_cols: usize) -> Result<Vec<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "spmm_csr".to_string(),
             backend: "stub".to_string(),
@@ -1126,40 +1132,56 @@ impl<D: DataType> Backend for StubBackend<D> {
         })
     }
 
-    fn coo_matmul_sparse(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs_data: &[Self::Data], _rhs_row: &[usize], _rhs_col: &[usize], _m: usize, _k: usize, _n: usize) -> Result<coeus_storage::CooStorage<Self::Data>> {
+    fn coo_matmul_sparse(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs_data: &[Self::Data], _rhs_row: &[usize], _rhs_col: &[usize], _m: usize, _k: usize, _n: usize) -> Result<storage::CooStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "coo_matmul_sparse".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn coo_matmul_dense(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs: &coeus_storage::DenseStorage<Self::Data>, _m: usize, _k: usize, _n: usize) -> Result<coeus_storage::DenseStorage<Self::Data>> {
+    fn coo_matmul_dense(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs: &storage::DenseStorage<Self::Data>, _m: usize, _k: usize, _n: usize) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "coo_matmul_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn coo_add_sparse(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs_data: &[Self::Data], _rhs_row: &[usize], _rhs_col: &[usize], _m: usize, _n: usize) -> Result<coeus_storage::CooStorage<Self::Data>> {
+    fn coo_add_sparse(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs_data: &[Self::Data], _rhs_row: &[usize], _rhs_col: &[usize], _m: usize, _n: usize) -> Result<storage::CooStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "coo_add_sparse".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn coo_mul_sparse(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs_data: &[Self::Data], _rhs_row: &[usize], _rhs_col: &[usize], _m: usize, _n: usize) -> Result<coeus_storage::CooStorage<Self::Data>> {
+    fn coo_mul_sparse(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs_data: &[Self::Data], _rhs_row: &[usize], _rhs_col: &[usize], _m: usize, _n: usize) -> Result<storage::CooStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "coo_mul_sparse".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn quantize(&self, _input: &coeus_storage::DenseStorage<Self::Data>, _levels: usize) -> Result<coeus_storage::DenseStorage<Self::Data>>
+    fn quantize(&self, _input: &storage::DenseStorage<Self::Data>, _levels: usize) -> Result<storage::DenseStorage<Self::Data>>
     where
         Self::Data: PartialOrd,
     {
         Err(BackendError::UnsupportedOperation {
             operation: "quantize".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    /// Compute CLIP InfoNCE loss for contrastive learning
+    fn clip_info_nce_loss(&self, _image_embeddings: &storage::DenseStorage<Self::Data>, _text_embeddings: &storage::DenseStorage<Self::Data>, _temperature: f32) -> Result<Self::Data> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "clip_info_nce_loss".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    /// Compute CLIP attention mechanism
+    fn clip_attention(&self, _queries: &storage::DenseStorage<Self::Data>, _keys: &storage::DenseStorage<Self::Data>, _values: &storage::DenseStorage<Self::Data>, _num_heads: usize) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "clip_attention".to_string(),
             backend: "stub".to_string(),
         })
     }
@@ -1263,7 +1285,7 @@ pub use gpu::GpuBackend;
 mod tests {
     use super::*;
     use crate::cpu::CpuBackend;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
     use std::vec;
 
     #[test]

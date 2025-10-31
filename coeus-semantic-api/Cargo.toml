@@ -1,0 +1,66 @@
+[package]
+name = "coeus-semantic-api"
+version = "0.2.0"
+edition = "2021"
+authors = ["Ryan Clanton <ryanclanton@protomail.com>"]
+repository = "https://github.com/ryancinsight/Coeus"
+license = "MIT OR Apache-2.0"
+description = "Production REST API for CLIP semantic search with comprehensive error handling and monitoring"
+
+[dependencies]
+# Axum async web framework - memory safe, tokio integration, zero-unsafe
+axum = { version = "0.7", features = ["tracing", "macros", "json", "form", "matched-path"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+
+# Data serialization - memory safe, zero-cost
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Async runtime - proven tokio integration
+tokio = { version = "1.0", features = ["full"] }
+
+# Tower ecosystem - compose services safely
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace", "request-id", "compression-gzip", "timeout"] }
+
+# UUID generation for request tracking
+uuid = { version = "1.0", features = ["v4"] }
+
+# CLIP model and vector search
+nn = { path = "../nn" }
+backend = { path = "../backend", default-features = false, features = ["gpu"] }
+dtype = { path = "../dtype" }
+storage = { path = "../storage" }
+
+# Tracing for observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Metrics and monitoring
+metrics = "0.23"
+metrics-exporter-prometheus = "0.15"
+
+# Base64 for image encoding/decoding
+base64 = "0.22"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Async trait support
+async-trait = "0.1"
+
+[dev-dependencies]
+# Testing - comprehensive HTTP API testing
+reqwest = { version = "0.12", features = ["json"] }
+tokio-test = "0.4"
+
+[features]
+default = ["cpu"]
+cpu = ["backend/cpu"]
+gpu = ["backend/gpu"]
+
+[lints.clippy]
+pedantic = { level = "warn", priority = 1 }
+perf = { level = "warn", priority = 1 }
+unwrap_used = "deny"
+expect_used = "deny"

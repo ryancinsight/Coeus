@@ -11,7 +11,7 @@
 //! - Real-time monitoring and profiling
 //! - Production-ready data loading pipelines
 
-use coeus_foundation::*;
+use foundation::*;
 
 // For this example, we'll simulate imports from our foundation module
 // In actual implementation, these would come from the foundation crate
@@ -420,3 +420,4 @@ fn display_training_report(report: TrainingReport) {
   ✅ Production-ready for massive AI deployment
 
 */
+

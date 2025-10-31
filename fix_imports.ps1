@@ -1,34 +1,25 @@
-# Fix CpuBackend generic parameters throughout the codebase
-# This script adds missing <T> generic parameters to CpuBackend types
-# Required for proper B<S<T>> generic architecture compliance
+# PowerShell script to fix import inconsistencies in examples
 
-Get-ChildItem -Recurse -Include "*.rs" -Exclude "*target*" | ForEach-Object {
-    $filePath = $_.FullName
-    try {
-        $content = Get-Content $filePath -Raw -Encoding UTF8
-        $originalContent = $content
+$files = Get-ChildItem -Path "examples" -Filter "*.rs" -Recurse
 
-        # Fix Tensor<CpuBackend, DenseStorage<T>, T> patterns
-        $content = $content -replace 'Tensor<CpuBackend,\s*DenseStorage<([^>]+)>,\s*\1>', 'Tensor<CpuBackend<$1>, DenseStorage<$1>, $1>'
+foreach ($file in $files) {
+    $content = Get-Content $file.FullName -Raw
 
-        # Fix standalone CpuBackend references in type annotations (when followed by comma or closing paren)
-        $content = $content -replace 'CpuBackend,\s*DenseStorage<([^>]+)>,\s*\1', 'CpuBackend<$1>, DenseStorage<$1>, $1'
+    # Fix all the incorrect import prefixes
+    $content = $content -replace 'coeus_nn::', 'nn::'
+    $content = $content -replace 'coeus_tensor::', 'tensor::'
+    $content = $content -replace 'coeus_autograd::', 'autograd::'
+    $content = $content -replace 'coeus_backend::', 'backend::'
+    $content = $content -replace 'coeus_foundation::', 'foundation::'
 
-        # Fix function parameter type annotations
-        $content = $content -replace 'Tensor<CpuBackend,\s*DenseStorage<([^>]+)>,\s*\1>', 'Tensor<CpuBackend<$1>, DenseStorage<$1>, $1>'
+    # Fix direct crate references too
+    $content = $content -replace 'coeus_nn', 'nn'
+    $content = $content -replace 'coeus_tensor', 'tensor'
+    $content = $content -replace 'coeus_autograd', 'autograd'
+    $content = $content -replace 'coeus_backend', 'backend'
+    $content = $content -replace 'coeus_foundation', 'foundation'
 
-        # Fix return type annotations
-        $content = $content -replace '\) ->.*Tensor<CpuBackend,\s*DenseStorage<([^>]+)>,\s*\1>', ') -> Tensor<CpuBackend<$1>, DenseStorage<$1>, $1>'
-
-        # Fix remaining standalone CpuBackend without generics in type contexts
-        # This is more complex - need to be careful about when to add <T>
-        # For now, focus on the clear Tensor type patterns
-
-        if ($content -ne $originalContent) {
-            $content | Out-File -FilePath $filePath -Encoding UTF8 -NoNewline
-            Write-Host "Fixed CpuBackend generics: $($_.Name)"
-        }
-    } catch {
-        Write-Host "Error processing $($filePath): $($_.Exception.Message)"
-    }
+    Set-Content $file.FullName $content
 }
+
+Write-Host "Import fixes completed for all example files"

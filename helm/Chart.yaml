@@ -1,0 +1,46 @@
+apiVersion: v2
+name: coeus
+description: A Helm chart for deploying the Coeus Multimodal AI Platform
+type: application
+version: 0.2.0
+appVersion: "0.2.0"
+
+keywords:
+  - ai
+  - multimodal
+  - machine-learning
+  - deep-learning
+  - clip
+  - semantic-search
+  - kubernetes
+
+home: https://coeus.ai
+sources:
+  - https://github.com/ryancinsight/Coeus
+
+maintainers:
+  - name: Ryan Clanton
+    email: ryanclanton@protomail.com
+
+dependencies:
+  - name: postgresql
+    version: "12.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
+  - name: redis
+    version: "17.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+  - name: prometheus
+    version: "15.x.x"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: monitoring.enabled
+  - name: grafana
+    version: "6.x.x"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: monitoring.enabled
+
+
+
+
+

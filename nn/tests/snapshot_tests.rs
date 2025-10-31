@@ -6,11 +6,11 @@
 use insta::assert_snapshot;
 use serde::Serialize;
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::*;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::*;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 /// Helper to create a serializable snapshot of tensor data
 #[derive(Serialize)]

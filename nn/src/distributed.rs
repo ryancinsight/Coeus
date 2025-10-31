@@ -9,11 +9,11 @@ use crate::error::{NNError, Result};
 use crate::module::{Module, StateDict};
 use crate::Sequential;
 #[cfg(feature = "autograd")]
-use coeus_autograd::backward;
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use autograd::backward;
+use backend::Backend;
+use dtype::DataType;
+use storage::DenseStorage;
+use tensor::Tensor;
 use std::collections::HashMap;
 
 /// Simplified distributed training simulator
@@ -172,18 +172,18 @@ impl DistributedStats {
 
 // Type aliases for common distributed configurations
 /// CPU-based distributed training - NOTE: CpuBackend now requires generic parameter
-// pub type DistributedCpu<M, T> = Distributed<M, coeus_backend::CpuBackend, T>;
+// pub type DistributedCpu<M, T> = Distributed<M, backend::CpuBackend, T>;
 
 /// GPU-based distributed training
 #[cfg(feature = "gpu")]
-pub type DistributedGpu<M, T> = Distributed<M, coeus_backend::GpuBackend, T>;
+pub type DistributedGpu<M, T> = Distributed<M, backend::GpuBackend, T>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{Linear, Sequential};
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
 
     #[test]
     fn test_distributed_creation() {

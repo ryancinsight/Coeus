@@ -5,10 +5,10 @@
 
 use proptest::prelude::*;
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 /// Type alias for our test tensor type
 type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;

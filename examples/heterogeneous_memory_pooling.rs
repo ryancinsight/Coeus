@@ -231,3 +231,4 @@ fn print_affinity_benchmark_results(allocations: &[HeterogeneousMemoryAllocation
                  allocation.numa_node);
     }
 }
+

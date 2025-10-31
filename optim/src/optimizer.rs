@@ -3,9 +3,9 @@
 use crate::OptimError;
 use std::collections::HashMap;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
 
 /// Base trait for all optimizers
 pub trait BaseOptimizer<B, S, T>
@@ -26,7 +26,7 @@ where
     fn zero_grad(&mut self);
 
     /// Add a parameter group to the optimizer
-    fn add_param_group(&mut self, params: Vec<coeus_tensor::Tensor<B, S, T>>);
+    fn add_param_group(&mut self, params: Vec<tensor::Tensor<B, S, T>>);
 
     /// Get the current learning rate
     fn get_lr(&self) -> f32;
@@ -35,12 +35,12 @@ where
     fn set_lr(&mut self, lr: f32);
 
     /// Get optimizer state as a dictionary
-    fn state_dict(&self) -> HashMap<String, coeus_tensor::Tensor<B, S, T>>;
+    fn state_dict(&self) -> HashMap<String, tensor::Tensor<B, S, T>>;
 
     /// Load optimizer state from a dictionary
     fn load_state_dict(
         &mut self,
-        state_dict: HashMap<String, coeus_tensor::Tensor<B, S, T>>,
+        state_dict: HashMap<String, tensor::Tensor<B, S, T>>,
     ) -> Result<(), OptimError>;
 
     /// Get parameter groups

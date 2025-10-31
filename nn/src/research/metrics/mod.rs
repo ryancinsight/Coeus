@@ -368,11 +368,11 @@ impl MetricsCollector {
     }
 
     /// Export metrics in various formats
-    pub fn export(&self, format: ExportFormat) -> export::ExportResult {
+    pub fn export(&self, format: ExportFormat) -> ExportResult {
         match format {
-            ExportFormat::Json => export::ExportResult::Json(serde_json::to_value(self).unwrap_or_default()),
-            ExportFormat::Csv => export::ExportResult::Csv(self.export_csv()),
-            ExportFormat::Plotly => export::ExportResult::Json(self.export_plotly()),
+            ExportFormat::Json => ExportResult::Json(serde_json::to_value(self).unwrap_or_default()),
+            ExportFormat::Csv => ExportResult::Csv(self.export_csv()),
+            ExportFormat::Plotly => ExportResult::Json(self.export_plotly()),
         }
     }
 

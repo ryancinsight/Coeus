@@ -1,9 +1,9 @@
 //! Element-wise arithmetic operations
 
 use crate::{Result, Tensor, TensorError};
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::{Storage, StorageFromVec};
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec};
 use num_traits::{Float, Num};
 
 /// Element-wise addition with broadcasting support

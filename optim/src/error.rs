@@ -49,7 +49,7 @@ pub enum OptimError {
     #[error("Tensor operation failed: {source}")]
     TensorError {
         #[from]
-        source: coeus_tensor::TensorError,
+        source: tensor::TensorError,
     },
 
     #[error("Backend operation failed: {message}")]

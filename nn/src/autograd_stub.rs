@@ -6,7 +6,7 @@
 //! full Tensor API with automatic differentiation traits.
 
 use crate::error::{NNError, Result};
-use coeus_tensor::Tensor;
+use tensor::Tensor;
 
 /// Mock autograd error that doesn't depend on the full tensor API
 #[derive(Debug, thiserror::Error)]
@@ -34,9 +34,9 @@ impl From<AutogradError> for NNError {
 /// For testing purposes, this is a no-op that succeeds.
 pub fn backward<B, S, T>(_tensor: &Tensor<B, S, T>) -> Result<()>
 where
-    B: coeus_backend::Backend,
-    S: coeus_storage::Storage<T>,
-    T: coeus_dtype::DataType,
+    B: backend::Backend,
+    S: storage::Storage<T>,
+    T: dtype::DataType,
 {
     // This is a stub implementation for testing.
     // In the real autograd system, this would traverse the computation graph
@@ -53,10 +53,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
-    use coeus_tensor::Tensor;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+    use tensor::Tensor;
 
     #[test]
     fn test_backward_stub() {

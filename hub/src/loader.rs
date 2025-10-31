@@ -4,9 +4,9 @@ use crate::cache::ModelCache;
 use crate::error::{HubError, Result};
 use crate::registry::{ModelEntry, Task as ModelTask};
 use crate::validator::ModelValidator;
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_nn::Module;
+use backend::Backend;
+use dtype::DataType;
+use nn::Module;
 use reqwest::Client;
 use std::marker::PhantomData;
 

@@ -1,7 +1,7 @@
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{BatchNorm2d, Conv2D, Dropout, Linear, Module, ReLU};
-use coeus_storage::DenseStorage;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{BatchNorm2d, Conv2D, Dropout, Linear, Module, ReLU};
+use storage::DenseStorage;
 use pyo3::prelude::*;
 use pyo3::{pyclass, pymethods, Py, PyErr, PyResult};
 

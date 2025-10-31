@@ -3,10 +3,10 @@
 //! This module provides stateless convolution operations for spatial feature extraction
 //! in convolutional neural networks, optimized with SIMD acceleration.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::{traits::FloatExt, DataType};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 
@@ -29,11 +29,11 @@ use crate::error::{NNError, Result};
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::functional_conv::conv2d;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::functional_conv::conv2d;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 3, 32, 32]).unwrap();
 /// let weight = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[64, 3, 3, 3]).unwrap();
@@ -211,11 +211,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::functional_conv::conv2d_transpose;
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::functional_conv::conv2d_transpose;
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[1, 64, 16, 16]).unwrap();
 /// let weight = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[64, 128, 3, 3]).unwrap();

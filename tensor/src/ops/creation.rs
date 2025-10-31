@@ -30,10 +30,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::int::Int32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::int::Int32;
     ///
     /// let data = vec![Int32::new(1), Int32::new(2), Int32::new(3)];
     /// let backend = CpuBackend::new();
@@ -42,7 +42,7 @@ where
     /// ```
     pub fn from_vec_with_backend(data: Vec<T>, dims: &[usize], backend: B) -> crate::Result<Self>
     where
-        S: coeus_storage::StorageFromVec<T>,
+        S: storage::StorageFromVec<T>,
     {
         let storage = S::from_vec(data, dims).map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, backend))
@@ -57,10 +57,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::int::Int32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::int::Int32;
     ///
     /// let data = vec![Int32::new(1), Int32::new(2), Int32::new(3)];
     /// let tensor = Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec(data, &[3]).unwrap();
@@ -69,7 +69,7 @@ where
     pub fn from_vec(data: Vec<T>, dims: &[usize]) -> crate::Result<Self>
     where
         B: Default,
-        S: coeus_storage::StorageFromVec<T>,
+        S: storage::StorageFromVec<T>,
     {
         let storage = S::from_vec(data, dims).map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, B::default()))
@@ -87,10 +87,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     /// use num_traits::Zero;
     ///
     /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[2, 3]).unwrap();
@@ -118,10 +118,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::int::Int64;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::int::Int64;
     /// use num_traits::One;
     ///
     /// let tensor = Tensor::<CpuBackend<Int64>, DenseStorage<Int64>, Int64>::ones(&[4]).unwrap();
@@ -138,7 +138,7 @@ where
     }
 }
 // Separate impl for DenseStorage to provide from_slice
-impl<B, T> crate::Tensor<B, coeus_storage::DenseStorage<T>, T>
+impl<B, T> crate::Tensor<B, storage::DenseStorage<T>, T>
 where
     B: crate::Backend<Data = T>,
     T: crate::DataType,
@@ -152,10 +152,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float64;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float64;
     ///
     /// let data = [Float64::new(1.0), Float64::new(2.0), Float64::new(3.0), Float64::new(4.0)];
     /// let tensor = Tensor::<CpuBackend<Float64>, DenseStorage<Float64>, Float64>::from_slice(&data, &[2, 2]).unwrap();
@@ -165,7 +165,7 @@ where
     where
         B: Default,
     {
-        let storage = coeus_storage::DenseStorage::from_slice(data, dims)
+        let storage = storage::DenseStorage::from_slice(data, dims)
             .map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, B::default()))
     }
@@ -181,7 +181,7 @@ where
     ///
     /// Returns error if slice size doesn't match shape.
     pub fn from_slice_with_backend(data: &[T], dims: &[usize], backend: B) -> crate::Result<Self> {
-        let storage = coeus_storage::DenseStorage::from_slice(data, dims)
+        let storage = storage::DenseStorage::from_slice(data, dims)
             .map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, backend))
     }
@@ -198,7 +198,7 @@ mod tensor_creation_convenience {
     use std::sync::Mutex;
 
     /// Type alias for the most common CPU float32 tensor type.
-    pub type CpuF32Tensor = crate::Tensor<crate::CpuBackend<coeus_dtype::float::Float32>, crate::DenseStorage<coeus_dtype::float::Float32>, coeus_dtype::float::Float32>;
+    pub type CpuF32Tensor = crate::Tensor<crate::CpuBackend<dtype::float::Float32>, crate::DenseStorage<dtype::float::Float32>, dtype::float::Float32>;
 
     /// Creates a tensor filled with random values from a normal distribution.
     ///
@@ -229,7 +229,7 @@ mod tensor_creation_convenience {
         // Generate random values from standard normal distribution
         for _ in 0..total_elements {
             let value: f32 = rng.sample(rand::distributions::Standard);
-            data.push(coeus_dtype::float::Float32::new(value));
+            data.push(dtype::float::Float32::new(value));
         }
 
         CpuF32Tensor::from_vec(data, shape)
@@ -360,10 +360,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::float::Float32;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
     /// use num_traits::Zero;
     ///
     /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros_generic(&[2, 3]).unwrap();
@@ -390,10 +390,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use coeus_tensor::Tensor;
-    /// use coeus_backend::CpuBackend;
-    /// use coeus_storage::DenseStorage;
-    /// use coeus_dtype::int::Int64;
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::int::Int64;
     /// use num_traits::One;
     ///
     /// let tensor = Tensor::<CpuBackend<Int64>, DenseStorage<Int64>, Int64>::ones_generic(&[4]).unwrap();

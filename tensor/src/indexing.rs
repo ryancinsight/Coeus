@@ -7,10 +7,10 @@
 //! Boolean indexing allows selecting elements based on a boolean mask:
 //!
 //! ```rust
-//! use coeus_tensor::Tensor;
-//! use coeus_backend::CpuBackend;
-//! use coeus_storage::DenseStorage;
-//! use coeus_dtype::float::Float32;
+//! use tensor::Tensor;
+//! use backend::CpuBackend;
+//! use storage::DenseStorage;
+//! use dtype::float::Float32;
 //!
 //! let data = vec![
 //!     Float32::new(1.0), Float32::new(2.0), Float32::new(3.0),
@@ -33,10 +33,10 @@
 //! Fancy indexing uses integer arrays to select arbitrary elements:
 //!
 //! ```rust
-//! # use coeus_tensor::Tensor;
-//! # use coeus_backend::CpuBackend;
-//! # use coeus_storage::DenseStorage;
-//! # use coeus_dtype::float::Float32;
+//! # use tensor::Tensor;
+//! # use backend::CpuBackend;
+//! # use storage::DenseStorage;
+//! # use dtype::float::Float32;
 //! # let data = vec![Float32::new(10.0), Float32::new(20.0), Float32::new(30.0), Float32::new(40.0), Float32::new(50.0)];
 //! # let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[5]).unwrap();
 //!
@@ -51,10 +51,10 @@
 //! Advanced slicing with start, end, and step parameters for each dimension:
 //!
 //! ```rust
-//! # use coeus_tensor::Tensor;
-//! # use coeus_backend::CpuBackend;
-//! # use coeus_storage::DenseStorage;
-//! # use coeus_dtype::float::Float32;
+//! # use tensor::Tensor;
+//! # use backend::CpuBackend;
+//! # use storage::DenseStorage;
+//! # use dtype::float::Float32;
 //! # let data = vec![Float32::new(0.0), Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0), Float32::new(5.0)];
 //! # let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[6]).unwrap();
 //!
@@ -74,7 +74,7 @@ use alloc::vec::Vec;
 use crate::{error::TensorError, Backend, DataType, Tensor};
 
 /// Boolean indexing operations for tensors with dense storage
-impl<B, T> Tensor<B, coeus_storage::DenseStorage<T>, T>
+impl<B, T> Tensor<B, storage::DenseStorage<T>, T>
 where
     B: Backend + Default,
     T: DataType,
@@ -360,8 +360,8 @@ fn generate_multi_dim_indices(
 mod tests {
     use crate::Tensor;
     use alloc::vec;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
 
     #[test]
     #[allow(clippy::float_cmp)]
@@ -374,7 +374,7 @@ mod tests {
             Float32::new(5.0),
             Float32::new(6.0),
         ];
-        let tensor = Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
             data,
             &[2, 3],
         )
@@ -394,7 +394,7 @@ mod tests {
     #[test]
     fn test_boolean_index_empty() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-        let tensor = Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
             data,
             &[3],
         )
@@ -412,7 +412,7 @@ mod tests {
     #[test]
     fn test_boolean_index_length_mismatch() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-        let tensor = Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
             data,
             &[3],
         )
@@ -433,7 +433,7 @@ mod tests {
             Float32::new(4.0),
         ];
         let mut tensor =
-            Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
                 data,
                 &[4],
             )
@@ -460,7 +460,7 @@ mod tests {
             Float32::new(40.0),
             Float32::new(50.0),
         ];
-        let tensor = Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
             data,
             &[5],
         )
@@ -480,7 +480,7 @@ mod tests {
     #[test]
     fn test_fancy_index_out_of_bounds() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-        let tensor = Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
             data,
             &[3],
         )
@@ -494,7 +494,7 @@ mod tests {
     #[test]
     fn test_fancy_index_negative() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-        let tensor = Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
             data,
             &[3],
         )
@@ -516,7 +516,7 @@ mod tests {
             Float32::new(50.0),
         ];
         let mut tensor =
-            Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
                 data,
                 &[5],
             )
@@ -539,7 +539,7 @@ mod tests {
     fn test_fancy_assign_length_mismatch() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
         let mut tensor =
-            Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
                 data,
                 &[3],
             )
@@ -561,7 +561,7 @@ mod tests {
             Float32::new(4.0),
             Float32::new(5.0),
         ];
-        let tensor = Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
             data,
             &[6],
         )
@@ -587,7 +587,7 @@ mod tests {
             Float32::new(4.0),
             Float32::new(5.0),
         ];
-        let tensor = Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
             data,
             &[6],
         )
@@ -621,7 +621,7 @@ mod tests {
             Float32::new(10.0),
             Float32::new(11.0),
         ];
-        let tensor = Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
             data,
             &[3, 4],
         )
@@ -649,7 +649,7 @@ mod tests {
             Float32::new(4.0),
             Float32::new(5.0),
         ];
-        let tensor = Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
             data,
             &[6],
         )
@@ -668,7 +668,7 @@ mod tests {
     #[test]
     fn test_advanced_slice_dimension_mismatch() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-        let tensor = Tensor::<CpuBackend, coeus_storage::DenseStorage<Float32>, Float32>::from_vec(
+        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
             data,
             &[3],
         )

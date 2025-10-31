@@ -11,7 +11,7 @@
 //! 5. Workflow orchestration
 
 use std::collections::HashMap;
-use coeus_nn::research::{
+use nn::research::{
     UnifiedResearchFramework, ResearchConfig, ResearchDomain, ResearchWorkflow, WorkflowTemplate,
     ResearchAgent, ResearchAgentFactory, AgentType, ExperimentSpec, ExperimentResult,
 };
@@ -24,7 +24,7 @@ struct HPOAgentAdapter<H> {
     domain: ResearchDomain,
 }
 
-impl<H: coeus_nn::research::ResearchAgent> ResearchAgent for HPOAgentAdapter<H> {
+impl<H: nn::research::ResearchAgent> ResearchAgent for HPOAgentAdapter<H> {
     fn id(&self) -> &str { &self.agent_id }
     fn name(&self) -> &str { "HPO Agent Adapter" }
     fn agent_type(&self) -> AgentType { AgentType::HPO }
@@ -318,3 +318,4 @@ mod tests {
         assert!(framework.registry.has_agent("test_agent"));
     }
 }
+

@@ -7,11 +7,11 @@
 //! - Custom hyperparameters (beta1, beta2, epsilon)
 //! - Edge cases (zero gradients, numerical stability)
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_optim::{Adam, BaseOptimizer, Optimizer};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use optim::{Adam, BaseOptimizer, Optimizer};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 

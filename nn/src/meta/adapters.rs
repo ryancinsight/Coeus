@@ -19,10 +19,10 @@ use crate::research::agent::{ResearchAgent, AgentMetadata, AgentType, ResourceRe
 use crate::research::experiment::{ExperimentResult, ExperimentSpec, ExperimentStatus, ResourceUsage, ExperimentStatistics};
 use crate::research::{ResearchDomain, ResearchInsight};
 
-use coeus_backend::{Backend, DataType, Storage};
-use coeus_dtype::traits::FloatExt;
-use coeus_storage::{StorageFromVec, StorageToDense};
-use coeus_tensor::Tensor;
+use backend::{Backend, DataType, Storage};
+use dtype::traits::FloatExt;
+use storage::{StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 // Type aliases for complex types
 /// Task distribution function type
@@ -1015,9 +1015,9 @@ impl PrototypicalAgentFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_backend::CpuBackend;
-    use coeus_dtype::float::Float32;
-    use coeus_storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_maml_adapter_creation() {

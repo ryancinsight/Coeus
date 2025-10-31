@@ -22,9 +22,9 @@
 //! ## Example
 //!
 //! ```rust,ignore
-//! use coeus_autograd::{checkpoint, checkpoint_sequential};
-//! use coeus_tensor::Tensor;
-//! use coeus_dtype::float::Float32;
+//! use autograd::{checkpoint, checkpoint_sequential};
+//! use tensor::Tensor;
+//! use dtype::float::Float32;
 //!
 //! // Single checkpoint (currently just applies function normally)
 //! let input_tensor = Tensor::from_vec(vec![1.0, 2.0], &[2]).unwrap();
@@ -54,10 +54,10 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::any::Any;
 
-use coeus_backend::Backend;
-use coeus_dtype::DataType;
-use coeus_storage::Storage;
-use coeus_tensor::Tensor;
+use backend::Backend;
+use dtype::DataType;
+use storage::Storage;
+use tensor::Tensor;
 
 use crate::Result;
 
@@ -79,7 +79,7 @@ use crate::Result;
 ///
 /// # Example
 /// ```rust,ignore
-/// use coeus_tensor::Tensor;
+/// use tensor::Tensor;
 /// let input = Tensor::from_vec(vec![1.0, 2.0], &[2]).unwrap();
 /// let result = checkpoint(|x: &Tensor| x.exp().sum(), &input);
 /// ```
@@ -115,7 +115,7 @@ where
 ///
 /// # Example
 /// ```rust,ignore
-/// use coeus_tensor::Tensor;
+/// use tensor::Tensor;
 /// let input1 = Tensor::from_vec(vec![1.0], &[1]).unwrap();
 /// let input2 = Tensor::from_vec(vec![2.0], &[1]).unwrap();
 /// let input3 = Tensor::from_vec(vec![3.0], &[1]).unwrap();
@@ -192,8 +192,8 @@ impl CheckpointState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::{float::Float32, DataType};
-    use coeus_tensor::Tensor;
+    use dtype::{float::Float32, DataType};
+    use tensor::Tensor;
 
     #[test]
     fn test_checkpoint_basic() {
@@ -201,8 +201,8 @@ mod tests {
 
         let result = checkpoint(
             |x: &Tensor<
-                coeus_backend::CpuBackend<Float32>,
-                coeus_storage::DenseStorage<Float32>,
+                backend::CpuBackend<Float32>,
+                storage::DenseStorage<Float32>,
                 Float32,
             >| {
                 Ok(x.clone()) // Identity for now
@@ -223,16 +223,16 @@ mod tests {
 
         let input_refs: Vec<
             &Tensor<
-                coeus_backend::CpuBackend<Float32>,
-                coeus_storage::DenseStorage<Float32>,
+                backend::CpuBackend<Float32>,
+                storage::DenseStorage<Float32>,
                 Float32,
             >,
         > = inputs.iter().collect();
 
         let result = checkpoint_sequential(
             |x: &Tensor<
-                coeus_backend::CpuBackend<Float32>,
-                coeus_storage::DenseStorage<Float32>,
+                backend::CpuBackend<Float32>,
+                storage::DenseStorage<Float32>,
                 Float32,
             >| { Ok(x.clone()) },
             &input_refs,

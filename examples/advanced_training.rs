@@ -9,11 +9,11 @@
 use std::error::Error;
 use std::io::{self, Write};
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{Linear, Module, Sequential};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{Linear, Module, Sequential};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("🧠 Coeus Advanced Model Example");
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 1. Build a complex neural network
     println!("1. Building neural network:");
-    let mut model: Sequential<coeus_backend::CpuBackend<Float32>, DenseStorage<Float32>, Float32> =
+    let mut model: Sequential<backend::CpuBackend<Float32>, DenseStorage<Float32>, Float32> =
         Sequential::new();
     model.add_module("input_layer", Linear::new(10, 64).unwrap());
     model.add_module("hidden_1", Linear::new(64, 32).unwrap());
@@ -135,3 +135,4 @@ fn main() -> Result<(), Box<dyn Error>> {
     io::stdout().flush()?;
     Ok(())
 }
+

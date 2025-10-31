@@ -6,17 +6,17 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use rand::prelude::*;
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
+use backend::CpuBackend;
+use dtype::float::Float32;
 #[cfg(feature = "quantized")]
-use coeus_nn::quantization::{
+use nn::quantization::{
     CalibrationConfig, CalibrationMethod, CalibrationPipeline, MixedPrecisionConfig,
     MixedPrecisionQuantizedLinear, QuantizationBitwidth, QuantizationGranularity,
     QuantizationScheme,
 };
-use coeus_nn::{Linear, Module};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use nn::{Linear, Module};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 /// Create random tensor with specified shape and distribution
 fn random_tensor(
@@ -331,7 +331,7 @@ fn bench_quantization_accuracy(c: &mut Criterion) {
                     output
                 } else {
                     // FP32 baseline - use regular Linear layers
-                    use coeus_nn::Linear;
+                    use nn::Linear;
                     let layer1 =
                         Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
                             input_size,

@@ -9,10 +9,10 @@ use std::collections::HashMap;
 use crate::error::{NNError, Result};
 use crate::linear::Linear;
 use crate::meta::prototypical::{PrototypicalNetwork, DistanceMetric};
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 /// Type alias for the complex PrototypicalNetwork type
 type ProtoNet = PrototypicalNetwork<Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, CpuBackend<Float32>, DenseStorage<Float32>, Float32>;

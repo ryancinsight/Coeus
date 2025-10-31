@@ -23,11 +23,11 @@
 ///
 /// # Examples
 /// ```
-/// use coeus_autograd::{Variable, loss::mse_loss};
-/// use coeus_tensor::Tensor;
-/// use coeus_dtype::float::Float32;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
+/// use autograd::{Variable, loss::mse_loss};
+/// use tensor::Tensor;
+/// use dtype::float::Float32;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
 ///
 /// let predictions = Variable::new(Tensor::from_vec(
 ///     vec![Float32::new(1.0), Float32::new(2.0)],
@@ -80,11 +80,11 @@ where
 ///
 /// # Examples
 /// ```
-/// use coeus_autograd::{Variable, loss::cross_entropy_loss};
-/// use coeus_tensor::Tensor;
-/// use coeus_dtype::float::Float32;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
+/// use autograd::{Variable, loss::cross_entropy_loss};
+/// use tensor::Tensor;
+/// use dtype::float::Float32;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
 ///
 /// // 3 classes, 2 samples
 /// let logits = Variable::new(Tensor::from_vec(
@@ -146,8 +146,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
-    use coeus_tensor::Tensor;
+    use dtype::float::Float32;
+    use tensor::Tensor;
 
     #[test]
     fn test_mse_loss_forward() {

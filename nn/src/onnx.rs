@@ -5,9 +5,9 @@
 //!
 //! # Export Example
 //! ```rust,ignore
-//! use coeus_nn::{Linear, Sequential, OnnxExporter};
-//! use coeus_dtype::float::Float;
-//! use coeus_backend::CpuBackend;
+//! use nn::{Linear, Sequential, OnnxExporter};
+//! use dtype::float::Float;
+//! use backend::CpuBackend;
 //!
 //! // Create a simple model
 //! let mut model = Sequential::<CpuBackend, Float>::new();
@@ -22,9 +22,9 @@
 //!
 //! # Import Example
 //! ```rust,ignore
-//! use coeus_nn::{Sequential, OnnxImporter};
-//! use coeus_backend::CpuBackend;
-//! use coeus_dtype::float::Float;
+//! use nn::{Sequential, OnnxImporter};
+//! use backend::CpuBackend;
+//! use dtype::float::Float;
 //!
 //! // Import from JSON-based ONNX format
 //! let importer = OnnxImporter::new();
@@ -40,10 +40,10 @@
 
 use crate::error::{NNError, Result};
 use crate::module::Module;
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{Storage, StorageFromVec, StorageToDense};
-use coeus_tensor::{DenseStorage, Tensor};
+use backend::{Backend, CpuBackend};
+use dtype::{traits::FloatExt, DataType};
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::{DenseStorage, Tensor};
 use std::collections::HashMap;
 
 /// ONNX model representation
@@ -515,8 +515,8 @@ impl OnnxImporter {
     ///
     /// # Example
     /// ```rust,ignore
-    /// use coeus_nn::{OnnxImporter, Linear};
-    /// use coeus_dtype::float::Float;
+    /// use nn::{OnnxImporter, Linear};
+    /// use dtype::float::Float;
     ///
     /// let importer = OnnxImporter::new();
     /// let onnx_bytes = std::fs::read("linear_layer.json").unwrap();
@@ -666,7 +666,7 @@ impl Default for OnnxImporter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_onnx_exporter_creation() {
@@ -688,9 +688,9 @@ mod tests {
         let invalid_json = b"invalid json";
         let result: std::result::Result<
             crate::Sequential<
-                coeus_backend::CpuBackend<coeus_dtype::float::Float32>,
-                crate::DenseStorage<coeus_dtype::float::Float32>,
-                coeus_dtype::float::Float32,
+                backend::CpuBackend<dtype::float::Float32>,
+                crate::DenseStorage<dtype::float::Float32>,
+                dtype::float::Float32,
             >,
             _,
         > = importer.import(invalid_json);

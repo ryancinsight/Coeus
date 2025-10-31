@@ -3,11 +3,11 @@
 //! This module provides performance benchmarks for critical neural network
 //! operations to ensure competitive performance and identify regressions.
 
-use coeus_backend::CpuBackend;
-use coeus_dtype::float::Float32;
-use coeus_nn::{Conv2D, Linear, Module, ReLU, Sequential};
-use coeus_storage::DenseStorage;
-use coeus_tensor::Tensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::{Conv2D, Linear, Module, ReLU, Sequential};
+use storage::DenseStorage;
+use tensor::Tensor;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::time::Duration;
 
