@@ -10,16 +10,17 @@
 //! and benchmarking against state-of-the-art performance.
 
 use crate::error::{NNError, Result};
-use crate::tensor::Tensor;
+use storage::StorageFromVec;
+use crate::tensor_crate::Tensor;
 use std::collections::{HashMap, HashSet, BTreeMap};
 use std::sync::Arc;
 
 /// Core CLIP validation framework
 pub struct ClipValidator<B, S, T>
 where
-    B: crate::backend::Backend<Data = T> + Clone,
-    S: crate::storage::Storage<T> + Clone,
-    T: crate::dtype::DataType,
+    B: crate::backend_crate::Backend<Data = T> + Clone,
+    S: crate::storage_crate::Storage<T> + Clone,
+    T: crate::dtype_crate::DataType + 'static,
 {
     /// CLIP model to validate
     model: Arc<crate::clip::ClipModel<B, S, T>>,
@@ -127,9 +128,9 @@ pub struct ValidationReport {
 
 impl<B, S, T> ClipValidator<B, S, T>
 where
-    B: crate::backend::Backend<Data = T> + Clone + Send + Sync + 'static,
-    S: crate::storage::Storage<T> + Clone + Send + Sync,
-    T: crate::dtype::DataType + Send + Sync,
+    B: crate::backend_crate::Backend<Data = T> + Clone + Send + Sync + 'static,
+    S: crate::storage_crate::Storage<T> + Clone + Send + Sync + StorageFromVec<T>,
+    T: crate::dtype_crate::DataType + crate::tensor_crate::FloatExt + Send + Sync + 'static,
 {
     /// Create a new CLIP validator
     pub fn new(
@@ -691,7 +692,7 @@ mod tests {
     struct MockClipModel;
 
     impl MockClipModel {
-        fn encode_texts(&self, _texts: &[String]) -> Result<Vec<Tensor<crate::backend::CpuBackend<crate::dtype::float::Float32>, crate::storage::DenseStorage<crate::dtype::float::Float32>, crate::dtype::float::Float32>>> {
+        fn encode_texts(&self, _texts: &[String]) -> Result<Vec<Tensor<crate::backend_crate::CpuBackend<crate::dtype_crate::float::Float32>, crate::storage_crate::DenseStorage<crate::dtype_crate::float::Float32>, crate::dtype_crate::float::Float32>>> {
             // Return dummy embeddings
             let mut embeddings = Vec::new();
             for _ in _texts {
@@ -702,7 +703,7 @@ mod tests {
             Ok(embeddings)
         }
 
-        fn encode_images(&self, _images: &[Vec<u8>]) -> Result<Vec<Tensor<crate::backend::CpuBackend<crate::dtype::float::Float32>, crate::storage::DenseStorage<crate::dtype::float::Float32>, crate::dtype::float::Float32>>> {
+        fn encode_images(&self, _images: &[Vec<u8>]) -> Result<Vec<Tensor<crate::backend_crate::CpuBackend<crate::dtype_crate::float::Float32>, crate::storage_crate::DenseStorage<crate::dtype_crate::float::Float32>, crate::dtype_crate::float::Float32>>> {
             // Return dummy embeddings
             let mut embeddings = Vec::new();
             for _ in _images {

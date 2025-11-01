@@ -9,7 +9,8 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use crate::error::{NNError, Result};
-use crate::nn::hpo::{HPOptimizer, HyperparameterOptimizer, HyperparameterSpace, HyperparameterConfig, OptimizationResult};
+use crate::hpo::{HPOptimizer, HyperparameterOptimizer, HyperparameterSpace, HyperparameterConfig, OptimizationResult};
+use crate::research::hpo_integration::objectives::{StandardAccuracyObjective, F1ScoreObjective};
 use crate::research::tracking::{ExperimentTracker, ExperimentSummary};
 use crate::research::metrics::{MetricsCollector, MetricEntry};
 use crate::research::UnifiedResearchFramework;
@@ -152,7 +153,6 @@ pub struct IntegratedHPOFramework {
 }
 
 /// Objective function trait
-#[derive(Debug)]
 pub trait ObjectiveFunction: Send + Sync {
     /// Evaluate hyperparameter configuration
     fn evaluate(&self, config: &HyperparameterConfig, context: &HPOExperimentContext) -> Result<f64>;
@@ -193,11 +193,10 @@ pub trait HPOAlgorithmImpl: Send + Sync {
 }
 
 /// Multi-objective optimization utilities
+/// Multi-objective optimization utilities
 #[derive(Debug)]
 pub struct MultiObjectiveUtils {
-    /// Pareto dominance functions
-    /// Hypervolume calculation
-    /// Reference point utilities
+    // Implementation details will be added as needed
 }
 
 impl IntegratedHPOFramework {

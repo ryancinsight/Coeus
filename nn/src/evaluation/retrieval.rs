@@ -15,7 +15,8 @@ use storage::Storage;
 use dtype::{DataType, traits::FloatExt};
 
 /// Single dataset retrieval results
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct RetrievalResults {
     /// Dataset name
     pub dataset_name: String,
@@ -30,7 +31,8 @@ pub struct RetrievalResults {
 }
 
 /// Comprehensive retrieval metrics
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct RetrievalMetrics {
     /// Dataset name
     pub dataset_name: String,
@@ -348,7 +350,8 @@ impl RetrievalEvaluator {
 }
 
 /// Retrieval validation results
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct RetrievalValidation {
     /// Whether success criterion was achieved
     pub achieved_success_criterion: bool,

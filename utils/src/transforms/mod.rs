@@ -70,8 +70,8 @@ where
     /// The transformed tensor, or an error if transformation fails
     fn apply(
         &self,
-        input: &coeus_tensor::Tensor<B, S, T>,
-    ) -> Result<coeus_tensor::Tensor<B, S, T>, TransformError>;
+        input: &tensor::Tensor<B, S, T>,
+    ) -> Result<tensor::Tensor<B, S, T>, TransformError>;
 
     /// Get the name of this transform for debugging
     fn name(&self) -> &str;
@@ -116,5 +116,5 @@ pub enum TransformError {
 
     /// Tensor operation error
     #[error("Tensor error: {0}")]
-    TensorError(#[from] coeus_tensor::TensorError),
+    TensorError(#[from] tensor::TensorError),
 }

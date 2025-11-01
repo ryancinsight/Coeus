@@ -8,8 +8,11 @@ use std::collections::HashMap;
 use crate::error::{NNError, Result};
 use crate::linear::Linear;
 use crate::layernorm::LayerNorm;
-use crate::activation::GELU;
+use crate::activation::GeLU;
 use crate::attention::MultiHeadAttention;
+use backend::Backend;
+use storage::{Storage, StorageFromVec};
+use dtype::{DataType, FloatExt};
 
 /// Supported task types for multi-task learning
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -78,11 +81,11 @@ impl Default for TaskConfig {
 
 /// Multi-task transformer model
 #[derive(Debug)]
-pub struct MultiTaskTransformer {
+pub struct MultiTaskTransformer<B, S, T> {
     /// Shared encoder layers
-    pub shared_encoder: Vec<TransformerBlock>,
+    pub shared_encoder: Vec<TransformerBlock<B, S, T>>,
     /// Task-specific heads
-    pub task_heads: HashMap<String, TaskHead>,
+    pub task_heads: HashMap<String, TaskHead<B, S, T>>,
     /// Task configurations
     pub task_configs: HashMap<String, TaskConfig>,
     /// MTL strategy
@@ -141,7 +144,12 @@ pub enum LossWeighting {
 
 /// Task-specific head architecture
 #[derive(Debug)]
-pub enum TaskHead {
+pub enum TaskHead<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + 'static,
+    T: DataType,
+{
     /// Standard classification/regression head
     Standard(Linear<B, S, T>),
     /// Sequence generation head with language modeling
@@ -163,19 +171,29 @@ pub enum TaskHead {
 }
 
 #[derive(Debug)]
-pub struct TransformerBlock {
+pub struct TransformerBlock<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    T: DataType + FloatExt,
+{
     pub attention: MultiHeadAttention<B, S, T>,
-    pub feed_forward: FeedForwardNetwork,
+    pub feed_forward: FeedForwardNetwork<B, S, T>,
     pub norm1: LayerNorm<B, S, T>,
     pub norm2: LayerNorm<B, S, T>,
     pub dropout: f64,
 }
 
 #[derive(Debug)]
-pub struct FeedForwardNetwork {
+pub struct FeedForwardNetwork<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + 'static,
+    T: DataType,
+{
     pub linear1: Linear<B, S, T>,
     pub linear2: Linear<B, S, T>,
-    pub activation: GELU,
+    pub activation: GeLU<B, S, T>,
     pub dropout: f64,
 }
 
@@ -321,23 +339,33 @@ impl GradNormWeighting {
 
 /// Adapter-based multi-task learning with task-specific adapters
 #[derive(Debug)]
-pub struct TaskAdapter {
+pub struct TaskAdapter<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + 'static,
+    T: DataType,
+{
     /// Down projection for adapter
     pub down_proj: Linear<B, S, T>,
     /// Up projection for adapter
     pub up_proj: Linear<B, S, T>,
     /// Adapter activation
-    pub activation: GELU,
+    pub activation: GeLU<B, S, T>,
     /// Adapter scale parameter
     pub scale: f64,
 }
 
-impl TaskAdapter {
+impl<B, S, T> TaskAdapter<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + 'static,
+    T: DataType + FloatExt + 'static,
+{
     pub fn new(hidden_dim: usize, adapter_dim: usize) -> Result<Self> {
         Ok(Self {
             down_proj: Linear::new(hidden_dim, adapter_dim)?,
             up_proj: Linear::new(adapter_dim, hidden_dim)?,
-            activation: GELU::new(),
+            activation: GeLU::new(),
             scale: 1.0,
         })
     }
@@ -351,7 +379,12 @@ impl TaskAdapter {
 
 /// Cross-task attention mechanism
 #[derive(Debug)]
-pub struct CrossTaskAttention {
+pub struct CrossTaskAttention<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    T: DataType,
+{
     /// Attention mechanism for cross-task interaction
     pub attention: MultiHeadAttention<B, S, T>,
     /// Task embeddings for attention
@@ -364,7 +397,12 @@ pub struct CrossTaskAttention {
     pub out_proj: Linear<B, S, T>,
 }
 
-impl MultiTaskTransformer {
+impl<B, S, T> MultiTaskTransformer<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    T: DataType + FloatExt + 'static,
+{
     /// Create new multi-task transformer
     pub fn new(config: MTLConfig, task_configs: HashMap<String, TaskConfig>) -> Result<Self> {
         // Create shared encoder layers
@@ -443,7 +481,7 @@ impl MultiTaskTransformer {
     }
 
     /// Create task head based on task configuration
-    fn create_task_head(task_config: &TaskConfig) -> Result<TaskHead> {
+    fn create_task_head(task_config: &TaskConfig) -> Result<TaskHead<B, S, T>> {
         match task_config.task_type {
             TaskType::Classification => {
                 Ok(TaskHead::Standard(Linear::new(task_config.input_dim, task_config.output_dim)?))
@@ -489,7 +527,7 @@ impl MultiTaskTransformer {
         }
     }
 
-    fn apply_task_head(&self, hidden_states: &[f32], head: &TaskHead) -> Result<Vec<f32>> {
+    fn apply_task_head(&self, hidden_states: &[f32], head: &TaskHead<B, S, T>) -> Result<Vec<f32>> {
         match head {
             TaskHead::Standard(linear) => {
                 // Apply linear head (placeholder)
@@ -539,7 +577,12 @@ impl MultiTaskTransformer {
     }
 }
 
-impl TransformerBlock {
+impl<B, S, T> TransformerBlock<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    T: DataType + FloatExt + 'static,
+{
     pub fn new(hidden_dim: usize, num_heads: usize, ff_dim: usize) -> Result<Self> {
         Ok(Self {
             attention: MultiHeadAttention::new(num_heads, hidden_dim)?,
@@ -566,12 +609,17 @@ impl TransformerBlock {
     }
 }
 
-impl FeedForwardNetwork {
+impl<B, S, T> FeedForwardNetwork<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + 'static,
+    T: DataType + FloatExt + 'static,
+{
     pub fn new(hidden_dim: usize, ff_dim: usize) -> Result<Self> {
         Ok(Self {
             linear1: Linear::new(hidden_dim, ff_dim)?,
             linear2: Linear::new(ff_dim, hidden_dim)?,
-            activation: GELU::new(),
+            activation: GeLU::new(),
             dropout: 0.1,
         })
     }

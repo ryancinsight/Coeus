@@ -16,7 +16,8 @@ type Matrix = Vec<Vec<f64>>;
 type Vector = Vec<f64>;
 
 /// Comprehensive embedding space analysis results
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct EmbeddingAnalysis {
     /// Dataset name
     pub dataset_name: String,
@@ -31,7 +32,8 @@ pub struct EmbeddingAnalysis {
 }
 
 /// Comprehensive embedding statistics
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct EmbeddingStatistics {
     /// Image embedding dimension
     pub image_embedding_dim: usize,
@@ -50,7 +52,8 @@ pub struct EmbeddingStatistics {
 }
 
 /// Similarity distribution statistics
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct SimilarityStatistics {
     /// Mean similarity
     pub mean: f64,
@@ -63,7 +66,8 @@ pub struct SimilarityStatistics {
 }
 
 /// Embedding quality metrics breakdown
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct EmbeddingQualityMetrics {
     /// Alignment quality score
     pub alignment_quality: f64,

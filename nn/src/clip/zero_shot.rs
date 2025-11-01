@@ -9,16 +9,18 @@
 //! 3. Classifying images by finding the most similar text prompt
 
 use crate::error::{NNError, Result};
-use crate::tensor::Tensor;
+use crate::tensor_crate::Tensor;
+use crate::evaluation::ZeroShotResults;
+use storage::StorageFromVec;
 use std::collections::{HashMap, HashSet, BTreeMap};
 use std::sync::Arc;
 
 /// Zero-shot classifier using CLIP
 pub struct ZeroShotClassifier<B, S, T>
 where
-    B: crate::backend::Backend<Data = T> + Clone,
-    S: crate::storage::Storage<T> + Clone,
-    T: crate::dtype::DataType,
+    B: crate::backend_crate::Backend<Data = T> + Clone,
+    S: crate::storage_crate::Storage<T> + Clone,
+    T: crate::dtype_crate::DataType,
 {
     /// CLIP model for encoding
     model: Arc<crate::clip::ClipModel<B, S, T>>,
@@ -87,9 +89,9 @@ pub struct BatchClassificationResult {
 
 impl<B, S, T> ZeroShotClassifier<B, S, T>
 where
-    B: crate::backend::Backend<Data = T> + Clone + Send + Sync + 'static,
-    S: crate::storage::Storage<T> + Clone + Send + Sync,
-    T: crate::dtype::DataType + Send + Sync,
+    B: crate::backend_crate::Backend<Data = T> + Clone + Send + Sync + 'static,
+    S: crate::storage_crate::Storage<T> + Clone + Send + Sync + StorageFromVec<T>,
+    T: crate::dtype_crate::DataType + crate::tensor_crate::FloatExt + Send + Sync + 'static,
 {
     /// Create a new zero-shot classifier
     pub fn new(
@@ -493,11 +495,11 @@ pub mod imagenet {
         model: Arc<crate::clip::ClipModel<B, S, T>>,
         imagenet_dataset: &dyn crate::datasets::VisionLanguageData,
         config: ZeroShotConfig,
-    ) -> Result<crate::clip::validation::ZeroShotResults>
+    ) -> Result<ZeroShotResults>
     where
-        B: crate::backend::Backend<Data = T> + Clone + Send + Sync + 'static,
-        S: crate::storage::Storage<T> + Clone + Send + Sync,
-        T: crate::dtype::DataType + Send + Sync,
+        B: crate::backend_crate::Backend<Data = T> + Clone + Send + Sync + 'static,
+        S: crate::storage_crate::Storage<T> + Clone + Send + Sync,
+        T: crate::dtype_crate::DataType + Send + Sync + 'static,
     {
         let class_names = ZeroShotClassifier::<B, S, T>::imagenet_classes();
         let classifier = ZeroShotClassifier::new(model, &class_names, config)?;
@@ -554,7 +556,7 @@ pub mod imagenet {
         println!("Top-1 Accuracy: {:.2}%", top1_accuracy * 100.0);
         println!("Top-5 Accuracy: {:.2}%", top5_accuracy * 100.0);
 
-        Ok(crate::clip::validation::ZeroShotResults {
+        Ok(ZeroShotResults {
             top1_accuracy,
             top5_accuracy,
             class_accuracies,

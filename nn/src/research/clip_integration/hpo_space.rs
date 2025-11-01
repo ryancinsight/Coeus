@@ -8,6 +8,8 @@ use std::collections::HashMap;
 
 #[cfg(feature = "rand")]
 use rand::prelude::*;
+#[cfg(feature = "rand")]
+use rand::{Rng, SeedableRng};
 #[cfg(feature = "rand_pcg")]
 use rand_pcg::Pcg64;
 
@@ -53,7 +55,8 @@ mod dummy_rand {
 }
 
 /// Hyperparameter search space definition
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct HpoSpace {
     /// Space name
     pub name: String,
@@ -223,7 +226,8 @@ impl HpoSpace {
 }
 
 /// Individual hyperparameter dimension
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct HpoDimension {
     pub name: String,
     pub param_type: ParameterType,
@@ -288,7 +292,8 @@ impl HpoDimension {
 }
 
 /// Parameter type enumeration
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub enum ParameterType {
     Continuous,
     Discrete,
@@ -296,7 +301,8 @@ pub enum ParameterType {
 }
 
 /// Parameter range definition
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub enum ParameterRange {
     Continuous { min: f64, max: f64, log_scale: bool },
     Discrete { values: Vec<f64> },
@@ -304,7 +310,8 @@ pub enum ParameterRange {
 }
 
 /// Parameter value representation
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub enum ParameterValue {
     Float(f64),
     Int(usize),
@@ -343,7 +350,8 @@ impl ParameterValue {
 }
 
 /// Sampling strategy
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub enum SamplingStrategy {
     /// Random sampling from space
     Random,
@@ -361,7 +369,8 @@ pub enum SamplingStrategy {
 }
 
 /// Hyperparameter optimization constraint
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct HpoConstraint {
     pub name: String,
     pub expression: String,
@@ -369,7 +378,8 @@ pub struct HpoConstraint {
 }
 
 /// Sampled hyperparameter configuration
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct HpoConfiguration {
     pub space_name: String,
     pub parameters: HashMap<String, ParameterValue>,
@@ -439,14 +449,16 @@ impl HpoConfiguration {
 }
 
 /// Sampling metadata
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct SamplingMetadata {
     pub sample_time: std::time::SystemTime,
     pub strategy: String,
 }
 
 /// Hyperparameter optimization results
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct HpoResults {
     pub best_config: HpoConfiguration,
     pub best_score: f64,
@@ -457,7 +469,8 @@ pub struct HpoResults {
 }
 
 /// Individual HPO trial result
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct HpoTrial {
     pub trial_id: usize,
     pub config: HpoConfiguration,
@@ -470,7 +483,8 @@ pub struct HpoTrial {
 /// CLIP training configuration for HPO
 /// Note: This is a simplified training configuration struct.
 /// In a full implementation, it would integrate with the actual CLIP trainer.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct ClipTrainingConfiguration {
     /// Learning rate for optimizer
     pub learning_rate: f64,

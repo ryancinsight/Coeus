@@ -5,8 +5,9 @@
 
 use std::collections::HashMap;
 use crate::error::{NNError, Result};
+use dtype::FloatExt;
 use backend::Backend;
-use storage::Storage;
+use storage::{Storage, StorageFromVec};
 use dtype::DataType;
 use crate::attention::MultiHeadAttention;
 use crate::linear::Linear;
@@ -99,10 +100,10 @@ pub enum CrossAttentionType {
 }
 
 #[derive(Debug)]
-pub struct FeedForwardNetwork {
+pub struct FeedForwardNetwork<B, S, T> {
     pub linear1: Linear<B, S, T>,
     pub linear2: Linear<B, S, T>,
-    pub activation: GELU,
+    pub activation: GeLU<B, S, T>,
     pub dropout: f64,
 }
 
@@ -199,33 +200,48 @@ where
 /// Progressive Cross-Modal Integration (PCMI)
 /// Gradually integrates modalities through multiple stages
 #[derive(Debug)]
-pub struct ProgressiveCrossModalIntegration {
+pub struct ProgressiveCrossModalIntegration<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default,
+    T: DataType + 'static,
+{
     /// Number of integration stages
     pub num_stages: usize,
     /// Integration blocks for each stage
-    pub integration_blocks: Vec<IntegrationBlock>,
+    pub integration_blocks: Vec<IntegrationBlock<B, S, T>>,
     /// Modality ordering (which modality gets integrated when)
     pub integration_order: Vec<Modality>,
 }
 
 #[derive(Debug)]
-pub struct IntegrationBlock {
+pub struct IntegrationBlock<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
+    T: DataType + 'static,
+{
     /// Modalities to integrate at this stage
     pub modalities: Vec<Modality>,
     /// Cross-attention layers for this stage
-    pub cross_attention: Vec<CrossModalAttention>,
+    pub cross_attention: Vec<CrossModalAttention<B, S, T>>,
     /// Fusion mechanism for this stage
-    pub fusion: FusionMechanism,
+    pub fusion: FusionMechanism<B, S, T>,
 }
 
 #[derive(Debug)]
-pub enum FusionMechanism {
+pub enum FusionMechanism<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    T: DataType,
+{
     /// Simple concatenation
     Concatenation,
     /// Learnable weighted sum
     WeightedSum,
     /// Attention-based fusion
-    AttentionFusion(MultiHeadAttention),
+    AttentionFusion(MultiHeadAttention<B, S, T>),
     /// Gated fusion with learned gates
     GatedFusion,
 }
@@ -233,7 +249,7 @@ pub enum FusionMechanism {
 impl<B, S, T> CrossModalTransformerLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
     T: DataType + 'static,
 {
     /// Create new cross-modal transformer layer
@@ -419,7 +435,7 @@ where
         Ok(query.to_vec())
     }
 
-    fn apply_feed_forward(&self, ffn: &FeedForwardNetwork, input: &[f32]) -> Result<Vec<f32>> {
+    fn apply_feed_forward(&self, ffn: &FeedForwardNetwork<B, S, T>, input: &[f32]) -> Result<Vec<f32>> {
         // Placeholder: apply feed-forward network
         Ok(input.to_vec())
     }
@@ -428,7 +444,7 @@ where
 impl<B, S, T> CrossModalAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
     T: DataType + 'static,
 {
     /// Create new cross-modal attention
@@ -468,12 +484,17 @@ where
     }
 }
 
-impl FeedForwardNetwork {
+impl<B, S, T> FeedForwardNetwork<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    T: DataType + FloatExt + 'static,
+{
     pub fn new(hidden_dim: usize, ff_dim: usize) -> Result<Self> {
         Ok(Self {
             linear1: Linear::new(hidden_dim, ff_dim)?,
             linear2: Linear::new(ff_dim, hidden_dim)?,
-            activation: GELU::new(),
+            activation: GeLU::new(),
             dropout: 0.1,
         })
     }
@@ -482,7 +503,7 @@ impl FeedForwardNetwork {
 impl<B, S, T> CoAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
     T: DataType + 'static,
 {
     /// Create new co-attention mechanism
@@ -514,7 +535,7 @@ where
 impl<B, S, T> MultimodalFusionAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
     T: DataType + 'static,
 {
     /// Create new multimodal fusion attention
@@ -569,7 +590,12 @@ where
     }
 }
 
-impl ProgressiveCrossModalIntegration {
+impl<B, S, T> ProgressiveCrossModalIntegration<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
+    T: DataType + 'static,
+{
     /// Create new progressive integration
     pub fn new(modalities: Vec<Modality>, num_stages: usize) -> Result<Self> {
         let integration_order = modalities.clone(); // Simple order

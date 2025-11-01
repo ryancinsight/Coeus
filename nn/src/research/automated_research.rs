@@ -9,11 +9,13 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use crate::error::{NNError, Result};
+use crate::research::nas_integration::NASSearchResult;
 use crate::research::{
     nas_integration::{IntegratedNASFramework, NASExperimentContext},
     hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
     performance_prediction::PerformancePredictionFramework,
-    joint_search::{JointSearchFramework, JointSearchContext, JointAlgorithm, JointSearchStrategy},
+    joint_search::{JointSearchFramework, JointSearchContext, JointSearchStrategy},
+    hpo_integration::JointAlgorithm,
     UnifiedResearchFramework,
 };
 
@@ -298,8 +300,8 @@ impl AutomatedResearchPipeline {
                 let mut research_framework = self.research_framework.write().unwrap();
 
                 let experiment_id = nas_framework.start_nas_experiment(context.clone())?;
-                let evaluator = Arc::new(crate::research::nas_integration::ArchitectureEvaluator::new()); // Placeholder
-                let space = crate::research::nas_integration::ArchitectureSpace::new(crate::research::nas_integration::ArchitectureType::CNN);
+                let evaluator = Arc::new(crate::nas::ArchitectureEvaluator::new()); // Placeholder
+                let space = crate::nas::ArchitectureSpace::new(crate::nas::search_space::ArchitectureType::CNN);
 
                 let result = nas_framework.execute_nas_search(&experiment_id, evaluator, &space)?;
                 Ok(PipelineStageResult::NAS(result))
@@ -322,8 +324,8 @@ impl AutomatedResearchPipeline {
                     &algorithm_name,
                     context,
                     &mut research_framework,
-                    Arc::new(crate::research::nas_integration::ArchitectureEvaluator::new()),
-                    &crate::research::nas_integration::ArchitectureSpace::new(crate::research::nas_integration::ArchitectureType::CNN),
+                    Arc::new(crate::nas::ArchitectureEvaluator::new()),
+                    &crate::nas::ArchitectureSpace::new(crate::nas::search_space::ArchitectureType::CNN),
                     &context.search_space,
                 )?;
                 Ok(PipelineStageResult::Joint(result))
@@ -336,8 +338,8 @@ impl AutomatedResearchPipeline {
                     // This would need proper JSON parsing in real implementation
                     let input = crate::research::performance_prediction::PredictionInput::Architecture(
                         crate::research::performance_prediction::ArchitecturePredictionInput {
-                            architecture: crate::research::nas_integration::ArchitectureSpace::new(
-                                crate::research::nas_integration::ArchitectureType::CNN
+                            architecture: crate::nas::ArchitectureSpace::new(
+                                crate::nas::search_space::ArchitectureType::CNN
                             ).sample_random(3)?,
                             dataset_info: crate::research::performance_prediction::DatasetInfo {
                                 name: "default".to_string(),

@@ -13,7 +13,7 @@ use crate::dropout::Dropout;
 use crate::functional::linear;
 use tensor::Tensor;
 use backend::Backend;
-use storage::Storage;
+use storage::{Storage, StorageFromVec};
 use dtype::DataType;
 use super::modality::Modality;
 use super::attention::CrossModalAttention;
@@ -52,7 +52,7 @@ pub struct Fusion<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + Default,
-    T: DataType,
+    T: DataType + 'static,
 {
     /// Fusion strategy
     pub strategy: FusionStrategy,
@@ -66,7 +66,7 @@ impl<B, S, T> Fusion<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + Default,
-    T: DataType,
+    T: DataType + 'static,
 {
     /// Create new multimodal fusion layer
     pub fn new(output_dim: usize, strategy: FusionStrategy) -> Result<Self> {
@@ -89,8 +89,8 @@ where
 pub enum FusionLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
+    T: DataType + 'static,
 {
     /// Simple concatenation
     Concat(Linear<B, S, T>),
@@ -107,8 +107,8 @@ where
 pub struct FusionBlock<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
+    T: DataType + 'static,
 {
     /// Self-attention within each modality
     pub intra_attention: HashMap<Modality, MultiHeadAttention<B, S, T>>,
@@ -123,8 +123,8 @@ where
 impl<B, S, T> FusionBlock<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
+    T: DataType + 'static,
 {
     /// Forward pass through cross-modal transformer block
     pub fn forward(
@@ -211,7 +211,7 @@ pub struct FeedForward<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + Default,
-    T: DataType,
+    T: DataType + 'static,
 {
     pub linear1: Linear<B, S, T>,
     pub linear2: Linear<B, S, T>,
@@ -222,8 +222,8 @@ where
 impl<B, S, T> FeedForward<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
+    T: DataType + 'static,
 {
     /// Create new feed-forward network
     pub fn new(hidden_dim: usize, ff_dim: usize, dropout: f64) -> Result<Self> {

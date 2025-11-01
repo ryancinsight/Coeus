@@ -32,4 +32,6 @@ pub mod error;
 pub mod fft;
 
 pub use error::{AudioError, AudioResult};
-pub use fft::{Fft, GpuFft};
+pub use fft::Fft;
+#[cfg(feature = "gpu")]
+pub use fft::GpuFft;

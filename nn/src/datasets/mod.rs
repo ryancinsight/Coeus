@@ -35,17 +35,36 @@ pub mod batch_loader;
 pub mod transforms;
 pub mod streaming;
 
+// Common types for vision-language datasets
+#[derive(Debug, Clone)]
+pub struct ImageTextPair {
+    /// Raw image data as bytes
+    pub image_data: Vec<u8>,
+    /// Path to image file (optional)
+    pub image_path: String,
+    /// Associated text captions
+    pub captions: Vec<String>,
+    /// Unique identifier for this image
+    pub image_id: String,
+    /// Unique identifiers for each caption
+    pub caption_ids: Vec<String>,
+    /// Additional metadata
+    pub metadata: HashMap<String, serde_json::Value>,
+}
+
 // Re-exports
 pub use coco::CocoDataset;
 pub use flickr30k::Flickr30kDataset;
-pub use vision_language::{VisionLanguageDataset, ImageTextPair};
+pub use vision_language::VisionLanguageDataset;
 pub use batch_loader::{VisionLanguageBatchLoader, BatchConfig, DatasetBatch};
-pub use transforms::{ImageAugmentation, TextAugmentation, Compose};
+pub use transforms::Compose;
 pub use streaming::StreamingDataset;
 
 // Common types for vision-language datasets
 use crate::error::{NNError, Result};
 use std::path::Path;
+use std::collections::HashMap;
+use serde_json;
 use tokio::fs;
 
 /// Abstract trait for vision-language datasets

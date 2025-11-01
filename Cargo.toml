@@ -20,7 +20,6 @@ members = [
     "utils",
     "hub",
     "coeus-semantic-api", # New crate for semantic search REST API
-    "examples", # Integration tests and examples
 ]
 
 [workspace.package]
@@ -147,7 +146,27 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+# Workspace crate dependencies (for examples and integration)
+dtype.workspace = true
+storage.workspace = true
+tensor.workspace = true
+autograd.workspace = true
+backend.workspace = true
+nn.workspace = true
+optim.workspace = true
+coeus-error.workspace = true
+distributed.workspace = true
+foundation.workspace = true
+audio.workspace = true
+jit.workspace = true
+profiling.workspace = true
+pycoeus.workspace = true
+tokenizer.workspace = true
+utils.workspace = true
+hub.workspace = true
+coeus-semantic-api.workspace = true
 
+# External dependencies
 # Semantic API server dependencies
 axum = { version = "0.7", features = ["tracing", "macros", "json", "form", "matched-path"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -158,3 +177,6 @@ reqwest = { version = "0.12", features = ["json"] }
 
 # Benchmarking dependencies
 time = { version = "0.3", features = ["macros", "local-offset"] }
+
+# Random number generation (for examples)
+rand.workspace = true

@@ -35,7 +35,6 @@ pub struct SelectionStatistics {
 
 /// Feature selection methods
 #[derive(Debug, Clone)]
-#[derive(Clone)]
 pub enum SelectionMethod {
     /// Filter methods
     Correlation {

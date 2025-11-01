@@ -218,18 +218,18 @@ impl ComposableTransform for super::Normalize {
 
         if type_id
             == TypeId::of::<
-                coeus_tensor::Tensor<
-                    coeus_backend::CpuBackend<Float32>,
-                    coeus_storage::DenseStorage<Float32>,
-                    coeus_dtype::float::Float32,
+                tensor::Tensor<
+                    backend::CpuBackend<Float32>,
+                    storage::DenseStorage<Float32>,
+                    dtype::float::Float32,
                 >,
             >()
         {
             let tensor = input
-                .downcast::<coeus_tensor::Tensor<
-                    coeus_backend::CpuBackend<Float32>,
-                    coeus_storage::DenseStorage<Float32>,
-                    coeus_dtype::float::Float32,
+                .downcast::<tensor::Tensor<
+                    backend::CpuBackend<Float32>,
+                    storage::DenseStorage<Float32>,
+                    dtype::float::Float32,
                 >>()
                 .unwrap();
             let result = self.apply(&*tensor)?;

@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::time::Instant;
+use std::fs;
 use serde::{Deserialize, Serialize};
 
 use crate::error::Result;

@@ -8,8 +8,11 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use crate::error::{NNError, Result};
-use crate::nn::nas::{Architecture, ArchitectureSpace};
-use crate::nn::hpo::{HyperparameterConfig, HyperparameterSpace};
+use crate::nas::{Architecture, ArchitectureSpace};
+use crate::hpo::{HyperparameterConfig, HyperparameterSpace};
+use crate::research::performance_prediction::predictors::{GNNNASPredictor, SurrogateHPOPredictor, BoostedTreesPredictor};
+use crate::research::performance_prediction::builders::{GNNNASBuilder, SurrogateHPOBuilder, BoostedTreesBuilder};
+use crate::nas::search_space::LayerSpec;
 
 /// Performance Predictor Trait
 /// Interface for all performance prediction models
@@ -347,10 +350,10 @@ impl PerformancePredictionFramework {
 
         for layer in &architecture.layers {
             match layer {
-                crate::nn::nas::search_space::LayerSpec::Conv2D { .. } => conv_count += 1.0,
-                crate::nn::nas::search_space::LayerSpec::Linear { .. } => linear_count += 1.0,
-                crate::nn::nas::search_space::LayerSpec::Attention { .. } => attn_count += 1.0,
-                crate::nn::nas::search_space::LayerSpec::Pooling { .. } => pool_count += 1.0,
+                LayerSpec::Conv2D { .. } => conv_count += 1.0,
+                LayerSpec::Linear { .. } => linear_count += 1.0,
+                LayerSpec::Attention { .. } => attn_count += 1.0,
+                LayerSpec::Pooling { .. } => pool_count += 1.0,
                 _ => {}
             }
         }

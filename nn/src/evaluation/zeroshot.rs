@@ -13,7 +13,8 @@ use storage::Storage;
 use dtype::{DataType, traits::FloatExt};
 
 /// Zero-shot classification results
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct ZeroShotResults {
     /// Dataset name
     pub dataset_name: String,

@@ -25,6 +25,7 @@
 //! // checkpoint::save_checkpoint(&model, &optimizer, &metadata, Path::new("checkpoint.json")).unwrap();
 //! ```
 
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -284,7 +285,8 @@ pub type CheckpointData<T> = (StateDict<T>, HashMap<String, String>);
 ///     'loss': loss,
 /// }, 'checkpoint.pth')
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
 pub struct Checkpoint<T: DataType> {
     /// Model parameters (state_dict)
     pub model_state: StateDict<T>,

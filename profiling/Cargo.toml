@@ -1,6 +1,6 @@
 [package]
 name = "profiling"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 description = "Performance profiling and benchmarking utilities for Coeus"
 readme = "../README.md"

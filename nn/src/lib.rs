@@ -365,6 +365,14 @@ pub use error::{NNError, Result};
 // Re-export backend trait for generic implementations
 pub use backend::Backend;
 
+// Re-export workspace dependencies for internal use
+pub use backend as backend_crate;
+pub use storage as storage_crate;
+pub use dtype as dtype_crate;
+pub use tensor as tensor_crate;
+pub use autograd as autograd_crate;
+pub use optim as optim_crate;
+
 // Core modules
 pub mod module;
 pub mod parameter;
@@ -458,8 +466,7 @@ pub mod research;
 
 // Re-exports for convenience
 pub use activation::{
-    Hardsigmoid, Hardswish, LeakyReLU, LogSoftmax, Mish, PReLU, ReLU, SiLU, Sigmoid, Softmax,
-    Swish, Tanh, ELU, GELU,
+    GeLU, ReLU, SiLU, SwiGLU,
 };
 pub use batchnorm::{BatchNorm2d, BatchNorm3d};
 pub use layernorm::LayerNorm;

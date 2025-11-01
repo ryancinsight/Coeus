@@ -9,8 +9,10 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use crate::error::{NNError, Result};
-use crate::nn::nas::{Architecture, ArchitectureEvaluator, ArchitectureSpace, EvolutionaryNAS, ReinforcementNAS, DartsNAS, AutomatedResearchPipeline};
-use crate::nn::hpo::{HPOptimizer, HyperparameterOptimizer};
+use crate::nas::{Architecture, ArchitectureEvaluator, ArchitectureSpace, EvolutionaryNAS, ReinforcementNAS, DartsNAS, AutomatedResearchPipeline};
+use crate::hpo::{HPOptimizer, HyperparameterOptimizer};
+use crate::research::nas_integration::search_integrations::{EvolutionarySearchIntegration, RLSearchIntegration, DartsSearchIntegration};
+use crate::nas::search_space::LayerType;
 use crate::research::tracking::{ExperimentTracker, ExperimentRegistry, ExperimentSummary};
 use crate::research::metrics::{MetricsCollector, MetricEntry};
 use crate::research::UnifiedResearchFramework;
@@ -142,7 +144,6 @@ pub struct IntegratedNASFramework {
 }
 
 /// Performance predictor trait
-#[derive(Debug)]
 pub trait PerformancePredictor: Send + Sync {
     /// Predict performance for an architecture
     fn predict(&self, architecture: &Architecture, context: &NASExperimentContext) -> Result<f64>;
@@ -751,7 +752,7 @@ pub mod search_integrations {
                 let layer_idx = rand::random::<usize>() % mutated.layers.len();
 
                 // Replace with random layer from search space
-                let random_layer = space.sample_layer(&crate::nn::nas::search_space::LayerType::Conv2D)?;
+                let random_layer = space.sample_layer(&LayerType::Conv2D)?;
                 mutated.layers[layer_idx] = random_layer;
             }
 

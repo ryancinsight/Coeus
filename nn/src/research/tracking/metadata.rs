@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 use std::time::Instant;
 use serde::{Serialize, Deserialize};
+#[cfg(feature = "sysinfo")]
 use sysinfo::{System, SystemExt, CpuExt, MemoryExt};
 
 /// Comprehensive experiment metadata
@@ -270,14 +271,21 @@ pub struct EnvironmentInfo {
 impl EnvironmentInfo {
     /// Collect current environment information
     pub fn collect() -> Self {
-        let mut sys = System::new_all();
-        sys.refresh_all();
-
         let gpu_info = collect_gpu_info();
+
+        #[cfg(feature = "sysinfo")]
+        let os_version = {
+            let mut sys = System::new();
+            sys.refresh_system();
+            sys.long_os_version().unwrap_or_else(|| "Unknown".to_string())
+        };
+
+        #[cfg(not(feature = "sysinfo"))]
+        let os_version = "Unknown".to_string();
 
         Self {
             os_name: std::env::consts::OS.to_string(),
-            os_version: sys.long_os_version().unwrap_or_else(|| "Unknown".to_string()),
+            os_version,
             os_arch: std::env::consts::ARCH.to_string(),
             hostname: hostname::get().map(|h| h.to_string_lossy().to_string()).unwrap_or_else(|_| "Unknown".to_string()),
             username: get_current_user(),
@@ -315,16 +323,30 @@ pub struct HardwareInfo {
 impl HardwareInfo {
     /// Collect hardware information
     pub fn collect() -> Self {
-        let mut sys = System::new_all();
-        sys.refresh_all();
+        #[cfg(feature = "sysinfo")]
+        let (cpu_model, cpu_cores, cpu_frequency, total_memory_gb) = {
+            let mut sys = System::new_all();
+            sys.refresh_all();
+            (
+                sys.cpus().get(0).map(|c| c.brand().to_string()).unwrap_or_else(|| "Unknown".to_string()),
+                sys.cpus().len(),
+                sys.cpus().get(0).map(|c| c.frequency()).unwrap_or(0),
+                sys.total_memory() as f64 / (1024.0 * 1024.0 * 1024.0),
+            )
+        };
+
+        #[cfg(not(feature = "sysinfo"))]
+        let (cpu_model, cpu_cores, cpu_frequency, total_memory_gb) = {
+            ("Unknown".to_string(), num_cpus::get(), 0, 0.0)
+        };
 
         let gpu_devices = collect_detailed_gpu_info();
 
         Self {
-            cpu_model: sys.cpus().get(0).map(|c| c.brand().to_string()).unwrap_or_else(|| "Unknown".to_string()),
-            cpu_cores: sys.cpus().len(),
-            cpu_frequency: sys.cpus().get(0).map(|c| c.frequency()).unwrap_or(0),
-            total_memory_gb: sys.total_memory() as f64 / (1024.0 * 1024.0 * 1024.0),
+            cpu_model,
+            cpu_cores,
+            cpu_frequency,
+            total_memory_gb,
             gpu_devices,
             storage_devices: collect_storage_info(),
         }
@@ -519,10 +541,12 @@ fn collect_detailed_gpu_info() -> Vec<GpuDevice> {
 }
 
 fn collect_storage_info() -> Vec<StorageDevice> {
-    let mut sys = System::new_all();
-    sys.refresh_all();
+    #[cfg(feature = "sysinfo")]
+    {
+        let mut sys = System::new_all();
+        sys.refresh_all();
 
-    sys.disks().iter().map(|disk| {
+        sys.disks().iter().map(|disk| {
         StorageDevice {
             mount_point: disk.mount_point().to_string_lossy().to_string(),
             total_space_gb: disk.total_space() as f64 / (1024.0 * 1024.0 * 1024.0),
@@ -530,6 +554,12 @@ fn collect_storage_info() -> Vec<StorageDevice> {
             filesystem: String::from_utf8_lossy(disk.file_system()).to_string(),
         }
     }).collect()
+    }
+
+    #[cfg(not(feature = "sysinfo"))]
+    {
+        vec![] // Return empty vector when sysinfo not available
+    }
 }
 
 fn get_rust_version() -> String {

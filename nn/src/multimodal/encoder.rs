@@ -8,7 +8,7 @@ use crate::linear::Linear;
 use crate::layernorm::LayerNorm;
 use tensor::Tensor;
 use backend::Backend;
-use storage::Storage;
+use storage::{Storage, StorageFromVec};
 use dtype::DataType;
 use super::modality::{Modality, ModalityConfig};
 use super::fusion::FeedForward;
@@ -18,8 +18,8 @@ use super::fusion::FeedForward;
 pub struct Encoder<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
+    T: DataType + 'static,
 {
     /// Modality configuration
     pub config: ModalityConfig,
@@ -36,8 +36,8 @@ where
 impl<B, S, T> Encoder<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType,
+    S: Storage<T> + Clone + Default + StorageFromVec<T>,
+    T: DataType + 'static,
 {
     /// Create new modality encoder
     pub fn new(config: ModalityConfig) -> Result<Self> {
@@ -127,7 +127,7 @@ pub struct Layer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + Default,
-    T: DataType,
+    T: DataType + 'static,
 {
     /// Self-attention
     pub attention: crate::attention::MultiHeadAttention<B, S, T>,
@@ -144,7 +144,7 @@ impl<B, S, T> Layer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + Default,
-    T: DataType,
+    T: DataType + 'static,
 {
     /// Create new transformer layer
     pub fn new(hidden_dim: usize, num_heads: usize, dropout: f64) -> Result<Self> {

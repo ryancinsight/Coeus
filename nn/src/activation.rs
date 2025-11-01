@@ -6,10 +6,11 @@
 //! - Advanced activation compositions
 
 use crate::error::{NNError, Result};
-use crate::backend::Backend;
-use crate::storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
-use crate::dtype::{DataType, FloatExt};
-use crate::tensor::Tensor;
+use crate::backend_crate::Backend;
+use crate::storage_crate::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+use crate::dtype_crate::DataType;
+use crate::tensor_crate::FloatExt;
+use crate::tensor_crate::Tensor;
 
 /// Swish-Gated Linear Unit (SwiGLU) activation function
 ///

@@ -816,3 +816,65 @@ where
         "NLLLossBackward"
     }
 }
+
+// RNN function for sequence processing
+/// RNN function for automatic differentiation of recurrent operations
+#[derive(Debug)]
+pub struct RNNFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    /// Input tensors that require gradients
+    pub inputs: Vec<Arc<Tensor<B, S, T>>>,
+    /// Hidden state tensors
+    pub hidden_states: Vec<Arc<Tensor<B, S, T>>>,
+    /// Whether batch dimension is first
+    pub batch_first: bool,
+}
+
+impl<B, S, T> RNNFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    /// Create a new RNN function
+    pub fn new(
+        inputs: Vec<Arc<Tensor<B, S, T>>>,
+        hidden_states: Vec<Arc<Tensor<B, S, T>>>,
+        batch_first: bool,
+    ) -> Self {
+        Self {
+            inputs,
+            hidden_states,
+            batch_first,
+        }
+    }
+}
+
+impl<B, S, T> DifferentiableFunction<B, S, T> for RNNFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    fn name(&self) -> &'static str {
+        "RNN"
+    }
+}
+
+impl<B, S, T> tensor::AsAny for RNNFunction<B, S, T>
+where
+    B: 'static,
+    S: 'static,
+    T: 'static,
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+}

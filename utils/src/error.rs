@@ -1,6 +1,6 @@
 //! Error types for the utils crate
 
-use coeus_tensor;
+use tensor;
 
 /// Errors that can occur in data loading operations
 #[derive(Debug, thiserror::Error)]
@@ -39,7 +39,7 @@ pub enum DataError {
 
     /// Tensor error from tensor crate
     #[error("Tensor operation error: {0}")]
-    TensorOpError(#[from] coeus_tensor::TensorError),
+    TensorOpError(#[from] tensor::TensorError),
 }
 
 impl DataError {

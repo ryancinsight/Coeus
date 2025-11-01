@@ -31,6 +31,7 @@ pub mod preprocessing;
 pub mod trainer;
 pub mod enhanced_trainer;
 pub mod zero_shot;
+pub mod validation;
 
 // Re-exports
 pub use config::{ClipConfig, VisionConfig, TextConfig};
@@ -38,11 +39,11 @@ pub use model::ClipModel;
 pub use loss::InfoNCELoss;
 pub use preprocessing::{ImageProcessor, TextProcessor};
 pub use trainer::ClipTrainer;
-pub use enhanced_trainer::{EnhancedClipTrainer, EnhancedClipTrainingConfig, TrainingResult};
+pub use enhanced_trainer::{EnhancedClipTrainer, EnhancedClipTrainingConfig};
 pub use zero_shot::{
-    ClipClassifier, ClipInference, ClipModelLoader, ImageTextRetriever,
-    PromptEngineer, ClassificationResult, RetrievalResult, SimilarityResult
+    ZeroShotClassifier, ZeroShotConfig, ClassificationResult, BatchClassificationResult
 };
+pub use validation::ZeroShotResults;
 
 #[cfg(test)]
 mod tests;

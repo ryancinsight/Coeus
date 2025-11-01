@@ -188,6 +188,10 @@ pub use orchestrator::ResearchOrchestrator;
 pub use registry::ResearchAgentRegistry;
 pub use workflow::{ResearchWorkflow, WorkflowTemplate};
 
+// Research domain and insight types
+pub use automated_research::ResearchDomain;
+pub use crate::nas::ResearchInsight;
+
 /// Configuration for research workflows
 #[derive(Debug, Clone, Default)]
 pub struct ResearchConfig {
@@ -204,14 +208,15 @@ pub struct ResearchConfig {
 // CLIP research integration
 pub use clip_integration::{
     ClipResearchConfig, HpoSpace, AblationStudy,
-    ClipExperimentBuilder, ClipExperimentRunner, ExperimentMetadata,
+    ClipExperimentBuilder, ClipExperimentRunner,
     ResearchAutomation, AutomatedResearchWorkflow, HpoAutomation, AblationAutomation
 };
+pub use tracking::ExperimentMetadata;
 
 // Advanced research system exports
 pub use tracking::{
     ExperimentTracker, ExperimentRegistry, ExperimentSummary,
-    ExperimentMetadata, ExperimentStatus as TrackingStatus
+    ExperimentStatus as TrackingStatus
 };
 pub use metrics::{MetricsCollector, MetricEntry, MetricCollector as MetricCollectorTrait};
 pub use tracking::artifacts::{ArtifactStorage, ArtifactType};

@@ -11,19 +11,24 @@ use std::path::Path;
 use crate::error::{NNError, Result};
 use crate::parameter::Parameter;
 use backend::Backend;
+use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+use tensor::Tensor;
+use dtype::{DataType, FloatExt};
 
 use super::config::ClipConfig;
 use super::loss::InfoNCELoss;
 use super::model::ClipModel;
 use super::preprocessing::{ImageProcessor, TextProcessor};
+use crate::evaluation::zeroshot::ZeroShotResults;
 
 // Enhanced imports for Phase 2 improvements
 use std::fs;
 use std::io::{BufWriter, Write};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 // Re-export optimizer and scheduler types for easy access
-pub use optim::{Adam, CosineAnnealingWarmRestarts, ExponentialLR, LambdaLR};
+pub use optim::{Adam, ExponentialLR, CosineAnnealingLR};
 
 /// CLIP Training Data Batch
 #[derive(Debug)]
@@ -131,9 +136,9 @@ pub struct ClipTrainingMetrics {
 /// CLIP Trainer
 pub struct ClipTrainer<B, S, T>
 where
-    B: Send + Sync + 'static,
-    S: Send + Sync + 'static,
-    T: Send + Sync + 'static,
+    B: Backend<Data = T> + Send + Sync + 'static,
+    S: Storage<T> + Send + Sync + 'static,
+    T: DataType + FloatExt + Send + Sync + 'static,
 {
     /// CLIP model
     model: ClipModel<B, S, T>,
@@ -153,7 +158,7 @@ impl<B, S, T> ClipTrainer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + 'static,
 {
     /// Create new CLIP trainer
     pub fn new(config: ClipTrainingConfig) -> Result<Self> {

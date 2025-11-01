@@ -11,6 +11,7 @@ use tokio::sync::{mpsc, Semaphore};
 use futures::stream::{Stream, StreamExt};
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use async_stream;
 
 /// Configuration for streaming dataset processing
 #[derive(Debug, Clone)]
@@ -414,6 +415,7 @@ pub mod utils {
         dataset: Arc<T>,
         config: StreamingConfig,
     ) -> impl Stream<Item = (Result<ImageTextPair>, StreamStats)> {
+        use futures::stream;
         use std::sync::Mutex;
         use std::time::Instant;
 
@@ -425,28 +427,31 @@ pub mod utils {
         }));
 
         let start_time = Instant::now();
-        let mut stream = DatasetStream::new(dataset, config, 0);
+        let stream_instance = DatasetStream::new(dataset, config, 0);
 
-        async_stream::stream! {
-            while let Some(item) = stream.next().await {
-                let mut current_stats = stats.lock().unwrap();
-                let elapsed = start_time.elapsed().as_millis() as u64;
+        stream::unfold((stream_instance, stats, start_time), |(mut stream, stats, start_time)| async move {
+            match stream.next().await {
+                Some(item) => {
+                    let mut current_stats = stats.lock().unwrap();
+                    let elapsed = start_time.elapsed().as_millis() as u64;
 
-                match &item {
-                    Ok(_) => current_stats.items_processed += 1,
-                    Err(_) => current_stats.errors_encountered += 1,
+                    match &item {
+                        Ok(_) => current_stats.items_processed += 1,
+                        Err(_) => current_stats.errors_encountered += 1,
+                    }
+
+                    current_stats.processing_time_ms = elapsed;
+                    current_stats.throughput_items_per_sec = if elapsed > 0 {
+                        current_stats.items_processed as f64 * 1000.0 / elapsed as f64
+                    } else {
+                        0.0
+                    };
+
+                    Some(((item, current_stats.clone()), (stream, stats, start_time)))
                 }
-
-                current_stats.processing_time_ms = elapsed;
-                current_stats.throughput_items_per_sec = if elapsed > 0 {
-                    current_stats.items_processed as f64 * 1000.0 / elapsed as f64
-                } else {
-                    0.0
-                }
-
-                yield (item, current_stats.clone());
+                None => None,
             }
-        }
+        })
     }
 }
 

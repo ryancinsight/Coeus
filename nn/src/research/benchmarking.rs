@@ -660,8 +660,8 @@ impl NASBenchmarkingFramework {
         // Execute NAS search
         let nas_result = {
             let mut nas_framework = self.execution_engine.nas_framework.write().unwrap();
-            let evaluator = Arc::new(crate::research::nas_integration::ArchitectureEvaluator::new());
-            let space = crate::research::nas_integration::ArchitectureSpace::new(crate::research::nas_integration::ArchitectureType::CNN);
+            let evaluator = Arc::new(crate::nas::ArchitectureEvaluator::new());
+            let space = crate::nas::ArchitectureSpace::new(crate::nas::search_space::ArchitectureType::CNN);
 
             nas_framework.execute_nas_search(&context.experiment_id, evaluator, &space)?
         };

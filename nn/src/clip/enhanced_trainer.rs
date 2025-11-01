@@ -19,10 +19,12 @@ use std::fs;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{NNError, Result};
-use crate::backend::Backend;
-use crate::storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
-use crate::dtype::{DataType, FloatExt};
-use crate::tensor::Tensor;
+use crate::backend_crate::Backend;
+use crate::storage_crate::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+use crate::dtype_crate::DataType;
+use crate::tensor_crate::FloatExt;
+use crate::tensor_crate::Tensor;
+use optim::CosineAnnealingLR;
 
 use super::config::ClipConfig;
 use super::loss::InfoNCELoss;
@@ -30,8 +32,8 @@ use super::model::ClipModel;
 use super::preprocessing::{ImageProcessor, TextProcessor};
 
 // Optimizer and scheduler imports
-use crate::optim::{Adam, CosineAnnealingLR};
-use crate::optim::optimizer::BaseOptimizer;
+use crate::optim_crate::Adam;
+use crate::optim_crate::optimizer::BaseOptimizer;
 
 /// Enhanced CLIP training configuration with optimizer settings
 #[derive(Debug, Clone)]

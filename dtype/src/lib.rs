@@ -52,7 +52,7 @@ pub use quantization::{QuantizationError, QuantizationNoiseAnalysis};
 
 // Type aliases for convenience
 pub use error::DtypeError;
-pub use traits::DataType;
+pub use traits::{DataType, FloatExt};
 
 // Quantized types (feature-gated)
 #[cfg(feature = "quantized")]

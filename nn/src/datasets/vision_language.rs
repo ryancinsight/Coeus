@@ -9,7 +9,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Re-export common types
-pub use super::{VisionLanguageData, DatasetSplit, DatasetStatistics, ImageTextPair};
+pub use super::{VisionLanguageData, DatasetSplit, DatasetStatistics};
+use super::ImageTextPair;
 
 /// Wrapper for vision-language datasets providing additional utilities
 pub struct VisionLanguageDataset<T> {

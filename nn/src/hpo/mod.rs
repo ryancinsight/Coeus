@@ -14,6 +14,6 @@ pub mod space;
 pub use bandits::BanditOptimizer;
 pub use bayesian::BayesianOptimizer;
 pub use multifidelity::{HyperbandOptimizer, SuccessiveHalving};
-pub use optimizer::{HPOptimizer, OptimizationResult};
+pub use optimizer::{HPOptimizer, HyperparameterOptimizer, OptimizationResult};
 pub use population::PopulationOptimizer;
 pub use space::{HyperparameterConfig, HyperparameterSpace};

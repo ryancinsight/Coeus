@@ -9,9 +9,11 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use crate::error::{NNError, Result};
-use crate::research::nas_integration::{Architecture, ArchitectureSpace, ArchitectureEvaluator};
-use crate::research::hpo_integration::{HyperparameterSpace, HyperparameterConfig};
+use crate::nas::search_space::LayerSpec;
+use crate::nas::{Architecture, ArchitectureSpace, ArchitectureEvaluator};
+use crate::hpo::{HyperparameterSpace, HyperparameterConfig};
 use crate::research::UnifiedResearchFramework;
+use crate::research::joint_search::algorithms::{AlternatingSearch, ConcurrentSearch, EvolutionaryJointSearch, FactorizedSearch};
 
 /// Joint Search Result
 #[derive(Debug, Clone)]
@@ -21,7 +23,7 @@ pub struct JointSearchResult {
     pub best_score: f64,
     pub joint_evaluations: usize,
     pub search_time: std::time::Duration,
-    pub convergence_metrics: JointConvergenceMetrics,
+    pub convergence_metrics: ConvergenceMetrics,
     pub pareto_front: Option<Vec<JointSolution>>,
     pub experiment_summary: crate::research::tracking::ExperimentSummary,
 }
@@ -275,9 +277,7 @@ struct FairnessPolicies {
 /// Multi-objective optimization utilities
 #[derive(Debug)]
 struct MultiObjectiveUtils {
-    /// Pareto dominance functions
-    /// Hypervolume calculation
-    /// Reference point utilities
+    // Implementation details will be added as needed
 }
 
 impl JointSearchFramework {
@@ -430,11 +430,11 @@ impl JointSearchFramework {
     fn classify_architecture_family(&self, architecture: &Architecture) -> String {
         // Simple classification logic
         let conv_count = architecture.layers.iter()
-            .filter(|layer| matches!(layer, crate::research::nas_integration::LayerSpec::Conv2D { .. }))
+            .filter(|layer| matches!(layer, crate::nas::search_space::LayerSpec::Conv2D { .. }))
             .count();
 
         let attention_count = architecture.layers.iter()
-            .filter(|layer| matches!(layer, crate::research::nas_integration::LayerSpec::Attention { .. }))
+            .filter(|layer| matches!(layer, crate::nas::search_space::LayerSpec::Attention { .. }))
             .count();
 
         if attention_count > conv_count {
@@ -706,7 +706,7 @@ pub mod algorithms {
                 best_score: best_solution.score,
                 joint_evaluations: evaluations,
                 search_time: start_time.elapsed(),
-                convergence_metrics: JointConvergenceMetrics {
+                convergence_metrics: ConvergenceMetrics {
                     final_improvement_rate: 0.05,
                     architecture_diversity: 0.8,
                     hyperparameter_diversity: 0.7,

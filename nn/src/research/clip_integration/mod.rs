@@ -21,7 +21,8 @@ pub use tracking::{ClipExperimentTracking, ClipExperimentTracker};
 pub use automation::{ResearchAutomation, AutomatedResearchWorkflow, HpoAutomation, AblationAutomation};
 
 /// CLIP research experiment configuration
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct ClipResearchConfig {
     /// Base CLIP training configuration to extend
     pub base_training_config: crate::clip::enhanced_trainer::EnhancedClipTrainingConfig,
@@ -51,7 +52,8 @@ impl Default for ClipResearchConfig {
 }
 
 /// Automatic stopping criteria for experiments
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct StoppingCriteria {
     /// Early stopping for HPO (no improvement after N trials)
     pub hpo_early_stopping_patience: usize,
@@ -81,7 +83,8 @@ impl Default for StoppingCriteria {
 }
 
 /// Experiment metadata
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct ClipExperimentMetadata {
     /// Experiment name
     pub name: String,
@@ -116,7 +119,8 @@ impl Default for ClipExperimentMetadata {
 
 
 /// Notification settings for experiment completion/failure
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct NotificationSettings {
     /// Email notifications
     pub email_enabled: bool,
@@ -240,7 +244,8 @@ impl ClipResearchIntegrator {
 
 
 /// Compute resource usage tracking
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct ComputeUsage {
     pub cpu_hours: f64,
     pub gpu_hours: f64,
@@ -249,7 +254,8 @@ pub struct ComputeUsage {
 }
 
 /// Success metrics for research objectives
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct SuccessMetrics {
     /// Whether research success criteria were met
     pub criteria_met: bool,
@@ -262,7 +268,8 @@ pub struct SuccessMetrics {
 }
 
 /// Suggested next experiment
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct ExperimentSuggestion {
     pub description: String,
     pub expected_improvement: f64,

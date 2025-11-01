@@ -15,7 +15,7 @@ use crate::parameter::Parameter;
 use crate::attention::MultiHeadAttention;
 use crate::linear::Linear;
 use crate::layernorm::LayerNorm;
-use crate::activation::GELU;
+use crate::activation::GeLU;
 use crate::conv2d::Conv2D; // For patch extraction in vision transformer
 
 use super::config::{ClipConfig, VisionConfig, TextConfig};
@@ -27,7 +27,7 @@ pub struct VisionTransformer<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     /// Patch embedding layer
     patch_embed: Linear<B, S, T>,
@@ -46,7 +46,7 @@ pub struct VisionTransformerLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     /// Self-attention mechanism
     attention: MultiHeadAttention<B, S, T>,
@@ -57,7 +57,7 @@ where
     /// Second layer norm (pre-MLP)
     norm2: LayerNorm<B, S, T>,
     /// GELU activation
-    gelu: GELU,
+    gelu: GeLU<B, S, T>,
 }
 
 /// Vision encoder wrapper for CLIP
@@ -66,7 +66,7 @@ pub struct VisionEncoder<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     /// Vision Transformer model
     vision_model: VisionTransformer<B, S, T>,
@@ -80,7 +80,7 @@ impl<B, S, T> VisionEncoder<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     /// Create new vision encoder
     pub fn new(config: &VisionConfig, clip_embed_dim: usize) -> Result<Self> {
@@ -127,7 +127,7 @@ impl<B, S, T> VisionTransformer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     /// Create new Vision Transformer
     pub fn new(config: &VisionConfig) -> Result<Self> {
@@ -197,8 +197,12 @@ where
         let cls_tokens = cls_token.broadcast_to(&[batch_size, 1, embed_dim])?;
 
         // Concatenate class token + patch embeddings: [batch_size, num_patches + 1, embed_dim]
-        let sequence_embeddings = &[&cls_tokens, &patch_embeddings_reshaped];
-        let mut hidden_states = crate::tensor::ops::tensor_ops::concatenate_tensors(sequence_embeddings, 1)?;
+        // For now, use manual concatenation since tensor::ops::concatenate_tensors is not accessible
+        let mut hidden_states = Tensor::<B, S, T>::zeros(&[batch_size, num_patches + 1, embed_dim])?;
+        // Copy cls_tokens to [:, 0, :]
+        hidden_states.slice_assign(&[0..batch_size, 0..1, 0..embed_dim], &cls_tokens)?;
+        // Copy patch_embeddings_reshaped to [:, 1:, :]
+        hidden_states.slice_assign(&[0..batch_size, 1..(num_patches + 1), 0..embed_dim], &patch_embeddings_reshaped)?;
 
         // Add position embeddings (simplified - just add positional offset)
         let position_embeddings = self.position_embed.data();
@@ -235,7 +239,7 @@ impl<B, S, T> VisionTransformerLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     pub fn new(embed_dim: usize, num_heads: usize, mlp_dim: usize) -> Result<Self> {
         let attention = MultiHeadAttention::new(embed_dim, num_heads)?;
@@ -253,7 +257,7 @@ where
             norm1,
             mlp,
             norm2,
-            gelu: GELU::new(),
+            gelu: GeLU::new(),
         })
     }
 
@@ -280,7 +284,7 @@ pub struct TextTransformer<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     /// Token embeddings
     token_embed: Parameter<B, S, T>,
@@ -299,7 +303,7 @@ pub struct TextTransformerLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     /// Self-attention mechanism (causal)
     attention: MultiHeadAttention<B, S, T>,
@@ -310,7 +314,7 @@ where
     /// Second layer norm (pre-MLP)
     norm2: LayerNorm<B, S, T>,
     /// GELU activation
-    gelu: GELU,
+    gelu: GeLU<B, S, T>,
 }
 
 /// Text encoder wrapper for CLIP
@@ -319,7 +323,7 @@ pub struct TextEncoder<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     /// Text Transformer model
     text_model: TextTransformer<B, S, T>,
@@ -333,7 +337,7 @@ impl<B, S, T> TextEncoder<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     /// Create new text encoder
     pub fn new(config: &TextConfig, clip_embed_dim: usize) -> Result<Self> {
@@ -404,7 +408,7 @@ impl<B, S, T> TextTransformer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     /// Create new Text Transformer
     pub fn new(config: &TextConfig) -> Result<Self> {
@@ -479,7 +483,7 @@ impl<B, S, T> TextTransformerLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     pub fn new(embed_dim: usize, num_heads: usize, mlp_dim: usize) -> Result<Self> {
         let attention = MultiHeadAttention::new(embed_dim, num_heads)?;
@@ -497,7 +501,7 @@ where
             norm1,
             mlp,
             norm2,
-            gelu: GELU::new(),
+            gelu: GeLU::new(),
         })
     }
 
@@ -523,8 +527,8 @@ where
 pub struct ClipModel<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
-    T: DataType,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + FloatExt + 'static,
 {
     /// Vision encoder
     vision_encoder: VisionEncoder<B, S, T>,
@@ -542,7 +546,7 @@ impl<B, S, T> ClipModel<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     /// Create new CLIP model
     pub fn new(config: ClipConfig) -> Result<Self> {
@@ -664,8 +668,8 @@ where
 impl<B, S, T> fmt::Display for ClipModel<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
-    T: DataType,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + FloatExt + 'static,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -683,7 +687,7 @@ impl<B, S, T> VisionEncoder<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         vec![self.projection_head.clone()]
@@ -694,7 +698,7 @@ impl<B, S, T> TextEncoder<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + 'static,
 {
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         vec![self.projection_head.clone()]

@@ -10,10 +10,10 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use coeus_backend::{Backend, CpuBackend};
-use coeus_dtype::{traits::FloatExt, DataType};
-use coeus_storage::{DenseStorage, Storage, StorageFromVec};
-use coeus_tensor::Tensor;
+use backend::{Backend, CpuBackend};
+use dtype::{traits::FloatExt, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec};
+use tensor::Tensor;
 
 use crate::error::Result;
 use crate::module::Module;
@@ -54,11 +54,11 @@ type TensorPair<T> = (CpuTensor<T>, CpuTensor<T>);
 ///
 /// # Examples
 /// ```rust
-/// use coeus_nn::{RNN, Module};
-/// use coeus_tensor::Tensor;
-/// use coeus_backend::CpuBackend;
-/// use coeus_storage::DenseStorage;
-/// use coeus_dtype::float::Float32;
+/// use nn::{RNN, Module};
+/// use tensor::Tensor;
+/// use backend::CpuBackend;
+/// use storage::DenseStorage;
+/// use dtype::float::Float32;
 ///
 /// // Create a 2-layer bidirectional RNN
 /// let rnn = RNN::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 2, true, false, true).unwrap();
@@ -591,8 +591,8 @@ where
 
         // Attach autograd function if gradients are required
         if requires_grad {
-            use coeus_autograd::functions::RNNFunction;
-            use coeus_autograd::functions::TensorRef;
+            use autograd::functions::RNNFunction;
+            use autograd::functions::TensorRef;
 
             // Collect all input tensors that require gradients
             let input_ref = TensorRef::from(input.clone());
@@ -644,7 +644,7 @@ where
             // Attach the function to the output tensor
             let mut output_with_grad = output.requires_grad_(true);
             let function: std::sync::Arc<
-                dyn coeus_autograd::Function<CpuBackend<T>, DenseStorage<T>, T>,
+                dyn autograd::Function<CpuBackend<T>, DenseStorage<T>, T>,
             > = std::sync::Arc::new(rnn_fn);
             output_with_grad.set_grad_fn(Some(function));
             Ok(output_with_grad)
@@ -710,8 +710,8 @@ where
 mod rnn_forward_var_tests {
     use super::*;
 
-    use coeus_dtype::float::Float32;
-    use coeus_tensor::Tensor;
+    use dtype::float::Float32;
+    use tensor::Tensor;
 
     #[test]
     fn test_rnn_forward_var() {
@@ -737,7 +737,7 @@ mod rnn_forward_var_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_dtype::float::Float32;
+    use dtype::float::Float32;
 
     #[test]
     fn test_rnn_creation() {
