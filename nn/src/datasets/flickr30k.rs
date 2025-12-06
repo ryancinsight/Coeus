@@ -146,8 +146,7 @@ impl Flickr30kDataset {
     async fn load_annotations(captions_path: &Path) -> Result<(HashMap<String, Vec<String>>, HashMap<String, String>)> {
         println!("Loading Flickr30K annotations from: {:?}", captions_path);
 
-        let content = fs::read_to_string(captions_path).await
-            .map_err(|e| NNError::IoError(e))?;
+        let content = fs::read_to_string(captions_path).await?;
 
         let mut annotations = HashMap::new();
         let mut image_id_to_filename = HashMap::new();
@@ -337,7 +336,7 @@ impl Flickr30kDataset {
         self.annotations = filtered_annotations;
         self.image_files = self.image_files
             .iter()
-            .filter(|filename| self.annotations.contains_key(filename))
+            .filter(|filename| self.annotations.contains_key(filename.as_str()))
             .cloned()
             .collect();
 
@@ -355,38 +354,46 @@ impl VisionLanguageData for Flickr30kDataset {
         self.annotations.values().map(|captions| captions.len()).sum()
     }
 
-    async fn get(&self, mut global_index: usize) -> Result<ImageTextPair> {
-        // Find which image this global index refers to
-        for image_filename in &self.image_files {
-            if let Some(captions) = self.annotations.get(image_filename) {
-                let caption_count = captions.len();
-                if global_index < caption_count {
-                    // Load image data
-                    let image_path = self.image_dir.join(image_filename);
-                    let image_data = self.load_image_data(&image_path).await?;
+    fn get(&self, mut global_index: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>> {
+        let image_files = self.image_files.clone();
+        let annotations = self.annotations.clone();
+        let image_dir = self.image_dir.clone();
+        let split = self.split.clone();
+        let total_len = self.len();
 
-                    // Extract image ID from filename
-                    let image_id = image_filename.trim_end_matches(".jpg");
+        Box::pin(async move {
+            // Find which image this global index refers to
+            for image_filename in &image_files {
+                if let Some(captions) = annotations.get(image_filename) {
+                    let caption_count = captions.len();
+                    if global_index < caption_count {
+                        // Load image data
+                        let image_path = image_dir.join(image_filename);
+                        let image_data = Self::load_image_data_static(&image_path).await?;
 
-                    return Ok(ImageTextPair {
-                        image_data,
-                        image_path: image_path.to_string_lossy().to_string(),
-                        captions: vec![captions[global_index].clone()],
-                        image_id: image_id.to_string(),
-                        caption_ids: vec![format!("{}_c{}", image_id, global_index)],
-                        metadata: HashMap::from([
-                            ("dataset".to_string(), "flickr30k".to_string()),
-                            ("split".to_string(), format!("{:?}", self.split).to_lowercase()),
-                            ("total_captions".to_string(), captions.len().to_string()),
-                        ]),
-                    });
+                        // Extract image ID from filename
+                        let image_id = image_filename.trim_end_matches(".jpg");
+
+                        return Ok(ImageTextPair {
+                            image_data,
+                            image_path: image_path.to_string_lossy().to_string(),
+                            captions: vec![captions[global_index].clone()],
+                            image_id: image_id.to_string(),
+                            caption_ids: vec![format!("{}_c{}", image_id, global_index)],
+                            metadata: HashMap::from([
+                                ("dataset".to_string(), serde_json::json!("flickr30k")),
+                                ("split".to_string(), serde_json::json!(format!("{:?}", split).to_lowercase())),
+                                ("total_captions".to_string(), serde_json::json!(captions.len().to_string())),
+                            ]),
+                        });
+                    }
+                    global_index -= caption_count;
                 }
-                global_index -= caption_count;
             }
-        }
 
-        Err(NNError::InvalidInput {
-            message: format!("Index {} out of bounds for {} pairs", global_index + 1, self.len()),
+            Err(NNError::InvalidInput {
+                message: format!("Index {} out of bounds for {} pairs", global_index + 1, total_len),
+            })
         })
     }
 
@@ -402,13 +409,19 @@ impl VisionLanguageData for Flickr30kDataset {
 impl Flickr30kDataset {
     /// Load image data from file
     async fn load_image_data(&self, image_path: &Path) -> Result<Vec<u8>> {
+        Self::load_image_data_static(image_path).await
+    }
+
+    async fn load_image_data_static(image_path: &Path) -> Result<Vec<u8>> {
         if !image_path.exists() {
             return Err(NNError::InvalidInput {
                 message: format!("Image file not found: {:?}", image_path),
             });
         }
 
-        fs::read(image_path).await.map_err(|e| NNError::IoError(e))
+        fs::read(image_path).await.map_err(|e| NNError::InvalidInput {
+            message: format!("Failed to read image file: {}", e),
+        })
     }
 
     /// Get all captions for a specific image filename
@@ -517,8 +530,3 @@ mod tests {
         assert!(result.is_err());
     }
 }
-
-
-
-
-

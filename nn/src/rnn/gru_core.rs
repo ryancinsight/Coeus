@@ -21,7 +21,7 @@ pub struct GRU<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType,
+    T: DataType + std::cmp::PartialOrd,
 {
     /// Input-to-hidden weights for each gate (r, z, n) and layer
     pub weight_ih: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,

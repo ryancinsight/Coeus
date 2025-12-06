@@ -254,8 +254,10 @@ where
 
         let insights = vec![ResearchInsight {
             id: format!("maml_adaptation_{}", self.experiment_count),
+            description: format!("MAML adaptation completed in {} steps with performance {:.3}", num_steps, performance),
+            evidence: vec![format!("Completed {} adaptation steps", num_steps), format!("Final performance: {:.3}", performance)],
             agent_type: self.id.clone(),
-            domains: vec![ResearchDomain::MetaLearning, ResearchDomain::GeneralML],
+            domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::GeneralML.to_string()],
             performance_impact: performance - 0.5, // Impact relative to baseline
             confidence: 0.8,
             knowledge_data: serde_json::json!({
@@ -316,8 +318,10 @@ where
 
         insights.push(ResearchInsight {
             id: format!("maml_convergence_{}", self.experiment_count),
+            description: format!("MAML convergence analysis shows {:.3} average improvement", avg_improvement),
+            evidence: vec![format!("Average improvement: {:.3}", avg_improvement), format!("Experiments analyzed: {}", self.performance_history.len())],
             agent_type: self.id.clone(),
-            domains: vec![ResearchDomain::MetaLearning, ResearchDomain::AutoML],
+            domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::AutoML.to_string()],
             performance_impact: -avg_improvement.min(0.0), // Negative improvement (convergence) is positive
             confidence: 0.7,
             knowledge_data: serde_json::json!({
@@ -330,8 +334,10 @@ where
         // Learning efficiency insight
         insights.push(ResearchInsight {
             id: format!("maml_efficiency_{}", self.experiment_count),
+            description: format!("MAML learning efficiency analysis with final performance {:.3}", final_performance),
+            evidence: vec![format!("Final performance: {:.3}", final_performance), format!("Training steps: {}", losses.len())],
             agent_type: self.id.clone(),
-            domains: vec![ResearchDomain::MetaLearning, ResearchDomain::GeneralML],
+            domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::GeneralML.to_string()],
             performance_impact: final_performance - 0.5,
             confidence: 0.6,
             knowledge_data: serde_json::json!({
@@ -536,8 +542,10 @@ where
         vec![
             ResearchInsight {
                 id: format!("maml_performance_trend_{}", self.id),
+                description: format!("MAML performance trend analysis with average performance {:.3}", avg_performance),
+                evidence: vec![format!("Average performance: {:.3}", avg_performance), format!("Total experiments: {}", self.performance_history.len())],
                 agent_type: self.id.clone(),
-                domains: vec![ResearchDomain::MetaLearning, ResearchDomain::AutoML],
+                domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::AutoML.to_string()],
                 performance_impact: avg_performance - 0.5,
                 confidence: 0.75,
                 knowledge_data: serde_json::json!({
@@ -766,18 +774,20 @@ where
         let mut insights = Vec::new();
 
         // Learning stability insight
-        let stability = if accuracies.len() > 1 {
+        let (stability, variance) = if accuracies.len() > 1 {
             let mean = accuracies.iter().sum::<f64>() / accuracies.len() as f64;
             let variance = accuracies.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / accuracies.len() as f64;
-            1.0 / (1.0 + variance.sqrt()) // Convert variance to stability score
+            (1.0 / (1.0 + variance.sqrt()), variance) // Convert variance to stability score
         } else {
-            1.0
+            (1.0, 0.0)
         };
 
         insights.push(ResearchInsight {
             id: format!("proto_stability_{}", self.experiment_count),
+            description: format!("Prototypical stability analysis with stability score {:.3}", stability),
+            evidence: vec![format!("Stability score: {:.3}", stability), format!("Performance variance: {:.3}", variance)],
             agent_type: self.id.clone(),
-            domains: vec![ResearchDomain::MetaLearning, ResearchDomain::ComputerVision],
+            domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::ComputerVision.to_string()],
             performance_impact: stability - 0.5,
             confidence: 0.75,
             knowledge_data: serde_json::json!({
@@ -791,8 +801,10 @@ where
         // Adaptation efficiency insight
         insights.push(ResearchInsight {
             id: format!("proto_adaptation_{}", self.experiment_count),
+            description: format!("Prototypical adaptation analysis with final performance {:.3}", final_performance),
+            evidence: vec![format!("Final performance: {:.3}", final_performance), format!("Training episodes: {}", accuracies.len())],
             agent_type: self.id.clone(),
-            domains: vec![ResearchDomain::MetaLearning, ResearchDomain::GeneralML],
+            domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::GeneralML.to_string()],
             performance_impact: final_performance - 0.5,
             confidence: 0.7,
             knowledge_data: serde_json::json!({
@@ -985,8 +997,10 @@ where
         vec![
             ResearchInsight {
                 id: format!("proto_performance_trend_{}", self.id),
+                description: format!("Prototypical performance trend analysis with average performance {:.3}", avg_performance),
+                evidence: vec![format!("Average performance: {:.3}", avg_performance), format!("Total experiments: {}", self.performance_history.len())],
                 agent_type: self.id.clone(),
-                domains: vec![ResearchDomain::MetaLearning, ResearchDomain::ComputerVision],
+                domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::ComputerVision.to_string()],
                 performance_impact: avg_performance - 0.5,
                 confidence: 0.8,
                 knowledge_data: serde_json::json!({

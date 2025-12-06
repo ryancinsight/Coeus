@@ -336,12 +336,10 @@ pub trait IntoAsyncIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Linear;
     use backend::cpu::CpuBackend;
-    use storage::dense::DenseStorage;
     use dtype::float::Float32;
 
-    type TestBackend = CpuBackend;
+    type TestBackend = CpuBackend<Float32>;
     type TestStorage = DenseStorage<Float32>;
     type TestDtype = Float32;
 
@@ -374,3 +372,4 @@ mod tests {
     }
 }
 
+

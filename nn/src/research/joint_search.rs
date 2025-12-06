@@ -58,7 +58,7 @@ pub struct ConvergenceMetrics {
 }
 
 /// Joint Search Algorithm Trait
-pub trait JointSearchAlgorithm: Send + Sync {
+pub trait JointSearchAlgorithm: Send + Sync + std::fmt::Debug {
     /// Execute joint NAS-HPO search
     fn joint_search(
         &self,
@@ -171,6 +171,7 @@ pub struct PromotionCriteria {
 
 /// Joint Search Framework
 /// Manages joint NAS-HPO search algorithms and orchestration
+#[derive(Debug)]
 pub struct JointSearchFramework {
     /// Registered joint search algorithms
     algorithms: HashMap<String, Box<dyn JointSearchAlgorithm>>,
@@ -389,7 +390,7 @@ impl JointSearchFramework {
         // Update transfer learning knowledge
         let architecture_family = self.classify_architecture_family(&result.best_architecture);
         self.coordination_mechanisms.transfer_learning.architecture_knowledge
-            .entry(architecture_family)
+            .entry(architecture_family.clone())
             .or_insert_with(Vec::new)
             .push(result.best_architecture.clone());
 
@@ -556,6 +557,7 @@ pub mod algorithms {
     use super::*;
 
     /// Alternating search between NAS and HPO
+    #[derive(Debug)]
     pub struct AlternatingSearch;
 
     impl AlternatingSearch {
@@ -617,7 +619,7 @@ pub mod algorithms {
 
             // Initialize with default architecture and hyperparameters
             let mut current_architecture = arch_space.sample_random(3)?;
-            let mut current_hyperparameters = hp_space.sample_random()?;
+            let mut current_hyperparameters = hp_space.sample()?;
 
             // Alternating optimization loop
             let total_rounds = arch_rounds + hp_rounds;
@@ -667,7 +669,7 @@ pub mod algorithms {
                             break;
                         }
 
-                        let candidate_hp = hp_space.sample_random()?;
+                        let candidate_hp = hp_space.sample()?;
 
                         // Evaluate joint configuration
                         let score = self.evaluate_joint_configuration(
@@ -714,7 +716,7 @@ pub mod algorithms {
                     joint_regret_bounds: Some(0.1),
                 },
                 pareto_front: None,
-                experiment_summary: framework.experiment_registry.get_experiment_summary(&context.experiment_id)?,
+                experiment_summary: framework.experiment_registry.get_experiment(&context.experiment_id).ok_or(NNError::InvalidConfiguration { message: format!("Experiment {} not found", context.experiment_id) })?.summary(),
             })
         }
 
@@ -730,10 +732,9 @@ pub mod algorithms {
 
             // Simple modulation based on hyperparameter choices
             let mut modifier = 0.0;
-            if let Some(lr) = hyperparameters.get_float("learning_rate") {
-                if lr > 0.0001 && lr < 0.1 {
-                    modifier += 0.05;
-                }
+            let lr = hyperparameters.get_float("learning_rate", 0.001);
+            if lr > 0.0001 && lr < 0.1 {
+                modifier += 0.05;
             }
 
             Ok(base_result.accuracy + modifier)
@@ -741,6 +742,7 @@ pub mod algorithms {
     }
 
     /// Concurrent search in both spaces
+    #[derive(Debug)]
     pub struct ConcurrentSearch;
 
     impl ConcurrentSearch {
@@ -774,6 +776,7 @@ pub mod algorithms {
     }
 
     // Placeholder implementations for other algorithms
+    #[derive(Debug)]
     pub struct EvolutionaryJointSearch;
     impl EvolutionaryJointSearch {
         pub fn new() -> Self { Self {} }
@@ -787,6 +790,7 @@ pub mod algorithms {
         fn description(&self) -> &str { "Evolutionary algorithms in joint space" }
     }
 
+    #[derive(Debug)]
     pub struct FactorizedSearch;
     impl FactorizedSearch {
         pub fn new() -> Self { Self {} }
@@ -804,7 +808,7 @@ pub mod algorithms {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::research::nas_integration::{ArchitectureSpace, ArchitectureType};
+    use crate::nas::search_space::{ArchitectureSpace, ArchitectureType};
 
     #[test]
     fn test_joint_search_framework_creation() {

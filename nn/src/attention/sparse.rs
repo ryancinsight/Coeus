@@ -41,7 +41,7 @@ pub enum SparseAttentionPattern {
 pub struct SparseAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
     /// Number of attention heads
@@ -580,7 +580,7 @@ where
 impl<B, S, T> SparseAttention<B, S, T>
 where
     B: Backend<Data = T>,
-    S: Storage<T> + Clone + StorageFromVec<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     /// Reshape tensor for attention computation.
@@ -614,7 +614,7 @@ where
 impl<B, S, T> fmt::Display for SparseAttention<B, S, T>
 where
     B: Backend<Data = T>,
-    S: Storage<T> + Clone + StorageFromVec<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
     T: DataType,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -890,7 +890,7 @@ mod multihead_tests {
     #[cfg(feature = "quantized")]
     #[test]
     fn test_quantized_multihead_attention() {
-        let backend = CpuBackend::new();
+        let backend = CpuBackend::<Float32>::new();
         let embed_dim = 64;
         let num_heads = 8;
 
@@ -915,7 +915,7 @@ mod multihead_tests {
     #[cfg(feature = "quantized")]
     #[test]
     fn test_quantized_sparse_attention() {
-        let backend = CpuBackend::new();
+        let backend = CpuBackend::<Float32>::new();
         let embed_dim = 64;
         let num_heads = 8;
 

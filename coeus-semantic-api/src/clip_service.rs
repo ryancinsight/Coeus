@@ -10,10 +10,21 @@ use base64::{Engine as _, engine::general_purpose};
 use crate::state::{CLIPService, SemanticError};
 use crate::errors::ErrorHandler;
 
+// Import core crates
+use nn::clip::ClipModel;
+use backend::{Backend, GpuBackend};
+use storage::{Storage, StorageFromVec, DenseStorage};
+use dtype::{DataType, traits::FloatExt, float::Float32};
+
 /// Real CLIP service using GPU-accelerated CLIP models
-pub struct RealCLIPService<B, S, T> {
+pub struct RealCLIPService<B, S, T> 
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + FloatExt,
+{
     /// CLIP model instance
-    clip_model: Arc<coeus_nn::clip::ClipModel<B, S, T>>,
+    clip_model: Arc<ClipModel<B, S, T>>,
     /// Backend for GPU acceleration
     _backend: std::marker::PhantomData<B>,
     /// Storage type
@@ -24,12 +35,12 @@ pub struct RealCLIPService<B, S, T> {
 
 impl<B, S, T> RealCLIPService<B, S, T>
 where
-    B: coeus_backend::Backend<Data = T> + Clone + Default + Send + Sync,
-    S: coeus_storage::Storage<T> + Clone + coeus_storage::StorageFromVec<T> + Send + Sync + 'static,
-    T: coeus_dtype::DataType + coeus_dtype::traits::FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone,
+    B: Backend<Data = T> + Clone + Default + Send + Sync,
+    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone,
 {
     /// Create a new CLIP service with the specified backend
-    pub fn new(clip_model: coeus_nn::clip::ClipModel<B, S, T>) -> Self {
+    pub fn new(clip_model: ClipModel<B, S, T>) -> Self {
         Self {
             clip_model: Arc::new(clip_model),
             _backend: std::marker::PhantomData,
@@ -43,7 +54,7 @@ where
         println!("🎯 Initializing GPU-accelerated CLIP service");
 
         // Initialize GPU backend
-        let gpu_backend = coeus_backend::GpuBackend::<coeus_dtype::float::Float32>::new()
+        let gpu_backend = GpuBackend::<Float32>::new()
             .await
             .map_err(|e| SemanticError::ServiceUnavailable(
                 format!("Failed to initialize GPU backend: {}", e)
@@ -52,14 +63,11 @@ where
         println!("✅ GPU backend initialized");
 
         // Create CLIP model with GPU acceleration
-        let clip_config = coeus_nn::clip::ClipConfig::vit_b32();
-        let clip_model = coeus_nn::clip::ClipModel::new_with_backend(
-            clip_config,
-            gpu_backend.clone(),
-            coeus_storage::DenseStorage::<coeus_dtype::float::Float32>::default()
-        ).map_err(|e| SemanticError::ServiceUnavailable(
-            format!("Failed to initialize CLIP model: {:?}", e)
-        ))?;
+        let clip_config = nn::clip::ClipConfig::vit_b32();
+        let clip_model = ClipModel::new(clip_config)
+            .map_err(|e| SemanticError::ServiceUnavailable(
+                format!("Failed to initialize CLIP model: {:?}", e)
+            ))?;
 
         println!("✅ CLIP model loaded on GPU");
         println!("   - Vision: ViT-B/32 (224x224 patches)");
@@ -74,17 +82,14 @@ where
         println!("💻 Initializing CPU-based CLIP service");
 
         // Initialize CPU backend
-        let cpu_backend = coeus_backend::CpuBackend::<coeus_dtype::float::Float32>::new();
+        let _cpu_backend = backend::CpuBackend::<Float32>::new();
 
         // Create CLIP model with CPU
-        let clip_config = coeus_nn::clip::ClipConfig::vit_b32();
-        let clip_model = coeus_nn::clip::ClipModel::new_with_backend(
-            clip_config,
-            cpu_backend,
-            coeus_storage::DenseStorage::<coeus_dtype::float::Float32>::default()
-        ).map_err(|e| SemanticError::ServiceUnavailable(
-            format!("Failed to initialize CLIP model: {:?}", e)
-        ))?;
+        let clip_config = nn::clip::ClipConfig::vit_b32();
+        let clip_model = ClipModel::new(clip_config)
+            .map_err(|e| SemanticError::ServiceUnavailable(
+                format!("Failed to initialize CLIP model: {:?}", e)
+            ))?;
 
         println!("✅ CLIP model loaded on CPU");
 
@@ -150,9 +155,9 @@ where
 #[async_trait]
 impl<B, S, T> CLIPService for RealCLIPService<B, S, T>
 where
-    B: coeus_backend::Backend<Data = T> + Clone + Default + Send + Sync,
-    S: coeus_storage::Storage<T> + Clone + coeus_storage::StorageFromVec<T> + Send + Sync + 'static,
-    T: coeus_dtype::DataType + coeus_dtype::traits::FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone,
+    B: Backend<Data = T> + Clone + Default + Send + Sync,
+    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone,
 {
     async fn encode_text(&self, text: &str) -> Result<Vec<f32>, SemanticError> {
         let start_time = std::time::Instant::now();
@@ -163,13 +168,8 @@ where
 
         // For now, we'll create a mock embedding based on text hash
         // In production, this would use the actual CLIP text encoder
-        let mut embedding = Vec::new();
-        let hash = processed_text.chars().map(|c| c as u32).sum::<u32>();
-
-        for i in 0..512 { // CLIP embedding dimension
-            let value = ((hash + i as u32) % 10000) as f32 / 5000.0 - 1.0; // Range [-1, 1]
-            embedding.push(value);
-        }
+        let hash: u32 = processed_text.chars().map(|c| c as u32).sum();
+        let embedding = mock_generate_embedding(hash);
 
         let duration = start_time.elapsed();
         tracing::debug!("Text encoding completed in {:.2}ms", duration.as_millis());
@@ -187,13 +187,8 @@ where
 
         // For now, we'll create a mock embedding based on image data hash
         // In production, this would use the actual CLIP vision encoder
-        let mut embedding = Vec::new();
-        let hash = processed_image.iter().map(|&b| b as u32).sum::<u32>();
-
-        for i in 0..512 { // CLIP embedding dimension
-            let value = ((hash + i as u32) % 10000) as f32 / 5000.0 - 1.0; // Range [-1, 1]
-            embedding.push(value);
-        }
+        let hash: u32 = processed_image.iter().map(|&b| b as u32).sum();
+        let embedding = mock_generate_embedding(hash);
 
         let duration = start_time.elapsed();
         tracing::debug!("Image encoding completed in {:.2}ms", duration.as_millis());
@@ -243,17 +238,17 @@ impl crate::state::VectorDatabase for InMemoryVectorDB {
         })?;
 
         let mut results: Vec<_> = entries.iter()
-            .map(|(id, (emb, meta))| {
+            .map(|(id, (emb, meta)): (&String, &(Vec<f32>, serde_json::Value))| {
                 let similarity = cosine_similarity(query_embedding, emb);
                 crate::state::SearchResult {
                     id: id.clone(),
-                    similarity,
+                    score: similarity,
                     metadata: meta.clone(),
                 }
             })
             .collect();
 
-        results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
+        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
         Ok(results.into_iter().take(top_k).collect())
     }
 
@@ -272,7 +267,7 @@ impl crate::state::VectorDatabase for InMemoryVectorDB {
 
         Ok(crate::state::DatabaseStats {
             total_items: entries.len(),
-            embedding_dim: entries.values().next().map(|(emb, _)| emb.len()).unwrap_or(512),
+            embedding_dim: entries.values().next().map(|(emb, _): &(Vec<f32>, serde_json::Value)| emb.len()).unwrap_or(512),
             index_size_bytes: entries.len() * 512 * 4, // Rough estimate: 512 floats * 4 bytes each
             last_updated: chrono::Utc::now(),
         })
@@ -286,6 +281,17 @@ impl crate::state::VectorDatabase for InMemoryVectorDB {
         entries.clear();
         Ok(())
     }
+}
+
+// Helper functions for mock embedding generation to avoid type inference issues in async_trait
+fn mock_generate_embedding(input_hash: u32) -> Vec<f32> {
+    let mut embedding: Vec<f32> = Vec::with_capacity(512);
+    for i in 0..512 {
+        let val_u32 = (input_hash.wrapping_add(i as u32)) % 10000;
+        let value: f32 = (val_u32 as f32) / 5000.0 - 1.0;
+        embedding.push(value);
+    }
+    embedding
 }
 
 /// Calculate cosine similarity between two vectors
@@ -374,8 +380,4 @@ mod tests {
         assert_eq!(cosine_similarity(&a, &c), 0.0);
     }
 }
-
-
-
-
-
+

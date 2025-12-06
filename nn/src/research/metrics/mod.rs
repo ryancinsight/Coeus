@@ -28,21 +28,21 @@ pub enum ExportFormat {
 }
 
 /// Export result types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ExportResult {
     Json(serde_json::Value),
     Csv(String),
 }
 
 /// Aggregation rule for metrics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct AggregationRule {
     pub name: String,
     pub operation: AggregationOperation,
 }
 
 /// Aggregation operation types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum AggregationOperation {
     Mean,
     Sum,
@@ -70,7 +70,7 @@ impl AggregationRule {
 }
 
 /// Metric alert configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MetricAlert {
     pub metric_name: String,
     pub condition: AlertCondition,
@@ -79,7 +79,7 @@ pub struct MetricAlert {
 }
 
 /// Alert condition types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum AlertCondition {
     AboveThreshold(f64),
     BelowThreshold(f64),
@@ -97,7 +97,7 @@ impl AlertCondition {
 }
 
 /// Alert severity levels
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum AlertSeverity {
     Low,
     Medium,
@@ -106,7 +106,7 @@ pub enum AlertSeverity {
 }
 
 /// Statistical analysis of metric data
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StatisticalAnalysis {
     pub mean: f64,
     pub median: f64,
@@ -185,7 +185,7 @@ pub struct MetricComparison {
 }
 
 /// Comprehensive metrics report
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MetricsReport {
     pub title: String,
     pub generated_at: chrono::DateTime<chrono::Utc>,
@@ -196,7 +196,7 @@ pub struct MetricsReport {
 }
 
 /// Individual metric data
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MetricData {
     pub name: String,
     pub entries: Vec<MetricEntry>,
@@ -204,7 +204,7 @@ pub struct MetricData {
 }
 
 /// Metrics summary statistics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MetricsSummary {
     pub total_metrics: u64,
     pub active_metrics: usize,
@@ -213,8 +213,16 @@ pub struct MetricsSummary {
     pub data_points: usize,
 }
 
+impl std::fmt::Display for MetricsSummary {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Total Metrics: {}, Active: {}, Collections: {}, Alerts: {}, Data Points: {}",
+               self.total_metrics, self.active_metrics, self.total_collections,
+               self.alerts_triggered, self.data_points)
+    }
+}
+
 /// Central research metrics collection and analysis system
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct MetricsCollector {
     /// Active metric collectors by category
     collectors: HashMap<String, Box<dyn MetricCollector>>,
@@ -230,6 +238,10 @@ pub struct MetricsCollector {
     analysis_results: HashMap<String, StatisticalAnalysis>,
     /// Collection statistics
     stats: MetricsCollectionStats,
+    /// Number of alerts triggered
+    alerts_triggered: usize,
+    /// Total number of data points collected
+    data_points: usize,
 }
 
 impl MetricsCollector {
@@ -243,6 +255,8 @@ impl MetricsCollector {
             config: MetricsConfig::default(),
             analysis_results: HashMap::new(),
             stats: MetricsCollectionStats::default(),
+            alerts_triggered: 0,
+            data_points: 0,
         }
     }
 
@@ -253,11 +267,17 @@ impl MetricsCollector {
 
     /// Collect metrics from registered collectors
     pub fn collect_metrics(&mut self) -> crate::error::Result<()> {
+        let mut all_metrics = Vec::new();
+
+        // Collect all metrics first
         for (name, collector) in &mut self.collectors {
             let metrics = collector.collect_metrics()?;
-            for metric in metrics {
-                self.store_metric(metric);
-            }
+            all_metrics.extend(metrics);
+        }
+
+        // Then store them (avoiding double mutable borrow)
+        for metric in all_metrics {
+            self.store_metric(metric);
         }
 
         self.update_aggregations()?;
@@ -370,7 +390,32 @@ impl MetricsCollector {
     /// Export metrics in various formats
     pub fn export(&self, format: ExportFormat) -> ExportResult {
         match format {
-            ExportFormat::Json => ExportResult::Json(serde_json::to_value(self).unwrap_or_default()),
+            ExportFormat::Json => {
+                #[derive(serde::Serialize)]
+                struct MetricsExport<'a> {
+                    metrics_data: &'a BTreeMap<String, Vec<MetricEntry>>,
+                    aggregations: &'a HashMap<String, AggregationRule>,
+                    alerts: &'a Vec<MetricAlert>,
+                    config: &'a MetricsConfig,
+                    analysis_results: &'a HashMap<String, StatisticalAnalysis>,
+                    stats: &'a MetricsCollectionStats,
+                    alerts_triggered: usize,
+                    data_points: usize,
+                }
+
+                let export_data = MetricsExport {
+                    metrics_data: &self.metrics_data,
+                    aggregations: &self.aggregations,
+                    alerts: &self.alerts,
+                    config: &self.config,
+                    analysis_results: &self.analysis_results,
+                    stats: &self.stats,
+                    alerts_triggered: self.alerts_triggered,
+                    data_points: self.data_points,
+                };
+
+                ExportResult::Json(serde_json::to_value(&export_data).unwrap_or_default())
+            },
             ExportFormat::Csv => ExportResult::Csv(self.export_csv()),
             ExportFormat::Plotly => ExportResult::Json(self.export_plotly()),
         }
@@ -385,15 +430,23 @@ impl MetricsCollector {
     }
 
     fn update_aggregations(&mut self) -> crate::error::Result<()> {
+        let mut aggregations_to_record = Vec::new();
+
+        // Collect aggregations first (immutable borrow)
         for (metric_name, rule) in &self.aggregations {
             if let Some(entries) = self.metrics_data.get(metric_name) {
                 let values: Vec<f64> = entries.iter().map(|e| e.value).collect();
                 let aggregated_value = rule.apply(&values)?;
-
-                let context = HashMap::from([("aggregation".to_string(), serde_json::Value::String(format!("{:?}", rule.operation)))]);
-                self.record_metric(format!("{}_{}", metric_name, rule.name), aggregated_value, None, context);
+                aggregations_to_record.push((metric_name.clone(), rule.name.clone(), aggregated_value, rule.operation.clone()));
             }
         }
+
+        // Record them with mutable borrow
+        for (metric_name, rule_name, aggregated_value, operation) in aggregations_to_record {
+            let context = HashMap::from([("aggregation".to_string(), serde_json::Value::String(format!("{:?}", operation)))]);
+            self.record_metric(format!("{}_{}", metric_name, rule_name), aggregated_value, None, context);
+        }
+
         Ok(())
     }
 
@@ -481,7 +534,6 @@ impl MetricsCollector {
 
         // Analyze metric distributions and suggest improvements
         for (name, analysis) in &self.analysis_results {
-            if let Some(analysis) = analysis {
                 if analysis.variance > analysis.mean * 0.5 {
                     recommendations.push(format!("High variance detected in '{}'. Consider stabilizing the metric.", name));
                 }
@@ -489,7 +541,6 @@ impl MetricsCollector {
                 if analysis.outliers.len() > analysis.data_points as usize / 10 {
                     recommendations.push(format!("Many outliers detected in '{}'. Consider data cleaning.", name));
                 }
-            }
         }
 
         recommendations
@@ -584,7 +635,7 @@ pub struct MetricsCollectionStats {
 }
 
 /// Trait for custom metric collectors
-pub trait MetricCollector {
+pub trait MetricCollector: std::fmt::Debug {
     /// Collect metrics from this collector
     fn collect_metrics(&mut self) -> crate::error::Result<Vec<MetricEntry>>;
 

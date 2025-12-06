@@ -36,7 +36,7 @@ pub fn linear(
 
     // Add bias if provided: output = output + bias
     let result = if let Some(bias_tensor) = bias {
-        add(&output, bias_tensor)
+        add(&output, bias_tensor)?
     } else {
         output
     };

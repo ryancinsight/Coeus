@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use serde::{Serialize, Deserialize};
 
 /// Artifact storage and management system
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ArtifactStorage {
     /// Stored artifacts by ID
     pub artifacts: HashMap<String, Artifact>,
@@ -42,11 +42,12 @@ impl ArtifactStorage {
         }
 
         // Create artifact metadata
+        let content_type = self.infer_content_type(&artifact_type);
         let mut artifact = Artifact {
             id: artifact_id.clone(),
             name,
             artifact_type,
-            content_type: self.infer_content_type(&artifact_type),
+            content_type,
             size_bytes,
             checksum: self.calculate_checksum(&data),
             created_at: chrono::Utc::now(),
@@ -238,7 +239,8 @@ impl ArtifactStorage {
                 .unwrap_or(self.storage_config.default_max_per_type);
 
             // Remove oldest artifacts beyond limit
-            for (_, id) in artifacts.into_iter().take(artifacts.len().saturating_sub(max_keep)) {
+            let total_artifacts = artifacts.len();
+            for (_, id) in artifacts.into_iter().take(total_artifacts.saturating_sub(max_keep)) {
                 self.delete_artifact(&id)?;
             }
         }
@@ -467,15 +469,16 @@ impl ArtifactArchive {
 
     /// Archive artifact
     pub fn archive_artifact(&mut self, artifact: Artifact) -> crate::error::Result<String> {
+        let artifact_id = artifact.id.clone();
         // Create archive entry
         let archived = ArchivedArtifact {
-            original_id: artifact.id.clone(),
+            original_id: artifact_id.clone(),
             archived_at: chrono::Utc::now(),
             artifact,
         };
 
-        self.archived.insert(artifact.id.clone(), archived);
-        Ok(artifact.id)
+        self.archived.insert(artifact_id.clone(), archived);
+        Ok(artifact_id)
     }
 
     /// Retrieve archived artifact
@@ -491,7 +494,7 @@ impl ArtifactArchive {
     /// Export archive to file
     pub fn export_archive(&self, export_path: &Path) -> crate::error::Result<()> {
         let archive_data = serde_json::to_vec_pretty(&self.archived)
-            .map_err(|_| crate::error::NNError::SerializationError)?;
+            .map_err(|e| crate::error::NNError::SerializationError { message: format!("Failed to serialize archived data: {}", e) })?;
         std::fs::write(export_path, archive_data)
             .map_err(|e| crate::error::NNError::IoError { error: e })
     }

@@ -14,7 +14,7 @@ use std::sync::Arc;
 /// This trait enables safe downcasting of trait objects to concrete types
 /// without creating circular dependencies between tensor and autograd crates.
 /// The autograd crate will provide implementations of this trait.
-pub trait AsAny {
+pub trait AsAny: Send + Sync {
     /// Get as Any reference for downcasting
     fn as_any(&self) -> &dyn Any;
 }
@@ -30,7 +30,17 @@ where
     }
 }
 
-pub trait DifferentiableFunction<B, S, T>: Send + Sync + fmt::Debug + AsAny
+/// Wrapper to store string operation names as AsAny objects
+#[derive(Debug, Clone)]
+pub struct OperationName(pub String);
+
+impl AsAny for OperationName {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+pub trait DifferentiableFunction<B, S, T>: fmt::Debug + AsAny
 where
     B: Backend<Data = T>,
     S: Storage<T>,
@@ -69,6 +79,7 @@ where
     /// # Returns
     /// Vector of gradient tensors w.r.t. each input, in the same order as inputs.
     fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>>;
+
 }
 
 
@@ -159,7 +170,7 @@ where
     pub(crate) grad: Arc<spin::RwLock<Option<alloc::boxed::Box<Tensor<B, S, T>>>>>,
     /// Function that created this tensor (for automatic differentiation)
     /// None if this tensor was created directly (leaf tensor)
-    pub(crate) grad_fn: Option<String>,
+    pub(crate) grad_fn: Option<Arc<dyn AsAny + Send + Sync>>,
 }
 
 // Implement Clone when all components are Clone
@@ -196,7 +207,7 @@ where
             .field("shape", &self.storage.shape())
             .field("len", &self.storage.len())
             .field("requires_grad", &self.requires_grad)
-            .field("has_grad", &true) // Simplified for Debug - checking RwLock would require locking
+            .field("has_grad", &self.grad.read().is_ok_and(|opt| opt.is_some()))
             .finish()
     }
 }

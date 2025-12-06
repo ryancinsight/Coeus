@@ -12,6 +12,7 @@ use super::{ResearchAgent, ResearchAgentFactory};
 
 /// Thread-safe registry for research agents
 #[derive(Default)]
+#[derive(Debug)]
 pub struct ResearchAgentRegistry {
     /// Registered agent factories
     factories: RwLock<HashMap<String, Box<dyn ResearchAgentFactory>>>,

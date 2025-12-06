@@ -5,18 +5,24 @@
 //! and is used in modern transformer architectures like GPT-NeoX, PaLM, and LLaMA.
 
 use crate::error::{NNError, Result};
-use crate::backend_crate::Backend;
-use crate::storage_crate::{Storage, DenseStorage, StorageFromVec, StorageToDense};
-use crate::dtype_crate::DataType;
-use crate::tensor_crate::FloatExt;
-use crate::tensor_crate::Tensor;
+use backend::Backend;
+use storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+use dtype::DataType;
+use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::creation::*};
 use crate::parameter::Parameter;
+use tensor::ops::reduction::*;
+use autograd::ops::mean;
 
 /// RMSNorm layer
 ///
 /// RMSNorm(x) = (x / sqrt(mean(x^2) + ε)) * g
 /// where g is a learnable parameter and ε is a small constant for numerical stability
-pub struct RMSNorm<B, S, T> {
+pub struct RMSNorm<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync,
+    T: DataType + 'static + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
+{
     /// Learnable scaling parameter (gamma)
     weight: Parameter<B, S, T>,
     /// Normalized shape
@@ -29,9 +35,9 @@ pub struct RMSNorm<B, S, T> {
 
 impl<B, S, T> RMSNorm<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
-    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync,
+    T: DataType + 'static + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
 {
     /// Create a new RMSNorm layer
     ///
@@ -44,10 +50,14 @@ where
             // Initialize weight to ones (identity transformation initially)
             let weight_size = normalized_shape.iter().product();
             let weight_data = vec![T::one(); weight_size];
-            Parameter::new_from_vec(weight_data, &normalized_shape)?
+            let weight_tensor = Tensor::from_vec(weight_data, &normalized_shape)?;
+            Parameter::new(weight_tensor, "weight".to_string())
         } else {
-            // Create empty parameter if not using elementwise affine
-            Parameter::new_empty()?
+            // For non-elementwise affine, we still need a dummy parameter
+            // Create a minimal tensor for the parameter structure
+            let dummy_data = vec![T::one(); 1];
+            let dummy_tensor = Tensor::from_vec(dummy_data, &[1])?;
+            Parameter::new(dummy_tensor, "weight".to_string())
         };
 
         Ok(Self {
@@ -81,7 +91,7 @@ where
 
         // Apply elementwise affine transformation if enabled
         if self.elementwise_affine {
-            normalized.mul(&self.weight.tensor()?)
+            Ok(mul(&normalized, self.weight.data())?)
         } else {
             Ok(normalized)
         }
@@ -92,23 +102,23 @@ where
         // RMSNorm(x) = x / sqrt(mean(x^2) + ε)
 
         // Compute x^2 element-wise
-        let squared = input.mul(input)?;
+        let squared = mul(input, input)?;
 
         // Compute mean along normalized dimensions
         let mean_squared = self.compute_mean_along_dims(&squared)?;
 
         // Add epsilon for numerical stability
         let eps_tensor = Tensor::full_like(&mean_squared, T::from(self.eps).unwrap())?;
-        let variance = mean_squared.add(&eps_tensor)?;
+        let variance = add(&mean_squared, &eps_tensor)?;
 
         // Compute sqrt(variance)
-        let rms = variance.sqrt()?;
+        let rms = sqrt(&variance)?;
 
         // Broadcast RMS back to input shape for element-wise division
         let rms_broadcast = self.broadcast_to_input_shape(&rms, input.shape().dims())?;
 
         // Normalize: x / rms
-        input.div(&rms_broadcast)
+        Ok(div(input, &rms_broadcast)?)
     }
 
     /// Compute mean along the normalized dimensions
@@ -130,21 +140,10 @@ where
     /// Compute mean along the last dimension
     fn mean_along_last_dim(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let shape = input.shape().dims();
-        let last_dim = *shape.last().ok_or_else(|| {
-            NNError::InvalidInput("Input tensor must have at least one dimension".to_string())
-        })?;
+        let last_dim_idx = shape.len() - 1;
 
-        // Sum along last dimension
-        let mut sum = Tensor::zeros(&shape[..shape.len() - 1])?;
-
-        for i in 0..last_dim {
-            let slice = input.slice(&[], &[i])?;
-            sum = sum.add(&slice)?;
-        }
-
-        // Divide by dimension size to get mean
-        let dim_size = T::from(last_dim as f64).unwrap();
-        sum.div_scalar(dim_size)
+        // Use tensor reduction to compute mean along last dimension
+        Ok(mean(input, Some(&[last_dim_idx]), false)?)
     }
 
     /// Broadcast RMS tensor back to input shape
@@ -166,7 +165,7 @@ where
                 }
             }
 
-            Tensor::new_from_vec(expanded_data, &expanded_shape)
+            Ok(Tensor::from_vec(expanded_data, &expanded_shape)?)
         } else {
             // For now, assume shapes are compatible
             Ok(rms.clone())
@@ -176,9 +175,9 @@ where
     /// Validate that input shape is compatible with normalized shape
     fn validate_input_shape(&self, input_shape: &[usize]) -> Result<()> {
         if input_shape.is_empty() {
-            return Err(NNError::InvalidInput(
-                "Input tensor cannot be empty".to_string(),
-            ));
+            return Err(NNError::InvalidInput {
+                message: "Input tensor cannot be empty".to_string(),
+            });
         }
 
         // For last-dimension normalization (most common case)
@@ -187,12 +186,12 @@ where
             let actual_last_dim = *input_shape.last().unwrap();
 
             if actual_last_dim != expected_last_dim {
-                return Err(NNError::InvalidInput(
-                    format!(
+                return Err(NNError::InvalidInput {
+                    message: format!(
                         "Input last dimension {} does not match normalized shape {}",
                         actual_last_dim, expected_last_dim
                     ),
-                ));
+                });
             }
         }
 
@@ -259,9 +258,9 @@ impl RMSNormConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::CpuBackend;
-    use crate::dtype::float::Float32;
-    use crate::storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     type TestBackend = CpuBackend<Float32>;
     type TestStorage = DenseStorage<Float32>;
@@ -286,8 +285,13 @@ mod tests {
         let rms_norm = RMSNorm::<TestBackend, TestStorage, TestDataType>::new_default(vec![4]).unwrap();
 
         // Create test input
-        let input_data = vec![1.0, 2.0, 3.0, 4.0]; // RMS = sqrt((1+4+9+16)/4) = sqrt(7.5) ≈ 2.7386
-        let input = Tensor::new_from_vec(input_data, &[4]).unwrap();
+        let input_data = vec![
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+        ]; // RMS = sqrt((1+4+9+16)/4) = sqrt(7.5) ≈ 2.7386
+        let input = Tensor::from_vec(input_data, &[4]).unwrap();
 
         let output = rms_norm.forward(&input).unwrap();
 
@@ -298,10 +302,10 @@ mod tests {
         let output_data = output.as_slice();
 
         // First element: 1.0 / 2.7386 ≈ 0.365
-        assert!(output_data[0] > 0.3 && output_data[0] < 0.4);
+        assert!(output_data[0] > Float32::new(0.3) && output_data[0] < Float32::new(0.4));
 
         // Last element: 4.0 / 2.7386 ≈ 1.46
-        assert!(output_data[3] > 1.4 && output_data[3] < 1.5);
+        assert!(output_data[3] > Float32::new(1.4) && output_data[3] < Float32::new(1.5));
     }
 
     #[test]
@@ -309,17 +313,17 @@ mod tests {
         let rms_norm = RMSNorm::<TestBackend, TestStorage, TestDataType>::new_default(vec![3]).unwrap();
 
         // Create input with different scales
-        let input_data = vec![0.1, 0.2, 0.3];
-        let input = Tensor::new_from_vec(input_data, &[3]).unwrap();
+        let input_data = vec![Float32::new(0.1), Float32::new(0.2), Float32::new(0.3)];
+        let input = Tensor::from_vec(input_data, &[3]).unwrap();
 
         let output = rms_norm.forward(&input).unwrap();
         let output_data = output.as_slice();
 
         // RMS norm should preserve relative magnitudes
         // All values should be scaled by the same factor
-        let scale = output_data[0] / 0.1;
-        assert!((output_data[1] / 0.2 - scale).abs() < 1e-6);
-        assert!((output_data[2] / 0.3 - scale).abs() < 1e-6);
+        let scale = output_data[0] / Float32::new(0.1);
+        assert!((output_data[1] / Float32::new(0.2) - scale).abs() < Float32::new(1e-6));
+        assert!((output_data[2] / Float32::new(0.3) - scale).abs() < Float32::new(1e-6));
     }
 
     #[test]
@@ -327,7 +331,7 @@ mod tests {
         let rms_norm = RMSNorm::<TestBackend, TestStorage, TestDataType>::new_default(vec![64]).unwrap();
 
         // Wrong shape should fail
-        let wrong_input = Tensor::new_from_vec(vec![1.0; 32], &[32]).unwrap();
+        let wrong_input = Tensor::from_vec(vec![Float32::new(1.0); 32], &[32]).unwrap();
         let result = rms_norm.forward(&wrong_input);
         assert!(result.is_err());
     }
@@ -338,8 +342,13 @@ mod tests {
             vec![4], 1e-5, false
         ).unwrap();
 
-        let input_data = vec![1.0, 2.0, 3.0, 4.0];
-        let input = Tensor::new_from_vec(input_data, &[4]).unwrap();
+        let input_data = vec![
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+        ];
+        let input = Tensor::from_vec(input_data, &[4]).unwrap();
 
         let output = rms_norm.forward(&input).unwrap();
 
@@ -348,7 +357,7 @@ mod tests {
 
         // Should be same as with affine but weight=1
         let expected_rms = ((1.0 + 4.0 + 9.0 + 16.0) / 4.0).sqrt();
-        assert!((output_data[0] - 1.0 / expected_rms).abs() < 1e-5);
+        assert!((output_data[0] - Float32::new(1.0) / Float32::new(expected_rms as f32)).abs() < Float32::new(1e-5));
     }
 
     #[test]
@@ -365,8 +374,5 @@ mod tests {
         assert_eq!(custom_eps.eps, 1e-6);
     }
 }
-
-
-
 
 

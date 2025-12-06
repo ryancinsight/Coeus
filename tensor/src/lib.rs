@@ -58,6 +58,7 @@ pub mod ops {
     pub mod creation;
     pub mod matrix;
     pub mod reduction;
+    pub mod tensor_ops;
 }
 
 // Temporarily disabled due to alloc issues
@@ -65,6 +66,7 @@ pub mod minimal_tensor;
 pub mod tensor_backend_dispatch;
 pub mod tensor_backend_integration_tests;
 pub mod tensor_core;
+pub mod functions;
 pub mod tensor_impl;
 
 // Additional modules
@@ -73,7 +75,7 @@ pub mod error;
 pub mod shape_ops;
 
 // Re-export full tensor implementation
-pub use tensor_core::{AsAny, DifferentiableFunction, Function, Tensor};
+pub use tensor_core::{AsAny, DifferentiableFunction, Function, OperationName, Tensor};
 
 // Re-export error types and utilities
 

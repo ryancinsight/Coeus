@@ -79,15 +79,20 @@ pub trait VisionLanguageData: Send + Sync {
     }
 
     /// Get image-text pair by index
-    async fn get(&self, index: usize) -> Result<ImageTextPair>;
+    fn get(&self, index: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>>;
 
     /// Get batch of image-text pairs
-    async fn get_batch(&self, indices: &[usize]) -> Result<Vec<ImageTextPair>> {
-        let mut pairs = Vec::with_capacity(indices.len());
-        for &idx in indices {
-            pairs.push(self.get(idx).await?);
-        }
-        Ok(pairs)
+    fn get_batch(&self, indices: &[usize]) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<ImageTextPair>>> + Send + '_>> {
+        let indices = indices.to_vec();
+        let get_futures: Vec<_> = indices.iter().map(|&idx| self.get(idx)).collect();
+
+        Box::pin(async move {
+            let mut pairs = Vec::with_capacity(get_futures.len());
+            for future in get_futures {
+                pairs.push(future.await?);
+            }
+            Ok(pairs)
+        })
     }
 
     /// Get dataset split (train/val/test)

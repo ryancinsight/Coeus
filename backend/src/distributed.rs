@@ -643,7 +643,7 @@ mod tests {
             access_pattern: MemoryAccessPattern::Dense,
             compute_intensity: 50.0,
             data_locality: DataLocality::High,
-            operation_type: OperationDype::MatrixMultiplication,
+            operation_type: OperationType::MatrixMultiplication,
         }
     }
 

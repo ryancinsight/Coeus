@@ -6,8 +6,8 @@ use crate::error::{NNError, Result};
 use crate::module::Module;
 use backend::Backend;
 use dtype::DataType;
-use storage::{CooStorage, CscStorage, CsrStorage, Storage, StorageFromVec};
-use tensor::Tensor;
+use storage::{CooStorage, CscStorage, CsrStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::{ops::arithmetic, Tensor};
 
 /// Trait for parameter-like objects that can be used in modules.
 pub trait ParameterTrait {
@@ -24,7 +24,7 @@ pub trait ParameterTrait {
 pub struct Parameter<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     /// The parameter data tensor - may require gradients
@@ -36,7 +36,7 @@ where
 impl<B, S, T> Parameter<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     /// Create a new parameter from tensor data.
@@ -66,7 +66,7 @@ where
 impl<B, S, T> ParameterTrait for Parameter<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     fn name(&self) -> &str {
@@ -77,9 +77,56 @@ where
 impl<B, S, T> Parameter<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
+    /// Update parameter data using gradient descent.
+    ///
+    /// This performs: `parameter = parameter - learning_rate * gradient`
+    ///
+    /// # Arguments
+    /// * `gradient` - The gradient tensor with the same shape as the parameter
+    /// * `learning_rate` - The learning rate for the update
+    ///
+    /// # Errors
+    /// Returns an error if the gradient shape doesn't match the parameter shape
+    pub fn update_with_gradient(&mut self, gradient: &Tensor<B, S, T>, learning_rate: f64) -> Result<()> {
+        if self.data.shape() != gradient.shape() {
+            return Err(NNError::InvalidInput {
+                message: format!(
+                    "Gradient shape {:?} does not match parameter shape {:?}",
+                    gradient.shape().dims(),
+                    self.data.shape().dims()
+                ),
+            });
+        }
+
+        // Convert learning rate to parameter type
+        let lr = T::from(learning_rate).unwrap_or(T::from(learning_rate).unwrap_or(T::zero()));
+
+        // Create learning rate tensor for broadcasting
+        let lr_tensor = Tensor::<B, S, T>::from_vec(vec![lr], &[1])?;
+
+        // Compute update: lr * gradient
+        let update = arithmetic::mul(gradient, &lr_tensor)?;
+
+        // Update parameter: parameter -= update
+        self.data = arithmetic::sub(&self.data, &update)?;
+
+        Ok(())
+    }
+
+    /// Get mutable reference to the parameter data tensor.
+    ///
+    /// This is used by optimizers and other components that need to modify
+    /// parameter values directly.
+    ///
+    /// # Returns
+    /// Mutable reference to the parameter tensor
+    pub fn data_mut(&mut self) -> &mut Tensor<B, S, T> {
+        &mut self.data
+    }
+
     /// Create a new sparse CSR parameter from dense initialization with sparsity pattern.
     ///
     /// This creates a sparse parameter by initializing with a dense pattern and then
@@ -353,13 +400,7 @@ where
         &self.data
     }
 
-    /// Get mutable access to the parameter tensor for updates.
-    ///
-    /// # Returns
-    /// A mutable reference to the underlying tensor.
-    pub fn data_mut(&mut self) -> &mut Tensor<B, S, T> {
-        &mut self.data
-    }
+
 
     /// Check if this parameter requires gradient computation.
     ///
@@ -461,7 +502,7 @@ where
 impl<B, S, T> fmt::Display for Parameter<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -542,7 +583,7 @@ mod tests {
 
     #[test]
     fn test_sparse_csr_parameter_creation() {
-        let backend = CpuBackend::new();
+        let backend = CpuBackend::<Float32>::new();
         let param =
             Parameter::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_sparse_csr(
                 backend.clone(),
@@ -569,7 +610,7 @@ mod tests {
 
     #[test]
     fn test_sparse_csc_parameter_creation() {
-        let backend = CpuBackend::new();
+        let backend = CpuBackend::<Float32>::new();
         let param =
             Parameter::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_sparse_csc(
                 backend.clone(),
@@ -587,7 +628,7 @@ mod tests {
 
     #[test]
     fn test_sparse_coo_parameter_creation() {
-        let backend = CpuBackend::new();
+        let backend = CpuBackend::<Float32>::new();
         let param =
             Parameter::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_sparse_coo(
                 backend.clone(),
@@ -605,7 +646,7 @@ mod tests {
 
     #[test]
     fn test_empty_sparse_parameters() {
-        let backend = CpuBackend::new();
+        let backend = CpuBackend::<Float32>::new();
 
         // Test empty CSR
         let csr_param =
@@ -643,7 +684,7 @@ mod tests {
 
     #[test]
     fn test_sparse_parameter_validation() {
-        let backend = CpuBackend::new();
+        let backend = CpuBackend::<Float32>::new();
 
         // Test invalid dimensions (1D)
         let result =
@@ -687,7 +728,7 @@ mod tests {
 impl<B, S, T> Module<B, S, T> for Parameter<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
@@ -712,7 +753,7 @@ where
         }
 
         // Create zero gradient tensor with validated shape
-        match Tensor::zeros(shape_dims) {
+        match Tensor::<B, S, T>::zeros(shape_dims) {
             Ok(zero_grad) => {
                 let _ = self.data.set_grad(zero_grad);
             }

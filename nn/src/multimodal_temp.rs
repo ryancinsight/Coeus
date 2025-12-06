@@ -107,7 +107,7 @@ where
     ) -> Result<Self> {
         let attention = MultiHeadAttention::new(num_heads, hidden_dim)?;
         let out_proj = Linear::new(hidden_dim, hidden_dim)?;
-        let norm = LayerNorm::new(hidden_dim, 1e-6)?;
+        let norm = LayerNorm::new(hidden_dim, 1e-6);
 
         Ok(Self {
             query_modality,

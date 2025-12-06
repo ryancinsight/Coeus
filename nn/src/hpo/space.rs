@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use crate::error::{NNError, Result};
 
 /// Hyperparameter configuration value
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum HyperparameterValue {
     /// Continuous value
     Float(f64),
@@ -22,7 +22,7 @@ pub enum HyperparameterValue {
 }
 
 /// Hyperparameter definition with range/constraints
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Hyperparameter {
     /// Continuous hyperparameter with bounds
     Float {
@@ -116,8 +116,7 @@ impl Hyperparameter {
 }
 
 /// Complete hyperparameter configuration
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HyperparameterConfig {
     /// Configuration values
     pub values: HashMap<String, HyperparameterValue>,
@@ -126,7 +125,9 @@ pub struct HyperparameterConfig {
 impl HyperparameterConfig {
     /// Create a new empty configuration
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            values: HashMap::new(),
+        }
     }
 }
 
@@ -304,7 +305,7 @@ impl HyperparameterConfig {
 }
 
 /// Hyperparameter search space definition
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[derive(Default)]
 pub struct HyperparameterSpace {
     /// Hyperparameters in the space
@@ -459,7 +460,7 @@ impl HyperparameterSpace {
 }
 
 /// Hyperparameter constraint
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum HyperparameterConstraint {
     /// Value must be less than another
     LessThan { param1: String, param2: String },

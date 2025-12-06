@@ -341,6 +341,12 @@ impl<T: crate::DataType> Storage<T> for StridedStorage<T> {
     fn as_storage_ref(&self) -> &Self {
         self
     }
+
+    fn full(dims: &[usize], value: T) -> crate::Result<Self> {
+        let size = dims.iter().product();
+        let data = vec![value; size];
+        Self::new(data, dims)
+    }
 }
 
 impl<T: crate::DataType> crate::StorageFromVec<T> for StridedStorage<T> {

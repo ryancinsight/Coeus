@@ -6,53 +6,10 @@
 
 use std::collections::HashMap;
 
-#[cfg(feature = "rand")]
 use rand::prelude::*;
-#[cfg(feature = "rand")]
 use rand::{Rng, SeedableRng};
-#[cfg(feature = "rand_pcg")]
 use rand_pcg::Pcg64;
 
-// Fallback implementations for when rand features are not enabled
-#[cfg(not(feature = "rand"))]
-mod dummy_rand {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-
-    pub trait Rng {
-        fn gen_range(&mut self, range: std::ops::Range<f64>) -> f64;
-        fn gen_bool(&mut self, p: f64) -> bool;
-    }
-
-    pub struct DummyRng {
-        state: u64,
-    }
-
-    impl DummyRng {
-        pub fn new(seed: u64) -> Self {
-            Self { state: seed }
-        }
-    }
-
-    impl Rng for DummyRng {
-        fn gen_range(&mut self, range: std::ops::Range<f64>) -> f64 {
-            self.state = self.state.wrapping_add(1);
-            let mut hasher = DefaultHasher::new();
-            self.state.hash(&mut hasher);
-            let hash = hasher.finish();
-            let ratio = (hash as f64) / (u64::MAX as f64);
-            range.start + ratio * (range.end - range.start)
-        }
-
-        fn gen_bool(&mut self, p: f64) -> bool {
-            self.gen_range(0.0..1.0) < p
-        }
-    }
-
-    pub fn thread_rng() -> DummyRng {
-        DummyRng::new(42)
-    }
-}
 
 /// Hyperparameter search space definition
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -252,11 +209,13 @@ impl HpoDimension {
                 ParameterValue::Float(val)
             }
             ParameterRange::Discrete { values } => {
-                let idx = rng.gen_range(0..values.len());
+                let idx_float = rng.gen_range(0.0..values.len() as f64);
+                let idx = idx_float as usize;
                 ParameterValue::Float(values[idx])
             }
             ParameterRange::Categorical { choices } => {
-                let idx = rng.gen_range(0..choices.len());
+                let idx_float = rng.gen_range(0.0..choices.len() as f64);
+                let idx = idx_float as usize;
                 ParameterValue::String(choices[idx].clone())
             }
         }
@@ -267,7 +226,8 @@ impl HpoDimension {
         let grid_points = 10; // Simple grid sampling
         match &self.range {
             ParameterRange::Continuous { min, max, log_scale } => {
-                let grid_idx = rng.gen_range(0..grid_points);
+                let grid_idx_float = rng.gen_range(0.0..grid_points as f64);
+                let grid_idx = grid_idx_float as usize;
                 let val = if *log_scale {
                     let log_min = min.ln();
                     let log_max = max.ln();
@@ -514,18 +474,17 @@ impl Default for ClipTrainingConfiguration {
 }
 
 /// Advanced sampling utilities
-pub struct HpoSampler<R: Rng = DummyRng> {
+pub struct HpoSampler<R: Rng = StdRng> {
     rng: R,
 }
 
-impl Default for HpoSampler<DummyRng> {
+impl Default for HpoSampler<StdRng> {
     fn default() -> Self {
         Self::new(42)
     }
 }
 
-impl HpoSampler<DummyRng> {
-    #[cfg(feature = "rand_pcg")]
+impl HpoSampler<StdRng> {
     pub fn new_with_pcg(seed: u64) -> HpoSampler<Pcg64> {
         HpoSampler {
             rng: Pcg64::seed_from_u64(seed),
@@ -533,20 +492,11 @@ impl HpoSampler<DummyRng> {
     }
 }
 
-impl<R: Rng> HpoSampler<R> {
+impl HpoSampler<StdRng> {
     pub fn new(seed: u64) -> Self {
-        #[cfg(feature = "rand")]
-        {
-            use rand::SeedableRng;
-            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
-            Self { rng }
-        }
-        #[cfg(not(feature = "rand"))]
-        {
-            Self {
-                rng: DummyRng::new(seed),
-            }
-        }
+        use rand::SeedableRng;
+        let rng = rand::rngs::StdRng::seed_from_u64(seed);
+        Self { rng }
     }
 
     /// Sample multi-point configurations for batch evaluation

@@ -46,6 +46,8 @@ pub struct StatisticalTest {
 /// Automated research pipeline
 #[derive(Debug)]
 pub struct AutomatedResearchPipeline {
+    /// Unique pipeline identifier
+    pub id: String,
     /// Pipeline configuration
     pub config: ResearchPipelineConfig,
     /// Current research state
@@ -66,7 +68,7 @@ pub struct ResearchPipelineConfig {
     /// Budget constraints
     pub computational_budget: ComputationalBudget,
     /// Research domains to explore
-    pub research_domains: Vec<ResearchDomain>,
+    pub research_domains: Vec<NasResearchDomain>,
     /// Statistical rigor requirements
     pub statistical_rigor: StatisticalRigor,
     /// Collaboration settings
@@ -87,8 +89,8 @@ pub struct ComputationalBudget {
 }
 
 /// Research domain specification
-#[derive(Debug, Clone)]
-pub enum ResearchDomain {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum NasResearchDomain {
     /// Computer vision tasks
     ComputerVision { datasets: Vec<String> },
     /// Natural language processing
@@ -97,6 +99,17 @@ pub enum ResearchDomain {
     RL { environments: Vec<String> },
     /// General ML tasks
     GeneralML { benchmarks: Vec<String> },
+}
+
+impl std::fmt::Display for NasResearchDomain {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NasResearchDomain::ComputerVision { .. } => write!(f, "Computer Vision"),
+            NasResearchDomain::NLP { .. } => write!(f, "Natural Language Processing"),
+            NasResearchDomain::RL { .. } => write!(f, "Reinforcement Learning"),
+            NasResearchDomain::GeneralML { .. } => write!(f, "General ML"),
+        }
+    }
 }
 
 /// Statistical rigor requirements
@@ -158,14 +171,24 @@ pub struct KnowledgeBase {
 /// Research insight
 #[derive(Debug, Clone)]
 pub struct ResearchInsight {
+    /// Unique identifier
+    pub id: String,
     /// Insight description
     pub description: String,
     /// Supporting evidence
     pub evidence: Vec<String>,
     /// Confidence level
     pub confidence: f64,
+    /// Agent type that generated this insight
+    pub agent_type: String,
+    /// Performance impact assessment
+    pub performance_impact: f64,
     /// Domain applicability
     pub domains: Vec<String>,
+    /// Knowledge data for learning
+    pub knowledge_data: serde_json::Value,
+    /// Timestamp of insight generation
+    pub timestamp: std::time::Instant,
 }
 
 /// Failed hypothesis record
@@ -387,6 +410,7 @@ pub enum VerificationMethod {
 impl AutomatedResearchPipeline {
     /// Create a new automated research pipeline
     pub fn new(config: ResearchPipelineConfig) -> Self {
+        let id = format!("pipeline_{}", chrono::Utc::now().timestamp());
         let state = Arc::new(RwLock::new(ResearchState {
             active_hypotheses: Vec::new(),
             completed_experiments: Vec::new(),
@@ -411,6 +435,7 @@ impl AutomatedResearchPipeline {
         }));
 
         Self {
+            id,
             config,
             state,
             hypothesis_generator: HypothesisGenerator {
@@ -584,10 +609,15 @@ impl AutomatedResearchPipeline {
 
             if avg_accuracy > 0.9 {
                 let insight = ResearchInsight {
+                    id: format!("nas_insight_{}", self.id),
                     description: "High accuracy achieved with current architectures".to_string(),
                     evidence: completed.iter().map(|exp| exp.id.clone()).collect(),
                     confidence: 0.85,
+                    agent_type: self.id.clone(),
+                    performance_impact: avg_accuracy - 0.5,
                     domains: vec!["computer_vision".to_string()],
+                    knowledge_data: serde_json::json!({"avg_accuracy": avg_accuracy}),
+                    timestamp: std::time::Instant::now(),
                 };
 
                 let mut state = self.state.write().unwrap();

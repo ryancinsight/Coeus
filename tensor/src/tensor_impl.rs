@@ -6,8 +6,8 @@
 use std::{boxed::Box, format, string::ToString, sync::Arc, vec::Vec};
 
 use crate::{
-    error::TensorError, grad_rwlock, AsAny, Backend, CpuBackend, DataType, DenseStorage, Function, Result,
-    Shape, Storage, StorageToDense, Tensor,
+    error::TensorError, grad_rwlock, AsAny, Backend, DataType, DenseStorage, Result,
+    Shape, Storage, StorageToDense, Tensor, tensor_core::{Function},
 };
 use storage::StorageFromVec;
 
@@ -218,6 +218,100 @@ where
         Ok(())
     }
 
+    /// Accumulate gradient by adding to existing gradient.
+    ///
+    /// If no gradient exists, sets the gradient. If a gradient exists,
+    /// adds the new gradient to the existing one.
+    ///
+    /// # Arguments
+    /// * `gradient` - Gradient tensor to accumulate
+    ///
+    /// # Errors
+    /// Returns error if gradient shapes don't match or lock acquisition fails
+    pub fn accumulate_grad<GS>(&self, gradient: &Tensor<B, GS, T>) -> Result<()>
+    where
+        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T>,
+        S: Storage<T> + StorageToDense<T> + StorageFromVec<T>,
+        B: Clone + Default,
+        T: std::ops::Add<Output = T> + Clone + Copy,
+    {
+        println!(
+            "accumulate_grad called on tensor with shape {:?}",
+            self.shape().dims()
+        );
+
+        // Validate shape matches
+        if gradient.shape().dims() != self.shape().dims() {
+            return Err(TensorError::ShapeMismatch {
+                expected: self.shape().dims().to_vec(),
+                actual: gradient.shape().dims().to_vec(),
+                operation: "accumulate_grad",
+            });
+        }
+
+        #[cfg(feature = "std")]
+        {
+            let mut grad_lock = match self.grad.write() {
+                Ok(lock) => lock,
+                Err(_) => return Err(TensorError::BackendError("Failed to acquire gradient lock".to_string())),
+            };
+
+            if let Some(existing_grad) = grad_lock.as_ref() {
+                // Convert both gradients to dense storage for addition
+                let existing_dense = existing_grad.to_dense_generic()?;
+                let gradient_dense = gradient.to_dense_generic()?;
+
+                // Add the gradients
+                let accumulated_dense = crate::ops::arithmetic::add(&existing_dense, &gradient_dense)
+                    .map_err(|_| TensorError::BackendError("Failed to accumulate gradients".to_string()))?;
+
+                // Convert back to the tensor's storage type
+                let data = accumulated_dense.as_slice().to_vec();
+                let dims = accumulated_dense.shape().dims().to_vec();
+                let accumulated = Tensor::<B, S, T>::from_vec(data, &dims)?;
+
+                *grad_lock = Some(Box::new(accumulated));
+            } else {
+                // No existing gradient, convert and set it directly
+                let gradient_dense = gradient.to_dense_generic()?;
+                let data = gradient_dense.as_slice().to_vec();
+                let dims = gradient_dense.shape().dims().to_vec();
+                let gradient_converted = Tensor::<B, S, T>::from_vec(data, &dims)?;
+
+                *grad_lock = Some(Box::new(gradient_converted));
+            }
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            let mut grad_lock = self.grad.write();
+            if let Some(existing_grad) = grad_lock.as_ref() {
+                // Convert both gradients to dense storage for addition
+                let existing_dense = existing_grad.to_dense_generic()?;
+                let gradient_dense = gradient.to_dense_generic()?;
+
+                // Add the gradients
+                let accumulated_dense = crate::ops::arithmetic::add(&existing_dense, &gradient_dense)
+                    .map_err(|_| TensorError::BackendError("Failed to accumulate gradients".to_string()))?;
+
+                // Convert back to the tensor's storage type
+                let data = accumulated_dense.as_slice().to_vec();
+                let dims = accumulated_dense.shape().dims().to_vec();
+                let accumulated = Tensor::<B, S, T>::from_vec(data, &dims)?;
+
+                *grad_lock = Some(Box::new(accumulated));
+            } else {
+                // No existing gradient, convert and set it directly
+                let gradient_dense = gradient.to_dense_generic()?;
+                let data = gradient_dense.as_slice().to_vec();
+                let dims = gradient_dense.shape().dims().to_vec();
+                let gradient_converted = Tensor::<B, S, T>::from_vec(data, &dims)?;
+
+                *grad_lock = Some(Box::new(gradient_converted));
+            }
+        }
+        Ok(())
+    }
+
     /// Zero out the gradient.
     ///
     /// Sets the gradient to None, freeing memory.
@@ -303,21 +397,49 @@ where
     /// Returns error if backward pass fails
     pub fn backward_with_grad<GS>(&self, grad_output: &Tensor<B, GS, T>) -> Result<()>
     where
-        B: Backend<Data = T> + Clone + Default,
-        S: Storage<T> + Clone + 'static + StorageToDense<T>,
+        B: Backend<Data = T> + Clone + Default + 'static,
+        S: Storage<T> + Clone + 'static + StorageToDense<T> + StorageFromVec<T>,
         GS: Storage<T> + StorageToDense<T> + StorageFromVec<T>,
         T: Clone + Copy,
     {
-        // Simplified backward implementation
-        // Full autograd graph traversal will be implemented later
-        // For now, just accumulate gradients for tensors that require them
+        use crate::{OperationName, functions::AddFunction};
 
-        if self.requires_grad() {
-            // Set the gradient (simplified - full accumulation will be implemented later)
-            self.set_grad(grad_output.clone())
-        } else {
-            // Tensor doesn't require gradients, nothing to do
+        if let Some(obj) = &self.grad_fn {
+            println!("DEBUG: grad_fn object found, trying downcast - tensor requires_grad: {}", self.requires_grad());
+            // Try to downcast to known function types and accumulate gradients on inputs
+            println!("DEBUG: Attempting downcast to AddFunction");
+            if let Some(add_fn) = obj.as_any().downcast_ref::<AddFunction<B, S, T>>() {
+                println!("DEBUG: Successfully downcast to AddFunction");
+                println!("DEBUG: Successfully downcast to AddFunction, {} inputs", add_fn.inputs().len());
+                // Convert grad_output to dense storage for the backward method
+                let grad_output_dense = grad_output.to_dense_generic()?;
+                // Call the function's backward method to get gradients w.r.t. inputs
+                let input_grads = add_fn.backward(&grad_output_dense).map_err(|e| TensorError::BackendError(format!("Function backward failed: {e}")))?;
+                // Accumulate gradients on input tensors
+                for (i, (input, grad)) in add_fn.inputs().iter().zip(input_grads).enumerate() {
+                    if input.requires_grad() {
+                        println!("DEBUG: Accumulating grad on input {}", i);
+                        input.accumulate_grad(&grad)?;
+                    } else {
+                        println!("DEBUG: Input {} does not require grad", i);
+                    }
+                }
+            } else if let Some(op_name) = obj.as_any().downcast_ref::<OperationName>() {
+                println!("DEBUG: Downcast to OperationName: {}", op_name.0);
+                // For string-based operations, we don't have input references stored
+                // This is a fallback for operations that don't have full Function implementations
+            } else {
+                println!("DEBUG: Could not downcast to any known type");
+            }
+            // Also set gradient on this tensor if it requires grad
+            if self.requires_grad() {
+                self.set_grad(grad_output.clone())?;
+            }
             Ok(())
+        } else {
+            // Leaf tensor with no grad_fn - this is where backward pass starts
+            // For leaf tensors, the gradient is just the grad_output
+            self.set_grad(grad_output.clone())
         }
     }
 
@@ -442,23 +564,16 @@ where
     /// ```
     #[must_use]
     pub fn grad_fn(&self) -> Option<&str> {
-        self.grad_fn.as_deref()
+        // For now, return None to avoid complex downcasting issues
+        // The backward logic should handle Function objects directly
+        None
     }
 
-    /// Sets the function that created this tensor.
-    ///
-    /// Used internally during automatic differentiation to build the computation graph.
-    /// Should not be called directly by users.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// // This is used internally, not by users
-    /// tensor.set_grad_fn(Some(function));
-    /// ```
-    pub fn set_grad_fn(&mut self, grad_fn: Option<String>) {
-        self.grad_fn = grad_fn;
+    /// Get the function object for gradient computation
+    pub fn function_object(&self) -> Option<&Arc<dyn AsAny + Send + Sync>> {
+        self.grad_fn.as_ref()
     }
+
 
     /// Returns a new tensor with the specified grad_fn set.
     ///
@@ -478,7 +593,7 @@ where
     /// let result = tensor.with_grad_fn(Some(add_function));
     /// ```
     #[must_use]
-    pub fn with_grad_fn(mut self, grad_fn: Option<String>) -> Self {
+    pub fn with_grad_fn(mut self, grad_fn: Option<Arc<dyn AsAny + Send + Sync>>) -> Self {
         self.grad_fn = grad_fn;
         self
     }

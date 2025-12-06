@@ -74,3 +74,13 @@ pub use task::{Task, Classifier, Generator, Retriever, SimilarityType};
 pub use transformer::{MultimodalTransformer, MultimodalConfig};
 
 
+
+
+
+
+
+
+
+
+
+

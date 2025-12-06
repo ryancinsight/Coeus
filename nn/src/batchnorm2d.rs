@@ -50,7 +50,7 @@ use crate::parameter::Parameter;
 /// use dtype::float::Float32;
 ///
 /// // Create BatchNorm2d for 64 channels
-/// let mut batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
+/// let mut batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::<Float32>::default(), 64, 1e-5, 0.1).unwrap();
 ///
 /// // Set to training mode
 /// <BatchNorm2d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);

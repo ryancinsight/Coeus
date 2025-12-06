@@ -4,21 +4,21 @@
 
 use backend::CpuBackend;
 use dtype::float::Float32;
-use nn::{Module, PReLU};
+use nn::{Module, PReLU, Parameter};
 use storage::DenseStorage;
 use tensor::Tensor;
 
 #[test]
 fn test_prelu_forward() {
-    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1).unwrap();
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, None);
 
     // Test with mixed positive/negative values
     let input_data = vec![
-        Float32::new(2.0),  // positive
-        Float32::new(-1.0), // negative
-        Float32::new(0.0),  // zero
-        Float32::new(-0.5), // negative
-        Float32::new(3.0),  // positive
+        Float32::new(2.0f32),  // positive
+        Float32::new(-1.0f32), // negative
+        Float32::new(0.0f32),  // zero
+        Float32::new(-0.5f32), // negative
+        Float32::new(3.0f32),  // positive
     ];
 
     let input =
@@ -37,7 +37,7 @@ fn test_prelu_forward() {
 
 #[test]
 fn test_prelu_parameters() {
-    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3).unwrap();
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3, None);
 
     let params = prelu.parameters();
 
@@ -49,7 +49,7 @@ fn test_prelu_parameters() {
 
 #[test]
 fn test_prelu_shared_parameter() {
-    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1).unwrap();
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, None);
 
     let params = prelu.parameters();
 
@@ -60,11 +60,12 @@ fn test_prelu_shared_parameter() {
 
 #[test]
 fn test_prelu_gradient_flow() {
-    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1).unwrap();
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, None);
 
-    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec_with_backend(
         vec![Float32::new(1.0), Float32::new(-1.0)],
         &[2],
+        CpuBackend::<Float32>::new(),
     )
     .unwrap()
     .requires_grad_(true);
@@ -76,12 +77,12 @@ fn test_prelu_gradient_flow() {
 
     // Parameters should require gradients
     let params = prelu.parameters();
-    assert!(params.iter().all(|p| p.requires_grad()));
+    assert!(params.iter().all(|p: &Parameter<CpuBackend<Float32>, DenseStorage<Float32>, Float32>| p.requires_grad()));
 }
 
 #[test]
 fn test_prelu_zero_grad() {
-    let mut prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(2).unwrap();
+    let mut prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(2, None);
 
     // Test zero_grad functionality
     prelu.zero_grad();
@@ -94,7 +95,7 @@ fn test_prelu_zero_grad() {
 
 #[test]
 fn test_prelu_module_api() {
-    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1).unwrap();
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, None);
 
     // Test Module trait methods
     assert_eq!(prelu.name(), "PReLU");
@@ -106,7 +107,7 @@ fn test_prelu_module_api() {
 
 #[test]
 fn test_prelu_different_shapes() {
-    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1).unwrap();
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, None);
 
     // Test with different input shapes
     let test_shapes = vec![
@@ -130,7 +131,7 @@ fn test_prelu_different_shapes() {
 
 #[test]
 fn test_prelu_per_channel() {
-    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3).unwrap();
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3, None);
 
     // Input with 3 channels
     let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
@@ -161,7 +162,7 @@ fn test_prelu_per_channel() {
 
 #[test]
 fn test_prelu_train_eval_modes() {
-    let mut prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1).unwrap();
+    let mut prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, None);
 
     // Test train mode
     prelu.train(true);
@@ -183,7 +184,7 @@ fn test_prelu_train_eval_modes() {
 #[test]
 fn test_prelu_per_channel_functionality() {
     // Test that different channels use different weights
-    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3).unwrap();
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3, None);
 
     // Create input with shape [1, 3, 2] - batch=1, channels=3, spatial=2
     let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
@@ -223,7 +224,7 @@ fn test_prelu_per_channel_functionality() {
 
 #[test]
 fn test_prelu_edge_cases() {
-    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1).unwrap();
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, None);
 
     // Test with zeros
     let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
@@ -255,4 +256,66 @@ fn test_prelu_edge_cases() {
         output.as_slice(),
         &[weight * Float32::new(-1.0), weight * Float32::new(-2.0)]
     );
+}
+
+#[test]
+fn test_prelu_zero_init() {
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, Some(Float32::new(0.0)));
+
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(-1.0), Float32::new(-2.0)],
+        &[2],
+    )
+    .unwrap();
+    let output = prelu.forward(&input).unwrap();
+    // weight is 0.0. max(0, x) + 0 * min(0, x) = max(0, x). For negatives, it's 0.
+    assert_eq!(output.as_slice(), &[Float32::new(0.0), Float32::new(0.0)]);
+}
+
+#[test]
+fn test_prelu_positive_init() {
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, Some(Float32::new(0.5)));
+
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(-2.0), Float32::new(-4.0)],
+        &[2],
+    )
+    .unwrap();
+    let output = prelu.forward(&input).unwrap();
+    // weight is 0.5. For -2.0: 0 + 0.5 * -2.0 = -1.0. For -4.0: 0 + 0.5 * -4.0 = -2.0.
+    assert_eq!(output.as_slice(), &[Float32::new(-1.0), Float32::new(-2.0)]);
+}
+
+#[test]
+fn test_prelu_channel_wise() {
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(3, None);
+
+    // Input [1, 3, 3] - batch 1, channels 3, spatial 3
+    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![
+            Float32::new(1.0),
+            Float32::new(-1.0),
+            Float32::new(0.5), // channel 0
+            Float32::new(-2.0),
+            Float32::new(1.5),
+            Float32::new(-0.5), // channel 1
+            Float32::new(0.0),
+            Float32::new(-3.0),
+            Float32::new(2.0), // channel 2
+        ],
+        &[1, 3, 3],
+    )
+    .unwrap();
+
+    let output = prelu.forward(&input).unwrap();
+
+    // Verify shape is preserved
+    assert_eq!(output.shape().dims(), &[1, 3, 3]);
+}
+
+#[test]
+fn test_prelu_serialization() {
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, None);
+    // This test would normally check serde, but for now just checking instantiation
+    assert_eq!(prelu.parameters().len(), 1);
 }

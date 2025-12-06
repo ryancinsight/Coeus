@@ -116,6 +116,7 @@ impl<T: VisionLanguageData + Send + Sync + 'static> DatasetStream<T> {
 
         // Spawn streaming task
         let dataset_clone = dataset.clone();
+        let tx_clone = tx.clone();
         tokio::spawn(async move {
             let mut sent = 0;
             let mut indices: Vec<usize> = if config.shuffle {
@@ -138,12 +139,12 @@ impl<T: VisionLanguageData + Send + Sync + 'static> DatasetStream<T> {
 
                 match dataset_clone.get(idx).await {
                     Ok(pair) => {
-                        if tx.send(Ok(pair)).await.is_err() {
+                        if tx_clone.send(Ok(pair)).await.is_err() {
                             break; // Receiver dropped
                         }
                     }
                     Err(e) => {
-                        let _ = tx.send(Err(e)).await;
+                        let _ = tx_clone.send(Err(e)).await;
                         break;
                     }
                 }
@@ -192,6 +193,7 @@ impl<T: VisionLanguageData + Send + Sync + 'static> BatchedDatasetStream<T> {
 
         let dataset_clone = dataset.clone();
         let config_clone = config.clone();
+        let tx_clone = tx.clone();
 
         tokio::spawn(async move {
             let total_items = dataset_clone.len();
@@ -225,12 +227,12 @@ impl<T: VisionLanguageData + Send + Sync + 'static> BatchedDatasetStream<T> {
                             batch.push(item);
                         }
 
-                        if tx.send(Ok(batch)).await.is_err() {
+                        if tx_clone.send(Ok(batch)).await.is_err() {
                             break; // Receiver dropped
                         }
                     }
                     Err(e) => {
-                        let _ = tx.send(Err(e)).await;
+                        let _ = tx_clone.send(Err(e)).await;
                         break;
                     }
                 }
@@ -447,7 +449,7 @@ pub mod utils {
                         0.0
                     };
 
-                    Some(((item, current_stats.clone()), (stream, stats, start_time)))
+                    Some(((item, current_stats.clone()), (stream, stats.clone(), start_time)))
                 }
                 None => None,
             }
@@ -458,7 +460,37 @@ pub mod utils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::datasets::vision_language::MockDataset;
+
+    // Mock dataset for testing
+    struct MockDataset {
+        pairs: Vec<crate::datasets::ImageTextPair>,
+    }
+
+    #[async_trait::async_trait(?Send)]
+    impl crate::datasets::VisionLanguageData for MockDataset {
+        fn len(&self) -> usize {
+            self.pairs.len()
+        }
+
+        fn get(&self, index: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = crate::error::Result<crate::datasets::ImageTextPair>> + Send + '_>> {
+            let pair = self.pairs[index].clone();
+            Box::pin(async move { Ok(pair) })
+        }
+
+        fn split(&self) -> crate::datasets::DatasetSplit {
+            crate::datasets::DatasetSplit::Train
+        }
+
+        fn statistics(&self) -> crate::datasets::DatasetStatistics {
+            crate::datasets::DatasetStatistics {
+                total_pairs: self.pairs.len(),
+                avg_caption_length: 10.0, // Mock value
+                vocab_size: 1000, // Mock value
+                image_sizes: Some(vec![]),
+                disk_size_mb: Some(1.0), // Mock value
+            }
+        }
+    }
 
     fn create_test_dataset() -> MockDataset {
         let pairs = vec![
@@ -565,7 +597,8 @@ mod tests {
         let dataset = create_test_dataset();
         let streaming_config = StreamingConfig::default();
         let streaming = StreamingDataset::new(dataset, streaming_config);
-        let mut monitored = utils::monitored_stream(streaming.dataset, StreamingConfig::default());
+        let monitored = utils::monitored_stream(streaming.dataset, StreamingConfig::default());
+        futures::pin_mut!(monitored);
 
         let mut count = 0;
         while let Some((item, stats)) = monitored.next().await {
@@ -577,3 +610,4 @@ mod tests {
         assert_eq!(count, 2);
     }
 }
+

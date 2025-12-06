@@ -648,6 +648,130 @@ impl<T: DataType> CscStorage<T> {
     }
 }
 
+// Sparse storage creation methods
+
+impl<T: DataType> CsrStorage<T> {
+    /// Creates CSR storage filled with a constant value.
+    ///
+    /// This creates a dense sparse matrix where all elements equal the given value.
+    ///
+    /// # Arguments
+    /// * `dims` - Shape dimensions [rows, cols]
+    /// * `value` - Value to fill storage with
+    ///
+    /// # Errors
+    ///
+    /// Returns error if shape specification is invalid.
+    pub fn full(dims: &[usize], value: T) -> Result<Self> {
+        let shape = Shape::new(dims)?;
+        let rows = shape.dims()[0];
+        let cols = shape.dims()[1];
+
+        // For a "full" sparse matrix, all elements are non-zero
+        let nnz = rows * cols;
+        let mut data = Vec::with_capacity(nnz);
+        let mut indices = Vec::with_capacity(nnz);
+        let mut indptr = Vec::with_capacity(rows + 1);
+
+        indptr.push(0);
+        for row in 0..rows {
+            for col in 0..cols {
+                data.push(value.clone());
+                indices.push(col);
+            }
+            indptr.push(data.len());
+        }
+
+        Ok(Self {
+            data,
+            indices,
+            indptr,
+            shape,
+        })
+    }
+}
+
+impl<T: DataType> CscStorage<T> {
+    /// Creates CSC storage filled with a constant value.
+    ///
+    /// This creates a dense sparse matrix where all elements equal the given value.
+    ///
+    /// # Arguments
+    /// * `dims` - Shape dimensions [rows, cols]
+    /// * `value` - Value to fill storage with
+    ///
+    /// # Errors
+    ///
+    /// Returns error if shape specification is invalid.
+    pub fn full(dims: &[usize], value: T) -> Result<Self> {
+        let shape = Shape::new(dims)?;
+        let rows = shape.dims()[0];
+        let cols = shape.dims()[1];
+
+        // For a "full" sparse matrix, all elements are non-zero
+        let nnz = rows * cols;
+        let mut data = Vec::with_capacity(nnz);
+        let mut indices = Vec::with_capacity(nnz);
+        let mut indptr = Vec::with_capacity(cols + 1);
+
+        indptr.push(0);
+        for col in 0..cols {
+            for row in 0..rows {
+                data.push(value.clone());
+                indices.push(row);
+            }
+            indptr.push(data.len());
+        }
+
+        Ok(Self {
+            data,
+            indices,
+            indptr,
+            shape,
+        })
+    }
+}
+
+impl<T: DataType> CooStorage<T> {
+    /// Creates COO storage filled with a constant value.
+    ///
+    /// This creates a dense sparse matrix where all elements equal the given value.
+    ///
+    /// # Arguments
+    /// * `dims` - Shape dimensions [rows, cols]
+    /// * `value` - Value to fill storage with
+    ///
+    /// # Errors
+    ///
+    /// Returns error if shape specification is invalid.
+    pub fn full(dims: &[usize], value: T) -> Result<Self> {
+        let shape = Shape::new(dims)?;
+        let rows = shape.dims()[0];
+        let cols = shape.dims()[1];
+
+        // For a "full" sparse matrix, all elements are non-zero
+        let nnz = rows * cols;
+        let mut data = Vec::with_capacity(nnz);
+        let mut row_indices = Vec::with_capacity(nnz);
+        let mut col_indices = Vec::with_capacity(nnz);
+
+        for row in 0..rows {
+            for col in 0..cols {
+                data.push(value.clone());
+                row_indices.push(row);
+                col_indices.push(col);
+            }
+        }
+
+        Ok(Self {
+            data,
+            row_indices,
+            col_indices,
+            shape,
+        })
+    }
+}
+
 // Storage trait implementations for sparse formats
 
 impl<T: DataType> AsAny for CsrStorage<T> {
@@ -683,6 +807,10 @@ impl<T: DataType> Storage<T> for CsrStorage<T> {
     fn as_storage_ref(&self) -> &Self {
         self
     }
+
+    fn full(dims: &[usize], value: T) -> Result<Self> {
+        Self::full(dims, value)
+    }
 }
 
 impl<T: DataType> AsAny for CscStorage<T> {
@@ -716,6 +844,10 @@ impl<T: DataType> Storage<T> for CscStorage<T> {
     fn as_storage_ref(&self) -> &Self {
         self
     }
+
+    fn full(dims: &[usize], value: T) -> Result<Self> {
+        Self::full(dims, value)
+    }
 }
 
 impl<T: DataType> AsAny for CooStorage<T> {
@@ -748,6 +880,10 @@ impl<T: DataType> Storage<T> for CooStorage<T> {
 
     fn as_storage_ref(&self) -> &Self {
         self
+    }
+
+    fn full(dims: &[usize], value: T) -> Result<Self> {
+        Self::full(dims, value)
     }
 }
 

@@ -11,7 +11,7 @@ use crate::layernorm::LayerNorm;
 use crate::activation::GeLU;
 use crate::attention::MultiHeadAttention;
 use backend::Backend;
-use storage::{Storage, StorageFromVec};
+use storage::{Storage, StorageFromVec, StorageToDense};
 use dtype::{DataType, FloatExt};
 
 /// Supported task types for multi-task learning
@@ -81,7 +81,12 @@ impl Default for TaskConfig {
 
 /// Multi-task transformer model
 #[derive(Debug)]
-pub struct MultiTaskTransformer<B, S, T> {
+pub struct MultiTaskTransformer<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + FloatExt + 'static,
+{
     /// Shared encoder layers
     pub shared_encoder: Vec<TransformerBlock<B, S, T>>,
     /// Task-specific heads
@@ -147,7 +152,7 @@ pub enum LossWeighting {
 pub enum TaskHead<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     /// Standard classification/regression head
@@ -174,7 +179,7 @@ where
 pub struct TransformerBlock<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
     pub attention: MultiHeadAttention<B, S, T>,
@@ -188,8 +193,8 @@ where
 pub struct FeedForwardNetwork<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
-    T: DataType,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + dtype::FloatExt,
 {
     pub linear1: Linear<B, S, T>,
     pub linear2: Linear<B, S, T>,
@@ -342,8 +347,8 @@ impl GradNormWeighting {
 pub struct TaskAdapter<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
-    T: DataType,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + dtype::FloatExt,
 {
     /// Down projection for adapter
     pub down_proj: Linear<B, S, T>,
@@ -358,8 +363,8 @@ where
 impl<B, S, T> TaskAdapter<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
-    T: DataType + FloatExt + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + 'static,
 {
     pub fn new(hidden_dim: usize, adapter_dim: usize) -> Result<Self> {
         Ok(Self {
@@ -382,7 +387,7 @@ where
 pub struct CrossTaskAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
     /// Attention mechanism for cross-task interaction
@@ -400,8 +405,8 @@ where
 impl<B, S, T> MultiTaskTransformer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + 'static,
 {
     /// Create new multi-task transformer
     pub fn new(config: MTLConfig, task_configs: HashMap<String, TaskConfig>) -> Result<Self> {
@@ -422,11 +427,12 @@ where
             task_heads.insert(task_name.clone(), head);
         }
 
+        let strategy = config.strategy.clone();
         Ok(Self {
             shared_encoder,
             task_heads,
             task_configs,
-            strategy: config.strategy,
+            strategy,
             config,
         })
     }
@@ -481,7 +487,8 @@ where
     }
 
     /// Create task head based on task configuration
-    fn create_task_head(task_config: &TaskConfig) -> Result<TaskHead<B, S, T>> {
+    fn create_task_head(task_config: &TaskConfig) -> Result<TaskHead<B, S, T>>
+    {
         match task_config.task_type {
             TaskType::Classification => {
                 Ok(TaskHead::Standard(Linear::new(task_config.input_dim, task_config.output_dim)?))
@@ -580,15 +587,15 @@ where
 impl<B, S, T> TransformerBlock<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + 'static,
+    T: DataType + FloatExt + 'static + num_traits::FromPrimitive + num_traits::Bounded,
 {
     pub fn new(hidden_dim: usize, num_heads: usize, ff_dim: usize) -> Result<Self> {
         Ok(Self {
             attention: MultiHeadAttention::new(num_heads, hidden_dim)?,
             feed_forward: FeedForwardNetwork::new(hidden_dim, ff_dim)?,
-            norm1: LayerNorm::new(hidden_dim, 1e-6)?,
-            norm2: LayerNorm::new(hidden_dim, 1e-6)?,
+            norm1: LayerNorm::new(vec![hidden_dim], 1e-6),
+            norm2: LayerNorm::new(vec![hidden_dim], 1e-6),
             dropout: 0.1,
         })
     }
@@ -612,8 +619,8 @@ where
 impl<B, S, T> FeedForwardNetwork<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
-    T: DataType + FloatExt + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+        T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + 'static,
 {
     pub fn new(hidden_dim: usize, ff_dim: usize) -> Result<Self> {
         Ok(Self {

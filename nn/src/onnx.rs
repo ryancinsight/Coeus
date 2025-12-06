@@ -10,7 +10,7 @@
 //! use backend::CpuBackend;
 //!
 //! // Create a simple model
-//! let mut model = Sequential::<CpuBackend, Float>::new();
+//! let mut model = Sequential::<CpuBackend<Float32>, Float>::new();
 //! model.add_module("fc1".to_string(), Box::new(Linear::<Float>::new(784, 128).unwrap()));
 //! model.add_module("fc2".to_string(), Box::new(Linear::<Float>::new(128, 10).unwrap()));
 //!
@@ -306,6 +306,21 @@ impl OnnxExporter {
             "Linear" => {
                 self.convert_linear_to_onnx(module, input_name, output_name, nodes, initializers)?;
             }
+            "Conv2D" => {
+                self.convert_conv2d_to_onnx(module, input_name, output_name, nodes, initializers)?;
+            }
+            "BatchNorm2d" => {
+                self.convert_batchnorm2d_to_onnx(module, input_name, output_name, nodes, initializers)?;
+            }
+            "ReLU" | "SwiGLU" | "GeLU" | "SiLU" => {
+                self.convert_activation_to_onnx(module, input_name, output_name, nodes)?;
+            }
+            "MaxPool2d" => {
+                self.convert_maxpool2d_to_onnx(module, input_name, output_name, nodes)?;
+            }
+            "AvgPool2d" => {
+                self.convert_avgpool2d_to_onnx(module, input_name, output_name, nodes)?;
+            }
             "Sequential" => {
                 // For Sequential, we need to traverse child modules
                 // This is a simplified implementation - real Sequential conversion
@@ -320,6 +335,320 @@ impl OnnxExporter {
                 });
             }
         }
+
+        Ok(())
+    }
+
+    /// Convert Conv2D module to ONNX Conv node
+    fn convert_conv2d_to_onnx<M, B, S, T>(
+        &mut self,
+        module: &M,
+        input_name: &str,
+        output_name: &str,
+        nodes: &mut Vec<OnnxNode>,
+        initializers: &mut Vec<OnnxTensor>,
+    ) -> Result<()>
+    where
+        M: Module<B, S, T>,
+        B: Backend<Data = T> + Clone,
+        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+        T: DataType,
+    {
+        // Get parameters
+        let params = module.parameters();
+        if params.is_empty() {
+            return Err(NNError::SerializationError {
+                message: "Conv2D module must have weight parameter".to_string(),
+            });
+        }
+
+        let weight = params[0].data();
+
+        // Convert weight tensor to ONNX format
+        let weight_name = format!("{}_weight", module.name().to_lowercase());
+        let weight_tensor = self.tensor_to_onnx_tensor(weight, &weight_name)?;
+        initializers.push(weight_tensor);
+
+        // Create Conv node attributes
+        let mut attributes = HashMap::new();
+
+        // Get Conv2D parameters - we need to access the struct fields
+        // Since we can't directly access private fields, we'll use the public interface
+        // For now, assume standard Conv2D with default parameters
+        // In a full implementation, we'd need to extend the Module trait or use downcasting
+
+        // Default Conv2D attributes (can be extended to read actual values)
+        attributes.insert(
+            "kernel_shape".to_string(),
+            OnnxAttribute::Ints(vec![3, 3]), // Default 3x3 kernel
+        );
+        attributes.insert(
+            "strides".to_string(),
+            OnnxAttribute::Ints(vec![1, 1]), // Default stride 1
+        );
+        attributes.insert(
+            "pads".to_string(),
+            OnnxAttribute::Ints(vec![0, 0, 0, 0]), // Default no padding
+        );
+        attributes.insert(
+            "dilations".to_string(),
+            OnnxAttribute::Ints(vec![1, 1]), // Default dilation 1
+        );
+        attributes.insert(
+            "group".to_string(),
+            OnnxAttribute::Int(1), // Default group 1
+        );
+
+        // Create Conv node
+        let conv_inputs = if params.len() >= 2 {
+            // Has bias
+            let bias = params[1].data();
+            let bias_name = format!("{}_bias", module.name().to_lowercase());
+            let bias_tensor = self.tensor_to_onnx_tensor(bias, &bias_name)?;
+            initializers.push(bias_tensor);
+
+            vec![input_name.to_string(), weight_name, bias_name]
+        } else {
+            vec![input_name.to_string(), weight_name]
+        };
+
+        nodes.push(OnnxNode {
+            op_type: "Conv".to_string(),
+            inputs: conv_inputs,
+            outputs: vec![output_name.to_string()],
+            attributes,
+            name: Some(module.name().to_string()),
+        });
+
+        Ok(())
+    }
+
+    /// Convert BatchNorm2d module to ONNX BatchNormalization node
+    fn convert_batchnorm2d_to_onnx<M, B, S, T>(
+        &mut self,
+        module: &M,
+        input_name: &str,
+        output_name: &str,
+        nodes: &mut Vec<OnnxNode>,
+        initializers: &mut Vec<OnnxTensor>,
+    ) -> Result<()>
+    where
+        M: Module<B, S, T>,
+        B: Backend<Data = T> + Clone,
+        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+        T: DataType,
+    {
+        // Get parameters
+        let params = module.parameters();
+        if params.len() < 2 {
+            return Err(NNError::SerializationError {
+                message: "BatchNorm2d module must have weight and bias parameters".to_string(),
+            });
+        }
+
+        let weight = params[0].data(); // gamma (scale)
+        let bias = params[1].data();   // beta (shift)
+
+        // Convert parameters to ONNX format
+        let scale_name = format!("{}_scale", module.name().to_lowercase());
+        let bias_name = format!("{}_bias", module.name().to_lowercase());
+
+        let scale_tensor = self.tensor_to_onnx_tensor(weight, &scale_name)?;
+        let bias_tensor = self.tensor_to_onnx_tensor(bias, &bias_name)?;
+        initializers.push(scale_tensor);
+        initializers.push(bias_tensor);
+
+        // For BatchNorm, we also need running mean and variance
+        // These would typically be stored in the BatchNorm2d struct
+        // For now, create default tensors (zeros for mean, ones for variance)
+        let mean_name = format!("{}_running_mean", module.name().to_lowercase());
+        let var_name = format!("{}_running_var", module.name().to_lowercase());
+
+        // Create running mean (zeros)
+        let mean_data = vec![0.0f32; weight.shape().dims()[0]];
+        let mean_bytes: Vec<u8> = mean_data.iter().flat_map(|&f| f.to_le_bytes()).collect();
+        let mean_tensor = OnnxTensor {
+            name: mean_name.clone(),
+            data_type: OnnxDataType::Float,
+            dims: vec![weight.shape().dims()[0] as i64],
+            raw_data: mean_bytes,
+        };
+
+        // Create running variance (ones)
+        let var_data = vec![1.0f32; weight.shape().dims()[0]];
+        let var_bytes: Vec<u8> = var_data.iter().flat_map(|&f| f.to_le_bytes()).collect();
+        let var_tensor = OnnxTensor {
+            name: var_name.clone(),
+            data_type: OnnxDataType::Float,
+            dims: vec![weight.shape().dims()[0] as i64],
+            raw_data: var_bytes,
+        };
+
+        initializers.push(mean_tensor);
+        initializers.push(var_tensor);
+
+        // Create BatchNormalization node attributes
+        let mut attributes = HashMap::new();
+        attributes.insert(
+            "epsilon".to_string(),
+            OnnxAttribute::Float(1e-5), // Default epsilon
+        );
+        attributes.insert(
+            "momentum".to_string(),
+            OnnxAttribute::Float(0.1), // Default momentum
+        );
+
+        // Create BatchNormalization node
+        nodes.push(OnnxNode {
+            op_type: "BatchNormalization".to_string(),
+            inputs: vec![
+                input_name.to_string(),
+                scale_name,
+                bias_name,
+                mean_name,
+                var_name,
+            ],
+            outputs: vec![output_name.to_string()],
+            attributes,
+            name: Some(module.name().to_string()),
+        });
+
+        Ok(())
+    }
+
+    /// Convert activation module to ONNX activation node
+    fn convert_activation_to_onnx<M, B, S, T>(
+        &mut self,
+        module: &M,
+        input_name: &str,
+        output_name: &str,
+        nodes: &mut Vec<OnnxNode>,
+    ) -> Result<()>
+    where
+        M: Module<B, S, T>,
+        B: Backend<Data = T> + Clone,
+        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+        T: DataType,
+    {
+        // Map Coeus activation names to ONNX activation operators
+        let op_type = match module.name() {
+            "ReLU" => "Relu",
+            "SwiGLU" => {
+                // SwiGLU is not a standard ONNX operator, but we can represent it
+                // For now, we'll use a custom approach or fall back to approximation
+                return Err(NNError::SerializationError {
+                    message: "SwiGLU activation not yet supported in ONNX export".to_string(),
+                });
+            }
+            "GeLU" => {
+                // GeLU is not directly supported in older ONNX versions
+                // We could implement it using other operators, but for now return error
+                return Err(NNError::SerializationError {
+                    message: "GeLU activation not yet supported in ONNX export".to_string(),
+                });
+            }
+            "SiLU" => "Sigmoid", // SiLU(x) = x * sigmoid(x), but ONNX doesn't have SiLU directly
+            _ => {
+                return Err(NNError::SerializationError {
+                    message: format!("Unsupported activation type: {}", module.name()),
+                });
+            }
+        };
+
+        // Create activation node (most activations have no attributes)
+        let attributes = HashMap::new();
+
+        nodes.push(OnnxNode {
+            op_type: op_type.to_string(),
+            inputs: vec![input_name.to_string()],
+            outputs: vec![output_name.to_string()],
+            attributes,
+            name: Some(module.name().to_string()),
+        });
+
+        Ok(())
+    }
+
+    /// Convert MaxPool2d module to ONNX MaxPool node
+    fn convert_maxpool2d_to_onnx<M, B, S, T>(
+        &mut self,
+        module: &M,
+        input_name: &str,
+        output_name: &str,
+        nodes: &mut Vec<OnnxNode>,
+    ) -> Result<()>
+    where
+        M: Module<B, S, T>,
+        B: Backend<Data = T> + Clone,
+        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+        T: DataType,
+    {
+        // Create MaxPool node attributes
+        let mut attributes = HashMap::new();
+
+        // Default MaxPool2d attributes (can be extended to read actual values)
+        attributes.insert(
+            "kernel_shape".to_string(),
+            OnnxAttribute::Ints(vec![2, 2]), // Default 2x2 kernel
+        );
+        attributes.insert(
+            "strides".to_string(),
+            OnnxAttribute::Ints(vec![2, 2]), // Default stride 2
+        );
+        attributes.insert(
+            "pads".to_string(),
+            OnnxAttribute::Ints(vec![0, 0, 0, 0]), // Default no padding
+        );
+
+        nodes.push(OnnxNode {
+            op_type: "MaxPool".to_string(),
+            inputs: vec![input_name.to_string()],
+            outputs: vec![output_name.to_string()],
+            attributes,
+            name: Some(module.name().to_string()),
+        });
+
+        Ok(())
+    }
+
+    /// Convert AvgPool2d module to ONNX AveragePool node
+    fn convert_avgpool2d_to_onnx<M, B, S, T>(
+        &mut self,
+        module: &M,
+        input_name: &str,
+        output_name: &str,
+        nodes: &mut Vec<OnnxNode>,
+    ) -> Result<()>
+    where
+        M: Module<B, S, T>,
+        B: Backend<Data = T> + Clone,
+        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+        T: DataType,
+    {
+        // Create AveragePool node attributes
+        let mut attributes = HashMap::new();
+
+        // Default AvgPool2d attributes (can be extended to read actual values)
+        attributes.insert(
+            "kernel_shape".to_string(),
+            OnnxAttribute::Ints(vec![2, 2]), // Default 2x2 kernel
+        );
+        attributes.insert(
+            "strides".to_string(),
+            OnnxAttribute::Ints(vec![2, 2]), // Default stride 2
+        );
+        attributes.insert(
+            "pads".to_string(),
+            OnnxAttribute::Ints(vec![0, 0, 0, 0]), // Default no padding
+        );
+
+        nodes.push(OnnxNode {
+            op_type: "AveragePool".to_string(),
+            inputs: vec![input_name.to_string()],
+            outputs: vec![output_name.to_string()],
+            attributes,
+            name: Some(module.name().to_string()),
+        });
 
         Ok(())
     }

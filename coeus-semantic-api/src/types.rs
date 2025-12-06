@@ -52,6 +52,7 @@ pub struct ResponseMeta {
 
 /// Service operational status
 #[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone)]
 pub enum ServiceStatus {
     /// Service operational
     #[serde(rename = "operational")]
@@ -115,6 +116,14 @@ pub enum ErrorCode {
     /// Insufficient permissions
     #[serde(rename = "insufficient_permissions")]
     InsufficientPermissions,
+
+    /// Authentication failed
+    #[serde(rename = "unauthorized")]
+    Unauthorized,
+
+    /// Access forbidden
+    #[serde(rename = "forbidden")]
+    Forbidden,
 }
 
 /// Health check request
@@ -323,7 +332,7 @@ pub struct SearchResult {
     pub score: Option<f32>,
 
     /// Result metadata
-    pub metadata: HashMap<String, serde_json::Value>,
+    pub metadata: serde_json::Value,
 
     /// Timestamp when this result was indexed
     pub indexed_at: chrono::DateTime<chrono::Utc>,
@@ -450,6 +459,51 @@ pub enum SearchMode {
     CrossModal,
 }
 
+/// Content types for indexing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum IndexContent {
+    #[serde(rename = "text")]
+    Text { text: String },
+    #[serde(rename = "image")]
+    Image { data: Vec<u8> },
+}
+
+/// Index item for batch indexing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexItem {
+    /// Unique identifier for the item
+    pub id: String,
+    /// Content to index
+    pub content: IndexContent,
+    /// Optional metadata
+    #[serde(default)]
+    pub metadata: HashMap<String, serde_json::Value>,
+}
+
+/// Index request for batch operations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexRequest {
+    /// Items to index
+    pub items: Vec<IndexItem>,
+    /// Optional batch identifier
+    pub batch_id: Option<String>,
+}
+
+/// Index response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexResponse {
+    /// Batch identifier (if provided in request)
+    pub batch_id: Option<String>,
+    /// Number of items successfully indexed
+    pub indexed_count: usize,
+    /// Number of items that failed to index
+    pub failed_count: usize,
+    /// Error messages for failed items
+    pub errors: Vec<String>,
+    /// Total processing time in milliseconds
+    pub processing_time_ms: u64,
+}
+
 /// Search performance metrics
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchPerformance {
@@ -480,8 +534,22 @@ pub struct BenchmarkRequest {
     pub config: BenchmarkConfig,
 }
 
+/// Benchmark query configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BenchmarkQuery {
+    /// Number of queries to run (1-100)
+    #[serde(default = "default_num_queries")]
+    pub num_queries: usize,
+    /// Top-k value for searches (1-100)
+    #[serde(default = "default_top_k")]
+    pub top_k: usize,
+    /// Query types to include
+    #[serde(default)]
+    pub query_types: Vec<BenchmarkQueryType>,
+}
+
 /// Benchmark query types
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BenchmarkQueryType {
     #[serde(rename = "text")]
     Text,
@@ -612,6 +680,15 @@ pub struct MetricsResponse {
 
     /// Metrics format version
     pub format_version: String,
+
+    /// Search-related metrics
+    pub search_metrics: serde_json::Value,
+
+    /// Database statistics
+    pub database_stats: Option<serde_json::Value>,
+
+    /// Service uptime in seconds
+    pub uptime_seconds: u64,
 }
 
 // Validation defaults
@@ -620,6 +697,7 @@ fn default_include_scores() -> bool { true }
 fn default_overwrite() -> bool { false }
 fn default_batch_size() -> usize { 32 }
 fn default_benchmark_queries() -> usize { 1000 }
+fn default_num_queries() -> usize { 10 }
 
 #[cfg(test)]
 mod tests {
@@ -682,3 +760,4 @@ mod tests {
         assert_eq!(deserialized.message, "Invalid input provided");
     }
 }
+

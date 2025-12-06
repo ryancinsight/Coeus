@@ -9,8 +9,6 @@ pub enum NNError {
         source: tensor::TensorError,
     },
 
-    #[error("Autograd operation failed: {message}")]
-    AutogradError { message: String },
 
     #[error("Storage operation failed: {source}")]
     StorageError {
@@ -61,6 +59,9 @@ pub enum NNError {
     #[error("Numerical error: {message}")]
     NumericalError { message: String },
 
+    #[error("Resource allocation failed: {message}")]
+    ResourceError { message: String },
+
     #[error("Not implemented: {operation}")]
     NotImplemented { operation: String },
 
@@ -69,6 +70,33 @@ pub enum NNError {
 
     #[error("Invalid state: {message}")]
     InvalidState { message: String },
+
+    #[error("Component not initialized: {component}")]
+    NotInitialized { component: String },
+
+    #[error("Execution error: {message}")]
+    ExecutionError { message: String },
+
+    #[error("I/O error: {error}")]
+    IoError {
+        #[from]
+        error: std::io::Error
+    },
+
+    #[error("Resource not found: {resource}")]
+    NotFound { resource: String },
+
+    #[error("JSON serialization error: {error}")]
+    JsonError {
+        #[from]
+        error: serde_json::Error
+    },
+
+    #[error("Autograd error: {error}")]
+    AutogradError {
+        #[from]
+        error: autograd::AutogradError
+    },
 }
 
 /// Result type for neural network operations.

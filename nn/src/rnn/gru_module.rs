@@ -5,7 +5,7 @@
 use backend::CpuBackend;
 use dtype::{traits::FloatExt, DataType};
 use storage::DenseStorage;
-use tensor::Tensor;
+use tensor::{Tensor, ops::arithmetic::add, ops::arithmetic::sub, ops::arithmetic::mul};
 
 use crate::error::Result;
 use crate::module::Module;
@@ -81,7 +81,7 @@ where
                 &[3 * self.hidden_size],
             )?;
 
-            let bias_combined = &bias_ih_tensor + &bias_hh_tensor;
+            let bias_combined = add(&bias_ih_tensor, &bias_hh_tensor)?;
 
             // Expand to match sequence length
             let bias_expanded_data = bias_combined.as_slice().repeat(seq_len * batch_size);
@@ -90,9 +90,9 @@ where
                 &[seq_len * batch_size, 3 * self.hidden_size],
             )?;
 
-            &(&ih_gates + &hh_gates_expanded) + &bias_expanded
+            add(&add(&ih_gates, &hh_gates_expanded)?, &bias_expanded)?
         } else {
-            &ih_gates + &hh_gates_expanded
+            add(&ih_gates, &hh_gates_expanded)?
         };
 
         // Proper GRU: split gates and apply correct activations
@@ -144,11 +144,11 @@ where
         // Compute hidden state: h_t = (1 - z_t) ? h_{t-1} + z_t ? n_t
         let ones =
             Tensor::<CpuBackend<T>, DenseStorage<T>, T>::ones(&[total_elements, self.hidden_size])?;
-        let one_minus_z = &ones - &z_activated;
+        let one_minus_z = sub(&ones, &z_activated)?;
 
-        let h_prev_component = &one_minus_z * &h_prev_expanded;
-        let n_component = &z_activated * &n_activated;
-        let h_new = &h_prev_component + &n_component;
+        let h_prev_component = mul(&one_minus_z, &h_prev_expanded)?;
+        let n_component = mul(&z_activated, &n_activated)?;
+        let h_new = add(&h_prev_component, &n_component)?;
 
         // Reshape output back to (seq_len, batch_size, hidden_size)
         let layer_output = h_new.reshape(&[

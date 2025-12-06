@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn test_backward_stub() {
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            CpuBackend::new(),
+            CpuBackend::<Float32>::new(),
             vec![Float32::new(1.0), Float32::new(2.0)],
             vec![2],
         )

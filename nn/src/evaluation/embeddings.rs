@@ -323,6 +323,16 @@ mod tests {
         fn get_sample(&self, _index: usize) -> Option<&dyn std::any::Any> {
             Some(&self.size as &dyn std::any::Any)
         }
+
+        fn image_embeddings(&self) -> &[Vec<f32>] {
+            // Return empty slice for mock
+            &[]
+        }
+
+        fn text_embeddings(&self) -> &[Vec<f32>] {
+            // Return empty slice for mock
+            &[]
+        }
     }
 
     // Mock model for testing

@@ -209,6 +209,7 @@ impl BenchmarkSuite {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::evaluation::EvaluationDataset;
 
     // Mock implementations for testing
     struct MockDataset {
@@ -248,6 +249,17 @@ mod tests {
         fn get_image_label_pairs(&self) -> Vec<(Vec<u8>, usize)> {
             self.data.clone()
         }
+
+        fn labels(&self) -> &[usize] {
+            // Extract labels from data for convenience
+            unsafe {
+                // This is safe because we're only reading
+                std::slice::from_raw_parts(
+                    self.data.as_ptr() as *const usize,
+                    self.data.len(),
+                )
+            }
+        }
     }
 
     impl EvaluationDataset for MockDataset {
@@ -261,6 +273,16 @@ mod tests {
 
         fn get_sample(&self, index: usize) -> Option<&dyn std::any::Any> {
             self.data.get(index).map(|_| &self.data[index] as &dyn std::any::Any)
+        }
+
+        fn image_embeddings(&self) -> &[Vec<f32>] {
+            // Mock dataset doesn't have embeddings
+            &[]
+        }
+
+        fn text_embeddings(&self) -> &[Vec<f32>] {
+            // Mock dataset doesn't have embeddings
+            &[]
         }
     }
 

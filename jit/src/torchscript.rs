@@ -54,13 +54,13 @@ impl TorchScript {
     pub fn trace<M, B, S, T>(
         &mut self,
         model: &M,
-        example_input: &coeus_tensor::Tensor<B, S, T>,
+        example_input: &tensor::Tensor<B, S, T>,
     ) -> Result<TracedModule<M, B, T>>
     where
-        M: coeus_nn::Module<B, S, T> + Clone,
-        B: coeus_backend::Backend<T>,
-        S: coeus_storage::Storage<T> + coeus_tensor::StorageFromVec<T> + Clone + 'static,
-        T: coeus_dtype::DataType,
+        M: nn::Module<B, S, T> + Clone,
+        B: backend::Backend<T>,
+        S: storage::Storage<T> + tensor::StorageFromVec<T> + Clone + 'static,
+        T: dtype::DataType,
     {
         // Record the execution by running forward pass with tracing
         let traced_graph = self.tracer.trace_execution(model, example_input)?;
@@ -77,12 +77,12 @@ impl TorchScript {
     pub fn forward<M, B, T>(
         &mut self,
         traced_module: &mut TracedModule<M, B, T>,
-        input: &coeus_tensor::Tensor<B, coeus_storage::DenseStorage<T>, T>,
-    ) -> Result<coeus_tensor::Tensor<B, coeus_storage::DenseStorage<T>, T>>
+        input: &tensor::Tensor<B, storage::DenseStorage<T>, T>,
+    ) -> Result<tensor::Tensor<B, storage::DenseStorage<T>, T>>
     where
-        M: coeus_nn::Module<B, coeus_storage::DenseStorage<T>, T>,
-        B: coeus_backend::Backend<T> + Default,
-        T: coeus_dtype::DataType,
+        M: nn::Module<B, storage::DenseStorage<T>, T>,
+        B: backend::Backend<T> + Default,
+        T: dtype::DataType,
     {
         // Compile the traced graph if not already compiled
         if traced_module.compiled_kernel.is_none() {
@@ -116,13 +116,13 @@ impl Tracer {
     pub fn trace_execution<M, B, S, T>(
         &mut self,
         _model: &M,
-        input: &coeus_tensor::Tensor<B, S, T>,
+        input: &tensor::Tensor<B, S, T>,
     ) -> Result<ComputationGraph>
     where
-        M: coeus_nn::Module<B, S, T>,
-        B: coeus_backend::Backend<T>,
-        S: coeus_storage::Storage<T> + coeus_tensor::StorageFromVec<T> + Clone + 'static,
-        T: coeus_dtype::DataType,
+        M: nn::Module<B, S, T>,
+        B: backend::Backend<T>,
+        S: storage::Storage<T> + tensor::StorageFromVec<T> + Clone + 'static,
+        T: dtype::DataType,
     {
         // Reset tracer state
         self.graph = ComputationGraph::new();
@@ -364,11 +364,11 @@ impl JitRuntime {
     pub fn execute_kernel<B, T>(
         &self,
         _kernel: &CompiledKernel,
-        input: &coeus_tensor::Tensor<B, coeus_storage::DenseStorage<T>, T>,
-    ) -> Result<coeus_tensor::Tensor<B, coeus_storage::DenseStorage<T>, T>>
+        input: &tensor::Tensor<B, storage::DenseStorage<T>, T>,
+    ) -> Result<tensor::Tensor<B, storage::DenseStorage<T>, T>>
     where
-        B: coeus_backend::Backend<T> + Default,
-        T: coeus_dtype::DataType,
+        B: backend::Backend<T> + Default,
+        T: dtype::DataType,
     {
         // Placeholder execution - in a real implementation, this would:
         // 1. Prepare input tensors in the kernel's expected format

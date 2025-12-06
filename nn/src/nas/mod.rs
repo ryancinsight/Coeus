@@ -14,12 +14,12 @@ pub mod utils;
 
 // Re-export research automation types
 pub use research_automation::{
-    AutomatedResearchPipeline, ExperimentRecord, KnowledgeBase, ResearchDomain, ResearchHypothesis,
+    AutomatedResearchPipeline, ExperimentRecord, KnowledgeBase, NasResearchDomain, ResearchHypothesis,
     ResearchInsight, ResearchMetrics, ResearchPipelineConfig, ResearchState, StatisticalTest,
 };
 // Re-export main NAS types
 pub use darts::DartsNAS;
-pub use evaluator::ArchitectureEvaluator;
+pub use evaluator::{ArchitectureEvaluator, SimpleEvaluator};
 pub use evolutionary::EvolutionaryNAS;
 pub use reinforcement::ReinforcementNAS;
 pub use search_space::{Architecture, ArchitectureSpace};

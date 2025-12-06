@@ -215,7 +215,7 @@ where
 ///
 /// # Returns
 /// Tensor with softmax applied along the last dimension
-pub fn softmax<B: Backend<Data = T> + Default, S: Storage<T> + StorageToDense<T> + 'static, T>(
+pub fn softmax<B: Backend<Data = T> + Default, S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static, T>(
     input: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where

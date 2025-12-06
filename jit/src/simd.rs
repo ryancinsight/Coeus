@@ -17,7 +17,7 @@ impl PrefetchOptimizer {
     }
 
     /// Estimate prefetch benefit for a given memory access pattern
-    pub fn estimate_prefetch_benefit(&self, _pattern: &coeus_backend::MemoryAccessPattern) -> f32 {
+    pub fn estimate_prefetch_benefit(&self, _pattern: &backend::MemoryAccessPattern) -> f32 {
         // Simple heuristic: assume 5-15% improvement for sequential access
         0.1 // 10% improvement
     }

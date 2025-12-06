@@ -241,13 +241,10 @@ pub struct FastSpeechConfig {
 // Placeholder implementations for supporting types
 // These would be implemented with proper neural network components
 
-use crate::Backend;
-use crate::Storage;
-use crate::StorageFromVec;
-use crate::StorageToDense;
-use crate::DataType;
-use crate::FloatExt;
-use crate::conv1d::Conv1d;
+use backend::Backend;
+use storage::{Storage, StorageFromVec, StorageToDense};
+use dtype::{DataType, traits::FloatExt};
+use crate::conv1d::Conv1D;
 
 #[derive(Debug)]
 pub struct ProductQuantizer<B, S, T> {
@@ -422,3 +419,4 @@ impl Default for FastSpeechConfig {
         }
     }
 }
+

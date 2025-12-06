@@ -71,7 +71,7 @@ use crate::error::{NNError, Result};
 use crate::Module;
 use backend::{Backend, DataType, Storage};
 use dtype::traits::FloatExt;
-use storage::StorageFromVec;
+use storage::{StorageFromVec, StorageToDense};
 use tensor::ops::arithmetic::scalar_div;
 use tensor::{ops::arithmetic, Tensor};
 
@@ -148,7 +148,7 @@ impl<M, B, S, T> PrototypicalNetwork<M, B, S, T>
 where
     M: Clone + Module<B, S, T>,
     B: Backend<Data = T> + Default,
-    S: Storage<T> + StorageFromVec<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T>,
     T: DataType
         + FloatExt
         + std::ops::Add<Output = T>
@@ -671,7 +671,7 @@ pub fn train_prototypical_network<M, B, S, T>(
 where
     M: Clone + Module<B, S, T>,
     B: Backend<Data = T> + Default,
-    S: Storage<T> + StorageFromVec<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T>,
     T: DataType
         + FloatExt
         + std::ops::Add<Output = T>

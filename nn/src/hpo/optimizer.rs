@@ -9,7 +9,7 @@ use super::space::{HyperparameterSpace, HyperparameterConfig};
 use crate::error::{NNError, Result};
 
 /// Optimization result
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OptimizationResult {
     /// Best hyperparameter configuration found
     pub best_config: HyperparameterConfig,

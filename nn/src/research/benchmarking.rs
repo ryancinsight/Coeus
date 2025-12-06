@@ -40,7 +40,7 @@ pub struct BenchmarkSuite {
     /// Benchmark categories
     pub categories: Vec<BenchmarkCategory>,
     /// Datasets used for benchmarking
-    pub datasets: Vec<BenchmarkDataset>,
+    pub datasets: Vec<BenchmarkDatasetSpec>,
     /// Hardware configurations
     pub hardware_configs: Vec<HardwareConfig>,
     /// Quality metrics
@@ -70,7 +70,7 @@ pub enum BenchmarkCategory {
 
 /// Benchmark dataset specification
 #[derive(Debug, Clone)]
-pub struct BenchmarkDataset {
+pub struct BenchmarkDatasetSpec {
     pub name: String,
     pub domain: DatasetDomain,
     pub size: usize,
@@ -229,19 +229,19 @@ pub struct ResourceUsageSnapshot {
 }
 
 /// Benchmark run specification
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BenchmarkRun {
     pub benchmark_id: String,
     pub suite_name: String,
     pub category: BenchmarkCategory,
-    pub dataset: BenchmarkDataset,
+    pub dataset: BenchmarkDatasetSpec,
     pub algorithm_config: AlgorithmConfig,
     pub hardware_config: HardwareConfig,
     pub quality_constraints: Vec<QualityConstraint>,
 }
 
 /// Algorithm configuration for benchmarking
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AlgorithmConfig {
     pub algorithm_type: BenchmarkAlgorithmType,
     pub hyperparameters: HashMap<String, serde_json::Value>,
@@ -300,12 +300,12 @@ pub enum ConstraintOperator {
 }
 
 /// Benchmark result
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BenchmarkResult {
     pub benchmark_id: String,
     pub suite_name: String,
     pub category: BenchmarkCategory,
-    pub dataset: BenchmarkDataset,
+    pub dataset: BenchmarkDatasetSpec,
     pub algorithm: AlgorithmConfig,
     pub hardware: HardwareConfig,
     /// Performance metrics
@@ -345,7 +345,7 @@ pub struct DistributionStats {
 }
 
 /// Statistical summary
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StatisticalSummary {
     pub reproducibility_score: f64,
     pub statistical_power: f64,
@@ -384,7 +384,7 @@ pub struct StatisticalAnalyzer {
 }
 
 /// Statistical test trait
-pub trait StatisticalTest: Send + Sync {
+pub trait StatisticalTest: Send + Sync + std::fmt::Debug {
     fn test(&self, data1: &[f64], data2: &[f64]) -> Result<StatisticalTestResult>;
     fn name(&self) -> &str;
     fn description(&self) -> &str;
@@ -402,7 +402,7 @@ pub struct StatisticalTestResult {
 }
 
 /// Comparative analyzer trait
-pub trait ComparativeAnalyzer: Send + Sync {
+pub trait ComparativeAnalyzer: Send + Sync + std::fmt::Debug {
     fn analyze(&self, group1: &[BenchmarkResult], group2: &[BenchmarkResult]) -> Result<ComparativeAnalysis>;
     fn analysis_type(&self) -> &str;
 }
@@ -457,7 +457,7 @@ pub enum ReportStyle {
 }
 
 /// Report formatter trait
-pub trait ReportFormatter: Send + Sync {
+pub trait ReportFormatter: Send + Sync + std::fmt::Debug {
     fn format(&self, results: &[BenchmarkResult], template: &ReportTemplate) -> Result<String>;
     fn format_name(&self) -> &str;
     fn supports_style(&self, style: &ReportStyle) -> bool;
@@ -533,16 +533,19 @@ impl NASBenchmarkingFramework {
         let runs = self.generate_suite_runs(&suite)?;
 
         // Execute runs with parallelism control
-        let mut execution_handles = Vec::new();
+        let mut execution_handles: Vec<()> = Vec::new();
         let mut completed_results = Vec::new();
 
         for chunk in runs.chunks(parallel_runs) {
-            let chunk_futures = chunk.iter().map(|run| {
-                self.execute_single_run(run.clone())
-            });
-
-            let chunk_results: Vec<Result<BenchmarkResult>> = futures::future::join_all(chunk_futures).await;
-            completed_results.extend(chunk_results.into_iter().filter_map(|r| r.ok()));
+            for run in chunk {
+                match self.execute_single_run(run.clone()).await {
+                    Ok(result) => completed_results.push(result),
+                    Err(e) => {
+                        // Log error but continue with other runs
+                        eprintln!("Benchmark run failed: {}", e);
+                    }
+                }
+            }
         }
 
         let execution_time = start_time.elapsed();
@@ -660,7 +663,7 @@ impl NASBenchmarkingFramework {
         // Execute NAS search
         let nas_result = {
             let mut nas_framework = self.execution_engine.nas_framework.write().unwrap();
-            let evaluator = Arc::new(crate::nas::ArchitectureEvaluator::new());
+            let evaluator = Arc::new(crate::nas::SimpleEvaluator::new(0.5, 0.01, 0.05));
             let space = crate::nas::ArchitectureSpace::new(crate::nas::search_space::ArchitectureType::CNN);
 
             nas_framework.execute_nas_search(&context.experiment_id, evaluator, &space)?
@@ -979,7 +982,7 @@ mod tests {
 
     #[test]
     fn test_benchmark_dataset_creation() {
-        let dataset = BenchmarkDataset {
+        let dataset = BenchmarkDatasetSpec {
             name: "cifar10".to_string(),
             domain: DatasetDomain::ComputerVision,
             size: 50000,
@@ -999,7 +1002,7 @@ mod tests {
             name: "nas_baselines".to_string(),
             description: "Baseline NAS algorithm comparison".to_string(),
             categories: vec![BenchmarkCategory::NASPerformance],
-            datasets: vec![BenchmarkDataset {
+            datasets: vec![BenchmarkDatasetSpec {
                 name: "cifar10".to_string(),
                 domain: DatasetDomain::ComputerVision,
                 size: 50000,

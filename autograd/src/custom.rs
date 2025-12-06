@@ -36,7 +36,9 @@ use alloc::vec::Vec;
 use core::any::Any;
 
 use backend::Backend;
+use tensor::tensor_core::OperationName;
 use dtype::DataType;
+
 use storage::{Storage, DenseStorage};
 
 use crate::{error::AutogradError, Result};
@@ -95,9 +97,7 @@ where
             name,
         };
 
-        let mut result = output;
-        result.set_grad_fn(Some("custom".to_string()));
-        result
+        output.with_grad_fn(Some(Arc::new(OperationName("custom".to_string()))))
     } else {
         output
     };

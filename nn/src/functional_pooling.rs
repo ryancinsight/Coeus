@@ -6,7 +6,7 @@
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 #[allow(unused_imports)]
-use storage::{DenseStorage, Storage, StorageToDense};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::error::{NNError, Result};
@@ -37,7 +37,7 @@ use crate::error::{NNError, Result};
 /// assert_eq!(output.shape().dims(), &[1, 64, 16, 16]);
 /// ```
 pub fn max_pool2d<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
     kernel_size: (usize, usize),
     stride: Option<(usize, usize)>,
     padding: (usize, usize),
@@ -61,8 +61,8 @@ where
     let input_w = input_shape[3];
 
     let stride = stride.unwrap_or(kernel_size);
-    let output_h = (input_h + 2 * padding.0 - kernel_size.0) / stride.0 + 1;
-    let output_w = (input_w + 2 * padding.1 - kernel_size.1) / stride.1 + 1;
+    let output_h = ((input_h as f64 + 2.0 * padding.0 as f64 - kernel_size.0 as f64) / stride.0 as f64 + 1.0) as usize;
+    let output_w = ((input_w as f64 + 2.0 * padding.1 as f64 - kernel_size.1 as f64) / stride.1 as f64 + 1.0) as usize;
 
     let input_data = input_dense.as_slice();
     let mut output_data = Vec::with_capacity(batch_size * channels * output_h * output_w);
@@ -139,14 +139,14 @@ where
 /// assert_eq!(output.shape().dims(), &[1, 64, 16, 16]);
 /// ```
 pub fn avg_pool2d<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
     kernel_size: (usize, usize),
     stride: Option<(usize, usize)>,
     padding: (usize, usize),
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T>,
-    T: DataType + FloatExt + Clone + std::ops::Add<Output = T> + std::ops::Div<Output = T>,
+    T: DataType + FloatExt + Clone,
 {
     let input_dense = input.to_dense_generic()?;
     let input_shape = input_dense.shape().dims();
@@ -163,8 +163,8 @@ where
     let input_w = input_shape[3];
 
     let stride = stride.unwrap_or(kernel_size);
-    let output_h = (input_h + 2 * padding.0 - kernel_size.0) / stride.0 + 1;
-    let output_w = (input_w + 2 * padding.1 - kernel_size.1) / stride.1 + 1;
+    let output_h = ((input_h as f64 + 2.0 * padding.0 as f64 - kernel_size.0 as f64) / stride.0 as f64 + 1.0) as usize;
+    let output_w = ((input_w as f64 + 2.0 * padding.1 as f64 - kernel_size.1 as f64) / stride.1 as f64 + 1.0) as usize;
 
     let input_data = input_dense.as_slice();
     let mut output_data = Vec::with_capacity(batch_size * channels * output_h * output_w);

@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 
 use backend::Backend;
-use dtype::DataType;
-use storage::{Storage, StorageFromVec};
-use tensor::Tensor;
+use dtype::{traits::FloatExt, DataType};
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::{ops::arithmetic, Tensor};
 
 #[cfg(feature = "safetensors")]
 use crate::error::NNError;
@@ -68,7 +68,7 @@ use crate::parameter::Parameter;
 pub trait Module<B, S, T>: core::fmt::Debug + std::any::Any
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     /// Perform forward pass through the module.
@@ -80,6 +80,28 @@ where
     /// Result containing the output tensor, or an error if the forward pass fails.
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>;
 
+    /// Perform forward pass with autograd support.
+    ///
+    /// This method should enable gradient tracking and create computation graph nodes
+    /// for automatic differentiation. The default implementation falls back to
+    /// regular forward pass.
+    ///
+    /// # Arguments
+    /// * `input` - Input tensor to the module (should have requires_grad set appropriately)
+    ///
+    /// # Returns
+    /// Result containing the output tensor with gradient tracking enabled.
+    fn forward_autograd(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
+    where
+        T: FloatExt + From<f64>,
+        B: Backend<Data = T> + Default + 'static,
+        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
+    {
+        // Default implementation: just call regular forward
+        // Subclasses should override for autograd support
+        self.forward(input)
+    }
+
     /// Get all learnable parameters in this module.
     ///
     /// This includes parameters from this module and all submodules.
@@ -89,6 +111,18 @@ where
     /// Vector of all parameters in this module hierarchy.
     fn parameters(&self) -> Vec<Parameter<B, S, T>>;
 
+    /// Get mutable references to all parameters for gradient updates.
+    ///
+    /// This is used by optimizers to update parameter values during training.
+    /// The default implementation returns an empty vector; concrete modules
+    /// should override to provide mutable parameter access.
+    ///
+    /// # Returns
+    /// Vector of mutable parameter references.
+    fn parameters_mut(&mut self) -> Vec<&mut Parameter<B, S, T>> {
+        Vec::new() // Default: no mutable parameters
+    }
+
     /// Get all submodules in this module.
     ///
     /// # Returns
@@ -97,10 +131,30 @@ where
         Vec::new() // Default implementation for leaf modules
     }
 
+    /// Get mutable references to all submodules.
+    ///
+    /// This is used for recursive operations like zero_grad() and train().
+    ///
+    /// # Returns
+    /// Vector of mutable submodule references.
+    fn modules_mut(&mut self) -> Vec<&mut dyn Module<B, S, T>> {
+        Vec::new() // Default: no mutable submodules
+    }
+
     /// Zero all gradients in this module and submodules.
     ///
     /// This should recursively call `zero_grad()` on all parameters.
-    fn zero_grad(&mut self);
+    fn zero_grad(&mut self) {
+        // Zero gradients on all parameters
+        for param in self.parameters_mut() {
+            param.zero_grad();
+        }
+
+        // Recursively zero gradients on submodules
+        for module in self.modules_mut() {
+            module.zero_grad();
+        }
+    }
 
     /// Set training mode for this module and submodules.
     ///
@@ -109,7 +163,12 @@ where
     ///
     /// Training mode typically enables dropout and batch normalization updates.
     /// Evaluation mode disables these for inference.
-    fn train(&mut self, mode: bool);
+    fn train(&mut self, mode: bool) {
+        // Recursively set training mode on submodules
+        for module in self.modules_mut() {
+            module.train(mode);
+        }
+    }
 
     /// Get the name/type of this module.
     ///
@@ -140,12 +199,25 @@ where
     {
         self as &dyn std::any::Any
     }
+
+    /// Get this module as a mutable Any trait object for downcasting.
+    ///
+    /// This is used for runtime type checking and downcasting to concrete module types.
+    ///
+    /// # Returns
+    /// This module as a mutable trait object that can be downcast.
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any
+    where
+        Self: Sized,
+    {
+        self as &mut dyn std::any::Any
+    }
 }
 
 /// Extension methods for Module trait.
 pub trait ModuleExt<
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 >: Module<B, S, T>
 {
@@ -181,7 +253,7 @@ pub trait ModuleExt<
 // Auto-implement ModuleExt for all Module implementors
 impl<
         B: Backend<Data = T> + Clone,
-        S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
         T: DataType,
         M: Module<B, S, T>,
     > ModuleExt<B, S, T> for M
@@ -225,7 +297,7 @@ pub type StateDict<T> = HashMap<String, Vec<T>>;
 #[cfg(feature = "safetensors")]
 pub trait ModuleSerialize<
     B: Backend<Data = T> + Clone + std::default::Default,
-    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T>,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + serde::Serialize + serde::de::DeserializeOwned,
 >: Module<B, S, T>
 {

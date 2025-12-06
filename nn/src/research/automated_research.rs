@@ -47,7 +47,7 @@ pub struct PipelineConfig {
 }
 
 /// Research domains
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ResearchDomain {
     ComputerVision,
     NaturalLanguageProcessing,
@@ -55,6 +55,25 @@ pub enum ResearchDomain {
     GenerativeAI,
     ScientificComputing,
     EdgeComputing,
+    AutoML,
+    GeneralML,
+    MetaLearning,
+}
+
+impl std::fmt::Display for ResearchDomain {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResearchDomain::ComputerVision => write!(f, "Computer Vision"),
+            ResearchDomain::NaturalLanguageProcessing => write!(f, "Natural Language Processing"),
+            ResearchDomain::ReinforcementLearning => write!(f, "Reinforcement Learning"),
+            ResearchDomain::GenerativeAI => write!(f, "Generative AI"),
+            ResearchDomain::ScientificComputing => write!(f, "Scientific Computing"),
+            ResearchDomain::EdgeComputing => write!(f, "Edge Computing"),
+            ResearchDomain::AutoML => write!(f, "AutoML"),
+            ResearchDomain::GeneralML => write!(f, "General ML"),
+            ResearchDomain::MetaLearning => write!(f, "Meta Learning"),
+        }
+    }
 }
 
 /// Pipeline execution stages
@@ -209,7 +228,7 @@ pub struct DatasetBenchmark {
 }
 
 /// Resource usage statistics
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ResourceUsageStats {
     pub total_gpu_hours: f64,
     pub total_cpu_hours: f64,
@@ -219,7 +238,7 @@ pub struct ResourceUsageStats {
 }
 
 /// Quality metrics tracked during pipeline execution
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QualityMetrics {
     pub current_accuracy: f64,
     pub model_complexity_score: f64,
@@ -253,11 +272,12 @@ impl AutomatedResearchPipeline {
     pub async fn execute_pipeline(&mut self) -> Result<PipelineExecutionReport> {
         let start_time = Instant::now();
 
-        for (stage_idx, stage) in self.config.pipeline_stages.iter().enumerate() {
+        let pipeline_stages = self.config.pipeline_stages.clone();
+        for (stage_idx, stage) in pipeline_stages.into_iter().enumerate() {
             self.execution_state.current_stage = stage_idx;
 
             let stage_start = Instant::now();
-            let result = self.execute_stage(stage).await?;
+            let result = self.execute_stage(&stage).await?;
             let stage_time = stage_start.elapsed();
 
             // Update execution state
@@ -300,7 +320,7 @@ impl AutomatedResearchPipeline {
                 let mut research_framework = self.research_framework.write().unwrap();
 
                 let experiment_id = nas_framework.start_nas_experiment(context.clone())?;
-                let evaluator = Arc::new(crate::nas::ArchitectureEvaluator::new()); // Placeholder
+                let evaluator = Arc::new(crate::nas::SimpleEvaluator::new(0.5, 0.01, 0.05)); // Placeholder
                 let space = crate::nas::ArchitectureSpace::new(crate::nas::search_space::ArchitectureType::CNN);
 
                 let result = nas_framework.execute_nas_search(&experiment_id, evaluator, &space)?;
@@ -316,17 +336,19 @@ impl AutomatedResearchPipeline {
             }
 
             PipelineStage::Joint { context } => {
-                let joint_framework = self.joint_framework.read().unwrap();
+                let mut joint_framework = self.joint_framework.write().unwrap();
                 let algorithm_name = joint_framework.recommend_algorithm(context);
 
                 let mut research_framework = self.research_framework.write().unwrap();
+                let arch_space = crate::nas::ArchitectureSpace::new(crate::nas::search_space::ArchitectureType::CNN);
+                let hp_space = crate::hpo::space::HyperparameterSpace::new(); // Create empty HPO space for now
                 let result = joint_framework.execute_joint_search(
                     &algorithm_name,
                     context,
                     &mut research_framework,
-                    Arc::new(crate::nas::ArchitectureEvaluator::new()),
-                    &crate::nas::ArchitectureSpace::new(crate::nas::search_space::ArchitectureType::CNN),
-                    &context.search_space,
+                    Arc::new(crate::nas::SimpleEvaluator::new(0.5, 0.01, 0.05)),
+                    &arch_space,
+                    &hp_space,
                 )?;
                 Ok(PipelineStageResult::Joint(result))
             }

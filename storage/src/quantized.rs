@@ -143,6 +143,21 @@ impl<
         Self::from_vec(one_data, shape)
     }
 
+    /// Creates quantized storage filled with a constant value.
+    ///
+    /// # Arguments
+    /// * `shape` - Tensor shape
+    /// * `value` - Value to fill storage with
+    ///
+    /// # Errors
+    ///
+    /// Returns error if invalid bitwidth or shape.
+    pub fn full(shape: &[usize], value: T) -> Result<Self> {
+        let total_elements = shape.iter().product();
+        let data = vec![value; total_elements];
+        Self::from_vec(data, shape)
+    }
+
     /// Quantizes floating-point data and packs into bytes.
     ///
     /// # Arguments
@@ -340,7 +355,7 @@ impl<
     }
 }
 
-impl<T: DataType, const BITS: usize> Storage<T> for QuantizedStorage<T, BITS> {
+impl<T: DataType + num_traits::Float + num_traits::FromPrimitive, const BITS: usize> Storage<T> for QuantizedStorage<T, BITS> {
     fn as_slice(&self) -> &[T] {
         // For quantized storage, we can't directly return T slice
         // This is a limitation - quantized storage needs special handling
@@ -377,6 +392,10 @@ impl<T: DataType, const BITS: usize> Storage<T> for QuantizedStorage<T, BITS> {
 
     fn as_storage_ref(&self) -> &Self {
         self
+    }
+
+    fn full(dims: &[usize], value: T) -> Result<Self> {
+        QuantizedStorage::full(dims, value)
     }
 }
 

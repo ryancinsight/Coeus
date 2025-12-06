@@ -174,6 +174,7 @@ pub struct MultiHeadAttention {
 }
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub enum AttentionType {
     /// Standard attention (O(n²) memory)
     Standard,
@@ -421,13 +422,13 @@ impl FeedForwardNetwork {
             ActivationType::ReLU => input.iter().map(|x| x.max(0.0)).collect(),
             ActivationType::Swish => input.iter().map(|x| x / (1.0 + (-x).exp())).collect(),
             ActivationType::GLU => input.iter().step_by(2).zip(input.iter().skip(1).step_by(2))
-                .flat_map(|(a, b)| vec![a * b.sigmoid()]).collect(),
+                .flat_map(|(a, b)| vec![a * (1.0 / (1.0 + (-b).exp()))]).collect(),
         }
     }
 
     fn apply_dropout(&self, input: &[f32]) -> Vec<f32> {
         // Simple dropout implementation (would need proper random state)
-        input.iter().map(|x| if rand::random::<f64>() < self.dropout { 0.0 } else { *x / (1.0 - self.dropout) }).collect()
+        input.iter().map(|x| if rand::random::<f64>() < self.dropout { 0.0 } else { *x / (1.0 - self.dropout as f32) }).collect()
     }
 }
 

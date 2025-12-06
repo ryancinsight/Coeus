@@ -3,18 +3,18 @@
 //! Implementation of specialized output heads for different downstream tasks
 //! in multimodal processing (classification, regression, generation, retrieval).
 
-use crate::error::{NNError, Result};
 use crate::linear::Linear;
+use crate::module::ModuleExt;
 use backend::Backend;
-use storage::Storage;
-use dtype::DataType;
+use storage::{Storage, StorageFromVec, StorageToDense};
+use dtype::{DataType, FloatExt};
 
 /// Task-specific outputs
 #[derive(Debug)]
 pub enum Task<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Default,
     T: DataType,
 {
     /// Classification output
@@ -31,7 +31,7 @@ where
 pub struct Classifier<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Default,
     T: DataType,
 {
     pub classifier: Linear<B, S, T>,
@@ -42,7 +42,7 @@ where
 pub struct Generator<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Default,
     T: DataType,
 {
     pub lm_head: Linear<B, S, T>,
@@ -53,7 +53,7 @@ where
 pub struct Retriever<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Default,
     T: DataType,
 {
     pub projection: Linear<B, S, T>,
@@ -70,8 +70,8 @@ pub enum SimilarityType {
 impl<B, S, T> Task<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Default,
+    T: DataType + FloatExt + num_traits::Zero + num_traits::One,
 {
     /// Get the number of parameters in this task output
     pub fn num_parameters(&self) -> usize {
@@ -117,5 +117,3 @@ mod tests {
         assert_eq!(types.len(), 3);
     }
 }
-
-

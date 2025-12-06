@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::path::Path;
 
-use crate::error::{NNError, Result};
+use crate::error::Result;
 use crate::parameter::Parameter;
 use backend::Backend;
 use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
@@ -46,7 +46,7 @@ pub struct ClipBatch {
 }
 
 /// CLIP Training Configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClipTrainingConfig {
     /// CLIP model configuration
     pub clip_config: ClipConfig,
@@ -134,14 +134,13 @@ pub struct ClipTrainingMetrics {
 }
 
 /// CLIP Trainer
-pub struct ClipTrainer<B, S, T>
+pub struct ClipTrainer<B, T>
 where
     B: Backend<Data = T> + Send + Sync + 'static,
-    S: Storage<T> + Send + Sync + 'static,
-    T: DataType + FloatExt + Send + Sync + 'static,
+    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + Send + Sync + 'static,
 {
     /// CLIP model
-    model: ClipModel<B, S, T>,
+    model: ClipModel<B, DenseStorage<T>, T>,
     /// Configuration
     config: ClipTrainingConfig,
     /// Image processor
@@ -154,11 +153,10 @@ where
     optimizer_placeholder: String,
 }
 
-impl<B, S, T> ClipTrainer<B, S, T>
+impl<B, T> ClipTrainer<B, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + 'static,
+    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + std::ops::Neg<Output = T> + Send + Sync + 'static,
 {
     /// Create new CLIP trainer
     pub fn new(config: ClipTrainingConfig) -> Result<Self> {
@@ -229,7 +227,7 @@ where
                 memory_mb: None, // Would measure memory usage
             };
 
-            metrics.push(step_metrics);
+            metrics.push(step_metrics.clone());
 
             // Update best loss
             if loss_val < best_loss {
@@ -309,7 +307,7 @@ where
     }
 
     /// Extract scalar loss value from tensor
-    fn extract_loss_value(&self, loss_tensor: &[Tensor<B, DenseStorage<T>, T>]) -> f64 {
+    fn extract_loss_value(&self, loss_tensor: &Tensor<B, DenseStorage<T>, T>) -> f64 {
         // Simplified - would properly extract scalar from tensor
         2.5 // Placeholder loss value
     }
@@ -365,12 +363,12 @@ where
     }
 
     /// Get model reference
-    pub fn model(&self) -> &ClipModel<B, S, T> {
+    pub fn model(&self) -> &ClipModel<B, DenseStorage<T>, T> {
         &self.model
     }
 
     /// Get model mutable reference
-    pub fn model_mut(&mut self) -> &mut ClipModel<B, S, T> {
+    pub fn model_mut(&mut self) -> &mut ClipModel<B, DenseStorage<T>, T> {
         &mut self.model
     }
 
@@ -466,9 +464,9 @@ pub trait ClipDataLoader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::CpuBackend;
-    use crate::dtype::float::Float32;
-    use crate::storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     type TestBackend = CpuBackend<Float32>;
     type TestStorage = DenseStorage<Float32>;
@@ -477,7 +475,7 @@ mod tests {
     fn test_clip_trainer_creation() {
         let config = ClipTrainingConfig::default();
 
-        let trainer = ClipTrainer::<TestBackend, TestStorage, Float32>::new(config);
+        let trainer = ClipTrainer::<TestBackend, Float32>::new(config);
         assert!(trainer.is_ok());
 
         let trainer = trainer.unwrap();
@@ -494,7 +492,7 @@ mod tests {
             ..Default::default()
         };
 
-        let trainer = ClipTrainer::<TestBackend, TestStorage, Float32>::new(config).unwrap();
+        let trainer = ClipTrainer::<TestBackend, Float32>::new(config).unwrap();
 
         // Test warmup
         assert_eq!(trainer.get_current_learning_rate(0), 0.0);
@@ -523,3 +521,4 @@ mod tests {
         assert_eq!(report.convergence_rate, 0.25);
     }
 }
+

@@ -32,7 +32,7 @@ use std::marker::PhantomData;
 pub struct Conv3D<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
     /// Convolution weights [out_channels, in_channels, kernel_depth, kernel_height, kernel_width]
@@ -65,7 +65,7 @@ where
 impl<B, S, T> Conv3D<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
 {
     /// Create a new Conv3D layer.

@@ -517,6 +517,28 @@ impl<T: DataType> Storage<T> for DistributedStorage<T> {
     fn as_storage_ref(&self) -> &Self {
         self
     }
+
+    fn full(dims: &[usize], value: T) -> Result<Self> {
+        // Create a simple single-shard distributed storage
+        let global_shape = Shape::new(dims)?;
+        let shard_shape = global_shape.clone();
+        let shard_info = ShardInfo {
+            device_id: DeviceId(0),
+            offset: vec![0; dims.len()],
+            shape: shard_shape,
+            shard_index: 0,
+        };
+        let storage_variant = StorageVariant::Dense(crate::DenseStorage::full(dims, value)?);
+
+        Ok(Self {
+            global_shape,
+            sharding_strategy: ShardingStrategy::Replicated,
+            shards: vec![shard_info],
+            device_assignments: vec![DeviceId(0)],
+            local_shards: vec![(0, storage_variant)],
+            _phantom: core::marker::PhantomData,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -790,6 +812,20 @@ impl<T: DataType> Storage<T> for ShardedStorage<T> {
 
     fn as_storage_ref(&self) -> &Self {
         self
+    }
+
+    fn full(dims: &[usize], value: T) -> Result<Self> {
+        // Create a simple single-shard sharded storage
+        let shape = Shape::new(dims)?;
+        let shard = crate::DenseStorage::full(dims, value)?;
+        let shard_boundaries = vec![shape.size()];
+
+        Ok(Self {
+            shards: vec![shard],
+            shard_boundaries,
+            shape,
+            shard_dim: 0, // Shard along first dimension
+        })
     }
 }
 

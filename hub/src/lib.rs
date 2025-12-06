@@ -79,7 +79,7 @@ impl Hub {
     }
 
     /// Load a pretrained model by name and task
-    pub async fn load<M, B, S, T>(
+    pub async fn load<M, B: Backend<Data = T>, S, T>(
         &self,
         model_name: &str,
         task: ModelTask,
@@ -87,7 +87,7 @@ impl Hub {
     where
         M: Module<B, S, T>,
         B: Backend,
-        S: coeus_storage::Storage<T> + Clone + 'static,
+        S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
         T: DataType,
     {
         let config = LoadConfig {

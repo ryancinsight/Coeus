@@ -16,7 +16,7 @@ tensor.workspace = true
 autograd.workspace = true
 nn.workspace = true
 optim.workspace = true
-coeus-error.workspace = true
+coeus-error = { workspace = true, features = ["std"] }
 
 # External dependencies
 serde.workspace = true

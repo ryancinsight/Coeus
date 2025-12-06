@@ -41,7 +41,7 @@ pub fn compose(transforms: Vec<Py<PyAny>>) -> PyResult<PyCompose> {
 /// ToTensor transform - converts data to tensors
 #[pyclass(name = "ToTensor", module = "_coeus")]
 pub struct PyToTensor {
-    inner: coeus_utils::transforms::ToTensor,
+    inner: utils::transforms::ToTensor,
 }
 
 #[pymethods]
@@ -49,7 +49,7 @@ impl PyToTensor {
     #[new]
     fn new() -> Self {
         Self {
-            inner: coeus_utils::transforms::ToTensor::new(),
+            inner: utils::transforms::ToTensor::new(),
         }
     }
 
@@ -75,7 +75,7 @@ impl PyToTensor {
 /// Normalize transform - normalizes tensor data
 #[pyclass(name = "Normalize", module = "_coeus")]
 pub struct PyNormalize {
-    inner: std::sync::Arc<coeus_utils::transforms::Normalize>,
+    inner: std::sync::Arc<utils::transforms::Normalize>,
 }
 
 #[pymethods]
@@ -97,7 +97,7 @@ impl PyNormalize {
         }
 
         // Since we validated inputs, this should succeed
-        let inner = coeus_utils::transforms::Normalize::new(mean, std);
+        let inner = utils::transforms::Normalize::new(mean, std);
         Ok(Self {
             inner: std::sync::Arc::new(inner),
         })
@@ -106,7 +106,7 @@ impl PyNormalize {
     /// Create single-channel normalize transform
     #[staticmethod]
     fn single_channel(mean: f32, std: f32) -> PyResult<Self> {
-        let inner = coeus_utils::transforms::Normalize::single_channel(mean, std);
+        let inner = utils::transforms::Normalize::single_channel(mean, std);
         Ok(Self {
             inner: std::sync::Arc::new(inner),
         })
@@ -115,7 +115,7 @@ impl PyNormalize {
     /// Create ImageNet normalize transform
     #[staticmethod]
     fn imagenet() -> Self {
-        let inner = coeus_utils::transforms::Normalize::imagenet();
+        let inner = utils::transforms::Normalize::imagenet();
         Self {
             inner: std::sync::Arc::new(inner),
         }
@@ -124,7 +124,7 @@ impl PyNormalize {
     /// Create grayscale normalize transform
     #[staticmethod]
     fn grayscale() -> Self {
-        let inner = coeus_utils::transforms::Normalize::grayscale();
+        let inner = utils::transforms::Normalize::grayscale();
         Self {
             inner: std::sync::Arc::new(inner),
         }
@@ -160,7 +160,7 @@ impl PyNormalize {
 /// Resize transform - resizes tensor data to specified dimensions
 #[pyclass(name = "Resize", module = "_coeus")]
 pub struct PyResize {
-    inner: std::sync::Arc<coeus_utils::transforms::Resize>,
+    inner: std::sync::Arc<utils::transforms::Resize>,
 }
 
 #[pymethods]
@@ -168,7 +168,7 @@ impl PyResize {
     #[new]
     fn new(size: (usize, usize)) -> Self {
         Self {
-            inner: std::sync::Arc::new(coeus_utils::transforms::Resize::new(size)),
+            inner: std::sync::Arc::new(utils::transforms::Resize::new(size)),
         }
     }
 
@@ -176,7 +176,7 @@ impl PyResize {
     #[staticmethod]
     fn imagenet() -> Self {
         Self {
-            inner: std::sync::Arc::new(coeus_utils::transforms::Resize::imagenet()),
+            inner: std::sync::Arc::new(utils::transforms::Resize::imagenet()),
         }
     }
 
@@ -184,7 +184,7 @@ impl PyResize {
     #[staticmethod]
     fn cifar() -> Self {
         Self {
-            inner: std::sync::Arc::new(coeus_utils::transforms::Resize::cifar()),
+            inner: std::sync::Arc::new(utils::transforms::Resize::cifar()),
         }
     }
 

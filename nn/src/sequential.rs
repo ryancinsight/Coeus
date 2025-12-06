@@ -10,7 +10,7 @@ use std::any::Any;
 
 use backend::Backend;
 use dtype::DataType;
-use storage::{Storage, StorageFromVec};
+use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::error::{NNError, Result};
@@ -46,7 +46,7 @@ use crate::parameter::Parameter;
 pub struct Sequential<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     /// Vector of modules in sequential order
@@ -60,7 +60,7 @@ where
 impl<B, S, T> Sequential<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     /// Create a new empty Sequential container.
@@ -225,7 +225,7 @@ where
 impl<B, S, T> Default for Sequential<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     fn default() -> Self {
@@ -299,7 +299,7 @@ where
 impl<B, S, T> Module<B, S, T> for Sequential<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
@@ -399,7 +399,7 @@ mod tests {
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
         seq.add_module("fc1", linear);
 
-        let relu = ReLU;
+        let relu = ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         seq.add_module("relu1", relu);
 
         assert_eq!(seq.len(), 2);
@@ -441,7 +441,7 @@ mod tests {
     fn test_sequential_extend() {
         let mut seq1 = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         seq1.add_module("fc1", Linear::new(10, 8).unwrap());
-        seq1.add_module("relu", ReLU);
+        seq1.add_module("relu", ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new());
 
         let mut seq2 = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         seq2.add_module("fc2", Linear::new(8, 4).unwrap());
@@ -464,7 +464,7 @@ mod tests {
     fn test_sequential_forward() {
         let mut seq = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         seq.add_module("fc1", Linear::new(4, 3).unwrap());
-        seq.add_module("relu", ReLU);
+          seq.add_module("relu", ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new());
 
         let input = Tensor::from_vec(
             vec![
@@ -512,7 +512,7 @@ mod tests {
     fn test_sequential_train_mode() {
         let mut seq = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         seq.add_module("fc", Linear::new(5, 3).unwrap());
-        seq.add_module("relu", ReLU);
+          seq.add_module("relu", ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new());
 
         // Default should be training mode
         assert_eq!(seq.training, true);

@@ -10,6 +10,34 @@ use crate::{functions::*, Result};
 use dtype::DataType;
 use tensor::{CpuBackend, DenseStorage, Tensor};
 use alloc::{sync::Arc, vec::Vec};
+use backend::Backend;
+use storage::{Storage, StorageFromVec};
+
+
+// Function to create proper Function objects for gradient computation
+fn create_add_function<B, S, T>(
+    lhs: &Tensor<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
+    rhs: &Tensor<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
+) -> Arc<dyn tensor::AsAny + Send + Sync>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    Arc::new(AddFunction::new(Arc::new(lhs.clone()), Arc::new(rhs.clone())))
+}
+
+fn create_matmul_function<B, S, T>(
+    lhs: &Tensor<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
+    rhs: &Tensor<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
+) -> Arc<dyn tensor::AsAny + Send + Sync>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    Arc::new(MatMulFunction::new(Arc::new(lhs.clone()), Arc::new(rhs.clone())))
+}
 
 /// Element-wise addition with automatic differentiation
 ///
@@ -53,13 +81,7 @@ pub fn add(
 
     // Create computation graph if gradients are required
     if lhs.requires_grad() || rhs.requires_grad() {
-        let add_fn = Arc::new(AddFunction::new(
-            Arc::new(lhs.clone()),
-            Arc::new(rhs.clone()),
-        ));
-        let mut result_with_grad = result;
-        result_with_grad.set_grad_fn(Some("add".to_string()));
-        Ok(result_with_grad)
+        Ok(result.with_grad_fn(Some(create_add_function::<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>(&lhs, &rhs))))
     } else {
         Ok(result)
     }
@@ -86,9 +108,7 @@ pub fn matmul(
 
     // Create computation graph if gradients are required
     if lhs.requires_grad() || rhs.requires_grad() {
-        let mut result_with_grad = result;
-        result_with_grad.set_grad_fn(Some("matmul".to_string()));
-        Ok(result_with_grad)
+        Ok(result.with_grad_fn(Some(create_matmul_function::<CpuBackend<dtype::float::Float32>, DenseStorage<dtype::float::Float32>, dtype::float::Float32>(&lhs, &rhs))))
     } else {
         Ok(result)
     }

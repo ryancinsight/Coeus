@@ -685,8 +685,8 @@ pub mod profiling {
             self.batch_times.push(duration);
 
             // Update throughput (samples/second)
-            if let Ok(avg_time) = self.batch_times.iter().sum::<std::time::Duration>()
-                .div_f64(self.batch_times.len() as f64).as_secs_f64() {
+            let total_time: std::time::Duration = self.batch_times.iter().sum();
+            let avg_time = total_time.div_f64(self.batch_times.len() as f64).as_secs_f64();
                 if avg_time > 0.0 {
                     self.throughput_history.push(1.0 / avg_time);
                 }

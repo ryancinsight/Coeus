@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn test_checkpointed_creation() {
-        let model = Linear::<CpuBackend, _, Float32>::new(10, 5).unwrap();
+        let model = Linear::<CpuBackend<Float32>, _, Float32>::new(10, 5).unwrap();
         let checkpointed = Checkpointed::new(model, 2);
 
         assert!(checkpointed.memory_savings_estimate() > 1.0);
@@ -254,10 +254,10 @@ mod tests {
 
     #[test]
     fn test_checkpointed_forward() {
-        let model = Linear::<CpuBackend, _, Float32>::new(4, 2).unwrap();
+        let model = Linear::<CpuBackend<Float32>, _, Float32>::new(4, 2).unwrap();
         let checkpointed = Checkpointed::new(model, 1);
 
-        let input = Tensor::<CpuBackend, _, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, _, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
             &[1, 4],
         ).unwrap();
@@ -286,7 +286,7 @@ mod tests {
 
         let checkpointed = Checkpointed::new(model, 1);
 
-        let input = Tensor::<CpuBackend, _, Float32>::from_vec(
+        let input = Tensor::<CpuBackend<Float32>, _, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
             &[1, 4],
         ).unwrap();

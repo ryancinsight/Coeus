@@ -14,7 +14,7 @@ impl<B, S, T> fmt::Display for GRU<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + Clone + StorageFromVec<T>,
-    T: DataType,
+    T: DataType + std::cmp::PartialOrd,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

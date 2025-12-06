@@ -32,7 +32,7 @@ fn test_tensor_from_vec_float64() {
     let tensor = CpuTensorF64::from_vec(data, &[2]).unwrap();
 
     assert_eq!(tensor.len(), 2);
-    assert_eq!(CpuTensorF64::dtype(), coeus_dtype::Dtype::Float64);
+    assert_eq!(CpuTensorF64::dtype(), dtype::Dtype::Float64);
 }
 
 #[test]
@@ -646,7 +646,7 @@ fn test_transpose_preserves_dtype() {
     let transposed = tensor.transpose(0, 1).unwrap();
 
     assert_eq!(transposed.shape().dims(), &[2, 2]);
-    assert_eq!(CpuTensorI32::dtype(), coeus_dtype::Dtype::Int32);
+    assert_eq!(CpuTensorI32::dtype(), dtype::Dtype::Int32);
 }
 
 #[test]

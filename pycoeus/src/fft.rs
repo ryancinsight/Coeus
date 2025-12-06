@@ -2,41 +2,39 @@
 
 use pyo3::prelude::*;
 use pyo3::pyclass;
-use audio::Fft;
+use rustfft::{Fft, FftPlanner};
+use rustfft::num_complex::Complex32;
 
 /// FFT operation for audio processing
 #[pyclass(name = "FFT", module = "_coeus")]
-#[derive(Clone)]
 pub struct FFT {
     /// Internal FFT processor
-    fft: Fft,
+    planner: FftPlanner<f32>,
 }
 
 #[pymethods]
 impl FFT {
     #[new]
-    fn new(size: usize) -> PyResult<Self> {
-        let fft = Fft::new(size).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string())
-        })?;
-
-        Ok(FFT { fft })
+    fn new(_size: usize) -> PyResult<Self> {
+        let planner = FftPlanner::new();
+        Ok(FFT { planner })
     }
 
-    /// Get the FFT size
+    /// Get a description of the FFT
     #[must_use]
-    fn size(&self) -> usize {
-        self.fft.size()
+    fn description(&self) -> String {
+        "RustFFT-based FFT processor".to_string()
     }
 
     /// Perform basic forward FFT on Python list
     /// This provides immediate functionality for testing and validation
     fn forward(&mut self, py: Python, input: Vec<f32>) -> PyResult<Vec<(f32, f32)>> {
         let result = py.allow_threads(|| {
-            self.fft.forward_real_simple(&input)
-        }).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string())
-        })?;
+            let mut complex_input: Vec<Complex32> = input.into_iter().map(|x| Complex32::new(x, 0.0)).collect();
+            let fft = self.planner.plan_fft_forward(complex_input.len());
+            fft.process(&mut complex_input);
+            complex_input
+        });
 
         // Convert to Python tuple of (real, imag) pairs
         Ok(result.into_iter().map(|c| (c.re, c.im)).collect())
@@ -53,46 +51,43 @@ impl FFT {
             .collect();
 
         let result = py.allow_threads(|| {
-            self.fft.inverse_complex_simple(&complex_input)
-        }).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string())
-        })?;
+            let mut complex_buffer = complex_input;
+            let fft = self.planner.plan_fft_inverse(complex_buffer.len());
+            fft.process(&mut complex_buffer);
+            complex_buffer.into_iter().map(|c| c.re).collect::<Vec<f32>>()
+        });
 
         Ok(result)
     }
 
     /// Get FFT info
     fn __repr__(&self) -> String {
-        format!("FFT(size={})", self.fft.size())
+        "FFT(using RustFFT planner)".to_string()
     }
 }
 
 /// IFFT operation for audio processing
 #[pyclass(name = "IFFT", module = "_coeus")]
-#[derive(Clone)]
 pub struct IFFT {
     /// Internal FFT processor
-    fft: Fft,
+    planner: FftPlanner<f32>,
 }
 
 #[pymethods]
 impl IFFT {
     #[new]
-    fn new(size: usize) -> PyResult<Self> {
-        let fft = Fft::new(size).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string())
-        })?;
-
-        Ok(IFFT { fft })
+    fn new(_size: usize) -> PyResult<Self> {
+        let planner = FftPlanner::new();
+        Ok(IFFT { planner })
     }
 
     /// Perform inverse FFT
     fn __call__(&mut self, py: Python, input: Vec<f32>) -> PyResult<String> {
-        Ok(format!("IFFT inverse transform for size {} (awaiting full tensor integration)", self.fft.size()))
+        Ok("IFFT inverse transform (awaiting full tensor integration)".to_string())
     }
 
     /// Get IFFT info
     fn __repr__(&self) -> String {
-        format!("IFFT(size={})", self.fft.size())
+        "IFFT(using RustFFT planner)".to_string()
     }
 }

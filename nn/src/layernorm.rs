@@ -53,15 +53,15 @@ use crate::parameter::Parameter;
 pub struct LayerNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
     /// Shape to normalize over (e.g., [hidden_dim] for transformers)
     pub normalized_shape: Vec<usize>,
     /// Scale parameter γ (initialized to 1)
-    pub weight: Parameter<B, DenseStorage<T>, T>,
+    pub weight: Parameter<B, S, T>,
     /// Shift parameter β (initialized to 0)
-    pub bias: Parameter<B, DenseStorage<T>, T>,
+    pub bias: Parameter<B, S, T>,
     /// Numerical stability constant ε
     pub eps: f64,
     _phantom: PhantomData<(B, S, T)>,
@@ -70,7 +70,7 @@ where
 impl<B, S, T> LayerNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
     /// Create a new LayerNorm layer.
@@ -94,13 +94,13 @@ where
         // Initialize weight (γ) to 1
         let weight_data = vec![T::one(); num_features];
         let weight_tensor =
-            Tensor::<B, DenseStorage<T>, T>::from_vec(weight_data, &normalized_shape).unwrap();
+            Tensor::<B, S, T>::from_vec(weight_data, &normalized_shape).unwrap();
         let weight = Parameter::new(weight_tensor.requires_grad_(true), "weight".to_string());
 
         // Initialize bias (β) to 0
         let bias_data = vec![T::zero(); num_features];
         let bias_tensor =
-            Tensor::<B, DenseStorage<T>, T>::from_vec(bias_data, &normalized_shape).unwrap();
+            Tensor::<B, S, T>::from_vec(bias_data, &normalized_shape).unwrap();
         let bias = Parameter::new(bias_tensor.requires_grad_(true), "bias".to_string());
 
         Self {
@@ -113,7 +113,7 @@ where
     }
 }
 
-impl<B, S, T> Module<B, DenseStorage<T>, T> for LayerNorm<B, S, T>
+impl<B, S, T> Module<B, S, T> for LayerNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
@@ -121,8 +121,8 @@ where
 {
     fn forward(
         &self,
-        input: &Tensor<B, DenseStorage<T>, T>,
-    ) -> Result<Tensor<B, DenseStorage<T>, T>> {
+        input: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, S, T>> {
         // Input: [..., *normalized_shape]
         // Output: Same shape as input
 
@@ -181,7 +181,7 @@ where
         Tensor::from_vec(output_data, input_shape).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<B, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         vec![self.weight.clone(), self.bias.clone()]
     }
 

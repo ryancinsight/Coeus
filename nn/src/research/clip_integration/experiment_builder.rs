@@ -9,8 +9,7 @@ use std::path::PathBuf;
 
 use crate::error::{NNError, Result};
 use crate::clip::enhanced_trainer::{EnhancedClipTrainingConfig, EnhancedClipTrainer};
-use super::{ClipResearchConfig, HpoSpace, AblationStudy};
-use crate::research::ExperimentMetadata;
+use super::{ClipResearchConfig, HpoSpace, AblationStudy, ClipExperimentMetadata};
 
 /// CLIP experiment builder for systematic research
 #[derive(Debug, Clone)]
@@ -22,7 +21,7 @@ pub struct ClipExperimentBuilder {
     priority: ExperimentPriority,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ExperimentPriority {
     Low = 0,
     Normal = 1,
@@ -90,15 +89,13 @@ impl ClipExperimentBuilder {
         self.validate_config()?;
 
         // Create experiment metadata
-        let metadata = ExperimentMetadata {
-            name: self.experiment_name.clone(),
-            description: format!("CLIP experiment: {}", self.experiment_name),
-            created_at: chrono::Utc::now(),
-            author: std::env::var("USER").unwrap_or_else(|_| "coeus".to_string()),
-            tags: self.tags.clone(),
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            framework_version: "1.0.0".to_string(),
-        };
+        let mut metadata = ClipExperimentMetadata::default();
+        metadata.name = self.experiment_name.clone();
+        metadata.description = format!("CLIP experiment: {}", self.experiment_name);
+        metadata.author = std::env::var("USER").unwrap_or_else(|_| "coeus".to_string());
+
+        // Convert tags HashMap to Vec<String> for tags field
+        metadata.tags = self.tags.keys().cloned().collect();
 
         // Update config with metadata
         let mut config = self.config;
@@ -116,7 +113,7 @@ impl ClipExperimentBuilder {
     /// Validate experiment configuration
     fn validate_config(&self) -> Result<()> {
         // Validate base training config
-        if self.config.base_training_config.num_epochs == 0 {
+        if self.config.base_training_config.base_config.num_epochs == 0 {
             return Err(NNError::InvalidInput {
                 message: "Number of epochs must be greater than 0".to_string(),
             });
@@ -134,7 +131,7 @@ impl ClipExperimentBuilder {
         // Validate output directory
         if !self.output_dir.exists() {
             std::fs::create_dir_all(&self.output_dir).map_err(|e| NNError::IoError {
-                message: format!("Failed to create output directory: {}", e),
+                error: e,
             })?;
         }
 
@@ -177,13 +174,14 @@ impl ClipExperimentRunner {
         println!("🚀 Starting CLIP experiment: {}", self.experiment.name);
 
         // Initialize trainer
-        let trainer = EnhancedClipTrainer::new(self.experiment.config.base_training_config.clone())
+        let mut trainer = EnhancedClipTrainer::<backend::CpuBackend<dtype::float::Float32>, storage::DenseStorage<dtype::float::Float32>, dtype::float::Float32>::new(self.experiment.config.base_training_config.clone())
             .map_err(|e| NNError::TrainingError {
                 message: format!("Failed to initialize trainer: {}", e),
             })?;
 
         // Run training
-        let training_result = trainer.train().await
+        let data_loader: fn() -> Option<crate::clip::enhanced_trainer::ClipBatch> = || None; // Placeholder - no data
+        let training_result = trainer.train(data_loader).await
             .map_err(|e| NNError::TrainingError {
                 message: format!("Training failed: {}", e),
             })?;

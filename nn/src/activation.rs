@@ -6,17 +6,24 @@
 //! - Advanced activation compositions
 
 use crate::error::{NNError, Result};
-use crate::backend_crate::Backend;
-use crate::storage_crate::{Storage, DenseStorage, StorageFromVec, StorageToDense};
-use crate::dtype_crate::DataType;
-use crate::tensor_crate::FloatExt;
-use crate::tensor_crate::Tensor;
+use crate::functional_activations::tanh as functional_tanh;
+use crate::module::Module;
+use backend::Backend;
+use storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+use dtype::DataType;
+use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::creation::*};
+use crate::parameter::Parameter;
 
 /// Swish-Gated Linear Unit (SwiGLU) activation function
 ///
 /// SwiGLU(x, y) = x * σ(y) where σ is the sigmoid function
 /// This is used in modern transformer architectures like PaLM and LLaMA
-pub struct SwiGLU<B, S, T> {
+pub struct SwiGLU<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+{
     _phantom: std::marker::PhantomData<(B, S, T)>,
 }
 
@@ -43,16 +50,16 @@ where
     /// Result containing the SwiGLU activated tensor
     pub fn forward(&self, x: &Tensor<B, S, T>, y: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         if x.shape() != y.shape() {
-            return Err(NNError::InvalidInput(
-                "SwiGLU inputs must have the same shape".to_string(),
-            ));
+            return Err(NNError::InvalidInput {
+                message: "SwiGLU inputs must have the same shape".to_string(),
+            });
         }
 
         // Compute sigmoid of y: σ(y) = 1 / (1 + exp(-y))
         let sigmoid_y = self.sigmoid(y)?;
 
         // Compute element-wise multiplication: x * σ(y)
-        let result = x.mul(&sigmoid_y)?;
+        let result = mul(x, &sigmoid_y)?;
 
         Ok(result)
     }
@@ -61,16 +68,17 @@ where
     fn sigmoid(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // sigmoid(x) = 1 / (1 + exp(-x))
 
-        // First compute exp(-x)
-        let neg_x = x.neg()?;
-        let exp_neg_x = neg_x.exp()?;
+        // First compute -x
+        let neg_x = neg(x)?;
+        // Then compute exp(-x) - need to use elementwise exp
+        let exp_neg_x = neg_x.exp();
 
         // Then compute 1 + exp(-x)
-        let one = Tensor::ones_like(x)?;
-        let denominator = one.add(&exp_neg_x)?;
+        let one = Tensor::<B, S, T>::ones_generic(x.shape().dims())?;
+        let denominator = add(&one, &exp_neg_x)?;
 
         // Finally compute 1 / (1 + exp(-x))
-        let result = one.div(&denominator)?;
+        let result = div(&one, &denominator)?;
 
         Ok(result)
     }
@@ -85,25 +93,11 @@ where
     ///
     /// # Returns
     /// Result containing the SwiGLU activated tensor
-    pub fn forward_split(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
-        let shape = input.shape().dims();
-        let last_dim = *shape.last().ok_or_else(|| {
-            NNError::InvalidInput("Input tensor must have at least one dimension".to_string())
-        })?;
-
-        if last_dim % 2 != 0 {
-            return Err(NNError::InvalidInput(
-                "Last dimension must be even for automatic gating split".to_string(),
-            ));
-        }
-
-        let half_dim = last_dim / 2;
-
-        // Split the input into two halves along the last dimension
-        let x = input.slice(&[0..shape.len() - 1], &[0..half_dim])?;
-        let y = input.slice(&[0..shape.len() - 1], &[half_dim..last_dim])?;
-
-        self.forward(&x, &y)
+    pub fn forward_split(&self, _input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // TODO: Implement tensor slicing functionality
+        Err(NNError::NotImplemented {
+            operation: "forward_split".to_string(),
+        })
     }
 }
 
@@ -111,15 +105,21 @@ where
 ///
 /// GELU(x) = x * Φ(x) where Φ(x) is the cumulative distribution function of the standard normal distribution
 /// Approximation: GELU(x) ≈ 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
-pub struct GeLU<B, S, T> {
+#[derive(Debug)]
+pub struct GeLU<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+{
     _phantom: std::marker::PhantomData<(B, S, T)>,
 }
 
 impl<B, S, T> GeLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
-    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Clone,
 {
     /// Create a new GeLU activation function
     pub fn new() -> Self {
@@ -133,29 +133,35 @@ where
     /// GELU(x) ≈ 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
     pub fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // Compute x^3
-        let x_cubed = x.mul(&x.mul(x)?)?;
+        let x_squared = mul(x, x)?;
+        let x_cubed = mul(&x_squared, x)?;
 
         // Compute 0.044715 * x^3
         let coeff = T::from(0.044715).unwrap();
-        let scaled_cubed = x_cubed.mul_scalar(coeff)?;
+        let scaled_cubed = scalar_mul(&x_cubed, coeff)?;
 
         // Compute x + 0.044715 * x^3
-        let inner_term = x.add(&scaled_cubed)?;
+        let inner_term = add(x, &scaled_cubed)?;
 
         // Compute sqrt(2/π) ≈ 0.7978845608
         let sqrt_2_pi = T::from(0.7978845608).unwrap();
-        let scaled_inner = inner_term.mul_scalar(sqrt_2_pi)?;
+        let scaled_inner = scalar_mul(&inner_term, sqrt_2_pi)?;
 
         // Compute tanh(scaled_inner)
-        let tanh_result = scaled_inner.tanh()?;
+        let scaled_inner_dense = scaled_inner.to_dense_generic()?;
+        let tanh_result_dense = functional_tanh(&scaled_inner_dense)?;
+        let tanh_result_data = tanh_result_dense.as_slice().to_vec();
+        let tanh_result = Tensor::<B, S, T>::from_vec(tanh_result_data, scaled_inner.shape().dims())?;
 
         // Compute 1 + tanh_result
-        let one = Tensor::ones_like(x)?;
-        let tanh_plus_one = one.add(&tanh_result)?;
+        let one_data = vec![T::from(1.0).unwrap(); x.shape().dims().iter().product()];
+        let one = Tensor::<B, S, T>::from_vec(one_data, x.shape().dims())?;
+        let tanh_plus_one = add(&one, &tanh_result)?;
 
         // Compute 0.5 * x * (1 + tanh_result)
         let half = T::from(0.5).unwrap();
-        let result = x.mul(&tanh_plus_one)?.mul_scalar(half)?;
+        let x_scaled = mul(x, &tanh_plus_one)?;
+        let result = scalar_mul(&x_scaled, half)?;
 
         Ok(result)
     }
@@ -165,7 +171,12 @@ where
 ///
 /// SiLU(x) = x * sigmoid(x)
 /// Also known as Swish: Swish(x) = x * sigmoid(x)
-pub struct SiLU<B, S, T> {
+pub struct SiLU<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+{
     swiglu: SwiGLU<B, S, T>,
 }
 
@@ -190,14 +201,20 @@ where
 }
 
 /// Activation function registry for dynamic activation selection
-pub enum ActivationType {
+pub enum ActivationType<T> {
     SwiGLU,
     GeLU,
     SiLU,
     ReLU,
+    PReLU(usize, Option<T>),
 }
 
-pub struct ActivationFactory<B, S, T> {
+pub struct ActivationFactory<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+{
     _phantom: std::marker::PhantomData<(B, S, T)>,
 }
 
@@ -208,12 +225,13 @@ where
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     /// Create an activation function by type
-    pub fn create(activation_type: ActivationType) -> Box<dyn Activation<B, S, T>> {
+    pub fn create(activation_type: ActivationType<T>) -> Box<dyn Activation<B, S, T>> {
         match activation_type {
             ActivationType::SwiGLU => Box::new(SwiGLU::new()),
             ActivationType::GeLU => Box::new(GeLU::new()),
             ActivationType::SiLU => Box::new(SiLU::new()),
             ActivationType::ReLU => Box::new(ReLU::new()),
+            ActivationType::PReLU(num_params, init) => Box::new(PReLU::new(num_params, init)),
         }
     }
 }
@@ -229,7 +247,13 @@ where
 }
 
 /// ReLU activation for completeness
-pub struct ReLU<B, S, T> {
+#[derive(Debug)]
+pub struct ReLU<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+{
     _phantom: std::marker::PhantomData<(B, S, T)>,
 }
 
@@ -249,13 +273,32 @@ where
 impl<B, S, T> Activation<B, S, T> for ReLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // ReLU(x) = max(0, x)
-        let zero = Tensor::zeros_like(x)?;
-        x.maximum(&zero)
+        let zero = Tensor::<B, S, T>::zeros_like(x)?;
+        Ok(maximum(x, &zero)?)
+    }
+}
+
+impl<B, S, T> Module<B, S, T> for ReLU<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+{
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        <Self as Activation<B, S, T>>::forward(self, input)
+    }
+
+    fn parameters(&self) -> Vec<crate::parameter::Parameter<B, S, T>> {
+        Vec::new() // ReLU has no parameters
+    }
+
+    fn name(&self) -> &str {
+        "ReLU"
     }
 }
 
@@ -293,12 +336,135 @@ where
     }
 }
 
+/// PReLU (Parametric ReLU) activation function
+///
+/// PReLU(x) = max(0, x) + a * min(0, x)
+/// where a is a learnable parameter.
+#[derive(Debug)]
+pub struct PReLU<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+{
+    /// Learnable parameter a
+    pub weight: Parameter<B, S, T>,
+}
+
+impl<B, S, T> PReLU<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Copy,
+{
+    /// Create a new PReLU activation function
+    ///
+    /// # Arguments
+    /// * `num_parameters` - Number of parameters (1 for shared, or number of channels)
+    /// * `init_val` - Initial value for a (default 0.25)
+    pub fn new(num_parameters: usize, init_val: Option<T>) -> Self {
+        let val = init_val.unwrap_or_else(|| T::from(0.25).unwrap());
+        let weight_tensor = Tensor::<B, S, T>::from_vec(
+            vec![val; num_parameters],
+            &[num_parameters],
+        )
+        .unwrap()
+        .requires_grad_(true); // Parameters require gradients
+        
+        Self {
+            weight: Parameter::new(weight_tensor, "weight".to_string()),
+        }
+    }
+
+    /// Apply PReLU activation
+    pub fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // PReLU(x) = max(0, x) + a * min(0, x)
+        
+        let zero = Tensor::<B, S, T>::zeros_like(x)?;
+        let pos = maximum(x, &zero)?;
+        let neg = minimum(x, &zero)?;
+        
+        // Broadcast weight if necessary
+        let weight_tensor = self.weight.data();
+        let num_params = weight_tensor.shape().size();
+
+        if num_params == 1 {
+            let w_scalar = weight_tensor.to_dense_generic()?.as_slice()[0];
+            let neg_scaled = scalar_mul(&neg, w_scalar)?;
+            Ok(add(&pos, &neg_scaled)?)
+        } else {
+             // Determine broadcasting shape
+            let input_dims = x.shape().dims();
+            let rank = input_dims.len();
+            
+            let target_shape = if rank >= 2 && input_dims[1] == num_params {
+                 // Batched input: [N, C, ...] -> reshape weight to [1, C, 1, ...]
+                 let mut shape = vec![1; rank];
+                 shape[1] = num_params;
+                 Some(shape)
+            } else if rank >= 1 && input_dims[0] == num_params {
+                 // Unbatched input: [C, ...] -> reshape weight to [C, 1, ...]
+                 let mut shape = vec![1; rank];
+                 shape[0] = num_params;
+                 Some(shape)
+            } else {
+                 None
+            };
+
+            if let Some(shape) = target_shape {
+                let shape_isize: Vec<isize> = shape.iter().map(|&d| d as isize).collect();
+                let w_reshaped_dense = weight_tensor.reshape(&shape_isize)?;
+                let w_reshaped = Tensor::<B, S, T>::from_vec(
+                    w_reshaped_dense.as_slice().to_vec(),
+                    &shape,
+                )?;
+                let neg_scaled = mul(&neg, &w_reshaped)?;
+                Ok(add(&pos, &neg_scaled)?)
+            } else {
+                 return Err(NNError::InvalidInput {
+                     message: format!("PReLU parameter size {} does not match input shape {:?}", num_params, input_dims),
+                 });
+            }
+        }
+    }
+}
+
+impl<B, S, T> Activation<B, S, T> for PReLU<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Copy,
+{
+    fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        self.forward(x)
+    }
+}
+
+impl<B, S, T> Module<B, S, T> for PReLU<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Copy,
+{
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        self.forward(input)
+    }
+
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
+        vec![self.weight.clone()]
+    }
+
+    fn name(&self) -> &str {
+        "PReLU"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::CpuBackend;
-    use crate::dtype::float::Float32;
-    use crate::storage::DenseStorage;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
 
     type TestBackend = CpuBackend<Float32>;
     type TestStorage = DenseStorage<Float32>;
@@ -309,11 +475,11 @@ mod tests {
         let swiglu = SwiGLU::<TestBackend, TestStorage, TestDataType>::new();
 
         // Create test tensors
-        let x_data = vec![1.0, -1.0, 2.0, -2.0];
-        let y_data = vec![0.0, 0.0, 1.0, 1.0];
+        let x_data = vec![Float32::new(1.0), Float32::new(-1.0), Float32::new(2.0), Float32::new(-2.0)];
+        let y_data = vec![Float32::new(0.0), Float32::new(0.0), Float32::new(1.0), Float32::new(1.0)];
 
-        let x = Tensor::new_from_vec(x_data, &[2, 2]).unwrap();
-        let y = Tensor::new_from_vec(y_data, &[2, 2]).unwrap();
+        let x = Tensor::from_vec(x_data, &[2, 2]).unwrap();
+        let y = Tensor::from_vec(y_data, &[2, 2]).unwrap();
 
         let result = swiglu.forward(&x, &y).unwrap();
 
@@ -326,8 +492,8 @@ mod tests {
         // SwiGLU(-2, 1) = -2 * sigmoid(1) ≈ -2 * 0.731 = -1.462
 
         let result_data = result.as_slice();
-        assert!(result_data[0] > 0.4 && result_data[0] < 0.6); // ≈ 0.5
-        assert!(result_data[1] > -0.6 && result_data[1] < -0.4); // ≈ -0.5
+        assert!(result_data[0] > Float32::new(0.4) && result_data[0] < Float32::new(0.6)); // ≈ 0.5
+        assert!(result_data[1] > Float32::new(-0.6) && result_data[1] < Float32::new(-0.4)); // ≈ -0.5
     }
 
     #[test]
@@ -335,14 +501,14 @@ mod tests {
         let gelu = GeLU::<TestBackend, TestStorage, TestDataType>::new();
 
         // Test with zero input
-        let x_data = vec![0.0];
-        let x = Tensor::new_from_vec(x_data, &[1]).unwrap();
+        let x_data = vec![Float32::new(0.0)];
+        let x = Tensor::from_vec(x_data, &[1]).unwrap();
 
         let result = gelu.forward(&x).unwrap();
         let result_data = result.as_slice();
 
         // GELU(0) should be approximately 0
-        assert!(result_data[0] >= -0.1 && result_data[0] <= 0.1);
+        assert!(result_data[0] >= Float32::new(-0.1) && result_data[0] <= Float32::new(0.1));
     }
 
     #[test]
@@ -350,19 +516,19 @@ mod tests {
         let relu = ActivationFactory::create(ActivationType::ReLU);
         let swiglu = ActivationFactory::create(ActivationType::SwiGLU);
 
-        let x_data = vec![-1.0, 0.0, 1.0];
-        let x = Tensor::new_from_vec(x_data, &[3]).unwrap();
+        let x_data = vec![Float32::new(-1.0), Float32::new(0.0), Float32::new(1.0)];
+        let x = Tensor::<TestBackend, TestStorage, TestDataType>::from_vec(x_data, &[3]).unwrap();
 
         // Test ReLU
         let relu_result = relu.forward(&x).unwrap();
         let relu_data = relu_result.as_slice();
-        assert_eq!(relu_data[0], 0.0); // ReLU(-1) = 0
-        assert_eq!(relu_data[1], 0.0); // ReLU(0) = 0
-        assert_eq!(relu_data[2], 1.0); // ReLU(1) = 1
+        assert_eq!(relu_data[0], Float32::new(0.0)); // ReLU(-1) = 0
+        assert_eq!(relu_data[1], Float32::new(0.0)); // ReLU(0) = 0
+        assert_eq!(relu_data[2], Float32::new(1.0)); // ReLU(1) = 1
 
         // Test SwiGLU (split mode)
-        let swiglu_input = vec![1.0, 0.0, -1.0, 1.0, 2.0, -1.0]; // 2 elements per group
-        let swiglu_tensor = Tensor::new_from_vec(swiglu_input, &[3, 2]).unwrap();
+        let swiglu_input: Vec<Float32> = vec![1.0, 0.0, -1.0, 1.0, 2.0, -1.0].into_iter().map(Float32::new).collect(); // 2 elements per group
+        let swiglu_tensor = Tensor::<TestBackend, TestStorage, TestDataType>::from_vec(swiglu_input, &[3, 2]).unwrap();
         let _swiglu_result = swiglu.forward(&swiglu_tensor).unwrap();
         // SwiGLU split test would require more complex assertions
     }

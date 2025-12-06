@@ -9,8 +9,60 @@ use tensor::Tensor;
 use num_traits;
 
 use crate::error::Result;
-use crate::module::Module;
+use crate::module::{Module, ModuleExt};
 use crate::parameter::Parameter;
+
+/// Autograd function for linear transformation
+#[derive(Debug)]
+struct LinearFunction<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType,
+{
+    input: Tensor<B, S, T>,
+    weight: Tensor<B, S, T>,
+    bias: Option<Tensor<B, S, T>>,
+}
+
+impl<B, S, T> LinearFunction<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + FloatExt + num_traits::Zero + num_traits::One,
+{
+    fn forward(&self) -> Result<Tensor<B, S, T>> {
+        // Linear transformation: output = input @ weight.T + bias
+        let input_dense = self.input.to_dense_generic()?;
+        let weight_t = self.weight.to_dense_generic()?.transpose(1, 0)?;
+
+        let output = input_dense.matmul(&weight_t)?;
+
+        // Add bias if provided
+        if let Some(bias) = &self.bias {
+            // Broadcast bias to match output shape
+            let bias_data = bias.as_slice();
+            let mut output_data = output.as_slice().to_vec();
+            let batch_size = self.input.shape().dims()[0];
+            let out_features = bias_data.len();
+
+            for batch in 0..batch_size {
+                for feature in 0..out_features {
+                    let idx = batch * out_features + feature;
+                    if idx < output_data.len() && feature < bias_data.len() {
+                        output_data[idx] = output_data[idx] + bias_data[feature];
+                    }
+                }
+            }
+
+            Ok(Tensor::<B, S, T>::from_vec(output_data, output.shape().dims())?)
+        } else {
+            // Convert back to generic storage type
+            let output_data = output.as_slice().to_vec();
+            Ok(Tensor::<B, S, T>::from_vec(output_data, output.shape().dims())?)
+        }
+    }
+}
 
 /// A linear (fully connected) neural network layer.
 ///
@@ -39,7 +91,7 @@ use crate::parameter::Parameter;
 pub struct Linear<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     /// Weight matrix [input_features, output_features]
@@ -379,8 +431,31 @@ where
             Ok(result)
         }
 
+    fn forward_autograd(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
+    where
+        T: FloatExt + From<f64>,
+        B: Backend<Data = T> + Default + 'static,
+        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
+    {
+        // For autograd-enabled forward pass, we need to create a computation graph
+        // that tracks gradients. This is a simplified implementation that demonstrates
+        // the concept. A full implementation would integrate with the tensor autograd system.
+
+        // Enable gradient tracking on parameters if they don't already have it
+        let weight_data = self.weight.data();
+        let bias_data = self.bias.data();
+
+        // For now, fall back to regular forward pass
+        // TODO: Implement full autograd integration with Function objects
+        self.forward(input)
+    }
+
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         vec![self.weight.clone(), self.bias.clone()]
+    }
+
+    fn parameters_mut(&mut self) -> Vec<&mut Parameter<B, S, T>> {
+        vec![&mut self.weight, &mut self.bias]
     }
 
     fn zero_grad(&mut self) {
@@ -400,7 +475,7 @@ where
 impl<B, S, T> fmt::Display for Linear<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

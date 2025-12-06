@@ -68,7 +68,7 @@ pub struct CheckpointMetadata {
 }
 
 /// Checkpoint manager for experiment lifecycle
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct CheckpointManager {
     /// All checkpoints, indexed by ID
     pub checkpoints: HashMap<String, CheckpointData>,
@@ -173,7 +173,7 @@ impl CheckpointManager {
         // Implementation would depend on storage format
         // For now, return error indicating not implemented
         Err(crate::error::NNError::NotImplemented {
-            message: "File-based checkpoint loading not yet implemented".to_string(),
+            operation: "File-based checkpoint loading not yet implemented".to_string(),
         })
     }
 
@@ -182,7 +182,7 @@ impl CheckpointManager {
         // Implementation would serialize checkpoint to file
         let _ = (id, path); // Suppress unused variable warnings
         Err(crate::error::NNError::NotImplemented {
-            message: "File-based checkpoint saving not yet implemented".to_string(),
+            operation: "File-based checkpoint saving not yet implemented".to_string(),
         })
     }
 
@@ -380,10 +380,10 @@ impl AutoSaveScheduler {
     /// Schedule automatic saves
     pub fn schedule(&mut self, interval_seconds: u64, monitor_metric: Option<String>) {
         self.interval_seconds = Some(interval_seconds);
-        self.monitor_metric = monitor_metric;
         self.higher_is_better = monitor_metric.as_ref()
             .map(|m| !m.contains("loss"))
             .unwrap_or(true);
+        self.monitor_metric = monitor_metric;
     }
 
     /// Check if save should be triggered

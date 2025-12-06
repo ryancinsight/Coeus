@@ -47,7 +47,7 @@ use crate::parameter::Parameter;
 /// use dtype::float::Float32;
 ///
 /// // Create BatchNorm2d for 64 channels
-/// let mut batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
+/// let mut batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::<Float32>::default(), 64, 1e-5, 0.1).unwrap();
 ///
 /// // Set to training mode
 /// <BatchNorm2d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
@@ -445,7 +445,7 @@ where
 /// use dtype::float::Float32;
 ///
 /// // Create BatchNorm1d for 128 features
-/// let mut batchnorm = BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 128, 1e-5, 0.1).unwrap();
+/// let mut batchnorm = BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::<Float32>::default(), 128, 1e-5, 0.1).unwrap();
 ///
 /// // Set to training mode
 /// <BatchNorm1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
@@ -984,7 +984,7 @@ where
 /// use dtype::float::Float32;
 ///
 /// // Create BatchNorm3d for 64 channels
-/// let mut batchnorm = BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::default(), 64, 1e-5, 0.1).unwrap();
+/// let mut batchnorm = BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(CpuBackend::<Float32>::default(), 64, 1e-5, 0.1).unwrap();
 ///
 /// // Set to training mode
 /// <BatchNorm3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32> as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(&mut batchnorm, true);
@@ -1356,7 +1356,7 @@ where
         let result_data = result_dense.as_slice().to_vec();
         let result_shape = result_dense.shape().dims();
         let result_storage = S::from_vec(result_data, result_shape)?;
-        Ok(Tensor::from_storage(result_storage, CpuBackend::default()))
+        Ok(Tensor::from_storage(result_storage, CpuBackend::<T>::default()))
     }
 
     fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, S, T>> {
@@ -1382,6 +1382,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use storage::DenseStorage;
     use super::*;
     use dtype::float::Float32;
     use num_traits::ToPrimitive;
@@ -1390,7 +1391,7 @@ mod tests {
     fn test_batchnorm2d_constructor() {
         let batchnorm =
             BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 64,
                 1e-5,
                 0.1,
@@ -1407,7 +1408,7 @@ mod tests {
     fn test_batchnorm2d_parameter_initialization() {
         let batchnorm =
             BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 3,
                 1e-5,
                 0.1,
@@ -1449,7 +1450,7 @@ mod tests {
     fn test_batchnorm2d_forward_training() {
         let batchnorm =
             BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 2,
                 1e-5,
                 0.1,
@@ -1514,7 +1515,7 @@ mod tests {
     fn test_batchnorm2d_running_stats_update() {
         let batchnorm =
             BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 2,
                 1e-5,
                 0.1,
@@ -1566,7 +1567,7 @@ mod tests {
     fn test_batchnorm2d_parameters() {
         let batchnorm =
             BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 64,
                 1e-5,
                 0.1,
@@ -1584,7 +1585,7 @@ mod tests {
     fn test_batchnorm2d_invalid_num_features() {
         let result =
             BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 0,
                 1e-5,
                 0.1,
@@ -1596,7 +1597,7 @@ mod tests {
     fn test_batchnorm2d_invalid_eps() {
         let result =
             BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 64,
                 0.0,
                 0.1,
@@ -1608,7 +1609,7 @@ mod tests {
     fn test_batchnorm2d_invalid_momentum() {
         let result =
             BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 64,
                 1e-5,
                 1.5,
@@ -1622,7 +1623,7 @@ mod tests {
     fn test_batchnorm1d_constructor() {
         let batchnorm =
             BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 128,
                 1e-5,
                 0.1,
@@ -1639,7 +1640,7 @@ mod tests {
     fn test_batchnorm1d_forward_training() {
         let mut batchnorm =
             BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 2,
                 1e-5,
                 0.1,
@@ -1687,7 +1688,7 @@ mod tests {
     fn test_batchnorm1d_forward_eval() {
         let mut batchnorm =
             BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 2,
                 1e-5,
                 0.1,
@@ -1740,7 +1741,7 @@ mod tests {
     fn test_batchnorm1d_running_stats_update() {
         let mut batchnorm =
             BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 2,
                 1e-5,
                 0.1,
@@ -1802,7 +1803,7 @@ mod tests {
     fn test_batchnorm1d_parameters() {
         let batchnorm =
             BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 128,
                 1e-5,
                 0.1,
@@ -1824,7 +1825,7 @@ mod tests {
     fn test_batchnorm1d_train_mode_toggle() {
         let mut batchnorm =
             BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 64,
                 1e-5,
                 0.1,
@@ -1855,7 +1856,7 @@ mod tests {
     fn test_batchnorm1d_rnn_sequence() {
         let mut batchnorm =
             BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 256,
                 1e-5,
                 0.1,
@@ -1886,7 +1887,7 @@ mod tests {
     fn test_batchnorm1d_invalid_num_features() {
         let result =
             BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 0,
                 1e-5,
                 0.1,
@@ -1898,7 +1899,7 @@ mod tests {
     fn test_batchnorm1d_invalid_eps() {
         let result =
             BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 128,
                 0.0,
                 0.1,
@@ -1910,7 +1911,7 @@ mod tests {
     fn test_batchnorm1d_invalid_momentum() {
         let result =
             BatchNorm1d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 128,
                 1e-5,
                 1.5,
@@ -1924,7 +1925,7 @@ mod tests {
     fn test_batchnorm3d_constructor() {
         let batchnorm =
             BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 64,
                 1e-5,
                 0.1,
@@ -1941,7 +1942,7 @@ mod tests {
     fn test_batchnorm3d_forward_training() {
         let mut batchnorm =
             BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 2,
                 1e-5,
                 0.1,
@@ -1992,7 +1993,7 @@ mod tests {
     fn test_batchnorm3d_forward_eval() {
         let mut batchnorm =
             BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 2,
                 1e-5,
                 0.1,
@@ -2045,7 +2046,7 @@ mod tests {
     fn test_batchnorm3d_running_stats_update() {
         let mut batchnorm =
             BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 2,
                 1e-5,
                 0.1,
@@ -2096,7 +2097,7 @@ mod tests {
     fn test_batchnorm3d_parameters() {
         let batchnorm =
             BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 64,
                 1e-5,
                 0.1,
@@ -2118,7 +2119,7 @@ mod tests {
     fn test_batchnorm3d_train_mode_toggle() {
         let mut batchnorm =
             BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 64,
                 1e-5,
                 0.1,
@@ -2149,7 +2150,7 @@ mod tests {
     fn test_batchnorm3d_video_classification() {
         let mut batchnorm =
             BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 64,
                 1e-5,
                 0.1,
@@ -2181,7 +2182,7 @@ mod tests {
     fn test_batchnorm3d_invalid_num_features() {
         let result =
             BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 0,
                 1e-5,
                 0.1,
@@ -2193,7 +2194,7 @@ mod tests {
     fn test_batchnorm3d_invalid_eps() {
         let result =
             BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 64,
                 0.0,
                 0.1,
@@ -2205,7 +2206,7 @@ mod tests {
     fn test_batchnorm3d_invalid_momentum() {
         let result =
             BatchNorm3d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
+                CpuBackend::<Float32>::default(),
                 64,
                 1e-5,
                 1.5,

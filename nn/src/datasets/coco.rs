@@ -210,8 +210,7 @@ impl CocoDataset {
             });
         }
 
-        let content = fs::read_to_string(annotations_path).await
-            .map_err(|e| NNError::IoError(e))?;
+        let content = fs::read_to_string(annotations_path).await?;
 
         let coco_data: CocoAnnotations = serde_json::from_str(&content)
             .map_err(|e| NNError::InvalidInput {
@@ -361,33 +360,39 @@ impl VisionLanguageData for CocoDataset {
         self.annotations.values().map(|captions| captions.len()).sum()
     }
 
-    async fn get(&self, mut index: usize) -> Result<ImageTextPair> {
-        // Find which image this global index refers to
-        for metadata in &self.image_metadata {
-            let caption_count = metadata.captions.len();
-            if index < caption_count {
-                // Load image data
-                let image_data = self.load_image_data(&metadata.image_path).await?;
+    fn get(&self, mut index: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>> {
+        let image_metadata = self.image_metadata.clone();
+        let split = self.split.clone();
+        let total_len = self.len();
 
-                return Ok(ImageTextPair {
-                    image_data,
-                    image_path: metadata.image_path.to_string_lossy().to_string(),
-                    captions: vec![metadata.captions[index].clone()],
-                    image_id: metadata.image_id.clone(),
-                    caption_ids: vec![format!("{}_{}", metadata.image_id, index)],
-                    metadata: HashMap::from([
-                        ("width".to_string(), metadata.dimensions.0.to_string()),
-                        ("height".to_string(), metadata.dimensions.1.to_string()),
-                        ("aspect_ratio".to_string(), metadata.aspect_ratio.to_string()),
-                        ("split".to_string(), format!("{:?}", self.split).to_lowercase()),
-                    ]),
-                });
+        Box::pin(async move {
+            // Find which image this global index refers to
+            for metadata in &image_metadata {
+                let caption_count = metadata.captions.len();
+                if index < caption_count {
+                    // Load image data
+                    let image_data = Self::load_image_data_static(&metadata.image_path).await?;
+
+                    return Ok(ImageTextPair {
+                        image_data,
+                        image_path: metadata.image_path.to_string_lossy().to_string(),
+                        captions: vec![metadata.captions[index].clone()],
+                        image_id: metadata.image_id.clone(),
+                        caption_ids: vec![format!("{}_{}", metadata.image_id, index)],
+                        metadata: HashMap::from([
+                            ("width".to_string(), serde_json::json!(metadata.dimensions.0.to_string())),
+                            ("height".to_string(), serde_json::json!(metadata.dimensions.1.to_string())),
+                            ("aspect_ratio".to_string(), serde_json::json!(metadata.aspect_ratio.to_string())),
+                            ("split".to_string(), serde_json::json!(format!("{:?}", split).to_lowercase())),
+                        ]),
+                    });
+                }
+                index -= caption_count;
             }
-            index -= caption_count;
-        }
 
-        Err(NNError::InvalidInput {
-            message: format!("Index {} out of bounds for {} pairs", index + 1, self.len()),
+            Err(NNError::InvalidInput {
+                message: format!("Index {} out of bounds for {} pairs", index + 1, total_len),
+            })
         })
     }
 
@@ -403,13 +408,19 @@ impl VisionLanguageData for CocoDataset {
 impl CocoDataset {
     /// Load image data from file
     async fn load_image_data(&self, image_path: &Path) -> Result<Vec<u8>> {
+        Self::load_image_data_static(image_path).await
+    }
+
+    async fn load_image_data_static(image_path: &Path) -> Result<Vec<u8>> {
         if !image_path.exists() {
             return Err(NNError::InvalidInput {
                 message: format!("Image file not found: {:?}", image_path),
             });
         }
 
-        fs::read(image_path).await.map_err(|e| NNError::IoError(e))
+        fs::read(image_path).await.map_err(|e| NNError::InvalidInput {
+            message: format!("Failed to read image file: {}", e),
+        })
     }
 
     /// Get all images for a specific image ID

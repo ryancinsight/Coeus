@@ -86,7 +86,7 @@ fn test_sparse_linear_memory_efficiency() {
         false,
     )
     .unwrap();
-    let dense_layer = coeus_nn::Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+    let dense_layer = nn::Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
         out_features,
         in_features,
     )
@@ -124,3 +124,4 @@ fn test_sparse_linear_to_dense() {
     assert!(dense_layer.in_features > 0);
     assert!(dense_layer.out_features > 0);
 }
+

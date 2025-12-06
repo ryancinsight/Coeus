@@ -10,6 +10,7 @@ use std::time::Instant;
 
 use crate::error::{NNError, Result};
 use crate::nas::{Architecture, ArchitectureEvaluator, ArchitectureSpace, EvolutionaryNAS, ReinforcementNAS, DartsNAS, AutomatedResearchPipeline};
+use crate::nas::search_space::ArchitectureType;
 use crate::hpo::{HPOptimizer, HyperparameterOptimizer};
 use crate::research::nas_integration::search_integrations::{EvolutionarySearchIntegration, RLSearchIntegration, DartsSearchIntegration};
 use crate::nas::search_space::LayerType;
@@ -70,7 +71,7 @@ pub struct SearchConfig {
 }
 
 /// Search algorithms
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SearchAlgorithm {
     Evolutionary,
     ReinforcementLearning,
@@ -130,6 +131,7 @@ pub struct ConvergenceMetrics {
 
 /// Integrated NAS Research Framework
 /// Provides seamless integration between NAS algorithms and research tracking
+#[derive(Debug)]
 pub struct IntegratedNASFramework {
     /// Research framework instance
     research_framework: Arc<RwLock<UnifiedResearchFramework>>,
@@ -144,7 +146,7 @@ pub struct IntegratedNASFramework {
 }
 
 /// Performance predictor trait
-pub trait PerformancePredictor: Send + Sync {
+pub trait PerformancePredictor: Send + Sync + std::fmt::Debug {
     /// Predict performance for an architecture
     fn predict(&self, architecture: &Architecture, context: &NASExperimentContext) -> Result<f64>;
 
@@ -156,7 +158,7 @@ pub trait PerformancePredictor: Send + Sync {
 }
 
 /// Integrated search algorithm trait
-pub trait IntegratedSearchAlgorithm: Send + Sync {
+pub trait IntegratedSearchAlgorithm: Send + Sync + std::fmt::Debug {
     /// Execute NAS search with research framework integration
     fn search_with_tracking(
         &self,
@@ -257,8 +259,8 @@ impl IntegratedNASFramework {
         );
 
         // Create experiment in research framework
-        let framework = self.research_framework.write().unwrap();
-        let tracker = framework.create_experiment(
+        let mut framework = self.research_framework.write().unwrap();
+        let mut tracker = framework.create_experiment(
             experiment_id.clone(),
             experiment_name,
             experiment_description,
@@ -330,15 +332,15 @@ impl IntegratedNASFramework {
             "Automated neural architecture search pipeline with multiple algorithms and strategies"
         );
 
-        let framework = self.research_framework.write().unwrap();
-        let tracker = framework.create_experiment(
+        let mut framework = self.research_framework.write().unwrap();
+        let mut tracker = framework.create_experiment(
             pipeline_experiment_id.clone(),
             experiment_name,
             experiment_description,
         );
 
         // Execute pipeline algorithms
-        let mut results = Vec::new();
+        let mut results: Vec<NASSearchResult> = Vec::new();
         for algorithm in &pipeline.search_algorithms {
             if let Some(search_alg) = self.search_algorithms.get(algorithm) {
                 let mut context = base_context.clone();
@@ -379,12 +381,15 @@ impl IntegratedNASFramework {
     /// Get experiment summary with NAS metrics
     pub fn get_experiment_summary(&self, experiment_id: &str) -> Result<NASEperimentSummary> {
         let framework = self.research_framework.read().unwrap();
-        let base_summary = framework.experiment_registry.get_experiment_summary(experiment_id)?;
+        let base_summary = framework.experiment_registry.get_experiment(experiment_id)
+            .ok_or_else(|| NNError::InvalidConfiguration {
+                message: format!("Experiment {} not found in registry", experiment_id),
+            })?;
 
         let context = self.experiment_contexts.get(experiment_id);
 
         Ok(NASEperimentSummary {
-            base_summary,
+            base_summary: base_summary.summary(),
             nas_context: context.cloned(),
             nas_metrics: NASMetrics {
                 architectures_evaluated: 0, // Would be populated from search results
@@ -453,6 +458,7 @@ pub mod predictors {
     use super::*;
 
     /// Linear regression performance predictor
+    #[derive(Debug)]
     pub struct LinearRegressionPredictor {
         coefficients: Vec<f64>,
         intercept: f64,
@@ -473,7 +479,7 @@ pub mod predictors {
         fn predict(&self, architecture: &Architecture, _context: &NASExperimentContext) -> Result<f64> {
             if !self.trained {
                 return Err(NNError::NotInitialized {
-                    message: "Performance predictor not trained".to_string(),
+                    component: "Performance predictor not trained".to_string(),
                 });
             }
 
@@ -558,14 +564,16 @@ pub mod search_integrations {
     use super::*;
 
     /// Evolutionary NAS integration
+    #[derive(Debug)]
     pub struct EvolutionarySearchIntegration {
         base_algorithm: EvolutionaryNAS,
     }
 
     impl EvolutionarySearchIntegration {
         pub fn new() -> Self {
+            let search_space = ArchitectureSpace::new(ArchitectureType::CNN);
             Self {
-                base_algorithm: EvolutionaryNAS::new(50, 0.1, 0.8), // Default parameters
+                base_algorithm: EvolutionaryNAS::new(search_space),
             }
         }
     }
@@ -606,13 +614,14 @@ pub mod search_integrations {
                     let eval_time = eval_start.elapsed();
 
                     // Record in research framework
-                    tracker.record_metric(
+                    framework.metrics.record_metric(
                         "architecture_accuracy".to_string(),
                         result.accuracy,
-                        Some(HashMap::from([
-                            ("generation".to_string(), generation.to_string()),
-                            ("architecture_id".to_string(), format!("arch_{}", evaluated_population.len())),
-                        ])),
+                        None,
+                        HashMap::from([
+                            ("generation".to_string(), serde_json::json!(generation)),
+                            ("architecture_id".to_string(), serde_json::json!(format!("arch_{}", evaluated_population.len()))),
+                        ]),
                     );
 
                     let performance = ArchitecturePerformance {
@@ -675,14 +684,16 @@ pub mod search_integrations {
                     .map(|p| p.performance)
                     .unwrap_or(0.0);
 
-                tracker.record_metric(
+                framework.metrics.record_metric(
                     "generation_best_fitness".to_string(),
                     best_fitness,
-                    Some(HashMap::from([("generation".to_string(), generation.to_string())])),
+                    None,
+                    HashMap::from([("generation".to_string(), serde_json::json!(generation))]),
                 );
             }
 
             let total_time = start_time.elapsed();
+            let total_evaluations = search_history.len();
             let best_performance = search_history.iter()
                 .map(|p| p.performance)
                 .max_by(|a, b| a.partial_cmp(b).unwrap())
@@ -697,7 +708,7 @@ pub mod search_integrations {
                 best_architecture,
                 best_performance,
                 search_history,
-                total_evaluations: search_history.len(),
+                total_evaluations,
                 search_time: total_time,
                 convergence_metrics: ConvergenceMetrics {
                     final_improvement_rate: 0.05, // Placeholder
@@ -705,7 +716,7 @@ pub mod search_integrations {
                     exploration_exploitation_ratio: 0.6, // Placeholder
                     regret_bounds: Some(0.1), // Placeholder
                 },
-                experiment_summary: tracker.summarize(),
+                experiment_summary: tracker.summary(),
             })
         }
 
@@ -716,7 +727,7 @@ pub mod search_integrations {
 
     impl EvolutionarySearchIntegration {
         fn tournament_selection<'a>(&self, population: &'a [ArchitecturePerformance], tournament_size: usize) -> &'a ArchitecturePerformance {
-            let mut best = None;
+            let mut best: Option<&'a ArchitecturePerformance> = None;
             for _ in 0..tournament_size {
                 let idx = rand::random::<usize>() % population.len();
                 if let Some(current_best) = best {
@@ -762,14 +773,16 @@ pub mod search_integrations {
     }
 
     /// Reinforcement Learning NAS integration
+    #[derive(Debug)]
     pub struct RLSearchIntegration {
         base_algorithm: ReinforcementNAS,
     }
 
     impl RLSearchIntegration {
         pub fn new() -> Self {
+            let search_space = ArchitectureSpace::new(ArchitectureType::CNN);
             Self {
-                base_algorithm: ReinforcementNAS::new(0.9, 0.95, 0.1, 1.0), // Default parameters
+                base_algorithm: ReinforcementNAS::new(search_space),
             }
         }
     }
@@ -795,14 +808,16 @@ pub mod search_integrations {
     }
 
     /// DARTS NAS integration
+    #[derive(Debug)]
     pub struct DartsSearchIntegration {
         base_algorithm: DartsNAS,
     }
 
     impl DartsSearchIntegration {
         pub fn new() -> Self {
+            let search_space = ArchitectureSpace::new(ArchitectureType::CNN);
             Self {
-                base_algorithm: DartsNAS::new(0.001, 0.0003, 0.2), // Default parameters
+                base_algorithm: DartsNAS::new(search_space, 3), // Default 3 layers
             }
         }
     }
@@ -830,7 +845,7 @@ pub mod search_integrations {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nn::nas::search_space::{ArchitectureSpace, ArchitectureType};
+    use crate::nas::search_space::{ArchitectureSpace, ArchitectureType};
 
     #[test]
     fn test_integrated_nas_framework_creation() {

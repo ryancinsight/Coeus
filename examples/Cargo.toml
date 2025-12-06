@@ -135,7 +135,7 @@ storage = { path = "../storage" }
 backend = { path = "../backend" }
 tensor = { path = "../tensor" }
 autograd = { path = "../autograd" }
-nn = { path = "../nn", features = ["safetensors"] }
+nn = { path = "../nn", features = ["safetensors", "clip"] }
 optim = { path = "../optim" }
 distributed = { path = "../distributed" }
 coeus-semantic-api = { path = "../coeus-semantic-api" }

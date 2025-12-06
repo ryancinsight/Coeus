@@ -195,7 +195,7 @@ where
     ) -> Result<Self> {
         let attention = MultiHeadAttention::new(num_heads, hidden_dim)?;
         let out_proj = Linear::new(hidden_dim, hidden_dim)?;
-        let norm = LayerNorm::new(hidden_dim, 1e-6)?;
+        let norm = LayerNorm::new(hidden_dim, 1e-6);
         let dropout = Dropout::new(0.1);
 
         Ok(Self {
@@ -399,7 +399,7 @@ pub enum FusionLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + Default,
-    T: DataType,
+    T: DataType + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// Simple concatenation
     Concat(Linear<B, S, T>),
@@ -538,7 +538,7 @@ where
     pub fn new(hidden_dim: usize, ff_dim: usize, dropout: f64) -> Result<Self> {
         let linear1 = Linear::new(hidden_dim, ff_dim)?;
         let linear2 = Linear::new(ff_dim, hidden_dim)?;
-        let gelu = GeLU::new()?;
+        let gelu = GeLU::new();
 
         Ok(Self {
             linear1,
@@ -698,7 +698,7 @@ where
             layers.push(Layer::new(config.hidden_dim, config.num_heads, config.dropout)?);
         }
 
-        let norm = LayerNorm::new(config.hidden_dim, 1e-6)?;
+        let norm = LayerNorm::new(config.hidden_dim, 1e-6);
 
         Ok(Self {
             config,
@@ -795,8 +795,8 @@ where
     pub fn new(hidden_dim: usize, num_heads: usize, dropout: f64) -> Result<Self> {
         let attention = MultiHeadAttention::new(num_heads, hidden_dim)?;
         let feed_forward = FeedForward::new(hidden_dim, hidden_dim * 4, dropout)?;
-        let norm1 = LayerNorm::new(hidden_dim, 1e-6)?;
-        let norm2 = LayerNorm::new(hidden_dim, 1e-6)?;
+        let norm1 = LayerNorm::new(hidden_dim, 1e-6);
+        let norm2 = LayerNorm::new(hidden_dim, 1e-6);
         let dropout_layer = Dropout::new(dropout);
 
         Ok(Self {
@@ -1040,7 +1040,7 @@ where
                 FeedForward {
                     linear1: Linear::new(config.hidden_dim, config.hidden_dim * 4)?,
                     linear2: Linear::new(config.hidden_dim * 4, config.hidden_dim)?,
-                    gelu: GeLU::new()?,
+                    gelu: GeLU::new(),
                     dropout: config.dropout,
                 }
             );
@@ -1053,15 +1053,15 @@ where
         for modality in &config.modalities {
             norms.insert(
                 format!("{}_intra", modality.as_str()),
-                LayerNorm::new(config.hidden_dim, 1e-6)?
+                LayerNorm::new(config.hidden_dim, 1e-6)
             );
             norms.insert(
                 format!("{}_cross", modality.as_str()),
-                LayerNorm::new(config.hidden_dim, 1e-6)?
+                LayerNorm::new(config.hidden_dim, 1e-6)
             );
             norms.insert(
                 format!("{}_ff", modality.as_str()),
-                LayerNorm::new(config.hidden_dim, 1e-6)?
+                LayerNorm::new(config.hidden_dim, 1e-6)
             );
         }
 

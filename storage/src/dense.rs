@@ -121,6 +121,38 @@ impl<T: DataType> DenseStorage<T> {
         })
     }
 
+    /// Creates dense storage filled with a constant value.
+    ///
+    /// # Arguments
+    /// * `dims` - Shape dimensions
+    /// * `value` - Value to fill storage with
+    ///
+    /// # Errors
+    ///
+    /// Returns error if shape specification is invalid.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
+    ///
+    /// let storage = DenseStorage::<Float32>::full(&[2, 3], Float32::new(5.0)).unwrap();
+    /// assert_eq!(storage.len(), 6);
+    /// assert!(storage.as_slice().iter().all(|&x| x == Float32::new(5.0)));
+    /// ```
+    pub fn full(dims: &[usize], value: T) -> Result<Self> {
+        let shape = Shape::new(dims)?;
+        let data = alloc::vec![value; shape.size()];
+        let strides = shape.row_major_strides();
+
+        Ok(Self {
+            data,
+            shape,
+            strides,
+        })
+    }
+
     /// Creates dense storage filled with ones.
     ///
     /// # Errors
@@ -183,6 +215,10 @@ impl<T: DataType> Storage<T> for DenseStorage<T> {
 
     fn as_storage_ref(&self) -> &Self {
         self
+    }
+
+    fn full(dims: &[usize], value: T) -> Result<Self> {
+        Self::full(dims, value)
     }
 }
 

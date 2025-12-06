@@ -466,7 +466,7 @@ pub mod research;
 
 // Re-exports for convenience
 pub use activation::{
-    GeLU, ReLU, SiLU, SwiGLU,
+    GeLU, PReLU, ReLU, SiLU, SwiGLU,
 };
 pub use batchnorm::{BatchNorm2d, BatchNorm3d};
 pub use layernorm::LayerNorm;
@@ -510,3 +510,4 @@ pub use meta::maml::MAML;
 pub use meta::prototypical::{FewShotEpisodeGenerator, PrototypicalNetwork};
 pub use nas::search_space::{Architecture, ArchitectureSpace};
 // Functional API re-exports will be added as modules are verified
+

@@ -8,11 +8,12 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use serde::Serialize;
-use std::fmt;
+// use serde::Serialize;
+// use std::fmt;
+use thiserror::Error;
 
 /// Custom error type for semantic search operations
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)]
 pub enum SemanticError {
     #[error("CLIP encoding failed: {0}")]
     ClipEncodingError(String),
@@ -51,7 +52,7 @@ pub enum SemanticError {
     HttpError(#[from] reqwest::Error),
 
     #[error("Metrics error: {0}")]
-    MetricsError(#[from] metrics::SetRecorderError),
+    MetricsError(#[from] metrics::SetRecorderError<metrics::SetError>),
 }
 
 impl SemanticError {
@@ -98,7 +99,7 @@ impl IntoResponse for SemanticError {
         }
 
         // Record error metrics
-        metrics::counter!("errors_total", "code" => format!("{:?}", error_code)) += 1;
+        metrics::counter!("errors_total", "code" => format!("{:?}", error_code)).increment(1);
 
         let error_response = crate::types::ErrorResponse {
             error_id: uuid::Uuid::new_v4().to_string(),
@@ -170,7 +171,7 @@ impl ErrorHandler {
             duration_ms,
             error
         );
-        metrics::counter!("operation_failures_total", "operation" => operation.to_string(), "error_type" => format!("{:?}", error)) += 1;
+        metrics::counter!("operation_failures_total", "operation" => operation.to_string(), "error_type" => format!("{:?}", error)).increment(1);
     }
 }
 
@@ -200,7 +201,7 @@ pub fn set_panic_hook() {
         // - Attempt graceful shutdown of services
         // - Write panic info to crash logs
 
-        metrics::counter!("panics_total") += 1;
+        metrics::counter!("panics_total").increment(1);
     }));
 }
 
@@ -283,3 +284,5 @@ mod tests {
 
 
 
+
+

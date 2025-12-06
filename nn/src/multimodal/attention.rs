@@ -10,9 +10,10 @@ use crate::linear::Linear;
 use crate::layernorm::LayerNorm;
 use crate::dropout::Dropout;
 use crate::functional::linear;
+use crate::module::{Module, ModuleExt};
 use tensor::Tensor;
 use backend::Backend;
-use storage::{Storage, StorageFromVec};
+use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
 use dtype::DataType;
 use super::modality::{Modality};
 
@@ -21,8 +22,8 @@ use super::modality::{Modality};
 pub struct CrossModalAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded + std::cmp::PartialOrd,
 {
     /// Query modality and layer
     pub query_modality: Modality,
@@ -51,8 +52,8 @@ where
 impl<B, S, T> CrossModalAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// Create new cross-modal attention
     pub fn new(
@@ -61,9 +62,9 @@ where
         query_modality: Modality,
         kv_modalities: Vec<Modality>,
     ) -> Result<Self> {
-        let attention = MultiHeadAttention::new(num_heads, hidden_dim)?;
+        let attention = MultiHeadAttention::<B, S, T>::new(hidden_dim, num_heads)?;
         let out_proj = Linear::new(hidden_dim, hidden_dim)?;
-        let norm = LayerNorm::new(hidden_dim, 1e-6)?;
+        let norm = LayerNorm::<B, S, T>::new(vec![hidden_dim], 1e-6);
         let dropout = Dropout::new(0.1);
 
         Ok(Self {
@@ -109,7 +110,7 @@ where
     ) -> Result<Tensor<B, S, T>> {
         // Project query if needed
         let query_proj = if let Some(ref proj) = self.query_proj {
-            linear(query, &proj.weight, proj.bias.as_ref())?
+            linear(query, &proj.weight.data, Some(&proj.bias.data))?
         } else {
             query.clone()
         };
@@ -121,13 +122,13 @@ where
         for modality in &self.kv_modalities {
             if let (Some(key), Some(value)) = (keys.get(modality), values.get(modality)) {
                 let key_proj = if let Some(ref proj) = self.key_proj {
-                    linear(key, &proj.weight, proj.bias.as_ref())?
+                    linear(key, &proj.weight.data, Some(&proj.bias.data))?
                 } else {
                     key.clone()
                 };
 
                 let value_proj = if let Some(ref proj) = self.value_proj {
-                    linear(value, &proj.weight, proj.bias.as_ref())?
+                    linear(value, &proj.weight.data, Some(&proj.bias.data))?
                 } else {
                     value.clone()
                 };
@@ -138,7 +139,9 @@ where
         }
 
         if key_list.is_empty() {
-            return Err(NNError::InvalidInput("No valid key-value pairs for cross-modal attention".into()));
+            return Err(NNError::InvalidInput {
+                message: "No valid key-value pairs for cross-modal attention".into()
+            });
         }
 
         // Concatenate along sequence dimension (assuming batch x seq x hidden)
@@ -153,14 +156,16 @@ where
             // tensor::ops::concatenate_tensors(&value_list.into_iter().collect::<Vec<_>>(), 1)?
             value_list[0].clone() // Placeholder
         } else {
-            return Err(NNError::InvalidInput("No value tensors to concatenate".into()));
+            return Err(NNError::InvalidInput {
+                message: "No value tensors to concatenate".into()
+            });
         };
 
         // Apply multi-head attention
-        let attn_output = self.attention.forward(&query_proj, &keys_concat, &values_concat, mask)?;
+        let attn_output = self.attention.forward_cross_attention(&query_proj, &keys_concat, &values_concat)?;
 
         // Apply output projection and dropout
-        let output = linear(&attn_output, &self.out_proj.weight, self.out_proj.bias.as_ref())?;
+        let output = linear(&attn_output, &self.out_proj.weight.data, Some(&self.out_proj.bias.data))?;
         let output = crate::functional::dropout(&output, Some(self.dropout.p), Some(self.dropout.training), Some(false))?;
 
         // Add residual connection and layer norm
@@ -208,5 +213,3 @@ mod tests {
         assert_eq!(attention.hidden_dim, 768);
     }
 }
-
-

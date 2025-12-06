@@ -4,10 +4,10 @@
 //! between different modalities (vision, language, audio) for joint understanding.
 
 use std::collections::HashMap;
-use crate::error::{NNError, Result};
+use crate::error::Result;
 use dtype::FloatExt;
 use backend::Backend;
-use storage::{Storage, StorageFromVec};
+use storage::{Storage, StorageFromVec, StorageToDense};
 use dtype::DataType;
 use crate::attention::MultiHeadAttention;
 use crate::linear::Linear;
@@ -43,8 +43,8 @@ pub enum AttentionPattern {
 pub struct CrossModalTransformerLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::Bounded + num_traits::FromPrimitive,
 {
     /// Intra-modal self-attention for each modality
     pub intra_attention: HashMap<Modality, MultiHeadAttention<B, S, T>>,
@@ -64,8 +64,8 @@ where
 pub struct CrossModalAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::Bounded + num_traits::FromPrimitive,
 {
     /// Query modality
     pub query_modality: Modality,
@@ -100,7 +100,12 @@ pub enum CrossAttentionType {
 }
 
 #[derive(Debug)]
-pub struct FeedForwardNetwork<B, S, T> {
+pub struct FeedForwardNetwork<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + FloatExt + 'static,
+{
     pub linear1: Linear<B, S, T>,
     pub linear2: Linear<B, S, T>,
     pub activation: GeLU<B, S, T>,
@@ -112,8 +117,8 @@ pub struct FeedForwardNetwork<B, S, T> {
 pub struct CoAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::Bounded + num_traits::FromPrimitive,
 {
     /// Vision encoder dimension
     pub vision_dim: usize,
@@ -137,8 +142,8 @@ where
 pub struct MultimodalFusionAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::Bounded + num_traits::FromPrimitive,
 {
     /// Number of modalities
     pub num_modalities: usize,
@@ -161,8 +166,8 @@ where
 pub struct HierarchicalCrossAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::Bounded + num_traits::FromPrimitive,
 {
     /// Global attention across all modalities
     pub global_attention: MultiHeadAttention<B, S, T>,
@@ -182,8 +187,8 @@ where
 pub struct ModalitySelector<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::Bounded + num_traits::FromPrimitive,
 {
     /// Input dimension for each modality
     pub input_dims: HashMap<Modality, usize>,
@@ -203,8 +208,8 @@ where
 pub struct ProgressiveCrossModalIntegration<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::Bounded + num_traits::FromPrimitive,
 {
     /// Number of integration stages
     pub num_stages: usize,
@@ -218,8 +223,8 @@ where
 pub struct IntegrationBlock<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::Bounded + num_traits::FromPrimitive,
 {
     /// Modalities to integrate at this stage
     pub modalities: Vec<Modality>,
@@ -233,7 +238,7 @@ where
 pub enum FusionMechanism<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType,
 {
     /// Simple concatenation
@@ -249,8 +254,8 @@ where
 impl<B, S, T> CrossModalTransformerLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// Create new cross-modal transformer layer
     pub fn new(
@@ -284,9 +289,9 @@ where
 
         // Create layer norms
         let mut layer_norms = HashMap::new();
-        layer_norms.insert("intra_norm".to_string(), LayerNorm::new(hidden_dim, 1e-6)?);
-        layer_norms.insert("cross_norm".to_string(), LayerNorm::new(hidden_dim, 1e-6)?);
-        layer_norms.insert("ff_norm".to_string(), LayerNorm::new(hidden_dim, 1e-6)?);
+        layer_norms.insert("intra_norm".to_string(), LayerNorm::new(vec![hidden_dim], 1e-6));
+        layer_norms.insert("cross_norm".to_string(), LayerNorm::new(vec![hidden_dim], 1e-6));
+        layer_norms.insert("ff_norm".to_string(), LayerNorm::new(vec![hidden_dim], 1e-6));
 
         Ok(Self {
             intra_attention,
@@ -304,7 +309,7 @@ where
         hidden_dim: usize,
         num_heads: usize,
         pattern: &AttentionPattern,
-    ) -> Result<Vec<CrossModalAttention>> {
+    ) -> Result<Vec<CrossModalAttention<B, S, T>>> {
         let mut cross_attention = Vec::new();
 
         match pattern {
@@ -426,7 +431,7 @@ where
 
     fn apply_cross_attention(
         &self,
-        cross_attn: &CrossModalAttention,
+        cross_attn: &CrossModalAttention<B, S, T>,
         query: &[f32],
         all_embeddings: &HashMap<Modality, Vec<f32>>,
         batch_size: usize,
@@ -444,8 +449,8 @@ where
 impl<B, S, T> CrossModalAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// Create new cross-modal attention
     pub fn new(
@@ -456,7 +461,7 @@ where
     ) -> Result<Self> {
         let attention = MultiHeadAttention::new(num_heads, hidden_dim)?;
         let out_proj = Linear::new(hidden_dim, hidden_dim)?;
-        let norm = LayerNorm::new(hidden_dim, 1e-6)?;
+        let norm = LayerNorm::new(vec![hidden_dim], 1e-6);
 
         Ok(Self {
             query_modality,
@@ -487,8 +492,8 @@ where
 impl<B, S, T> FeedForwardNetwork<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + 'static,
+    T: DataType + FloatExt + num_traits::FromPrimitive + 'static,
 {
     pub fn new(hidden_dim: usize, ff_dim: usize) -> Result<Self> {
         Ok(Self {
@@ -503,8 +508,8 @@ where
 impl<B, S, T> CoAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::Bounded + num_traits::FromPrimitive,
 {
     /// Create new co-attention mechanism
     pub fn new(vision_dim: usize, text_dim: usize, hidden_dim: usize) -> Result<Self> {
@@ -535,8 +540,8 @@ where
 impl<B, S, T> MultimodalFusionAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::Bounded + num_traits::FromPrimitive,
 {
     /// Create new multimodal fusion attention
     pub fn new(modalities: &[Modality], hidden_dim: usize, num_heads: usize) -> Result<Self> {
@@ -593,8 +598,8 @@ where
 impl<B, S, T> ProgressiveCrossModalIntegration<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::Bounded + num_traits::FromPrimitive,
 {
     /// Create new progressive integration
     pub fn new(modalities: Vec<Modality>, num_stages: usize) -> Result<Self> {

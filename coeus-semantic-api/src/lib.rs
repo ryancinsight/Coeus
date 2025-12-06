@@ -8,10 +8,10 @@ use std::sync::Arc;
 use axum::{
     extract::{self, State},
     http::StatusCode,
-    middleware,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
+    middleware,
 };
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
@@ -25,7 +25,7 @@ use tower_http::{
 pub use crate::types::*;
 pub use crate::state::*;
 pub use crate::handlers::*;
-pub use crate::middleware::*;
+pub use crate::custom_middleware::*;
 pub use crate::errors::*;
 
 // Add async_trait for async trait methods
@@ -41,7 +41,7 @@ pub mod clip_service;
 /// Request handlers
 pub mod handlers;
 /// Custom middleware
-pub mod middleware;
+pub mod custom_middleware;
 /// Error handling
 pub mod errors;
 
@@ -55,8 +55,12 @@ pub fn create_router() -> Router<AppState> {
         .route("/v1/index", post(index_content))
         .route("/v1/benchmarks", get(benchmark_search))
         .route("/v1/metrics", get(get_metrics))
-        .layer(middleware::from_fn(metrics_middleware))
-        .layer(middleware::from_fn(request_id_middleware))
+        .layer(middleware::from_fn(|req, next| async {
+            custom_middleware::metrics_middleware(req, next).await
+        }))
+        .layer(middleware::from_fn(|req, next| async {
+            custom_middleware::request_id_middleware(req, next).await
+        }))
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
@@ -111,13 +115,13 @@ pub fn init_metrics() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize global recorder for Prometheus metrics
     let builder = metrics_exporter_prometheus::PrometheusBuilder::new();
-    let recorder = builder.install_recorder()?;
-    metrics::set_global_recorder(recorder)?;
+    let _recorder = builder.install_recorder()?;
+    // metrics::set_global_recorder is not needed as install_recorder already sets it
 
     // Register standard metrics
     metrics::counter!("requests_total");
     metrics::histogram!("request_duration_seconds");
-    metrics::gauge!("search_index_size", 0u64);
+    metrics::gauge("search_index_size").set(0.0);
 
     Ok(())
 }

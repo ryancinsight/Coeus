@@ -10,11 +10,13 @@ use crate::linear::Linear;
 use crate::layernorm::LayerNorm;
 use crate::activation::GeLU;
 use crate::functional::linear;
+use crate::module::ModuleExt;
 use tensor::Tensor;
 use backend::Backend;
-use storage::{Storage, StorageFromVec};
+use storage::{Storage, StorageFromVec, StorageToDense};
+use autograd::ops::mean;
 use dtype::DataType;
-use crate::tensor_crate::FloatExt;
+use dtype::traits::FloatExt;
 use super::modality::{Modality, ModalityConfig};
 use super::attention::CrossModalAttention;
 use super::fusion::{FusionStrategy, Fusion, FusionBlock, FeedForward};
@@ -58,8 +60,8 @@ use super::task::Task;
 pub struct MultimodalTransformer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType,
+    S: Storage<T> + Clone + Default + storage::StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// Specialized encoders for each modality
     /// Maps modality types to their corresponding encoders
@@ -111,8 +113,8 @@ impl Default for MultimodalConfig {
 impl<B, S, T> MultimodalTransformer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// Create new multimodal transformer
     pub fn new(config: MultimodalConfig) -> Result<Self> {
@@ -133,7 +135,7 @@ where
         }
 
         // Create fusion layer
-        let fusion = Some(Fusion::new(config.hidden_dim, config.fusion_strategy)?);
+        let fusion = Some(Fusion::new(config.hidden_dim, config.fusion_strategy.clone())?);
 
         Ok(Self {
             encoders,
@@ -240,7 +242,7 @@ where
                 FeedForward {
                     linear1: Linear::new(config.hidden_dim, config.hidden_dim * 4)?,
                     linear2: Linear::new(config.hidden_dim * 4, config.hidden_dim)?,
-                    gelu: GeLU::new()?,
+                    gelu: GeLU::new(),
                     dropout: config.dropout,
                 }
             );
@@ -253,15 +255,15 @@ where
         for modality in &config.modalities {
             norms.insert(
                 format!("{}_intra", modality.as_str()),
-                LayerNorm::new(config.hidden_dim, 1e-6)?
+                LayerNorm::new(vec![config.hidden_dim], 1e-6)
             );
             norms.insert(
                 format!("{}_cross", modality.as_str()),
-                LayerNorm::new(config.hidden_dim, 1e-6)?
+                LayerNorm::new(vec![config.hidden_dim], 1e-6)
             );
             norms.insert(
                 format!("{}_ff", modality.as_str()),
-                LayerNorm::new(config.hidden_dim, 1e-6)?
+                LayerNorm::new(vec![config.hidden_dim], 1e-6)
             );
         }
 
@@ -296,7 +298,9 @@ where
         }
 
         if modality_embeddings.is_empty() {
-            return Err(NNError::InvalidInput("No valid modality inputs provided".into()));
+            return Err(NNError::InvalidInput {
+                message: "No valid modality inputs provided".into()
+            });
         }
 
         // Step 2: Apply cross-modal fusion
@@ -307,34 +311,34 @@ where
 
         // Step 3: Apply task-specific output
         if let Some(task_output) = self.tasks.get(task) {
-            match task_output {
+            Ok(match task_output {
                 Task::Classification(head) => {
                     // For classification, combine all modality representations
                     let combined_embedding = self.combine_modality_embeddings(&fused_embeddings)?;
                     // Global average pooling across sequence dimension
-                    let pooled = combined_embedding.mean(&[1])?;
-                    linear(&pooled, &head.classifier.weight, head.classifier.bias.as_ref())
+                    let pooled = mean(&combined_embedding, Some(&[1]), false)?;
+                    linear(&pooled, &head.classifier.weight.data, Some(&head.classifier.bias.data))?
                 },
                 Task::Regression(head) => {
                     // For regression, combine all modality representations
                     let combined_embedding = self.combine_modality_embeddings(&fused_embeddings)?;
-                    let pooled = combined_embedding.mean(&[1])?;
-                    linear(&pooled, &head.weight, head.bias.as_ref())
+                    let pooled = mean(&combined_embedding, Some(&[1]), false)?;
+                    linear(&pooled, &head.weight.data, Some(&head.bias.data))?
                 },
                 Task::Generation(head) => {
                     // For generation, use the primary modality (language if available, otherwise first)
                     let primary_embedding = self.select_primary_modality(&fused_embeddings)?;
-                    linear(primary_embedding, &head.lm_head.weight, head.lm_head.bias.as_ref())
+                    linear(&primary_embedding, &head.lm_head.weight.data, Some(&head.lm_head.bias.data))?
                 },
                 Task::Retrieval(head) => {
                     // For retrieval, combine all modality representations
                     let combined_embedding = self.combine_modality_embeddings(&fused_embeddings)?;
-                    let pooled = combined_embedding.mean(&[1])?;
-                    linear(&pooled, &head.projection.weight, head.projection.bias.as_ref())
+                    let pooled = mean(&combined_embedding, Some(&[1]), false)?;
+                    linear(&pooled, &head.projection.weight.data, Some(&head.projection.bias.data))?
                 },
-            }
+            })
         } else {
-            Err(NNError::InvalidConfiguration(format!("Task head '{}' not found", task)))
+            Err(NNError::InvalidConfiguration { message: format!("Task head '{}' not found", task) })
         }
     }
 
@@ -374,7 +378,9 @@ where
     /// Combine embeddings from multiple modalities into a single representation
     fn combine_modality_embeddings(&self, embeddings: &HashMap<Modality, Tensor<B, S, T>>) -> Result<Tensor<B, S, T>> {
         if embeddings.is_empty() {
-            return Err(NNError::InvalidInput("No modality embeddings to combine".into()));
+            return Err(NNError::InvalidInput {
+                message: "No modality embeddings to combine".into()
+            });
         }
 
         if embeddings.len() == 1 {
@@ -392,17 +398,17 @@ where
                 }
                 // TODO: Fix concatenate_tensors import
                 // tensor::ops::concatenate_tensors(&embedding_list.into_iter().collect::<Vec<_>>(), 2) // Concat along hidden dim
-                embedding_list.into_iter().next().unwrap() // Placeholder
+                Ok(embedding_list.into_iter().next().unwrap()) // Placeholder
             },
             FusionStrategy::LateFusion | FusionStrategy::AttentionFusion => {
                 // Average pooling across modalities
                 let mut combined = embeddings.values().next().unwrap().clone();
                 for embedding in embeddings.values().skip(1) {
-                    combined = &combined + embedding;
+                    combined = tensor::ops::arithmetic::add(&combined, embedding)?;
                 }
                 // Average by dividing by number of modalities
-                let scale = T::from(1.0 / embeddings.len() as f64).unwrap();
-                combined * scale
+                let scale = num_traits::cast(1.0 / embeddings.len() as f64).unwrap();
+                Ok(tensor::ops::arithmetic::scalar_mul(&combined, scale)?)
             },
             FusionStrategy::CrossModalFusion => {
                 // Use the first embedding as primary representation
@@ -412,13 +418,16 @@ where
     }
 
     /// Select the primary modality for generation tasks
-    fn select_primary_modality(&self, embeddings: &HashMap<Modality, Tensor<B, S, T>>) -> Result<&Tensor<B, S, T>> {
+    fn select_primary_modality(&self, embeddings: &HashMap<Modality, Tensor<B, S, T>>) -> Result<Tensor<B, S, T>> {
         // Prefer language modality for generation, otherwise use first available
         if let Some(language_embedding) = embeddings.get(&Modality::Language) {
-            Ok(language_embedding)
+            Ok(language_embedding.clone())
         } else {
             embeddings.values().next()
-                .ok_or_else(|| NNError::InvalidInput("No modality embeddings available".into()))
+                .ok_or_else(|| NNError::InvalidInput {
+                    message: "No modality embeddings available".into()
+                })
+                .map(|tensor| tensor.clone())
         }
     }
 }
@@ -527,5 +536,3 @@ mod tests {
         assert_eq!(primary.shape(), &[1, 10, 768]);
     }
 }
-
-

@@ -4,16 +4,17 @@
 //! Provides both simple concatenation and complex cross-modal transformer approaches.
 
 use std::collections::HashMap;
-use crate::error::{NNError, Result};
+use crate::error::Result;
 use crate::attention::MultiHeadAttention;
 use crate::linear::Linear;
 use crate::layernorm::LayerNorm;
 use crate::activation::GeLU;
 use crate::dropout::Dropout;
 use crate::functional::linear;
+use crate::module::{Module, ModuleExt};
 use tensor::Tensor;
 use backend::Backend;
-use storage::{Storage, StorageFromVec};
+use storage::{Storage, StorageFromVec, StorageToDense};
 use dtype::DataType;
 use super::modality::Modality;
 use super::attention::CrossModalAttention;
@@ -22,7 +23,7 @@ use super::attention::CrossModalAttention;
 ///
 /// Different fusion strategies offer trade-offs between computational complexity,
 /// representational capacity, and cross-modal interaction depth.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FusionStrategy {
     /// Early fusion: concatenate all modality inputs before any processing
     /// - Pros: Simple, preserves all cross-modal interactions
@@ -51,8 +52,8 @@ pub enum FusionStrategy {
 pub struct Fusion<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + storage::StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// Fusion strategy
     pub strategy: FusionStrategy,
@@ -65,8 +66,8 @@ where
 impl<B, S, T> Fusion<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + storage::StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// Create new multimodal fusion layer
     pub fn new(output_dim: usize, strategy: FusionStrategy) -> Result<Self> {
@@ -89,8 +90,8 @@ where
 pub enum FusionLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// Simple concatenation
     Concat(Linear<B, S, T>),
@@ -107,8 +108,8 @@ where
 pub struct FusionBlock<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded + std::cmp::PartialOrd,
 {
     /// Self-attention within each modality
     pub intra_attention: HashMap<Modality, MultiHeadAttention<B, S, T>>,
@@ -123,8 +124,8 @@ where
 impl<B, S, T> FusionBlock<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded + std::cmp::PartialOrd,
 {
     /// Forward pass through cross-modal transformer block
     pub fn forward(
@@ -140,7 +141,7 @@ where
                 let norm_key = format!("{}_intra", modality.as_str());
                 if let Some(norm) = self.norms.get(&norm_key) {
                     let norm_out = norm.forward(embedding)?;
-                    let attn_out = attn.forward(&norm_out, &norm_out, &norm_out, mask)?;
+                    let attn_out = attn.forward_cross_attention(&norm_out, &norm_out, &norm_out)?;
                     let residual = embedding + &attn_out;
                     updated_embeddings.insert(modality.clone(), residual);
                 } else {
@@ -210,8 +211,8 @@ where
 pub struct FeedForward<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + storage::StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     pub linear1: Linear<B, S, T>,
     pub linear2: Linear<B, S, T>,
@@ -222,14 +223,14 @@ where
 impl<B, S, T> FeedForward<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Default + StorageFromVec<T>,
-    T: DataType + 'static,
+    S: Storage<T> + Clone + Default + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// Create new feed-forward network
     pub fn new(hidden_dim: usize, ff_dim: usize, dropout: f64) -> Result<Self> {
         let linear1 = Linear::new(hidden_dim, ff_dim)?;
         let linear2 = Linear::new(ff_dim, hidden_dim)?;
-        let gelu = GeLU::new()?;
+        let gelu = GeLU::new();
         let dropout = dropout;
 
         Ok(Self {
@@ -243,16 +244,17 @@ where
     /// Forward pass
     pub fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // Linear transformation to higher dimension
-        let hidden = linear(input, &self.linear1.weight, self.linear1.bias.as_ref())?;
+        let hidden = linear(input, &self.linear1.weight.data, Some(&self.linear1.bias.data))?;
 
         // Apply GELU activation
         let activated = self.gelu.forward(&hidden)?;
 
-        // Apply dropout
-        let dropped = crate::functional::dropout(&activated, Some(self.dropout), Some(true), Some(false))?;
+        // TODO: Apply dropout when tensor dropout method is available
+        // For now, skip dropout
+        let dropped = activated;
 
         // Linear transformation back to hidden dimension
-        linear(&dropped, &self.linear2.weight, self.linear2.bias.as_ref())
+        linear(&dropped, &self.linear2.weight.data, Some(&self.linear2.bias.data))
     }
 
     /// Get number of parameters
@@ -295,5 +297,3 @@ mod tests {
         assert_eq!(fusion.fusion_layers.len(), 0); // Starts empty
     }
 }
-
-

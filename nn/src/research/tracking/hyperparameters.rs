@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
+use crate::hpo::HyperparameterValue;
 
 /// Hyperparameter tracker with versioning and analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,7 +96,7 @@ impl HyperparameterTracker {
 
     /// Record parameter correlation
     pub fn set_correlation(&mut self, param1: String, param2: String, correlation: f64) {
-        self.correlations.entry(param1).or_insert_with(HashMap::new)
+        self.correlations.entry(param1.clone()).or_insert_with(HashMap::new)
                        .insert(param2.clone(), correlation);
         self.correlations.entry(param2).or_insert_with(HashMap::new)
                        .insert(param1, correlation);
@@ -152,8 +153,8 @@ impl HyperparameterTracker {
 
     /// Generate hyperparameter analysis report
     pub fn generate_analysis_report(&self) -> HyperparameterAnalysisReport {
-        let mut value_distributions = HashMap::new();
-        let mut type_distribution = HashMap::new();
+        let mut value_distributions: HashMap<String, Vec<HyperparameterValue>> = HashMap::new();
+        let mut type_distribution: HashMap<String, usize> = HashMap::new();
 
         for entry in self.parameters.values() {
             // Count types

@@ -4,7 +4,7 @@
 //! including image augmentation pipelines and text preprocessing transforms.
 
 use crate::error::{NNError, Result};
-use super::vision_language::ImageTextPair;
+use super::ImageTextPair;
 use std::collections::HashMap;
 
 /// Trait for data transformations
@@ -32,7 +32,7 @@ pub mod image {
             if rand::random::<f32>() < self.probability {
                 // In a real implementation, this would flip the image horizontally
                 // For now, we just mark it in metadata
-                pair.metadata.insert("flipped".to_string(), "true".to_string());
+                pair.metadata.insert("flipped".to_string(), serde_json::json!("true"));
             }
             Ok(pair)
         }
@@ -57,11 +57,11 @@ pub mod image {
             if rand::random::<f32>() < self.probability {
                 // In a real implementation, this would apply color transformations to image pixels
                 // For now, we just mark it in metadata
-                pair.metadata.insert("color_jittered".to_string(), "true".to_string());
-                pair.metadata.insert("brightness".to_string(), format!("{:.2}", rand::random::<f32>() * self.brightness));
-                pair.metadata.insert("contrast".to_string(), format!("{:.2}", rand::random::<f32>() * self.contrast));
-                pair.metadata.insert("saturation".to_string(), format!("{:.2}", rand::random::<f32>() * self.saturation));
-                pair.metadata.insert("hue".to_string(), format!("{:.2}", rand::random::<f32>() * self.hue));
+                pair.metadata.insert("color_jittered".to_string(), serde_json::json!("true"));
+                pair.metadata.insert("brightness".to_string(), serde_json::json!(format!("{:.2}", rand::random::<f32>() * self.brightness)));
+                pair.metadata.insert("contrast".to_string(), serde_json::json!(format!("{:.2}", rand::random::<f32>() * self.contrast)));
+                pair.metadata.insert("saturation".to_string(), serde_json::json!(format!("{:.2}", rand::random::<f32>() * self.saturation)));
+                pair.metadata.insert("hue".to_string(), serde_json::json!(format!("{:.2}", rand::random::<f32>() * self.hue)));
             }
             Ok(pair)
         }
@@ -93,8 +93,8 @@ pub mod image {
         async fn transform(&self, mut pair: ImageTextPair) -> Result<ImageTextPair> {
             // In a real implementation, this would crop and resize the image
             // For now, we just mark the target size in metadata
-            pair.metadata.insert("crop_size".to_string(), format!("{}x{}", self.size.0, self.size.1));
-            pair.metadata.insert("cropped".to_string(), "true".to_string());
+            pair.metadata.insert("crop_size".to_string(), serde_json::json!(format!("{}x{}", self.size.0, self.size.1)));
+            pair.metadata.insert("cropped".to_string(), serde_json::json!("true"));
             Ok(pair)
         }
 
@@ -124,10 +124,10 @@ pub mod image {
         async fn transform(&self, mut pair: ImageTextPair) -> Result<ImageTextPair> {
             // In a real implementation, this would normalize actual pixel values
             // For now, we just mark it in metadata
-            pair.metadata.insert("normalized".to_string(), "true".to_string());
-            pair.metadata.insert("mean_r".to_string(), format!("{:.6}", self.mean[0]));
-            pair.metadata.insert("mean_g".to_string(), format!("{:.6}", self.mean[1]));
-            pair.metadata.insert("mean_b".to_string(), format!("{:.6}", self.mean[2]));
+            pair.metadata.insert("normalized".to_string(), serde_json::json!("true"));
+            pair.metadata.insert("mean_r".to_string(), serde_json::json!(format!("{:.6}", self.mean[0])));
+            pair.metadata.insert("mean_g".to_string(), serde_json::json!(format!("{:.6}", self.mean[1])));
+            pair.metadata.insert("mean_b".to_string(), serde_json::json!(format!("{:.6}", self.mean[2])));
             Ok(pair)
         }
 
@@ -144,7 +144,7 @@ pub mod image {
         async fn transform(&self, mut pair: ImageTextPair) -> Result<ImageTextPair> {
             // In a real implementation, this would convert image bytes to tensor format
             // For now, we just mark it in metadata
-            pair.metadata.insert("tensor_format".to_string(), "true".to_string());
+            pair.metadata.insert("tensor_format".to_string(), serde_json::json!("true"));
             Ok(pair)
         }
 
@@ -167,7 +167,7 @@ pub mod text {
             for caption in &mut pair.captions {
                 *caption = caption.to_lowercase();
             }
-            pair.metadata.insert("lowercased".to_string(), "true".to_string());
+            pair.metadata.insert("lowercased".to_string(), serde_json::json!("true"));
             Ok(pair)
         }
 
@@ -204,7 +204,7 @@ pub mod text {
                 }
             }
             if modified {
-                pair.metadata.insert("text_augmented".to_string(), "random_deletion".to_string());
+                pair.metadata.insert("text_augmented".to_string(), serde_json::json!("random_deletion"));
             }
             Ok(pair)
         }
@@ -245,7 +245,7 @@ pub mod text {
                 }
             }
             if modified {
-                pair.metadata.insert("text_augmented".to_string(), "random_swap".to_string());
+                pair.metadata.insert("text_augmented".to_string(), serde_json::json!("random_swap"));
             }
             Ok(pair)
         }
@@ -279,9 +279,9 @@ pub mod text {
                 .map(|c| c.split_whitespace().count())
                 .unwrap_or(0);
 
-            pair.metadata.insert("tokenized".to_string(), "true".to_string());
-            pair.metadata.insert("word_count".to_string(), word_count.to_string());
-            pair.metadata.insert("max_length".to_string(), self.max_length.to_string());
+            pair.metadata.insert("tokenized".to_string(), serde_json::json!("true"));
+            pair.metadata.insert("word_count".to_string(), serde_json::json!(word_count.to_string()));
+            pair.metadata.insert("max_length".to_string(), serde_json::json!(self.max_length.to_string()));
             Ok(pair)
         }
 
@@ -320,9 +320,9 @@ impl Compose {
         }
 
         result.metadata.insert("applied_transforms".to_string(),
-                              applied_transforms.join(","));
+                              serde_json::Value::String(applied_transforms.join(",")));
         result.metadata.insert("num_transforms".to_string(),
-                              applied_transforms.len().to_string());
+                              serde_json::Value::Number(applied_transforms.len().into()));
 
         Ok(result)
     }
@@ -436,7 +436,7 @@ mod tests {
         let result = transform.transform(pair).await.unwrap();
 
         assert_eq!(result.captions[0], "a beautiful sunset over the mountains");
-        assert_eq!(result.metadata.get("lowercased"), Some(&"true".to_string()));
+        assert_eq!(result.metadata.get("lowercased"), Some(&serde_json::Value::String("true".to_string())));
     }
 
     #[tokio::test]
@@ -461,7 +461,7 @@ mod tests {
         let pair = create_test_pair();
         let result = transform.transform(pair).await.unwrap();
 
-        assert_eq!(result.metadata.get("flipped"), Some(&"true".to_string()));
+        assert_eq!(result.metadata.get("flipped"), Some(&serde_json::Value::String("true".to_string())));
     }
 
     #[tokio::test]
@@ -476,7 +476,7 @@ mod tests {
     async fn test_compose_multiple() {
         use text::*;
 
-        let mut compose = Compose::new(vec![
+        let compose = Compose::new(vec![
             Box::new(ToLowercase),
             Box::new(Tokenize::default()),
         ]);
@@ -507,8 +507,3 @@ mod tests {
         assert!(result.metadata.contains_key("applied_transforms"));
     }
 }
-
-
-
-
-

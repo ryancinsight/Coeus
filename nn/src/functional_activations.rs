@@ -6,7 +6,7 @@
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 #[allow(unused_imports)]
-use storage::{DenseStorage, Storage, StorageToDense};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::error::Result;
@@ -38,7 +38,7 @@ use crate::error::Result;
 /// // output: [0.0, 0.5, 2.0]
 /// ```
 pub fn relu<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone,
@@ -71,7 +71,7 @@ where
 /// # Returns
 /// Tensor with sigmoid applied element-wise
 pub fn sigmoid<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default,
@@ -106,7 +106,7 @@ where
 /// # Returns
 /// Tensor with tanh applied element-wise
 pub fn tanh<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone,
@@ -137,7 +137,7 @@ where
 /// # Returns
 /// Tensor with GELU applied element-wise
 pub fn gelu<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T>,
@@ -182,7 +182,7 @@ where
 /// # Returns
 /// Tensor with SiLU applied element-wise
 pub fn silu<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T>,
@@ -219,7 +219,7 @@ where
 /// # Returns
 /// Tensor with Leaky ReLU applied element-wise
 pub fn leaky_relu<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
     negative_slope: T,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
@@ -258,7 +258,7 @@ where
 /// # Returns
 /// Tensor with ELU applied element-wise
 pub fn elu<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
     alpha: T,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where

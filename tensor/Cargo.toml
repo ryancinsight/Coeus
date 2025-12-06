@@ -30,6 +30,7 @@ bytemuck.workspace = true
 anyhow.workspace = true
 statrs.workspace = true
 rand.workspace = true
+rand_distr.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

@@ -219,15 +219,17 @@ impl ResearchAgent for PrototypicalResearchAgent {
             let recent_avg = self.training_history.iter().rev().take(3).sum::<f64>() / 3.0;
 
             vec![ResearchInsight {
-                id: format!("proto_performance_{}", self.training_history.len()),
-                agent_type: "prototypical".to_string(),
-                domains: vec![ResearchDomain::MetaLearning],
-                performance_impact: recent_avg,
+                id: format!("proto_meta_insight_{}", self.id),
+                description: format!("Prototypical performance insight after {} experiments", self.training_history.len()),
+                evidence: vec![
+                    format!("Average performance: {:.3}", recent_avg),
+                    format!("Total experiments: {}", self.training_history.len())
+                ],
                 confidence: 0.7,
-                knowledge_data: serde_json::json!({
-                    "avg_performance": recent_avg,
-                    "total_experiments": self.training_history.len()
-                }),
+                agent_type: self.id.clone(),
+                performance_impact: recent_avg - 0.5,
+                domains: vec!["MetaLearning".to_string()],
+                knowledge_data: serde_json::json!({"recent_avg": recent_avg}),
                 timestamp: std::time::Instant::now(),
             }]
         } else {
@@ -292,6 +294,7 @@ impl PrototypicalResearchAgent {
 }
 
 /// Factory for creating Prototypical Networks research agents
+#[derive(Debug)]
 pub struct PrototypicalResearchAgentFactory;
 
 impl ResearchAgentFactory for PrototypicalResearchAgentFactory {
@@ -532,14 +535,20 @@ impl ResearchAgent for MAMLResearchAgent {
             let recent_avg = self.training_history.iter().rev().take(3).sum::<f64>() / 3.0;
 
             vec![ResearchInsight {
-                id: format!("maml_performance_{}", self.training_history.len()),
-                agent_type: "maml".to_string(),
-                domains: vec![ResearchDomain::MetaLearning],
-                performance_impact: recent_avg,
+                id: format!("maml_insight_{}", self.id),
+                description: format!("MAML performance insight after {} experiments", self.training_history.len()),
+                evidence: vec![
+                    format!("Average performance: {:.3}", recent_avg),
+                    format!("Total experiments: {}", self.training_history.len()),
+                    format!("Meta learning rate: {:.6}", self.meta_lr),
+                    format!("Inner learning rate: {:.6}", self.inner_lr)
+                ],
                 confidence: 0.8,
+                agent_type: self.id.clone(),
+                performance_impact: recent_avg - 0.5,
+                domains: vec!["MetaLearning".to_string()],
                 knowledge_data: serde_json::json!({
-                    "avg_performance": recent_avg,
-                    "total_experiments": self.training_history.len(),
+                    "recent_avg": recent_avg,
                     "meta_lr": self.meta_lr,
                     "inner_lr": self.inner_lr
                 }),
@@ -657,6 +666,7 @@ impl MAMLResearchAgent {
 }
 
 /// Factory for creating MAML research agents
+#[derive(Debug)]
 pub struct MAMLResearchAgentFactory;
 
 impl ResearchAgentFactory for MAMLResearchAgentFactory {

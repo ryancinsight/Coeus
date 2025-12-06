@@ -9,14 +9,14 @@ use std::sync::{Arc, RwLock};
 
 use crate::error::{NNError, Result};
 use crate::nas::{Architecture, ArchitectureSpace};
-use crate::hpo::{HyperparameterConfig, HyperparameterSpace};
+use crate::hpo::{HyperparameterConfig, HyperparameterValue, HyperparameterSpace};
 use crate::research::performance_prediction::predictors::{GNNNASPredictor, SurrogateHPOPredictor, BoostedTreesPredictor};
 use crate::research::performance_prediction::builders::{GNNNASBuilder, SurrogateHPOBuilder, BoostedTreesBuilder};
 use crate::nas::search_space::LayerSpec;
 
 /// Performance Predictor Trait
 /// Interface for all performance prediction models
-pub trait PerformancePredictor: Send + Sync {
+pub trait PerformancePredictor: Send + Sync + std::fmt::Debug {
     /// Predict performance for an architecture or configuration
     fn predict(&self, input: &PredictionInput) -> Result<PredictionOutput>;
 
@@ -138,6 +138,7 @@ pub struct TrainingExample {
 
 /// Performance Prediction Framework
 /// Manages multiple prediction models and orchestrates predictions
+#[derive(Debug)]
 pub struct PerformancePredictionFramework {
     /// Registered predictors
     predictors: HashMap<String, Box<dyn PerformancePredictor>>,
@@ -157,7 +158,7 @@ pub struct PredictionModelFactory {
 }
 
 /// Model builder trait
-pub trait ModelBuilder: Send + Sync {
+pub trait ModelBuilder: Send + Sync + std::fmt::Debug {
     /// Build a new predictor model
     fn build(&self, config: &PredictionConfig) -> Result<Box<dyn PerformancePredictor>>;
 
@@ -375,21 +376,21 @@ impl PerformancePredictionFramework {
         let mut features = Vec::new();
 
         // Extract numerical hyperparameters
-        if let Some(lr) = config.get_float("learning_rate") {
-            features.push(lr);
+        if let Some(HyperparameterValue::Float(lr)) = config.get("learning_rate") {
+            features.push(*lr);
         }
-        if let Some(batch_size) = config.get_float("batch_size") {
-            features.push(batch_size);
+        if let Some(HyperparameterValue::Float(batch_size)) = config.get("batch_size") {
+            features.push(*batch_size);
         }
-        if let Some(dropout) = config.get_float("dropout") {
-            features.push(dropout);
+        if let Some(HyperparameterValue::Float(dropout)) = config.get("dropout") {
+            features.push(*dropout);
         }
-        if let Some(weight_decay) = config.get_float("weight_decay") {
-            features.push(weight_decay);
+        if let Some(HyperparameterValue::Float(weight_decay)) = config.get("weight_decay") {
+            features.push(*weight_decay);
         }
 
         // Add categorical hyperparameters as numerical codes
-        if let Some(optimizer) = config.get_string("optimizer") {
+        if let Some(HyperparameterValue::Categorical(optimizer)) = config.get("optimizer") {
             let opt_code = match optimizer.as_str() {
                 "adam" => 1.0,
                 "sgd" => 2.0,
@@ -437,6 +438,7 @@ pub mod predictors {
     use super::*;
 
     /// GNN-based NAS predictor (uses Graph Neural Networks for architecture prediction)
+    #[derive(Debug)]
     pub struct GNNNASPredictor {
         trained: bool,
         // In real implementation, would contain GNN model
@@ -456,7 +458,7 @@ pub mod predictors {
                 PredictionInput::Architecture(arch_input) => {
                     if !self.trained {
                         return Err(NNError::NotInitialized {
-                            message: "GNN predictor not trained".to_string(),
+                            component: "GNN predictor not trained".to_string(),
                         });
                     }
 
@@ -518,6 +520,7 @@ pub mod predictors {
     }
 
     /// Surrogate model for HPO prediction
+    #[derive(Debug)]
     pub struct SurrogateHPOPredictor {
         trained: bool,
         // In real implementation, would contain surrogate model (GP, Random Forest, etc.)
@@ -537,21 +540,21 @@ pub mod predictors {
                 PredictionInput::Hyperparameters(hp_input) => {
                     if !self.trained {
                         return Err(NNError::NotInitialized {
-                            message: "Surrogate predictor not trained".to_string(),
+                            component: "Surrogate predictor not trained".to_string(),
                         });
                     }
 
                     // Simple rule-based prediction for demonstration
-                    let mut score = 0.5;
+                    let mut score: f64 = 0.5;
 
-                    if let Some(lr) = hp_input.config.get_float("learning_rate") {
-                        if lr > 0.0001 && lr < 0.1 {
+                    if let Some(HyperparameterValue::Float(lr)) = hp_input.config.get("learning_rate") {
+                        if *lr > 0.0001 && *lr < 0.1 {
                             score += 0.2;
                         }
                     }
 
-                    if let Some(batch_size) = hp_input.config.get_float("batch_size") {
-                        if batch_size >= 16.0 && batch_size <= 128.0 {
+                    if let Some(HyperparameterValue::Float(batch_size)) = hp_input.config.get("batch_size") {
+                        if *batch_size >= 16.0 && *batch_size <= 128.0 {
                             score += 0.1;
                         }
                     }
@@ -595,6 +598,7 @@ pub mod predictors {
     }
 
     /// Boosted trees predictor for general use
+    #[derive(Debug)]
     pub struct BoostedTreesPredictor {
         trained: bool,
     }
@@ -611,7 +615,7 @@ pub mod predictors {
         fn predict(&self, _input: &PredictionInput) -> Result<PredictionOutput> {
             if !self.trained {
                 return Err(NNError::NotInitialized {
-                    message: "Boosted trees predictor not trained".to_string(),
+                    component: "Boosted trees predictor not trained".to_string(),
                 });
             }
 
@@ -655,6 +659,7 @@ pub mod predictors {
 pub mod builders {
     use super::*;
 
+    #[derive(Debug)]
     pub struct GNNNASBuilder;
     impl GNNNASBuilder {
         pub fn new() -> Self { Self }
@@ -674,6 +679,7 @@ pub mod builders {
         }
     }
 
+    #[derive(Debug)]
     pub struct SurrogateHPOBuilder;
     impl SurrogateHPOBuilder {
         pub fn new() -> Self { Self }
@@ -693,6 +699,7 @@ pub mod builders {
         }
     }
 
+    #[derive(Debug)]
     pub struct BoostedTreesBuilder;
     impl BoostedTreesBuilder {
         pub fn new() -> Self { Self }
@@ -716,7 +723,7 @@ pub mod builders {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nn::nas::search_space::{ArchitectureSpace, ArchitectureType};
+    use crate::nas::search_space::{ArchitectureSpace, ArchitectureType};
 
     #[test]
     fn test_performance_prediction_framework() {

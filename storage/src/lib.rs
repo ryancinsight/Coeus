@@ -196,6 +196,8 @@ pub use sparse_arithmetic::{
     SparseSub, SparseTranspose,
 };
 
+
+
 /// Storage-level matrix multiplication trait
 ///
 /// This trait provides matrix multiplication at the storage level,
@@ -300,4 +302,17 @@ pub trait Storage<T: DataType>: Send + Sync + Clone + core::fmt::Debug + 'static
 
     /// Returns a reference to self as a Storage trait object.
     fn as_storage_ref(&self) -> &Self;
+
+    /// Creates storage filled with a constant value.
+    ///
+    /// # Arguments
+    /// * `dims` - Shape dimensions
+    /// * `value` - Value to fill storage with
+    ///
+    /// # Errors
+    ///
+    /// Returns error if shape specification is invalid.
+    fn full(dims: &[usize], value: T) -> Result<Self>
+    where
+        Self: Sized;
 }

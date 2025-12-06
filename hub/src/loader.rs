@@ -65,7 +65,7 @@ impl ModelLoader {
     where
         M: Module<B, S, T>,
         B: Backend,
-        S: coeus_storage::Storage<T> + Clone + 'static,
+        S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
         T: DataType,
     {
         // This is a simplified implementation
@@ -142,7 +142,7 @@ impl ModelLoader {
     where
         M: Module<B, S, T>,
         B: Backend,
-        S: coeus_storage::Storage<T> + Clone + 'static,
+        S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
         T: DataType,
     {
         // This would deserialize SafeTensors or other model formats
@@ -366,7 +366,7 @@ pub struct HuggingFaceFile {
     pub oid: Option<String>,
 }
 
-impl<M, B: Backend, T: DataType> LoadedModel<M, B, T> {
+impl<M, B: Backend<Data = T>, T: DataType> LoadedModel<M, B, T> {
     /// Create a new loaded model
     pub fn new(model: M, metadata: ModelEntry, config: LoadConfig) -> Self {
         Self {
@@ -390,10 +390,10 @@ impl<M, B: Backend, T: DataType> LoadedModel<M, B, T> {
     /// Forward pass through the model
     pub fn forward<S>(
         &self,
-        input: &coeus_tensor::Tensor<B, S, T>,
-    ) -> Result<coeus_tensor::Tensor<B, S, T>>
+        input: &tensor::Tensor<B, S, T>,
+    ) -> Result<tensor::Tensor<B, S, T>>
     where
-        S: coeus_storage::Storage<T> + Clone + 'static,
+        S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
         M: Module<B, S, T>,
     {
         self.model

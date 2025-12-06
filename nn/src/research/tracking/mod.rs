@@ -153,6 +153,7 @@ impl std::fmt::Display for ExperimentSummary {
 }
 
 /// Central experiment tracking registry
+#[derive(Debug)]
 pub struct ExperimentRegistry {
     /// Active experiment trackers
     experiments: Arc<RwLock<HashMap<String, ExperimentTracker>>>,

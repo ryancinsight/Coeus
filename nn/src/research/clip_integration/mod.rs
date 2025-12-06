@@ -179,7 +179,7 @@ impl ClipResearchIntegrator {
     /// Run full research pipeline: HPO -> Ablation Studies -> Experiment Tracking
     pub async fn run_research_pipeline(
         &mut self,
-        _datasets: &[crate::evaluation::EvaluationDataset],
+        _datasets: &[Box<dyn crate::evaluation::EvaluationDataset>],
     ) -> Result<ResearchResults, Box<dyn std::error::Error>> {
         println!("🧪 Starting CLIP Research Pipeline");
         println!("   Experiment: {}", self.config.metadata.name);
@@ -371,7 +371,7 @@ pub struct ResearchResults {
 }
 
 /// CLIP training configuration (simplified)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ClipTrainingConfiguration {
     pub learning_rate: f64,
     pub batch_size: usize,

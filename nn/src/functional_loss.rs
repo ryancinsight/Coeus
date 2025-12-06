@@ -6,7 +6,7 @@
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 #[allow(unused_imports)]
-use storage::{DenseStorage, Storage, StorageToDense};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::error::{NNError, Result};
@@ -45,8 +45,8 @@ use crate::error::{NNError, Result};
 /// // loss ≈ 0.25 (mean of (0.5² + 0.5² + 0.5²) = mean of (0.25, 0.25, 0.25))
 /// ```
 pub fn mse_loss<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
-    target: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
+    target: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default,
@@ -123,8 +123,8 @@ where
 /// // loss = -log(softmax([2.0, 1.0, 0.1])[0])
 /// ```
 pub fn cross_entropy<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
-    target: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
+    target: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T>,
@@ -245,8 +245,8 @@ where
 /// # Returns
 /// Scalar tensor containing the NLL loss value
 pub fn nll_loss<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + 'static, T>,
-    target: &Tensor<B, impl StorageToDense<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
+    target: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T>,

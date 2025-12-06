@@ -9,23 +9,25 @@
 //! 3. Classifying images by finding the most similar text prompt
 
 use crate::error::{NNError, Result};
-use crate::tensor_crate::Tensor;
+use backend::Backend;
+use dtype::{DataType, FloatExt};
+use tensor::Tensor;
 use crate::evaluation::ZeroShotResults;
-use storage::StorageFromVec;
+use storage::{StorageFromVec, DenseStorage};
 use std::collections::{HashMap, HashSet, BTreeMap};
 use std::sync::Arc;
+use crate::clip::traits::ClipEncoder;
 
 /// Zero-shot classifier using CLIP
-pub struct ZeroShotClassifier<B, S, T>
+pub struct ZeroShotClassifier<B, T>
 where
-    B: crate::backend_crate::Backend<Data = T> + Clone,
-    S: crate::storage_crate::Storage<T> + Clone,
-    T: crate::dtype_crate::DataType,
+    B: Backend<Data = T> + Clone,
+    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// CLIP model for encoding
-    model: Arc<crate::clip::ClipModel<B, S, T>>,
+    model: Arc<dyn ClipEncoder<B, T> + Send + Sync>,
     /// Class name to text embeddings mapping
-    class_embeddings: HashMap<String, Tensor<B, S, T>>,
+    class_embeddings: HashMap<String, Tensor<B, DenseStorage<T>, T>>,
     /// Class names in order
     class_names: Vec<String>,
     /// Text templates for prompt engineering
@@ -87,15 +89,14 @@ pub struct BatchClassificationResult {
     pub top5_accuracy: f64,
 }
 
-impl<B, S, T> ZeroShotClassifier<B, S, T>
+impl<B, T> ZeroShotClassifier<B, T>
 where
-    B: crate::backend_crate::Backend<Data = T> + Clone + Send + Sync + 'static,
-    S: crate::storage_crate::Storage<T> + Clone + Send + Sync + StorageFromVec<T>,
-    T: crate::dtype_crate::DataType + crate::tensor_crate::FloatExt + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + 'static,
+    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + num_traits::Float + Send + Sync + 'static,
 {
     /// Create a new zero-shot classifier
     pub fn new(
-        model: Arc<crate::clip::ClipModel<B, S, T>>,
+        model: Arc<dyn ClipEncoder<B, T> + Send + Sync>,
         class_names: &[&str],
         config: ZeroShotConfig,
     ) -> Result<Self> {
@@ -115,7 +116,7 @@ where
 
     /// Create classifier with standard ImageNet classes
     pub fn imagenet(
-        model: Arc<crate::clip::ClipModel<B, S, T>>,
+        model: Arc<dyn ClipEncoder<B, T> + Send + Sync>,
         config: ZeroShotConfig,
     ) -> Result<Self> {
         let class_names = Self::imagenet_classes();
@@ -132,7 +133,13 @@ where
     /// Classify a batch of images
     pub fn classify_batch(&self, image_batch: &[Vec<u8>]) -> Result<BatchClassificationResult> {
         // Encode images
-        let image_embeddings = self.model.encode_images(image_batch)?;
+        let mut image_embeddings = Vec::new();
+        for image_data in image_batch {
+            // Convert Vec<u8> to Vec<f32> (assuming normalized 0-1 float data stored as bytes)
+            let float_data: Vec<f32> = image_data.iter().map(|&b| b as f32 / 255.0).collect();
+            let embedding = self.model.encode_image(&float_data, 1)?;
+            image_embeddings.push(embedding);
+        }
 
         let mut results = Vec::new();
         let mut correct_top1 = 0;
@@ -208,24 +215,21 @@ where
         }
 
         // Encode all prompts in batches
-        let mut class_embeddings = HashMap::new();
+        let mut class_embeddings: HashMap<String, Vec<Tensor<B, DenseStorage<T>, T>>> = HashMap::new();
 
-        for chunk in all_prompts.chunks(self.templates.len()) {
-            let embeddings = self.model.encode_texts(chunk)?;
+        for (i, text) in all_prompts.iter().enumerate() {
+            let embeddings = self.model.encode_text(&[text.as_str()])?;
+            let class_name = &prompt_to_class[i];
+            let existing_emb = class_embeddings.entry(class_name.clone())
+                .or_insert_with(Vec::new);
 
-            for (i, embedding) in embeddings.iter().enumerate() {
-                let class_name = &prompt_to_class[i];
-                let existing_emb = class_embeddings.entry(class_name.clone())
-                    .or_insert_with(Vec::new);
-
-                // Store individual template embeddings
-                existing_emb.push(embedding.clone());
-            }
+            // Store individual template embeddings
+            existing_emb.push(embeddings);
         }
 
         // Average embeddings across templates for each class
         for (class_name, embeddings) in &mut class_embeddings {
-            if embeddings.len() > 1 {
+            if embeddings.len() > 1usize {
                 // Average across templates
                 let avg_embedding = self.average_embeddings(embeddings)?;
                 self.class_embeddings.insert(class_name.clone(), avg_embedding);
@@ -241,19 +245,19 @@ where
     /// Compute cosine similarity between two embeddings
     fn compute_similarity(
         &self,
-        emb1: &Tensor<B, S, T>,
-        emb2: &Tensor<B, S, T>,
+        emb1: &Tensor<B, DenseStorage<T>, T>,
+        emb2: &Tensor<B, DenseStorage<T>, T>,
     ) -> Result<f64> {
         let emb1_data = emb1.as_slice();
         let emb2_data = emb2.as_slice();
 
         let dot_product: f64 = emb1_data.iter()
             .zip(emb2_data.iter())
-            .map(|(&a, &b)| a as f64 * b as f64)
-            .sum();
+            .map(|(&a, &b)| a.to_f64().unwrap_or(0.0) * b.to_f64().unwrap_or(0.0))
+            .sum::<f64>();
 
-        let norm1: f64 = emb1_data.iter().map(|&x| (x as f64).powi(2)).sum().sqrt();
-        let norm2: f64 = emb2_data.iter().map(|&x| (x as f64).powi(2)).sum().sqrt();
+        let norm1: f64 = emb1_data.iter().map(|&x| x.to_f64().unwrap_or(0.0).powi(2)).sum::<f64>().sqrt();
+        let norm2: f64 = emb2_data.iter().map(|&x| x.to_f64().unwrap_or(0.0).powi(2)).sum::<f64>().sqrt();
 
         if norm1 > 0.0 && norm2 > 0.0 {
             Ok(dot_product / (norm1 * norm2))
@@ -263,7 +267,7 @@ where
     }
 
     /// Average multiple embeddings
-    fn average_embeddings(&self, embeddings: &[Tensor<B, S, T>]) -> Result<Tensor<B, S, T>> {
+    fn average_embeddings(&self, embeddings: &[Tensor<B, DenseStorage<T>, T>]) -> Result<Tensor<B, DenseStorage<T>, T>> {
         if embeddings.is_empty() {
             return Err(NNError::InvalidInput {
                 message: "Cannot average empty embedding list".to_string(),
@@ -277,7 +281,7 @@ where
         // Sum all embeddings
         for emb in embeddings {
             for (i, &val) in emb.as_slice().iter().enumerate() {
-                avg_data[i] += val as f64;
+                avg_data[i] += val.to_f64().unwrap_or(0.0);
             }
         }
 
@@ -287,15 +291,12 @@ where
             *val /= count;
         }
 
-        // Convert back to tensor
-        let avg_slice: &[T] = unsafe {
-            std::slice::from_raw_parts(
-                avg_data.as_ptr() as *const T,
-                avg_data.len()
-            )
-        };
+        // Convert back to tensor T
+        let avg_t: Vec<T> = avg_data.iter()
+            .map(|&x| T::from(x).unwrap_or(T::zero()))
+            .collect();
 
-        Tensor::from_vec(avg_slice.to_vec(), shape)
+        Ok(Tensor::from_vec(avg_t, shape.dims())?)
     }
 
     /// Apply softmax with temperature
@@ -330,7 +331,7 @@ where
     }
 
     /// Get ImageNet class names
-    fn imagenet_classes() -> Vec<&'static str> {
+    pub fn imagenet_classes() -> Vec<&'static str> {
         vec![
             "tench", "goldfish", "great white shark", "tiger shark", "hammerhead shark",
             "electric ray", "stingray", "cock", "hen", "ostrich", "brambling", "goldfinch",
@@ -491,17 +492,16 @@ pub mod imagenet {
     use super::*;
 
     /// Evaluate CLIP on ImageNet zero-shot classification
-    pub async fn evaluate_imagenet<B, S, T>(
-        model: Arc<crate::clip::ClipModel<B, S, T>>,
+    pub async fn evaluate_imagenet<B, T>(
+        model: Arc<dyn ClipEncoder<B, T> + Send + Sync>,
         imagenet_dataset: &dyn crate::datasets::VisionLanguageData,
         config: ZeroShotConfig,
     ) -> Result<ZeroShotResults>
     where
-        B: crate::backend_crate::Backend<Data = T> + Clone + Send + Sync + 'static,
-        S: crate::storage_crate::Storage<T> + Clone + Send + Sync,
-        T: crate::dtype_crate::DataType + Send + Sync + 'static,
+        B: Backend<Data = T> + Clone + Send + Sync + 'static,
+        T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + num_traits::Float + Send + Sync + 'static,
     {
-        let class_names = ZeroShotClassifier::<B, S, T>::imagenet_classes();
+        let class_names = ZeroShotClassifier::<B, T>::imagenet_classes();
         let classifier = ZeroShotClassifier::new(model, &class_names, config)?;
 
         println!("Evaluating CLIP on ImageNet zero-shot classification...");
@@ -510,7 +510,7 @@ pub mod imagenet {
         let mut correct_top1 = 0;
         let mut correct_top5 = 0;
         let mut total_samples = 0;
-        let mut class_correct = HashMap::new();
+        let mut class_correct: HashMap<String, usize> = HashMap::new();
 
         // Evaluate on a subset for speed
         let eval_samples = std::cmp::min(imagenet_dataset.len(), 1000);
@@ -545,7 +545,7 @@ pub mod imagenet {
 
         let class_accuracies = class_names.iter()
             .map(|class| {
-                let correct = *class_correct.get(*class).unwrap_or(&0);
+                let correct = *class_correct.get(&class[..]).unwrap_or(&0);
                 let total = total_samples / class_names.len();
                 let accuracy = if total > 0 { correct as f64 / total as f64 } else { 0.0 };
                 (class.to_string(), accuracy)
@@ -557,10 +557,12 @@ pub mod imagenet {
         println!("Top-5 Accuracy: {:.2}%", top5_accuracy * 100.0);
 
         Ok(ZeroShotResults {
+            dataset_name: "ImageNet".to_string(),
             top1_accuracy,
             top5_accuracy,
-            class_accuracies,
-            confusion_matrix: None,
+            per_class_accuracy: class_accuracies,
+            confusion_matrix: Vec::new(),
+            class_confidences: Vec::new(),
         })
     }
 }
@@ -568,29 +570,36 @@ pub mod imagenet {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use backend::CpuBackend;
+    use storage::DenseStorage;
+    use dtype::float::Float32;
 
     // Mock CLIP model for testing
     struct MockClipModel;
 
-    impl MockClipModel {
-        fn encode_texts(&self, _texts: &[String]) -> Result<Vec<Tensor<crate::backend::CpuBackend<crate::dtype::float::Float32>, crate::storage::DenseStorage<crate::dtype::float::Float32>, crate::dtype::float::Float32>>> {
-            let mut embeddings = Vec::new();
-            for _ in _texts {
-                let data = vec![1.0f32, 0.5, -0.5, 0.0];
-                let tensor = Tensor::from_vec(data, &[4]);
-                embeddings.push(tensor);
+    impl ClipEncoder<CpuBackend<Float32>, Float32> for MockClipModel {
+        fn encode_text(&self, texts: &[&str]) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
+            let batch_size = texts.len();
+            let embed_dim = 4;
+            let mut data = Vec::with_capacity(batch_size * embed_dim);
+            for _ in 0..batch_size {
+                let vals = [1.0f32, 0.5, -0.5, 0.0];
+                data.extend(vals.iter().map(|&v| Float32::new(v)));
             }
-            Ok(embeddings)
+            // In a real scenario this would return [batch, dim]
+            // But since the usage in ZeroShotClassifier iterates one by one, it expects [1, dim] or [dim]
+            // The loop in average_embeddings iterates as_slice().
+            Ok(Tensor::from_vec(data, &[batch_size, embed_dim])?)
         }
 
-        fn encode_images(&self, _images: &[Vec<u8>]) -> Result<Vec<Tensor<crate::backend::CpuBackend<crate::dtype::float::Float32>, crate::storage::DenseStorage<crate::dtype::float::Float32>, crate::dtype::float::Float32>>> {
-            let mut embeddings = Vec::new();
-            for _ in _images {
-                let data = vec![0.5f32, 1.0, -0.2, 0.8];
-                let tensor = Tensor::from_vec(data, &[4]);
-                embeddings.push(tensor);
+        fn encode_image(&self, _image_data: &[f32], batch_size: usize) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
+            let embed_dim = 4;
+            let mut data = Vec::with_capacity(batch_size * embed_dim);
+            for _ in 0..batch_size {
+                let vals = [0.5f32, 1.0, -0.2, 0.8];
+                data.extend(vals.iter().map(|&v| Float32::new(v)));
             }
-            Ok(embeddings)
+            Ok(Tensor::from_vec(data, &[batch_size, embed_dim])?)
         }
     }
 
@@ -625,7 +634,7 @@ mod tests {
 
     #[test]
     fn test_imagenet_classes() {
-        let classes = ZeroShotClassifier::<crate::backend::CpuBackend<crate::dtype::float::Float32>, crate::storage::DenseStorage<crate::dtype::float::Float32>, crate::dtype::float::Float32>::imagenet_classes();
+        let classes = ZeroShotClassifier::<CpuBackend<Float32>, Float32>::imagenet_classes();
         assert_eq!(classes.len(), 1000);
         assert!(classes.contains(&"cat"));
         assert!(classes.contains(&"dog"));

@@ -35,7 +35,7 @@ wgpu = { version = "0.19", optional = true }
 pollster = { version = "0.3", optional = true }
 futures-intrusive = { version = "0.5", optional = true }
 bytemuck = { workspace = true, optional = true }
-tokio = { version = "1.0", features = ["sync"], optional = true }
+tokio = { version = "1.0", features = ["sync", "rt"], optional = true }
 futures = { version = "0.3", optional = true }
 
 [dev-dependencies]

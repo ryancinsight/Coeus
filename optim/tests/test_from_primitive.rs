@@ -2,7 +2,7 @@
 
 use dtype::float::{Float32, Float64};
 use dtype::traits::FloatExt;
-use num_traits::FromPrimitive;
+use num_traits::{Float, FromPrimitive};
 
 #[test]
 fn test_float32_from_f64_learning_rate() {

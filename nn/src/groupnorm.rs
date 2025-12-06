@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
-use storage::{DenseStorage, Storage, StorageFromVec};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::error::{NNError, Result};
@@ -61,7 +61,7 @@ use crate::parameter::Parameter;
 pub struct GroupNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     /// Number of groups
@@ -82,7 +82,7 @@ where
 impl<B, S, T> GroupNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + num_traits::One + num_traits::Zero,
 {
     /// Create a new GroupNorm layer.
@@ -313,7 +313,7 @@ where
 pub struct InstanceNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
     /// Underlying GroupNorm with num_groups = num_channels
@@ -323,7 +323,7 @@ where
 impl<B, S, T> InstanceNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
     T: DataType + FloatExt,
 {
     /// Create a new InstanceNorm layer.

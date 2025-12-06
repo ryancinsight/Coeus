@@ -59,7 +59,7 @@ pub trait ResearchAgent: Send + Sync {
 }
 
 /// Factory trait for creating research agents
-pub trait ResearchAgentFactory {
+pub trait ResearchAgentFactory: std::fmt::Debug {
     /// Create a new instance of the agent
     fn create(&self, config: serde_json::Value) -> Result<Box<dyn ResearchAgent>>;
 
@@ -302,14 +302,14 @@ impl MultiAgentCoordinator {
                     .map(|insight| {
                         // Convert insight to experiment result format
                         ExperimentResult {
-                            experiment_id: format!("insight_{}", insight.id),
+                            experiment_id: format!("insight_{}", insight.description.replace(" ", "_")),
                             agent_id: agent_id.clone(),
                             status: ExperimentStatus::Completed,
-                            final_performance: insight.performance_impact,
-                            performance_trajectory: vec![insight.performance_impact],
+                            final_performance: insight.confidence,
+                            performance_trajectory: vec![insight.confidence],
                             resource_usage: Default::default(),
-                            start_time: insight.timestamp,
-                            end_time: insight.timestamp,
+                            start_time: std::time::Instant::now(),
+                            end_time: std::time::Instant::now(),
                             statistics: Default::default(),
                             insights: vec![insight],
                             artifacts: HashMap::new(),
@@ -428,8 +428,12 @@ impl MultiAgentCoordinator {
 
         Ok(knowledge_base.insights.iter()
             .filter(|insight| {
-                insight.agent_type != agent.id() && // Don't give insights to self
-                insight.domains.iter().any(|domain| agent_domains.contains(domain))
+                insight.domains.iter().any(|domain| {
+                    agent_domains.iter().any(|agent_domain| {
+                        // Convert ResearchDomain to string for comparison
+                        format!("{:?}", agent_domain).to_lowercase() == domain.to_lowercase()
+                    })
+                })
             })
             .cloned()
             .collect())

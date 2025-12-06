@@ -69,7 +69,7 @@ pub struct RNN<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType,
+    T: DataType + std::cmp::PartialOrd,
 {
     /// Input-to-hidden weights for each layer
     pub weight_ih: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,
@@ -636,9 +636,7 @@ where
             let rnn_fn = RNNFunction::new(
                 all_inputs,
                 Vec::new(), // hidden_states (would need to be collected during forward)
-                self.batch_first,
-                self.bidirectional,
-                "tanh".to_string(), // nonlinearity
+                true, // batch_first
             );
 
             // Attach the function to the output tensor
@@ -646,7 +644,7 @@ where
             let function: std::sync::Arc<
                 dyn autograd::Function<CpuBackend<T>, DenseStorage<T>, T>,
             > = std::sync::Arc::new(rnn_fn);
-            output_with_grad.set_grad_fn(Some(function));
+            let output_with_grad = output_with_grad.with_grad_fn(Some(function));
             Ok(output_with_grad)
         } else {
             Ok(output)
@@ -690,7 +688,7 @@ impl<B, S, T> fmt::Display for RNN<B, S, T>
 where
     B: Backend<Data = T>,
     S: Storage<T> + Clone + StorageFromVec<T>,
-    T: DataType,
+    T: DataType + std::cmp::PartialOrd,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -708,6 +706,7 @@ where
 
 #[cfg(test)]
 mod rnn_forward_var_tests {
+    use storage::DenseStorage;
     use super::*;
 
     use dtype::float::Float32;

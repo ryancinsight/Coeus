@@ -4,8 +4,10 @@
 //! health monitoring, and enterprise features.
 
 use std::sync::Arc;
+use std::collections::HashMap;
 use tokio::sync::RwLock;
 use crate::types::*;
+use crate::errors::SemanticError;
 
 /// Application state container with all services and configuration
 #[derive(Clone)]
@@ -91,7 +93,7 @@ pub struct DatabaseStats {
 }
 
 /// Search performance metrics
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct SearchMetrics {
     /// Total search requests processed
     pub total_requests: u64,
@@ -416,3 +418,5 @@ mod mock_services {
 
 
 
+
+

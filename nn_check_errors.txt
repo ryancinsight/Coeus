@@ -1,0 +1,38 @@
+    Checking nn v0.2.0 (D:\coeus\nn)
+error[E0308]: mismatched types
+   --> nn\src\activation.rs:415:56
+    |
+415 |                 let w_reshaped = weight_tensor.reshape(&shape)?;
+    |                                                ------- ^^^^^^ expected `&[isize]`, found `&Vec<usize>`
+    |                                                |
+    |                                                arguments to this method are incorrect
+    |
+    = note: expected reference `&[isize]`
+               found reference `&Vec<usize>`
+note: method defined here
+   --> D:\coeus\tensor\src\shape_ops.rs:220:12
+    |
+220 |     pub fn reshape(
+    |            ^^^^^^^
+
+error[E0308]: mismatched types
+   --> nn\src\activation.rs:416:44
+    |
+354 | impl<B, S, T> PReLU<B, S, T>
+    |         - expected this type parameter
+...
+416 |                 let neg_scaled = mul(&neg, &w_reshaped)?;
+    |                                  ---       ^^^^^^^^^^^ expected `&Tensor<B, S, T>`, found `&Tensor<B, DenseStorage<T>, T>`
+    |                                  |
+    |                                  arguments to this function are incorrect
+    |
+    = note: expected reference `&tensor::Tensor<_, S, _>`
+               found reference `&tensor::Tensor<_, DenseStorage<T>, _>`
+note: function defined here
+   --> D:\coeus\tensor\src\ops\arithmetic.rs:42:8
+    |
+ 42 | pub fn mul<
+    |        ^^^
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `nn` (lib) due to 2 previous errors

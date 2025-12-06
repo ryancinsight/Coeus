@@ -303,11 +303,11 @@ impl DataParallel {
         1 // Placeholder
     }
 
-    fn compute_global_norm(&self, gradients: &[f32]) -> f32 {
+    fn compute_global_norm(&self, gradients: &[f32]) -> f64 {
         // Compute global L2 norm of gradients
         gradients.iter()
-            .map(|g| g * g)
-            .sum::<f32>()
+            .map(|g| *g as f64 * *g as f64)
+            .sum::<f64>()
             .sqrt()
     }
 }

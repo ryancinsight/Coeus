@@ -143,7 +143,7 @@ impl MixedPrecision {
     where
         T: FloatExt + num_traits::FromPrimitive,
         B: backend::Backend<Data = T>,
-        S: storage::Storage<T> + storage::StorageFromVec<T> + 'static,
+        S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + 'static,
     {
         if !self.enabled {
             return Ok(true);
@@ -178,12 +178,13 @@ impl MixedPrecision {
     where
         T: FloatExt,
         B: backend::Backend<Data = T>,
-        S: storage::Storage<T> + 'static,
+        S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + 'static,
     {
         let data = tensor.storage_ref().as_slice();
 
         for &value in data {
-            if let Some(f32_val) = value.to_f32() {
+            let f32_val: Option<f32> = value.to_f32();
+            if let Some(f32_val) = f32_val {
                 if f32_val.is_nan() || f32_val.is_infinite() {
                     return Ok(true);
                 }
@@ -295,7 +296,7 @@ impl GradientScaler {
     where
         T: FloatExt,
         B: backend::Backend<Data = T>,
-        S: storage::Storage<T> + 'static,
+        S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + 'static,
     {
         for grad in gradients {
             if self.has_inf_or_nan(grad)? {
@@ -312,12 +313,13 @@ impl GradientScaler {
     where
         T: FloatExt,
         B: backend::Backend<Data = T>,
-        S: storage::Storage<T> + 'static,
+        S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + 'static,
     {
         let data = tensor.storage_ref().as_slice();
 
         for &value in data {
-            if let Some(f32_val) = value.to_f32() {
+            let f32_val: Option<f32> = value.to_f32();
+            if let Some(f32_val) = f32_val {
                 if f32_val.is_nan() || f32_val.is_infinite() {
                     return Ok(true);
                 }

@@ -132,6 +132,45 @@ where
     }
 }
 
+/// Sub function for element-wise subtraction
+#[derive(Debug)]
+pub struct SubFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    /// Input tensors: [lhs, rhs]
+    pub inputs: Vec<Arc<Tensor<B, S, T>>>,
+}
+
+impl<B, S, T> tensor::AsAny for SubFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+}
+
+impl<B, S, T> SubFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    /// Create a new SubFunction with the given inputs
+    #[must_use]
+    pub fn new(lhs: Arc<Tensor<B, S, T>>, rhs: Arc<Tensor<B, S, T>>) -> Self {
+        Self {
+            inputs: vec![lhs, rhs],
+        }
+    }
+}
+
+
 /// Add function for element-wise addition
 #[derive(Debug)]
 pub struct AddFunction<B, S, T>
@@ -411,6 +450,8 @@ where
         "SumBackward"
     }
 }
+
+
 
 /// Mean function for averaging operations
 #[derive(Debug)]
@@ -862,6 +903,29 @@ where
 {
     fn name(&self) -> &'static str {
         "RNN"
+    }
+}
+
+impl<B, S, T> tensor::Function<B, S, T> for RNNFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    fn inputs(&self) -> &[Arc<Tensor<B, S, T>>] {
+        &self.inputs
+    }
+
+    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+        // RNN backward pass - simplified implementation
+        // In a real implementation, this would compute gradients for all inputs
+        // For now, return zero gradients for all inputs
+        let mut gradients = Vec::new();
+        for input in &self.inputs {
+            let zero_grad = Tensor::<B, S, T>::zeros(input.shape().dims())?;
+            gradients.push(zero_grad);
+        }
+        Ok(gradients)
     }
 }
 

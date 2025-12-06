@@ -3,8 +3,11 @@
 //! This module provides predefined workflow templates and custom workflow construction
 //! for coordinating research experiments across multiple agents.
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 use super::ResearchDomain;
 
 /// Research workflow definition
@@ -44,8 +47,7 @@ pub struct WorkflowStep {
 }
 
 /// Workflow execution constraints
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct WorkflowConstraints {
     /// Maximum execution time (seconds)
     pub max_execution_time: Option<u64>,
@@ -635,5 +637,337 @@ impl WorkflowTemplate {
                 ..Default::default()
             },
         }
+    }
+}
+
+/// Configuration-driven workflow specification
+/// Supports declarative workflow definition via YAML/JSON
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowSpec {
+    /// Workflow metadata
+    pub metadata: WorkflowMetadata,
+    /// Workflow steps specification
+    pub steps: Vec<StepSpec>,
+    /// Workflow constraints and configuration
+    pub config: WorkflowConfig,
+    /// Optional template inheritance
+    #[serde(default)]
+    pub extends: Option<String>,
+}
+
+/// Workflow metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowMetadata {
+    /// Workflow unique identifier
+    pub id: String,
+    /// Human-readable name
+    pub name: String,
+    /// Workflow description
+    pub description: String,
+    /// Research domain
+    pub domain: ResearchDomain,
+    /// Workflow version
+    #[serde(default)]
+    pub version: String,
+    /// Workflow author/contributor
+    #[serde(default)]
+    pub author: String,
+    /// Workflow tags for categorization
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+/// Step specification for declarative workflows
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StepSpec {
+    /// Step unique identifier within workflow
+    pub id: String,
+    /// Step name
+    pub name: String,
+    /// Agent type to execute this step
+    pub agent_type: String,
+    /// Step configuration
+    #[serde(default)]
+    pub config: HashMap<String, Value>,
+    /// Dependencies (step IDs this step depends on)
+    #[serde(default)]
+    pub depends_on: Vec<String>,
+    /// Step priority (higher = more important)
+    #[serde(default = "default_priority")]
+    pub priority: u32,
+    /// Resource requirements
+    #[serde(default)]
+    pub resources: ResourceRequirements,
+    /// Retry configuration
+    #[serde(default)]
+    pub retry: RetryConfig,
+    /// Conditional execution
+    #[serde(default)]
+    pub condition: Option<String>,
+}
+
+/// Resource requirements for workflow steps
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ResourceRequirements {
+    /// Required GPU count
+    #[serde(default)]
+    pub gpu_required: usize,
+    /// Required CPU cores
+    #[serde(default = "default_cpu_required")]
+    pub cpu_required: usize,
+    /// Required memory in MB
+    #[serde(default = "default_memory_mb")]
+    pub memory_mb: usize,
+    /// Maximum execution time in seconds
+    #[serde(default)]
+    pub max_execution_time: Option<u64>,
+}
+
+/// Retry configuration for failed steps
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RetryConfig {
+    /// Maximum retry attempts
+    #[serde(default)]
+    pub max_attempts: usize,
+    /// Delay between retries (seconds)
+    #[serde(default = "default_retry_delay")]
+    pub delay_seconds: u64,
+    /// Exponential backoff multiplier
+    #[serde(default = "default_backoff_multiplier")]
+    pub backoff_multiplier: f64,
+}
+
+/// Workflow configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowConfig {
+    /// Execution constraints
+    #[serde(default)]
+    pub constraints: WorkflowConstraints,
+    /// Global parameters available to all steps
+    #[serde(default)]
+    pub parameters: HashMap<String, Value>,
+    /// Execution mode
+    #[serde(default)]
+    pub execution_mode: ExecutionMode,
+    /// Failure handling strategy
+    #[serde(default)]
+    pub failure_strategy: FailureStrategy,
+}
+
+/// Execution modes for workflows
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ExecutionMode {
+    /// Sequential execution
+    Sequential,
+    /// Parallel execution where possible
+    Parallel,
+    /// Adaptive execution based on results
+    Adaptive,
+}
+
+impl Default for ExecutionMode {
+    fn default() -> Self {
+        ExecutionMode::Parallel
+    }
+}
+
+/// Failure handling strategies
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FailureStrategy {
+    /// Stop on first failure
+    FailFast,
+    /// Continue with remaining steps
+    ContinueOnFailure,
+    /// Retry failed steps
+    RetryFailed,
+}
+
+impl Default for FailureStrategy {
+    fn default() -> Self {
+        FailureStrategy::FailFast
+    }
+}
+
+/// Workflow loader for declarative specifications
+pub struct WorkflowLoader;
+
+impl WorkflowLoader {
+    /// Load workflow from YAML file
+    pub fn load_from_yaml<P: AsRef<Path>>(path: P) -> crate::error::Result<ResearchWorkflow> {
+        let content = fs::read_to_string(path)?;
+        let spec: WorkflowSpec = serde_yaml::from_str(&content)
+            .map_err(|e| crate::error::NNError::InvalidConfiguration {
+                message: format!("Failed to parse workflow YAML: {}", e),
+            })?;
+
+        Self::spec_to_workflow(spec)
+    }
+
+    /// Load workflow from JSON file
+    pub fn load_from_json<P: AsRef<Path>>(path: P) -> crate::error::Result<ResearchWorkflow> {
+        let content = fs::read_to_string(path)?;
+        let spec: WorkflowSpec = serde_json::from_str(&content)
+            .map_err(|e| crate::error::NNError::InvalidConfiguration {
+                message: format!("Failed to parse workflow JSON: {}", e),
+            })?;
+
+        Self::spec_to_workflow(spec)
+    }
+
+    /// Convert workflow specification to ResearchWorkflow
+    pub fn spec_to_workflow(spec: WorkflowSpec) -> crate::error::Result<ResearchWorkflow> {
+        let steps = spec.steps.into_iter()
+            .map(|step_spec| {
+                // Convert step config to JSON Value
+                let config = serde_json::to_value(step_spec.config)
+                    .unwrap_or(Value::Object(serde_json::Map::new()));
+
+                WorkflowStep {
+                    id: step_spec.id,
+                    name: step_spec.name,
+                    agent_type: step_spec.agent_type,
+                    config,
+                    dependencies: step_spec.depends_on,
+                    priority: step_spec.priority,
+                }
+            })
+            .collect();
+
+        // Merge global parameters with constraints
+        let mut constraints = spec.config.constraints;
+        constraints.resource_limits = Some({
+            let mut limits = HashMap::new();
+            // Add global resource limits if specified
+            limits
+        });
+
+        Ok(ResearchWorkflow {
+            id: spec.metadata.id,
+            name: spec.metadata.name,
+            description: spec.metadata.description,
+            domain: spec.metadata.domain,
+            steps,
+            parameters: spec.config.parameters,
+            constraints,
+        })
+    }
+
+    /// Save workflow specification to YAML file
+    pub fn save_to_yaml<P: AsRef<Path>>(workflow: &ResearchWorkflow, path: P) -> crate::error::Result<()> {
+        let spec = Self::workflow_to_spec(workflow)?;
+        let yaml = serde_yaml::to_string(&spec)
+            .map_err(|e| crate::error::NNError::ExecutionError {
+                message: format!("Failed to serialize workflow to YAML: {}", e),
+            })?;
+        fs::write(path, yaml)?;
+        Ok(())
+    }
+
+    /// Convert ResearchWorkflow to specification
+    pub fn workflow_to_spec(workflow: &ResearchWorkflow) -> crate::error::Result<WorkflowSpec> {
+        let steps = workflow.steps.iter()
+            .map(|step| {
+                let config = serde_json::from_value(step.config.clone())
+                    .unwrap_or_default();
+
+                StepSpec {
+                    id: step.id.clone(),
+                    name: step.name.clone(),
+                    agent_type: step.agent_type.clone(),
+                    config,
+                    depends_on: step.dependencies.clone(),
+                    priority: step.priority,
+                    resources: ResourceRequirements::default(),
+                    retry: RetryConfig::default(),
+                    condition: None,
+                }
+            })
+            .collect();
+
+        let metadata = WorkflowMetadata {
+            id: workflow.id.clone(),
+            name: workflow.name.clone(),
+            description: workflow.description.clone(),
+            domain: workflow.domain.clone(),
+            version: "1.0.0".to_string(),
+            author: "auto-generated".to_string(),
+            tags: Vec::new(),
+        };
+
+        let config = WorkflowConfig {
+            constraints: workflow.constraints.clone(),
+            parameters: workflow.parameters.clone(),
+            execution_mode: ExecutionMode::Parallel,
+            failure_strategy: FailureStrategy::FailFast,
+        };
+
+        Ok(WorkflowSpec {
+            metadata,
+            steps,
+            config,
+            extends: None,
+        })
+    }
+}
+
+// Default value functions
+fn default_priority() -> u32 { 5 }
+fn default_cpu_required() -> usize { 1 }
+fn default_memory_mb() -> usize { 1024 }
+fn default_retry_delay() -> u64 { 60 }
+fn default_backoff_multiplier() -> f64 { 2.0 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_workflow_spec_serialization() {
+        let spec = WorkflowSpec {
+            metadata: WorkflowMetadata {
+                id: "test_workflow".to_string(),
+                name: "Test Workflow".to_string(),
+                description: "A test workflow".to_string(),
+                domain: ResearchDomain::AutoML,
+                version: "1.0.0".to_string(),
+                author: "test".to_string(),
+                tags: vec!["test".to_string()],
+            },
+            steps: vec![
+                StepSpec {
+                    id: "step1".to_string(),
+                    name: "Step 1".to_string(),
+                    agent_type: "nas".to_string(),
+                    config: HashMap::new(),
+                    depends_on: vec![],
+                    priority: 10,
+                    resources: ResourceRequirements::default(),
+                    retry: RetryConfig::default(),
+                    condition: None,
+                }
+            ],
+            config: WorkflowConfig {
+                constraints: WorkflowConstraints::default(),
+                parameters: HashMap::new(),
+                execution_mode: ExecutionMode::Parallel,
+                failure_strategy: FailureStrategy::FailFast,
+            },
+            extends: None,
+        };
+
+        // Test JSON serialization
+        let json = serde_json::to_string(&spec).unwrap();
+        let deserialized: WorkflowSpec = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.metadata.id, spec.metadata.id);
+    }
+
+    #[test]
+    fn test_workflow_conversion() {
+        let workflow = WorkflowTemplate::nas_hpo_collaboration("accuracy");
+        let spec = WorkflowLoader::workflow_to_spec(&workflow).unwrap();
+        let converted_back = WorkflowLoader::spec_to_workflow(spec).unwrap();
+
+        assert_eq!(converted_back.id, workflow.id);
+        assert_eq!(converted_back.steps.len(), workflow.steps.len());
     }
 }

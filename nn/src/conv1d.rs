@@ -45,7 +45,7 @@ use std::marker::PhantomData;
 pub struct Conv1D<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
     /// Convolution weights [out_channels, in_channels, kernel_size]
@@ -64,7 +64,7 @@ where
 impl<B, S, T> Conv1D<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
 {
     /// Create a new Conv1D layer.
@@ -364,7 +364,7 @@ where
 pub struct ConvTranspose1d<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt,
 {
     /// Transposed convolution weights [in_channels, out_channels, kernel_size]
@@ -388,7 +388,7 @@ where
 impl<B, S, T> ConvTranspose1d<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
 {
     /// Create a new ConvTranspose1d layer.

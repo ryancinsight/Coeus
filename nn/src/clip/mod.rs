@@ -32,6 +32,7 @@ pub mod trainer;
 pub mod enhanced_trainer;
 pub mod zero_shot;
 pub mod validation;
+pub mod traits;
 
 // Re-exports
 pub use config::{ClipConfig, VisionConfig, TextConfig};
@@ -44,6 +45,8 @@ pub use zero_shot::{
     ZeroShotClassifier, ZeroShotConfig, ClassificationResult, BatchClassificationResult
 };
 pub use validation::ZeroShotResults;
+pub use traits::ClipEncoder;
 
 #[cfg(test)]
 mod tests;
+

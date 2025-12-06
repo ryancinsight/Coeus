@@ -4,6 +4,7 @@
 //! and generating tensors with specific fill patterns.
 
 use std::vec::Vec;
+use num_traits::FromPrimitive;
 
 
 /// Creation operations for tensors with any storage type.
@@ -100,12 +101,77 @@ where
     pub fn zeros(dims: &[usize]) -> crate::Result<Self>
     where
         B: Default,
-        T: num_traits::Zero,
+        S: storage::StorageFromVec<T>,
     {
-        let storage = S::zeros(dims).map_err(crate::TensorError::StorageError)?;
+        let size = dims.iter().product();
+        let data = vec![T::zero(); size];
+        let storage = S::from_vec(data, dims).map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, B::default()))
     }
+}
 
+/// Creation operations specifically for floating point tensors.
+impl<B, S, T> crate::Tensor<B, S, T>
+where
+    B: crate::Backend<Data = T> + Clone,
+    S: crate::Storage<T> + Clone + crate::StorageFromVec<T>,
+    T: crate::DataType + dtype::traits::FloatExt,
+{
+    /// Creates a tensor with random numbers from a standard normal distribution (mean=0, std=1).
+    ///
+    /// # Arguments
+    /// * `dims` - Shape dimensions
+    ///
+    /// # Errors
+    ///
+    /// Returns error if storage creation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
+    ///
+    /// let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::randn(&[2, 3]).unwrap();
+    /// assert_eq!(tensor.len(), 6);
+    /// ```
+    pub fn randn(dims: &[usize]) -> crate::Result<Self>
+    where
+        B: Default,
+        S: storage::StorageFromVec<T>,
+    {
+        use rand::Rng;
+        use rand_distr::StandardNormal;
+
+        let mut rng = rand::thread_rng();
+        let size: usize = dims.iter().product();
+        let mut data = Vec::with_capacity(size);
+
+        for _ in 0..size {
+            let sample: f64 = rng.sample(StandardNormal);
+            // Convert f64 to T. Since T is FloatExt, this should be safe for representable values.
+            let val = num_traits::NumCast::from(sample).ok_or_else(|| {
+                crate::TensorError::BackendError(format!(
+                    "Failed to convert random sample {} to type {}",
+                    sample,
+                    T::name()
+                ))
+            })?;
+            data.push(val);
+        }
+
+        Self::from_vec(data, dims)
+    }
+}
+
+impl<B, S, T> crate::Tensor<B, S, T>
+where
+    B: crate::Backend<Data = T> + Clone,
+    S: crate::Storage<T> + Clone + crate::StorageFromVec<T>,
+    T: crate::DataType,
+{
     /// Creates a tensor filled with ones using any Storage implementation.
     ///
     /// This provides a generic way to create one-filled tensors that works
@@ -135,6 +201,99 @@ where
     {
         let storage = S::ones(dims).map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, B::default()))
+    }
+
+    /// Creates a tensor filled with zeros with the same shape as the input tensor.
+    ///
+    /// # Arguments
+    /// * `tensor` - Reference tensor to copy shape from
+    ///
+    /// # Errors
+    ///
+    /// Returns error if storage creation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
+    ///
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(&[Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
+    /// let zeros = Tensor::zeros_like(&a).unwrap();
+    /// assert_eq!(zeros.shape().dims(), a.shape().dims());
+    /// ```
+    pub fn zeros_like(tensor: &Self) -> crate::Result<Self>
+    where
+        B: Clone + Default,
+        S: Clone,
+        T: num_traits::Zero,
+    {
+        let storage = S::zeros(tensor.shape().dims()).map_err(crate::TensorError::StorageError)?;
+        Ok(Self::from_storage(storage, tensor.backend().clone()))
+    }
+
+    /// Creates a tensor filled with ones with the same shape as the input tensor.
+    ///
+    /// # Arguments
+    /// * `tensor` - Reference tensor to copy shape from
+    ///
+    /// # Errors
+    ///
+    /// Returns error if storage creation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
+    ///
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(&[Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
+    /// let ones = Tensor::ones_like(&a).unwrap();
+    /// assert_eq!(ones.shape().dims(), a.shape().dims());
+    /// ```
+    pub fn ones_like(tensor: &Self) -> crate::Result<Self>
+    where
+        B: Clone + Default,
+        S: Clone,
+        T: num_traits::One,
+    {
+        let storage = S::ones(tensor.shape().dims()).map_err(crate::TensorError::StorageError)?;
+        Ok(Self::from_storage(storage, tensor.backend().clone()))
+    }
+
+    /// Creates a tensor filled with a constant value with the same shape as the input tensor.
+    ///
+    /// # Arguments
+    /// * `tensor` - Reference tensor to copy shape from
+    /// * `value` - Value to fill the tensor with
+    ///
+    /// # Errors
+    ///
+    /// Returns error if storage creation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tensor::Tensor;
+    /// use backend::CpuBackend;
+    /// use storage::DenseStorage;
+    /// use dtype::float::Float32;
+    ///
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(&[Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
+    /// let full = Tensor::full_like(&a, Float32::new(5.0)).unwrap();
+    /// assert_eq!(full.shape().dims(), a.shape().dims());
+    /// ```
+    pub fn full_like(tensor: &Self, value: T) -> crate::Result<Self>
+    where
+        B: Clone + Default,
+        S: Clone,
+    {
+        let storage = S::full(tensor.shape().dims(), value).map_err(crate::TensorError::StorageError)?;
+        Ok(Self::from_storage(storage, tensor.backend().clone()))
     }
 }
 // Separate impl for DenseStorage to provide from_slice
@@ -299,7 +458,7 @@ mod tensor_creation_convenience {
         let total_elements: usize = output_shape.iter().product();
 
         // Concatenate the data
-        let mut concatenated_data = Vec::with_capacity(total_elements);
+        let mut concatenated_data = vec![dtype::float::Float32::default(); total_elements];
 
         let mut offsets = vec![0; output_shape.len()];
         for tensor in tensors {
@@ -328,7 +487,7 @@ mod tensor_creation_convenience {
                 }
 
                 // Copy the element
-                concatenated_data.push(tensor.as_slice()[linear_idx]);
+                concatenated_data[output_linear_idx] = tensor.as_slice()[linear_idx];
             }
 
             // Update offset for next tensor
@@ -408,3 +567,6 @@ where
         Ok(Self::from_storage(storage, B::default()))
     }
 }
+
+
+

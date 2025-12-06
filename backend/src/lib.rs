@@ -258,9 +258,32 @@ impl BackendSelector {
 
     /// Detect available GPU hardware
     fn detect_gpu_hardware() -> bool {
-        // GPU backend is currently a stub implementation
-        // TODO: Re-enable when GPU backend provides actual functionality
-        false
+        // Attempt to initialize WGPU and check for GPU availability
+        // This is a lightweight check that doesn't create actual GPU resources
+        #[cfg(feature = "gpu")]
+        {
+            // Use tokio to run async GPU detection
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .ok()
+                .map(|rt| rt.block_on(async {
+                    // Try to create WGPU instance and adapter
+                    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+                    let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
+                        power_preference: wgpu::PowerPreference::HighPerformance,
+                        compatible_surface: None,
+                        force_fallback_adapter: false,
+                    }).await;
+
+                    adapter.is_some()
+                }))
+                .unwrap_or(false)
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            false
+        }
     }
 
     /// Score a backend for a given workload
@@ -272,19 +295,21 @@ impl BackendSelector {
             OperationType::ElementWise => {
                 score += match backend {
                     BackendType::Gpu => {
-                        // GPUs have overhead for small ops
-                        if workload.total_elements < 1000 {
-                            40.0
+                        // GPUs have significant overhead for small ops, only beneficial for large workloads
+                        if workload.total_elements < 10000 {
+                            30.0  // GPU not suitable for small element-wise ops
+                        } else if workload.total_elements < 100000 {
+                            70.0  // GPU becomes viable for medium workloads
                         } else {
-                            90.0
+                            90.0  // GPU excels at large element-wise ops
                         }
                     }
                     BackendType::Cpu => {
-                        // CPUs efficient for small element-wise ops
-                        if workload.total_elements < 10000 {
-                            80.0
+                        // CPUs efficient for element-wise ops up to large sizes
+                        if workload.total_elements < 100000 {
+                            85.0  // CPU preferred for most element-wise workloads
                         } else {
-                            60.0
+                            75.0  // CPU still competitive for very large ops
                         }
                     }
                     BackendType::Tpu => 60.0,
@@ -489,7 +514,7 @@ pub struct BackendDispatchStats {
     pub cache_hit_rate: f32,
 }
 
-impl<T: DataType> AdaptiveBackendDispatch<T> for BackendSelector {
+impl<T: DataType + std::cmp::PartialOrd> AdaptiveBackendDispatch<T> for BackendSelector {
     fn dispatch_add(&self, lhs: &[T], rhs: &[T], result: &mut [T]) -> crate::Result<()> {
         let characteristics = WorkloadCharacteristics {
             total_elements: lhs.len(),
@@ -562,15 +587,25 @@ impl<T: DataType> AdaptiveBackendDispatch<T> for BackendSelector {
 
 /// Backend execution methods (internal implementation)
 impl BackendSelector {
-    fn execute_add<T: DataType>(&self, backend_type: BackendType, lhs: &[T], rhs: &[T], result: &mut [T]) -> crate::Result<()> {
-        // Phase 1: Only CPU backend supported for now
+    fn execute_add<T: DataType + std::cmp::PartialOrd>(&self, backend_type: BackendType, lhs: &[T], rhs: &[T], result: &mut [T]) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
-                // Direct element-wise addition
-                for (i, (&l, &_r)) in lhs.iter().zip(rhs.iter()).enumerate() {
+                // Use actual CPU backend implementation
+                use crate::cpu::CpuBackend;
+                use storage::DenseStorage;
+
+                // Convert slices to DenseStorage for CPU backend
+                let lhs_storage = DenseStorage::from_vec(lhs.to_vec(), &[lhs.len()])?;
+                let rhs_storage = DenseStorage::from_vec(rhs.to_vec(), &[rhs.len()])?;
+
+                let backend = CpuBackend::<T>::new();
+                let result_storage = backend.add_dense(&lhs_storage, &rhs_storage)?;
+
+                // Copy result back to slice
+                let result_data = result_storage.as_slice();
+                for (i, &val) in result_data.iter().enumerate() {
                     if let Some(res) = result.get_mut(i) {
-                        // TODO: Implement proper addition trait bounds for DataType
-                        *res = l; // Placeholder - needs proper arithmetic
+                        *res = val;
                     }
                 }
                 Ok(())
@@ -582,12 +617,25 @@ impl BackendSelector {
         }
     }
 
-    fn execute_mul<T: DataType>(&self, backend_type: BackendType, lhs: &[T], rhs: &[T], result: &mut [T]) -> crate::Result<()> {
+    fn execute_mul<T: DataType + std::cmp::PartialOrd>(&self, backend_type: BackendType, lhs: &[T], rhs: &[T], result: &mut [T]) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
-                for (i, (&l, &_r)) in lhs.iter().zip(rhs.iter()).enumerate() {
+                // Use actual CPU backend implementation
+                use crate::cpu::CpuBackend;
+                use storage::DenseStorage;
+
+                // Convert slices to DenseStorage for CPU backend
+                let lhs_storage = DenseStorage::from_vec(lhs.to_vec(), &[lhs.len()])?;
+                let rhs_storage = DenseStorage::from_vec(rhs.to_vec(), &[rhs.len()])?;
+
+                let backend = CpuBackend::<T>::new();
+                let result_storage = backend.mul_dense(&lhs_storage, &rhs_storage)?;
+
+                // Copy result back to slice
+                let result_data = result_storage.as_slice();
+                for (i, &val) in result_data.iter().enumerate() {
                     if let Some(res) = result.get_mut(i) {
-                        *res = l; // Placeholder
+                        *res = val;
                     }
                 }
                 Ok(())
@@ -599,25 +647,26 @@ impl BackendSelector {
         }
     }
 
-    fn execute_matmul<T: DataType>(&self, backend_type: BackendType, lhs: &[T], rhs: &[T], result: &mut [T],
+    fn execute_matmul<T: DataType + std::cmp::PartialOrd>(&self, backend_type: BackendType, lhs: &[T], rhs: &[T], result: &mut [T],
                   m: usize, k: usize, n: usize) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
-                // Basic CPU matrix multiplication
-                for i in 0..m {
-                    for j in 0..n {
-                        let result_idx = i * n + j;
-                        if result_idx < result.len() {
-                            result[result_idx] = T::zero(); // Initialize
-                            for l in 0..k {
-                                let lhs_idx = i * k + l;
-                                let rhs_idx = l * n + j;
-                                if lhs_idx < lhs.len() && rhs_idx < rhs.len() {
-                                    // result[result_idx] = result[result_idx] + lhs[lhs_idx] * rhs[rhs_idx];
-                                    // Placeholder - needs arithmetic trait
-                                }
-                            }
-                        }
+                // Use actual CPU backend implementation
+                use crate::cpu::CpuBackend;
+                use storage::DenseStorage;
+
+                // Convert slices to DenseStorage for CPU backend
+                let lhs_storage = DenseStorage::from_vec(lhs.to_vec(), &[m, k])?;
+                let rhs_storage = DenseStorage::from_vec(rhs.to_vec(), &[k, n])?;
+
+                let backend = CpuBackend::<T>::new();
+                let result_storage = backend.matmul_dense(&lhs_storage, &rhs_storage)?;
+
+                // Copy result back to slice
+                let result_data = result_storage.as_slice();
+                for (i, &val) in result_data.iter().enumerate() {
+                    if let Some(res) = result.get_mut(i) {
+                        *res = val;
                     }
                 }
                 Ok(())
@@ -629,12 +678,24 @@ impl BackendSelector {
         }
     }
 
-    fn execute_relu<T: DataType>(&self, backend_type: BackendType, input: &[T], result: &mut [T]) -> crate::Result<()> {
+    fn execute_relu<T: DataType + std::cmp::PartialOrd>(&self, backend_type: BackendType, input: &[T], result: &mut [T]) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
-                for (i, &x) in input.iter().enumerate() {
+                // Use actual CPU backend implementation
+                use crate::cpu::CpuBackend;
+                use storage::DenseStorage;
+
+                // Convert slice to DenseStorage for CPU backend
+                let input_storage = DenseStorage::from_vec(input.to_vec(), &[input.len()])?;
+
+                let backend = CpuBackend::<T>::new();
+                let result_storage = backend.relu_dense(&input_storage)?;
+
+                // Copy result back to slice
+                let result_data = result_storage.as_slice();
+                for (i, &val) in result_data.iter().enumerate() {
                     if let Some(res) = result.get_mut(i) {
-                        *res = x; // Placeholder for ReLU implementation
+                        *res = val;
                     }
                 }
                 Ok(())
@@ -646,13 +707,19 @@ impl BackendSelector {
         }
     }
 
-    fn execute_sum<T: DataType>(&self, backend_type: BackendType, input: &[T], result: &mut [T]) -> crate::Result<()> {
+    fn execute_sum<T: DataType + std::cmp::PartialOrd>(&self, backend_type: BackendType, input: &[T], result: &mut [T]) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
-                let sum = T::zero();
-                for &_x in input {
-                    // sum = sum + x; // Placeholder - needs arithmetic
-                }
+                // Use actual CPU backend implementation
+                use crate::cpu::CpuBackend;
+                use storage::DenseStorage;
+
+                // Convert slice to DenseStorage for CPU backend
+                let input_storage = DenseStorage::from_vec(input.to_vec(), &[input.len()])?;
+
+                let backend = CpuBackend::<T>::new();
+                let sum = backend.sum_dense(&input_storage)?;
+
                 if !result.is_empty() {
                     result[0] = sum;
                 }
@@ -1354,8 +1421,8 @@ mod tests {
         };
 
         let selected = selector.select_backend(&workload);
-        // For now, only CPU is available
-        assert_eq!(selected, BackendType::Cpu);
+        // GPUs should be preferred for large matrix multiplications
+        assert_eq!(selected, BackendType::Gpu);
     }
 
     #[test]
@@ -1375,5 +1442,194 @@ mod tests {
         let overhead = monitor.calculate_gpu_overhead(total_training_time);
         // Overhead calculation may vary based on recorded metrics
         assert!(overhead >= 0.0 && overhead <= 50.0);
+    }
+
+    #[test]
+    fn test_matmul_mathematical_correctness() {
+        // Test matrix multiplication against analytical results
+        let backend = CpuBackend::<Float32>::new();
+
+        // Test case: 2x3 @ 3x2 = 2x2
+        let lhs_data = vec![
+            Float32::new(1.0), Float32::new(2.0), Float32::new(3.0),
+            Float32::new(4.0), Float32::new(5.0), Float32::new(6.0),
+        ];
+        let rhs_data = vec![
+            Float32::new(7.0), Float32::new(8.0),
+            Float32::new(9.0), Float32::new(10.0),
+            Float32::new(11.0), Float32::new(12.0),
+        ];
+
+        let lhs = storage::DenseStorage::from_vec(lhs_data, &[2, 3]).unwrap();
+        let rhs = storage::DenseStorage::from_vec(rhs_data, &[3, 2]).unwrap();
+
+        let result = backend.matmul_dense(&lhs, &rhs).unwrap();
+
+        // Expected: [[1*7+2*9+3*11, 1*8+2*10+3*12], [4*7+5*9+6*11, 4*8+5*10+6*12]]
+        //         = [[7+18+33, 8+20+36], [28+45+66, 32+50+72]]
+        //         = [[58, 64], [139, 154]]
+        let expected_data = vec![
+            Float32::new(58.0), Float32::new(64.0),
+            Float32::new(139.0), Float32::new(154.0),
+        ];
+        let expected = storage::DenseStorage::from_vec(expected_data, &[2, 2]).unwrap();
+
+        assert_eq!(result.shape().dims(), &[2, 2]);
+        for (r, e) in result.as_slice().iter().zip(expected.as_slice().iter()) {
+            assert!((r.get() - e.get()).abs() < 1e-6, "Result: {}, Expected: {}", r.get(), e.get());
+        }
+    }
+
+    #[test]
+    fn test_mean_reduction_correctness() {
+        // Test mean reduction against analytical results
+        let backend = CpuBackend::<Float32>::new();
+
+        // 2x3 matrix: [[1, 2, 3], [4, 5, 6]]
+        let data = vec![
+            Float32::new(1.0), Float32::new(2.0), Float32::new(3.0),
+            Float32::new(4.0), Float32::new(5.0), Float32::new(6.0),
+        ];
+        let tensor = storage::DenseStorage::from_vec(data, &[2, 3]).unwrap();
+
+        // Global mean: (1+2+3+4+5+6)/6 = 21/6 = 3.5
+        let global_mean = backend.mean_dense(&tensor, None).unwrap();
+        assert_eq!(global_mean.shape().dims(), &[]);
+        assert!((global_mean.as_slice()[0].get() - 3.5).abs() < 1e-6);
+
+        // Mean along axis 0 (reduce first dimension): [(1+4)/2, (2+5)/2, (3+6)/2] = [2.5, 3.5, 4.5]
+        let axis0_mean = backend.mean_dense(&tensor, Some(&[0])).unwrap();
+        assert_eq!(axis0_mean.shape().dims(), &[3]);
+        let expected_axis0 = vec![Float32::new(2.5), Float32::new(3.5), Float32::new(4.5)];
+        for (r, e) in axis0_mean.as_slice().iter().zip(expected_axis0.iter()) {
+            assert!((r.get() - e.get()).abs() < 1e-6);
+        }
+
+        // Mean along axis 1 (reduce second dimension): [(1+2+3)/3, (4+5+6)/3] = [2.0, 5.0]
+        let axis1_mean = backend.mean_dense(&tensor, Some(&[1])).unwrap();
+        assert_eq!(axis1_mean.shape().dims(), &[2]);
+        let expected_axis1 = vec![Float32::new(2.0), Float32::new(5.0)];
+        for (r, e) in axis1_mean.as_slice().iter().zip(expected_axis1.iter()) {
+            assert!((r.get() - e.get()).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_element_wise_operations_precision() {
+        // Test element-wise operations for numerical precision
+        let backend = CpuBackend::<Float32>::new();
+
+        let data = vec![
+            Float32::new(1.5), Float32::new(-2.7), Float32::new(3.14),
+            Float32::new(-0.5), Float32::new(10.0), Float32::new(0.001),
+        ];
+        let tensor = storage::DenseStorage::from_vec(data.clone(), &[2, 3]).unwrap();
+
+        // Test exp: e^1.5, e^-2.7, e^3.14, e^-0.5, e^10.0, e^0.001
+        let exp_result = backend.exp_dense(&tensor).unwrap();
+        for (i, &val) in data.iter().enumerate() {
+            let expected = val.get().exp();
+            let actual = exp_result.as_slice()[i].get();
+            assert!((actual - expected).abs() < 1e-6, "exp({}) = {} vs {}", val.get(), actual, expected);
+        }
+
+        // Test ReLU: max(0, x)
+        let relu_result = backend.relu_dense(&tensor).unwrap();
+        let expected_relu = vec![1.5, 0.0, 3.14, 0.0, 10.0, 0.001];
+        for (i, &expected) in expected_relu.iter().enumerate() {
+            let actual = relu_result.as_slice()[i].get();
+            assert!((actual - expected).abs() < 1e-6, "ReLU result[{}] = {} vs {}", i, actual, expected);
+        }
+    }
+
+    #[test]
+    fn test_sparse_coo_operations_correctness() {
+        // Test COO sparse operations for mathematical correctness
+        let backend = CpuBackend::<Float32>::new();
+
+        // Test coo_add_sparse: [1, 0; 0, 2] + [0, 1; 3, 0] = [1, 1; 3, 2]
+        let lhs_data = vec![Float32::new(1.0), Float32::new(2.0)];
+        let lhs_row = vec![0, 1];
+        let lhs_col = vec![0, 1];
+
+        let rhs_data = vec![Float32::new(1.0), Float32::new(3.0)];
+        let rhs_row = vec![0, 1];
+        let rhs_col = vec![1, 0];
+
+        let result = backend.coo_add_sparse(&lhs_data, &lhs_row, &lhs_col, &rhs_data, &rhs_row, &rhs_col, 2, 2).unwrap();
+
+        // Should have 4 non-zero elements: (0,0)=1, (0,1)=1, (1,0)=3, (1,1)=2
+        assert_eq!(result.nnz(), 4);
+        assert_eq!(result.row_indices().len(), 4);
+        assert_eq!(result.col_indices().len(), 4);
+
+        // Test coo_mul_sparse: element-wise multiplication
+        let mul_result = backend.coo_mul_sparse(&lhs_data, &lhs_row, &lhs_col, &rhs_data, &rhs_row, &rhs_col, 2, 2).unwrap();
+        // Only position (0,1) has non-zero values in both matrices: 0 * 1 = 0, so result should be empty or have zero elements
+        // Actually, no positions have non-zero values in both matrices, so result should be empty
+        assert_eq!(mul_result.nnz(), 0);
+    }
+
+    #[test]
+    fn test_clip_info_nce_loss_validation() {
+        // Test CLIP InfoNCE loss against simplified analytical case
+        let backend = CpuBackend::<Float32>::new();
+
+        // Simple 2x2 case: two embeddings per batch
+        // image_embeddings: [[1, 0], [0, 1]]
+        // text_embeddings: [[1, 0], [0, 1]]
+        let image_data = vec![
+            Float32::new(1.0), Float32::new(0.0),
+            Float32::new(0.0), Float32::new(1.0),
+        ];
+        let text_data = vec![
+            Float32::new(1.0), Float32::new(0.0),
+            Float32::new(0.0), Float32::new(1.0),
+        ];
+
+        let image_tensor = storage::DenseStorage::from_vec(image_data, &[2, 2]).unwrap();
+        let text_tensor = storage::DenseStorage::from_vec(text_data, &[2, 2]).unwrap();
+
+        let temperature = 1.0f32;
+        let loss = backend.clip_info_nce_loss(&image_tensor, &text_tensor, temperature).unwrap();
+
+        // For this case with identical normalized embeddings:
+        // Each positive pair has similarity = 1.0, negative pairs have similarity = 0.0
+        // The loss should be a positive value (since it's a contrastive loss)
+        // We just verify it's reasonable and not NaN/Infinite
+        assert!(loss.get() > 0.0 && loss.get() < 2.0, "CLIP InfoNCE loss should be positive and reasonable: {}", loss.get());
+        assert!(loss.get().is_finite(), "CLIP InfoNCE loss should be finite: {}", loss.get());
+    }
+
+    #[test]
+    fn test_reduction_operations_correctness() {
+        // Test reduction operations (sum, max, min, argmax, argmin)
+        let backend = CpuBackend::<Float32>::new();
+
+        let data = vec![
+            Float32::new(3.0), Float32::new(1.0), Float32::new(4.0),
+            Float32::new(1.0), Float32::new(5.0), Float32::new(9.0),
+        ];
+        let tensor = storage::DenseStorage::from_vec(data, &[2, 3]).unwrap();
+
+        // Sum: 3+1+4+1+5+9 = 23
+        let sum_result = backend.sum_dense(&tensor).unwrap();
+        assert!((sum_result.get() - 23.0).abs() < 1e-6);
+
+        // Max: 9
+        let max_result = backend.max_dense(&tensor).unwrap();
+        assert!((max_result.get() - 9.0).abs() < 1e-6);
+
+        // Min: 1
+        let min_result = backend.min_dense(&tensor).unwrap();
+        assert!((min_result.get() - 1.0).abs() < 1e-6);
+
+        // Argmax: index 5 (9.0 at position [1,2] in row-major order)
+        let argmax_result = backend.argmax_dense(&tensor).unwrap();
+        assert_eq!(argmax_result, 5);
+
+        // Argmin: index 1 or 3 (1.0 at positions [0,1] or [1,0])
+        let argmin_result = backend.argmin_dense(&tensor).unwrap();
+        assert!(argmin_result == 1 || argmin_result == 3);
     }
 }

@@ -180,12 +180,23 @@ pub enum AlertCondition {
 }
 
 /// Alert severity levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
 pub enum AlertSeverity {
     Low,
     Medium,
     High,
     Critical,
+}
+
+impl std::fmt::Display for AlertSeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AlertSeverity::Low => write!(f, "low"),
+            AlertSeverity::Medium => write!(f, "medium"),
+            AlertSeverity::High => write!(f, "high"),
+            AlertSeverity::Critical => write!(f, "critical"),
+        }
+    }
 }
 
 /// Active alert
@@ -228,7 +239,7 @@ pub trait MetricCollector: Send + Sync {
 
 /// Performance profiler trait
 pub trait PerformanceProfiler: Send + Sync {
-    async fn profile(&mut self, step: usize) -> Result<ProfilingResult>;
+    fn profile(&mut self, step: usize) -> Result<ProfilingResult>;
     fn name(&self) -> &str;
 }
 

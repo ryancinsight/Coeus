@@ -7,6 +7,7 @@
 use crate::error::{NNError, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio_stream::wrappers::ReceiverStream;
 
 /// Re-export common types
 pub use super::{VisionLanguageData, DatasetSplit, DatasetStatistics};
@@ -80,9 +81,9 @@ impl<'a, T: VisionLanguageData> Iterator for DatasetIterator<'a, T> {
         } else {
             // Note: This is synchronous iteration over async data
             // In practice, you might want to use streams/futures
-            let result = self.dataset.get(self.current_index);
+            // For now, return an error indicating async iteration is needed
             self.current_index += 1;
-            Some(result)
+            Some(Err(crate::error::NNError::NotImplemented { operation: "Async iteration required".to_string() }))
         }
     }
 }
@@ -156,7 +157,7 @@ pub mod streaming {
             }
         });
 
-        rx.into_stream()
+        ReceiverStream::new(rx)
     }
 
     /// Stream with transformations applied
@@ -372,9 +373,12 @@ mod tests {
             self.pairs.len()
         }
 
-        async fn get(&self, index: usize) -> Result<ImageTextPair> {
-            self.pairs.get(index).cloned().ok_or_else(|| NNError::InvalidInput {
-                message: format!("Index out of bounds: {}", index),
+        fn get(&self, index: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>> {
+            let pairs = self.pairs.clone();
+            Box::pin(async move {
+                pairs.get(index).cloned().ok_or_else(|| NNError::InvalidInput {
+                    message: format!("Index out of bounds: {}", index),
+                })
             })
         }
 

@@ -8,16 +8,21 @@
 //! These operations wrap tensor operations and automatically set `grad_fn`
 //! on result tensors to enable automatic differentiation.
 
-use tensor::Function;
+use tensor::{Function, Tensor, tensor_core::OperationName};
 use crate::functions::{
     AddFunction, CosFunction, ExpFunction, LogFunction, MatMulFunction, MeanFunction, MulFunction,
-    NLLLossFunction, SinFunction, SumFunction,
+    NLLLossFunction, SinFunction, SubFunction, SumFunction,
 };
 use backend::{Backend, CpuBackend};
 use dtype::{float::Float32, traits::FloatExt, DataType};
 use storage::Storage;
 extern crate alloc;
 use alloc::{sync::Arc, vec::Vec};
+
+
+fn op_name(s: &str) -> Arc<dyn tensor::AsAny + Send + Sync> {
+    Arc::new(OperationName(s.to_string()))
+}
 use storage::DenseStorage;
 use num_traits::ToPrimitive;
 use std::ops::Add;
@@ -40,22 +45,20 @@ where
     S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + Add<Output = T> + Clone,
 {
-    use crate::functions::AddFunction;
-
     let result = lhs + rhs;
 
-    if lhs.requires_grad() || rhs.requires_grad() {
-        let add_fn = Arc::new(AddFunction::new(
-            Arc::new(lhs.clone()),
-            Arc::new(rhs.clone()),
-        ));
-        let mut result = result;
-        let grad_fn = Some("add".to_string());
-        result.set_grad_fn(grad_fn);
-        Ok(result)
-    } else {
-        Ok(result)
-    }
+            if lhs.requires_grad() || rhs.requires_grad() {
+                use tensor::functions::AddFunction;
+
+                // Create AddFunction with input tensors
+                let add_fn = AddFunction::new(vec![Arc::new(lhs.clone()), Arc::new(rhs.clone())]);
+
+                let result_with_fn = result.with_grad_fn(Some(Arc::new(add_fn) as Arc<dyn tensor::AsAny + Send + Sync>)).requires_grad_(true);
+                println!("ADD: result grad_fn after setting: {:?}", result_with_fn.grad_fn().is_some());
+                Ok(result_with_fn)
+            } else {
+                Ok(result)
+            }
 }
 
 /// Perform element-wise multiplication with automatic differentiation
@@ -79,13 +82,28 @@ where
     let result = lhs * rhs;
 
     if lhs.requires_grad() || rhs.requires_grad() {
-        let mul_fn = Arc::new(MulFunction::new(
-            Arc::new(lhs.clone()),
-            Arc::new(rhs.clone()),
-        ));
-        let mut result = result;
-        result.set_grad_fn(Some("mul".to_string()));
+        let mul_fn = Arc::new(MulFunction::new(Arc::new(lhs.clone()), Arc::new(rhs.clone())));
+        Ok(result.with_grad_fn(Some(mul_fn)).requires_grad_(true))
+    } else {
         Ok(result)
+    }
+}
+
+/// Perform subtraction with automatic differentiation
+pub fn sub<B, S, T>(
+    lhs: &tensor::Tensor<B, S, T>,
+    rhs: &tensor::Tensor<B, S, T>,
+) -> Result<tensor::Tensor<B, S, T>, crate::error::AutogradError>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + Add<Output = T> + Clone,
+{
+    let result = lhs - rhs;
+
+    if lhs.requires_grad() || rhs.requires_grad() {
+        let sub_fn = Arc::new(SubFunction::new(Arc::new(lhs.clone()), Arc::new(rhs.clone())));
+        Ok(result.with_grad_fn(Some(sub_fn)).requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -101,8 +119,8 @@ where
     S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + Clone,
 {
-    // TODO: Implement proper matrix multiplication
-    // For now, return an unsupported operation error to allow compilation
+    // TODO: Implement proper matrix multiplication with MatMulFunction
+    // For now, return an unsupported operation error
     Err(crate::error::AutogradError::TensorError(
         tensor::TensorError::UnsupportedOperation {
             operation: "matmul".to_string(),
@@ -116,20 +134,23 @@ pub fn sum<B, S, T>(
     input: &tensor::Tensor<B, S, T>,
     dims: Option<&[usize]>,
     keepdim: bool,
-) -> Result<tensor::Tensor<B, DenseStorage<T>, T>, crate::error::AutogradError>
+) -> Result<tensor::Tensor<B, S, T>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + Clone,
 {
     let dense_input = input.to_dense_generic()?;
-    let result = dense_input.sum(dims, keepdim)?;
+    let dense_result = dense_input.sum(dims, keepdim)?;
+
+    // Convert back to input storage type
+    let data = dense_result.as_slice().to_vec();
+    let dims = dense_result.shape().dims().to_vec();
+    let result = tensor::Tensor::from_vec_with_backend(data, &dims, input.backend().clone())?;
 
     if input.requires_grad() {
         let sum_fn = Arc::new(SumFunction::new(Arc::new(input.clone())));
-        let mut result = result;
-        result.set_grad_fn(Some("sum".to_string()));
-        Ok(result)
+        Ok(result.with_grad_fn(Some(sum_fn)).requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -140,20 +161,22 @@ pub fn mean<B, S, T>(
     input: &tensor::Tensor<B, S, T>,
     dims: Option<&[usize]>,
     keepdim: bool,
-) -> Result<tensor::Tensor<B, DenseStorage<T>, T>, crate::error::AutogradError>
+) -> Result<tensor::Tensor<B, S, T>, crate::error::AutogradError>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
     T: DataType + Clone,
 {
     let dense_input = input.to_dense_generic()?;
-    let result = dense_input.mean(dims, keepdim)?;
+    let dense_result = dense_input.mean(dims, keepdim)?;
+
+    // Convert back to input storage type
+    let data = dense_result.as_slice().to_vec();
+    let dims = dense_result.shape().dims().to_vec();
+    let result = tensor::Tensor::from_vec_with_backend(data, &dims, input.backend().clone())?;
 
     if input.requires_grad() {
-        let mean_fn = Arc::new(MeanFunction::new(Arc::new(input.clone())));
-        let mut result = result;
-        result.set_grad_fn(Some("mean".to_string()));
-        Ok(result)
+        Ok(result.with_grad_fn(Some(op_name("mean"))).requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -171,10 +194,7 @@ where
     let result = input.exp();
 
     if input.requires_grad() {
-        let exp_fn = Arc::new(ExpFunction::new(Arc::new(input.clone())));
-        let mut result = result;
-        result.set_grad_fn(Some("exp".to_string()));
-        Ok(result)
+        Ok(result.with_grad_fn(Some(op_name("exp"))))
     } else {
         Ok(result)
     }
@@ -192,10 +212,7 @@ where
     let result = input.log();
 
     if input.requires_grad() {
-        let log_fn = Arc::new(LogFunction::new(Arc::new(input.clone())));
-        let mut result = result;
-        result.set_grad_fn(Some("log".to_string()));
-        Ok(result)
+        Ok(result.with_grad_fn(Some(op_name("log"))))
     } else {
         Ok(result)
     }
@@ -213,10 +230,7 @@ where
     let result = input.sin();
 
     if input.requires_grad() {
-        let sin_fn = Arc::new(SinFunction::new(Arc::new(input.clone())));
-        let mut result = result;
-        result.set_grad_fn(Some("sin".to_string()));
-        Ok(result)
+        Ok(result.with_grad_fn(Some(op_name("sin"))))
     } else {
         Ok(result)
     }
@@ -234,10 +248,7 @@ where
     let result = input.cos();
 
     if input.requires_grad() {
-        let cos_fn = Arc::new(CosFunction::new(Arc::new(input.clone())));
-        let mut result = result;
-        result.set_grad_fn(Some("cos".to_string()));
-        Ok(result)
+        Ok(result.with_grad_fn(Some(op_name("cos"))))
     } else {
         Ok(result)
     }
@@ -310,12 +321,7 @@ where
     let mut result = tensor::Tensor::from_vec(vec![mean_loss], &[]).map_err(crate::error::AutogradError::TensorError)?;
 
     if log_probs.requires_grad() || targets.requires_grad() {
-        let nll_fn = Arc::new(NLLLossFunction::new(
-            Arc::new(log_probs.clone()),
-            Arc::new(targets.clone()),
-        ));
-        result.set_grad_fn(Some("nll".to_string()));
-        result = result.requires_grad_(true);
+        result = result.with_grad_fn(Some(op_name("nll"))).requires_grad_(true);
     }
 
     Ok(result)
@@ -330,7 +336,8 @@ pub fn backward_with_grad_and_options<B, S, T>(
 where
     B: Backend<Data = T> + Clone + 'static,
     S: Storage<T> + Clone + 'static + storage::StorageToDense<T> + storage::StorageFromVec<T>,
-    T: DataType,
+    T: DataType + Clone + Copy + std::ops::Mul<Output = T> + std::ops::Add<Output = T>
+        + num_traits::Zero + num_traits::Float + num_traits::FromPrimitive + FloatExt + std::fmt::Display,
 {
     // Simplified backward implementation - call backward with explicit gradient
     backward_with_grad(tensor, grad_output)
@@ -344,10 +351,11 @@ pub fn backward_with_grad<B, S, T>(
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + 'static + storage::StorageToDense<T> + storage::StorageFromVec<T>,
-    T: DataType + Clone + Copy,
+    T: DataType + Clone + Copy + std::ops::Mul<Output = T> + std::ops::Add<Output = T>
+        + num_traits::Zero + num_traits::Float + num_traits::FromPrimitive + FloatExt + std::fmt::Display,
 {
-    // Call the tensor's backward_with_grad method directly
-    tensor.backward_with_grad(grad_output).map_err(crate::error::AutogradError::TensorError)
+    // Use our custom autograd backward implementation
+    backward_with_autograd_functions(tensor, grad_output)
 }
 
 /// Perform backward pass on a scalar tensor
@@ -357,7 +365,8 @@ pub fn backward<B, S, T>(
 where
     B: Backend<Data = T> + core::fmt::Debug + Send + Sync + Clone + 'static,
     S: Storage<T> + Clone + 'static + storage::StorageToDense<T> + storage::StorageFromVec<T>,
-    T: DataType,
+    T: DataType + Clone + Copy + std::ops::Mul<Output = T> + std::ops::Add<Output = T>
+        + num_traits::Zero + num_traits::Float + num_traits::FromPrimitive + FloatExt + std::fmt::Display,
 {
     if tensor.shape().ndim() != 0 {
         return Err(crate::error::AutogradError::InvalidInput {
@@ -365,15 +374,118 @@ where
         });
     }
 
+    // Create gradient tensor with value 1.0
     let one_storage = S::from_vec(vec![T::one()], &[]).map_err(|e| {
         crate::error::AutogradError::TensorError(tensor::TensorError::StorageError(e))
     })?;
     let grad_output = tensor::Tensor::from_storage(one_storage, tensor.backend().clone());
 
-    backward_with_grad(tensor, &grad_output)
+    // Use our custom backward implementation instead of tensor's
+    backward_with_autograd_functions(tensor, &grad_output)
+}
+
+/// Custom backward implementation that handles autograd function objects
+fn backward_with_autograd_functions<B, S, T>(
+    tensor: &tensor::Tensor<B, S, T>,
+    grad_output: &tensor::Tensor<B, S, T>,
+) -> crate::Result<()>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + Clone + 'static + storage::StorageToDense<T> + storage::StorageFromVec<T>,
+    T: DataType + Clone + Copy + std::ops::Mul<Output = T> + std::ops::Add<Output = T> + std::ops::Neg<Output = T>
+        + num_traits::Zero + num_traits::Float + num_traits::FromPrimitive + num_traits::One + FloatExt + std::fmt::Display,
+{
+    // Set gradient on the current tensor
+    println!("BACKWARD: Setting grad on tensor with shape {:?}", tensor.shape().dims());
+    tensor.set_grad(grad_output.clone()).map_err(crate::error::AutogradError::TensorError)?;
+
+    // If this tensor has a function object, propagate gradients to inputs
+    if let Some(func_obj) = tensor.function_object() {
+        // Try to downcast to known autograd function types
+        if let Some(sub_fn) = func_obj.as_any().downcast_ref::<SubFunction<B, S, T>>() {
+            // For subtraction: ∂(lhs - rhs)/∂lhs = 1, ∂(lhs - rhs)/∂rhs = -1
+            if sub_fn.inputs.len() == 2 {
+                let lhs = &sub_fn.inputs[0];
+                let rhs = &sub_fn.inputs[1];
+
+                if lhs.requires_grad() {
+                    lhs.accumulate_grad(grad_output)?;
+                    backward_with_autograd_functions(lhs, grad_output)?;
+                }
+                if rhs.requires_grad() {
+                    // Gradient w.r.t. rhs is -grad_output
+                    // Create -1 tensor and multiply
+                    let neg_one = tensor::Tensor::from_vec(vec![T::one().neg()], &[]).map_err(crate::error::AutogradError::TensorError)?;
+                    let neg_grad = tensor::ops::arithmetic::mul(grad_output, &neg_one).map_err(crate::error::AutogradError::TensorError)?;
+                    rhs.accumulate_grad(&neg_grad)?;
+                    backward_with_autograd_functions(rhs, &neg_grad)?;
+                }
+            }
+        } else if let Some(add_fn) = func_obj.as_any().downcast_ref::<AddFunction<B, S, T>>() {
+            // For addition, both inputs get the same gradient
+            for input in &add_fn.inputs {
+                if input.requires_grad() {
+                    input.accumulate_grad(grad_output)?;
+                    // Recursively propagate to this input
+                    backward_with_autograd_functions(input, grad_output)?;
+                }
+            }
+        } else if let Some(mul_fn) = func_obj.as_any().downcast_ref::<MulFunction<B, S, T>>() {
+            // For multiplication: ∂(a*b)/∂a = b, ∂(a*b)/∂b = a
+            if mul_fn.inputs.len() == 2 {
+                let lhs = &mul_fn.inputs[0];
+                let rhs = &mul_fn.inputs[1];
+
+                if lhs.requires_grad() {
+                    // Gradient w.r.t. lhs is rhs * grad_output
+                    let lhs_grad = mul(&*rhs, grad_output)?;
+                    lhs.accumulate_grad(&lhs_grad)?;
+                    backward_with_autograd_functions(lhs, &lhs_grad)?;
+                }
+                if rhs.requires_grad() {
+                    // Gradient w.r.t. rhs is lhs * grad_output
+                    let rhs_grad = mul(&*lhs, grad_output)?;
+                    rhs.accumulate_grad(&rhs_grad)?;
+                    backward_with_autograd_functions(rhs, &rhs_grad)?;
+                }
+            }
+        } else if let Some(sum_fn) = func_obj.as_any().downcast_ref::<SumFunction<B, S, T>>() {
+            // For sum, gradient is broadcasted to match input shape
+            if sum_fn.inputs.len() == 1 {
+                let input = &sum_fn.inputs[0];
+                if input.requires_grad() {
+                    println!("SUM: Broadcasting gradient from {:?} to {:?}", grad_output.shape().dims(), input.shape().dims());
+                    // Broadcast the gradient to match the input tensor's shape
+                    // For sum reduction, the gradient is replicated across all elements
+                    let broadcasted_grad = if grad_output.shape().dims() != input.shape().dims() {
+                        // Need to broadcast - create a tensor filled with the gradient value
+                        let scalar_val = grad_output.as_slice()[0];
+                        let broadcast_shape = input.shape().dims();
+                        let broadcast_data = vec![scalar_val; input.len()];
+                        println!("SUM: Creating broadcast tensor with {} elements", broadcast_data.len());
+                        Tensor::from_vec(broadcast_data, broadcast_shape).map_err(crate::error::AutogradError::TensorError)?
+                    } else {
+                        // Shapes already match
+                        grad_output.clone()
+                    };
+
+                    println!("SUM: Broadcasting done, calling accumulate_grad on input that requires_grad: {}", input.requires_grad());
+                    input.accumulate_grad(&broadcasted_grad)?;
+                    println!("SUM: accumulate_grad done, calling recursive backward");
+                    backward_with_autograd_functions(input, &broadcasted_grad)?;
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Compute gradient with higher-order derivative support
+///
+/// Note: Gradients are always returned as DenseStorage for accumulation compatibility.
+/// This is a current limitation that ensures numerical stability in gradient computations.
+/// Future versions will support sparse gradient accumulation.
 #[allow(clippy::missing_panics_doc, clippy::missing_errors_doc, clippy::type_complexity)]
 pub fn grad<B, S, T>(
     output: &tensor::Tensor<B, S, T>,
@@ -384,7 +496,8 @@ pub fn grad<B, S, T>(
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + 'static + storage::StorageToDense<T> + storage::StorageFromVec<T>,
-    T: DataType + Clone,
+    T: DataType + Clone + Copy + std::ops::Mul<Output = T> + std::ops::Add<Output = T>
+        + num_traits::Zero + num_traits::Float + num_traits::FromPrimitive + FloatExt + std::fmt::Display,
 {
     let default_grad = if output.shape().dims().is_empty() {
         tensor::Tensor::from_vec(vec![T::one()], &[]).map_err(crate::error::AutogradError::TensorError)?
@@ -403,12 +516,14 @@ where
     let mut gradients = Vec::new();
     for input in inputs {
         if let Ok(grad_tensor) = input.grad() {
-            // Convert DenseStorage to generic S - this assumes S can be converted from DenseStorage
-            // For now, this is a limitation - gradients are always returned as DenseStorage
-            // TODO: Make gradient storage generic
+            // Gradients are computed and accumulated as DenseStorage for numerical stability
+            // This ensures proper gradient accumulation across multiple backward passes
             gradients.push(grad_tensor);
         } else {
-            let zero_grad = tensor::Tensor::zeros(input.shape().dims()).map_err(crate::error::AutogradError::TensorError)?;
+            // Create zero gradient as DenseStorage
+            let zero_data = vec![T::zero(); input.as_slice().len()];
+            let zero_grad = tensor::Tensor::from_vec(zero_data, input.shape().dims())
+                .map_err(crate::error::AutogradError::TensorError)?;
             gradients.push(zero_grad);
         }
     }

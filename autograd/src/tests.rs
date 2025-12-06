@@ -87,12 +87,12 @@ fn test_gradient_accumulation() {
     y = y.requires_grad_(true);
 
     // First computation: z1 = x + y
-    let z1 = add(&x, &y);
+    let z1 = add(&x, &y).unwrap();
     let grad1 = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
     backward_with_grad(&z1, &grad1).unwrap();
 
     // Second computation: z2 = x + y (same operation)
-    let z2 = add(&x, &y);
+    let z2 = add(&x, &y).unwrap();
     let grad2 = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
     backward_with_grad(&z2, &grad2).unwrap();
 
@@ -186,7 +186,7 @@ fn test_exp_backward() {
     let mut x = TestTensor::from_vec(vec![Float32::new(0.0), Float32::new(1.0)], &[2]).unwrap();
     x = x.requires_grad_(true);
 
-    let y = crate::ops::exp(&x);
+    let y = crate::ops::exp(&x).unwrap();
     let grad_output =
         TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
@@ -208,7 +208,7 @@ fn test_log_backward() {
     let mut x = TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
     x = x.requires_grad_(true);
 
-    let y = crate::ops::log(&x);
+    let y = crate::ops::log(&x).unwrap();
     let grad_output =
         TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
@@ -233,7 +233,7 @@ fn test_sin_backward() {
     .unwrap();
     x = x.requires_grad_(true);
 
-    let y = crate::ops::sin(&x);
+    let y = crate::ops::sin(&x).unwrap();
     let grad_output =
         TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
@@ -259,7 +259,7 @@ fn test_cos_backward() {
     .unwrap();
     x = x.requires_grad_(true);
 
-    let y = crate::ops::cos(&x);
+    let y = crate::ops::cos(&x).unwrap();
     let grad_output =
         TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
@@ -305,10 +305,7 @@ fn test_nll_loss_input_validation() {
     .unwrap();
 
     // Should succeed with valid inputs
-    let loss = nll_loss(&log_probs, &targets);
-    assert!(loss.is_ok());
-
-    let loss_val = loss.unwrap();
+    let loss_val = nll_loss(&log_probs, &targets).unwrap();
     assert!(loss_val.as_slice()[0].get() > 0.0); // NLL loss should be positive
 
     // Test error cases
@@ -504,10 +501,15 @@ mod proptest_tests {
             let a_grad: TestTensor = a.clone().requires_grad_(true);
             let b_grad: TestTensor = b.clone().requires_grad_(true);
 
-            let c = add(&a_grad, &b_grad);
+            println!("a_grad requires_grad: {}, b_grad requires_grad: {}", a_grad.requires_grad(), b_grad.requires_grad());
+
+            let c = add(&a_grad, &b_grad).unwrap();
+
+            println!("c requires_grad: {}, c grad_fn: {:?}", c.requires_grad(), c.grad_fn());
 
             // Backward with unit gradient
             let grad_out = Tensor::ones(c.shape().dims()).unwrap();
+            println!("Calling backward_with_grad");
             backward_with_grad(&c, &grad_out).unwrap();
 
             // Check that gradients are all ones (broadcasted)
@@ -587,7 +589,7 @@ mod proptest_tests {
             let b_grad = b.clone().requires_grad_(true);
 
             // Test addition
-            let add_result = add(&a_grad, &b_grad);
+            let add_result = add(&a_grad, &b_grad).unwrap();
             let grad_out = Tensor::ones(add_result.shape().dims()).unwrap();
             let add_backward = backward_with_grad(&add_result, &grad_out);
             if add_backward.is_ok() {
@@ -622,8 +624,8 @@ mod proptest_tests {
             let a_grad = a.clone().requires_grad_(true);
 
             // Create multiple loss terms that depend on 'a'
-            let loss1 = add(&a_grad, &b);
-            let loss2 = add(&a_grad, &b);
+            let loss1 = add(&a_grad, &b).unwrap();
+            let loss2 = add(&a_grad, &b).unwrap();
 
             // Backward both losses
             let grad_out = Tensor::from_vec(vec![Float32::new(1.0); a.len()], &[a.len()]).unwrap();
@@ -641,7 +643,7 @@ mod proptest_tests {
         #[test]
         fn test_non_differentiable_operations_robustness((ref a, ref b) in arb_tensor_pair_same_shape()) {
             // Test operations that don't require gradients
-            let result = add(&a, &b);
+            let result = add(&a, &b).unwrap();
             prop_assert!(!result.requires_grad());
 
             // Even without gradients, operations should not panic

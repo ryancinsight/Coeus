@@ -51,16 +51,16 @@ impl ModelValidator {
     }
 
     /// Validate a loaded model
-    pub fn validate<M, B, S, T>(
+    pub fn validate<M, B: Backend<Data = T>, S, T>(
         &self,
         model: &M,
-        test_input: &coeus_tensor::Tensor<B, S, T>,
+        test_input: &tensor::Tensor<B, S, T>,
         expected_output_shape: Option<&[usize]>,
     ) -> Result<ValidationResult>
     where
         M: Module<B, S, T>,
         B: Backend,
-        S: coeus_storage::Storage<T> + Clone + 'static,
+        S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
         T: DataType,
     {
         let mut result = ValidationResult {
@@ -150,12 +150,12 @@ impl ModelValidator {
     /// Validate numerical properties of model outputs
     fn validate_numerical_properties<B, S, T>(
         &self,
-        output: &coeus_tensor::Tensor<B, S, T>,
+        output: &tensor::Tensor<B, S, T>,
         result: &mut ValidationResult,
     ) -> Result<()>
     where
         B: Backend,
-        S: coeus_storage::Storage<T> + 'static,
+        S: storage::Storage<T> + 'static,
         T: DataType,
     {
         // Basic numerical validation - check for NaN/inf values

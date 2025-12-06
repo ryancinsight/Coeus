@@ -1,10 +1,28 @@
-//! # Unified Research Framework for Advanced ML Experimentation
+//! # Advanced Research Workflow Automation Framework
 //!
-//! This module provides a comprehensive research platform that transforms
-//! machine learning experimentation into a systematic, reproducible, and
-//! production-ready research process. The framework includes:
+//! This module provides a comprehensive, production-ready research platform that
+//! transforms machine learning experimentation into a systematic, reproducible, and
+//! automated research process. Built on evidence-based architectural principles,
+//! the framework delivers enterprise-grade workflow orchestration.
 //!
-//! ## 🔬 Core Capabilities
+//! ## 🚀 Advanced Capabilities
+//!
+//! ### Intelligent Workflow Orchestration (`orchestrator` module)
+//! - **DAG-based Execution**: Directed acyclic graph orchestration with automatic
+//!   dependency resolution and parallel execution
+//! - **Resource Management**: Advanced resource allocation with GPU/CPU/memory
+//!   constraints and real-time utilization tracking
+//! - **Progress Monitoring**: Real-time workflow progress tracking with step-level
+//!   metrics and execution time monitoring
+//! - **Failure Recovery**: Comprehensive error handling with retry mechanisms,
+//!   exponential backoff, and graceful degradation
+//!
+//! ### Configuration-Driven Workflows (`workflow` module)
+//! - **Declarative Specifications**: YAML/JSON workflow definitions with full
+//!   serialization support
+//! - **Template System**: Pre-built workflow templates for common research patterns
+//! - **Dynamic Configuration**: Runtime parameter injection and conditional execution
+//! - **Version Control**: Workflow versioning with inheritance and composition
 //!
 //! ### Advanced Experiment Tracking (`tracking` module)
 //! - **Comprehensive Metadata**: Automatic collection of environment, hardware,
@@ -24,85 +42,126 @@
 //! - **Intelligent Alerting**: Configurable alerts and anomaly detection
 //! - **Publication-Ready Exports**: Multiple export formats for research papers
 //!
-//! ### Logging and Monitoring (`logging` module)
-//! - **Structured Logging**: Research-optimized logging with experiment context
-//! - **Real-time Monitoring**: Live experiment progress tracking
-//! - **Resource Monitoring**: System and GPU resource usage tracking
-//!
-//! ### Visualization Tools (`visualization` module)
-//! - **Research-Paper Ready Plots**: Publication-quality visualizations
-//! - **Statistical Graphics**: Advanced statistical plotting tools
-//! - **Interactive Dashboards**: Real-time experiment monitoring dashboards
-//!
-//! ### Industry Integration (`integrations` module)
-//! - **MLflow Integration**: Seamless MLflow experiment tracking
-//! - **TensorBoard Support**: Advanced TensorBoard visualization export
-//! - **W&B Logging**: Weights & Biases experiment logging
-//! - **Custom Tool Exports**: Extensible APIs for custom research tools
-//!
 //! ## 🚀 Usage Examples
 //!
-//! ### Basic Experiment Setup
+//! ### Configuration-Driven Workflow Execution
 //! ```rust
-//! use nn::research::{ExperimentTracker, MetricsCollector};
+//! use nn::research::{UnifiedResearchFramework, WorkflowLoader};
+//! use tokio;
 //!
-//! // Create experiment tracker
-//! let mut tracker = ExperimentTracker::new(
-//!     "exp_001".to_string(),
-//!     "CNN Architecture Search".to_string(),
-//!     "Exploring convolutional architectures for image classification"
-//! );
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mut framework = UnifiedResearchFramework::new();
 //!
-//! // Log hyperparameters
-//! tracker.log_hyperparameter("learning_rate".to_string(), 0.001.into(), Some("Adam learning rate".to_string()));
-//! tracker.log_hyperparameter("batch_size".to_string(), 32.into(), Some("Training batch size".to_string()));
+//!     // Load and execute workflow from YAML specification
+//!     let result = framework.execute_workflow_from_yaml("workflows/nas_hpo.yaml").await?;
 //!
-//! // Store model artifact
-//! let model_data = vec![1, 2, 3, 4, 5]; // Your model bytes
-//! let model_id = tracker.store_artifact("final_model.bin".to_string(), ArtifactType::Model, model_data);
+//!     println!("Workflow completed in {:?}", result.execution_time);
+//!     println!("Status: {:?}", result.status);
 //!
-//! // Set up metrics collection
-//! let mut collector = MetricsCollector::new();
-//! collector.record_metric("validation_accuracy".to_string(), 0.95, None, HashMap::new());
+//!     // Monitor progress in real-time
+//!     if let Some(progress) = framework.get_workflow_progress("nas_hpo_workflow").await {
+//!         println!("Progress: {:.1}%", progress.progress_percentage);
+//!     }
+//!
+//!     Ok(())
+//! }
 //! ```
 //!
-//! ### Advanced Research Workflow
+//! ### Advanced Orchestration with Resource Management
 //! ```rust
-//! use nn::research::{
-//!     ExperimentTracker, MetricsCollector, ExperimentRegistry,
-//!     CheckpointManager, HyperparameterTracker
-//! };
+//! use nn::research::{UnifiedResearchFramework, WorkflowTemplate};
+//! use tokio;
 //!
-//! // Create research registry
-//! let registry = ExperimentRegistry::new();
-//! let mut tracker = registry.start_experiment(
-//!     "resnet_ablation".to_string(),
-//!     "ResNet Architecture Ablation".to_string(),
-//!     "Systematic ablation study of ResNet components"
-//! );
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mut framework = UnifiedResearchFramework::new();
 //!
-//! // Configure hyperparameter search spaces
-//! let mut hp_tracker = tracker.hyperparameters;
-//! hp_tracker.define_search_space(
-//!     "layers".to_string(),
-//!     ParameterSearchSpace::discrete_choice(vec![18.into(), 34.into(), 50.into(), 101.into()])
-//! );
+//!     // Create template-based workflow with resource constraints
+//!     let workflow = WorkflowTemplate::nas_hpo_collaboration("accuracy");
 //!
-//! // Set up automatic metrics collection
-//! let mut metrics = MetricsCollector::new();
-//! metrics.add_alert(MetricAlert {
-//!     metric_name: "validation_loss".to_string(),
-//!     condition: AlertCondition::AboveThreshold(2.0),
-//!     message: "Validation loss too high - possible overfitting".to_string(),
-//!     severity: AlertSeverity::Warning,
-//! });
+//!     // Execute with advanced orchestration
+//!     let result = framework.execute_workflow_async(&workflow).await?;
 //!
-//! // Create checkpoint strategy
-//! let mut checkpoints = tracker.checkpoints;
-//! checkpoints.schedule_auto_save(300, Some("validation_accuracy".to_string()));
+//!     // Check orchestrator health
+//!     let health = framework.get_orchestrator_health();
+//!     println!("Orchestrator Status: {}", health);
 //!
-//! // The framework automatically handles metadata collection,
-//! // reproducibility tracking, and result organization
+//!     // Get detailed step metrics
+//!     for step in &workflow.steps {
+//!         if let Some(metrics) = framework.get_step_metrics(&workflow.id, &step.id).await {
+//!             println!("Step '{}' took {:?}", step.name, metrics.execution_time);
+//!         }
+//!     }
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Declarative Workflow Specification (YAML)
+//! ```yaml
+//! metadata:
+//!   id: "custom_ml_pipeline"
+//!   name: "Custom ML Pipeline"
+//!   description: "End-to-end automated ML pipeline"
+//!   domain: "AutoML"
+//!   version: "1.0.0"
+//!
+//! steps:
+//!   - id: "data_processing"
+//!     name: "Data Processing"
+//!     agent_type: "data_processor"
+//!     depends_on: []
+//!     priority: 10
+//!     resources:
+//!       cpu_required: 4
+//!       memory_mb: 4096
+//!     config:
+//!       method: "normalize"
+//!
+//!   - id: "model_training"
+//!     name: "Model Training"
+//!     agent_type: "trainer"
+//!     depends_on: ["data_processing"]
+//!     priority: 9
+//!     resources:
+//!       gpu_required: 1
+//!       memory_mb: 16384
+//!     retry:
+//!       max_attempts: 3
+//!       delay_seconds: 60
+//!     config:
+//!       algorithm: "xgboost"
+//!
+//! config:
+//!   constraints:
+//!     max_execution_time: 3600
+//!   execution_mode: "Parallel"
+//!   failure_strategy: "FailFast"
+//! ```
+//!
+//! ### Real-Time Progress Monitoring
+//! ```rust
+//! use nn::research::UnifiedResearchFramework;
+//!
+//! // Monitor workflow execution in real-time
+//! async fn monitor_workflow(framework: &UnifiedResearchFramework, workflow_id: &str) {
+//!     loop {
+//!         if let Some(progress) = framework.get_workflow_progress(workflow_id).await {
+//!             println!("Status: {:?}, Progress: {:.1}%",
+//!                     progress.status, progress.progress_percentage);
+//!
+//!             // Check individual step status
+//!             // (workflow steps would be iterated here)
+//!
+//!             if matches!(progress.status, WorkflowExecutionStatus::Completed) {
+//!                 break;
+//!             }
+//!         }
+//!
+//!         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+//!     }
+//! }
 //! ```
 //!
 //! ## 🏗️ Architecture
@@ -154,7 +213,7 @@
 //! while maintaining the highest standards of experimental rigor and reproducibility.
 
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 // Re-export all research modules for unified API
 pub mod agent;
@@ -180,20 +239,25 @@ pub mod automated_research;
 pub mod benchmarking;
 pub mod clip_integration;
 
+// Sprint MS-55: Ecosystem Expansion & Community Building
+pub mod experiment_pipeline;
+pub mod reproducible_research;
+pub mod meta_learning_integration;
+
 // Re-export unified types
 pub use agent::{ResearchAgent, ResearchAgentFactory, AgentMetadata};
 pub use experiment::{ExperimentSpec, ExperimentResult, ExperimentStatus};
 pub use meta_agents::{MAMLResearchAgent, MAMLResearchAgentFactory, PrototypicalResearchAgent, PrototypicalResearchAgentFactory};
-pub use orchestrator::ResearchOrchestrator;
+pub use orchestrator::{ResearchOrchestrator, OrchestratorHealthStatus, ResourceManager, ProgressTracker};
 pub use registry::ResearchAgentRegistry;
-pub use workflow::{ResearchWorkflow, WorkflowTemplate};
+pub use workflow::{ResearchWorkflow, WorkflowTemplate, WorkflowSpec, WorkflowLoader};
 
 // Research domain and insight types
 pub use automated_research::ResearchDomain;
 pub use crate::nas::ResearchInsight;
 
 /// Configuration for research workflows
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct ResearchConfig {
     /// Maximum number of concurrent experiments
     pub max_concurrent_experiments: usize,
@@ -225,12 +289,13 @@ pub use tracking::checkpoints::{CheckpointManager, CheckpointData};
 
 /// Enhanced Unified Research Framework
 /// Combines all research capabilities into a single, coherent system
+#[derive(Debug)]
 pub struct UnifiedResearchFramework {
     /// Framework configuration
     pub config: ResearchConfig,
     /// Research agent registry
     pub registry: ResearchAgentRegistry,
-    /// Experiment orchestrator
+    /// Advanced experiment orchestrator
     pub orchestrator: ResearchOrchestrator,
     /// Central experiment registry
     pub experiment_registry: ExperimentRegistry,
@@ -254,7 +319,7 @@ impl UnifiedResearchFramework {
     }
 
     /// Create a new experiment with full tracking capabilities
-    pub fn create_experiment(&self, id: String, name: String, description: String) -> ExperimentTracker {
+    pub fn create_experiment(&mut self, id: String, name: String, description: String) -> ExperimentTracker {
         self.stats.total_experiments_created += 1;
         self.experiment_registry.start_experiment(id, name, description)
     }
@@ -288,6 +353,53 @@ impl UnifiedResearchFramework {
             integrations_healthy: true, // TODO: Implement actual checks
             last_activity: chrono::Utc::now(), // TODO: Track actual activity
         }
+    }
+
+    /// Execute research workflow with advanced orchestration
+    pub async fn execute_workflow_async(
+        &mut self,
+        workflow: &ResearchWorkflow,
+    ) -> crate::error::Result<orchestrator::WorkflowResult> {
+        self.stats.workflows_executed += 1;
+        self.orchestrator.execute_workflow_async(workflow, &self.registry).await
+    }
+
+    /// Load and execute workflow from YAML specification
+    pub async fn execute_workflow_from_yaml<P: AsRef<std::path::Path>>(
+        &mut self,
+        yaml_path: P,
+    ) -> crate::error::Result<orchestrator::WorkflowResult> {
+        let workflow = WorkflowLoader::load_from_yaml(yaml_path)?;
+        self.execute_workflow_async(&workflow).await
+    }
+
+    /// Load and execute workflow from JSON specification
+    pub async fn execute_workflow_from_json<P: AsRef<std::path::Path>>(
+        &mut self,
+        json_path: P,
+    ) -> crate::error::Result<orchestrator::WorkflowResult> {
+        let workflow = WorkflowLoader::load_from_json(json_path)?;
+        self.execute_workflow_async(&workflow).await
+    }
+
+    /// Get workflow execution progress
+    pub async fn get_workflow_progress(&self, workflow_id: &str) -> Option<orchestrator::WorkflowProgress> {
+        self.orchestrator.get_workflow_progress(workflow_id).await
+    }
+
+    /// Get step execution metrics
+    pub async fn get_step_metrics(&self, workflow_id: &str, step_id: &str) -> Option<orchestrator::StepMetrics> {
+        self.orchestrator.get_step_metrics(workflow_id, step_id).await
+    }
+
+    /// Cancel workflow execution
+    pub async fn cancel_workflow(&self, workflow_id: &str) -> crate::error::Result<()> {
+        self.orchestrator.cancel_workflow(workflow_id).await
+    }
+
+    /// Get orchestrator health status
+    pub fn get_orchestrator_health(&self) -> OrchestratorHealthStatus {
+        self.orchestrator.health_status()
     }
 
     /// Export complete research state for backup/transfer
@@ -453,14 +565,14 @@ mod tests {
 
     #[test]
     fn test_unified_research_framework_creation() {
-        let framework = UnifiedResearchFramework::new();
+        let mut framework = UnifiedResearchFramework::new();
         assert_eq!(framework.stats.total_experiments_created, 0);
         assert_eq!(framework.stats.workflows_executed, 0);
     }
 
     #[test]
     fn test_experiment_creation() {
-        let framework = UnifiedResearchFramework::new();
+        let mut framework = UnifiedResearchFramework::new();
         let tracker = framework.create_experiment(
             "test_exp".to_string(),
             "Test Experiment".to_string(),

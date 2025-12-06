@@ -6,7 +6,7 @@
 use crate::error::{NNError, Result};
 use crate::Module;
 use backend::{Backend, DataType, Storage};
-use storage::StorageFromVec;
+use storage::{StorageFromVec, StorageToDense};
 use tensor::Tensor;
 use rand::Rng;
 use rand::SeedableRng;
@@ -76,7 +76,7 @@ impl<M, B, S, T> BasicFeatureImportance<M, B, S, T>
 where
     M: Module<B, S, T> + Clone,
     B: Backend<Data = T> + Default,
-    S: Storage<T> + StorageFromVec<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T>,
     T: DataType + Clone + Copy + Into<f64>,
 {
     /// Calculate permutation importance

@@ -140,7 +140,7 @@ pub struct ExperimentTracker {
 
 /// Experiment storage trait for persistence
 #[async_trait::async_trait]
-pub trait ExperimentStorage: Send + Sync {
+pub trait ExperimentStorage: Send + Sync + std::fmt::Debug {
     /// Save experiment result
     async fn save_experiment(&self, result: &ExperimentResult) -> Result<()>;
 
@@ -172,6 +172,7 @@ pub struct ExperimentFilter {
 }
 
 /// In-memory experiment storage for development/testing
+#[derive(Debug)]
 pub struct InMemoryStorage {
     experiments: RwLock<HashMap<String, ExperimentResult>>,
     artifacts: RwLock<HashMap<String, HashMap<String, Vec<u8>>>>,
@@ -397,7 +398,7 @@ fn collect_environment_info() -> EnvironmentInfo {
         gpu: None, // Would need GPU detection
         ram_gb: 16, // Default assumption
         python_version: None,
-        rust_version: rustc_version::version().unwrap_or_else(|_| "unknown".to_string()),
+        rust_version: rustc_version::version().map(|v| v.to_string()).unwrap_or_else(|_| "unknown".to_string()),
         cuda_version: None,
         dependencies: HashMap::new(), // Would need to collect actual dependencies
     }

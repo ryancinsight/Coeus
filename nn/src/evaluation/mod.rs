@@ -37,6 +37,12 @@ pub trait EvaluationDataset {
 
     /// Get sample by index
     fn get_sample(&self, index: usize) -> Option<&dyn std::any::Any>;
+
+    /// Get image embeddings (for evaluation)
+    fn image_embeddings(&self) -> &[Vec<f32>];
+
+    /// Get text embeddings (for evaluation)
+    fn text_embeddings(&self) -> &[Vec<f32>];
 }
 
 /// Evaluation metrics aggregation
@@ -195,6 +201,10 @@ pub struct ClipEvaluationConfig {
     pub use_cached_embeddings: bool,
     /// Cache directory for embeddings
     pub cache_dir: std::path::PathBuf,
+    /// Top-k values for retrieval evaluation
+    pub retrieval_top_k: Vec<usize>,
+    /// Batch size for evaluation
+    pub eval_batch_size: usize,
 }
 
 impl Default for ClipEvaluationConfig {
@@ -205,6 +215,8 @@ impl Default for ClipEvaluationConfig {
             max_seq_length: 77,
             use_cached_embeddings: true,
             cache_dir: std::path::PathBuf::from("./clip_cache"),
+            retrieval_top_k: vec![1, 5, 10],
+            eval_batch_size: 32,
         }
     }
 }
@@ -221,6 +233,9 @@ pub trait BenchmarkDataset: EvaluationDataset {
 
     /// Get image and label pairs for evaluation
     fn get_image_label_pairs(&self) -> Vec<(Vec<u8>, usize)>;
+
+    /// Get labels for evaluation
+    fn labels(&self) -> &[usize];
 }
 
 /// CLIP model evaluator trait

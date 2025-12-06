@@ -92,9 +92,14 @@ pub fn sigmoid<T: DataType + FloatExt + std::ops::Neg<Output = T>>(
 ///
 /// # Returns
 /// Tensor with tanh applied element-wise
-pub fn tanh<T: DataType + FloatExt>(
-    input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+pub fn tanh<B, S, T>(
+    input: &Tensor<B, S, T>,
+) -> Result<Tensor<B, S, T>>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + StorageFromVec<T> + Clone,
+    T: DataType + FloatExt,
+{
     let result_data: Vec<T> = input.as_slice().iter().map(|&x| x.tanh()).collect();
 
     Tensor::from_vec(result_data, input.shape().dims()).map_err(Into::into)
@@ -1467,12 +1472,17 @@ pub fn batch_norm<T: DataType + FloatExt>(
 ///
 /// # Returns
 /// Output tensor with same shape as input, with some elements zeroed and others scaled
-pub fn dropout<T: DataType + FloatExt>(
-    input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+pub fn dropout<B, S, T>(
+    input: &Tensor<B, S, T>,
     p: Option<f64>,
     training: Option<bool>,
     inplace: Option<bool>,
-) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+) -> Result<Tensor<B, S, T>>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone,
+    T: DataType + FloatExt,
+{
     let dropout_prob = p.unwrap_or(0.5);
     let is_training = training.unwrap_or(true);
     let _inplace = inplace.unwrap_or(false); // Not supported yet
