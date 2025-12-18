@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use tokio::sync::RwLock;
 use crate::types::*;
 use crate::errors::SemanticError;
+use serde_json;
 
 /// Application state container with all services and configuration
 #[derive(Clone)]
@@ -51,7 +52,7 @@ pub trait VectorDatabase: Send + Sync {
     async fn add(&self, id: String, embedding: Vec<f32>, metadata: serde_json::Value) -> Result<(), SemanticError>;
 
     /// Search for similar embeddings
-    async fn search(&self, query_embedding: &[f32], top_k: usize) -> Result<Vec<SearchResult>, SemanticError>;
+    async fn search(&self, query_embedding: &[f32], top_k: usize) -> Result<Vec<VectorSearchResult>, SemanticError>;
 
     /// Delete embedding by ID
     async fn delete(&self, id: &str) -> Result<bool, SemanticError>;
@@ -65,7 +66,7 @@ pub trait VectorDatabase: Send + Sync {
 
 /// Search result with similarity score and metadata
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SearchResult {
+pub struct VectorSearchResult {
     /// Unique identifier
     pub id: String,
 
@@ -419,4 +420,4 @@ mod mock_services {
 
 
 
-
+

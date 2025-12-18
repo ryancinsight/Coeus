@@ -635,6 +635,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+
+    type B = CpuBackend<Float32>;
+    type S = DenseStorage<Float32>;
+    type T = Float32;
 
     #[test]
     fn test_multi_task_transformer_creation() {
@@ -651,7 +658,7 @@ mod tests {
             params: HashMap::new(),
         });
 
-        let result = MultiTaskTransformer::new(config, task_configs);
+        let result = MultiTaskTransformer::<B, S, T>::new(config, task_configs);
         assert!(result.is_ok());
     }
 
@@ -692,7 +699,7 @@ mod tests {
 
     #[test]
     fn test_task_adapter_creation() {
-        let result = TaskAdapter::new(768, 64);
+        let result = TaskAdapter::<B, S, T>::new(768, 64);
         assert!(result.is_ok());
     }
 }

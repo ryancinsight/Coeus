@@ -1008,7 +1008,7 @@ mod tests {
         assert!(!insights.is_empty());
         let insight = &insights[0];
         assert_eq!(insight.agent_type, "maml");
-        assert!(insight.domains.contains(&ResearchDomain::MetaLearning));
+        assert!(insight.domains.contains(&ResearchDomain::MetaLearning.to_string()));
         assert!(insight.confidence > 0.0);
         assert!(insight.confidence <= 1.0);
     }

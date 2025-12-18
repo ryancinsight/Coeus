@@ -303,17 +303,17 @@ impl IntegratedHPOFramework {
         );
 
         // Log HPO-specific metadata
-        tracker.log_hyperparameter(
+        let _ = tracker.log_hyperparameter(
             "hpo_algorithm".to_string(),
             format!("{:?}", context.optimizer_config.algorithm).into(),
             Some("Hyperparameter optimization algorithm used".to_string()),
         );
-        tracker.log_hyperparameter(
+        let _ = tracker.log_hyperparameter(
             "search_budget".to_string(),
             context.optimizer_config.budget.into(),
             Some("Total evaluation budget".to_string()),
         );
-        tracker.log_hyperparameter(
+        let _ = tracker.log_hyperparameter(
             "search_space_size".to_string(),
             context.search_space.parameters.len().into(),
             Some("Number of hyperparameters being optimized".to_string()),
@@ -348,8 +348,7 @@ impl IntegratedHPOFramework {
         let objective = self.objective_functions.get(objective_name)
             .ok_or_else(|| NNError::InvalidConfiguration {
                 message: format!("Objective function '{}' not found", objective_name),
-            })?
-            .clone();
+            })?;
 
         // Create optimizer
         let optimizer_config = &context.optimizer_config;
@@ -426,17 +425,17 @@ impl IntegratedHPOFramework {
         );
 
         // Log joint search metadata
-        tracker.log_hyperparameter(
+        let _ = tracker.log_hyperparameter(
             "joint_algorithm".to_string(),
             format!("{:?}", joint_config.joint_algorithm).into(),
             Some("Joint search algorithm used".to_string()),
         );
-        tracker.log_hyperparameter(
+        let _ = tracker.log_hyperparameter(
             "nas_algorithm".to_string(),
             format!("{:?}", nas_context.search_config.algorithm).into(),
             Some("NAS algorithm used".to_string()),
         );
-        tracker.log_hyperparameter(
+        let _ = tracker.log_hyperparameter(
             "hpo_algorithm".to_string(),
             format!("{:?}", hpo_context.optimizer_config.algorithm).into(),
             Some("HPO algorithm used".to_string()),

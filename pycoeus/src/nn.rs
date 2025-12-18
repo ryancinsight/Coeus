@@ -194,6 +194,63 @@ impl PyLinear {
     fn train(&mut self, mode: bool) {
         Module::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::train(&mut self.inner, mode);
     }
+
+    fn forward(&self, input: &PyTensor) -> PyResult<PyTensor> {
+        let output = Module::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::forward(&self.inner, &input.inner).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Forward pass failed: {:?}",
+                e
+            ))
+        })?;
+        Ok(PyTensor { inner: output })
+    }
+}
+
+/// Embedding layer Python binding
+#[pyclass(name = "Embedding", module = "_coeus", unsendable)]
+pub struct PyEmbedding {
+    pub inner: nn::embedding::Embedding<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+}
+
+#[pymethods]
+impl PyEmbedding {
+    #[new]
+    #[pyo3(signature = (num_embeddings, embedding_dim, padding_idx=None))]
+    fn new(num_embeddings: usize, embedding_dim: usize, padding_idx: Option<usize>) -> PyResult<Self> {
+        let embedding = nn::embedding::Embedding::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            num_embeddings,
+            embedding_dim,
+            padding_idx,
+        )
+        .map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to create Embedding layer: {:?}",
+                e
+            ))
+        })?;
+        Ok(PyEmbedding { inner: embedding })
+    }
+
+    #[getter]
+    fn weight(&self) -> PyResult<PyTensor> {
+        Ok(PyTensor {
+            inner: self.inner.weight.data().clone(),
+        })
+    }
+
+    fn forward(&self, input: &PyTensor) -> PyResult<PyTensor> {
+        let output = Module::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::forward(&self.inner, &input.inner).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Forward pass failed: {:?}",
+                e
+            ))
+        })?;
+        Ok(PyTensor { inner: output })
+    }
+
+    fn train(&mut self, mode: bool) {
+        Module::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::train(&mut self.inner, mode);
+    }
 }
 
 /// Conv2D layer Python binding

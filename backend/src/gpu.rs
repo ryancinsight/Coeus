@@ -501,7 +501,7 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
     }
 
     /// Reads data from GPU buffer back to CPU
-    async fn read_buffer<U: bytemuck::Pod + Copy>(
+    pub async fn read_buffer<U: bytemuck::Pod + Copy>(
         &self,
         buffer: &wgpu::Buffer,
         _size: usize,
@@ -524,7 +524,7 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
     }
 
     /// Executes a compute shader with given bind groups
-    async fn execute_compute(
+    pub async fn execute_compute(
         &self,
         pipeline: &wgpu::ComputePipeline,
         bind_group: &wgpu::BindGroup,
@@ -553,6 +553,16 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
     /// Returns reference to the wgpu queue for command submission
     pub fn wgpu_queue(&self) -> &wgpu::Queue {
         &self.queue
+    }
+
+    /// Expose FFT bind group layout for external consumers needing FFT compute
+    pub fn fft_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
+        self.shaders.fft.bind_group_layout.as_ref()
+    }
+
+    /// Expose FFT compute pipeline for external consumers
+    pub fn fft_pipeline(&self) -> &wgpu::ComputePipeline {
+        self.shaders.fft.pipeline.as_ref()
     }
 
     //     /// Dispatch operation with dynamic shape specialization
@@ -1295,14 +1305,14 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         lhs: &storage::DenseStorage<T>,
         rhs: &storage::DenseStorage<T>,
     ) -> crate::Result<storage::DenseStorage<T>> {
-        // For now, only support f32 types for GPU operations
-        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+        // For now, only support Float32 for GPU operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().add_dense(lhs, rhs);
         }
 
-        // Convert to f32 slice for GPU computation (unsafe but checked with TypeId)
-        let lhs_data: &[f32] = unsafe { &*(lhs.as_slice() as *const [T] as *const [f32]) };
-        let rhs_data: &[f32] = unsafe { &*(rhs.as_slice() as *const [T] as *const [f32]) };
+        // Convert to f32 slice for GPU computation
+        let lhs_data: &[f32] = bytemuck::cast_slice(lhs.as_slice());
+        let rhs_data: &[f32] = bytemuck::cast_slice(rhs.as_slice());
 
         if lhs_data.len() != rhs_data.len() {
             return Err(crate::BackendError::InvalidInput(
@@ -1384,14 +1394,14 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         lhs: &storage::DenseStorage<Self::Data>,
         rhs: &storage::DenseStorage<Self::Data>,
     ) -> crate::Result<storage::DenseStorage<T>> {
-        // For now, only support f32 types for GPU operations
-        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+        // For now, only support Float32 for GPU operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().mul_dense(lhs, rhs);
         }
 
-        // Convert to f32 slice for GPU computation (unsafe but checked with TypeId)
-        let lhs_data: &[f32] = unsafe { &*(lhs.as_slice() as *const [T] as *const [f32]) };
-        let rhs_data: &[f32] = unsafe { &*(rhs.as_slice() as *const [T] as *const [f32]) };
+        // Convert to f32 slice for GPU computation
+        let lhs_data: &[f32] = bytemuck::cast_slice(lhs.as_slice());
+        let rhs_data: &[f32] = bytemuck::cast_slice(rhs.as_slice());
 
         if lhs_data.len() != rhs_data.len() {
             return Err(crate::BackendError::InvalidInput(
@@ -1483,8 +1493,8 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         rhs: &storage::DenseStorage<Self::Data>,
     ) -> crate::Result<storage::DenseStorage<Self::Data>>
     {
-        // For now, only support f32 types for GPU operations
-        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+        // For now, only support Float32 for GPU operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().matmul_dense(lhs, rhs);
         }
 
@@ -1507,9 +1517,9 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
             ));
         }
 
-        // Convert to f32 slices for GPU computation (unsafe but checked with TypeId)
-        let lhs_data: &[f32] = unsafe { &*(lhs.as_slice() as *const [T] as *const [f32]) };
-        let rhs_data: &[f32] = unsafe { &*(rhs.as_slice() as *const [T] as *const [f32]) };
+        // Convert to f32 slices for GPU computation
+        let lhs_data: &[f32] = bytemuck::cast_slice(lhs.as_slice());
+        let rhs_data: &[f32] = bytemuck::cast_slice(rhs.as_slice());
 
         // Create GPU buffers
         let lhs_buffer = self.create_buffer_from_slice(
@@ -1585,13 +1595,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         input: &storage::DenseStorage<Self::Data>,
     ) -> crate::Result<storage::DenseStorage<Self::Data>>
     {
-        // For now, only support f32 types for GPU operations
-        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+        // For now, only support Float32 for GPU operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().exp_dense(input);
         }
 
-        // Convert to f32 slice for GPU computation (unsafe but checked with TypeId)
-        let input_data: &[f32] = unsafe { &*(input.as_slice() as *const [T] as *const [f32]) };
+        // Convert to f32 slice for GPU computation
+        let input_data: &[f32] = bytemuck::cast_slice(input.as_slice());
 
         // Create GPU buffers
         let input_buffer = self.create_buffer_from_slice(
@@ -1668,13 +1678,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         input: &storage::DenseStorage<Self::Data>,
     ) -> crate::Result<storage::DenseStorage<Self::Data>>
     {
-        // For now, only support f32 types for GPU operations
-        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+        // For now, only support Float32 for GPU operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().sin_dense(input);
         }
 
-        // Convert to f32 slice for GPU computation (unsafe but checked with TypeId)
-        let input_data: &[f32] = unsafe { &*(input.as_slice() as *const [T] as *const [f32]) };
+        // Convert to f32 slice for GPU computation
+        let input_data: &[f32] = bytemuck::cast_slice(input.as_slice());
 
         // Create GPU buffers
         let input_buffer = self.create_buffer_from_slice(
@@ -1742,13 +1752,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         input: &storage::DenseStorage<Self::Data>,
     ) -> crate::Result<storage::DenseStorage<Self::Data>>
     {
-        // For now, only support f32 types for GPU operations
-        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+        // For now, only support Float32 for GPU operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().cos_dense(input);
         }
 
-        // Convert to f32 slice for GPU computation (unsafe but checked with TypeId)
-        let input_data: &[f32] = unsafe { &*(input.as_slice() as *const [T] as *const [f32]) };
+        // Convert to f32 slice for GPU computation
+        let input_data: &[f32] = bytemuck::cast_slice(input.as_slice());
 
         // Create GPU buffers
         let input_buffer = self.create_buffer_from_slice(
@@ -1829,13 +1839,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
     where
         T: PartialOrd + Default,
     {
-        // For now, only support f32 types for GPU operations
-        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+        // For now, only support Float32 for GPU operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().relu_dense(input);
         }
 
-        // Convert to f32 slice for GPU computation (unsafe but checked with TypeId)
-        let input_data: &[f32] = unsafe { &*(input.as_slice() as *const [T] as *const [f32]) };
+        // Convert to f32 slice for GPU computation
+        let input_data: &[f32] = bytemuck::cast_slice(input.as_slice());
 
         // Create GPU buffers
         let input_buffer = self.create_buffer_from_slice(
@@ -1905,8 +1915,8 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         text_embeddings: &storage::DenseStorage<Self::Data>,
         temperature: f32,
     ) -> crate::Result<Self::Data> {
-        // For now, only support f32 types for GPU CLIP operations
-        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+        // For now, only support Float32 for GPU CLIP operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().clip_info_nce_loss(image_embeddings, text_embeddings, temperature);
         }
 
@@ -2076,8 +2086,8 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         values: &storage::DenseStorage<Self::Data>,
         num_heads: usize,
     ) -> crate::Result<storage::DenseStorage<Self::Data>> {
-        // For now, only support f32 types for GPU CLIP operations
-        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<f32>()) {
+        // For now, only support Float32 for GPU CLIP operations
+        if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().clip_attention(queries, keys, values, num_heads);
         }
 

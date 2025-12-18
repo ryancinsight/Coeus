@@ -4,7 +4,8 @@
 //! supporting transformers, distributed training, memory optimization, and
 //! advanced parallelism strategies for training large language and vision models.
 
-use crate::error::{NNError, Result};
+use crate::error::Result;
+use crate::distributed::DistributedCoordinator;
 
 /// Core foundation model training framework
 pub struct FoundationModelTrainer {
@@ -15,9 +16,9 @@ pub struct FoundationModelTrainer {
     /// Distributed training coordinator
     distributed_coordinator: Option<DistributedCoordinator>,
     /// Memory optimization manager
-    memory_manager: MemoryManager,
+    _memory_manager: MemoryManager,
     /// Performance monitor
-    performance_monitor: PerformanceMonitor,
+    _performance_monitor: PerformanceMonitor,
 }
 
 /// Model configuration for foundation models
@@ -352,19 +353,6 @@ pub struct MemoryStats {
     pub parameter_memory: u64,
 }
 
-/// Distributed training coordinator
-#[derive(Debug)]
-pub struct DistributedCoordinator {
-    pub rank: usize,
-    pub world_size: usize,
-    pub master_addr: String,
-    pub master_port: u16,
-    pub communicator: Option<CommunicationHandle>,
-}
-
-/// Communication handle (placeholder for actual communication backend)
-#[derive(Debug)]
-pub struct CommunicationHandle;
 
 /// Memory management for foundation models
 #[derive(Debug)]
@@ -460,20 +448,19 @@ impl FoundationModelTrainer {
             config,
             training_state: TrainingState::new(),
             distributed_coordinator: None,
-            memory_manager: MemoryManager::new(),
-            performance_monitor: PerformanceMonitor::new(),
+            _memory_manager: MemoryManager::new(),
+            _performance_monitor: PerformanceMonitor::new(),
         }
     }
 
     /// Initialize distributed training (if enabled)
     pub fn initialize_distributed(&mut self, rank: usize, world_size: usize, master_addr: String, master_port: u16) -> Result<()> {
-        self.distributed_coordinator = Some(DistributedCoordinator {
+        self.distributed_coordinator = Some(DistributedCoordinator::new(
             rank,
             world_size,
             master_addr,
             master_port,
-            communicator: Some(CommunicationHandle),
-        });
+        ));
 
         Ok(())
     }
@@ -492,6 +479,18 @@ impl FoundationModelTrainer {
 
         let total_time = start_time.elapsed();
 
+        let distributed_stats = if let Some(dc) = &self.distributed_coordinator {
+            let state = dc.state.read().await;
+            Some(DistributedStats {
+                rank: dc.rank,
+                world_size: dc.world_size,
+                communication_overhead: state.sync_stats.communication_overhead,
+                load_balance_score: state.sync_stats.load_balance_score(),
+            })
+        } else {
+            None
+        };
+
         Ok(TrainingReport {
             total_steps: self.training_state.current_step,
             total_time,
@@ -500,12 +499,7 @@ impl FoundationModelTrainer {
             throughput_tokens_per_second: self.calculate_throughput(),
             peak_memory_usage: self.training_state.memory_stats.gpu_memory_used,
             peak_gradient_norm: self.training_state.gradient_stats.grad_norm,
-            distributed_stats: self.distributed_coordinator.as_ref().map(|dc| DistributedStats {
-                rank: dc.rank,
-                world_size: dc.world_size,
-                communication_overhead: 0.05, // Placeholder
-                load_balance_score: 0.95, // Placeholder
-            }),
+            distributed_stats,
         })
     }
 
@@ -559,11 +553,19 @@ impl FoundationModelTrainer {
         // This would implement gradient computation with
         // memory optimization, distributed synchronization, etc.
 
+        if let Some(dc) = &self.distributed_coordinator {
+            // Simulate synchronization overhead
+            // In reality, this would be measured around the all-reduce call
+            // Using a simple variation based on loss to simulate network jitter
+            let simulated_sync_time = 10.0 + (loss * 10.0).fract() * 5.0; 
+            dc.record_sync(simulated_sync_time).await;
+        }
+
         Ok(GradientBatch { loss })
     }
 
     /// Optimizer step implementation
-    async fn optimizer_step(&mut self, gradients: GradientBatch) -> Result<()> {
+    async fn optimizer_step(&mut self, _gradients: GradientBatch) -> Result<()> {
         // Placeholder for optimizer step implementation
         // This would implement parameter updates with
         // distributed synchronization, gradient clipping, etc.

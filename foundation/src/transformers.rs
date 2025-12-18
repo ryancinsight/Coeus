@@ -6,7 +6,6 @@
 //! - Multi-modal transformer variants (text, vision, audio)
 //! - Scalable model configurations (7B, 13B, 30B+ parameters)
 
-use std::collections::HashMap;
 use crate::error::{NNError, Result};
 
 /// Flash Attention Mechanism
@@ -63,9 +62,9 @@ impl FlashAttention {
     /// Returns attention output: [batch_size, seq_len, hidden_size]
     pub async fn forward(
         &self,
-        query: &[f32], // [batch_size, seq_len, num_heads, head_dim]
-        key: &[f32],   // [batch_size, seq_len, num_heads, head_dim]
-        value: &[f32], // [batch_size, seq_len, num_heads, head_dim]
+        _query: &[f32], // [batch_size, seq_len, num_heads, head_dim]
+        _key: &[f32],   // [batch_size, seq_len, num_heads, head_dim]
+        _value: &[f32], // [batch_size, seq_len, num_heads, head_dim]
         batch_size: usize,
         seq_len: usize,
     ) -> Result<Vec<f32>> {
@@ -85,12 +84,12 @@ impl FlashAttention {
     /// Compute attention with memory-efficient backward pass
     pub async fn backward(
         &self,
-        grad_output: &[f32],
+        _grad_output: &[f32],
         query: &[f32],
         key: &[f32],
         value: &[f32],
-        batch_size: usize,
-        seq_len: usize,
+        _batch_size: usize,
+        _seq_len: usize,
     ) -> Result<AttentionGradients> {
         // Flash attention backward pass
         // Returns gradients for query, key, value
@@ -111,7 +110,7 @@ pub struct AttentionGradients {
 
 /// Sparse Attention Patterns
 /// Implements various sparse attention mechanisms for memory-efficient long-range dependencies
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SparseAttention {
     /// Fixed sparse pattern (e.g., local + global tokens)
     Fixed(FixedSparseConfig),
@@ -123,27 +122,27 @@ pub enum SparseAttention {
     Reformer(ReformerConfig),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FixedSparseConfig {
     pub local_window: usize,
     pub global_tokens: usize,
     pub sparsity_pattern: SparsityPattern,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BigBirdConfig {
     pub num_random_blocks: usize,
     pub block_size: usize,
     pub num_global_tokens: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LongformerConfig {
     pub attention_window: usize,
     pub num_global_tokens: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReformerConfig {
     pub num_hashes: usize,
     pub bucket_size: usize,
@@ -170,7 +169,7 @@ pub struct MultiHeadAttention {
     /// Dropout probability
     dropout: f64,
     /// Whether to use bias
-    bias: bool,
+    _bias: bool,
 }
 
 #[derive(Debug)]
@@ -194,7 +193,7 @@ impl MultiHeadAttention {
             hidden_size,
             attention_type: AttentionType::Standard,
             dropout: 0.1,
-            bias: true,
+            _bias: true,
         }
     }
 
@@ -241,8 +240,8 @@ impl MultiHeadAttention {
 
     async fn standard_attention(
         &self,
-        hidden_states: &[f32],
-        attention_mask: Option<&[f32]>,
+        _hidden_states: &[f32],
+        _attention_mask: Option<&[f32]>,
         batch_size: usize,
         seq_len: usize,
     ) -> Result<Vec<f32>> {
@@ -256,8 +255,8 @@ impl MultiHeadAttention {
 
     async fn sparse_attention(
         &self,
-        hidden_states: &[f32],
-        attention_mask: Option<&[f32]>,
+        _hidden_states: &[f32],
+        _attention_mask: Option<&[f32]>,
         batch_size: usize,
         seq_len: usize,
     ) -> Result<Vec<f32>> {
@@ -271,8 +270,8 @@ impl MultiHeadAttention {
 
     async fn linear_attention(
         &self,
-        hidden_states: &[f32],
-        attention_mask: Option<&[f32]>,
+        _hidden_states: &[f32],
+        _attention_mask: Option<&[f32]>,
         batch_size: usize,
         seq_len: usize,
     ) -> Result<Vec<f32>> {
@@ -297,7 +296,7 @@ pub struct TransformerBlock {
     /// Layer normalization for feed-forward
     feed_forward_norm: LayerNorm,
     /// Dropout probability
-    dropout: f64,
+    _dropout: f64,
     /// Whether this is a decoder block (has cross-attention)
     is_decoder: bool,
     /// Cross-attention for decoder blocks
@@ -321,7 +320,7 @@ impl TransformerBlock {
             feed_forward: FeedForwardNetwork::new(hidden_size, feed_forward_size),
             attention_norm: LayerNorm::new(hidden_size),
             feed_forward_norm: LayerNorm::new(hidden_size),
-            dropout: 0.1,
+            _dropout: 0.1,
             is_decoder,
             cross_attention: if is_decoder {
                 Some(MultiHeadAttention::new(num_heads, hidden_size)
@@ -364,7 +363,7 @@ impl TransformerBlock {
 
         // Feed-forward network with residual connection
         let ff_output = self.feed_forward.forward(&hidden_states, batch_size * seq_len).await?;
-        let mut output = self.feed_forward_norm.forward(&ff_output)?;
+        let output = self.feed_forward_norm.forward(&ff_output)?;
 
         // Final residual connection
         // output = output + hidden_states + dropout
@@ -435,17 +434,17 @@ impl FeedForwardNetwork {
 /// Layer Normalization
 #[derive(Debug)]
 pub struct LayerNorm {
-    normalized_shape: Vec<usize>,
-    eps: f64,
-    elementwise_affine: bool,
+    _normalized_shape: Vec<usize>,
+    _eps: f64,
+    _elementwise_affine: bool,
 }
 
 impl LayerNorm {
     pub fn new(normalized_shape: usize) -> Self {
         Self {
-            normalized_shape: vec![normalized_shape],
-            eps: 1e-5,
-            elementwise_affine: true,
+            _normalized_shape: vec![normalized_shape],
+            _eps: 1e-5,
+            _elementwise_affine: true,
         }
     }
 
@@ -459,21 +458,21 @@ impl LayerNorm {
 /// Linear Layer
 #[derive(Debug)]
 pub struct LinearLayer {
-    in_features: usize,
+    _in_features: usize,
     out_features: usize,
-    bias: bool,
+    _bias: bool,
 }
 
 impl LinearLayer {
     pub fn new(in_features: usize, out_features: usize) -> Self {
         Self {
-            in_features,
+            _in_features: in_features,
             out_features,
-            bias: true,
+            _bias: true,
         }
     }
 
-    pub async fn forward(&self, input: &[f32], input_size: usize) -> Result<Vec<f32>> {
+    pub async fn forward(&self, _input: &[f32], _input_size: usize) -> Result<Vec<f32>> {
         // Linear transformation: input @ weight + bias
         // Placeholder implementation
         Ok(vec![0.0; self.out_features])
@@ -494,13 +493,13 @@ pub struct GPTModel {
     /// Vocabulary size
     vocab_size: usize,
     /// Hidden dimension
-    hidden_size: usize,
+    _hidden_size: usize,
     /// Number of layers
-    num_layers: usize,
+    _num_layers: usize,
     /// Number of heads
-    num_heads: usize,
+    _num_heads: usize,
     /// Sequence length
-    max_seq_len: usize,
+    _max_seq_len: usize,
 }
 
 impl GPTModel {
@@ -524,10 +523,10 @@ impl GPTModel {
             output_projection: LinearLayer::new(config.hidden_size, config.vocab_size),
             final_norm: LayerNorm::new(config.hidden_size),
             vocab_size: config.vocab_size,
-            hidden_size: config.hidden_size,
-            num_layers: config.num_layers,
-            num_heads: config.num_heads,
-            max_seq_len: config.max_seq_len,
+            _hidden_size: config.hidden_size,
+            _num_layers: config.num_layers,
+            _num_heads: config.num_heads,
+            _max_seq_len: config.max_seq_len,
         }
     }
 
@@ -694,14 +693,14 @@ pub struct GPTConfig {
 /// Embedding Layer
 #[derive(Debug)]
 pub struct EmbeddingLayer {
-    vocab_size: usize,
+    _vocab_size: usize,
     embedding_dim: usize,
 }
 
 impl EmbeddingLayer {
     pub fn new(vocab_size: usize, embedding_dim: usize) -> Self {
         Self {
-            vocab_size,
+            _vocab_size: vocab_size,
             embedding_dim,
         }
     }
@@ -718,25 +717,25 @@ impl EmbeddingLayer {
 #[derive(Debug)]
 pub struct RoPE {
     /// Base for frequency computation
-    base: f64,
+    _base: f64,
     /// Maximum sequence length
-    max_seq_len: usize,
+    _max_seq_len: usize,
     /// Head dimension
-    head_dim: usize,
+    _head_dim: usize,
 }
 
 impl RoPE {
     /// Create new RoPE
     pub fn new(base: f64, max_seq_len: usize, head_dim: usize) -> Self {
         Self {
-            base,
-            max_seq_len,
-            head_dim,
+            _base: base,
+            _max_seq_len: max_seq_len,
+            _head_dim: head_dim,
         }
     }
 
     /// Apply rotary position embedding
-    pub fn apply(&self, x: &[f32], positions: &[usize]) -> Result<Vec<f32>> {
+    pub fn apply(&self, x: &[f32], _positions: &[usize]) -> Result<Vec<f32>> {
         // Apply RoPE transformation to attention inputs
         // This rotates the embedding based on position
         Ok(x.to_vec()) // Placeholder
@@ -755,7 +754,7 @@ pub struct VisionTransformer {
     /// Classification head
     classification_head: LinearLayer,
     /// Number of classes
-    num_classes: usize,
+    _num_classes: usize,
 }
 
 #[derive(Debug)]
@@ -768,7 +767,7 @@ pub struct ViTTransformerBlock {
     norm1: LayerNorm,
     norm2: LayerNorm,
     /// Dropout
-    dropout: f64,
+    _dropout: f64,
 }
 
 impl VisionTransformer {
@@ -785,7 +784,7 @@ impl VisionTransformer {
                 feed_forward: FeedForwardNetwork::new(hidden_size, config.feed_forward_size),
                 norm1: LayerNorm::new(hidden_size),
                 norm2: LayerNorm::new(hidden_size),
-                dropout: config.dropout,
+                _dropout: config.dropout,
             });
         }
 
@@ -799,7 +798,7 @@ impl VisionTransformer {
             pos_embed: vec![0.0; config.num_patches * hidden_size],
             transformer_blocks,
             classification_head: LinearLayer::new(hidden_size, config.num_classes),
-            num_classes: config.num_classes,
+            _num_classes: config.num_classes,
         }
     }
 
@@ -837,7 +836,7 @@ impl ViTTransformerBlock {
         let attn_output = self.attention.forward(hidden_states, None, batch_size, seq_len).await?;
         let normalized = self.norm1.forward(&attn_output)?;
         // Add residual and apply feed-forward
-        let mut residual = vec![0.0; normalized.len()]; // Would compute actual residual
+        let residual = vec![0.0; normalized.len()]; // Would compute actual residual
         self.add_residual_and_norm(&normalized, &residual)?;
 
         // Feed-forward with residual
@@ -873,9 +872,9 @@ pub struct ViTConfig {
 /// Patch Embedding Layer for ViT
 #[derive(Debug)]
 pub struct PatchEmbedding {
-    image_size: usize,
-    patch_size: usize,
-    input_channels: usize,
+    _image_size: usize,
+    _patch_size: usize,
+    _input_channels: usize,
     pub hidden_size: usize,
     /// Convolution layer for patch embedding
     conv_embed: Conv2DLayer,
@@ -889,9 +888,9 @@ impl PatchEmbedding {
         hidden_size: usize,
     ) -> Self {
         Self {
-            image_size,
-            patch_size,
-            input_channels,
+            _image_size: image_size,
+            _patch_size: patch_size,
+            _input_channels: input_channels,
             hidden_size,
             conv_embed: Conv2DLayer::new(input_channels, hidden_size, patch_size, patch_size),
         }
@@ -907,23 +906,23 @@ impl PatchEmbedding {
 /// Simplified 2D Convolution Layer
 #[derive(Debug)]
 pub struct Conv2DLayer {
-    in_channels: usize,
+    _in_channels: usize,
     out_channels: usize,
-    kernel_size: usize,
-    stride: usize,
+    _kernel_size: usize,
+    _stride: usize,
 }
 
 impl Conv2DLayer {
-    pub fn new(in_channels: usize, out_channels: usize, kernel_h: usize, kernel_w: usize) -> Self {
+    pub fn new(in_channels: usize, out_channels: usize, kernel_h: usize, _kernel_w: usize) -> Self {
         Self {
-            in_channels,
+            _in_channels: in_channels,
             out_channels,
-            kernel_size: kernel_h, // Assuming square kernel
-            stride: kernel_h, // Assuming stride equals kernel size for patch embedding
+            _kernel_size: kernel_h, // Assuming square kernel
+            _stride: kernel_h, // Assuming stride equals kernel size for patch embedding
         }
     }
 
-    pub fn forward(&self, input: &[f32]) -> Result<Vec<f32>> {
+    pub fn forward(&self, _input: &[f32]) -> Result<Vec<f32>> {
         // Convolution forward pass
         // Placeholder implementation
         Ok(vec![0.0; self.out_channels])
@@ -934,17 +933,17 @@ impl Conv2DLayer {
 #[derive(Debug)]
 pub struct T5Model {
     /// Encoder transformer blocks
-    encoder: Vec<TransformerBlock>,
+    _encoder: Vec<TransformerBlock>,
     /// Decoder transformer blocks
-    decoder: Vec<TransformerBlock>,
+    _decoder: Vec<TransformerBlock>,
     /// Shared embeddings
-    embeddings: EmbeddingLayer,
+    _embeddings: EmbeddingLayer,
     /// Encoder final layer norm
-    encoder_norm: LayerNorm,
+    _encoder_norm: LayerNorm,
     /// Decoder final layer norm
-    decoder_norm: LayerNorm,
+    _decoder_norm: LayerNorm,
     /// Language modeling head
-    lm_head: LinearLayer,
+    _lm_head: LinearLayer,
 }
 
 #[cfg(test)]
@@ -1004,7 +1003,7 @@ mod tests {
     #[test]
     fn test_rope_creation() {
         let rope = RoPE::new(10000.0, 2048, 128);
-        assert_eq!(rope.head_dim, 128);
-        assert_eq!(rope.max_seq_len, 2048);
+        assert_eq!(rope._head_dim, 128);
+        assert_eq!(rope._max_seq_len, 2048);
     }
 }

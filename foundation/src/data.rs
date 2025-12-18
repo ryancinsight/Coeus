@@ -220,7 +220,7 @@ pub struct AsyncProcessingConfig {
     pub timeout_ms: u64,
 }
 
-pub trait DataTransform: Send + Sync {
+pub trait DataTransform: Send + Sync + std::fmt::Debug {
     /// Apply transformation to a data sample
     fn transform(&self, sample: DataSample) -> Result<DataSample>;
 
@@ -249,7 +249,7 @@ impl ProcessingPipeline {
     /// Process a batch through the pipeline
     pub async fn process_batch(&self, batch: RawBatch) -> Result<ProcessedBatch> {
         let mut processed_samples = Vec::new();
-        let mut metadata = batch.metadata;
+        let metadata = batch.metadata;
 
         for sample in batch.samples {
             let mut processed_sample = sample;
@@ -396,7 +396,7 @@ impl DataMemoryManager {
     }
 
     /// Prefetch next batches
-    pub async fn prefetch_batches(&mut self, data_loader: &DataLoader) -> Result<()> {
+    pub async fn prefetch_batches(&mut self, _data_loader: &DataLoader) -> Result<()> {
         // Implementation for prefetching next batches
         Ok(())
     }
@@ -592,7 +592,7 @@ pub mod utils {
     pub fn create_webdataset_loader(
         dataset_path: impl AsRef<Path>,
         batch_size: usize,
-        shuffle_buffer_size: usize,
+        _shuffle_buffer_size: usize,
     ) -> Result<DataLoader> {
         let dataset_config = DatasetConfig {
             dataset_name: "webdataset".to_string(),
@@ -687,9 +687,8 @@ pub mod profiling {
             // Update throughput (samples/second)
             let total_time: std::time::Duration = self.batch_times.iter().sum();
             let avg_time = total_time.div_f64(self.batch_times.len() as f64).as_secs_f64();
-                if avg_time > 0.0 {
-                    self.throughput_history.push(1.0 / avg_time);
-                }
+            if avg_time > 0.0 {
+                self.throughput_history.push(1.0 / avg_time);
             }
 
             Ok(result)
@@ -744,6 +743,7 @@ pub mod profiling {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::profiling::DataLoadingProfiler;
 
     #[test]
     fn test_data_loader_creation() {

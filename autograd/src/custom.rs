@@ -36,7 +36,6 @@ use alloc::vec::Vec;
 use core::any::Any;
 
 use backend::Backend;
-use tensor::tensor_core::OperationName;
 use dtype::DataType;
 
 use storage::{Storage, DenseStorage};
@@ -75,8 +74,8 @@ pub fn apply_custom_function<B, S, T>(
     name: &'static str,
 ) -> Result<tensor::Tensor<B, S, T>>
 where
-    B: Backend<Data = T>,
-    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
+    B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T> + core::fmt::Debug + Send + Sync,
     T: DataType,
 {
     // Perform forward pass
@@ -97,7 +96,7 @@ where
             name,
         };
 
-        output.with_grad_fn(Some(Arc::new(OperationName("custom".to_string()))))
+        output.with_grad_fn(Some(Arc::new(custom_fn)))
     } else {
         output
     };
@@ -223,9 +222,9 @@ mod tests {
 
         // Check forward pass result
         assert_eq!(output.shape().dims(), &[]);
-        assert!(output.grad_fn().is_some());
+        assert!(output.function_object().is_some());
 
         // Test backward pass
-        crate::ops::backward(&output).unwrap();
+        crate::ops::backward(&output, None, false, false).unwrap();
     }
 }

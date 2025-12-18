@@ -31,28 +31,28 @@ pub enum DistributedError {
 
     #[error("Tensor operation failed: {source}")]
     TensorError {
-        source: Box<coeus_tensor::TensorError>,
+        source: Box<tensor::TensorError>,
     },
 
     #[error("Optimizer operation failed: {source}")]
     OptimizerError {
-        source: Box<coeus_optim::error::OptimError>,
+        source: Box<optim::error::OptimError>,
     },
 
     #[error("Gradient buffer overflow: required {required}, available {available}")]
     BufferOverflow { required: usize, available: usize },
 }
 
-impl From<coeus_tensor::TensorError> for DistributedError {
-    fn from(error: coeus_tensor::TensorError) -> Self {
+impl From<tensor::TensorError> for DistributedError {
+    fn from(error: tensor::TensorError) -> Self {
         DistributedError::TensorError {
             source: Box::new(error),
         }
     }
 }
 
-impl From<coeus_optim::error::OptimError> for DistributedError {
-    fn from(error: coeus_optim::error::OptimError) -> Self {
+impl From<optim::error::OptimError> for DistributedError {
+    fn from(error: optim::error::OptimError) -> Self {
         DistributedError::OptimizerError {
             source: Box::new(error),
         }

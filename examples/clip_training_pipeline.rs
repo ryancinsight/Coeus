@@ -26,7 +26,8 @@ type Backend = CpuBackend<Float32>;
 type Storage = DenseStorage<Float32>;
 type DataType = Float32;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 CLIP GPU Training Pipeline Example");
     println!("=====================================");
     let start_time = Instant::now();
@@ -132,7 +133,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Training completion
-    let training_report = orchestrator.get_training_report();
+    let training_report = orchestrator.get_training_report().await?;
     training_report.print_summary();
 
     println!("🎉 CLIP training completed!");

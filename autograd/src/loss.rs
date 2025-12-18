@@ -18,12 +18,13 @@
 //!
 //! This prevents overflow when computing softmax probabilities.
 
-use tensor::{Tensor, tensor_core::OperationName};
-use crate::ops::*;
+use tensor::{Tensor, Backend, Storage, StorageFromVec, DataType, StorageToDense};
 use std::sync::Arc;
-use backend::CpuBackend;
-use storage::DenseStorage;
-use dtype::float::Float32;
+use crate::tensor_ops;
+use crate::tensor_ops::{sub, mul};
+
+use dtype::traits::FloatExt;
+use num_traits::{FromPrimitive, ToPrimitive};
 
 /// Compute Mean Squared Error (MSE) loss with automatic differentiation support.
 ///
@@ -65,20 +66,50 @@ use dtype::float::Float32;
 ///
 /// where `n` is the number of elements.
 #[allow(clippy::missing_errors_doc)]
-pub fn mse_loss(
-    predictions: &Tensor<backend::CpuBackend<dtype::float::Float32>, storage::DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
-    targets: &Tensor<backend::CpuBackend<dtype::float::Float32>, storage::DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
-) -> crate::Result<Tensor<backend::CpuBackend<dtype::float::Float32>, storage::DenseStorage<dtype::float::Float32>, dtype::float::Float32>> {
-    use dtype::float::Float32;
-
+pub fn mse_loss<B, S, T>(
+    predictions: &Tensor<B, S, T>,
+    targets: &Tensor<B, S, T>,
+) -> crate::Result<Tensor<B, S, T>>
+where
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    T: DataType + FloatExt + FromPrimitive + Copy + Send + Sync + 'static,
+{
     // Compute (predictions - targets)
     let diff = sub(predictions, targets)?;
 
     // Square the differences: diff²
     let squared = mul(&diff, &diff)?;
 
-    // Compute mean
-    mean(&squared, None, false)
+    // Compute sum of squared errors
+    // Use autograd-aware sum to ensure gradient propagation
+    let sse_loss = tensor_ops::sum(&squared, None, false)?;
+
+    // Divide by number of elements to get Mean Squared Error
+    let num_elements = squared.len() as f64;
+    let scale_val = T::from_f64(1.0 / num_elements).ok_or_else(|| {
+        crate::AutogradError::TensorError(tensor::TensorError::ShapeError {
+            expected: 0,
+            actual: 0,
+            message: "Failed to convert scale to T".to_string()
+        })
+    })?;
+    let scale_tensor = Tensor::from_vec(vec![scale_val], &[])?;
+    
+    // We need to reshape sse_loss to [] if it is [1] to allow multiplication with scalar
+    let sse_loss = if sse_loss.shape().ndim() == 1 {
+        // Use autograd-aware reshape to preserve computation graph
+        tensor_ops::reshape(&sse_loss, &[])?
+    } else {
+        sse_loss
+    };
+    
+    // Multiply by 1/N
+    // Note: We use mul (element-wise multiplication)
+    // The result should be scalar if inputs are scalar
+    let mse_loss = mul(&sse_loss, &scale_tensor)?;
+
+    Ok(mse_loss)
 }
 
 /// Compute Cross-Entropy loss with automatic differentiation support.
@@ -135,12 +166,15 @@ pub fn mse_loss(
 ///
 /// where `1{condition}` is the indicator function (1 if true, 0 if false).
 #[allow(clippy::missing_errors_doc)]
-pub fn cross_entropy_loss(
-    logits: &Tensor<backend::CpuBackend<dtype::float::Float32>, storage::DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
-    targets: &Tensor<backend::CpuBackend<dtype::float::Float32>, storage::DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
-) -> crate::Result<Tensor<backend::CpuBackend<dtype::float::Float32>, storage::DenseStorage<dtype::float::Float32>, dtype::float::Float32>> {
-    use dtype::float::Float32;
-
+pub fn cross_entropy_loss<B, S, T>(
+    logits: &Tensor<B, S, T>,
+    targets: &Tensor<B, S, T>,
+) -> crate::Result<Tensor<B, S, T>>
+where
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    T: DataType + FloatExt + FromPrimitive + ToPrimitive + Copy + Send + Sync + 'static,
+{
     // Validate input dimensions
     let logits_shape = logits.shape().dims();
     let targets_shape = targets.shape().dims();
@@ -170,12 +204,20 @@ pub fn cross_entropy_loss(
 
     // Gather negative log probabilities at target indices
     // This is a simplified implementation - in practice would use advanced indexing
+    
+    // Convert to dense for manual indexing
+    let targets_dense = targets.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    let log_softmax_dense = log_softmax.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    
+    let targets_slice = targets_dense.storage_ref().as_slice();
+    let log_softmax_slice = log_softmax_dense.storage_ref().as_slice();
+    
     let mut nll_loss = Vec::new();
 
     for batch_idx in 0..batch_size {
         // Get target class index (assume targets contain integer indices)
-        let target_val = targets.as_slice()[batch_idx].get();
-        let target_idx = target_val as usize;
+        let target_val = targets_slice[batch_idx];
+        let target_idx = target_val.to_usize().unwrap_or(0);
 
         if target_idx >= num_classes {
             return Err(crate::AutogradError::InvalidInput {
@@ -185,37 +227,180 @@ pub fn cross_entropy_loss(
 
         // Get log-softmax value for the target class
         let log_prob_idx = batch_idx * num_classes + target_idx;
-        let log_prob = log_softmax.as_slice()[log_prob_idx];
+        let log_prob = log_softmax_slice[log_prob_idx];
 
         // Negative log likelihood: -log_prob
-        nll_loss.push(Float32::new(-log_prob.get()));
+        let neg_log_prob = T::zero() - log_prob;
+        nll_loss.push(neg_log_prob);
     }
 
     // Compute mean loss across batch
-    let total_loss: f32 = nll_loss.iter().map(|x| x.get()).sum();
-    let mean_loss = total_loss / batch_size as f32;
+    let mut total_loss = T::zero();
+    for x in &nll_loss {
+        total_loss = total_loss + *x;
+    }
+    
+    let batch_size_t = T::from_usize(batch_size).ok_or_else(|| {
+        crate::AutogradError::TensorError(tensor::TensorError::ShapeError {
+             expected: 0,
+             actual: 0,
+             message: "Failed to convert batch size to T".to_string()
+        })
+    })?;
+    
+    let mean_loss = total_loss / batch_size_t;
 
     // Create result tensor
-    let result_data = vec![Float32::new(mean_loss)];
+    let result_data = vec![mean_loss];
     let result_tensor = Tensor::from_vec(result_data, &[1])?;
 
     // Attach gradient function if needed
     if logits.requires_grad() {
-        Ok(result_tensor.with_grad_fn(Some(Arc::new(OperationName("cross_entropy".to_string())))))
+        Ok(result_tensor.with_grad_fn(Some(Arc::new(CrossEntropyFunction::new(
+            Arc::new(logits.clone()),
+            Arc::new(targets.clone()),
+        )))))
     } else {
         Ok(result_tensor)
     }
 }
 
-/// Compute log-softmax using the numerically stable log-sum-exp trick.
+/// CrossEntropy function for automatic differentiation
+#[derive(Debug)]
+pub struct CrossEntropyFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    /// Input tensors: [logits, targets]
+    pub inputs: Vec<Arc<Tensor<B, S, T>>>,
+}
+
+impl<B, S, T> CrossEntropyFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    /// Create a new CrossEntropy function
+    pub fn new(logits: Arc<Tensor<B, S, T>>, targets: Arc<Tensor<B, S, T>>) -> Self {
+        Self {
+            inputs: vec![logits, targets],
+        }
+    }
+}
+
+impl<B, S, T> tensor::AsAny for CrossEntropyFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl<B, S, T> tensor::DifferentiableFunction<B, S, T> for CrossEntropyFunction<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    T: DataType + FloatExt + FromPrimitive + ToPrimitive + Copy + Send + Sync + 'static,
+{
+    fn name(&self) -> &'static str {
+        "CrossEntropyBackward"
+    }
+}
+
+impl<B, S, T> tensor::Function<B, S, T> for CrossEntropyFunction<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    T: DataType + FloatExt + FromPrimitive + ToPrimitive + Copy + Send + Sync + 'static,
+{
+    fn inputs(&self) -> &[Arc<Tensor<B, S, T>>] {
+        &self.inputs
+    }
+
+    fn backward(&self, grad_output: &Tensor<B, tensor::DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+        // Implementation of CrossEntropy backward pass
+        // dL/dlogits = (softmax(logits) - targets_one_hot) / batch_size
+        // We need to recompute softmax(logits) here because we don't save it
+        
+        // 1. Recompute log_softmax (stable)
+        let logits = &*self.inputs[0];
+        let targets = &*self.inputs[1];
+        
+        let log_softmax = log_softmax_stable(logits).map_err(|e| anyhow::anyhow!("Autograd error: {:?}", e))?;
+        
+        // 2. Compute softmax = exp(log_softmax)
+        let softmax = log_softmax.exp();
+        
+        // 3. Create one-hot targets
+        // This requires converting targets (indices) to one-hot vectors
+        // We'll do this manually for now as we lack a one_hot op
+        let batch_size = logits.shape().dims()[0];
+        let num_classes = logits.shape().dims()[1];
+        
+        // We need to work with dense data for manipulation
+        let softmax_dense = softmax.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let softmax_data = softmax_dense.storage_ref().as_slice();
+        
+        let targets_dense = targets.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let targets_data = targets_dense.storage_ref().as_slice();
+        
+        let mut grad_data = Vec::with_capacity(batch_size * num_classes);
+        let scale = T::from_f64(1.0 / batch_size as f64).ok_or_else(|| anyhow::anyhow!("Failed to convert scale"))?;
+        
+        // Assuming scalar grad_output for loss (usually 1.0)
+        // If grad_output is not 1.0, we multiply by it.
+        // grad_output is dense.
+        let grad_scale = if grad_output.numel() == 1 {
+             grad_output.storage_ref().as_slice()[0]
+        } else {
+             T::one() // Fallback or error? For loss it's usually scalar.
+        };
+        
+        let final_scale = scale * grad_scale;
+
+        for b in 0..batch_size {
+            let target_idx = targets_data[b].to_usize().unwrap_or(0);
+            for c in 0..num_classes {
+                let idx = b * num_classes + c;
+                let s = softmax_data[idx];
+                
+                let val = if c == target_idx {
+                    s - T::one()
+                } else {
+                    s
+                };
+                
+                grad_data.push(val * final_scale);
+            }
+        }
+        
+        let grad_logits = Tensor::from_vec_with_backend(grad_data, logits.shape().dims(), logits.backend().clone())
+             .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+             
+        // Targets don't require gradients
+        let grad_targets = Tensor::<B, S, T>::zeros(targets.shape().dims())
+             .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+             
+        Ok(vec![grad_logits, grad_targets])
+    }
+}
 ///
 /// This implements: `log_softmax(x)_i = x_i - log(∑ⱼ exp(x_j))`
 /// where `log(∑ⱼ exp(x_j)) = max(x) + log(∑ⱼ exp(x_j - max(x)))`
-fn log_softmax_stable(
-    input: &Tensor<backend::CpuBackend<dtype::float::Float32>, storage::DenseStorage<dtype::float::Float32>, dtype::float::Float32>,
-) -> crate::Result<Tensor<backend::CpuBackend<dtype::float::Float32>, storage::DenseStorage<dtype::float::Float32>, dtype::float::Float32>> {
-    use dtype::float::Float32;
-
+pub fn log_softmax_stable<B, S, T>(
+    input: &Tensor<B, S, T>,
+) -> crate::Result<Tensor<B, S, T>>
+where
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    T: DataType + FloatExt + FromPrimitive + Copy + Send + Sync + 'static,
+{
     let shape = input.shape().dims();
     if shape.len() != 2 {
         return Err(crate::AutogradError::InvalidInput {
@@ -225,31 +410,36 @@ fn log_softmax_stable(
 
     let batch_size = shape[0];
     let num_classes = shape[1];
-    let mut result_data = Vec::with_capacity(input.as_slice().len());
+    
+    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    let input_slice = input_dense.storage_ref().as_slice();
+    
+    let mut result_data = Vec::with_capacity(input_slice.len());
 
     // Process each batch element separately
     for batch_idx in 0..batch_size {
         // Find max value in this row for numerical stability
-        let mut max_val = f32::NEG_INFINITY;
+        let mut max_val = T::neg_infinity();
         for class_idx in 0..num_classes {
-            let val = input.as_slice()[batch_idx * num_classes + class_idx].get();
+            let val = input_slice[batch_idx * num_classes + class_idx];
             if val > max_val {
                 max_val = val;
             }
         }
 
         // Compute log-sum-exp: log(∑ exp(x_j - max)) + max
-        let mut sum_exp = 0.0f32;
+        let mut sum_exp = T::zero();
         for class_idx in 0..num_classes {
-            let val = input.as_slice()[batch_idx * num_classes + class_idx].get();
-            sum_exp += (val - max_val).exp();
+            let val = input_slice[batch_idx * num_classes + class_idx];
+            let diff = val - max_val;
+            sum_exp = sum_exp + diff.exp();
         }
         let log_sum_exp = max_val + sum_exp.ln();
 
         // Compute log-softmax: x_i - log_sum_exp
         for class_idx in 0..num_classes {
-            let val = input.as_slice()[batch_idx * num_classes + class_idx].get();
-            result_data.push(Float32::new(val - log_sum_exp));
+            let val = input_slice[batch_idx * num_classes + class_idx];
+            result_data.push(val - log_sum_exp);
         }
     }
 
@@ -259,6 +449,8 @@ fn log_softmax_stable(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use backend::CpuBackend;
+    use storage::DenseStorage;
     use dtype::float::Float32;
     use tensor::Tensor;
 
@@ -290,9 +482,7 @@ mod tests {
 
     #[test]
     fn test_mse_loss_gradient() {
-        use crate::backward;
-
-        // Test MSE loss gradient using numerical validation
+        // Test MSE loss gradient computation
         let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2]
@@ -303,28 +493,17 @@ mod tests {
             &[2]
         ).unwrap();
 
-        // Compute analytical gradient
+        // Use mse_loss function which properly implements division by N
         let loss = mse_loss(&predictions, &targets).unwrap();
 
-        // For proper gradient flow, we need to ensure the loss tensor connects to predictions
-        // The issue is that mse_loss returns a tensor that may not have proper grad_fn setup
-        // Let's use the autograd tensor operations instead
-
-        // Compute (predictions - targets)² using autograd operations
-        let diff = sub(&predictions, &targets).unwrap();
-        let squared = mul(&diff, &diff).unwrap();
-
-        // Use autograd sum to reduce to scalar instead of mean
-        let loss_scalar = crate::ops::sum(&squared, None, false).unwrap();
-
-        // Create gradient output tensor with same shape as loss_scalar
+        // Create a scalar gradient output (shape [])
         let grad_output = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0)],
-            &[1]
+            &[]
         ).unwrap();
 
         // Backward pass using backward_with_grad
-        crate::ops::backward_with_grad(&loss_scalar, &grad_output).unwrap();
+        crate::ops::backward_with_grad(&loss, grad_output).unwrap();
 
         // Check gradient: ∂L/∂pred = 2 * (pred - target) / n
         // For pred=[1.0, 2.0], target=[1.5, 2.5]: grad = 2 * [-0.5, -0.5] / 2 = [-0.5, -0.5]
@@ -393,12 +572,14 @@ mod tests {
     #[test]
     fn test_cross_entropy_loss_forward() {
         // Test cross-entropy loss computation (simplified version)
+        // Logits must be 2D [batch_size=1, num_classes=3]
         let logits = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
-            &[3],
+            &[1, 3],
         )
         .unwrap();
 
+        // Targets must be 1D [batch_size=1]
         let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(0.0)], // class 0
             &[1],
@@ -434,11 +615,19 @@ mod tests {
         // Compute diff = a - b
         let diff = sub(&a, &b).unwrap();
 
-        // Compute mean using tensor method
-        let result = diff.mean(None, false).unwrap();
+        // Compute mean using autograd mean operation
+        // Note: mean reduction usually results in a scalar if keepdim is false
+        let result = crate::ops::mean(&diff, None, false).unwrap();
+
+        // Reshape to scalar if needed for backward()
+        let result = if result.shape().ndim() == 1 && result.shape().dims()[0] == 1 {
+            crate::ops::reshape(&result, &[]).unwrap()
+        } else {
+            result
+        };
 
         // Backward pass
-        backward(&result).unwrap();
+        backward(&result, None, false, false).unwrap();
 
         // Check gradient
         assert!(a.grad().is_ok(), "a should have a gradient after backward");

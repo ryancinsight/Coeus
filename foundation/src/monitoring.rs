@@ -11,7 +11,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::error::{NNError, Result};
+use crate::Result;
 
 /// Central Monitoring and Profiling System
 #[derive(Debug)]
@@ -232,13 +232,13 @@ pub enum EscalationAction {
 }
 
 /// Metric collector trait
-pub trait MetricCollector: Send + Sync {
+pub trait MetricCollector: Send + Sync + std::fmt::Debug {
     fn collect(&self, state: &MonitoringState) -> HashMap<String, f64>;
     fn name(&self) -> &str;
 }
 
 /// Performance profiler trait
-pub trait PerformanceProfiler: Send + Sync {
+pub trait PerformanceProfiler: Send + Sync + std::fmt::Debug {
     fn profile(&mut self, step: usize) -> Result<ProfilingResult>;
     fn name(&self) -> &str;
 }
@@ -338,7 +338,7 @@ impl TrainingMonitor {
     /// Record training metrics
     pub async fn record_training_metrics(
         &self,
-        step: usize,
+        _step: usize,
         loss: f64,
         lr: f64,
         grad_norm: f64,
@@ -420,7 +420,7 @@ impl TrainingMonitor {
         }
 
         for profiler in self.profilers.values_mut() {
-            let result = profiler.profile(step).await?;
+            let result = profiler.profile(step)?;
             let mut state = self.state.write().await;
 
             // Update profiling data
@@ -467,7 +467,7 @@ impl TrainingMonitor {
 
                 // Add to active alerts
                 self.alerting.active_alerts.insert(alert.alert_id.clone(), alert.clone());
-                self.alerting.alert_history.push_back(alert);
+                self.alerting.alert_history.push_back(alert.clone());
 
                 // Apply escalation policies
                 self.apply_escalation_policies(&alert).await?;
@@ -687,7 +687,7 @@ impl TrainingMonitor {
                 // Placeholder for email sending
                 println!("Would send email to {}: {}", recipient, alert.message);
             },
-            EscalationAction::Slack { webhook_url, channel } => {
+            EscalationAction::Slack { webhook_url: _, channel } => {
                 // Placeholder for Slack notification
                 println!("Would post to Slack {}: {}", channel, alert.message);
             },
@@ -1077,8 +1077,8 @@ mod tests {
     #[test]
     fn test_gradient_clipping() {
         // Test via training monitor
-        let optimizer = crate::optimization::utils::create_lionel_optimizer(1e-3, 0.01);
-        let gradients = HashMap::from([
+        let _optimizer = crate::optimization::utils::create_lionel_optimizer(1e-3, 0.01);
+        let _gradients = HashMap::from([
             ("param1".to_string(), vec![1.0, 2.0, 3.0]),
         ]);
 

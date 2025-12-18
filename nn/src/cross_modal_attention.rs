@@ -633,11 +633,18 @@ where
 mod tests {
     use super::*;
     use crate::multimodal::Modality;
+    use backend::CpuBackend;
+    use dtype::float::Float32;
+    use storage::DenseStorage;
+
+    type B = CpuBackend<Float32>;
+    type S = DenseStorage<Float32>;
+    type T = Float32;
 
     #[test]
     fn test_cross_modal_transformer_layer_creation() {
         let modalities = vec![Modality::Vision, Modality::Language];
-        let layer = CrossModalTransformerLayer::new(
+        let layer = CrossModalTransformerLayer::<B, S, T>::new(
             &modalities,
             768,
             12,
@@ -648,7 +655,7 @@ mod tests {
 
     #[test]
     fn test_cross_modal_attention_creation() {
-        let cross_attn = CrossModalAttention::new(
+        let cross_attn = CrossModalAttention::<B, S, T>::new(
             768,
             12,
             Modality::Language,
@@ -659,21 +666,21 @@ mod tests {
 
     #[test]
     fn test_co_attention_creation() {
-        let co_attn = CoAttention::new(768, 768, 768);
+        let co_attn = CoAttention::<B, S, T>::new(768, 768, 768);
         assert!(co_attn.is_ok());
     }
 
     #[test]
     fn test_multimodal_fusion_attention_creation() {
         let modalities = vec![Modality::Vision, Modality::Language, Modality::Audio];
-        let mfa = MultimodalFusionAttention::new(&modalities, 768, 8);
+        let mfa = MultimodalFusionAttention::<B, S, T>::new(&modalities, 768, 8);
         assert!(mfa.is_ok());
     }
 
     #[test]
     fn test_progressive_integration_creation() {
         let modalities = vec![Modality::Vision, Modality::Language];
-        let pcmi = ProgressiveCrossModalIntegration::new(modalities, 3);
+        let pcmi = ProgressiveCrossModalIntegration::<B, S, T>::new(modalities, 3);
         assert!(pcmi.is_ok());
     }
 }

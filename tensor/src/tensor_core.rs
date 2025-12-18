@@ -170,7 +170,7 @@ where
     pub(crate) grad: Arc<spin::RwLock<Option<alloc::boxed::Box<Tensor<B, S, T>>>>>,
     /// Function that created this tensor (for automatic differentiation)
     /// None if this tensor was created directly (leaf tensor)
-    pub(crate) grad_fn: Option<Arc<dyn AsAny + Send + Sync>>,
+    pub(crate) grad_fn: Option<Arc<dyn Function<B, S, T>>>,
 }
 
 // Implement Clone when all components are Clone

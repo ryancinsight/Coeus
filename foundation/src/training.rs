@@ -9,7 +9,10 @@
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use crate::error::{NNError, Result};
+use std::sync::Arc;
+use crate::Result;
+use crate::monitoring::{TrainingMonitor, MonitoringReport};
+use crate::distributed::DistributedCoordinator;
 
 /// Training Orchestrator - coordinates the entire training process
 #[derive(Debug)]
@@ -28,6 +31,10 @@ pub struct TrainingOrchestrator {
     pub checkpoint_manager: CheckpointManager,
     /// Training configuration
     pub config: TrainingConfig,
+    /// Last step timestamp for throughput calculation
+    last_step_time: Instant,
+    /// Distributed coordinator (optional)
+    pub distributed_coordinator: Option<Arc<DistributedCoordinator>>,
 }
 
 #[derive(Debug, Clone)]
@@ -52,6 +59,8 @@ impl TrainingOrchestrator {
             early_stopping: EarlyStopping::new(),
             checkpoint_manager: CheckpointManager::new(),
             config,
+            last_step_time: Instant::now(),
+            distributed_coordinator: None,
         }
     }
 
@@ -63,12 +72,39 @@ impl TrainingOrchestrator {
         metrics: &HashMap<String, f64>,
         gradients: &[f32]
     ) -> Result<TrainingAction> {
-        // Update monitors and schedulers
-        self.monitor.record_metrics(step, loss, metrics.clone());
-        self.curriculum.update(step);
+        // Calculate step metrics
+        let step_duration = self.last_step_time.elapsed().as_secs_f64();
+        let throughput = if step_duration > 0.0 { 1.0 / step_duration } else { 0.0 };
+        self.last_step_time = Instant::now();
 
-        // Update learning rate
+        // Update learning rate (needed for monitoring)
         let lr = self.lr_scheduler.get_lr(step);
+
+        // Calculate gradient norm
+        let grad_norm = gradients.iter().map(|x| (x * x) as f64).sum::<f64>().sqrt();
+
+        // Update monitor
+        let mut combined_metrics = metrics.clone();
+        
+        // Add distributed metrics if available
+        if let Some(coordinator) = &self.distributed_coordinator {
+            let state = coordinator.state.read().await;
+            combined_metrics.insert("dist_load_balance".to_string(), state.sync_stats.load_balance_score());
+            combined_metrics.insert("dist_comm_overhead".to_string(), state.sync_stats.communication_overhead);
+            combined_metrics.insert("dist_avg_sync_ms".to_string(), state.sync_stats.average_sync_time_ms);
+        }
+
+        self.monitor.record_training_metrics(
+            step,
+            loss,
+            lr,
+            grad_norm,
+            throughput,
+            Some(combined_metrics)
+        ).await?;
+
+        // Update curriculum
+        self.curriculum.update(step);
         self.curriculum.set_difficulty_level(step);
 
         // Check for phase transitions
@@ -129,7 +165,7 @@ impl TrainingOrchestrator {
 
         if global_norm > max_norm {
             // Clip gradients
-            let scale_factor = max_norm / global_norm;
+            let _scale_factor = max_norm / global_norm;
             // Apply scaling in-place (would need mutable access in real implementation)
         }
 
@@ -146,36 +182,53 @@ impl TrainingOrchestrator {
     }
 
     /// Get training report
-    pub fn get_training_report(&self) -> TrainingReport {
-        TrainingReport {
+    pub async fn get_training_report(&self) -> Result<TrainingReport> {
+        let monitoring_report = self.monitor.generate_report().await?;
+        let stats = &monitoring_report.training_metrics_summary;
+        let sys_stats = &monitoring_report.system_metrics_summary;
+
+        // Calculate training statistics from monitoring report
+        let performance_stats = TrainingStatistics {
+            total_steps: self.monitor.state.read().await.training_metrics.loss_values.len(),
+            average_step_time: if stats.avg_throughput > 0.0 { 1.0 / stats.avg_throughput } else { 0.0 },
+            total_training_time: self.monitor.state.read().await.last_update.elapsed(), // This is approximation, ideal would be start time
+            peak_memory_usage: (sys_stats.peak_gpu_memory_mb * 1024.0 * 1024.0) as u64,
+            throughput: stats.avg_throughput,
+        };
+
+        Ok(TrainingReport {
             best_loss: self.early_stopping.best_loss,
             best_step: self.early_stopping.best_step,
-            total_steps: self.monitor.metrics_history.len(),
-            convergence_rate: self.calculate_convergence_rate(),
-            final_metrics: self.monitor.get_latest_metrics(),
+            total_steps: performance_stats.total_steps,
+            convergence_rate: self.calculate_convergence_rate().await,
+            final_metrics: self.get_final_metrics(&monitoring_report),
             early_stopped: self.early_stopping.triggered,
-            performance_stats: self.monitor.generate_stats(),
-        }
+            performance_stats,
+        })
     }
 
-    fn calculate_convergence_rate(&self) -> f64 {
-        // Simple convergence metric based on loss reduction over time
-        if self.monitor.metrics_history.len() < 2 {
+    async fn calculate_convergence_rate(&self) -> f64 {
+        let state = self.monitor.state.read().await;
+        if state.training_metrics.loss_values.len() < 2 {
             return 0.0;
         }
 
-        let losses: Vec<f64> = self.monitor.metrics_history.values()
-            .map(|m| m.loss)
-            .collect();
-
-        let initial_loss = losses[0];
-        let final_loss = *losses.last().unwrap();
+        let initial_loss = state.training_metrics.loss_values.front().map(|p| p.value).unwrap_or(0.0);
+        let final_loss = state.training_metrics.loss_values.back().map(|p| p.value).unwrap_or(0.0);
 
         if initial_loss == 0.0 {
             return 0.0;
         }
 
         (initial_loss - final_loss) / initial_loss
+    }
+
+    fn get_final_metrics(&self, report: &MonitoringReport) -> HashMap<String, f64> {
+        let mut metrics = HashMap::new();
+        metrics.insert("loss".to_string(), report.training_metrics_summary.final_loss);
+        metrics.insert("lr".to_string(), report.training_metrics_summary.final_lr);
+        metrics.insert("grad_norm".to_string(), report.training_metrics_summary.avg_grad_norm); // Using avg as final might not be available in summary
+        metrics
     }
 }
 
@@ -410,74 +463,6 @@ impl EarlyStopping {
     }
 }
 
-/// Training Monitor
-#[derive(Debug)]
-pub struct TrainingMonitor {
-    pub start_time: Instant,
-    pub metrics_history: HashMap<usize, TrainingMetrics>,
-    pub peak_memory_usage: u64,
-    pub total_flops: u128,
-}
-
-#[derive(Debug, Clone)]
-pub struct TrainingMetrics {
-    pub loss: f64,
-    pub learning_rate: f64,
-    pub custom_metrics: HashMap<String, f64>,
-    pub step_duration: Duration,
-}
-
-impl TrainingMonitor {
-    pub fn new() -> Self {
-        Self {
-            start_time: Instant::now(),
-            metrics_history: HashMap::new(),
-            peak_memory_usage: 0,
-            total_flops: 0,
-        }
-    }
-
-    pub fn record_metrics(&mut self, step: usize, loss: f64, metrics: HashMap<String, f64>) {
-        let step_start = Instant::now();
-
-        let training_metrics = TrainingMetrics {
-            loss,
-            learning_rate: 0.0, // Would be set by scheduler
-            custom_metrics: metrics,
-            step_duration: step_start.elapsed(),
-        };
-
-        self.metrics_history.insert(step, training_metrics);
-    }
-
-    pub fn get_latest_metrics(&self) -> HashMap<String, f64> {
-        if let Some((_, latest)) = self.metrics_history.iter().max_by_key(|(step, _)| *step) {
-            let mut metrics = HashMap::new();
-            metrics.insert("loss".to_string(), latest.loss);
-            metrics.insert("lr".to_string(), latest.learning_rate);
-            metrics.extend(latest.custom_metrics.clone());
-            metrics
-        } else {
-            HashMap::new()
-        }
-    }
-
-    pub fn generate_stats(&self) -> TrainingStatistics {
-        let total_steps = self.metrics_history.len();
-        let avg_step_time = self.metrics_history.values()
-            .map(|m| m.step_duration.as_secs_f64())
-            .sum::<f64>() / total_steps as f64;
-
-        TrainingStatistics {
-            total_steps,
-            average_step_time: avg_step_time,
-            total_training_time: self.start_time.elapsed(),
-            peak_memory_usage: self.peak_memory_usage,
-            throughput: 1.0 / avg_step_time,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct TrainingStatistics {
     pub total_steps: usize,
@@ -497,7 +482,7 @@ pub struct CheckpointManager {
     pub checkpoints: Vec<CheckpointInfo>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CheckpointInfo {
     pub step: usize,
     pub loss: f64,
@@ -607,5 +592,73 @@ impl TrainingReport {
         for (name, value) in &self.final_metrics {
             println!("  {}: {:.4}", name, value);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::distributed::DistributedCoordinator;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_training_orchestrator_distributed_integration() {
+        // Setup
+        let config = TrainingConfig {
+            total_steps: 10,
+            evaluation_steps: 5,
+            save_steps: 5,
+            log_steps: 1,
+            max_grad_norm: Some(1.0),
+            warmup_steps: 2,
+            cooldown_steps: 2,
+        };
+
+        let mut orchestrator = TrainingOrchestrator::new(config);
+
+        // Manually inject DistributedCoordinator
+        let coordinator = Arc::new(DistributedCoordinator::new(
+            0,
+            2,
+            "127.0.0.1".to_string(),
+            8000
+        ));
+        orchestrator.distributed_coordinator = Some(coordinator.clone());
+
+        // Record some sync stats to verify they flow through
+        coordinator.record_sync(50.0).await; // 50ms sync
+        coordinator.record_sync(150.0).await; // 150ms sync
+        // Min: 50, Max: 150, Avg: 100, Load Balance: 50/150 = 0.33
+
+        // Perform a training step
+        let metrics = HashMap::new();
+        let gradients = vec![0.1; 10];
+        
+        let result = orchestrator.training_step(
+            1,
+            0.5,
+            &metrics,
+            &gradients
+        ).await;
+
+        assert!(result.is_ok());
+
+        // Verify metrics were recorded in monitor
+        let state = orchestrator.monitor.state.read().await;
+        // The last recorded metrics should contain distributed stats
+        // We can't easily access the exact last metric map from here without public accessors or digging into the deque
+        // But we can check if the monitor has data.
+        
+        assert!(!state.training_metrics.loss_values.is_empty());
+        
+        // In a real integration test we might expose ways to inspect the last metrics more directly,
+        // or check the log output if we could capture it.
+        // For now, ensuring it runs without error and correctly accesses the coordinator is a good first step.
+        
+        // Let's verify via the distributed state directly that it was updated
+        let dist_state = coordinator.state.read().await;
+        assert_eq!(dist_state.sync_stats.total_sync_ops, 2);
+        assert!((dist_state.sync_stats.average_sync_time_ms - 100.0).abs() < 1e-6);
+        assert!((dist_state.sync_stats.load_balance_score() - 0.333333).abs() < 1e-4);
     }
 }

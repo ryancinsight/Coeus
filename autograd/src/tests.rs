@@ -1,12 +1,13 @@
 //! Tests for the autograd system
 
-use crate::ops::{add, backward_with_grad, cos, exp, log, matmul, mean, mul, nll_loss, sin, sum};
+use crate::ops::{add, backward_with_grad, matmul, mul, nll_loss};
 use backend::CpuBackend;
 use dtype::float::Float32;
-use storage::DenseStorage;
+use storage::{CsrStorage, DenseStorage};
 use tensor::Tensor;
 
 type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
+type SparseTestTensor = Tensor<CpuBackend<Float32>, CsrStorage<Float32>, Float32>;
 
 // Property-based testing imports
 #[cfg(test)]
@@ -35,7 +36,7 @@ fn test_basic_addition_grad() {
     // Backward pass with gradient
     let grad_output = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
     println!("Calling backward_with_grad");
-    backward_with_grad(&z, &grad_output).unwrap();
+    backward_with_grad(&z, grad_output).unwrap();
     println!("backward_with_grad completed");
 
     // Check gradients
@@ -89,12 +90,12 @@ fn test_gradient_accumulation() {
     // First computation: z1 = x + y
     let z1 = add(&x, &y).unwrap();
     let grad1 = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
-    backward_with_grad(&z1, &grad1).unwrap();
+    backward_with_grad(&z1, grad1).unwrap();
 
     // Second computation: z2 = x + y (same operation)
     let z2 = add(&x, &y).unwrap();
     let grad2 = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
-    backward_with_grad(&z2, &grad2).unwrap();
+    backward_with_grad(&z2, grad2).unwrap();
 
     // Gradients should accumulate
     let x_grad = x.grad().unwrap();
@@ -158,7 +159,7 @@ fn test_matmul_backward() {
     )
     .unwrap();
 
-    crate::ops::backward_with_grad(&c, &grad_output).unwrap();
+    crate::ops::backward_with_grad(&c, grad_output).unwrap();
 
     let a_grad = a.grad().unwrap();
     let b_grad = b.grad().unwrap();
@@ -190,7 +191,7 @@ fn test_exp_backward() {
     let grad_output =
         TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
-    crate::ops::backward_with_grad(&y, &grad_output).unwrap();
+    crate::ops::backward_with_grad(&y, grad_output).unwrap();
 
     let x_grad = x.grad().unwrap();
 
@@ -212,7 +213,7 @@ fn test_log_backward() {
     let grad_output =
         TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
-    crate::ops::backward_with_grad(&y, &grad_output).unwrap();
+    crate::ops::backward_with_grad(&y, grad_output).unwrap();
 
     let x_grad = x.grad().unwrap();
 
@@ -237,7 +238,7 @@ fn test_sin_backward() {
     let grad_output =
         TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
-    crate::ops::backward_with_grad(&y, &grad_output).unwrap();
+    crate::ops::backward_with_grad(&y, grad_output).unwrap();
 
     let x_grad = x.grad().unwrap();
 
@@ -263,7 +264,7 @@ fn test_cos_backward() {
     let grad_output =
         TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
-    crate::ops::backward_with_grad(&y, &grad_output).unwrap();
+    crate::ops::backward_with_grad(&y, grad_output).unwrap();
 
     let x_grad = x.grad().unwrap();
 
@@ -395,8 +396,8 @@ fn test_nll_loss_backward() {
     assert!(loss.requires_grad());
 
     // Backward pass
-    let grad_output = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
-    crate::ops::backward_with_grad(&loss, &grad_output).unwrap();
+    let grad_output = TestTensor::from_vec(vec![Float32::new(1.0)], &[]).unwrap();
+    crate::ops::backward_with_grad(&loss, grad_output).unwrap();
 
     // Check gradients: derivative of NLL w.r.t. log_probs should be -1 at target position
     let log_probs_grad = log_probs.grad().unwrap();
@@ -421,11 +422,69 @@ fn test_checkpoint_basic() {
     assert_eq!(result.as_slice()[0].get(), 2.0);
 }
 
+#[test]
+fn test_sparse_matmul_backward() {
+    let backend = CpuBackend::default();
+
+    // Create 2x2 identity matrix (sparse)
+    // [[1, 0], [0, 1]]
+    let data = vec![Float32::new(1.0), Float32::new(1.0)];
+    let indices = vec![0, 1];
+    let indptr = vec![0, 1, 2];
+    let shape = vec![2, 2];
+    let storage = CsrStorage::new(data, indices, indptr, &shape).unwrap();
+
+    let lhs = SparseTestTensor::from_storage(storage.clone(), backend.clone());
+    let lhs = lhs.requires_grad_(true);
+
+    let rhs = SparseTestTensor::from_storage(storage.clone(), backend.clone());
+    let rhs = rhs.requires_grad_(true);
+
+    // Perform matmul: I * I = I
+    let result = matmul(&lhs, &rhs).unwrap();
+
+    // Verify forward result
+        let result_dense = result.to_dense_generic().unwrap();
+        let result_data = result_dense.as_slice();
+
+        assert_eq!(result_data[0].get(), 1.0, "Element (0,0) mismatch");
+        assert_eq!(result_data[1].get(), 0.0, "Element (0,1) mismatch");
+        assert_eq!(result_data[2].get(), 0.0, "Element (1,0) mismatch");
+        assert_eq!(result_data[3].get(), 1.0, "Element (1,1) mismatch");
+
+    // Backward pass
+    // Create sparse gradient of ones (dense representation in CSR)
+    // [[1, 1], [1, 1]] -> indices [0, 1, 0, 1], indptr [0, 2, 4]
+    let grad_data = vec![Float32::new(1.0); 4];
+    let grad_indices = vec![0, 1, 0, 1];
+    let grad_indptr = vec![0, 2, 4];
+    let grad_shape = vec![2, 2];
+    let grad_storage = CsrStorage::new(grad_data, grad_indices, grad_indptr, &grad_shape).unwrap();
+    let grad_output = SparseTestTensor::from_storage(grad_storage, backend.clone());
+    
+    backward_with_grad(&result, grad_output).unwrap();
+
+    // Verify gradients
+    // For C = A * B, if A=I, B=I, dL/dC=Ones
+    // dL/dA = Ones * I^T = Ones
+    // dL/dB = I^T * Ones = Ones
+    
+    let lhs_grad = lhs.grad().unwrap();
+    // lhs_grad is SparseTestTensor (CsrStorage)
+    
+    let lhs_grad_dense = lhs_grad.to_dense_generic().unwrap();
+    let grad_data = lhs_grad_dense.as_slice();
+    for i in 0..4 {
+        assert_eq!(grad_data[i].get(), 1.0);
+    }
+}
+
 // Property-based testing generators and tests for gradient correctness
 #[cfg(test)]
 mod proptest_tests {
     use super::*;
     use proptest::prelude::*;
+    use num_traits::ToPrimitive;
 
     /// Generate random tensor data with reasonable values for autograd
     fn arb_tensor_data(size: usize) -> impl Strategy<Value = Vec<Float32>> {
@@ -510,7 +569,7 @@ mod proptest_tests {
             // Backward with unit gradient
             let grad_out = Tensor::ones(c.shape().dims()).unwrap();
             println!("Calling backward_with_grad");
-            backward_with_grad(&c, &grad_out).unwrap();
+            backward_with_grad(&c, grad_out).unwrap();
 
             // Check that gradients are all ones (broadcasted)
             let a_actual_grad = a_grad.grad().unwrap();
@@ -534,7 +593,7 @@ mod proptest_tests {
 
             // Backward with unit gradient
             let grad_out = Tensor::ones(c.shape().dims()).unwrap();
-            backward_with_grad(&c, &grad_out).unwrap();
+            backward_with_grad(&c, grad_out).unwrap();
 
             // Check gradients: d/dx (a*b) = b, d/dy (a*b) = a
             let a_actual_grad = a_grad.grad().unwrap();
@@ -564,7 +623,7 @@ mod proptest_tests {
 
             // Backward with unit gradient
             let grad_out = Tensor::ones(c.shape().dims()).unwrap();
-            backward_with_grad(&c, &grad_out).unwrap();
+            backward_with_grad(&c, grad_out).unwrap();
 
             // Gradients should be computed without errors
             let a_actual_grad = a_grad.grad().unwrap();
@@ -575,11 +634,42 @@ mod proptest_tests {
             prop_assert!(b_actual_grad.as_slice().iter().all(|&x: &Float32| x.is_finite()));
         }
 
-        /// Test NLL loss gradient correctness under finite difference approximation
-        // Temporarily disabled due to performance issues - needs optimization for production testing
-        // fn test_nll_loss_gradient_finite_difference((ref log_probs, ref targets) in arb_nll_loss_pair()) {
-        //     // ... implementation disabled for production readiness
-        // }
+        /// Test NLL Loss gradient correctness
+        #[test]
+        fn test_nll_loss_gradient_correctness((ref log_probs, ref targets) in arb_nll_loss_pair()) {
+            let log_probs_grad = log_probs.clone().requires_grad_(true);
+            
+            // Extract dimensions from tensors
+            let batch_size = log_probs.shape().dims()[0];
+            let n_classes = log_probs.shape().dims()[1];
+            
+            // Forward pass
+            let loss = nll_loss(&log_probs_grad, targets).unwrap();
+            
+            // Backward pass
+            let grad_output = Tensor::ones(loss.shape().dims()).unwrap();
+            backward_with_grad(&loss, grad_output).unwrap();
+            
+            let grad = log_probs_grad.grad().unwrap();
+            let grad_slice = grad.as_slice();
+            let targets_slice = targets.as_slice();
+            
+            // Verify gradients: -1/N at target index, 0 elsewhere
+            let scale = -1.0 / (batch_size as f32);
+            
+            for i in 0..batch_size {
+                let target_idx = targets_slice[i].to_usize().unwrap_or(0);
+                for c in 0..n_classes {
+                    let flat_idx = i * n_classes + c;
+                    let expected = if c == target_idx { scale } else { 0.0 };
+                    // Use a slightly larger epsilon for accumulated errors or float precision
+                    if (grad_slice[flat_idx].get() - expected).abs() >= 1e-4 {
+                         panic!("Gradient mismatch at batch {} class {}: expected {}, got {}", 
+                        i, c, expected, grad_slice[flat_idx].get());
+                    }
+                }
+            }
+        }
 
         /// Test gradient stability: gradients should be finite for reasonable inputs
         #[test]
@@ -591,7 +681,7 @@ mod proptest_tests {
             // Test addition
             let add_result = add(&a_grad, &b_grad).unwrap();
             let grad_out = Tensor::ones(add_result.shape().dims()).unwrap();
-            let add_backward = backward_with_grad(&add_result, &grad_out);
+            let add_backward = backward_with_grad(&add_result, grad_out.clone());
             if add_backward.is_ok() {
                 let add_grad_a = a_grad.grad().unwrap();
                 let add_grad_b = b_grad.grad().unwrap();
@@ -605,7 +695,7 @@ mod proptest_tests {
 
             // Test multiplication
             let mul_result = mul(&a_grad, &b_grad).unwrap();
-            let mul_backward = backward_with_grad(&mul_result, &grad_out);
+            let mul_backward = backward_with_grad(&mul_result, grad_out);
             if mul_backward.is_ok() {
                 let mul_grad_a = a_grad.grad().unwrap();
                 let mul_grad_b = b_grad.grad().unwrap();
@@ -629,8 +719,8 @@ mod proptest_tests {
 
             // Backward both losses
             let grad_out = Tensor::from_vec(vec![Float32::new(1.0); a.len()], &[a.len()]).unwrap();
-            backward_with_grad(&loss1, &grad_out).unwrap();
-            backward_with_grad(&loss2, &grad_out).unwrap();
+            backward_with_grad(&loss1, grad_out.clone()).unwrap();
+            backward_with_grad(&loss2, grad_out).unwrap();
 
             // Gradient should be accumulated (2.0 for each element)
             let accumulated_grad = a_grad.grad().unwrap();
@@ -648,7 +738,7 @@ mod proptest_tests {
 
             // Even without gradients, operations should not panic
             let grad_out = Tensor::ones(result.shape().dims()).unwrap();
-            let backward_result = backward_with_grad(&result, &grad_out);
+            let backward_result = backward_with_grad(&result, grad_out);
             prop_assert!(backward_result.is_ok()); // Should succeed gracefully
         }
     }

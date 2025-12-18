@@ -23,7 +23,7 @@ use super::attention::CrossModalAttention;
 ///
 /// Different fusion strategies offer trade-offs between computational complexity,
 /// representational capacity, and cross-modal interaction depth.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FusionStrategy {
     /// Early fusion: concatenate all modality inputs before any processing
     /// - Pros: Simple, preserves all cross-modal interactions

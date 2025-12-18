@@ -7,13 +7,13 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose};
 
-use crate::state::{CLIPService, SemanticError};
-use crate::errors::ErrorHandler;
+use crate::state::CLIPService;
+use crate::errors::{SemanticError, ErrorHandler};
 
 // Import core crates
 use nn::clip::ClipModel;
 use backend::{Backend, GpuBackend};
-use storage::{Storage, StorageFromVec, DenseStorage};
+use storage::{Storage, StorageFromVec};
 use dtype::{DataType, traits::FloatExt, float::Float32};
 
 /// Real CLIP service using GPU-accelerated CLIP models
@@ -21,7 +21,7 @@ pub struct RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T>,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + backend::num_traits::FromPrimitive + backend::num_traits::Bounded,
 {
     /// CLIP model instance
     clip_model: Arc<ClipModel<B, S, T>>,
@@ -37,7 +37,7 @@ impl<B, S, T> RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
     S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone + backend::num_traits::FromPrimitive + backend::num_traits::Bounded,
 {
     /// Create a new CLIP service with the specified backend
     pub fn new(clip_model: ClipModel<B, S, T>) -> Self {
@@ -54,7 +54,7 @@ where
         println!("🎯 Initializing GPU-accelerated CLIP service");
 
         // Initialize GPU backend
-        let gpu_backend = GpuBackend::<Float32>::new()
+        let _gpu_backend = GpuBackend::<Float32>::new()
             .await
             .map_err(|e| SemanticError::ServiceUnavailable(
                 format!("Failed to initialize GPU backend: {}", e)
@@ -157,7 +157,7 @@ impl<B, S, T> CLIPService for RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
     S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone + backend::num_traits::FromPrimitive + backend::num_traits::Bounded,
 {
     async fn encode_text(&self, text: &str) -> Result<Vec<f32>, SemanticError> {
         let start_time = std::time::Instant::now();
@@ -232,7 +232,7 @@ impl crate::state::VectorDatabase for InMemoryVectorDB {
         Ok(())
     }
 
-    async fn search(&self, query_embedding: &[f32], top_k: usize) -> Result<Vec<crate::state::SearchResult>, SemanticError> {
+    async fn search(&self, query_embedding: &[f32], top_k: usize) -> Result<Vec<crate::state::VectorSearchResult>, SemanticError> {
         let entries = self.entries.read().map_err(|_| {
             SemanticError::ServiceUnavailable("Vector database lock poisoned".to_string())
         })?;
@@ -240,15 +240,15 @@ impl crate::state::VectorDatabase for InMemoryVectorDB {
         let mut results: Vec<_> = entries.iter()
             .map(|(id, (emb, meta)): (&String, &(Vec<f32>, serde_json::Value))| {
                 let similarity = cosine_similarity(query_embedding, emb);
-                crate::state::SearchResult {
+                crate::state::VectorSearchResult {
                     id: id.clone(),
-                    score: similarity,
+                    similarity,
                     metadata: meta.clone(),
                 }
             })
             .collect();
 
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
         Ok(results.into_iter().take(top_k).collect())
     }
 
@@ -314,6 +314,37 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::VectorDatabase;
+
+    #[tokio::test]
+    async fn test_vector_database() {
+        let db = InMemoryVectorDB::new();
+
+        // Add some test data
+        db.add("test1".to_string(), vec![1.0f32, 0.0, 0.0], serde_json::json!({"name": "test1"})).await.unwrap();
+        db.add("test2".to_string(), vec![0.0f32, 1.0, 0.0], serde_json::json!({"name": "test2"})).await.unwrap();
+
+        // Search
+        let results = db.search(&[1.0f32, 0.0, 0.0], 5).await.unwrap();
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].id, "test1");
+        assert_eq!(results[0].similarity, 1.0);
+
+        // Stats
+        let stats = db.stats().await.unwrap();
+        assert_eq!(stats.total_items, 2);
+        assert_eq!(stats.embedding_dim, 3);
+    }
+
+    #[test]
+    fn test_cosine_similarity() {
+        let a = vec![1.0f32, 0.0, 0.0];
+        let b = vec![1.0f32, 0.0, 0.0];
+        assert_eq!(cosine_similarity(&a, &b), 1.0);
+
+        let c = vec![0.0f32, 1.0, 0.0];
+        assert_eq!(cosine_similarity(&a, &c), 0.0);
+    }
 
     #[tokio::test]
     async fn test_clip_service_health_check() {
@@ -349,35 +380,4 @@ mod tests {
         let embedding = service.encode_image(&png_data).await.unwrap();
         assert_eq!(embedding.len(), 512);
     }
-
-    #[tokio::test]
-    async fn test_vector_database() {
-        let db = InMemoryVectorDB::new();
-
-        // Add some test data
-        db.add("test1".to_string(), vec![1.0, 0.0, 0.0], serde_json::json!({"name": "test1"})).await.unwrap();
-        db.add("test2".to_string(), vec![0.0, 1.0, 0.0], serde_json::json!({"name": "test2"})).await.unwrap();
-
-        // Search
-        let results = db.search(&[1.0, 0.0, 0.0], 5).await.unwrap();
-        assert_eq!(results.len(), 2);
-        assert_eq!(results[0].id, "test1");
-        assert_eq!(results[0].similarity, 1.0);
-
-        // Stats
-        let stats = db.stats().await.unwrap();
-        assert_eq!(stats.total_items, 2);
-        assert_eq!(stats.embedding_dim, 3);
-    }
-
-    #[test]
-    fn test_cosine_similarity() {
-        let a = vec![1.0, 0.0, 0.0];
-        let b = vec![1.0, 0.0, 0.0];
-        assert_eq!(cosine_similarity(&a, &b), 1.0);
-
-        let c = vec![0.0, 1.0, 0.0];
-        assert_eq!(cosine_similarity(&a, &c), 0.0);
-    }
 }
-

@@ -34,12 +34,13 @@ pub struct DistributedOptimizer<O, B, S> {
 impl<O, B, S> DistributedOptimizer<O, B, S>
 where
     O: Optimizer<B, S, Float32>,
-    B: Send + Sync + coeus_backend::Backend<Float32>,
+    B: Send + Sync + backend::Backend<Data = Float32>,
     S: Send
         + Sync
-        + coeus_storage::Storage<Float32>
+        + storage::Storage<Float32>
         + Clone
-        + coeus_storage::StorageFromVec<Float32>
+        + storage::StorageFromVec<Float32>
+        + storage::StorageToDense<Float32>
         + 'static,
 {
     /// Create a new distributed optimizer wrapper
@@ -115,7 +116,7 @@ where
                 let float32_data: Vec<Float32> =
                     grad_data.iter().map(|&x| Float32::new(x)).collect();
                 // Create gradient tensor using the same backend as the parameter
-                let grad_tensor = Tensor::from_vec_with_backend(
+                let grad_tensor: Tensor<B, S, Float32> = Tensor::from_vec_with_backend(
                     float32_data,
                     parameter.shape().dims(),
                     parameter.backend().clone(),
@@ -154,12 +155,13 @@ where
 impl<O, B, S> DistributedOptimizer<O, B, S>
 where
     O: Optimizer<B, S, Float32>,
-    B: Send + Sync + coeus_backend::Backend<Float32>,
+    B: Send + Sync + backend::Backend<Data = Float32>,
     S: Send
         + Sync
-        + coeus_storage::Storage<Float32>
+        + storage::Storage<Float32>
         + Clone
-        + coeus_storage::StorageFromVec<Float32>
+        + storage::StorageFromVec<Float32>
+        + storage::StorageToDense<Float32>
         + 'static,
 {
     /// Create from existing process group (for advanced usage)

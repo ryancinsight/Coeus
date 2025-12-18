@@ -1,4 +1,8 @@
 use super::tensor::PyTensor;
+use backend::CpuBackend;
+use dtype::float::Float32;
+use nn::Module;
+use storage::DenseStorage;
 use pyo3::prelude::*;
 use pyo3::{pyfunction, PyResult, PyErr};
 
@@ -116,6 +120,34 @@ pub fn avg_pool2d(
     Ok(PyTensor { inner: result })
 }
 
-// TODO: Implement Conv2D functional API when available
+/// Dropout function
+#[pyfunction]
+#[pyo3(signature = (input, p=0.5, training=true))]
+pub fn dropout(input: &PyTensor, p: f64, training: bool) -> PyResult<PyTensor> {
+    let mut dropout_layer = nn::Dropout::new(p);
+    dropout_layer.training = training;
+    let result = Module::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::forward(&dropout_layer, &input.inner)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Dropout operation failed: {:?}", e)))?;
+    Ok(PyTensor { inner: result })
+}
 
-// TODO: Implement BatchNorm functional API when available
+/// Layer normalization function
+#[pyfunction]
+#[pyo3(signature = (input, normalized_shape, weight=None, bias=None, eps=1e-5))]
+pub fn layer_norm(
+    input: &PyTensor,
+    normalized_shape: Vec<usize>,
+    weight: Option<&PyTensor>,
+    bias: Option<&PyTensor>,
+    eps: Option<f64>,
+) -> PyResult<PyTensor> {
+    let result = nn::functional::layer_norm(
+        &input.inner,
+        &normalized_shape,
+        weight.map(|w| &w.inner),
+        bias.map(|b| &b.inner),
+        eps,
+    )
+    .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("LayerNorm failed: {:?}", e)))?;
+    Ok(PyTensor { inner: result })
+}

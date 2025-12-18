@@ -5,10 +5,15 @@
 //! advanced parallelism strategies for training large language and vision models.
 
 // Re-export the main module
-pub use crate::*;
+// pub use crate::*;
+
+// Error handling
+pub mod error;
+pub use error::{NNError, Result};
 
 // Core training infrastructure
 pub mod training;
+pub mod trainer;
 
 // Transformer architectures
 pub mod transformers;
@@ -20,7 +25,7 @@ pub mod distributed;
 pub mod memory;
 
 // Parallelism strategies
-pub mod parallelism;
+// pub mod parallelism;
 
 // Training optimization
 pub mod optimization;

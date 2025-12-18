@@ -64,7 +64,7 @@ impl ModelLoader {
     ) -> Result<LoadedModel<M, B, T>>
     where
         M: Module<B, S, T>,
-        B: Backend,
+        B: Backend<Data = T>,
         S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
         T: DataType,
     {
@@ -141,7 +141,7 @@ impl ModelLoader {
     fn deserialize_model<M, B, S, T>(&self, _data: &[u8], _entry: &ModelEntry) -> Result<M>
     where
         M: Module<B, S, T>,
-        B: Backend,
+        B: Backend<Data = T>,
         S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
         T: DataType,
     {

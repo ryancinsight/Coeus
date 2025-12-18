@@ -1050,7 +1050,7 @@ mod tests {
             algorithm_type: BenchmarkAlgorithmType::NAS(AlgorithmVariant::Evolutionary),
             hyperparameters: HashMap::from([
                 ("population_size".to_string(), serde_json::Value::Number(50.into())),
-                ("mutation_rate".to_string(), serde_json::Value::Number(0.1.into())),
+                ("mutation_rate".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(0.1).unwrap())),
             ]),
             search_budget: 1000,
             random_seed: Some(42),

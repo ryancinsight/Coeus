@@ -52,7 +52,7 @@ pub enum SemanticError {
     HttpError(#[from] reqwest::Error),
 
     #[error("Metrics error: {0}")]
-    MetricsError(#[from] metrics::SetRecorderError<metrics::SetError>),
+    MetricsError(String),
 }
 
 impl SemanticError {

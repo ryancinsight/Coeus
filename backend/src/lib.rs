@@ -262,23 +262,27 @@ impl BackendSelector {
         // This is a lightweight check that doesn't create actual GPU resources
         #[cfg(feature = "gpu")]
         {
-            // Use tokio to run async GPU detection
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .ok()
-                .map(|rt| rt.block_on(async {
-                    // Try to create WGPU instance and adapter
-                    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
-                    let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
-                        power_preference: wgpu::PowerPreference::HighPerformance,
-                        compatible_surface: None,
-                        force_fallback_adapter: false,
-                    }).await;
+            // Use a separate thread to avoid "runtime within runtime" issues
+            std::thread::spawn(|| {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .ok()
+                    .map(|rt| rt.block_on(async {
+                        // Try to create WGPU instance and adapter
+                        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+                        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
+                            power_preference: wgpu::PowerPreference::HighPerformance,
+                            compatible_surface: None,
+                            force_fallback_adapter: false,
+                        }).await;
 
-                    adapter.is_some()
-                }))
-                .unwrap_or(false)
+                        adapter.is_some()
+                    }))
+                    .unwrap_or(false)
+            })
+            .join()
+            .unwrap_or(false)
         }
         #[cfg(not(feature = "gpu"))]
         {

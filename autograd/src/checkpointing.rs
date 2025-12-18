@@ -192,7 +192,7 @@ impl CheckpointState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dtype::{float::Float32, DataType};
+    use dtype::float::Float32;
     use tensor::Tensor;
 
     #[test]

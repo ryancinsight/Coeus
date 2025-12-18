@@ -180,18 +180,21 @@ impl AdvancedOptimizer {
         }
 
         // Execute the specific optimizer algorithm
-        match &self.optimizer_type {
+        // Clone configuration to avoid borrowing self while calling mutable methods
+        let optimizer_type = self.optimizer_type.clone();
+
+        match optimizer_type {
             OptimizerType::Lionel(config) => {
-                self.lionel_step(&processed_grads, config).await
+                self.lionel_step(&processed_grads, &config).await
             },
             OptimizerType::Sophia(config) => {
-                self.sophia_step(&processed_grads, config).await
+                self.sophia_step(&processed_grads, &config).await
             },
             OptimizerType::MemoryAdam(config) => {
-                self.memory_adam_step(&processed_grads, config).await
+                self.memory_adam_step(&processed_grads, &config).await
             },
             OptimizerType::PreconditionedAdam(config) => {
-                self.preconditioned_adam_step(&processed_grads, config).await
+                self.preconditioned_adam_step(&processed_grads, &config).await
             },
             OptimizerType::Custom(_) => {
                 self.custom_optimizer_step(&processed_grads).await
@@ -233,17 +236,17 @@ impl AdvancedOptimizer {
     }
 
     /// Apply lookahead optimization
-    async fn apply_lookahead(&mut self, gradients: &HashMap<String, Vec<f32>>, steps: usize) -> Result<()> {
+    async fn apply_lookahead(&mut self, _gradients: &HashMap<String, Vec<f32>>, _steps: usize) -> Result<()> {
         // Lookahead implementation
         // Store current parameters, apply updates for K steps, then interpolate
         Ok(())
     }
 
     /// Lionel optimizer step implementation
-    async fn lionel_step(&mut self, gradients: &HashMap<String, Vec<f32>>, config: &LionelConfig) -> Result<()> {
+    async fn lionel_step(&mut self, gradients: &HashMap<String, Vec<f32>>, _config: &LionelConfig) -> Result<()> {
         // Lionel: Exponential Moving Average of Sign of Gradients
-        for (param_name, grad) in gradients {
-            let group = self.get_param_group_for_param(param_name)?;
+        for (param_name, _grad) in gradients {
+            let _group = self.get_param_group_for_param(param_name)?;
 
             // Update logic: c = β₁*c + (1-β₁)*g, m = β₂*m + (1-β₂)*sign(g)
             // θ = θ - η * sign(m)
@@ -255,10 +258,10 @@ impl AdvancedOptimizer {
     }
 
     /// Sophia optimizer step implementation
-    async fn sophia_step(&mut self, gradients: &HashMap<String, Vec<f32>>, config: &SophiaConfig) -> Result<()> {
+    async fn sophia_step(&mut self, gradients: &HashMap<String, Vec<f32>>, _config: &SophiaConfig) -> Result<()> {
         // Sophia: Second-order optimization with clipping
-        for (param_name, grad) in gradients {
-            let group = self.get_param_group_for_param(param_name)?;
+        for (param_name, _grad) in gradients {
+            let _group = self.get_param_group_for_param(param_name)?;
 
             // Second-order update with Hessian estimation
             // m = β₁*m + (1-β₁)*g
@@ -274,7 +277,7 @@ impl AdvancedOptimizer {
     /// Memory-efficient Adam step implementation
     async fn memory_adam_step(&mut self, gradients: &HashMap<String, Vec<f32>>, config: &MemoryAdamConfig) -> Result<()> {
         for (param_name, grad) in gradients {
-            let group = self.get_param_group_for_param(param_name)?;
+            let _group = self.get_param_group_for_param(param_name)?;
 
             // 8-bit compressed Adam update if enabled
             if config.use_8bit {
@@ -291,10 +294,10 @@ impl AdvancedOptimizer {
     async fn preconditioned_adam_step(&mut self, gradients: &HashMap<String, Vec<f32>>, config: &PreconditionedConfig) -> Result<()> {
         // Preconditioned Adam with L-BFGS style preconditioning
         for (param_name, grad) in gradients {
-            let group = self.get_param_group_for_param(param_name)?;
+            let _group = self.get_param_group_for_param(param_name)?;
 
             // Apply preconditioner to gradient
-            let preconditioned_grad = self.apply_preconditioner(grad, param_name, config)?;
+            let _preconditioned_grad = self.apply_preconditioner(grad, param_name, config)?;
 
             // Standard Adam update with preconditioned gradient
             // This would update actual parameters
@@ -304,7 +307,7 @@ impl AdvancedOptimizer {
     }
 
     /// Custom optimizer step implementation
-    async fn custom_optimizer_step(&mut self, gradients: &HashMap<String, Vec<f32>>) -> Result<()> {
+    async fn custom_optimizer_step(&mut self, _gradients: &HashMap<String, Vec<f32>>) -> Result<()> {
         // Placeholder for custom optimizer logic
         Ok(())
     }
@@ -322,13 +325,13 @@ impl AdvancedOptimizer {
         })
     }
 
-    fn eight_bit_adam_update(&self, param_name: &str, grad: &[f32], config: &MemoryAdamConfig) -> Result<()> {
+    fn eight_bit_adam_update(&self, _param_name: &str, _grad: &[f32], _config: &MemoryAdamConfig) -> Result<()> {
         // 8-bit Adam implementation with block-wise quantization
         // Compress gradients and optimizer states to 8 bits
         Ok(())
     }
 
-    fn standard_adam_update(&self, param_name: &str, grad: &[f32], config: &MemoryAdamConfig) -> Result<()> {
+    fn standard_adam_update(&self, _param_name: &str, _grad: &[f32], _config: &MemoryAdamConfig) -> Result<()> {
         // Standard Adam implementation
         // m = β₁*m + (1-β₁)*g
         // v = β₂*v + (1-β₂)*g²
@@ -345,13 +348,13 @@ impl AdvancedOptimizer {
             },
             PreconditionerType::LBFGS => {
                 // L-BFGS preconditioning
-                self.lbfgs_preconditioner(grad, param_name)
+                Ok(self.lbfgs_preconditioner(grad, param_name))
             },
             _ => Ok(grad.to_vec()),
         }
     }
 
-    fn lbfgs_preconditioner(&self, grad: &[f32], param_name: &str) -> Vec<f32> {
+    fn lbfgs_preconditioner(&self, grad: &[f32], _param_name: &str) -> Vec<f32> {
         // L-BFGS preconditioning for faster convergence
         grad.to_vec() // Placeholder
     }
@@ -381,7 +384,7 @@ impl AdvancedOptimizer {
 }
 
 /// Learning Rate Scheduler Trait
-pub trait LRSchedulerTrait {
+pub trait LRSchedulerTrait: std::fmt::Debug {
     fn step(&mut self, step: f64) -> f64;
     fn get_lr(&self) -> f64;
 }
@@ -714,10 +717,10 @@ mod tests {
         assert!(original_norm > 1.0);
 
         // Clipped gradients should have smaller total norm
-        let clipped_sum_sq: f64 = gradients.values()
+        let clipped_sum_sq: f64 = clipped.values()
             .flat_map(|x| x.iter().map(|v| (*v as f64).powi(2)))
             .sum();
         let clipped_norm = clipped_sum_sq.sqrt();
-        assert!(clipped_norm <= 1.0);
+        assert!(clipped_norm <= 1.0 + 1e-6); // Allow small float error
     }
 }

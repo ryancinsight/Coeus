@@ -192,13 +192,15 @@ fn calculate_accuracy(predictions: &Tensor<CpuBackend<Float32>, DenseStorage<Flo
 }
 
 /// Training loop with monitoring and early stopping
-fn train_model(
+async fn train_model(
     model: &mut Sequential<Box<dyn Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>>,
     train_dataset: &SyntheticDataset,
     val_dataset: &SyntheticDataset,
     config: &TrainingConfig,
 ) -> Result<MetricsCollector, Box<dyn std::error::Error>> {
-    println!("🚀 Starting training...");
+    println!("\n🏋️  Starting training...");
+    println!("  Epochs: {}", config.num_epochs);
+    println!("  Batch size: {}", config.batch_size);
 
     // Initialize optimizer
     let mut optimizer = Adam::new(config.learning_rate).unwrap();
@@ -300,7 +302,7 @@ fn train_model(
     }
 
     // Generate training report
-    let report = monitor.generate_report();
+    let report = monitor.generate_report().await?;
     println!("\n📋 Detailed Training Report:");
     println!("{}", report.summary());
 
@@ -369,7 +371,8 @@ fn save_checkpoint(
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Coeus Comprehensive Training Example");
     println!("=======================================");
 
@@ -419,7 +422,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Total parameters: {}", total_params);
 
     // Train model
-    let metrics = train_model(&mut model, &train_dataset, &val_dataset, &config)?;
+    let metrics = train_model(&mut model, &train_dataset, &val_dataset, &config).await?;
 
     // Save checkpoint
     if let (Some(final_loss), Some(final_acc)) = (metrics.val_losses.last(), metrics.val_accuracies.last()) {

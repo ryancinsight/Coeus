@@ -484,7 +484,7 @@ mod tests {
         embeddings.insert(Modality::Vision, vision_tensor);
 
         let combined = transformer.combine_modality_embeddings(&embeddings).unwrap();
-        assert_eq!(combined.shape(), &[1, 10, 768]);
+        assert_eq!(combined.shape().dims(), &[1, 10, 768]);
     }
 
     #[test]
@@ -508,7 +508,7 @@ mod tests {
 
         let primary = transformer.select_primary_modality(&embeddings).unwrap();
         // Should prefer language modality
-        assert_eq!(primary.shape(), &[1, 10, 768]);
+        assert_eq!(primary.shape().dims(), &[1, 10, 768]);
         // Check that it's the language tensor (sum should be 2.0 * 768 * 10)
         let sum: f32 = primary.as_slice().iter().map(|x| x.get()).sum();
         assert_eq!(sum, 2.0 * 768.0 * 10.0);
@@ -533,6 +533,6 @@ mod tests {
 
         let primary = transformer.select_primary_modality(&embeddings).unwrap();
         // Should return the only available modality
-        assert_eq!(primary.shape(), &[1, 10, 768]);
+        assert_eq!(primary.shape().dims(), &[1, 10, 768]);
     }
 }

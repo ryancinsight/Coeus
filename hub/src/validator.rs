@@ -51,7 +51,7 @@ impl ModelValidator {
     }
 
     /// Validate a loaded model
-    pub fn validate<M, B: Backend<Data = T>, S, T>(
+    pub fn validate<M, B, S, T>(
         &self,
         model: &M,
         test_input: &tensor::Tensor<B, S, T>,
@@ -59,7 +59,7 @@ impl ModelValidator {
     ) -> Result<ValidationResult>
     where
         M: Module<B, S, T>,
-        B: Backend,
+        B: Backend<Data = T>,
         S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
         T: DataType,
     {
@@ -154,8 +154,8 @@ impl ModelValidator {
         result: &mut ValidationResult,
     ) -> Result<()>
     where
-        B: Backend,
-        S: storage::Storage<T> + 'static,
+        B: Backend<Data = T>,
+        S: storage::Storage<T> + 'static + storage::StorageFromVec<T>,
         T: DataType,
     {
         // Basic numerical validation - check for NaN/inf values
@@ -163,7 +163,7 @@ impl ModelValidator {
 
         // Estimate memory usage (simplified)
         let shape_size: usize = output.shape().dims().iter().product();
-        result.metrics.memory_usage_bytes = shape_size * std::mem::size_of::<f32>(); // Assume f32
+        result.metrics.memory_usage_bytes = shape_size * std::mem::size_of::<T>(); // Assume f32
 
         // Placeholder for more sophisticated validation
         result.metrics.confidence_score = 0.85; // Placeholder

@@ -433,21 +433,33 @@ where
 
     fn forward_autograd(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
     where
-        T: FloatExt + From<f64>,
-        B: Backend<Data = T> + Default + 'static,
-        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
+        T: FloatExt + From<f64> + Copy + 'static,
+        B: Backend<Data = T> + Default + Send + Sync + 'static,
+        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Send + Sync + 'static,
     {
-        // For autograd-enabled forward pass, we need to create a computation graph
-        // that tracks gradients. This is a simplified implementation that demonstrates
-        // the concept. A full implementation would integrate with the tensor autograd system.
+        #[cfg(feature = "autograd")]
+        {
+            // 1. Get weight tensor from parameter
+            let weight = self.weight.data();
 
-        // Enable gradient tracking on parameters if they don't already have it
-        let weight_data = self.weight.data();
-        let bias_data = self.bias.data();
+            // 2. Transpose weight: [out_features, in_features] -> [in_features, out_features]
+            // We use the autograd-aware transpose operation to track gradients
+            let weight_t = autograd::ops::transpose(weight, 1, 0)?;
 
-        // For now, fall back to regular forward pass
-        // TODO: Implement full autograd integration with Function objects
-        self.forward(input)
+            // 3. Matmul: input @ weight_t
+            let output = autograd::ops::matmul(input, &weight_t)?;
+
+            // 4. Add bias
+            let bias = self.bias.data();
+            let result = autograd::ops::add(&output, bias)?;
+
+            Ok(result)
+        }
+        #[cfg(not(feature = "autograd"))]
+        {
+            // Fallback to regular forward if autograd is disabled
+            self.forward(input)
+        }
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {

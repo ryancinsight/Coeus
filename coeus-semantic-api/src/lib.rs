@@ -3,17 +3,12 @@
 //! Production-grade REST API for CLIP semantic search with comprehensive
 //! error handling, monitoring, and enterprise features.
 
-use std::sync::Arc;
-
 use axum::{
-    extract::{self, State},
-    http::StatusCode,
-    response::IntoResponse,
     routing::{get, post},
-    Json, Router,
+    Router,
     middleware,
 };
-use serde::{Deserialize, Serialize};
+// use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -29,7 +24,7 @@ pub use crate::custom_middleware::*;
 pub use crate::errors::*;
 
 // Add async_trait for async trait methods
-#[macro_use]
+// #[macro_use]
 extern crate async_trait;
 
 /// Core API module
@@ -111,7 +106,7 @@ pub fn init_tracing() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Initialize metrics for monitoring
 pub fn init_metrics() -> Result<(), Box<dyn std::error::Error>> {
-    use metrics_exporter_prometheus::Matcher;
+    // use metrics_exporter_prometheus::Matcher;
 
     // Initialize global recorder for Prometheus metrics
     let builder = metrics_exporter_prometheus::PrometheusBuilder::new();
@@ -121,7 +116,7 @@ pub fn init_metrics() -> Result<(), Box<dyn std::error::Error>> {
     // Register standard metrics
     metrics::counter!("requests_total");
     metrics::histogram!("request_duration_seconds");
-    metrics::gauge("search_index_size").set(0.0);
+    metrics::gauge!("search_index_size").set(0.0);
 
     Ok(())
 }
@@ -133,7 +128,7 @@ mod tests {
     use axum::body::Body;
     use axum::extract::Request;
     use http::StatusCode;
-    use tower::ServiceExt;
+    use tower::util::ServiceExt;
 
     #[tokio::test]
     async fn test_health_check() {

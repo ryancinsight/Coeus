@@ -23,9 +23,9 @@ pub struct DataParallel<M, B, S, T> {
 impl<M, B, S, T> DataParallel<M, B, S, T>
 where
     M: Module<B, S, T> + Send + Sync,
-    B: Send + Sync + coeus_backend::Backend<T>,
-    S: Send + Sync + coeus_storage::Storage<T> + Clone + coeus_storage::StorageFromVec<T> + 'static,
-    T: Send + Sync + coeus_dtype::DataType,
+    B: Send + Sync + backend::Backend<Data = T>,
+    S: Send + Sync + storage::Storage<T> + Clone + storage::StorageFromVec<T> + storage::StorageToDense<T> + 'static,
+    T: Send + Sync + dtype::DataType,
 {
     /// Create a new data parallel wrapper
     ///
@@ -83,8 +83,8 @@ where
     /// Forward pass through the model
     pub fn forward(
         &self,
-        input: &coeus_tensor::Tensor<B, S, T>,
-    ) -> std::result::Result<coeus_tensor::Tensor<B, S, T>, NNError> {
+        input: &tensor::Tensor<B, S, T>,
+    ) -> std::result::Result<tensor::Tensor<B, S, T>, NNError> {
         self.model.forward(input)
     }
 
@@ -138,34 +138,12 @@ where
     ///
     /// This computes gradients and synchronizes them across all devices
     /// in the distributed group for consistent model updates.
-    pub async fn backward(&mut self, _loss: &coeus_tensor::Tensor<B, S, T>) -> Result<()> {
-        // Compute gradients locally (production would call model.backward(loss))
-        let param_names = self.get_parameter_names();
-
-        for param_name in param_names {
-            // Get the parameter size from the reducer
-            let param_size = self
-                .gradient_reducer
-                .get_parameter_size(&param_name)
-                .unwrap_or(4); // Default to small size if not registered
-
-            // Use zero gradients for testing (production would use actual computed gradients)
-            let gradients = vec![0.0f32; param_size];
-
-            if self.use_gpu_sync {
-                // Use GPU-accelerated gradient reduction
-                self.gradient_reducer
-                    .reduce_gradients_gpu(&param_name, &gradients)
-                    .await?;
-            } else {
-                // Use CPU gradient reduction
-                self.gradient_reducer
-                    .reduce_gradients(&param_name, &gradients)
-                    .await?;
-            }
-        }
-
-        Ok(())
+    pub async fn backward(&mut self, _loss: &tensor::Tensor<B, S, T>) -> Result<()> {
+        // In a real implementation, this would trigger the backward pass
+        // and gradient synchronization.
+        // For now, we assume gradients are already computed by the autograd engine.
+        
+        self.synchronize_gradients().await
     }
 
     /// Register all model parameters with the gradient reducer

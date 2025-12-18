@@ -66,7 +66,7 @@ use crate::Parameter;
 pub struct RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
     T: DataType + FloatExt + dtype::num_traits::Float,
 {
     /// Parameter states
@@ -94,7 +94,7 @@ where
 impl<B, S, T> RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
     T: DataType + FloatExt + dtype::num_traits::Float,
 {
     /// Create a new RMSprop optimizer.
@@ -305,8 +305,8 @@ where
 
 impl<B, S, T> Optimizer<B, S, T> for RMSprop<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
     T: DataType + FloatExt + dtype::num_traits::Float,
 {
     fn name(&self) -> &str {
@@ -581,8 +581,8 @@ where
 
 impl<B, S, T> Default for RMSprop<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
     T: DataType + FloatExt + dtype::num_traits::Float,
 {
     fn default() -> Self {
@@ -593,9 +593,9 @@ where
 // Implement GPU-accelerated optimizer trait (simplified)
 impl<B, S, T> GpuAcceleratedOptimizer for RMSprop<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt + num_traits::Float,
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
+    T: DataType + FloatExt + dtype::num_traits::Float,
 {
     fn gpu_available(&self) -> bool {
         self.gpu_enabled

@@ -15,9 +15,9 @@ pub mod transforms; // ENABLED - Transform pipelines implemented
 pub mod utils; // ENABLED - PyO3 advanced features implemented
 
 // Import optimizers from optim module
-use crate::optim::{Adagrad, Adam, AdamW, Sgd};
+use crate::optim::{Adagrad, Adam, AdamW, RMSprop, Sgd};
 // Import neural network modules
-use crate::nn::{PySequential, PyLinear, PyConv2D, PyBatchNorm2d, PyDropout};
+use crate::nn::{PySequential, PyLinear, PyConv2D, PyBatchNorm2d, PyDropout, PyEmbedding};
 // Import tensor types
 use crate::tensor::{Device, PyTensor};
 // Import tokenizers
@@ -125,6 +125,7 @@ fn _coeus(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<PyConv2D>()?;
     m.add_class::<PyBatchNorm2d>()?;
     m.add_class::<PyDropout>()?;
+    m.add_class::<PyEmbedding>()?;
     m.add_class::<PySequential>()?; // Sequential container - trait object support foundation implemented
 
     // Optimizers - actually implemented ones only
@@ -132,6 +133,7 @@ fn _coeus(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<Adam>()?;
     m.add_class::<AdamW>()?;
     m.add_class::<Adagrad>()?;
+    m.add_class::<RMSprop>()?;
 
     // Learning Rate Schedulers - working ones only
     // m.add_class::<CosineAnnealingWarmRestarts>()?; // Temporarily disabled
@@ -148,8 +150,12 @@ fn _coeus(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::functional::mse_loss, m)?)?;
     m.add_function(wrap_pyfunction!(crate::functional::cross_entropy, m)?)?;
     m.add_function(wrap_pyfunction!(crate::functional::softmax, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::max_pool2d, m)?)?;
-    m.add_function(wrap_pyfunction!(crate::functional::avg_pool2d, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::max_pool2d, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::avg_pool2d, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::dropout, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::layer_norm, m)?)?;
+    m.add_function(wrap_pyfunction!(cat, m)?)?;
+    m.add_function(wrap_pyfunction!(stack, m)?)?;
 
     // Tokenizers
     m.add_class::<Encoding>()?;
@@ -210,4 +216,29 @@ fn _coeus(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     // Note: Custom error classes removed for simplicity - using standard Python RuntimeError
 
     Ok(())
+}
+
+#[pyfunction]
+#[pyo3(signature = (tensors, dim=0))]
+pub fn cat(tensors: Vec<PyTensor>, dim: usize) -> PyResult<PyTensor> {
+    let rust_tensors: Vec<_> = tensors.into_iter().map(|p| p.inner.clone()).collect();
+    let result = tensor::ops::tensor_ops::concatenate_tensors(&rust_tensors, dim)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("cat failed: {:?}", e)))?;
+    Ok(PyTensor { inner: result })
+}
+
+#[pyfunction]
+#[pyo3(signature = (tensors, dim=0))]
+pub fn stack(tensors: Vec<PyTensor>, dim: usize) -> PyResult<PyTensor> {
+    let mut reshaped_tensors = Vec::with_capacity(tensors.len());
+    for p in tensors {
+        let mut shape = p.inner.shape().dims().to_vec();
+        shape.insert(dim, 1);
+        let reshaped = p.inner.clone().reshape(&shape.iter().map(|&x| x as isize).collect::<Vec<_>>())
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("stack reshape failed: {:?}", e)))?;
+        reshaped_tensors.push(reshaped);
+    }
+    let result = tensor::ops::tensor_ops::concatenate_tensors(&reshaped_tensors, dim)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("stack cat failed: {:?}", e)))?;
+    Ok(PyTensor { inner: result })
 }

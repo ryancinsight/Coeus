@@ -4,13 +4,13 @@
 //! metrics collection, and enterprise-grade response formatting.
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
 // use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::time::Instant;
 use base64::{Engine as _, engine::general_purpose};
 
@@ -28,7 +28,8 @@ use crate::types::{
     IndexContent,
     BenchmarkQuery,
 };
-use crate::state::{AppState, SemanticError};
+use crate::state::AppState;
+// use crate::errors::SemanticError;
 
 /// Health check endpoint
 pub async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
@@ -165,6 +166,12 @@ pub async fn text_search(
         }
     };
 
+    // Filter by threshold
+    let threshold = request.threshold.unwrap_or(0.0);
+    let results: Vec<_> = results.into_iter()
+        .filter(|r| r.similarity >= threshold)
+        .collect();
+
     let processing_time = start_time.elapsed().as_millis() as u64;
 
     // Record metrics
@@ -181,7 +188,7 @@ pub async fn text_search(
                 results: results.into_iter().map(|r| SearchResult {
                     id: r.id.clone(),
                     content: r.metadata.get("content").and_then(|v| v.as_str()).unwrap_or("content unavailable").to_string(),
-                    score: Some(r.score),
+                    score: Some(r.similarity),
                     metadata: r.metadata,
                     indexed_at: chrono::Utc::now(),
                     content_type: ContentType::Text,
@@ -190,7 +197,7 @@ pub async fn text_search(
                 query: request.query,
                 config: SearchConfig {
                     top_k: top_k,
-                    threshold: request.threshold.unwrap_or(0.0),
+                    threshold,
                     search_method: request.search_method.unwrap_or(SearchMethod::Cosine),
                     search_mode: SearchMode::Text,
                 },
@@ -283,6 +290,12 @@ pub async fn image_search(
         }
     };
 
+    // Filter by threshold
+    let threshold = request.threshold.unwrap_or(0.0);
+    let results: Vec<_> = results.into_iter()
+        .filter(|r| r.similarity >= threshold)
+        .collect();
+
     let processing_time = start_time.elapsed().as_millis() as u64;
 
     // Record metrics
@@ -299,16 +312,16 @@ pub async fn image_search(
                 results: results.into_iter().map(|r| SearchResult {
                     id: r.id.clone(),
                     content: r.metadata.get("content").and_then(|v| v.as_str()).unwrap_or("content unavailable").to_string(),
-                    score: Some(r.score),
+                    score: Some(r.similarity),
                     metadata: r.metadata,
                     indexed_at: chrono::Utc::now(),
-                    content_type: ContentType::Multimodal,
+                    content_type: ContentType::Image,
                 }).collect(),
                 total_results,
                 query: format!("image_embedding_{}", embedding.len()),
                 config: SearchConfig {
                     top_k: top_k,
-                    threshold: request.threshold.unwrap_or(0.0),
+                    threshold,
                     search_method: SearchMethod::Cosine,
                     search_mode: SearchMode::Image,
                 },
@@ -430,6 +443,12 @@ pub async fn cross_modal_search(
         }
     };
 
+    // Filter by threshold
+    let threshold = request.threshold.unwrap_or(0.0);
+    let results: Vec<_> = results.into_iter()
+        .filter(|r| r.similarity >= threshold)
+        .collect();
+
     let processing_time = start_time.elapsed().as_millis() as u64;
 
     // Record metrics
@@ -446,7 +465,7 @@ pub async fn cross_modal_search(
                 results: results.into_iter().map(|r| SearchResult {
                     id: r.id.clone(),
                     content: r.metadata.get("content").and_then(|v| v.as_str()).unwrap_or("content unavailable").to_string(),
-                    score: Some(r.score),
+                    score: Some(r.similarity),
                     metadata: r.metadata,
                     indexed_at: chrono::Utc::now(),
                     content_type: ContentType::Multimodal,
@@ -459,7 +478,7 @@ pub async fn cross_modal_search(
                 },
                 config: SearchConfig {
                     top_k: top_k,
-                    threshold: request.threshold.unwrap_or(0.0),
+                    threshold,
                     search_method: SearchMethod::Cosine,
                     search_mode: SearchMode::CrossModal,
                 },
@@ -545,7 +564,7 @@ pub async fn index_content(
         if let Err(e) = state.vector_db.add(
             item.id.clone(),
             embedding,
-            item.metadata.clone(),
+            serde_json::json!(item.metadata),
         ).await {
             errors.push(format!("Failed to index item {}: {}", item.id, e));
             continue;
@@ -758,7 +777,6 @@ fn percentile(values: &[f64], p: f64) -> f64 {
     let index = (p / 100.0 * (sorted.len() - 1) as f64) as usize;
     sorted[index]
 }
-
 
 
 

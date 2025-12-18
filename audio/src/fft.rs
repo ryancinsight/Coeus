@@ -10,12 +10,15 @@ use crate::error::{AudioError, AudioResult};
 #[cfg(feature = "gpu")]
 use {
     wgpu::{self, Buffer, BindGroup, BindGroupLayout},
+    wgpu::util::DeviceExt,
     bytemuck,
     futures::executor::block_on,
 };
 
 #[cfg(feature = "gpu")]
 use backend::gpu::GpuBackend;
+#[cfg(feature = "gpu")]
+use dtype::float::Float32;
 
 /// CPU-based FFT processor for 1D forward and inverse transforms
 ///
@@ -178,7 +181,7 @@ pub struct GpuFft {
     size: usize,
     /// GPU backend reference
     #[allow(dead_code)]
-    backend: std::sync::Arc<GpuBackend<f32>>,
+    backend: std::sync::Arc<GpuBackend<Float32>>,
 }
 
 #[cfg(feature = "gpu")]
@@ -191,7 +194,7 @@ impl GpuFft {
     ///
     /// # Errors
     /// Returns error if GPU backend is not available or size is invalid
-    pub fn new(backend: std::sync::Arc<GpuBackend<f32>>, size: usize) -> AudioResult<Self> {
+    pub fn new(backend: std::sync::Arc<GpuBackend<Float32>>, size: usize) -> AudioResult<Self> {
         if !size.is_power_of_two() {
             return Err(AudioError::InvalidFftSize(size));
         }
@@ -223,7 +226,7 @@ impl GpuFft {
             return Err(AudioError::GpuError { message: "FFT data too large for GPU memory".to_string() });
         }
 
-        match self.backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        match self.backend.wgpu_device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Complex FFT Buffer"),
             contents: bytemuck::cast_slice(data),
             usage,
@@ -244,7 +247,7 @@ impl GpuFft {
     /// # Errors
     /// Returns error if uniform buffer allocation fails
     fn allocate_uniform_buffer(&self, params: &[u32]) -> AudioResult<wgpu::Buffer> {
-        self.backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        self.backend.wgpu_device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("FFT Uniform Buffer"),
             contents: bytemuck::cast_slice(params),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
@@ -388,9 +391,9 @@ impl GpuFft {
             let inverse_flag_buffer = self.allocate_uniform_buffer(&[0u32])?; // 0 = forward
 
             // Create bind group for this pass
-            let bind_group = self.backend.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            let bind_group = self.backend.wgpu_device().create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some(&format!("FFT Bind Group Pass {}", pass)),
-                layout: &self.backend.shaders.fft.bind_group_layout,
+                layout: self.backend.fft_bind_group_layout(),
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
@@ -409,7 +412,7 @@ impl GpuFft {
 
             // Use optimized workgroup configuration
             let workgroups = self.get_workgroup_config(n, pass);
-            self.execute_fft_pass(&self.backend.shaders.fft.pipeline, &bind_group, workgroups).await?;
+            self.execute_fft_pass(self.backend.fft_pipeline(), &bind_group, workgroups).await?;
         }
 
         // Read back results from GPU
@@ -439,9 +442,9 @@ impl GpuFft {
             let inverse_flag_buffer = self.allocate_uniform_buffer(&[1u32])?; // 1 = inverse
 
             // Create bind group for this pass
-            let bind_group = self.backend.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            let bind_group = self.backend.wgpu_device().create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some(&format!("IFFT Bind Group Pass {}", pass)),
-                layout: &self.backend.shaders.fft.bind_group_layout,
+                layout: self.backend.fft_bind_group_layout(),
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
@@ -460,7 +463,7 @@ impl GpuFft {
 
             // Use optimized workgroup configuration
             let workgroups = self.get_workgroup_config(n, pass);
-            self.execute_fft_pass(&self.backend.shaders.fft.pipeline, &bind_group, workgroups).await?;
+            self.execute_fft_pass(self.backend.fft_pipeline(), &bind_group, workgroups).await?;
         }
 
         // Read back results from GPU
@@ -477,7 +480,7 @@ impl GpuFft {
             let _ = tx.send(result);
         });
 
-        self.backend.queue.submit([]);
+        self.backend.wgpu_queue().submit([]);
         let map_result: Result<(), wgpu::BufferAsyncError> = rx.await.unwrap();
         map_result.map_err(|_| AudioError::GpuError { message: "Failed to map buffer".to_string() })?;
 

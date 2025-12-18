@@ -58,8 +58,8 @@ impl TorchScript {
     ) -> Result<TracedModule<M, B, T>>
     where
         M: nn::Module<B, S, T> + Clone,
-        B: backend::Backend<T>,
-        S: storage::Storage<T> + tensor::StorageFromVec<T> + Clone + 'static,
+        B: backend::Backend<Data = T>,
+        S: storage::Storage<T> + tensor::StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static,
         T: dtype::DataType,
     {
         // Record the execution by running forward pass with tracing
@@ -81,7 +81,7 @@ impl TorchScript {
     ) -> Result<tensor::Tensor<B, storage::DenseStorage<T>, T>>
     where
         M: nn::Module<B, storage::DenseStorage<T>, T>,
-        B: backend::Backend<T> + Default,
+        B: backend::Backend<Data = T> + Default,
         T: dtype::DataType,
     {
         // Compile the traced graph if not already compiled
@@ -120,8 +120,8 @@ impl Tracer {
     ) -> Result<ComputationGraph>
     where
         M: nn::Module<B, S, T>,
-        B: backend::Backend<T>,
-        S: storage::Storage<T> + tensor::StorageFromVec<T> + Clone + 'static,
+        B: backend::Backend<Data = T>,
+        S: storage::Storage<T> + tensor::StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static,
         T: dtype::DataType,
     {
         // Reset tracer state
@@ -367,7 +367,7 @@ impl JitRuntime {
         input: &tensor::Tensor<B, storage::DenseStorage<T>, T>,
     ) -> Result<tensor::Tensor<B, storage::DenseStorage<T>, T>>
     where
-        B: backend::Backend<T> + Default,
+        B: backend::Backend<Data = T> + Default,
         T: dtype::DataType,
     {
         // Placeholder execution - in a real implementation, this would:

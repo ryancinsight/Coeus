@@ -15,7 +15,7 @@ rust-version = "1.70"
 [features]
 default = ["std"]
 std = []
-gpu = ["backend/gpu"]
+gpu = ["backend/gpu", "dep:wgpu"]
 
 [dependencies]
 rustfft = "6.1"
@@ -30,6 +30,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 bytemuck = { workspace = true }
+wgpu = { version = "0.19", optional = true }
 
 [dev-dependencies]
 approx = "0.5"

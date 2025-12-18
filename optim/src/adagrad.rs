@@ -26,7 +26,7 @@ use crate::Parameter;
 pub struct Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T>,
     T: DataType + FloatExt + num_traits::Float,
 {
     param_states: Vec<ParamState<B, S, T>>,
@@ -41,7 +41,7 @@ where
 impl<B, S, T> Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T>,
     T: DataType + FloatExt + num_traits::Float,
 {
     /// Create Adagrad optimizer with default hyperparameters
@@ -112,7 +112,7 @@ where
 impl<B, S, T> BaseOptimizer<B, S, T> for Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T>,
     T: DataType + FloatExt + num_traits::Float,
 {
     fn step(&mut self) -> Result<usize, crate::OptimError> {
@@ -313,7 +313,7 @@ where
 impl<B, S, T> Optimizer<B, S, T> for Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T>,
     T: DataType + FloatExt + num_traits::Float,
 {
     fn name(&self) -> &str {

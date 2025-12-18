@@ -33,6 +33,17 @@ pub struct DenseStorage<T: DataType> {
     strides: Vec<usize>,
 }
 
+impl<T: DataType> Default for DenseStorage<T> {
+    fn default() -> Self {
+        let shape = Shape::new(&[]).expect("Scalar shape is valid");
+        Self {
+            data: vec![T::default()],
+            shape,
+            strides: vec![],
+        }
+    }
+}
+
 impl<T: DataType> DenseStorage<T> {
     /// Creates dense storage from a vector with specified shape.
     ///

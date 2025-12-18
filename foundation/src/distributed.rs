@@ -10,8 +10,9 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{RwLock, Mutex};
-use crate::error::{NNError, Result};
+use tokio::sync::RwLock;
+use crate::Result;
+use distributed::process_group::{ProcessGroup as RuntimeProcessGroup, Rank, WorldSize};
 
 /// Global distributed training coordinator
 #[derive(Debug)]
@@ -24,12 +25,103 @@ pub struct DistributedCoordinator {
     pub master_addr: String,
     /// Master port
     pub master_port: u16,
-    /// Communication backend
-    pub comm_backend: CommunicationBackend,
+    /// Runtime process group (handles backend)
+    pub runtime_pg: Arc<RuntimeProcessGroup>,
+    /// Configured backend type
+    pub backend_type: BackendType,
     /// Process group for communication
     pub process_group: Arc<ProcessGroup>,
     /// Distributed state
     pub state: Arc<RwLock<DistributedState>>,
+}
+
+impl DistributedCoordinator {
+    pub fn new(rank: usize, world_size: usize, master_addr: String, master_port: u16) -> Self {
+        let sync_stats = SyncStatistics {
+            total_sync_ops: 0,
+            average_sync_time_ms: 0.0,
+            max_sync_time_ms: 0.0,
+            min_sync_time_ms: 0.0,
+            communication_overhead: 0.0,
+        };
+
+        let fault_tolerance = FaultToleranceState {
+            checkpoint_frequency: 1000,
+            auto_restart: true,
+            elastic_training: false,
+            failed_ranks: Vec::new(),
+            recovery_state: RecoveryState::Normal,
+        };
+
+        let state = DistributedState {
+            global_step: 0,
+            sync_stats,
+            gradient_stats: HashMap::new(),
+            comm_logs: Vec::new(),
+            fault_tolerance,
+        };
+
+        // Initialize runtime process group
+        let rank_struct = Rank(rank);
+        let world_size_struct = WorldSize(world_size);
+        // Using Gloo as default for now
+        let runtime_pg = RuntimeProcessGroup::new(rank_struct, world_size_struct)
+            .expect("Failed to create runtime process group");
+
+        Self {
+            rank,
+            world_size,
+            master_addr,
+            master_port,
+            runtime_pg: Arc::new(runtime_pg),
+            backend_type: BackendType::NCCL,
+            process_group: Arc::new(ProcessGroup::default()),
+            state: Arc::new(RwLock::new(state)),
+        }
+    }
+
+    /// Record a synchronization event to update statistics
+    pub async fn record_sync(&self, duration_ms: f64) {
+        let mut state = self.state.write().await;
+        
+        state.sync_stats.total_sync_ops += 1;
+        
+        if state.sync_stats.total_sync_ops == 1 {
+            state.sync_stats.min_sync_time_ms = duration_ms;
+            state.sync_stats.max_sync_time_ms = duration_ms;
+            state.sync_stats.average_sync_time_ms = duration_ms;
+        } else {
+            if duration_ms < state.sync_stats.min_sync_time_ms {
+                state.sync_stats.min_sync_time_ms = duration_ms;
+            }
+            if duration_ms > state.sync_stats.max_sync_time_ms {
+                state.sync_stats.max_sync_time_ms = duration_ms;
+            }
+            
+            // Cumulative moving average
+            let n = state.sync_stats.total_sync_ops as f64;
+            state.sync_stats.average_sync_time_ms = 
+                (state.sync_stats.average_sync_time_ms * (n - 1.0) + duration_ms) / n;
+        }
+    }
+
+    /// Perform all-reduce on gradients
+    ///
+    /// This averages gradients across all ranks using the configured backend.
+    pub async fn all_reduce(&self, gradients: &mut [f32]) -> Result<()> {
+        let start = std::time::Instant::now();
+        
+        // Ensure initialized
+        self.runtime_pg.initialize().await.map_err(|e| crate::error::NNError::Network { message: e.to_string() })?;
+        
+        // Perform all-reduce
+        self.runtime_pg.all_reduce(gradients).await.map_err(|e| crate::error::NNError::Network { message: e.to_string() })?;
+        
+        let duration = start.elapsed().as_secs_f64() * 1000.0;
+        self.record_sync(duration).await;
+        
+        Ok(())
+    }
 }
 
 /// Distributed training state
@@ -55,6 +147,18 @@ pub struct SyncStatistics {
     pub max_sync_time_ms: f64,
     pub min_sync_time_ms: f64,
     pub communication_overhead: f64,
+}
+
+impl SyncStatistics {
+    pub fn load_balance_score(&self) -> f64 {
+        if self.max_sync_time_ms <= 0.0 {
+            return 1.0;
+        }
+        // Score based on ratio of min/max sync time.
+        // If all ranks sync in same time, min == max, score = 1.0.
+        // If some ranks wait long, min << max, score close to 0.
+        self.min_sync_time_ms / self.max_sync_time_ms
+    }
 }
 
 /// Gradient statistics per rank
@@ -90,7 +194,7 @@ pub enum CommunicationEventType {
 
 /// Communication backend options
 #[derive(Debug, Clone)]
-pub enum CommunicationBackend {
+pub enum BackendType {
     /// NVIDIA Collective Communications Library
     NCCL,
     /// Google Remote Procedure Calls (fallback)
@@ -111,7 +215,7 @@ pub struct ProcessGroup {
     /// Communication configuration
     pub config: CommunicationConfig,
     /// Internal communication handle
-    comm_handle: Option<CommunicationHandle>,
+    _comm_handle: Option<CommunicationHandle>,
 }
 
 /// Process information
@@ -128,7 +232,7 @@ pub struct ProcessInfo {
 #[derive(Debug, Clone)]
 pub struct CommunicationConfig {
     /// Backend to use
-    pub backend: CommunicationBackend,
+    pub backend: BackendType,
     /// Compression type for gradient communication
     pub compression: CompressionType,
     /// Whether to overlap communication with computation
@@ -291,7 +395,7 @@ impl DataParallel {
             let global_norm = self.compute_global_norm(&averaged);
             if global_norm > clip_norm {
                 let scale_factor = clip_norm / global_norm;
-                return Ok(averaged.iter().map(|g| g * scale_factor).collect());
+                return Ok(averaged.iter().map(|g| g * scale_factor as f32).collect());
             }
         }
 
@@ -365,7 +469,7 @@ impl TensorParallel {
     }
 
     /// Split tensor across devices for column parallelism
-    pub async fn column_parallel_forward(&self, input: &[f32], layer_name: &str) -> Result<Vec<f32>> {
+    pub async fn column_parallel_forward(&self, input: &[f32], _layer_name: &str) -> Result<Vec<f32>> {
         // Column parallel: split output dimension across devices
         // Each device processes 1/tensor_parallel_degree of the output features
         let split_size = input.len() / self.tensor_parallel_degree;
@@ -375,7 +479,7 @@ impl TensorParallel {
     }
 
     /// All-gather across devices for row parallelism
-    pub async fn row_parallel_forward(&self, input: &[f32], layer_name: &str) -> Result<Vec<f32>> {
+    pub async fn row_parallel_forward(&self, input: &[f32], _layer_name: &str) -> Result<Vec<f32>> {
         // Row parallel: each device processes different input features
         // Then all-gather the results
         let output_size = input.len() * self.tensor_parallel_degree;
@@ -488,13 +592,13 @@ impl PipelineParallel {
             .collect()
     }
 
-    async fn execute_pipeline_stage(&self, input: &[f32], micro_batch_idx: usize) -> Result<Vec<f32>> {
+    async fn execute_pipeline_stage(&self, input: &[f32], _micro_batch_idx: usize) -> Result<Vec<f32>> {
         // Execute this pipeline stage
         // Would involve communication with previous/next stages
         Ok(input.to_vec()) // Placeholder
     }
 
-    async fn backward_pipeline_stage(&self, grad_output: &[f32], micro_batch_idx: usize) -> Result<Vec<f32>> {
+    async fn backward_pipeline_stage(&self, grad_output: &[f32], _micro_batch_idx: usize) -> Result<Vec<f32>> {
         // Backward pass for this pipeline stage
         Ok(grad_output.to_vec()) // Placeholder
     }
@@ -553,8 +657,6 @@ impl ThreeDParallel {
         // 2. Tensor parallel transformations within each pipeline stage
         let tensor_output = self.tensor_parallel_forward(&pipeline_output).await?;
 
-        // 3. Data parallel distribution (handled by DataParallel separately)
-
         Ok(tensor_output)
     }
 
@@ -562,12 +664,10 @@ impl ThreeDParallel {
     pub async fn backward(&self, grad_output: &[f32]) -> Result<Vec<f32>> {
         // Reverse order of forward pass
 
-        // 1. Data parallel gradient reduction (handled separately)
-
-        // 2. Tensor parallel gradient computation
+        // 1. Tensor parallel gradient computation
         let tensor_grad = self.tensor_parallel_backward(grad_output).await?;
 
-        // 3. Pipeline parallel backward
+        // 2. Pipeline parallel backward
         let pipeline_grad = self.pipeline_parallel.backward(&tensor_grad).await?;
 
         Ok(pipeline_grad)
@@ -677,7 +777,7 @@ impl ZeroOptimizer {
 
     /// Partition optimizer state for ZeRO
     pub async fn partition_optimizer_state(&mut self, state: &mut HashMap<String, Vec<f32>>) -> Result<()> {
-        for (param_name, param_state) in state.iter_mut() {
+        for (_param_name, param_state) in state.iter_mut() {
             // Partition optimizer state across ranks
             let shard_size = param_state.len() / self.state_sharding.num_partitions;
             let start = self.state_sharding.shard_rank * shard_size;
@@ -696,7 +796,7 @@ impl ZeroOptimizer {
         // Each rank gets reduced portion of complete gradient
 
         let scatter_size = gradients.len() / self.state_sharding.num_partitions;
-        let start = self.state_sharding.shard_rank * scatter_size;
+        let _start = self.state_sharding.shard_rank * scatter_size;
 
         Ok(vec![0.0; scatter_size]) // Placeholder
     }
@@ -709,7 +809,7 @@ impl Default for ProcessGroup {
             id: "default".to_string(),
             processes: Vec::new(),
             config: CommunicationConfig::default(),
-            comm_handle: None,
+            _comm_handle: None,
         }
     }
 }
@@ -717,7 +817,7 @@ impl Default for ProcessGroup {
 impl Default for CommunicationConfig {
     fn default() -> Self {
         Self {
-            backend: CommunicationBackend::NCCL,
+            backend: BackendType::NCCL,
             compression: CompressionType::None,
             overlap_communication: true,
             bandwidth_threshold: 10.0, // GB/s
@@ -775,4 +875,39 @@ mod tests {
         assert!(matches!(zero.stage, ZeroStage::Stage3));
         assert_eq!(zero.state_sharding.num_partitions, 8);
     }
+
+    #[tokio::test]
+    async fn test_sync_statistics_tracking() {
+        let coordinator = DistributedCoordinator::new(0, 4, "127.0.0.1".to_string(), 8000);
+        
+        // Initial state
+        {
+            let state = coordinator.state.read().await;
+            assert_eq!(state.sync_stats.total_sync_ops, 0);
+            assert_eq!(state.sync_stats.load_balance_score(), 1.0);
+        }
+
+        // Record first sync
+        coordinator.record_sync(100.0).await;
+        {
+            let state = coordinator.state.read().await;
+            assert_eq!(state.sync_stats.total_sync_ops, 1);
+            assert_eq!(state.sync_stats.min_sync_time_ms, 100.0);
+            assert_eq!(state.sync_stats.max_sync_time_ms, 100.0);
+            assert_eq!(state.sync_stats.average_sync_time_ms, 100.0);
+            assert_eq!(state.sync_stats.load_balance_score(), 1.0);
+        }
+
+        // Record second sync (slower)
+        coordinator.record_sync(200.0).await;
+        {
+            let state = coordinator.state.read().await;
+            assert_eq!(state.sync_stats.total_sync_ops, 2);
+            assert_eq!(state.sync_stats.min_sync_time_ms, 100.0);
+            assert_eq!(state.sync_stats.max_sync_time_ms, 200.0);
+            assert_eq!(state.sync_stats.average_sync_time_ms, 150.0);
+            assert_eq!(state.sync_stats.load_balance_score(), 0.5);
+        }
+    }
 }
+

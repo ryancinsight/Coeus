@@ -296,6 +296,7 @@ mod tests {
     use backend::CpuBackend;
     use dtype::float::Float32;
     use storage::DenseStorage;
+    use num_traits::Float;
 
     type TestBackend = CpuBackend<Float32>;
     type TestStorage = DenseStorage<Float32>;
@@ -314,11 +315,11 @@ mod tests {
         let loss = info_nce_loss(&image_features, &text_features, temperature).unwrap();
 
         let loss_val = loss.as_slice()[0];
-        assert!(loss_val >= 0.0, "Loss should be non-negative");
+        assert!(loss_val >= Float32(0.0), "Loss should be non-negative");
 
         // For random features, loss should be around log(batch_size)
         let expected_loss = (batch_size as f32).ln();
-        assert!(loss_val >= expected_loss * 0.5, "Loss seems too low");
+        assert!(loss_val >= Float32(expected_loss * 0.5), "Loss seems too low");
     }
 
     #[test]
@@ -335,7 +336,7 @@ mod tests {
         let loss_val = loss.as_slice()[0];
 
         // With identical embeddings, loss should be very close to 0
-        assert!(loss_val < 0.1, "Perfect match should have very low loss");
+        assert!(loss_val < Float32(0.1), "Perfect match should have very low loss");
     }
 
     #[test]
@@ -387,15 +388,15 @@ mod tests {
                 let loss_val = loss.as_slice()[0];
 
                 // Validate bounds: 0 ≤ L ≤ log(batch_size)
-                assert!(loss_val >= 0.0, "Loss must be non-negative");
-                assert!(loss_val <= (batch_size as f32).ln() * 1.5, // Allow some margin for numerical precision
+                assert!(loss_val >= Float32(0.0), "Loss must be non-negative");
+                assert!(loss_val <= Float32((batch_size as f32).ln() * 1.5), // Allow some margin for numerical precision
                        "Loss {} exceeds theoretical upper bound for batch_size {}", loss_val, batch_size);
 
                 losses.push(loss_val);
             }
 
             // Statistical validation: loss should be close to log(batch_size)
-            let avg_loss: f32 = losses.iter().sum::<f32>() / losses.len() as f32;
+            let avg_loss: f32 = losses.iter().map(|v| v.0).sum::<f32>() / losses.len() as f32;
             let theoretical_loss = (batch_size as f32).ln();
 
             // Allow 50% deviation for random embeddings (convergence theorem validation)
@@ -426,8 +427,8 @@ mod tests {
 
             // Loss should be finite and reasonable
             assert!(loss_val.is_finite(), "Loss must be finite for temperature {}", temp);
-            assert!(loss_val >= 0.0, "Loss must be non-negative for temperature {}", temp);
-            assert!(loss_val <= 10.0, "Loss unreasonably high for temperature {}", temp);
+            assert!(loss_val >= Float32(0.0), "Loss must be non-negative for temperature {}", temp);
+            assert!(loss_val <= Float32(10.0), "Loss unreasonably high for temperature {}", temp);
         }
     }
 }

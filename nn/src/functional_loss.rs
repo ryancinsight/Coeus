@@ -11,6 +11,9 @@ use tensor::Tensor;
 
 use crate::error::{NNError, Result};
 
+#[cfg(feature = "autograd")]
+use autograd::{loss, tensor_ops};
+
 /// Computes the mean squared error (MSE) loss.
 ///
 /// Formula: `MSE = mean((predicted - target)^2)`
@@ -49,8 +52,8 @@ pub fn mse_loss<B, T>(
     target: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend<Data = T> + Clone + Default,
-    T: DataType + FloatExt,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    T: DataType + FloatExt + num_traits::FromPrimitive + Copy + Send + Sync + 'static,
 {
     let input_shape = input.shape().dims();
     let target_shape = target.shape().dims();
@@ -64,30 +67,38 @@ where
         });
     }
 
-    // Convert to dense for computation
+    // Convert to dense for computation (and for autograd compatibility)
     let input_dense = input.to_dense_generic()?;
     let target_dense = target.to_dense_generic()?;
 
-    let input_data = input_dense.as_slice();
-    let target_data = target_dense.as_slice();
-
-    let mut squared_diff_sum = T::from(0.0).unwrap();
-    let total_elements = input_data.len() as f64;
-
-    for (pred, targ) in input_data.iter().zip(target_data.iter()) {
-        let diff = *pred - *targ;
-        let squared_diff = diff * diff;
-        squared_diff_sum = squared_diff_sum + squared_diff;
+    #[cfg(feature = "autograd")]
+    {
+        Ok(autograd::loss::mse_loss(&input_dense, &target_dense)?)
     }
 
-    let mean_squared_error = squared_diff_sum / T::from(total_elements).unwrap();
+    #[cfg(not(feature = "autograd"))]
+    {
+        let input_data = input_dense.as_slice();
+        let target_data = target_dense.as_slice();
 
-    // Return as scalar tensor
-    Ok(Tensor::from_vec_with_backend(
-        vec![mean_squared_error],
-        &[1],
-        input.backend().clone(),
-    )?)
+        let mut squared_diff_sum = T::from(0.0).unwrap();
+        let total_elements = input_data.len() as f64;
+
+        for (pred, targ) in input_data.iter().zip(target_data.iter()) {
+            let diff = *pred - *targ;
+            let squared_diff = diff * diff;
+            squared_diff_sum = squared_diff_sum + squared_diff;
+        }
+
+        let mean_squared_error = squared_diff_sum / T::from(total_elements).unwrap();
+
+        // Return as scalar tensor
+        Ok(Tensor::from_vec_with_backend(
+            vec![mean_squared_error],
+            &[1],
+            input.backend().clone(),
+        )?)
+    }
 }
 
 /// Computes cross-entropy loss for classification tasks.
@@ -127,8 +138,8 @@ pub fn cross_entropy<B, T>(
     target: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend<Data = T>,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + Clone,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + Clone + num_traits::FromPrimitive + Send + Sync + 'static,
 {
     let input_shape = input.shape().dims();
     let target_shape = target.shape().dims();
@@ -148,93 +159,114 @@ where
         });
     }
 
-    // Apply softmax to predictions (local implementation)
     let input_dense = input.to_dense_generic()?;
-    let input_data = input_dense.as_slice();
-    let mut softmax_data = Vec::with_capacity(input_data.len());
-
-    // Simple softmax: exp(x) / sum(exp(x)) along last dimension
-    let last_dim = *input_shape.last().unwrap();
-    let batch_size = input_data.len() / last_dim;
-
-    for b in 0..batch_size {
-        let start = b * last_dim;
-        let end = start + last_dim;
-        let batch_data = &input_data[start..end];
-
-        // Find max for numerical stability
-        let max_val = batch_data
-            .iter()
-            .fold(T::from(f64::NEG_INFINITY).unwrap(), |a, &b| {
-                if a > b {
-                    a
-                } else {
-                    b
-                }
-            });
-
-        // Compute exp(x - max) and sum
-        let mut exp_vals = Vec::with_capacity(last_dim);
-        let mut sum_exp = T::from(0.0).unwrap();
-
-        for &val in batch_data {
-            let exp_val = (val - max_val).exp();
-            exp_vals.push(exp_val);
-            sum_exp = sum_exp + exp_val;
-        }
-
-        // Normalize by sum
-        for exp_val in exp_vals {
-            softmax_data.push(exp_val / sum_exp);
-        }
-    }
-
-    let softmax_output: Tensor<B, DenseStorage<T>, T> =
-        Tensor::from_vec_with_backend(softmax_data, input.shape().dims(), input.backend().clone())?;
-
-    // Convert target to dense for computation
     let target_dense = target.to_dense_generic()?;
 
-    let softmax_data = softmax_output.as_slice();
-    let target_data = target_dense.as_slice();
+    #[cfg(feature = "autograd")]
+    {
+        // 1. Log Softmax
+        let log_probs = autograd::loss::log_softmax_stable(&input_dense)?;
 
-    let last_dim_size = *input_shape.last().unwrap();
-    let batch_size: usize = softmax_data.len() / last_dim_size;
+        // 2. Multiply with targets (element-wise)
+        let weighted = autograd::tensor_ops::mul(&target_dense, &log_probs)?;
 
-    let mut total_loss = T::from(0.0).unwrap();
+        // 3. Mean over all elements (to match non-autograd behavior)
+        let mean_loss = autograd::tensor_ops::mean(&weighted, None, false)?;
 
-    for batch in 0..batch_size {
-        for class in 0..last_dim_size {
-            let idx = batch * last_dim_size + class;
-            let softmax_val = softmax_data[idx];
-            let target_val = target_data[idx];
+        // 4. Negate
+        let neg_one = Tensor::from_vec_with_backend(vec![T::from_f64(-1.0).unwrap()], &[1], input.backend().clone())?;
+        let loss = autograd::tensor_ops::mul(&mean_loss, &neg_one)?;
 
-            // Add small epsilon to prevent log(0)
-            let epsilon = T::from(1e-12).unwrap();
-            let safe_softmax = softmax_val + epsilon;
-
-            // Compute -target * log(softmax)
-            let log_softmax = safe_softmax.ln();
-            let weighted_log = target_val * log_softmax;
-            total_loss = total_loss - weighted_log;
-        }
+        Ok(loss)
     }
 
-    // Compute mean loss
-    let total_elements = T::from(softmax_data.len() as f64).unwrap();
-    let mean_loss = total_loss / total_elements;
+    #[cfg(not(feature = "autograd"))]
+    {
+        // Apply softmax to predictions (local implementation)
+        let input_data = input_dense.as_slice();
+        let mut softmax_data = Vec::with_capacity(input_data.len());
 
-    // Return as scalar tensor
-    Ok(Tensor::from_vec_with_backend(
-        vec![mean_loss],
-        &[1],
-        input.backend().clone(),
-    )?)
+        // Simple softmax: exp(x) / sum(exp(x)) along last dimension
+        let last_dim = *input_shape.last().unwrap();
+        let batch_size = input_data.len() / last_dim;
+
+        for b in 0..batch_size {
+            let start = b * last_dim;
+            let end = start + last_dim;
+            let batch_data = &input_data[start..end];
+
+            // Find max for numerical stability
+            let max_val = batch_data
+                .iter()
+                .fold(T::from(f64::NEG_INFINITY).unwrap(), |a, &b| {
+                    if a > b {
+                        a
+                    } else {
+                        b
+                    }
+                });
+
+            // Compute exp(x - max) and sum
+            let mut exp_vals = Vec::with_capacity(last_dim);
+            let mut sum_exp = T::from(0.0).unwrap();
+
+            for &val in batch_data {
+                let exp_val = (val - max_val).exp();
+                exp_vals.push(exp_val);
+                sum_exp = sum_exp + exp_val;
+            }
+
+            // Normalize by sum
+            for exp_val in exp_vals {
+                softmax_data.push(exp_val / sum_exp);
+            }
+        }
+
+        let softmax_output: Tensor<B, DenseStorage<T>, T> =
+            Tensor::from_vec_with_backend(softmax_data, input.shape().dims(), input.backend().clone())?;
+
+        // Convert target to dense for computation
+        let softmax_data = softmax_output.as_slice();
+        let target_data = target_dense.as_slice();
+
+        let last_dim_size = *input_shape.last().unwrap();
+        let batch_size: usize = softmax_data.len() / last_dim_size;
+
+        let mut total_loss = T::from(0.0).unwrap();
+
+        for batch in 0..batch_size {
+            for class in 0..last_dim_size {
+                let idx = batch * last_dim_size + class;
+                let softmax_val = softmax_data[idx];
+                let target_val = target_data[idx];
+
+                // Add small epsilon to prevent log(0)
+                let epsilon = T::from(1e-12).unwrap();
+                let safe_softmax = softmax_val + epsilon;
+
+                // Compute -target * log(softmax)
+                let log_softmax = safe_softmax.ln();
+                let weighted_log = target_val * log_softmax;
+                total_loss = total_loss - weighted_log;
+            }
+        }
+
+        // Compute mean loss
+        let total_elements = T::from(softmax_data.len() as f64).unwrap();
+        let mean_loss = total_loss / total_elements;
+
+        // Return as scalar tensor
+        Ok(Tensor::from_vec_with_backend(
+            vec![mean_loss],
+            &[1],
+            input.backend().clone(),
+        )?)
+    }
 }
 
 /// Computes negative log likelihood (NLL) loss.
 ///
-/// Formula: `NLL = -mean(target * log(input))`
+/// Formula: `NLL = -mean(target * input)`
 ///
 /// This is typically used with log-probabilities as input.
 ///
@@ -249,8 +281,8 @@ pub fn nll_loss<B, T>(
     target: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    B: Backend<Data = T>,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + Clone,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Clone + num_traits::FromPrimitive + Send + Sync + 'static,
 {
     let input_shape = input.shape().dims();
     let target_shape = target.shape().dims();
@@ -264,38 +296,55 @@ where
         });
     }
 
-    // Convert to dense for computation
     let input_dense = input.to_dense_generic()?;
     let target_dense = target.to_dense_generic()?;
 
-    let input_data = input_dense.as_slice();
-    let target_data = target_dense.as_slice();
+    #[cfg(feature = "autograd")]
+    {
+        // 1. Multiply
+        let weighted = autograd::tensor_ops::mul(&target_dense, &input_dense)?;
 
-    let last_dim_size = *input_shape.last().unwrap();
-    let batch_size: usize = input_data.len() / last_dim_size;
+        // 2. Mean
+        let mean_loss = autograd::tensor_ops::mean(&weighted, None, false)?;
 
-    let mut total_loss = T::from(0.0).unwrap();
+        // 3. Negate
+        let neg_one = Tensor::from_vec_with_backend(vec![T::from_f64(-1.0).unwrap()], &[1], input.backend().clone())?;
+        let loss = autograd::tensor_ops::mul(&mean_loss, &neg_one)?;
 
-    for batch in 0..batch_size {
-        for class in 0..last_dim_size {
-            let idx = batch * last_dim_size + class;
-            let log_prob = input_data[idx];
-            let target_val = target_data[idx];
-
-            // Compute -target * log_prob
-            let weighted_loss = target_val * log_prob;
-            total_loss = total_loss - weighted_loss;
-        }
+        Ok(loss)
     }
 
-    // Compute mean loss
-    let total_elements = T::from(input_data.len() as f64).unwrap();
-    let mean_loss = total_loss / total_elements;
+    #[cfg(not(feature = "autograd"))]
+    {
+        let input_data = input_dense.as_slice();
+        let target_data = target_dense.as_slice();
 
-    // Return as scalar tensor
-    Ok(Tensor::from_vec_with_backend(
-        vec![mean_loss],
-        &[1],
-        input.backend().clone(),
-    )?)
+        let last_dim_size = *input_shape.last().unwrap();
+        let batch_size: usize = input_data.len() / last_dim_size;
+
+        let mut total_loss = T::from(0.0).unwrap();
+
+        for batch in 0..batch_size {
+            for class in 0..last_dim_size {
+                let idx = batch * last_dim_size + class;
+                let log_prob = input_data[idx];
+                let target_val = target_data[idx];
+
+                // Compute -target * log_prob
+                let weighted_loss = target_val * log_prob;
+                total_loss = total_loss - weighted_loss;
+            }
+        }
+
+        // Compute mean loss
+        let total_elements = T::from(input_data.len() as f64).unwrap();
+        let mean_loss = total_loss / total_elements;
+
+        // Return as scalar tensor
+        Ok(Tensor::from_vec_with_backend(
+            vec![mean_loss],
+            &[1],
+            input.backend().clone(),
+        )?)
+    }
 }

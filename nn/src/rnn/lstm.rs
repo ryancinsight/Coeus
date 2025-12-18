@@ -45,6 +45,8 @@ where
     /// Whether this is a bidirectional LSTM
     #[allow(dead_code)]
     pub bidirectional: bool,
+    /// Projection size (if set, projects hidden state to this size)
+    pub proj_size: Option<usize>,
     /// Phantom data to ensure B and S are used for type safety
     _phantom: PhantomData<(B, S)>,
 }
@@ -154,8 +156,21 @@ where
             bias,
             batch_first,
             bidirectional,
+            proj_size: None,
             _phantom: PhantomData,
         })
+    }
+
+    /// Set projection size.
+    pub fn with_proj_size(mut self, proj_size: usize) -> Self {
+        self.proj_size = Some(proj_size);
+        self
+    }
+
+    /// Set batch_first.
+    pub fn with_batch_first(mut self, batch_first: bool) -> Self {
+        self.batch_first = batch_first;
+        self
     }
 
     /// Xavier/Glorot uniform initialization for weights.
@@ -211,11 +226,11 @@ where
     /// # Returns
     /// Reversed tensor of shape `(seq_len, batch_size, feature_size)`
     fn reverse_sequence(
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        input: &Tensor<B, S, T>,
         seq_len: usize,
         batch_size: usize,
         feature_size: usize,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+    ) -> Result<Tensor<B, S, T>> {
         let input_data = input.as_slice();
         let mut reversed_data = Vec::with_capacity(seq_len * batch_size * feature_size);
 
@@ -414,52 +429,86 @@ where
 
         Ok((layer_output, current_cell))
     }
-}
 
-impl<T> Module<CpuBackend<T>, DenseStorage<T>, T> for LSTM<CpuBackend<T>, DenseStorage<T>, T>
-where
-    T: DataType + FloatExt + std::ops::Neg<Output = T>,
-{
-    fn forward(
+    /// Forward pass with explicit state handling.
+    ///
+    /// # Arguments
+    /// * `input` - Input tensor
+    /// * `state` - Optional initial hidden and cell states (h_0, c_0)
+    ///
+    /// # Returns
+    /// Tuple of (output, (h_n, c_n))
+    pub fn forward(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
-        // LSTM forward pass: returns (output, (hidden, cell))
-        // Implements proper sequence-by-sequence LSTM processing
-
+        input: &Tensor<B, S, T>,
+        state: Option<(
+            &Tensor<B, S, T>,
+            &Tensor<B, S, T>,
+        )>,
+    ) -> Result<(
+        Tensor<B, S, T>,
+        (
+            Tensor<B, S, T>,
+            Tensor<B, S, T>,
+        ),
+    )> {
         let input_shape = input.shape().dims();
 
         // Determine actual dimensions based on batch_first
         let (seq_len, batch_size, input_size) = if self.batch_first {
-            // Input is (batch, seq, input) ? need (seq, batch, input)
+            // Input is (batch, seq, input) -> need (seq, batch, input)
             (input_shape[1], input_shape[0], input_shape[2])
         } else {
             // Input is already (seq, batch, input)
             (input_shape[0], input_shape[1], input_shape[2])
         };
 
-        // Initialize hidden and cell states
+        // Initialize hidden and cell states on CPU for processing
         let num_directions = if self.bidirectional { 2 } else { 1 };
-        let h = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[
-            self.num_layers * num_directions,
-            batch_size,
-            self.hidden_size,
-        ])?;
-        let c = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[
-            self.num_layers * num_directions,
-            batch_size,
-            self.hidden_size,
-        ])?;
+        
+        let (h_cpu, c_cpu) = if let Some((h_0, c_0)) = state {
+            (
+                Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+                    h_0.as_slice().to_vec(),
+                    h_0.shape().dims(),
+                )?,
+                Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+                    c_0.as_slice().to_vec(),
+                    c_0.shape().dims(),
+                )?,
+            )
+        } else {
+            let h = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[
+                self.num_layers * num_directions,
+                batch_size,
+                self.hidden_size,
+            ])?;
+            let c = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[
+                self.num_layers * num_directions,
+                batch_size,
+                self.hidden_size,
+            ])?;
+            (h, c)
+        };
 
-        // Transpose input if batch_first: (batch, seq_len, input_size) ? (seq_len, batch, input_size)
+        // Transpose input if batch_first: (batch, seq_len, input_size) -> (seq_len, batch, input_size)
         let input_seq = if self.batch_first {
             Self::transpose_3d(input, input_shape[0], input_shape[1], input_shape[2])?
         } else {
             input.clone()
         };
 
+        // Convert input to CPU for processing
+        let mut layer_input_cpu = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+            input_seq.as_slice().to_vec(),
+            input_seq.shape().dims(),
+        )?;
+
+        // Storage for final states
+        let mut h_n_data = Vec::with_capacity(self.num_layers * num_directions * batch_size * self.hidden_size);
+        let mut c_n_data = Vec::with_capacity(self.num_layers * num_directions * batch_size * self.hidden_size);
+
         // Process each layer with bidirectional support
-        let mut layer_input = input_seq;
         for layer in 0..self.num_layers {
             if self.bidirectional {
                 // Bidirectional: process forward and backward directions separately
@@ -472,31 +521,46 @@ where
                 };
 
                 // Forward direction (use weights at layer*2)
-                let (forward_output, _forward_cell) = self.forward_layer_unidirectional_lstm(
-                    &layer_input,
-                    &h,
-                    &c,
+                let (forward_output, forward_cell) = self.forward_layer_unidirectional_lstm(
+                    &layer_input_cpu,
+                    &h_cpu,
+                    &c_cpu,
                     layer * 2,
                     (seq_len, batch_size, layer_input_size),
                 )?;
+                
+                // Extract final hidden state from forward_output (last time step)
+                let f_out_slice = forward_output.as_slice();
+                let last_t_start = (seq_len - 1) * batch_size * self.hidden_size;
+                h_n_data.extend_from_slice(&f_out_slice[last_t_start..]);
+                
+                // Cell state is returned directly
+                c_n_data.extend_from_slice(forward_cell.as_slice());
 
                 // Backward direction (use weights at layer*2+1)
                 let reversed_input =
-                    Self::reverse_sequence(&layer_input, seq_len, batch_size, layer_input_size)?;
-                let (backward_output_reversed, _backward_cell) = self
+                    LSTM::<CpuBackend<T>, DenseStorage<T>, T>::reverse_sequence(&layer_input_cpu, seq_len, batch_size, layer_input_size)?;
+                let (backward_output_reversed, backward_cell) = self
                     .forward_layer_unidirectional_lstm(
                         &reversed_input,
-                        &h,
-                        &c,
+                        &h_cpu,
+                        &c_cpu,
                         layer * 2 + 1,
                         (seq_len, batch_size, layer_input_size),
                     )?;
-                let backward_output = Self::reverse_sequence(
+                let backward_output = LSTM::<CpuBackend<T>, DenseStorage<T>, T>::reverse_sequence(
                     &backward_output_reversed,
                     seq_len,
                     batch_size,
                     self.hidden_size,
                 )?;
+
+                // Extract final hidden state from backward_output
+                let b_out_rev_slice = backward_output_reversed.as_slice();
+                let last_t_start_rev = (seq_len - 1) * batch_size * self.hidden_size;
+                h_n_data.extend_from_slice(&b_out_rev_slice[last_t_start_rev..]);
+                
+                c_n_data.extend_from_slice(backward_cell.as_slice());
 
                 // Concatenate forward and backward outputs along hidden dimension
                 let forward_data = forward_output.as_slice();
@@ -518,7 +582,7 @@ where
                     }
                 }
 
-                layer_input = Tensor::from_vec(
+                layer_input_cpu = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
                     concatenated_data,
                     &[seq_len, batch_size, self.hidden_size * 2],
                 )?;
@@ -529,29 +593,66 @@ where
                 } else {
                     self.hidden_size
                 };
-                let (layer_output, _layer_cell) = self.forward_layer_unidirectional_lstm(
-                    &layer_input,
-                    &h,
-                    &c,
+                let (layer_output, layer_cell) = self.forward_layer_unidirectional_lstm(
+                    &layer_input_cpu,
+                    &h_cpu,
+                    &c_cpu,
                     layer,
                     (seq_len, batch_size, current_input_size),
                 )?;
-                layer_input = layer_output;
+                
+                // Extract final hidden state
+                let out_slice = layer_output.as_slice();
+                let last_t_start = (seq_len - 1) * batch_size * self.hidden_size;
+                h_n_data.extend_from_slice(&out_slice[last_t_start..]);
+                
+                c_n_data.extend_from_slice(layer_cell.as_slice());
+                
+                layer_input_cpu = layer_output;
             }
         }
 
-        // Transpose output if batch_first: (seq_len, batch, hidden_size) ? (batch, seq_len, hidden_size)
+        // Convert final output back to generic backend
+        let layer_input_generic = Tensor::<B, S, T>::from_vec(
+            layer_input_cpu.as_slice().to_vec(),
+            layer_input_cpu.shape().dims(),
+        )?;
+
+        // Transpose output if batch_first: (seq_len, batch, hidden_size) -> (batch, seq_len, hidden_size)
         let output = if self.batch_first {
             let output_hidden_size = if self.bidirectional {
                 self.hidden_size * 2
             } else {
                 self.hidden_size
             };
-            Self::transpose_3d(&layer_input, seq_len, batch_size, output_hidden_size)?
+            Self::transpose_3d(&layer_input_generic, seq_len, batch_size, output_hidden_size)?
         } else {
-            layer_input
+            layer_input_generic
         };
+        
+        // Construct h_n and c_n tensors
+        let h_n = Tensor::from_vec(
+            h_n_data,
+            &[self.num_layers * num_directions, batch_size, self.hidden_size],
+        )?;
+        let c_n = Tensor::from_vec(
+            c_n_data,
+            &[self.num_layers * num_directions, batch_size, self.hidden_size],
+        )?;
 
+        Ok((output, (h_n, c_n)))
+    }
+}
+
+impl<T> Module<CpuBackend<T>, DenseStorage<T>, T> for LSTM<CpuBackend<T>, DenseStorage<T>, T>
+where
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+{
+    fn forward(
+        &self,
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+        let (output, _) = self.forward(input, None)?;
         Ok(output)
     }
 
@@ -643,9 +744,9 @@ mod tests {
             Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[5, 3, 10]).unwrap(); // (seq, batch, input)
         let (output, (h_n, c_n)) = lstm.forward(&input, None).unwrap();
 
-        assert_eq!(output.shape(), &[5, 3, 20]);
-        assert_eq!(h_n.shape(), &[1, 3, 20]);
-        assert_eq!(c_n.shape(), &[1, 3, 20]);
+        assert_eq!(output.shape().dims(), &[5, 3, 20]);
+        assert_eq!(h_n.shape().dims(), &[1, 3, 20]);
+        assert_eq!(c_n.shape().dims(), &[1, 3, 20]);
     }
 
     #[test]
@@ -654,15 +755,15 @@ mod tests {
             .unwrap();
         // Weights
         // Input-Hidden: 4 * hidden_size * input_size
-        assert_eq!(lstm.parameters()[0].data().shape(), &[800]);
+        assert_eq!(lstm.parameters()[0].data().shape().dims(), &[800]);
         // Hidden-Hidden: 4 * hidden_size * hidden_size
-        assert_eq!(lstm.parameters()[1].data().shape(), &[1600]);
+        assert_eq!(lstm.parameters()[1].data().shape().dims(), &[1600]);
 
         // Bias
         // Input-Hidden: 4 * hidden_size
-        assert_eq!(lstm.parameters()[2].data().shape(), &[80]);
+        assert_eq!(lstm.parameters()[2].data().shape().dims(), &[80]);
         // Hidden-Hidden: 4 * hidden_size
-        assert_eq!(lstm.parameters()[3].data().shape(), &[80]);
+        assert_eq!(lstm.parameters()[3].data().shape().dims(), &[80]);
     }
 
     #[test]
@@ -702,8 +803,8 @@ mod tests {
     #[test]
     fn test_lstm_projection() {
         let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 2, true, false, false)
-            .with_proj_size(10)
-            .unwrap();
+            .unwrap()
+            .with_proj_size(10);
         
         assert_eq!(lstm.proj_size, Some(10));
     }
@@ -725,7 +826,7 @@ mod tests {
         let reversed =
             LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::reverse_sequence(&input, 3, 2, 3).unwrap();
         
-        let reversed_data = reversed.to_vec();
+        let reversed_data = reversed.as_slice().to_vec();
         
         // First sequence, batch 1: 13,14,15 (was 1,2,3)
         assert_eq!(reversed_data[0], Float32::new(13.0));
@@ -747,8 +848,8 @@ mod tests {
     fn test_lstm_batch_first() {
         // Create LSTM with batch_first=true
         let lstm = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 20, 1, true, true, false)
-            .with_batch_first(true)
-            .unwrap();
+            .unwrap()
+            .with_batch_first(true);
             
         // Input shape: (batch, seq, input) = (3, 5, 10)
         let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[3, 5, 10]).unwrap();
@@ -756,10 +857,10 @@ mod tests {
         let (output, (h_n, c_n)) = lstm.forward(&input, None).unwrap();
         
         // Output shape should be (batch, seq, num_directions * hidden_size)
-        assert_eq!(output.shape(), &[3, 5, 20]);
+        assert_eq!(output.shape().dims(), &[3, 5, 20]);
         // h_n and c_n should be (num_layers * num_directions, batch, hidden_size)
-        assert_eq!(h_n.shape(), &[1, 3, 20]);
-        assert_eq!(c_n.shape(), &[1, 3, 20]);
+        assert_eq!(h_n.shape().dims(), &[1, 3, 20]);
+        assert_eq!(c_n.shape().dims(), &[1, 3, 20]);
     }
 
     #[test]
@@ -782,7 +883,7 @@ mod tests {
         let reversed_t = LSTM::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::reverse_sequence(&input_t, 3, 2, 4).unwrap();
         let reversed = reversed_t.transpose(0, 1).unwrap();
         
-        let reversed_data = reversed.to_vec();
+        let reversed_data = reversed.as_slice().to_vec();
         
         // Batch 1, Seq 1 (was 1,2,3,4) -> should be 9,10,11,12
         assert_eq!(reversed_data[0], Float32::new(9.0));
@@ -806,11 +907,11 @@ mod tests {
         let (output, (h_n, c_n)) = lstm.forward(&input, None).unwrap();
         
         // Output shape: (seq, batch, num_directions * hidden_size)
-        assert_eq!(output.shape(), &[5, 3, 40]); // 2 * 20
+        assert_eq!(output.shape().dims(), &[5, 3, 40]); // 2 * 20
         
         // Hidden/Cell states: (num_layers * num_directions, batch, hidden_size)
         // 2 layers * 2 directions = 4
-        assert_eq!(h_n.shape(), &[4, 3, 20]);
-        assert_eq!(c_n.shape(), &[4, 3, 20]);
+        assert_eq!(h_n.shape().dims(), &[4, 3, 20]);
+        assert_eq!(c_n.shape().dims(), &[4, 3, 20]);
     }
 }

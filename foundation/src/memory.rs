@@ -111,7 +111,7 @@ impl MemoryOptimizer {
         Ok(plan)
     }
 
-    fn estimate_layer_memory(&self, layer_name: &str, input_size: usize) -> f64 {
+    fn estimate_layer_memory(&self, _layer_name: &str, input_size: usize) -> f64 {
         // Estimate memory usage based on layer type and input size
         // This would analyze the computation graph to determine memory requirements
         // Placeholder implementation
@@ -119,8 +119,8 @@ impl MemoryOptimizer {
         base_memory * 2.5 // Account for activations, gradients, etc.
     }
 
-    fn apply_memory_optimizations(&self, layer_name: &str, estimated_usage: f64) -> Result<MemoryPlan> {
-        match self.strategy {
+    fn apply_memory_optimizations(&self, _layer_name: &str, estimated_usage: f64) -> Result<MemoryPlan> {
+        match &self.strategy {
             MemoryStrategy::Aggressive => {
                 Ok(MemoryPlan {
                     checkpoint_activations: true,
@@ -307,11 +307,12 @@ impl ActivationManager {
 
     async fn evict_activations(&mut self) -> Result<()> {
         // LRU eviction strategy
-        let mut candidates: Vec<(String, &ActivationMetadata)> = self.metadata.iter()
-            .map(|(k, v)| (k.clone(), v))
+        // Avoid holding references to metadata to satisfy borrow checker during removal
+        let mut candidates: Vec<(String, std::time::Instant)> = self.metadata.iter()
+            .map(|(k, v)| (k.clone(), v.last_access))
             .collect();
 
-        candidates.sort_by(|a, b| a.1.last_access.cmp(&b.1.last_access));
+        candidates.sort_by(|a, b| a.1.cmp(&b.1));
 
         // Evict least recently used activations
         for (key, _) in candidates.iter().take(10) {
@@ -341,22 +342,22 @@ impl ActivationManager {
         Ok(())
     }
 
-    async fn offload_to_cpu(&mut self, key: &str) -> Result<()> {
+    async fn offload_to_cpu(&mut self, _key: &str) -> Result<()> {
         // Placeholder for CPU offloading implementation
         Ok(())
     }
 
-    async fn load_from_cpu(&mut self, key: &str) -> Result<Option<Vec<f32>>> {
+    async fn load_from_cpu(&mut self, _key: &str) -> Result<Option<Vec<f32>>> {
         // Placeholder for CPU loading implementation
         Ok(None)
     }
 
-    async fn offload_to_nvme(&mut self, key: &str) -> Result<()> {
+    async fn offload_to_nvme(&mut self, _key: &str) -> Result<()> {
         // Placeholder for NVMe offloading implementation
         Ok(())
     }
 
-    async fn load_from_nvme(&mut self, key: &str) -> Result<Option<Vec<f32>>> {
+    async fn load_from_nvme(&mut self, _key: &str) -> Result<Option<Vec<f32>>> {
         // Placeholder for NVMe loading implementation
         Ok(None)
     }
@@ -423,7 +424,7 @@ impl GradientManager {
 
     /// Execute recomputation for checkpointed layers
     pub async fn execute_recomputation(&mut self) -> Result<()> {
-        while let Some(layer_name) = self.recomputation_queue.pop_front() {
+        while let Some(_layer_name) = self.recomputation_queue.pop_front() {
             // Recompute activations for this layer
             // This would trigger the forward pass for the checkpointed layer
             self.checkpoint_stats.total_checkpoints += 1;
@@ -611,7 +612,7 @@ impl OffloadingManager {
         };
 
         // Perform actual offloading based on strategy
-        match (self.strategy, &location) {
+        match (self.strategy.clone(), &location) {
             (OffloadingStrategy::CPU, ParameterLocation::CPU) => {
                 // Offload to CPU memory
                 self.offload_stats.total_offloaded_mb += size_mb;
@@ -657,7 +658,7 @@ impl OffloadingManager {
     }
 
     /// Prefetch parameters that are likely to be needed soon
-    pub async fn prefetch_parameters(&self, param_names: &[String]) -> Result<()> {
+    pub async fn prefetch_parameters(&self, _param_names: &[String]) -> Result<()> {
         // Implement parameter prefetching to reduce latency
         Ok(())
     }
@@ -880,7 +881,7 @@ mod tests {
 
     #[test]
     fn test_memory_optimization_strategies() {
-        let optimizer = MemoryOptimizer::new(80.0);
+        let mut optimizer = MemoryOptimizer::new(80.0);
 
         // Test adaptive strategy selection
         let plan = tokio::runtime::Runtime::new()

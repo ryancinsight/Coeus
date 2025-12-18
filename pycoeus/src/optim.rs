@@ -2,6 +2,7 @@ use backend::CpuBackend;
 use dtype::float::Float32;
 use optim::{
     Adagrad as RustAdagrad, Adam as RustAdam, BaseOptimizer, Optimizer, SGD as RustSGD,
+    RMSprop as RustRMSprop,
 };
 use storage::DenseStorage;
 use pyo3::prelude::*;
@@ -87,14 +88,14 @@ impl Sgd {
     }
 
     fn step(&mut self) -> PyResult<()> {
-        // For SGD, we need to implement step manually since it doesn't implement BaseOptimizer
-        // This is a simplified implementation - in practice, you'd need to implement the actual optimization logic
+        self.inner.step().map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Step failed: {:?}", e))
+        })?;
         Ok(())
     }
 
     fn zero_grad(&mut self) {
-        // For SGD, zero_grad would need to be implemented manually
-        // This is a placeholder implementation
+        self.inner.zero_grad();
     }
 
     fn add_param_group(&mut self, _params: Vec<PyTensor>) {
@@ -164,5 +165,54 @@ impl Adagrad {
     fn add_param_group(&mut self, params: Vec<PyTensor>) {
         let rust_params: Vec<_> = params.into_iter().map(|p| p.inner).collect();
         BaseOptimizer::add_param_group(&mut self.inner, rust_params);
+    }
+}
+
+/// RMSprop optimizer
+#[pyclass(name = "RMSprop", module = "_coeus")]
+pub struct RMSprop {
+    pub inner: RustRMSprop<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+}
+
+#[pymethods]
+impl RMSprop {
+    #[new]
+    #[pyo3(signature = (params, lr=0.01, alpha=0.99, eps=1e-08, weight_decay=0.0, momentum=0.0, centered=false))]
+    fn new(
+        mut params: Vec<PyTensor>,
+        lr: f64,
+        alpha: f64,
+        eps: f64,
+        weight_decay: f64,
+        momentum: f64,
+        centered: bool,
+    ) -> PyResult<Self> {
+        let rmsprop = RustRMSprop::new(lr, alpha, eps, weight_decay, momentum, centered);
+        let mut rmsprop_instance = RMSprop { inner: rmsprop };
+        for (i, param) in params.iter_mut().enumerate() {
+            Optimizer::add_param(
+                &mut rmsprop_instance.inner,
+                &mut param.inner,
+                format!("param_{}", i),
+            )
+            .map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    "Parameter addition failed: {:?}",
+                    e
+                ))
+            })?;
+        }
+        Ok(rmsprop_instance)
+    }
+
+    fn step(&mut self) -> PyResult<()> {
+        Optimizer::step(&mut self.inner).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("RMSprop step failed: {:?}", e))
+        })?;
+        Ok(())
+    }
+
+    fn zero_grad(&mut self) {
+        Optimizer::zero_grad(&mut self.inner);
     }
 }

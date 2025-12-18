@@ -134,7 +134,8 @@ where
     pub fn grad(&self) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         B: Clone,
-        S: Clone,
+        S: Clone + StorageToDense<T>,
+        T: Clone,
     {
         #[cfg(feature = "std")]
         let grad_lock = self
@@ -146,15 +147,21 @@ where
 
         match grad_lock.as_ref() {
             Some(boxed) => {
-                // For now, assume gradients are stored as dense tensors
-                // This is the common case and avoids generic cloning issues
+                // First check if it's already dense
                 if let Some(dense_grad) = boxed
                     .as_any()
                     .downcast_ref::<Tensor<B, DenseStorage<T>, T>>()
                 {
                     Ok(dense_grad.clone())
+                } 
+                // Then check if it matches the tensor's storage type
+                else if let Some(stored_grad) = boxed
+                    .as_any()
+                    .downcast_ref::<Tensor<B, S, T>>()
+                {
+                    stored_grad.to_dense_generic()
                 } else {
-                    // If not dense, try to reconstruct from storage
+                    // If not dense and not S, try to reconstruct from storage
                     // This is a fallback for other storage types
                     Err(TensorError::BackendError(
                         "Gradient tensor storage type not supported".into(),
@@ -182,10 +189,6 @@ where
         GS: Storage<T> + StorageToDense<T> + StorageFromVec<T>,
         S: StorageFromVec<T>,
     {
-        println!(
-            "set_grad called on tensor with shape {:?}",
-            self.shape().dims()
-        );
         // Validate shape matches
         if gradient.shape().dims() != self.shape().dims() {
             return Err(TensorError::ShapeMismatch {
@@ -563,14 +566,12 @@ where
     /// assert!(x.grad_fn().is_none()); // Leaf tensor
     /// ```
     #[must_use]
-    pub fn grad_fn(&self) -> Option<&str> {
-        // For now, return None to avoid complex downcasting issues
-        // The backward logic should handle Function objects directly
-        None
+    pub fn grad_fn(&self) -> Option<&Arc<dyn Function<B, S, T>>> {
+        self.grad_fn.as_ref()
     }
 
     /// Get the function object for gradient computation
-    pub fn function_object(&self) -> Option<&Arc<dyn AsAny + Send + Sync>> {
+    pub fn function_object(&self) -> Option<&Arc<dyn Function<B, S, T>>> {
         self.grad_fn.as_ref()
     }
 
@@ -593,7 +594,7 @@ where
     /// let result = tensor.with_grad_fn(Some(add_function));
     /// ```
     #[must_use]
-    pub fn with_grad_fn(mut self, grad_fn: Option<Arc<dyn AsAny + Send + Sync>>) -> Self {
+    pub fn with_grad_fn(mut self, grad_fn: Option<Arc<dyn Function<B, S, T>>>) -> Self {
         self.grad_fn = grad_fn;
         self
     }

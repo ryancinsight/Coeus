@@ -32,6 +32,7 @@ where
     T: DataType,
 {
     /// The function this node represents
+    #[allow(dead_code)]
     function: Arc<dyn tensor::Function<B, S, T>>,
     /// Incoming edges (functions that depend on this one)
     incoming: Vec<usize>,
@@ -63,6 +64,7 @@ impl GradientEngine {
     }
 
     /// Build computation graph starting from a root tensor
+    #[allow(dead_code)]
     fn build_computation_graph<B, S, T>(
         &self,
         root_tensor: &tensor::Tensor<B, S, T>,
@@ -86,6 +88,7 @@ impl GradientEngine {
     }
 
     /// Recursively build the computation graph
+    #[allow(dead_code)]
     fn build_graph_recursive<B, S, T>(
         &self,
         graph: &mut ComputationGraph<B, S, T>,
@@ -134,6 +137,7 @@ impl GradientEngine {
     }
 
     /// Perform topological sort using Kahn's algorithm
+    #[allow(dead_code)]
     fn topological_sort<B, S, T>(
         &self,
         graph: &ComputationGraph<B, S, T>,
@@ -201,7 +205,8 @@ impl GradientEngine {
         if let Some(grad_fn) = root_grad_fn {
             // For now, use the simple recursive approach
             // TODO: Implement full topological sorting
-            self.backward_from_function(grad_fn, grad_output)?;
+            let grad_output_dense = grad_output.to_dense_generic().map_err(AutogradError::TensorError)?;
+            self.backward_from_function(grad_fn, &grad_output_dense)?;
         }
         Ok(())
     }
@@ -210,7 +215,7 @@ impl GradientEngine {
     fn backward_from_function<B, S, T>(
         &mut self,
         function: &Arc<dyn tensor::Function<B, S, T>>,
-        grad_output: &tensor::Tensor<B, S, T>,
+        grad_output: &tensor::Tensor<B, storage::DenseStorage<T>, T>,
     ) -> Result<()>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
@@ -225,6 +230,7 @@ impl GradientEngine {
         }
 
         // Call function.backward() to compute gradients w.r.t. inputs
+        // grad_output is already dense
         let input_gradients =
             function
                 .backward(grad_output)
@@ -264,11 +270,10 @@ impl GradientEngine {
         // Recursively process parent functions
         // Each input tensor's gradient becomes the grad_output for its parent function
         for input_tensor_ref in inputs {
-            if let Some(_parent_grad_fn) = input_tensor_ref.grad_fn() {
+            if let Some(parent_grad_fn) = input_tensor_ref.grad_fn() {
                 // The gradient w.r.t. this input becomes the grad_output for the parent
-                // For now, skip recursive processing until gradient accumulation is fixed
-                // let input_grad = self.get_accumulated_gradient(input_tensor_ref)?;
-                // self.backward_from_function(parent_grad_fn, &input_grad)?;
+                let input_grad = Self::get_accumulated_gradient(input_tensor_ref)?;
+                self.backward_from_function(parent_grad_fn, &input_grad)?;
             }
         }
 
@@ -292,10 +297,9 @@ impl GradientEngine {
         );
         println!("gradient shape: {:?}", gradient.shape().dims());
 
-        // For now, just set the gradient (no accumulation yet)
-        // The gradient already has the correct storage type S
-        let result = tensor.set_grad(gradient);
-        println!("set_grad result: {result:?}");
+        // Accumulate gradients properly
+        let result = tensor.accumulate_grad(&gradient);
+        println!("accumulate_grad result: {result:?}");
         result.map_err(AutogradError::TensorError)
     }
 
@@ -306,7 +310,7 @@ impl GradientEngine {
     ) -> Result<tensor::Tensor<B, storage::DenseStorage<T>, T>>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + Clone + StorageFromVec<T>,
+        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + Clone + StorageFromVec<T> + StorageToDense<T>,
         T: DataType,
     {
         tensor.grad().map_err(AutogradError::TensorError)
