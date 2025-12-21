@@ -102,7 +102,6 @@ pub struct DatasetStream<T: VisionLanguageData + Send + Sync + 'static> {
     current_index: usize,
     total_items: usize,
     receiver: Option<mpsc::Receiver<Result<ImageTextPair>>>,
-    _sender: Option<mpsc::Sender<Result<ImageTextPair>>>,
 }
 
 impl<T: VisionLanguageData + Send + Sync + 'static> DatasetStream<T> {
@@ -116,7 +115,6 @@ impl<T: VisionLanguageData + Send + Sync + 'static> DatasetStream<T> {
 
         // Spawn streaming task
         let dataset_clone = dataset.clone();
-        let tx_clone = tx.clone();
         tokio::spawn(async move {
             let mut sent = 0;
             let mut indices: Vec<usize> = if config.shuffle {
@@ -139,12 +137,12 @@ impl<T: VisionLanguageData + Send + Sync + 'static> DatasetStream<T> {
 
                 match dataset_clone.get(idx).await {
                     Ok(pair) => {
-                        if tx_clone.send(Ok(pair)).await.is_err() {
+                        if tx.send(Ok(pair)).await.is_err() {
                             break; // Receiver dropped
                         }
                     }
                     Err(e) => {
-                        let _ = tx_clone.send(Err(e)).await;
+                        let _ = tx.send(Err(e)).await;
                         break;
                     }
                 }
@@ -158,7 +156,6 @@ impl<T: VisionLanguageData + Send + Sync + 'static> DatasetStream<T> {
             current_index: start_index,
             total_items: actual_total,
             receiver: Some(rx),
-            _sender: Some(tx),
         }
     }
 }
@@ -184,7 +181,6 @@ pub struct BatchedDatasetStream<T: VisionLanguageData + Send + Sync + 'static> {
     dataset: Arc<T>,
     config: StreamingConfig,
     receiver: Option<mpsc::Receiver<Result<Vec<ImageTextPair>>>>,
-    _sender: Option<mpsc::Sender<Result<Vec<ImageTextPair>>>>,
 }
 
 impl<T: VisionLanguageData + Send + Sync + 'static> BatchedDatasetStream<T> {
@@ -193,7 +189,6 @@ impl<T: VisionLanguageData + Send + Sync + 'static> BatchedDatasetStream<T> {
 
         let dataset_clone = dataset.clone();
         let config_clone = config.clone();
-        let tx_clone = tx.clone();
 
         tokio::spawn(async move {
             let total_items = dataset_clone.len();
@@ -227,12 +222,12 @@ impl<T: VisionLanguageData + Send + Sync + 'static> BatchedDatasetStream<T> {
                             batch.push(item);
                         }
 
-                        if tx_clone.send(Ok(batch)).await.is_err() {
+                        if tx.send(Ok(batch)).await.is_err() {
                             break; // Receiver dropped
                         }
                     }
                     Err(e) => {
-                        let _ = tx_clone.send(Err(e)).await;
+                        let _ = tx.send(Err(e)).await;
                         break;
                     }
                 }
@@ -245,7 +240,6 @@ impl<T: VisionLanguageData + Send + Sync + 'static> BatchedDatasetStream<T> {
             dataset,
             config,
             receiver: Some(rx),
-            _sender: Some(tx),
         }
     }
 }

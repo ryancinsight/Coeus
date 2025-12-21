@@ -50,9 +50,6 @@ use crate::transforms::{
 //     CosineAnnealingWarmRestarts,
 //     // CosineAnnealingLR, CyclicLR, ExponentialLR, LambdaLR, MultiplicativeLR, OneCycleLR, PolynomialLR, ReduceLROnPlateau, StepLR,
 // };
-// use crate::utils::{set_num_threads, get_num_threads, manual_seed, cuda_is_available};  // Temporarily disabled
-
-/// Test function to verify PyO3 is working
 #[pyfunction]
 fn test_function() -> String {
     "PyCoeus test function working!".to_string()
@@ -154,6 +151,9 @@ fn _coeus(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(functional::avg_pool2d, m)?)?;
     m.add_function(wrap_pyfunction!(functional::dropout, m)?)?;
     m.add_function(wrap_pyfunction!(functional::layer_norm, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::bce_with_logits_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(argmax, m)?)?;
+    m.add_function(wrap_pyfunction!(argmin, m)?)?;
     m.add_function(wrap_pyfunction!(cat, m)?)?;
     m.add_function(wrap_pyfunction!(stack, m)?)?;
 
@@ -222,7 +222,7 @@ fn _coeus(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
 #[pyo3(signature = (tensors, dim=0))]
 pub fn cat(tensors: Vec<PyTensor>, dim: usize) -> PyResult<PyTensor> {
     let rust_tensors: Vec<_> = tensors.into_iter().map(|p| p.inner.clone()).collect();
-    let result = tensor::ops::tensor_ops::concatenate_tensors(&rust_tensors, dim)
+    let result = ::tensor::ops::tensor_ops::concatenate_tensors(&rust_tensors, dim)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("cat failed: {:?}", e)))?;
     Ok(PyTensor { inner: result })
 }
@@ -238,7 +238,19 @@ pub fn stack(tensors: Vec<PyTensor>, dim: usize) -> PyResult<PyTensor> {
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("stack reshape failed: {:?}", e)))?;
         reshaped_tensors.push(reshaped);
     }
-    let result = tensor::ops::tensor_ops::concatenate_tensors(&reshaped_tensors, dim)
+    let result = ::tensor::ops::tensor_ops::concatenate_tensors(&reshaped_tensors, dim)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("stack cat failed: {:?}", e)))?;
     Ok(PyTensor { inner: result })
+}
+
+#[pyfunction]
+#[pyo3(signature = (input, dim=None, keepdim=false))]
+pub fn argmax(input: &PyTensor, dim: Option<usize>, keepdim: bool) -> PyResult<PyTensor> {
+    input.argmax(dim, keepdim)
+}
+
+#[pyfunction]
+#[pyo3(signature = (input, dim=None, keepdim=false))]
+pub fn argmin(input: &PyTensor, dim: Option<usize>, keepdim: bool) -> PyResult<PyTensor> {
+    input.argmin(dim, keepdim)
 }

@@ -9,6 +9,7 @@ use dtype::{traits::FloatExt, DataType};
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
+use num_traits::FromPrimitive;
 use crate::error::{NNError, Result};
 
 #[cfg(feature = "autograd")]
@@ -53,7 +54,7 @@ pub fn mse_loss<B, T>(
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    T: DataType + FloatExt + num_traits::FromPrimitive + Copy + Send + Sync + 'static,
+    T: DataType + FloatExt + FromPrimitive + Copy + Send + Sync + 'static,
 {
     let input_shape = input.shape().dims();
     let target_shape = target.shape().dims();
@@ -81,7 +82,7 @@ where
         let input_data = input_dense.as_slice();
         let target_data = target_dense.as_slice();
 
-        let mut squared_diff_sum = T::from(0.0).unwrap();
+        let mut squared_diff_sum = T::from_f64(0.0).unwrap();
         let total_elements = input_data.len() as f64;
 
         for (pred, targ) in input_data.iter().zip(target_data.iter()) {
@@ -90,7 +91,7 @@ where
             squared_diff_sum = squared_diff_sum + squared_diff;
         }
 
-        let mean_squared_error = squared_diff_sum / T::from(total_elements).unwrap();
+        let mean_squared_error = squared_diff_sum / T::from_f64(total_elements).unwrap();
 
         // Return as scalar tensor
         Ok(Tensor::from_vec_with_backend(
@@ -139,7 +140,7 @@ pub fn cross_entropy<B, T>(
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + Clone + num_traits::FromPrimitive + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + Clone + FromPrimitive + Send + Sync + 'static,
 {
     let input_shape = input.shape().dims();
     let target_shape = target.shape().dims();
@@ -162,8 +163,23 @@ where
     let input_dense = input.to_dense_generic()?;
     let target_dense = target.to_dense_generic()?;
 
+    let input_shape = input_dense.shape().dims();
+    let target_shape = target_dense.shape().dims();
+    let last_dim = *input_shape.last().unwrap();
+
+    // Check if target is class indices (ndim - 1) or probabilities (same ndim)
+    let is_indices = target_shape.len() == input_shape.len() - 1;
+
     #[cfg(feature = "autograd")]
     {
+        // ... (existing autograd block might need update for indices, but keep it simple for now)
+        // For now, only support probabilities in autograd if not easily changed
+        if is_indices {
+             return Err(NNError::InvalidInput {
+                message: "Autograd implementation currently only supports probability targets in cross_entropy".to_string(),
+            });
+        }
+
         // 1. Log Softmax
         let log_probs = autograd::loss::log_softmax_stable(&input_dense)?;
 
@@ -182,86 +198,109 @@ where
 
     #[cfg(not(feature = "autograd"))]
     {
-        // Apply softmax to predictions (local implementation)
         let input_data = input_dense.as_slice();
-        let mut softmax_data = Vec::with_capacity(input_data.len());
-
-        // Simple softmax: exp(x) / sum(exp(x)) along last dimension
-        let last_dim = *input_shape.last().unwrap();
+        let target_data = target_dense.as_slice();
         let batch_size = input_data.len() / last_dim;
+
+        let mut total_loss = T::from_f64(0.0).unwrap();
 
         for b in 0..batch_size {
             let start = b * last_dim;
-            let end = start + last_dim;
-            let batch_data = &input_data[start..end];
+            let batch_data = &input_data[start..last_dim * (b + 1)];
 
-            // Find max for numerical stability
-            let max_val = batch_data
-                .iter()
-                .fold(T::from(f64::NEG_INFINITY).unwrap(), |a, &b| {
-                    if a > b {
-                        a
-                    } else {
-                        b
-                    }
-                });
-
-            // Compute exp(x - max) and sum
+            // Softmax for current batch
+            let max_val = batch_data.iter().fold(T::from_f64(f64::NEG_INFINITY).unwrap(), |a, &b| if a > b { a } else { b });
+            let mut sum_exp = T::from_f64(0.0).unwrap();
             let mut exp_vals = Vec::with_capacity(last_dim);
-            let mut sum_exp = T::from(0.0).unwrap();
-
             for &val in batch_data {
-                let exp_val = (val - max_val).exp();
-                exp_vals.push(exp_val);
-                sum_exp = sum_exp + exp_val;
+                let ev = (val - max_val).exp();
+                exp_vals.push(ev);
+                sum_exp = sum_exp + ev;
             }
 
-            // Normalize by sum
-            for exp_val in exp_vals {
-                softmax_data.push(exp_val / sum_exp);
-            }
-        }
-
-        let softmax_output: Tensor<B, DenseStorage<T>, T> =
-            Tensor::from_vec_with_backend(softmax_data, input.shape().dims(), input.backend().clone())?;
-
-        // Convert target to dense for computation
-        let softmax_data = softmax_output.as_slice();
-        let target_data = target_dense.as_slice();
-
-        let last_dim_size = *input_shape.last().unwrap();
-        let batch_size: usize = softmax_data.len() / last_dim_size;
-
-        let mut total_loss = T::from(0.0).unwrap();
-
-        for batch in 0..batch_size {
-            for class in 0..last_dim_size {
-                let idx = batch * last_dim_size + class;
-                let softmax_val = softmax_data[idx];
-                let target_val = target_data[idx];
-
-                // Add small epsilon to prevent log(0)
-                let epsilon = T::from(1e-12).unwrap();
-                let safe_softmax = softmax_val + epsilon;
-
-                // Compute -target * log(softmax)
-                let log_softmax = safe_softmax.ln();
-                let weighted_log = target_val * log_softmax;
-                total_loss = total_loss - weighted_log;
+            if is_indices {
+                // target_data[b] is the index of the correct class
+                let target_idx = target_data[b].to_f64().unwrap_or(0.0) as usize;
+                if target_idx < last_dim {
+                    let softmax_val = exp_vals[target_idx] / sum_exp;
+                    let epsilon = T::from_f64(1e-12).unwrap();
+                    total_loss = total_loss - (softmax_val + epsilon).ln();
+                }
+            } else {
+                // target_data has same shape as input
+                for c in 0..last_dim {
+                    let softmax_val = exp_vals[c] / sum_exp;
+                    let target_val = target_data[b * last_dim + c];
+                    let epsilon = T::from_f64(1e-12).unwrap();
+                    total_loss = total_loss - target_val * (softmax_val + epsilon).ln();
+                }
             }
         }
 
-        // Compute mean loss
-        let total_elements = T::from(softmax_data.len() as f64).unwrap();
-        let mean_loss = total_loss / total_elements;
+        let mean_loss = if is_indices {
+            total_loss / T::from_f64(batch_size as f64).unwrap()
+        } else {
+            total_loss / T::from_f64(input_data.len() as f64).unwrap()
+        };
 
-        // Return as scalar tensor
-        Ok(Tensor::from_vec_with_backend(
-            vec![mean_loss],
-            &[1],
-            input.backend().clone(),
-        )?)
+        Ok(Tensor::from_vec_with_backend(vec![mean_loss], &[1], input.backend().clone())?)
     }
+}
+
+/// Computes binary cross-entropy loss with logits.
+///
+/// This function combines a Sigmoid layer and the BCE loss in one single class.
+/// This version is more numerically stable than using a plain Sigmoid followed
+/// by a BCE loss as, by combining the operations into one layer, we take advantage
+/// of the log-sum-exp trick for numerical stability.
+///
+/// Formula: `L = -[target * log(σ(input)) + (1 - target) * log(1 - σ(input))]`
+///
+/// # Arguments
+/// * `input` - Predicted logits tensor
+/// * `target` - Target tensor with the same shape as input
+///
+/// # Returns
+/// Scalar tensor containing the BCEWithLogits loss value
+pub fn bce_with_logits_loss<B, T>(
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
+    target: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
+) -> Result<Tensor<B, DenseStorage<T>, T>>
+where
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    T: DataType + FloatExt + FromPrimitive + PartialOrd + Copy + Send + Sync + 'static,
+{
+    let input_shape = input.shape().dims();
+    let target_shape = target.shape().dims();
+
+    if input_shape != target_shape {
+        return Err(NNError::InvalidInput {
+            message: format!("Shape mismatch: input {:?}, target {:?}", input_shape, target_shape),
+        });
+    }
+
+    let input_dense = input.to_dense_generic()?;
+    let target_dense = target.to_dense_generic()?;
+
+    let input_data = input_dense.as_slice();
+    let target_data = target_dense.as_slice();
+
+    let mut total_loss = T::from_f64(0.0).unwrap();
+    let zero = T::from_f64(0.0).unwrap();
+
+    for (&x, &y) in input_data.iter().zip(target_data.iter()) {
+        // Stable implementation of BCE with logits:
+        // max(x, 0) - x * y + log(1 + exp(-|x|))
+        let max_x_0 = if x > zero { x } else { zero };
+        let abs_x = if x > zero { x } else { -x };
+        let term1 = max_x_0 - x * y;
+        let term2 = (zero + (-abs_x).exp() + T::from_f64(1.0).unwrap()).ln();
+        total_loss = total_loss + term1 + term2;
+    }
+
+    let mean_loss = total_loss / T::from_f64(input_data.len() as f64).unwrap();
+
+    Ok(Tensor::from_vec_with_backend(vec![mean_loss], &[1], input.backend().clone())?)
 }
 
 /// Computes negative log likelihood (NLL) loss.
@@ -282,7 +321,7 @@ pub fn nll_loss<B, T>(
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + Clone + num_traits::FromPrimitive + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Clone + FromPrimitive + Send + Sync + 'static,
 {
     let input_shape = input.shape().dims();
     let target_shape = target.shape().dims();
@@ -322,7 +361,7 @@ where
         let last_dim_size = *input_shape.last().unwrap();
         let batch_size: usize = input_data.len() / last_dim_size;
 
-        let mut total_loss = T::from(0.0).unwrap();
+        let mut total_loss = T::from_f64(0.0).unwrap();
 
         for batch in 0..batch_size {
             for class in 0..last_dim_size {
@@ -337,7 +376,7 @@ where
         }
 
         // Compute mean loss
-        let total_elements = T::from(input_data.len() as f64).unwrap();
+        let total_elements = T::from_f64(input_data.len() as f64).unwrap();
         let mean_loss = total_loss / total_elements;
 
         // Return as scalar tensor

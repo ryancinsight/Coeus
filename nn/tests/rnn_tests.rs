@@ -58,7 +58,7 @@ fn test_lstm_forward() {
     let input =
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[2, 1, 4]).unwrap();
 
-    let output = lstm.forward(&input).unwrap();
+    let (output, _) = lstm.forward(&input, None).unwrap();
 
     // Output: [seq_len=2, batch_size=1, hidden_size=2]
     assert_eq!(output.shape().dims(), &[2, 1, 2]);

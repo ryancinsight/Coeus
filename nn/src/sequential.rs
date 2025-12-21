@@ -371,6 +371,35 @@ where
             .collect()
     }
 
+    fn named_buffers(&self) -> Vec<(String, Tensor<B, S, T>)> {
+        let mut buffers = Vec::new();
+        for (i, module) in self.modules.iter().enumerate() {
+            let prefix = self
+                .names
+                .get(i)
+                .unwrap_or(&format!("module_{}", i))
+                .clone();
+            
+            for (name, buf) in module.named_buffers() {
+                buffers.push((format!("{}.{}", prefix, name), buf));
+            }
+        }
+        buffers
+    }
+
+    fn load_buffer(&self, name: &str, value: &Tensor<B, S, T>) -> Result<()> {
+        if let Some((prefix, suffix)) = name.split_once('.') {
+            for (i, mod_name) in self.names.iter().enumerate() {
+                if mod_name == prefix {
+                    if let Some(module) = self.modules.get(i) {
+                         return module.load_buffer(suffix, value);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -1,0 +1,44 @@
+Traceback (most recent call last):
+  File "d:\coeus\diagnostic_imports.py", line 2, in <module>
+    import coeus
+  File "d:\coeus\pycoeus\python\coeus\__init__.py", line 50, in <module>
+    from . import optim
+  File "d:\coeus\pycoeus\python\coeus\optim\__init__.py", line 12, in <module>
+    from . import lr_scheduler
+  File "d:\coeus\pycoeus\python\coeus\optim\lr_scheduler.py", line 6, in <module>
+    from .. import StepLR, CosineAnnealingLR, ExponentialLR
+ImportError: cannot import name 'StepLR' from partially initialized module 'coeus' (most likely due to a circular import) (d:\coeus\pycoeus\python\coeus\__init__.py)
+Traceback (most recent call last):
+  File "d:\coeus\diagnostic_imports.py", line 10, in <module>
+    from coeus import nn
+  File "d:\coeus\pycoeus\python\coeus\__init__.py", line 50, in <module>
+    from . import optim
+  File "d:\coeus\pycoeus\python\coeus\optim\__init__.py", line 12, in <module>
+    from . import lr_scheduler
+  File "d:\coeus\pycoeus\python\coeus\optim\lr_scheduler.py", line 6, in <module>
+    from .. import StepLR, CosineAnnealingLR, ExponentialLR
+ImportError: cannot import name 'StepLR' from partially initialized module 'coeus' (most likely due to a circular import) (d:\coeus\pycoeus\python\coeus\__init__.py)
+Traceback (most recent call last):
+  File "d:\coeus\diagnostic_imports.py", line 18, in <module>
+    from coeus import optim
+  File "d:\coeus\pycoeus\python\coeus\__init__.py", line 50, in <module>
+    from . import optim
+  File "d:\coeus\pycoeus\python\coeus\optim\__init__.py", line 12, in <module>
+    from . import lr_scheduler
+  File "d:\coeus\pycoeus\python\coeus\optim\lr_scheduler.py", line 6, in <module>
+    from .. import StepLR, CosineAnnealingLR, ExponentialLR
+ImportError: cannot import name 'StepLR' from partially initialized module 'coeus' (most likely due to a circular import) (d:\coeus\pycoeus\python\coeus\__init__.py)
+Traceback (most recent call last):
+  File "d:\coeus\diagnostic_imports.py", line 26, in <module>
+    from coeus import functional
+  File "d:\coeus\pycoeus\python\coeus\__init__.py", line 50, in <module>
+    from . import optim
+  File "d:\coeus\pycoeus\python\coeus\optim\__init__.py", line 12, in <module>
+    from . import lr_scheduler
+  File "d:\coeus\pycoeus\python\coeus\optim\lr_scheduler.py", line 6, in <module>
+    from .. import StepLR, CosineAnnealingLR, ExponentialLR
+ImportError: cannot import name 'StepLR' from partially initialized module 'coeus' (most likely due to a circular import) (d:\coeus\pycoeus\python\coeus\__init__.py)
+Import coeus failed: cannot import name 'StepLR' from partially initialized module 'coeus' (most likely due to a circular import) (d:\coeus\pycoeus\python\coeus\__init__.py)
+Import coeus.nn failed: cannot import name 'StepLR' from partially initialized module 'coeus' (most likely due to a circular import) (d:\coeus\pycoeus\python\coeus\__init__.py)
+Import coeus.optim failed: cannot import name 'StepLR' from partially initialized module 'coeus' (most likely due to a circular import) (d:\coeus\pycoeus\python\coeus\__init__.py)
+Import coeus.functional failed: cannot import name 'StepLR' from partially initialized module 'coeus' (most likely due to a circular import) (d:\coeus\pycoeus\python\coeus\__init__.py)

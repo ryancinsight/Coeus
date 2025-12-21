@@ -212,6 +212,25 @@ where
     {
         self as &mut dyn std::any::Any
     }
+
+    /// Get all named buffers (non-parameter state) in this module.
+    ///
+    /// This is used for serialization of state like BatchNorm running stats.
+    ///
+    /// # Returns
+    /// Vector of (name, tensor) pairs.
+    fn named_buffers(&self) -> Vec<(String, Tensor<B, S, T>)> {
+        Vec::new() // Default: no buffers
+    }
+
+    /// Load a buffer (non-parameter state) into this module.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the buffer
+    /// * `value` - The tensor value to load
+    fn load_buffer(&self, _name: &str, _value: &Tensor<B, S, T>) -> Result<()> {
+        Ok(()) // Default: ignore
+    }
 }
 
 /// Extension methods for Module trait.

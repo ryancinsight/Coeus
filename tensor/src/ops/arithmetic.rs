@@ -1,4 +1,9 @@
 //! Element-wise arithmetic operations
+//!
+//! This module provides basic arithmetic operations for tensors, including:
+//! - Addition, subtraction, multiplication, division
+//! - Broadcasting support
+//! - Element-wise math functions (sin, cos, exp, log, etc.)
 
 use crate::{Result, Tensor, TensorError};
 use backend::Backend;
@@ -822,4 +827,34 @@ pub fn broadcast_to<
     let broadcasted_data = broadcast_tensor_data(tensor.as_slice(), source_shape, target_shape)?;
 
     Tensor::from_vec(broadcasted_data, target_shape)
+}
+
+impl<B, S, T> Tensor<B, S, T>
+where
+    T: DataType + Num + Clone,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
+    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T>,
+{
+    /// Element-wise multiplication
+    pub fn mul(&self, other: &Self) -> Result<Tensor<B, S, T>> {
+        mul(self, other)
+    }
+    
+    /// Element-wise addition
+    pub fn add(&self, other: &Self) -> Result<Tensor<B, S, T>>
+    where T: std::ops::Add<Output = T> + Copy {
+        add(self, other)
+    }
+}
+
+impl<B, S, T> Tensor<B, S, T>
+where
+    T: DataType + Num + Clone + std::ops::Neg<Output = T>,
+    B: Backend<Data = T> + Clone + Send + Sync + Default,
+    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
+{
+    /// Element-wise negation
+    pub fn neg(&self) -> Result<Tensor<B, S, T>> {
+        neg(self)
+    }
 }

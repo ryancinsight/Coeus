@@ -488,7 +488,11 @@ where
             // Only place if not already set (avoid duplicates)
             if weight_data[idx] == T::zero() {
                 // Generate random value in [-limit, limit] using FloatExt
-                let rand_val: f64 = rng.gen_range(-limit_f64..=limit_f64);
+                let rand_val: f64 = if limit_f64 <= std::f64::EPSILON {
+                    0.0
+                } else {
+                    rng.gen_range(-limit_f64..=limit_f64)
+                };
                 weight_data[idx] = T::from_f64(rand_val).unwrap_or(T::zero());
                 placed += 1;
             }

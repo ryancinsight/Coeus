@@ -15,6 +15,7 @@ use tensor::Tensor;
 use backend::Backend;
 use storage::{Storage, StorageFromVec, StorageToDense};
 use autograd::ops::mean;
+use tensor::ops::concatenate_tensors;
 use dtype::DataType;
 use dtype::traits::FloatExt;
 use super::modality::{Modality, ModalityConfig};
@@ -234,7 +235,7 @@ where
         for modality in &config.modalities {
             intra_attention.insert(
                 modality.clone(),
-                MultiHeadAttention::new(12, config.hidden_dim)?
+                MultiHeadAttention::new(config.hidden_dim, 12)?
             );
 
             feed_forward.insert(
@@ -396,9 +397,7 @@ where
                 for embedding in embeddings.values() {
                     embedding_list.push(embedding.clone());
                 }
-                // TODO: Fix concatenate_tensors import
-                // tensor::ops::concatenate_tensors(&embedding_list.into_iter().collect::<Vec<_>>(), 2) // Concat along hidden dim
-                Ok(embedding_list.into_iter().next().unwrap()) // Placeholder
+                Ok(concatenate_tensors(&embedding_list, 2)?) // Concat along hidden dim
             },
             FusionStrategy::LateFusion | FusionStrategy::AttentionFusion => {
                 // Average pooling across modalities

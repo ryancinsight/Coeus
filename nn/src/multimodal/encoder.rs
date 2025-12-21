@@ -152,7 +152,7 @@ where
 {
     /// Create new transformer layer
     pub fn new(hidden_dim: usize, num_heads: usize, dropout: f64) -> Result<Self> {
-        let attention = crate::attention::MultiHeadAttention::new(num_heads, hidden_dim)?;
+        let attention = crate::attention::MultiHeadAttention::new(hidden_dim, num_heads)?;
         let feed_forward = FeedForward::new(hidden_dim, hidden_dim * 4, dropout)?;
         let norm1 = LayerNorm::new(vec![hidden_dim], 1e-6);
         let norm2 = LayerNorm::new(vec![hidden_dim], 1e-6);

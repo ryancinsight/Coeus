@@ -592,7 +592,7 @@ where
 {
     pub fn new(hidden_dim: usize, num_heads: usize, ff_dim: usize) -> Result<Self> {
         Ok(Self {
-            attention: MultiHeadAttention::new(num_heads, hidden_dim)?,
+            attention: MultiHeadAttention::new(hidden_dim, num_heads)?,
             feed_forward: FeedForwardNetwork::new(hidden_dim, ff_dim)?,
             norm1: LayerNorm::new(vec![hidden_dim], 1e-6),
             norm2: LayerNorm::new(vec![hidden_dim], 1e-6),

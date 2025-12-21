@@ -659,47 +659,100 @@ pub fn cross_entropy<T: DataType + FloatExt + std::ops::Neg<Output = T> + Partia
         });
     }
 
-    if targets_shape != [logits_shape[0]] {
+    let is_indices = targets_shape.len() == 1 && targets_shape[0] == logits_shape[0];
+    let is_probs = targets_shape == logits_shape;
+
+    if !is_indices && !is_probs {
         return Err(NNError::ShapeMismatch {
             operation: "cross_entropy".to_string(),
-            expected: vec![logits_shape[0]], // [batch_size]
+            expected: vec![logits_shape[0]], // or logits_shape
             actual: targets_shape.to_vec(),
         });
     }
 
-
-    // Use original implementation for inference or non-Float32 types
     let batch_size = logits_shape[0];
     let num_classes = logits_shape[1];
 
     // Apply softmax to logits
     let softmax_probs = softmax(logits)?;
-
     let softmax_data = softmax_probs.as_slice();
     let targets_data = targets.as_slice();
 
-    // Compute cross-entropy loss: -sum(log(softmax_probs[target]))
     let mut total_loss = T::zero();
+    let epsilon = T::from(1e-12).unwrap();
 
-    #[allow(clippy::needless_range_loop)]
     for batch in 0..batch_size {
-        let target_idx = cast::<T, usize>(targets_data[batch]).unwrap_or(0);
-
-        if target_idx >= num_classes {
-            return Err(NNError::ShapeMismatch {
-                operation: "cross_entropy".to_string(),
-                expected: vec![num_classes], // valid class indices
-                actual: vec![target_idx],
-            });
+        if is_indices {
+            let target_idx = cast::<T, usize>(targets_data[batch]).unwrap_or(0);
+            if target_idx >= num_classes {
+                return Err(NNError::ShapeMismatch {
+                    operation: "cross_entropy".to_string(),
+                    expected: vec![num_classes],
+                    actual: vec![target_idx],
+                });
+            }
+            let prob_idx = batch * num_classes + target_idx;
+            total_loss = total_loss - (softmax_data[prob_idx] + epsilon).ln();
+        } else {
+            for class in 0..num_classes {
+                let idx = batch * num_classes + class;
+                let target_val = targets_data[idx];
+                total_loss = total_loss - target_val * (softmax_data[idx] + epsilon).ln();
+            }
         }
-
-        let prob_idx = batch * num_classes + target_idx;
-        let log_prob = softmax_data[prob_idx].ln();
-        total_loss = total_loss - log_prob;
     }
 
     // Return mean loss across batch
-    let mean_loss = total_loss / T::from(batch_size).unwrap_or(T::one());
+    let divisor = if is_indices {
+        T::from(batch_size).unwrap_or(T::one())
+    } else {
+        T::from(batch_size * num_classes).unwrap_or(T::one())
+    };
+    let mean_loss = total_loss / divisor;
+    Tensor::from_vec(vec![mean_loss], &[]).map_err(Into::into)
+}
+
+/// Compute binary cross-entropy loss with logits
+///
+/// Formula: loss = -[target * log(sigmoid(input)) + (1 - target) * log(1 - sigmoid(input))]
+///
+/// # Arguments
+/// * `input` - Predicted logits
+/// * `target` - Target values
+///
+/// # Returns
+/// Scalar tensor containing the mean BCE loss value
+pub fn bce_with_logits_loss<T: DataType + FloatExt + PartialOrd>(
+    input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    target: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+    let input_shape = input.shape().dims();
+    let target_shape = target.shape().dims();
+
+    if input_shape != target_shape {
+        return Err(NNError::ShapeMismatch {
+            operation: "bce_with_logits_loss".to_string(),
+            expected: input_shape.to_vec(),
+            actual: target_shape.to_vec(),
+        });
+    }
+
+    let input_data = input.as_slice();
+    let target_data = target.as_slice();
+    let mut total_loss = T::zero();
+    let one = T::one();
+    let zero = T::zero();
+
+    for (&x, &y) in input_data.iter().zip(target_data.iter()) {
+        // max(x, 0) - x * y + log(1 + exp(-|x|))
+        let max_x_0 = if x > zero { x } else { zero };
+        let abs_x = if x > zero { x } else { -x };
+        let term1 = max_x_0 - x * y;
+        let term2 = (one + (-abs_x).exp()).ln();
+        total_loss = total_loss + term1 + term2;
+    }
+
+    let mean_loss = total_loss / T::from(input_data.len()).unwrap_or(one);
     Tensor::from_vec(vec![mean_loss], &[]).map_err(Into::into)
 }
 

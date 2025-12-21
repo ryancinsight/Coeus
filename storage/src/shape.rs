@@ -66,6 +66,12 @@ impl Shape {
         self.size
     }
 
+    /// Returns the total number of elements (alias for size).
+    #[must_use]
+    pub const fn numel(&self) -> usize {
+        self.size
+    }
+
     /// Returns the dimensions as a slice.
     #[must_use]
     pub fn dims(&self) -> &[usize] {

@@ -298,7 +298,11 @@ where
         let mut rng = rand::thread_rng();
         let weight_data: Vec<T> = (0..total_elements)
             .map(|_| {
-                let rand_val: f64 = rng.gen_range(-limit_f64..=limit_f64);
+                let rand_val: f64 = if limit_f64 <= std::f64::EPSILON {
+                    0.0
+                } else {
+                    rng.gen_range(-limit_f64..=limit_f64)
+                };
                 T::from_f64(rand_val).unwrap_or(T::zero())
             })
             .collect();
@@ -352,7 +356,11 @@ where
 
             // Only place if not already set (avoid duplicates)
             if weight_data[idx] == T::zero() {
-                let weight_val = rng.gen_range(-limit_f64..=limit_f64);
+                let weight_val = if limit_f64 <= std::f64::EPSILON {
+                    0.0
+                } else {
+                    rng.gen_range(-limit_f64..=limit_f64)
+                };
                 weight_data[idx] = T::from(weight_val).unwrap();
                 placed += 1;
             }

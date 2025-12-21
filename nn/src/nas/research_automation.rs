@@ -927,7 +927,7 @@ mod tests {
                 max_memory_gb: 128.0,
                 max_storage_gb: 1000.0,
             },
-            research_domains: vec![ResearchDomain::ComputerVision {
+            research_domains: vec![NasResearchDomain::ComputerVision {
                 datasets: vec!["cifar10".to_string()],
             }],
             statistical_rigor: StatisticalRigor {

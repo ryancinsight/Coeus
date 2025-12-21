@@ -6,7 +6,8 @@ use storage::{Storage, StorageToDense, StorageFromVec};
 use tensor::Tensor;
 
 // Re-export tensor operations
-pub use crate::tensor_ops::{add, sub, mul, matmul, mean, sum, div, neg, pow, transpose};
+pub use crate::tensor_ops::{add, sub, mul, matmul, mean, sum, div, neg, pow, transpose, exp, log, sin, cos, reshape};
+pub use crate::loss::nll_loss;
 
 /// Compute gradients for the given tensor.
 ///

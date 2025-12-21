@@ -1,0 +1,1388 @@
+warning: unused variable: `row`
+   --> storage\src\sparse.rs:677:13
+    |
+677 |         for row in 0..rows {
+    |             ^^^ help: if this is intentional, prefix it with an underscore: `_row`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `col`
+   --> storage\src\sparse.rs:718:13
+    |
+718 |         for col in 0..cols {
+    |             ^^^ help: if this is intentional, prefix it with an underscore: `_col`
+
+warning: `storage` (lib) generated 2 warnings (run `cargo fix --lib -p storage` to apply 2 suggestions)
+warning: unused variable: `k`
+   --> backend\src\cpu.rs:879:9
+    |
+879 |         k: usize,
+    |         ^ help: if this is intentional, prefix it with an underscore: `_k`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `squares` is never read
+  --> backend\src\gpu.rs:53:5
+   |
+49 | struct GpuShaders {
+   |        ---------- field in this struct
+...
+53 |     squares: ComputePipeline,
+   |     ^^^^^^^
+   |
+   = note: `GpuShaders` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `backend` (lib) generated 2 warnings (run `cargo fix --lib -p backend` to apply 1 suggestion)
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\creation.rs:7:5
+  |
+7 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable `output_linear_idx` is assigned to, but never used
+   --> tensor\src\ops\tensor_ops.rs:107:17
+    |
+107 |             let mut output_linear_idx = 0;
+    |                 ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: consider using `_output_linear_idx` instead
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `output_linear_idx` is never read
+   --> tensor\src\ops\tensor_ops.rs:110:17
+    |
+110 |                 output_linear_idx += coord * multiplier;
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `input`
+  --> tensor\src\functions.rs:79:13
+   |
+79 |         for input in &self.inputs {
+   |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_input`
+
+warning: `tensor` (lib) generated 4 warnings (run `cargo fix --lib -p tensor` to apply 2 suggestions)
+warning: unused variable: `grad_output`
+    --> autograd\src\functions.rs:1243:24
+     |
+1243 | ... backward(&self, grad_output: &Tensor<B, DenseStorage<T...
+     |                     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_grad_output`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:226:5
+    |
+226 |     pub inputs: Vec<Arc<Tensor<B, S, T>>>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> autograd\src\lib.rs:39:9
+    |
+ 39 | #![warn(missing_docs, clippy::all, clippy::pedantic)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+   --> autograd\src\functions.rs:236:5
+    |
+236 |     pub fn new(lhs: Arc<Tensor<B, S, T>>, rhs: Arc<Tensor<B, S, T>>) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:317:5
+    |
+317 |     pub inputs: Vec<Arc<Tensor<B, S, T>>>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+   --> autograd\src\functions.rs:327:5
+    |
+327 |     pub fn new(input: Arc<Tensor<B, S, T>>) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:390:5
+    |
+390 |     pub inputs: Vec<Arc<Tensor<B, S, T>>>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:391:5
+    |
+391 |     pub dim0: usize,
+    |     ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:392:5
+    |
+392 |     pub dim1: usize,
+    |     ^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+   --> autograd\src\functions.rs:402:5
+    |
+402 |     pub fn new(input: Arc<Tensor<B, S, T>>, dim0: usize, dim1: usize) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:681:5
+    |
+681 |     pub dim: Option<Vec<usize>>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:682:5
+    |
+682 |     pub keepdim: bool,
+    |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1365:5
+     |
+1365 |     pub exponent: f64,
+     |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1460:5
+     |
+1460 |     pub inputs: Vec<Arc<Tensor<B, S, T>>>,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1461:5
+     |
+1461 |     pub input_shape: Vec<usize>,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+    --> autograd\src\functions.rs:1471:5
+     |
+1471 |     pub fn new(input: Arc<Tensor<B, S, T>>, input_shape: Vec<usize>) -> Self {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1530:5
+     |
+1530 |     pub inputs: Vec<Arc<Tensor<B, S, T>>>,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1531:5
+     |
+1531 |     pub mask: Arc<Tensor<B, S, T>>,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1532:5
+     |
+1532 |     pub dim_val: usize,
+     |     ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1533:5
+     |
+1533 |     pub keepdim: bool,
+     |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+    --> autograd\src\functions.rs:1543:5
+     |
+1543 |     pub fn new(input: Arc<Tensor<B, S, T>>, mask: Arc<Tensor<B, S, T>>, dim: usize, keepdim: bool) -> Self {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `autograd` (lib) generated 20 warnings (run `cargo fix --lib -p autograd` to apply 1 suggestion)
+    Checking nn v0.2.0 (D:\coeus\nn)
+warning: unused import: `ops::arithmetic`
+ --> nn\src\module.rs:8:14
+  |
+8 | use tensor::{ops::arithmetic, Tensor};
+  |              ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `DenseStorage`
+  --> nn\src\activation.rs:12:24
+   |
+12 | use storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+   |                        ^^^^^^^^^^^^
+
+warning: unused import: `ops::creation::*`
+  --> nn\src\activation.rs:14:52
+   |
+14 | use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::creation::*};
+   |                                                    ^^^^^^^^^^^^^^^^
+
+warning: unused import: `ops::arithmetic::*`
+  --> nn\src\rope.rs:11:32
+   |
+11 | use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::tensor_ops::concatenate_tensors};
+   |                                ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> nn\src\rms_norm.rs:9:24
+  |
+9 | use storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+  |                        ^^^^^^^^^^^^
+
+warning: unused import: `ops::creation::*`
+  --> nn\src\rms_norm.rs:11:52
+   |
+11 | use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::creation::*};
+   |                                                    ^^^^^^^^^^^^^^^^
+
+warning: unused import: `tensor::ops::reduction::*`
+  --> nn\src\rms_norm.rs:13:5
+   |
+13 | use tensor::ops::reduction::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ModuleExt`
+  --> nn\src\linear.rs:12:29
+   |
+12 | use crate::module::{Module, ModuleExt};
+   |                             ^^^^^^^^^
+
+warning: unused import: `DenseStorage`
+  --> nn\src\multimodal\attention.rs:16:56
+   |
+16 | use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+   |                                                        ^^^^^^^^^^^^
+
+warning: unused import: `crate::dropout::Dropout`
+  --> nn\src\multimodal\fusion.rs:12:5
+   |
+12 | use crate::dropout::Dropout;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `dtype::traits::FloatExt`
+  --> nn\src\multimodal\transformer.rs:19:5
+   |
+19 | use dtype::traits::FloatExt;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\clip\model.rs:12:20
+   |
+12 | use crate::error::{NNError, Result};
+   |                    ^^^^^^^
+
+warning: unused import: `crate::conv2d::Conv2D`
+  --> nn\src\clip\model.rs:19:5
+   |
+19 | use crate::conv2d::Conv2D; // For patch extraction in vision transformer
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\clip\trainer.rs:6:5
+  |
+6 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> nn\src\clip\trainer.rs:7:5
+  |
+7 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> nn\src\clip\trainer.rs:9:5
+  |
+9 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::parameter::Parameter`
+  --> nn\src\clip\trainer.rs:12:5
+   |
+12 | use crate::parameter::Parameter;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `StorageFromVec` and `StorageToDense`
+  --> nn\src\clip\trainer.rs:14:24
+   |
+14 | use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+   |                        ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `crate::evaluation::zeroshot::ZeroShotResults`
+  --> nn\src\clip\trainer.rs:22:5
+   |
+22 | use crate::evaluation::zeroshot::ZeroShotResults;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::fs`
+  --> nn\src\clip\trainer.rs:25:5
+   |
+25 | use std::fs;
+   |     ^^^^^^^
+
+warning: unused imports: `BufWriter` and `Write`
+  --> nn\src\clip\trainer.rs:26:15
+   |
+26 | use std::io::{BufWriter, Write};
+   |               ^^^^^^^^^  ^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> nn\src\clip\trainer.rs:28:13
+   |
+28 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> nn\src\clip\enhanced_trainer.rs:11:5
+   |
+11 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+  --> nn\src\clip\enhanced_trainer.rs:12:5
+   |
+12 | use std::sync::Arc;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> nn\src\clip\enhanced_trainer.rs:19:13
+   |
+19 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\clip\enhanced_trainer.rs:21:20
+   |
+21 | use crate::error::{NNError, Result};
+   |                    ^^^^^^^
+
+warning: unused import: `Adam`
+  --> nn\src\clip\enhanced_trainer.rs:26:13
+   |
+26 | use optim::{Adam, BaseOptimizer, CosineAnnealingLR, LRScheduler};
+   |             ^^^^
+
+warning: unused import: `super::config::ClipConfig`
+  --> nn\src\clip\enhanced_trainer.rs:28:5
+   |
+28 | use super::config::ClipConfig;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `BTreeMap` and `HashSet`
+  --> nn\src\clip\zero_shot.rs:17:33
+   |
+17 | use std::collections::{HashMap, HashSet, BTreeMap};
+   |                                 ^^^^^^^  ^^^^^^^^
+
+warning: unused import: `storage::StorageFromVec`
+  --> nn\src\clip\validation.rs:15:5
+   |
+15 | use storage::StorageFromVec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `BTreeMap`
+  --> nn\src\clip\validation.rs:17:42
+   |
+17 | use std::collections::{HashMap, HashSet, BTreeMap};
+   |                                          ^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\datasets\vision_language.rs:7:20
+  |
+7 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\datasets\vision_language.rs:8:5
+  |
+8 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\datasets\batch_loader.rs:7:20
+  |
+7 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^
+
+warning: unused import: `std::collections::HashSet`
+   --> nn\src\datasets\batch_loader.rs:114:17
+    |
+114 |             use std::collections::HashSet;
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\datasets\transforms.rs:6:20
+  |
+6 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\datasets\transforms.rs:8:5
+  |
+8 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\datasets\streaming.rs:6:20
+  |
+6 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^
+
+warning: unused import: `tokio::fs`
+  --> nn\src\datasets\mod.rs:68:5
+   |
+68 | use tokio::fs;
+   |     ^^^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\experiment_tracking.rs:12:20
+   |
+12 | use crate::error::{NNError, Result};
+   |                    ^^^^^^^
+
+warning: unused imports: `Add`, `Div`, `Mul`, and `Sub`
+  --> nn\src\meta\maml.rs:46:16
+   |
+46 | use std::ops::{Add, Div, Mul, Sub};
+   |                ^^^  ^^^  ^^^  ^^^
+
+warning: unused import: `ModuleExt`
+  --> nn\src\meta\maml.rs:50:29
+   |
+50 | use crate::module::{Module, ModuleExt};
+   |                             ^^^^^^^^^
+
+warning: unused imports: `loss` and `tensor_ops`
+  --> nn\src\functional_loss.rs:15:16
+   |
+15 | use autograd::{loss, tensor_ops};
+   |                ^^^^  ^^^^^^^^^^
+
+warning: unused imports: `StorageFromVec` and `Storage`
+ --> nn\src\loss\bce.rs:8:15
+  |
+8 | use storage::{Storage, StorageFromVec};
+  |               ^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+   --> nn\src\research\mod.rs:215:5
+    |
+215 | use std::collections::HashMap;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Instant`
+ --> nn\src\research\tracking\metadata.rs:8:5
+  |
+8 | use std::time::Instant;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `AutomatedResearchPipeline`
+  --> nn\src\research\nas_integration.rs:12:119
+   |
+12 | ...reSpace, EvolutionaryNAS, ReinforcementNAS, DartsNAS, AutomatedResearchPipeline};
+   |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `HPOptimizer` and `HyperparameterOptimizer`
+  --> nn\src\research\nas_integration.rs:14:18
+   |
+14 | use crate::hpo::{HPOptimizer, HyperparameterOptimizer};
+   |                  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ExperimentRegistry` and `ExperimentTracker`
+  --> nn\src\research\nas_integration.rs:17:33
+   |
+17 | use crate::research::tracking::{ExperimentTracker, ExperimentRegistry, ExperimentSummary};
+   |                                 ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `MetricEntry` and `MetricsCollector`
+  --> nn\src\research\nas_integration.rs:18:32
+   |
+18 | use crate::research::metrics::{MetricsCollector, MetricEntry};
+   |                                ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused imports: `HPOptimizer` and `HyperparameterOptimizer`
+  --> nn\src\research\hpo_integration.rs:65:18
+   |
+65 | use crate::hpo::{HPOptimizer, HyperparameterOptimizer, HyperparameterSpace, HyperparameterConfig, HyperparameterValue, OptimizationResult};
+   |                  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ExperimentTracker`
+  --> nn\src\research\hpo_integration.rs:67:33
+   |
+67 | use crate::research::tracking::{ExperimentTracker, ExperimentSummary};
+   |                                 ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `MetricEntry` and `MetricsCollector`
+  --> nn\src\research\hpo_integration.rs:68:32
+   |
+68 | use crate::research::metrics::{MetricsCollector, MetricEntry};
+   |                                ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused imports: `Arc` and `RwLock`
+ --> nn\src\research\performance_prediction.rs:8:17
+  |
+8 | use std::sync::{Arc, RwLock};
+  |                 ^^^  ^^^^^^
+
+warning: unused import: `ArchitectureSpace`
+  --> nn\src\research\performance_prediction.rs:11:32
+   |
+11 | use crate::nas::{Architecture, ArchitectureSpace};
+   |                                ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `HyperparameterSpace`
+  --> nn\src\research\performance_prediction.rs:12:61
+   |
+12 | use crate::hpo::{HyperparameterConfig, HyperparameterValue, HyperparameterSpace};
+   |                                                             ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `HashSet`
+ --> nn\src\research\joint_search.rs:7:33
+  |
+7 | use std::collections::{HashMap, HashSet};
+  |                                 ^^^^^^^
+
+warning: unused import: `RwLock`
+ --> nn\src\research\joint_search.rs:8:22
+  |
+8 | use std::sync::{Arc, RwLock};
+  |                      ^^^^^^
+
+warning: unused import: `crate::nas::search_space::LayerSpec`
+  --> nn\src\research\joint_search.rs:12:5
+   |
+12 | use crate::nas::search_space::LayerSpec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\research\automated_research.rs:11:20
+   |
+11 | use crate::error::{NNError, Result};
+   |                    ^^^^^^^
+
+warning: unused import: `crate::research::nas_integration::NASSearchResult`
+  --> nn\src\research\automated_research.rs:12:5
+   |
+12 | use crate::research::nas_integration::NASSearchResult;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `JointSearchStrategy` and `hpo_integration::JointAlgorithm`
+  --> nn\src\research\automated_research.rs:17:62
+   |
+17 |     joint_search::{JointSearchFramework, JointSearchContext, JointSearchStrategy},
+   |                                                              ^^^^^^^^^^^^^^^^^^^
+18 |     hpo_integration::JointAlgorithm,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `BTreeMap`
+ --> nn\src\research\benchmarking.rs:7:33
+  |
+7 | use std::collections::{HashMap, BTreeMap};
+  |                                 ^^^^^^^^
+
+warning: unused imports: `HPOExperimentContext` and `JointSearchContext`
+  --> nn\src\research\benchmarking.rs:14:47
+   |
+14 |     hpo_integration::{IntegratedHPOFramework, HPOExperimentContext},
+   |                                               ^^^^^^^^^^^^^^^^^^^^
+15 |     joint_search::{JointSearchFramework, JointSearchContext},
+   |                                          ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\research\experiment_pipeline.rs:8:5
+  |
+8 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Mutex`
+ --> nn\src\research\experiment_pipeline.rs:9:22
+  |
+9 | use std::sync::{Arc, Mutex};
+  |                      ^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\research\meta_learning_integration.rs:7:20
+  |
+7 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^
+
+warning: variable does not need to be mutable
+   --> nn\src\clip\trainer.rs:188:13
+    |
+188 |         let mut start_time = Instant::now();
+    |             ----^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> nn\src\research\automated_research.rs:320:21
+    |
+320 |                 let mut research_framework = self.research_framework.write().unwrap();
+    |                     ----^^^^^^^^^^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\benchmarking.rs:536:13
+    |
+536 |         let mut execution_handles: Vec<()> = Vec::new();
+    |             ----^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\meta_learning_integration.rs:151:13
+    |
+151 |         let mut tracker = self.framework.create_experiment(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+error[E0308]: mismatched types
+   --> nn\src\rope.rs:268:34
+    |
+268 |         Ok(concatenate_tensors(&[neg_x2, x1], ndim - 1)?)
+    |                                  ^^^^^^ expected `Tensor<_, _, _>`, found `Result<Tensor<B, ..., ...>, ...>`
+    |
+    = note: expected struct `tensor::Tensor<_, _, _>`
+                 found enum `std::result::Result<tensor::Tensor<B, DenseStorage<T>, T>, tensor::TensorError>`
+help: use the `?` operator to extract the `std::result::Result<tensor::Tensor<B, DenseStorage<T>, T>, tensor::TensorError>` value, propagating a `Result::Err` value to the caller
+    |
+268 |         Ok(concatenate_tensors(&[neg_x2?, x1], ndim - 1)?)
+    |                                        +
+
+error[E0599]: no method named `mul_scalar` found for enum `std::result::Result<T, E>` in the current scope
+   --> nn\src\functional_attention.rs:194:18
+    |
+192 |               attn_weights
+    |               ------------
+    |               |
+    |  _____________method `mul_scalar` is available on `&tensor::Tensor<B, DenseStorage<T>, T>`
+    | |
+193 | |                 .mul(&dropout_mask)
+194 | |                 .mul_scalar(T::from(1.0 / (1.0 - dropout_p)).unwrap())?
+    | |                 -^^^^^^^^^^ method not found in `std::result::Result<tensor::Tensor<B, DenseStorage<T>, T>, tensor::TensorError>`
+    | |_________________|
+    |
+    |
+note: the method `mul_scalar` exists on the type `tensor::Tensor<B, DenseStorage<T>, T>`
+   --> D:\coeus\tensor\src\tensor_impl.rs:525:5
+    |
+525 | /     pub fn mul_scalar(&self, scalar: T) -> Result<Tensor<B, S, T>>
+526 | |     where
+527 | |         T: std::ops::Mul<Output = T> + Copy,
+528 | |         B: Backend<Data = T>,
+529 | |         S: Storage<T> + StorageFromVec<T>,
+    | |__________________________________________^
+help: use the `?` operator to extract the `tensor::Tensor<B, DenseStorage<T>, T>` value, propagating a `Result::Err` value to the caller
+    |
+193 |                 .mul(&dropout_mask)?
+    |                                    +
+
+warning: unused import: `futures::prelude`
+  --> nn\src\datasets\flickr30k.rs:29:5
+   |
+29 | use futures::prelude::*;
+   |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `Mul`
+  --> nn\src\rope.rs:14:21
+   |
+14 | use std::ops::{Add, Mul, Neg};
+   |                     ^^^
+
+warning: unused import: `Add`
+  --> nn\src\rope.rs:14:16
+   |
+14 | use std::ops::{Add, Mul, Neg};
+   |                ^^^
+
+warning: unused import: `StreamExt`
+  --> nn\src\datasets\streaming.rs:11:31
+   |
+11 | use futures::stream::{Stream, StreamExt};
+   |                               ^^^^^^^^^
+
+warning: unused import: `std::ops::Mul`
+  --> nn\src\functional_attention.rs:10:5
+   |
+10 | use std::ops::Mul;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+  --> nn\src\clip\trainer.rs:14:15
+   |
+14 | use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+   |               ^^^^^^^
+
+warning: unused import: `BaseOptimizer`
+  --> nn\src\clip\enhanced_trainer.rs:26:19
+   |
+26 | use optim::{Adam, BaseOptimizer, CosineAnnealingLR, LRScheduler};
+   |                   ^^^^^^^^^^^^^
+
+warning: unused import: `StorageFromVec`
+  --> nn\src\clip\zero_shot.rs:16:15
+   |
+16 | use storage::{StorageFromVec, DenseStorage};
+   |               ^^^^^^^^^^^^^^
+
+warning: unused import: `futures::prelude`
+  --> nn\src\datasets\coco.rs:33:5
+   |
+33 | use futures::prelude::*;
+   |     ^^^^^^^^^^^^^^^^
+
+warning: unused variable: `input_shape`
+   --> nn\src\rms_norm.rs:126:13
+    |
+126 |         let input_shape = input.shape().dims();
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_input_shape`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> nn\src\rnn\rnn.rs:643:17
+    |
+643 |             let mut output_with_grad = output.requires_grad_(true);
+    |                 ----^^^^^^^^^^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unused variable: `mask`
+   --> nn\src\multimodal\attention.rs:109:9
+    |
+109 |         mask: Option<&Tensor<B, S, T>>,
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_mask`
+
+warning: unused variable: `pos_embed`
+  --> nn\src\multimodal\encoder.rs:74:21
+   |
+74 |         if let Some(ref pos_embed) = self.pos_embed {
+   |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pos_embed`
+
+warning: unused variable: `batch_size`
+  --> nn\src\multimodal\encoder.rs:78:17
+   |
+78 |             let batch_size = dims[0];
+   |                 ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_batch_size`
+
+warning: unused variable: `pos_tensor`
+  --> nn\src\multimodal\encoder.rs:97:17
+   |
+97 |             let pos_tensor = Tensor::<B, S, T>::from_vec_with_backend(pos_encodings, &[seq_len, hidden_dim], B::default())?;
+   |                 ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pos_tensor`
+
+warning: unused variable: `mask`
+   --> nn\src\multimodal\encoder.rs:171:52
+    |
+171 |     pub fn forward(&self, input: &Tensor<B, S, T>, mask: Option<&Tensor<B, S, T>>) -> Result<Tensor<B, S, T>> {
+    |                                                    ^^^^ help: if this is intentional, prefix it with an underscore: `_mask`
+
+warning: variable does not need to be mutable
+   --> nn\src\cross_modal_attention.rs:402:21
+    |
+402 |                 let mut attended = self.apply_cross_attention(cross_attn, &query_embedding, modality_embeddings, batch_size)?;
+    |                     ----^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+
+warning: unused variable: `attn`
+   --> nn\src\cross_modal_attention.rs:427:37
+    |
+427 |     fn apply_intra_attention(&self, attn: &MultiHeadAttention<B, S, T>, embedding: &[f32], batch_size: usize) -> Result<Vec<f32>> {
+    |                                     ^^^^ help: if this is intentional, prefix it with an underscore: `_attn`
+
+warning: unused variable: `batch_size`
+   --> nn\src\cross_modal_attention.rs:427:92
+    |
+427 |     fn apply_intra_attention(&self, attn: &MultiHeadAttention<B, S, T>, embedding: &[f32], batch_size: usize) -> Result<Vec<f32>> {
+    |                                                                                            ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_batch_size`
+
+warning: unused variable: `cross_attn`
+   --> nn\src\cross_modal_attention.rs:434:9
+    |
+434 |         cross_attn: &CrossModalAttention<B, S, T>,
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_cross_attn`
+
+warning: unused variable: `all_embeddings`
+   --> nn\src\cross_modal_attention.rs:436:9
+    |
+436 |         all_embeddings: &HashMap<Modality, Vec<f32>>,
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_all_embeddings`
+
+warning: unused variable: `batch_size`
+   --> nn\src\cross_modal_attention.rs:437:9
+    |
+437 |         batch_size: usize,
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_batch_size`
+
+warning: unused variable: `ffn`
+   --> nn\src\cross_modal_attention.rs:443:34
+    |
+443 |     fn apply_feed_forward(&self, ffn: &FeedForwardNetwork<B, S, T>, input: &[f32]) -> Result<Vec<f32>> {
+    |                                  ^^^ help: if this is intentional, prefix it with an underscore: `_ffn`
+
+warning: unused variable: `total_weight`
+   --> nn\src\multitask_learning.rs:231:13
+    |
+231 |         let total_weight: f64 = self.log_vars.values().map(|log_var| (2.0 * log_var).exp()).sum();
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_total_weight`
+
+warning: unused variable: `task_name`
+   --> nn\src\multitask_learning.rs:526:69
+    |
+526 |     fn apply_task_specific_processing(&self, hidden_states: &[f32], task_name: &str) -> Result<Vec<f32>> {
+    |                                                                     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_task_name`
+
+warning: unused variable: `hidden_states`
+   --> nn\src\multitask_learning.rs:537:31
+    |
+537 |     fn apply_task_head(&self, hidden_states: &[f32], head: &TaskHead<B, S, T>) -> Result<Vec<f32>> {
+    |                               ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hidden_states`
+
+warning: unused variable: `lm_head`
+   --> nn\src\multitask_learning.rs:543:36
+    |
+543 |             TaskHead::Generation { lm_head, vocab_size } => {
+    |                                    ^^^^^^^ help: try ignoring the field: `lm_head: _`
+
+warning: unused variable: `classifier`
+   --> nn\src\multitask_learning.rs:547:36
+    |
+547 |             TaskHead::MultiLabel { classifier, num_labels, threshold } => {
+    |                                    ^^^^^^^^^^ help: try ignoring the field: `classifier: _`
+
+warning: unused variable: `threshold`
+   --> nn\src\multitask_learning.rs:547:60
+    |
+547 |             TaskHead::MultiLabel { classifier, num_labels, threshold } => {
+    |                                                            ^^^^^^^^^ help: try ignoring the field: `threshold: _`
+
+warning: unused variable: `scorer`
+   --> nn\src\multitask_learning.rs:551:33
+    |
+551 |             TaskHead::Ranking { scorer, margin } => {
+    |                                 ^^^^^^ help: try ignoring the field: `scorer: _`
+
+warning: unused variable: `margin`
+   --> nn\src\multitask_learning.rs:551:41
+    |
+551 |             TaskHead::Ranking { scorer, margin } => {
+    |                                         ^^^^^^ help: try ignoring the field: `margin: _`
+
+warning: unused variable: `task_losses`
+   --> nn\src\multitask_learning.rs:564:43
+    |
+564 |     pub fn update_loss_weights(&mut self, task_losses: &HashMap<String, f64>, grad_norms: Option<&HashMap<String, f64>>) {
+    |                                           ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_task_losses`
+
+warning: unused variable: `grad_norms`
+   --> nn\src\multitask_learning.rs:564:79
+    |
+564 |     pub fn update_loss_weights(&mut self, task_losses: &HashMap<String, f64>, grad_norms: Option<&HashMap<String, f64>>) {
+    |                                                                               ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_grad_norms`
+
+warning: unused variable: `batch_size`
+   --> nn\src\multitask_learning.rs:603:50
+    |
+603 |     pub fn forward(&self, hidden_states: &[f32], batch_size: usize) -> Result<Vec<f32>> {
+    |                                                  ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_batch_size`
+
+warning: variable does not need to be mutable
+   --> nn\src\clip\model.rs:474:13
+    |
+474 |         let mut token_embeddings = Tensor::zeros(&[batch_size, seq_len, embed_dim])?;
+    |             ----^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `temp_f64`
+   --> nn\src\clip\model.rs:600:13
+    |
+600 |         let temp_f64 = temp_value.to_f64().unwrap();
+    |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_temp_f64`
+
+warning: unused variable: `text`
+   --> nn\src\clip\preprocessing.rs:137:32
+    |
+137 |     pub fn process_text(&self, text: &str) -> Result<Vec<u32>, String> {
+    |                                ^^^^ help: if this is intentional, prefix it with an underscore: `_text`
+
+warning: unused variable: `loss_tensor`
+   --> nn\src\clip\trainer.rs:310:34
+    |
+310 |     fn extract_loss_value(&self, loss_tensor: &Tensor<B, DenseStorage<T>, T>) -> f64 {
+    |                                  ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_loss_tensor`
+
+warning: unused variable: `masks`
+   --> nn\src\clip\enhanced_trainer.rs:403:47
+    |
+403 |     fn preprocess_text(&self, tokens: &[u32], masks: &[u32]) -> Result<Vec<u32>> {
+    |                                               ^^^^^ help: if this is intentional, prefix it with an underscore: `_masks`
+
+warning: unused variable: `loss_tensor`
+   --> nn\src\clip\enhanced_trainer.rs:409:34
+    |
+409 |     fn extract_loss_value(&self, loss_tensor: &Tensor<B, DenseStorage<T>, T>) -> f64 {
+    |                                  ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_loss_tensor`
+
+warning: unused variable: `metrics`
+   --> nn\src\clip\enhanced_trainer.rs:440:43
+    |
+440 |     fn save_checkpoint(&self, name: &str, metrics: &ValidationMetrics) -> Result<()> {
+    |                                           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metrics`
+
+warning: unused variable: `i`
+   --> nn\src\clip\zero_shot.rs:148:14
+    |
+148 |         for (i, image_emb) in image_embeddings.iter().enumerate() {
+    |              ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: unused variable: `class_embeddings`
+   --> nn\src\clip\validation.rs:317:13
+    |
+317 |         let class_embeddings = self.model.encode_text(&class_prompt_refs)?;
+    |             ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_class_embeddings`
+
+warning: unused variable: `image_embedding`
+   --> nn\src\clip\validation.rs:330:17
+    |
+330 |             let image_embedding = self.model.encode_image(&image_data, 1)?;
+    |                 ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_image_embedding`
+
+warning: unused variable: `retrieval_type`
+   --> nn\src\clip\validation.rs:258:9
+    |
+258 |         retrieval_type: RetrievalType,
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_retrieval_type`
+
+warning: unused variable: `image_dir`
+   --> nn\src\datasets\coco.rs:310:55
+    |
+310 |     fn estimate_disk_size(metadata: &[ImageMetadata], image_dir: &Path) -> Option<f64> {
+    |                                                       ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_image_dir`
+
+warning: unused variable: `image_dir`
+   --> nn\src\datasets\flickr30k.rs:224:77
+    |
+224 |     async fn compute_statistics(annotations: &HashMap<String, Vec<String>>, image_dir: &Path) -> DatasetStatistics {
+    |                                                                             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_image_dir`
+
+warning: unused variable: `first_caption`
+   --> nn\src\datasets\flickr30k.rs:232:25
+    |
+232 |             if let Some(first_caption) = captions.first() {
+    |                         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_first_caption`
+
+warning: unused variable: `i`
+   --> nn\src\datasets\batch_loader.rs:296:14
+    |
+296 |         for (i, pair) in pairs.into_iter().enumerate() {
+    |              ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: variable does not need to be mutable
+   --> nn\src\datasets\streaming.rs:122:17
+    |
+122 |             let mut indices: Vec<usize> = if config.shuffle {
+    |                 ----^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\evaluation\retrieval.rs:159:13
+    |
+159 |         let mut results = Vec::new();
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `model`
+   --> nn\src\evaluation\retrieval.rs:150:9
+    |
+150 |         model: &M,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_model`
+
+warning: variable does not need to be mutable
+   --> nn\src\evaluation\retrieval.rs:205:13
+    |
+205 |         let mut i2t_ranks = self.compute_retrieval_ranks(&i2t_similarities)?;
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\evaluation\retrieval.rs:206:13
+    |
+206 |         let mut t2i_ranks = self.compute_retrieval_ranks(&t2i_similarities)?;
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `model`
+   --> nn\src\evaluation\retrieval.rs:180:9
+    |
+180 |         model: &M,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_model`
+
+warning: variable does not need to be mutable
+  --> nn\src\evaluation\zeroshot.rs:91:13
+   |
+91 |         let mut results = Vec::new();
+   |             ----^^^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: unused variable: `model`
+  --> nn\src\evaluation\zeroshot.rs:82:9
+   |
+82 |         model: &M,
+   |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_model`
+
+warning: unused variable: `elapsed`
+   --> nn\src\evaluation\profiling.rs:192:13
+    |
+192 |         let elapsed = self.start_time.elapsed().as_secs_f64();
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_elapsed`
+
+warning: unused variable: `config`
+   --> nn\src\evaluation\profiling.rs:230:38
+    |
+230 |     pub fn profile_evaluation(&self, config: &ProfilingConfig) -> Result<PerformanceMetrics> {
+    |                                      ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+
+warning: unused variable: `elapsed_time`
+   --> nn\src\evaluation\profiling.rs:231:13
+    |
+231 |         let elapsed_time = self.start_time.elapsed().as_secs_f64();
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_elapsed_time`
+
+warning: unused variable: `status`
+   --> nn\src\experiment_tracking.rs:222:29
+    |
+222 |                 if let Some(status) = &filter.status {
+    |                             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_status`
+
+warning: unused variable: `status`
+   --> nn\src\experiment_tracking.rs:223:47
+    |
+223 |                     if !matches!(&exp.status, status) {
+    |                                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_status`
+
+warning: unused variable: `pos_perturbation`
+   --> nn\src\meta\maml.rs:311:21
+    |
+311 |                 let pos_perturbation = <T as num_traits::cast::NumCast>::from(pos_val).unwrap_or(T::zero());
+    |                     ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pos_perturbation`
+
+warning: unused variable: `neg_perturbation`
+   --> nn\src\meta\maml.rs:315:21
+    |
+315 |                 let neg_perturbation = <T as num_traits::cast::NumCast>::from(neg_val).unwrap_or(T::zero());
+    |                     ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_neg_perturbation`
+
+warning: unused variable: `last_dim`
+   --> nn\src\functional_loss.rs:167:9
+    |
+167 |     let last_dim = *input_shape.last().unwrap();
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_last_dim`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\workflow.rs:839:17
+    |
+839 |             let mut limits = HashMap::new();
+    |                 ----^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\tracking\metadata.rs:278:17
+    |
+278 |             let mut sys = System::new();
+    |                 ----^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unused variable: `sys`
+   --> nn\src\research\tracking\metadata.rs:278:17
+    |
+278 |             let mut sys = System::new();
+    |                 ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sys`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\tracking\hyperparameters.rs:156:13
+    |
+156 |         let mut value_distributions: HashMap<String, Vec<HyperparameterValue>> = HashMap::new();
+    |             ----^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `value_distributions`
+   --> nn\src\research\tracking\hyperparameters.rs:156:13
+    |
+156 |         let mut value_distributions: HashMap<String, Vec<HyperparameterValue>> = HashMap::new();
+    |             ^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_value_distributions`
+
+warning: unused variable: `path`
+   --> nn\src\research\tracking\checkpoints.rs:172:39
+    |
+172 |     pub fn load_checkpoint(&mut self, path: &Path) -> crate::error::Result<String> {
+    |                                       ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+
+warning: variable does not need to be mutable
+  --> nn\src\research\tracking\artifacts.rs:46:13
+   |
+46 |         let mut artifact = Artifact {
+   |             ----^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: unused variable: `name`
+   --> nn\src\research\metrics\mod.rs:273:14
+    |
+273 |         for (name, collector) in &mut self.collectors {
+    |              ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `i`
+   --> nn\src\research\metrics\mod.rs:569:20
+    |
+569 |             .map(|(i, (name, entries))| {
+    |                    ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\nas_integration.rs:336:13
+    |
+336 |         let mut tracker = framework.create_experiment(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\nas_integration.rs:343:13
+    |
+343 |         let mut results: Vec<NASSearchResult> = Vec::new();
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `tracker`
+   --> nn\src\research\nas_integration.rs:336:13
+    |
+336 |         let mut tracker = framework.create_experiment(
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
+
+warning: unused variable: `results`
+   --> nn\src\research\nas_integration.rs:343:13
+    |
+343 |         let mut results: Vec<NASSearchResult> = Vec::new();
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_results`
+
+warning: unused variable: `search_alg`
+   --> nn\src\research\nas_integration.rs:345:25
+    |
+345 |             if let Some(search_alg) = self.search_algorithms.get(algorithm) {
+    |                         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_search_alg`
+
+warning: unused variable: `space`
+   --> nn\src\research\nas_integration.rs:744:77
+    |
+744 |         fn crossover(&self, parent1: &Architecture, parent2: &Architecture, space: &ArchitectureSpace) -> Result<Architecture> {
+    |                                                                             ^^^^^ help: if this is intentional, prefix it with an underscore: `_space`
+
+warning: unused variable: `context`
+   --> nn\src\research\nas_integration.rs:793:13
+    |
+793 |             context: &NASExperimentContext,
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+
+warning: unused variable: `framework`
+   --> nn\src\research\nas_integration.rs:794:13
+    |
+794 |             framework: &mut UnifiedResearchFramework,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_framework`
+
+warning: unused variable: `evaluator`
+   --> nn\src\research\nas_integration.rs:795:13
+    |
+795 |             evaluator: Arc<dyn ArchitectureEvaluator>,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_evaluator`
+
+warning: unused variable: `space`
+   --> nn\src\research\nas_integration.rs:796:13
+    |
+796 |             space: &ArchitectureSpace,
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_space`
+
+warning: unused variable: `context`
+   --> nn\src\research\nas_integration.rs:828:13
+    |
+828 |             context: &NASExperimentContext,
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+
+warning: unused variable: `framework`
+   --> nn\src\research\nas_integration.rs:829:13
+    |
+829 |             framework: &mut UnifiedResearchFramework,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_framework`
+
+warning: unused variable: `evaluator`
+   --> nn\src\research\nas_integration.rs:830:13
+    |
+830 |             evaluator: Arc<dyn ArchitectureEvaluator>,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_evaluator`
+
+warning: unused variable: `space`
+   --> nn\src\research\nas_integration.rs:831:13
+    |
+831 |             space: &ArchitectureSpace,
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_space`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\hpo_integration.rs:368:13
+    |
+368 |         let mut search_history = Vec::new();
+    |             ----^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\hpo_integration.rs:369:13
+    |
+369 |         let mut evaluations = 0;
+    |             ----^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `objective`
+   --> nn\src\research\hpo_integration.rs:348:13
+    |
+348 |         let objective = self.objective_functions.get(objective_name)
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_objective`
+
+warning: unused variable: `optimizer`
+   --> nn\src\research\hpo_integration.rs:355:13
+    |
+355 |         let optimizer = self.optimizer_factory.create_optimizer(
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_optimizer`
+
+warning: unused variable: `evaluations`
+   --> nn\src\research\hpo_integration.rs:369:13
+    |
+369 |         let mut evaluations = 0;
+    |             ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_evaluations`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\hpo_integration.rs:713:13
+    |
+713 |         let mut ref_point: Vec<f64> = reference_point.iter().map(|&val| -val).collect();
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `optimizer`
+    --> nn\src\research\hpo_integration.rs:1068:37
+     |
+1068 |         fn check_convergence(&self, optimizer: &crate::hpo::BayesianOptimizer, history: &[(HyperparameterConfig, f64, Duration)]) -> bool {
+     |                                     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_optimizer`
+
+warning: variable does not need to be mutable
+    --> nn\src\research\hpo_integration.rs:1210:29
+     |
+1210 |                         let mut new_config = config.clone();
+     |                             ----^^^^^^^^^^
+     |                             |
+     |                             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\joint_search.rs:339:17
+    |
+339 |             let mut tracker = framework.create_experiment(
+    |                 ----^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unused variable: `tracker`
+   --> nn\src\research\joint_search.rs:339:17
+    |
+339 |             let mut tracker = framework.create_experiment(
+    |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
+
+warning: unused variable: `search_time`
+   --> nn\src\research\joint_search.rs:346:17
+    |
+346 |             let search_time = start_time.elapsed();
+    |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_search_time`
+
+warning: unused variable: `sync_freq`
+   --> nn\src\research\joint_search.rs:614:13
+    |
+614 |             sync_freq: usize,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sync_freq`
+
+warning: unused variable: `research_framework`
+   --> nn\src\research\automated_research.rs:320:21
+    |
+320 |                 let mut research_framework = self.research_framework.write().unwrap();
+    |                     ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_research_framework`
+
+warning: unused variable: `metrics`
+   --> nn\src\research\automated_research.rs:411:63
+    |
+411 |     async fn execute_benchmarking(&self, datasets: &[String], metrics: &[String]) -> Result<BenchmarkResults> {
+    |                                                               ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metrics`
+
+warning: unused variable: `execution_handles`
+   --> nn\src\research\benchmarking.rs:536:13
+    |
+536 |         let mut execution_handles: Vec<()> = Vec::new();
+    |             ^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_execution_handles`
+
+warning: unused variable: `values`
+   --> nn\src\research\clip_integration\hpo_space.rs:242:40
+    |
+242 |             ParameterRange::Discrete { values } => self.sample_random(rng),
+    |                                        ^^^^^^ help: try ignoring the field: `values: _`
+
+warning: unused variable: `choices`
+   --> nn\src\research\clip_integration\hpo_space.rs:243:43
+    |
+243 |             ParameterRange::Categorical { choices } => self.sample_random(rng),
+    |                                           ^^^^^^^ help: try ignoring the field: `choices: _`
+
+warning: unused variable: `best_score`
+   --> nn\src\research\clip_integration\hpo_space.rs:519:13
+    |
+519 |         let best_score = history.iter().map(|t| t.score).fold(f64::NEG_INFINITY, f64::max);
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_best_score`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\clip_integration\automation.rs:207:17
+    |
+207 |             let mut builder = base_builder.clone();
+    |                 ----^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unused variable: `space`
+   --> nn\src\research\clip_integration\automation.rs:210:17
+    |
+210 |             for space in &self.spaces {
+    |                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_space`
+
+warning: unused variable: `tracker`
+   --> nn\src\research\meta_learning_integration.rs:282:33
+    |
+282 |     fn log_configuration(&self, tracker: &ExperimentTracker) -> Result<()> {
+    |                                 ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
+
+warning: unused variable: `config`
+   --> nn\src\research\meta_learning_integration.rs:460:12
+    |
+460 |     fn new(config: &MetaLearningConfig) -> Self {
+    |            ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+
+Some errors have detailed explanations: E0308, E0599.
+For more information about an error, try `rustc --explain E0308`.
+warning: `nn` (lib) generated 181 warnings
+error: could not compile `nn` (lib) due to 2 previous errors; 181 warnings emitted

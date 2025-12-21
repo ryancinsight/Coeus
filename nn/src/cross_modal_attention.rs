@@ -271,7 +271,7 @@ where
         for modality in modalities {
             intra_attention.insert(
                 modality.clone(),
-                MultiHeadAttention::new(num_heads, hidden_dim)?,
+                MultiHeadAttention::new(hidden_dim, num_heads)?,
             );
             feed_forward.insert(
                 modality.clone(),
@@ -459,7 +459,7 @@ where
         query_modality: Modality,
         kv_modalities: Vec<Modality>,
     ) -> Result<Self> {
-        let attention = MultiHeadAttention::new(num_heads, hidden_dim)?;
+        let attention = MultiHeadAttention::new(hidden_dim, num_heads)?;
         let out_proj = Linear::new(hidden_dim, hidden_dim)?;
         let norm = LayerNorm::new(vec![hidden_dim], 1e-6);
 
@@ -518,8 +518,8 @@ where
             text_dim,
             hidden_dim,
             symmetric: true,
-            v2t_attention: MultiHeadAttention::new(8, hidden_dim)?,
-            t2v_attention: MultiHeadAttention::new(8, hidden_dim)?,
+            v2t_attention: MultiHeadAttention::new(hidden_dim, 8)?,
+            t2v_attention: MultiHeadAttention::new(hidden_dim, 8)?,
             fusion: Linear::new(hidden_dim * 2, hidden_dim)?,
         })
     }
@@ -556,7 +556,7 @@ where
             );
         }
 
-        let fusion_attention = MultiHeadAttention::new(num_heads * num_modalities, hidden_dim)?;
+        let fusion_attention = MultiHeadAttention::new(hidden_dim, num_heads * num_modalities)?;
         let modality_weights = vec![1.0 / num_modalities as f64; num_modalities];
 
         Ok(Self {
@@ -617,7 +617,7 @@ where
             integration_blocks.push(IntegrationBlock {
                 modalities: modalities_for_stage,
                 cross_attention: Vec::new(), // Would be populated based on stage logic
-                fusion: FusionMechanism::AttentionFusion(MultiHeadAttention::new(8, 768)?),
+                fusion: FusionMechanism::AttentionFusion(MultiHeadAttention::new(768, 8)?),
             });
         }
 

@@ -17,8 +17,10 @@
 pub mod cross_entropy;
 pub mod mse;
 pub mod nll;
+pub mod bce;
 
 // Re-export commonly used loss functions
+pub use bce::BCEWithLogitsLoss;
 pub use cross_entropy::cross_entropy_loss;
 pub use cross_entropy::CrossEntropyLoss;
 pub use mse::mse_loss;

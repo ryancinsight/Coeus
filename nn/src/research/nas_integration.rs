@@ -515,7 +515,7 @@ pub mod predictors {
                     metadata: HashMap::new(),
                 },
                 search_space_config: SearchSpaceConfig {
-                    max_layers: 0,
+                    max_layers: 10,
                     available_operations: vec![],
                     parameter_ranges: HashMap::new(),
                     constraints: vec![],

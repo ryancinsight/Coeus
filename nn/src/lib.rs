@@ -489,9 +489,9 @@ pub use pooling::{
 };
 // pub use pooling::AdaptiveMaxPool1d; // TODO: Implement AdaptiveMaxPool1d
 pub use attention::{MultiHeadAttention, SparseAttention};
-pub use loss::{CrossEntropyLoss, MSELoss, NLLLoss};
+pub use loss::{BCEWithLogitsLoss, CrossEntropyLoss, MSELoss, NLLLoss};
 pub use rnn::{GRU, LSTM, RNN};
-// pub use loss::{BCEWithLogitsLoss, SmoothL1Loss}; // TODO: Implement these loss functions
+// pub use loss::SmoothL1Loss; // TODO: Implement SmoothL1Loss
 #[cfg(feature = "dropout")]
 pub use dropout::{Dropout, Dropout2d, Dropout3d};
 #[cfg(feature = "embedding")]
@@ -510,4 +510,4 @@ pub use meta::maml::MAML;
 pub use meta::prototypical::{FewShotEpisodeGenerator, PrototypicalNetwork};
 pub use nas::search_space::{Architecture, ArchitectureSpace};
 // Functional API re-exports will be added as modules are verified
-
+

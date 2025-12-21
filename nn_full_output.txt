@@ -1,0 +1,500 @@
+warning: unused variable: `row`
+   --> storage\src\sparse.rs:677:13
+    |
+677 | ...or row in ...
+    |       ^^^ help: if this is intentional, prefix it with an underscore: `_row`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `col`
+   --> storage\src\sparse.rs:718:13
+    |
+718 | ...or col in ...
+    |       ^^^ help: if this is intentional, prefix it with an underscore: `_col`
+
+warning: `storage` (lib) generated 2 warnings (run `cargo fix --lib -p storage` to apply 2 suggestions)
+warning: unused variable: `k`
+   --> backend\src\cpu.rs:879:9
+    |
+879 | ...   k: usize,
+    |       ^ help: if this is intentional, prefix it with an underscore: `_k`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `squares` is never read
+  --> backend\src\gpu.rs:53:5
+   |
+49 | struct GpuShaders {
+   |        ---------- field in this struct
+...
+53 |     squares: Compute...
+   |     ^^^^^^^
+   |
+   = note: `GpuShaders` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `backend` (lib) generated 2 warnings (run `cargo fix --lib -p backend` to apply 1 suggestion)
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\creation.rs:7:5
+  |
+7 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable `output_linear_idx` is assigned to, but never used
+   --> tensor\src\ops\tensor_ops.rs:107:17
+    |
+107 | ...et mut output_linear_idx = 0;
+    |       ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: consider using `_output_linear_idx` instead
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `output_linear_idx` is never read
+   --> tensor\src\ops\tensor_ops.rs:110:17
+    |
+110 | ...   output_li...r;
+    |       ^^^^^^^^^...^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `input`
+  --> tensor\src\functions.rs:79:13
+   |
+79 | ...or input in...
+   |       ^^^^^ help: if this is intentional, prefix it with an underscore: `_input`
+
+warning: `tensor` (lib) generated 4 warnings (run `cargo fix --lib -p tensor` to apply 2 suggestions)
+warning: unused variable: `grad_output`
+    --> autograd\src\functions.rs:1243:24
+     |
+1243 | ...f, grad_output: &...
+     |       ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_grad_output`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:226:5
+    |
+226 |    ...<B, S, T>>>,
+    |    ...^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> autograd\src\lib.rs:39:9
+    |
+ 39 | ...rn(missing_docs, c...
+    |       ^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+   --> autograd\src\functions.rs:236:5
+    |
+236 |    ...>>) -> Self {
+    |    ...^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:317:5
+    |
+317 |    ...<B, S, T>>>,
+    |    ...^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+   --> autograd\src\functions.rs:327:5
+    |
+327 |    ...>>) -> Self {
+    |    ...^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:390:5
+    |
+390 |    ...<B, S, T>>>,
+    |    ...^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:391:5
+    |
+391 |     pub dim0: usize,
+    |     ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:392:5
+    |
+392 |     pub dim1: usize,
+    |     ^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+   --> autograd\src\functions.rs:402:5
+    |
+402 |    ...ze) -> Self {
+    |    ...^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:681:5
+    |
+681 |     pub dim: Option<Vec<usize>>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> autograd\src\functions.rs:682:5
+    |
+682 |     pub keepdim: bool,
+    |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1365:5
+     |
+1365 |     pub exponent: f64,
+     |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1460:5
+     |
+1460 |   ...r<B, S, T>>>,
+     |   ...^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1461:5
+     |
+1461 |     pub input_shape: Vec<usize>,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+    --> autograd\src\functions.rs:1471:5
+     |
+1471 |   ...ze>) -> Self {
+     |   ...^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1530:5
+     |
+1530 |   ...r<B, S, T>>>,
+     |   ...^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1531:5
+     |
+1531 |     pub mask: Arc<Tensor<B, S, T>>,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1532:5
+     |
+1532 |     pub dim_val: usize,
+     |     ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+    --> autograd\src\functions.rs:1533:5
+     |
+1533 |     pub keepdim: bool,
+     |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+    --> autograd\src\functions.rs:1543:5
+     |
+1543 |   ...ool) -> Self {
+     |   ...^^^^^^^^^^^^
+
+warning: `autograd` (lib) generated 20 warnings (run `cargo fix --lib -p autograd` to apply 1 suggestion)
+   Compiling nn v0.2.0 (D:\coeus\nn)
+warning: unused import: `ops::arithmetic`
+ --> nn\src\module.rs:8:14
+  |
+8 | use tensor::{ops::arithmetic, Tensor};
+  |              ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `DenseStorage`
+  --> nn\src\activation.rs:12:24
+   |
+12 | use storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+   |                        ^^^^^^^^^^^^
+
+warning: unused import: `ops::creation::*`
+  --> nn\src\activation.rs:14:52
+   |
+14 | use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::creation::*};
+   |                                                    ^^^^^^^^^^^^^^^^
+
+warning: unused import: `ops::arithmetic::*`
+  --> nn\src\rope.rs:11:32
+   |
+11 | use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::tensor_ops::concatenate_tensors};
+   |                                ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> nn\src\rms_norm.rs:9:24
+  |
+9 | use storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+  |                        ^^^^^^^^^^^^
+
+warning: unused import: `ops::creation::*`
+  --> nn\src\rms_norm.rs:11:52
+   |
+11 | use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::creation::*};
+   |                                                    ^^^^^^^^^^^^^^^^
+
+warning: unused import: `tensor::ops::reduction::*`
+  --> nn\src\rms_norm.rs:13:5
+   |
+13 | use tensor::ops::reduction::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ModuleExt`
+  --> nn\src\linear.rs:12:29
+   |
+12 | use crate::module::{Module, ModuleExt};
+   |                             ^^^^^^^^^
+
+warning: unused import: `DenseStorage`
+  --> nn\src\multimodal\attention.rs:16:56
+   |
+16 | use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+   |                                                        ^^^^^^^^^^^^
+
+warning: unused import: `crate::dropout::Dropout`
+  --> nn\src\multimodal\fusion.rs:12:5
+   |
+12 | use crate::dropout::Dropout;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `dtype::traits::FloatExt`
+  --> nn\src\multimodal\transformer.rs:19:5
+   |
+19 | use dtype::traits::FloatExt;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\clip\model.rs:12:20
+   |
+12 | use crate::error::{NNError, Result};
+   |                    ^^^^^^^
+
+warning: unused import: `crate::conv2d::Conv2D`
+  --> nn\src\clip\model.rs:19:5
+   |
+19 | use crate::conv2d::Conv2D; // For patch extraction in vision transformer
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\clip\trainer.rs:6:5
+  |
+6 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> nn\src\clip\trainer.rs:7:5
+  |
+7 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> nn\src\clip\trainer.rs:9:5
+  |
+9 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::parameter::Parameter`
+  --> nn\src\clip\trainer.rs:12:5
+   |
+12 | use crate::parameter::Parameter;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `StorageFromVec` and `StorageToDense`
+  --> nn\src\clip\trainer.rs:14:24
+   |
+14 | use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+   |                        ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `crate::evaluation::zeroshot::ZeroShotResults`
+  --> nn\src\clip\trainer.rs:22:5
+   |
+22 | use crate::evaluation::zeroshot::ZeroShotResults;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::fs`
+  --> nn\src\clip\trainer.rs:25:5
+   |
+25 | use std::fs;
+   |     ^^^^^^^
+
+warning: unused imports: `BufWriter` and `Write`
+  --> nn\src\clip\trainer.rs:26:15
+   |
+26 | use std::io::{BufWriter, Write};
+   |               ^^^^^^^^^  ^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> nn\src\clip\trainer.rs:28:13
+   |
+28 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> nn\src\clip\enhanced_trainer.rs:11:5
+   |
+11 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+  --> nn\src\clip\enhanced_trainer.rs:12:5
+   |
+12 | use std::sync::Arc;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> nn\src\clip\enhanced_trainer.rs:19:13
+   |
+19 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\clip\enhanced_trainer.rs:21:20
+   |
+21 | use crate::error::{NNError, Result};
+   |                    ^^^^^^^
+
+warning: unused import: `Adam`
+  --> nn\src\clip\enhanced_trainer.rs:26:13
+   |
+26 | use optim::{Adam, BaseOptimizer, CosineAnnealingLR, LRScheduler};
+   |             ^^^^
+
+warning: unused import: `super::config::ClipConfig`
+  --> nn\src\clip\enhanced_trainer.rs:28:5
+   |
+28 | use super::config::ClipConfig;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `BTreeMap` and `HashSet`
+  --> nn\src\clip\zero_shot.rs:17:33
+   |
+17 | use std::collections::{HashMap, HashSet, BTreeMap};
+   |                                 ^^^^^^^  ^^^^^^^^
+
+warning: unused import: `storage::StorageFromVec`
+  --> nn\src\clip\validation.rs:15:5
+   |
+15 | use storage::StorageFromVec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `BTreeMap`
+  --> nn\src\clip\validation.rs:17:42
+   |
+17 | use std::collections::{HashMap, HashSet, BTreeMap};
+   |                                          ^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\datasets\vision_language.rs:7:20
+  |
+7 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\datasets\vision_language.rs:8:5
+  |
+8 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\datasets\batch_loader.rs:7:20
+  |
+7 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^
+
+warning: unused import: `std::collections::HashSet`
+   --> nn\src\datasets\batch_loader.rs:114:17
+    |
+114 |             use std::collections::HashSet;
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\datasets\transforms.rs:6:20
+  |
+6 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\datasets\transforms.rs:8:5
+  |
+8 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\datasets\streaming.rs:6:20
+  |
+6 | use crate::error::{NNError, Result};
+  |                    ^^^^^^^
+
+warning: unused import: `tokio::fs`
+  --> nn\src\datasets\mod.rs:68:5
+   |
+68 | use tokio::fs;
+   |     ^^^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\experiment_tracking.rs:12:20
+   |
+12 | use crate::error::{NNError, Result};
+   |                    ^^^^^^^
+
+warning: unused imports: `Add`, `Div`, `Mul`, and `Sub`
+  --> nn\src\meta\maml.rs:46:16
+   |
+46 | use std::ops::{Add, Div, Mul, Sub};
+   |                ^^^  ^^^  ^^^  ^^^
+
+warning: unused import: `ModuleExt`
+  --> nn\src\meta\maml.rs:50:29
+   |
+50 | use crate::module::{Module, ModuleExt};
+   |                             ^^^^^^^^^
+
+warning: unused imports: `loss` and `tensor_ops`
+  --> nn\src\functional_loss.rs:15:16
+   |
+15 | use autograd::{loss, tensor_ops};
+   |                ^^^^  ^^^^^^^^^^
+
+warning: unused imports: `StorageFromVec` and `Storage`
+ --> nn\src\loss\bce.rs:8:15
+  |
+8 | use storage::{Storage, StorageFromVec};
+  |               ^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+   --> nn\src\research\mod.rs:215:5
+    |
+215 | use std::collections::HashMap;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Instant`
+ --> nn\src\research\tracking\metadata.rs:8:5
+  |
+8 | use std::time::Instant;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `AutomatedResearchPipeline`
+  --> nn\src\research\nas_integration.rs:12:119
+   |
+12 | ...reSpace, EvolutionaryNAS, ReinforcementNAS, DartsNAS, AutomatedResearchPipeline};
+   |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `HPOptimizer` and `HyperparameterOptimizer`
+  --> nn\src\research\nas_integration.rs:14:18
+   |
+14 | use crate::hpo::{HPOptimizer, HyperparameterOptimizer};
+   |                  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ExperimentRegistry` and `ExperimentTracker`
+  --> nn\src\research\nas_integration.rs:17:33
+   |
+17 | use crate::research::tracking::{ExperimentTracker, ExperimentRegistry, ExperimentSummary};
+   |                                 ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `MetricEntry` and `MetricsCollector`
+  --> nn\src\research\nas_integration.rs:18:32
+   |
+18 | use crate::research::metrics::{MetricsCollector, MetricEntry};
+   |                                ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^

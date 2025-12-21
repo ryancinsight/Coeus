@@ -29,11 +29,12 @@ from ._coeus import (
     # Functional
     relu, sigmoid, tanh, gelu, silu, leaky_relu, elu,
     mse_loss, cross_entropy, softmax, max_pool2d, avg_pool2d,
-    dropout, layer_norm,
+    dropout, layer_norm, bce_with_logits_loss,
     cat as _cat, stack as _stack,
-    # Utils - only the ones we've implemented
+    argmax as _argmax, argmin as _argmin,
+    # Utils
     TensorDataset, ConcatDataset, Subset,
-    # Transform factory functions - PyO3 advanced features
+    # Transform factory functions
     to_tensor, normalize, resize, random_apply, compose,
 )
 
@@ -41,7 +42,7 @@ __version__ = "0.1.0"
 __author__ = "Ryan Clanton"
 __email__ = "ryan@coeus.dev"
 
-# Import submodules - only import what's working
+# Import submodules
 from . import nn
 from . import transforms
 from . import utils
@@ -90,6 +91,12 @@ def cat(tensors, dim=0, **kwargs):
 def stack(tensors, dim=0, **kwargs):
     return _stack(list(tensors), dim)
 
+def argmax(input, dim=None, keepdim=False):
+    return _argmax(input, dim, keepdim)
+
+def argmin(input, dim=None, keepdim=False):
+    return _argmin(input, dim, keepdim)
+
 class no_grad:
     """Context manager that disables gradient calculation."""
     def __enter__(self):
@@ -130,6 +137,7 @@ __all__ = [
 
     # Functional activations (re-exported)
     "relu", "sigmoid", "tanh", "gelu", "silu", "leaky_relu", "elu",
+    "argmax", "argmin", "bce_with_logits_loss", "cross_entropy", "mse_loss", "softmax",
 
     # Version info
     "__version__",

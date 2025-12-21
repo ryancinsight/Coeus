@@ -1,0 +1,144 @@
+
+  nn_check_full.txt:266:   |     ^^^^^^^^^^^^^^^^^^^^^^^
+  nn_check_full.txt:267:
+> nn_check_full.txt:268:warning: unused import: `NNError`
+  nn_check_full.txt:269:  --> nn\src\clip\model.rs:12:20
+  nn_check_full.txt:270:   |
+> nn_check_full.txt:271:12 | use crate::error::{NNError, Result};
+  nn_check_full.txt:272:   |                    ^^^^^^^
+  nn_check_full.txt:273:
+  nn_check_full.txt:274:warning: unused import: `crate::conv2d::Conv2D`
+  nn_check_full.txt:275:  --> nn\src\clip\model.rs:19:5
+  nn_check_full.txt:276:   |
+  nn_check_full.txt:350:   |             ^^^^^^^^^^^  ^^^^^^^^^
+  nn_check_full.txt:351:
+> nn_check_full.txt:352:warning: unused import: `NNError`
+  nn_check_full.txt:353:  --> nn\src\clip\enhanced_trainer.rs:21:20
+  nn_check_full.txt:354:   |
+> nn_check_full.txt:355:21 | use crate::error::{NNError, Result};
+  nn_check_full.txt:356:   |                    ^^^^^^^
+  nn_check_full.txt:357:
+  nn_check_full.txt:358:warning: unused import: `Adam`
+  nn_check_full.txt:359:  --> nn\src\clip\enhanced_trainer.rs:26:13
+  nn_check_full.txt:360:   |
+  nn_check_full.txt:386:   |                                          ^^^^^^^^
+  nn_check_full.txt:387:
+> nn_check_full.txt:388:warning: unused import: `NNError`
+  nn_check_full.txt:389: --> nn\src\datasets\vision_language.rs:7:20
+  nn_check_full.txt:390:  |
+> nn_check_full.txt:391:7 | use crate::error::{NNError, Result};
+  nn_check_full.txt:392:  |                    ^^^^^^^
+  nn_check_full.txt:393:
+  nn_check_full.txt:394:warning: unused import: `std::collections::HashMap`
+  nn_check_full.txt:395: --> nn\src\datasets\vision_language.rs:8:5
+  nn_check_full.txt:396:  |
+  nn_check_full.txt:398:  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  nn_check_full.txt:399:
+> nn_check_full.txt:400:warning: unused import: `NNError`
+  nn_check_full.txt:401: --> nn\src\datasets\batch_loader.rs:7:20
+  nn_check_full.txt:402:  |
+> nn_check_full.txt:403:7 | use crate::error::{NNError, Result};
+  nn_check_full.txt:404:  |                    ^^^^^^^
+  nn_check_full.txt:405:
+  nn_check_full.txt:406:warning: unused import: `std::collections::HashSet`
+  nn_check_full.txt:407:   --> nn\src\datasets\batch_loader.rs:114:17
+  nn_check_full.txt:408:    |
+  nn_check_full.txt:410:    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  nn_check_full.txt:411:
+> nn_check_full.txt:412:warning: unused import: `NNError`
+  nn_check_full.txt:413: --> nn\src\datasets\transforms.rs:6:20
+  nn_check_full.txt:414:  |
+> nn_check_full.txt:415:6 | use crate::error::{NNError, Result};
+  nn_check_full.txt:416:  |                    ^^^^^^^
+  nn_check_full.txt:417:
+  nn_check_full.txt:418:warning: unused import: `std::collections::HashMap`
+  nn_check_full.txt:419: --> nn\src\datasets\transforms.rs:8:5
+  nn_check_full.txt:420:  |
+  nn_check_full.txt:422:  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  nn_check_full.txt:423:
+> nn_check_full.txt:424:warning: unused import: `NNError`
+  nn_check_full.txt:425: --> nn\src\datasets\streaming.rs:6:20
+  nn_check_full.txt:426:  |
+> nn_check_full.txt:427:6 | use crate::error::{NNError, Result};
+  nn_check_full.txt:428:  |                    ^^^^^^^
+  nn_check_full.txt:429:
+  nn_check_full.txt:430:warning: unused import: `tokio::fs`
+  nn_check_full.txt:431:  --> nn\src\datasets\mod.rs:68:5
+  nn_check_full.txt:432:   |
+  nn_check_full.txt:434:   |     ^^^^^^^^^
+  nn_check_full.txt:435:
+> nn_check_full.txt:436:warning: unused import: `NNError`
+  nn_check_full.txt:437:  --> nn\src\experiment_tracking.rs:12:20
+  nn_check_full.txt:438:   |
+> nn_check_full.txt:439:12 | use crate::error::{NNError, Result};
+  nn_check_full.txt:440:   |                    ^^^^^^^
+  nn_check_full.txt:441:
+  nn_check_full.txt:442:warning: unused imports: `Add`, `Div`, `Mul`, and `Sub`
+  nn_check_full.txt:443:  --> nn\src\meta\maml.rs:46:16
+  nn_check_full.txt:444:   |
+  nn_check_full.txt:554:   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  nn_check_full.txt:555:
+> nn_check_full.txt:556:warning: unused import: `NNError`
+  nn_check_full.txt:557:  --> nn\src\research\automated_research.rs:11:20
+  nn_check_full.txt:558:   |
+> nn_check_full.txt:559:11 | use crate::error::{NNError, Result};
+  nn_check_full.txt:560:   |                    ^^^^^^^
+  nn_check_full.txt:561:
+  nn_check_full.txt:562:warning: unused import: `crate::research::nas_integration::NASSearchResult`
+  nn_check_full.txt:563:  --> nn\src\research\automated_research.rs:12:5
+  nn_check_full.txt:564:   |
+  nn_check_full.txt:600:  |                      ^^^^^
+  nn_check_full.txt:601:
+> nn_check_full.txt:602:warning: unused import: `NNError`
+  nn_check_full.txt:603: --> nn\src\research\meta_learning_integration.rs:7:20
+  nn_check_full.txt:604:  |
+> nn_check_full.txt:605:7 | use crate::error::{NNError, Result};
+  nn_check_full.txt:606:  |                    ^^^^^^^
+  nn_check_full.txt:607:
+  nn_check_full.txt:608:warning: variable does not need to be mutable
+  nn_check_full.txt:609:   --> nn\src\clip\trainer.rs:188:13
+  nn_check_full.txt:610:    |
+  nn_check_full.txt:640:    |             help: remove this `mut`
+  nn_check_full.txt:641:
+> nn_check_full.txt:642:error[E0308]: mismatched types
+  nn_check_full.txt:643:   --> nn\src\rope.rs:268:34
+  nn_check_full.txt:644:    |
+  nn_check_full.txt:645:268 |         Ok(concatenate_tensors(&[neg_x2, x1], ndim - 1)?)
+  nn_check_full.txt:646:    |                                  ^^^^^^ expected `Tensor<_, _, _>`, found `Result<Tensor<B, ..., ...>, ...>`
+  nn_check_full.txt:647:    |
+  nn_check_full.txt:648:    = note: expected struct `tensor::Tensor<_, _, _>`
+> nn_check_full.txt:649:                 found enum `std::result::Result<tensor::Tensor<B, DenseStorage<T>, T>, tensor::TensorError>`
+> nn_check_full.txt:650:help: use the `?` operator to extract the `std::result::Result<tensor::Tensor<B, DenseStorage<T>, T>, tensor::TensorError>` value, propagating a `Result::Err` value to the caller
+  nn_check_full.txt:651:    |
+  nn_check_full.txt:652:268 |         Ok(concatenate_tensors(&[neg_x2?, x1], ndim - 1)?)
+  nn_check_full.txt:653:    |                                        +
+  nn_check_full.txt:654:
+> nn_check_full.txt:655:error[E0599]: no method named `mul_scalar` found for enum `std::result::Result<T, E>` in the current scope
+  nn_check_full.txt:656:   --> nn\src\functional_attention.rs:194:18
+  nn_check_full.txt:657:    |
+  nn_check_full.txt:658:192 |               attn_weights
+  nn_check_full.txt:659:    |               ------------
+  nn_check_full.txt:660:    |               |
+  nn_check_full.txt:663:193 | |                 .mul(&dropout_mask)
+  nn_check_full.txt:664:194 | |                 .mul_scalar(T::from(1.0 / (1.0 - dropout_p)).unwrap())?
+> nn_check_full.txt:665:    | |                 -^^^^^^^^^^ method not found in `std::result::Result<tensor::Tensor<B, DenseStorage<T>, T>, tensor::TensorError>`
+  nn_check_full.txt:666:    | |_________________|
+  nn_check_full.txt:667:    |
+  nn_check_full.txt:668:    |
+  nn_check_full.txt:669:note: the method `mul_scalar` exists on the type `tensor::Tensor<B, DenseStorage<T>, T>`
+  nn_check_full.txt:670:   --> D:\coeus\tensor\src\tensor_impl.rs:525:5
+  nn_check_full.txt:1128:   --> nn\src\research\tracking\checkpoints.rs:172:39
+  nn_check_full.txt:1129:    |
+> nn_check_full.txt:1130:172 |     pub fn load_checkpoint(&mut self, path: &Path) -> crate::error::Result<String> {
+  nn_check_full.txt:1131:    |                                       ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+  nn_check_full.txt:1132:
+  nn_check_full.txt:1133:warning: variable does not need to be mutable
+  nn_check_full.txt:1134:  --> nn\src\research\tracking\artifacts.rs:46:13
+  nn_check_full.txt:1135:   |
+  nn_check_full.txt:1383:    |            ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+  nn_check_full.txt:1384:
+> nn_check_full.txt:1385:Some errors have detailed explanations: E0308, E0599.
+> nn_check_full.txt:1386:For more information about an error, try `rustc --explain E0308`.
+  nn_check_full.txt:1387:warning: `nn` (lib) generated 181 warnings
+> nn_check_full.txt:1388:error: could not compile `nn` (lib) due to 2 previous errors; 181 warnings emitted
+

@@ -10,6 +10,7 @@ from .._coeus import (
     Conv2D,
     BatchNorm2d,
     Dropout,
+    Embedding,
 )
 
 # Expose PyTorch-compatible API

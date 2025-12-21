@@ -296,7 +296,13 @@ impl ArchitectureSpace {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
-        let actual_layers = rng.gen_range(3..=num_layers.min(self.max_layers));
+        // Ensure at least 3 layers (input + 1 hidden + output)
+        let max_layers = num_layers.min(self.max_layers);
+        let actual_layers = if max_layers < 3 {
+            3
+        } else {
+            rng.gen_range(3..=max_layers)
+        };
 
         let mut architecture = Architecture::new(self.architecture_type);
 
@@ -309,10 +315,22 @@ impl ArchitectureSpace {
         });
 
         // Add hidden layers
-        for _ in 1..actual_layers - 1 {
-            let layer_type = &self.layer_types[rng.gen_range(0..self.layer_types.len())];
-            let layer = self.sample_layer(layer_type)?;
-            architecture.add_layer(layer);
+        if !self.layer_types.is_empty() {
+            for _ in 1..actual_layers - 1 {
+                let layer_type = &self.layer_types[rng.gen_range(0..self.layer_types.len())];
+                let layer = self.sample_layer(layer_type)?;
+                architecture.add_layer(layer);
+            }
+        } else {
+             // Fallback if no layer types defined (avoid panic)
+             for _ in 1..actual_layers - 1 {
+                 architecture.add_layer(LayerSpec::Conv2D {
+                    out_channels: 64,
+                    kernel_size: 3,
+                    stride: 1,
+                    padding: 1,
+                });
+             }
         }
 
         // Add output layer
@@ -335,24 +353,75 @@ impl ArchitectureSpace {
 
         match layer_type {
             LayerType::Conv2D => {
-                let range = self.parameter_ranges.get(layer_type).unwrap();
+                let range = self.parameter_ranges.get(layer_type).ok_or_else(|| {
+                    NNError::InvalidConfiguration {
+                        message: format!("Missing parameter range for layer type {:?}", layer_type),
+                    }
+                })?;
+                
+                let out_channels = if range.out_channels.0 > range.out_channels.1 {
+                    range.out_channels.0
+                } else {
+                    rng.gen_range(range.out_channels.0..=range.out_channels.1)
+                };
+
+                let kernel_size = if range.kernel_size.0 > range.kernel_size.1 {
+                    range.kernel_size.0
+                } else {
+                    rng.gen_range(range.kernel_size.0..=range.kernel_size.1)
+                };
+
+                let stride = if range.stride.0 > range.stride.1 {
+                    range.stride.0
+                } else {
+                    rng.gen_range(range.stride.0..=range.stride.1)
+                };
+
+                let padding = if range.padding.0 > range.padding.1 {
+                    range.padding.0
+                } else {
+                    rng.gen_range(range.padding.0..=range.padding.1)
+                };
+
                 Ok(LayerSpec::Conv2D {
-                    out_channels: rng.gen_range(range.out_channels.0..=range.out_channels.1),
-                    kernel_size: rng.gen_range(range.kernel_size.0..=range.kernel_size.1),
-                    stride: rng.gen_range(range.stride.0..=range.stride.1),
-                    padding: rng.gen_range(range.padding.0..=range.padding.1),
+                    out_channels,
+                    kernel_size,
+                    stride,
+                    padding,
                 })
             }
             LayerType::Linear => {
-                let range = self.parameter_ranges.get(layer_type).unwrap();
+                let range = self.parameter_ranges.get(layer_type).ok_or_else(|| {
+                    NNError::InvalidConfiguration {
+                        message: format!("Missing parameter range for layer type {:?}", layer_type),
+                    }
+                })?;
+
+                let out_features = if range.out_features.0 > range.out_features.1 {
+                    range.out_features.0
+                } else {
+                    rng.gen_range(range.out_features.0..=range.out_features.1)
+                };
+
                 Ok(LayerSpec::Linear {
-                    out_features: rng.gen_range(range.out_features.0..=range.out_features.1),
+                    out_features,
                 })
             }
             LayerType::Attention => {
-                let range = self.parameter_ranges.get(layer_type).unwrap();
+                let range = self.parameter_ranges.get(layer_type).ok_or_else(|| {
+                    NNError::InvalidConfiguration {
+                        message: format!("Missing parameter range for layer type {:?}", layer_type),
+                    }
+                })?;
+
+                let num_heads = if range.num_heads.0 > range.num_heads.1 {
+                    range.num_heads.0
+                } else {
+                    rng.gen_range(range.num_heads.0..=range.num_heads.1)
+                };
+
                 Ok(LayerSpec::Attention {
-                    num_heads: rng.gen_range(range.num_heads.0..=range.num_heads.1),
+                    num_heads,
                     sparse_pattern: None, // Could be randomized
                 })
             }

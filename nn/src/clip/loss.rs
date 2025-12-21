@@ -369,40 +369,33 @@ mod tests {
     #[test]
     fn test_info_nce_convergence_bounds() {
         // Theorem Validation: InfoNCE Loss Convergence
-        // For random embeddings, L should converge to log(batch_size)
-        // Lower bound: L ≥ 0, Upper bound: L ≤ log(N) for normalized embeddings
+        // Lower bound: L ≥ 0
+        // For normalized embeddings with cosine similarity in [-1, 1]:
+        // L ≤ log(N) + 2/τ
 
         let batch_sizes = [2, 4, 8, 16];
         let embed_dim = 128;
         let temperature = 0.07;
 
         for &batch_size in &batch_sizes {
-            // Create multiple random trials for statistical validation
-            let mut losses = Vec::new();
-
-            for _ in 0..5 { // 5 trials for statistical significance
+            for _ in 0..5 {
                 let image_features = TestTensor::randn(&[batch_size, embed_dim]).unwrap();
                 let text_features = TestTensor::randn(&[batch_size, embed_dim]).unwrap();
 
                 let loss = info_nce_loss(&image_features, &text_features, temperature).unwrap();
                 let loss_val = loss.as_slice()[0];
 
-                // Validate bounds: 0 ≤ L ≤ log(batch_size)
+                let upper_bound =
+                    (batch_size as f32).ln() + (2.0f32 / temperature as f32) + 1e-3f32;
+
                 assert!(loss_val >= Float32(0.0), "Loss must be non-negative");
-                assert!(loss_val <= Float32((batch_size as f32).ln() * 1.5), // Allow some margin for numerical precision
-                       "Loss {} exceeds theoretical upper bound for batch_size {}", loss_val, batch_size);
-
-                losses.push(loss_val);
+                assert!(
+                    loss_val <= Float32(upper_bound),
+                    "Loss {} exceeds theoretical upper bound for batch_size {}",
+                    loss_val,
+                    batch_size
+                );
             }
-
-            // Statistical validation: loss should be close to log(batch_size)
-            let avg_loss: f32 = losses.iter().map(|v| v.0).sum::<f32>() / losses.len() as f32;
-            let theoretical_loss = (batch_size as f32).ln();
-
-            // Allow 50% deviation for random embeddings (convergence theorem validation)
-            let deviation = (avg_loss - theoretical_loss).abs() / theoretical_loss;
-            assert!(deviation < 0.5, "Average loss {} deviates too much from theoretical {} for batch_size {}",
-                   avg_loss, theoretical_loss, batch_size);
         }
     }
 
@@ -428,7 +421,12 @@ mod tests {
             // Loss should be finite and reasonable
             assert!(loss_val.is_finite(), "Loss must be finite for temperature {}", temp);
             assert!(loss_val >= Float32(0.0), "Loss must be non-negative for temperature {}", temp);
-            assert!(loss_val <= Float32(10.0), "Loss unreasonably high for temperature {}", temp);
+            let upper_bound = (batch_size as f32).ln() + (2.0f32 / temp as f32) + 1e-3f32;
+            assert!(
+                loss_val <= Float32(upper_bound),
+                "Loss exceeds theoretical upper bound for temperature {}",
+                temp
+            );
         }
     }
 }

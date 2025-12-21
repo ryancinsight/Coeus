@@ -151,3 +151,11 @@ pub fn layer_norm(
     .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("LayerNorm failed: {:?}", e)))?;
     Ok(PyTensor { inner: result })
 }
+
+/// Binary cross-entropy with logits loss
+#[pyfunction]
+pub fn bce_with_logits_loss(input: &PyTensor, target: &PyTensor) -> PyResult<PyTensor> {
+    let result = nn::functional::bce_with_logits_loss(&input.inner, &target.inner)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("BCEWithLogitsLoss failed: {:?}", e)))?;
+    Ok(PyTensor { inner: result })
+}

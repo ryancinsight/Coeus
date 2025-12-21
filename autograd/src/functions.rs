@@ -1115,23 +1115,59 @@ where
 impl<B, S, T> Function<B, S, T> for NLLLossFunction<B, S, T>
 where
     B: Backend<Data = T>,
-    S: Storage<T> + StorageFromVec<T>,
-    T: DataType,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + num_traits::FromPrimitive,
 {
     fn inputs(&self) -> &[Arc<Tensor<B, S, T>>] {
         &self.inputs
     }
 
     fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
-        // Simplified NLL loss backward - this would need proper implementation
-        // For now, return zero gradients to avoid panics
         let log_probs = &*self.inputs[0];
         let targets = &*self.inputs[1];
+        
+        // NLL Loss backward: -1/N * grad_output at target indices
+        let dims = log_probs.shape().dims();
+        let batch_size = dims[0];
+        let num_classes = dims[1];
+        
+        // Convert targets to dense to access indices
+        let targets_dense = targets.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let targets_data = targets_dense.storage_ref().as_slice();
+        
+        let mut grad_data = Vec::with_capacity(batch_size * num_classes);
+        
+        // Get gradient scale from grad_output (assuming scalar or broadcastable)
+        let grad_val = if grad_output.numel() == 1 {
+            grad_output.storage_ref().as_slice()[0]
+        } else {
+            T::one() // Fallback
+        };
+        
+        // Scale by 1/batch_size for mean reduction
+        let scale = T::from_usize(batch_size).unwrap_or(T::one());
+        let neg_one = T::zero() - T::one();
+        let grad_factor = (neg_one / scale) * grad_val;
+        let zero = T::zero();
 
-        let zero_grad_log_probs = Tensor::zeros(log_probs.shape().dims()).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let zero_grad_targets = Tensor::zeros(targets.shape().dims()).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        for b in 0..batch_size {
+            let target_idx = targets_data[b].to_usize().unwrap_or(0);
+            for c in 0..num_classes {
+                if c == target_idx {
+                    grad_data.push(grad_factor);
+                } else {
+                    grad_data.push(zero);
+                }
+            }
+        }
+        
+        let grad_log_probs = Tensor::from_vec_with_backend(grad_data, dims, log_probs.backend().clone())
+            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+            
+        let grad_targets = Tensor::zeros(targets.shape().dims())
+            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
 
-        Ok(vec![zero_grad_log_probs, zero_grad_targets])
+        Ok(vec![grad_log_probs, grad_targets])
     }
 }
 

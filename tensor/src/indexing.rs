@@ -76,7 +76,7 @@ use crate::{error::TensorError, Backend, DataType, Tensor};
 /// Boolean indexing operations for tensors with dense storage
 impl<B, T> Tensor<B, storage::DenseStorage<T>, T>
 where
-    B: Backend + Default,
+    B: Backend<Data = T> + Default,
     T: DataType,
 {
     /// Boolean indexing: select elements where mask is true
@@ -325,6 +325,88 @@ where
         }
 
         Self::from_vec(result_data, &output_shape)
+    }
+
+    /// Advanced slicing assignment: set elements at sliced positions
+    ///
+    /// # Arguments
+    /// * `slices` - Slice specifications for each dimension as (start, end, step)
+    /// * `values` - Values to assign (must match number of sliced elements)
+    ///
+    /// # Errors
+    /// Returns `TensorError::ShapeMismatch` if slice dimensions mismatch or value count incorrect
+    pub fn advanced_assign(
+        &mut self,
+        slices: &[(Option<i32>, Option<i32>, i32)],
+        values: &[T],
+    ) -> Result<(), TensorError> {
+        let tensor_dims = self.shape().dims();
+
+        // Validate slice dimensions match tensor dimensions
+        if slices.len() != tensor_dims.len() {
+            return Err(TensorError::ShapeMismatch {
+                expected: alloc::vec![tensor_dims.len()],
+                actual: alloc::vec![slices.len()],
+                operation: "advanced_assign",
+            });
+        }
+
+        // Calculate output shape and collect indices for each dimension
+        // (Reuse logic from advanced_slice - unfortunately code duplication for now to avoid refactoring helper)
+        let mut dim_indices = Vec::new();
+
+        for (dim_idx, &(start_opt, end_opt, step)) in slices.iter().enumerate() {
+            #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+            let dim_size = tensor_dims[dim_idx] as i32;
+
+            let start = start_opt.unwrap_or(if step >= 0 { 0 } else { dim_size - 1 });
+            let end = end_opt.unwrap_or(if step >= 0 { dim_size } else { -1 });
+
+            let start_idx = if start < 0 { (dim_size + start).max(0) } else { start.min(dim_size) };
+            let end_idx = if end < 0 { (dim_size + end).max(-1) } else { end.min(dim_size) };
+
+            let mut indices = Vec::new();
+            if step > 0 {
+                let mut idx = start_idx;
+                while idx < end_idx {
+                    if idx >= 0 && idx < dim_size { indices.push(idx); }
+                    idx += step;
+                }
+            } else if step < 0 {
+                let mut idx = start_idx;
+                while idx > end_idx {
+                    if idx >= 0 && idx < dim_size { indices.push(idx); }
+                    idx += step;
+                }
+            }
+            dim_indices.push(indices);
+        }
+
+        // Generate all combinations of multi-dimensional indices
+        let mut flat_indices = Vec::new();
+        generate_multi_dim_indices(
+            &dim_indices,
+            &mut Vec::new(),
+            &mut flat_indices,
+            tensor_dims,
+        );
+
+        // Validate values length
+        if values.len() != flat_indices.len() {
+             return Err(TensorError::ShapeMismatch {
+                expected: alloc::vec![flat_indices.len()],
+                actual: alloc::vec![values.len()],
+                operation: "advanced_assign",
+            });
+        }
+
+        // Assign values
+        let self_slice = self.as_mut_slice();
+        for (i, &flat_idx) in flat_indices.iter().enumerate() {
+            self_slice[flat_idx] = values[i];
+        }
+
+        Ok(())
     }
 }
 

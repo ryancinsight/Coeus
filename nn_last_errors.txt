@@ -1,0 +1,809 @@
+   --> storage\src\sparse.rs:677:13
+
+   --> storage\src\sparse.rs:718:13
+
+   --> backend\src\cpu.rs:879:9
+
+  --> backend\src\gpu.rs:53:5
+49 | struct GpuShaders {
+...
+   = note: `GpuShaders` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+ --> tensor\src\ops\creation.rs:7:5
+  |
+7 | use num_traits::FromPrimitive;
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+   --> tensor\src\ops\tensor_ops.rs:107:17
+
+   --> tensor\src\ops\tensor_ops.rs:110:17
+
+  --> tensor\src\functions.rs:79:13
+
+
+   --> autograd\src\functions.rs:226:5
+note: the lint level is defined here
+   --> autograd\src\lib.rs:39:9
+ 39 | #![warn(missing_docs, clippy::all, clippy::pedantic)]
+
+   --> autograd\src\functions.rs:236:5
+
+   --> autograd\src\functions.rs:317:5
+
+   --> autograd\src\functions.rs:327:5
+
+   --> autograd\src\functions.rs:390:5
+
+   --> autograd\src\functions.rs:391:5
+
+   --> autograd\src\functions.rs:392:5
+
+   --> autograd\src\functions.rs:402:5
+
+   --> autograd\src\functions.rs:681:5
+
+   --> autograd\src\functions.rs:682:5
+
+
+
+
+
+
+
+
+
+
+ --> nn\src\module.rs:8:14
+  |
+8 | use tensor::{ops::arithmetic, Tensor};
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+  --> nn\src\activation.rs:12:24
+12 | use storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+
+  --> nn\src\activation.rs:14:52
+14 | use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::creation::*};
+
+  --> nn\src\rope.rs:11:32
+11 | use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::tensor_ops::concatenate_tensors};
+
+ --> nn\src\rms_norm.rs:9:24
+  |
+9 | use storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
+
+  --> nn\src\rms_norm.rs:11:52
+11 | use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::creation::*};
+
+  --> nn\src\rms_norm.rs:13:5
+13 | use tensor::ops::reduction::*;
+
+  --> nn\src\linear.rs:12:29
+12 | use crate::module::{Module, ModuleExt};
+
+  --> nn\src\multimodal\attention.rs:16:56
+16 | use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+
+  --> nn\src\multimodal\fusion.rs:12:5
+12 | use crate::dropout::Dropout;
+
+  --> nn\src\multimodal\transformer.rs:20:5
+20 | use dtype::traits::FloatExt;
+
+  --> nn\src\clip\model.rs:12:20
+12 | use crate::error::{NNError, Result};
+
+  --> nn\src\clip\model.rs:19:5
+19 | use crate::conv2d::Conv2D; // For patch extraction in vision transformer
+
+ --> nn\src\clip\trainer.rs:6:5
+  |
+6 | use std::collections::HashMap;
+
+ --> nn\src\clip\trainer.rs:7:5
+  |
+7 | use std::sync::Arc;
+
+ --> nn\src\clip\trainer.rs:9:5
+  |
+9 | use std::path::Path;
+
+  --> nn\src\clip\trainer.rs:12:5
+12 | use crate::parameter::Parameter;
+
+  --> nn\src\clip\trainer.rs:14:24
+14 | use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+
+  --> nn\src\clip\trainer.rs:22:5
+22 | use crate::evaluation::zeroshot::ZeroShotResults;
+
+  --> nn\src\clip\trainer.rs:25:5
+25 | use std::fs;
+
+  --> nn\src\clip\trainer.rs:26:15
+26 | use std::io::{BufWriter, Write};
+
+  --> nn\src\clip\trainer.rs:28:13
+28 | use serde::{Deserialize, Serialize};
+
+  --> nn\src\clip\enhanced_trainer.rs:11:5
+11 | use std::collections::HashMap;
+
+  --> nn\src\clip\enhanced_trainer.rs:12:5
+12 | use std::sync::Arc;
+
+  --> nn\src\clip\enhanced_trainer.rs:19:13
+19 | use serde::{Deserialize, Serialize};
+
+  --> nn\src\clip\enhanced_trainer.rs:21:20
+21 | use crate::error::{NNError, Result};
+
+  --> nn\src\clip\enhanced_trainer.rs:26:13
+26 | use optim::{Adam, BaseOptimizer, CosineAnnealingLR, LRScheduler};
+
+  --> nn\src\clip\enhanced_trainer.rs:28:5
+28 | use super::config::ClipConfig;
+
+  --> nn\src\clip\zero_shot.rs:17:33
+17 | use std::collections::{HashMap, HashSet, BTreeMap};
+
+  --> nn\src\clip\validation.rs:15:5
+15 | use storage::StorageFromVec;
+
+  --> nn\src\clip\validation.rs:17:42
+17 | use std::collections::{HashMap, HashSet, BTreeMap};
+
+ --> nn\src\datasets\vision_language.rs:7:20
+  |
+7 | use crate::error::{NNError, Result};
+
+ --> nn\src\datasets\vision_language.rs:8:5
+  |
+8 | use std::collections::HashMap;
+
+ --> nn\src\datasets\batch_loader.rs:7:20
+  |
+7 | use crate::error::{NNError, Result};
+
+   --> nn\src\datasets\batch_loader.rs:114:17
+
+ --> nn\src\datasets\transforms.rs:6:20
+  |
+6 | use crate::error::{NNError, Result};
+
+ --> nn\src\datasets\transforms.rs:8:5
+  |
+8 | use std::collections::HashMap;
+
+ --> nn\src\datasets\streaming.rs:6:20
+  |
+6 | use crate::error::{NNError, Result};
+
+  --> nn\src\datasets\mod.rs:68:5
+68 | use tokio::fs;
+
+  --> nn\src\experiment_tracking.rs:12:20
+12 | use crate::error::{NNError, Result};
+
+  --> nn\src\meta\maml.rs:46:16
+46 | use std::ops::{Add, Div, Mul, Sub};
+
+  --> nn\src\meta\maml.rs:50:29
+50 | use crate::module::{Module, ModuleExt};
+
+  --> nn\src\functional_loss.rs:16:16
+16 | use autograd::{loss, tensor_ops};
+
+ --> nn\src\loss\bce.rs:8:15
+  |
+8 | use storage::{Storage, StorageFromVec};
+
+   --> nn\src\research\mod.rs:215:5
+215 | use std::collections::HashMap;
+
+ --> nn\src\research\tracking\metadata.rs:8:5
+  |
+8 | use std::time::Instant;
+
+  --> nn\src\research\nas_integration.rs:12:119
+12 | ...reSpace, EvolutionaryNAS, ReinforcementNAS, DartsNAS, AutomatedResearchPipeline};
+
+  --> nn\src\research\nas_integration.rs:14:18
+14 | use crate::hpo::{HPOptimizer, HyperparameterOptimizer};
+
+  --> nn\src\research\nas_integration.rs:17:33
+17 | use crate::research::tracking::{ExperimentTracker, ExperimentRegistry, ExperimentSummary};
+
+  --> nn\src\research\nas_integration.rs:18:32
+18 | use crate::research::metrics::{MetricsCollector, MetricEntry};
+
+  --> nn\src\research\hpo_integration.rs:65:18
+65 | use crate::hpo::{HPOptimizer, HyperparameterOptimizer, HyperparameterSpace, HyperparameterConfig, HyperparameterValue, OptimizationResult};
+
+  --> nn\src\research\hpo_integration.rs:67:33
+67 | use crate::research::tracking::{ExperimentTracker, ExperimentSummary};
+
+  --> nn\src\research\hpo_integration.rs:68:32
+68 | use crate::research::metrics::{MetricsCollector, MetricEntry};
+
+ --> nn\src\research\performance_prediction.rs:8:17
+  |
+8 | use std::sync::{Arc, RwLock};
+
+  --> nn\src\research\performance_prediction.rs:11:32
+11 | use crate::nas::{Architecture, ArchitectureSpace};
+
+  --> nn\src\research\performance_prediction.rs:12:61
+12 | use crate::hpo::{HyperparameterConfig, HyperparameterValue, HyperparameterSpace};
+
+ --> nn\src\research\joint_search.rs:7:33
+  |
+7 | use std::collections::{HashMap, HashSet};
+
+ --> nn\src\research\joint_search.rs:8:22
+  |
+8 | use std::sync::{Arc, RwLock};
+
+  --> nn\src\research\joint_search.rs:12:5
+12 | use crate::nas::search_space::LayerSpec;
+
+  --> nn\src\research\automated_research.rs:11:20
+11 | use crate::error::{NNError, Result};
+
+  --> nn\src\research\automated_research.rs:12:5
+12 | use crate::research::nas_integration::NASSearchResult;
+
+  --> nn\src\research\automated_research.rs:17:62
+
+ --> nn\src\research\benchmarking.rs:7:33
+  |
+7 | use std::collections::{HashMap, BTreeMap};
+
+  --> nn\src\research\benchmarking.rs:14:47
+
+ --> nn\src\research\experiment_pipeline.rs:8:5
+  |
+8 | use std::collections::HashMap;
+
+ --> nn\src\research\experiment_pipeline.rs:9:22
+  |
+9 | use std::sync::{Arc, Mutex};
+
+ --> nn\src\research\meta_learning_integration.rs:7:20
+  |
+7 | use crate::error::{NNError, Result};
+
+   --> nn\src\clip\trainer.rs:188:13
+
+   --> nn\src\research\automated_research.rs:320:21
+
+   --> nn\src\research\benchmarking.rs:536:13
+
+   --> nn\src\research\meta_learning_integration.rs:151:13
+
+  --> nn\src\datasets\flickr30k.rs:29:5
+29 | use futures::prelude::*;
+
+  --> nn\src\rope.rs:14:21
+14 | use std::ops::{Add, Mul, Neg};
+
+  --> nn\src\rope.rs:14:16
+14 | use std::ops::{Add, Mul, Neg};
+
+  --> nn\src\datasets\streaming.rs:11:31
+11 | use futures::stream::{Stream, StreamExt};
+
+  --> nn\src\functional_attention.rs:10:16
+10 | use std::ops::{Mul, Neg};
+
+  --> nn\src\clip\trainer.rs:14:15
+14 | use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
+
+  --> nn\src\clip\enhanced_trainer.rs:26:19
+26 | use optim::{Adam, BaseOptimizer, CosineAnnealingLR, LRScheduler};
+
+  --> nn\src\clip\zero_shot.rs:16:15
+16 | use storage::{StorageFromVec, DenseStorage};
+
+  --> nn\src\datasets\coco.rs:33:5
+33 | use futures::prelude::*;
+
+   --> nn\src\rms_norm.rs:126:13
+
+   --> nn\src\rnn\rnn.rs:643:17
+
+   --> nn\src\multimodal\attention.rs:109:9
+
+  --> nn\src\multimodal\encoder.rs:74:21
+
+  --> nn\src\multimodal\encoder.rs:78:17
+
+  --> nn\src\multimodal\encoder.rs:97:17
+
+   --> nn\src\multimodal\encoder.rs:171:52
+
+   --> nn\src\cross_modal_attention.rs:402:21
+
+   --> nn\src\cross_modal_attention.rs:427:37
+
+   --> nn\src\cross_modal_attention.rs:427:92
+
+   --> nn\src\cross_modal_attention.rs:434:9
+
+   --> nn\src\cross_modal_attention.rs:436:9
+
+   --> nn\src\cross_modal_attention.rs:437:9
+
+   --> nn\src\cross_modal_attention.rs:443:34
+
+   --> nn\src\multitask_learning.rs:231:13
+
+   --> nn\src\multitask_learning.rs:526:69
+
+   --> nn\src\multitask_learning.rs:537:31
+
+   --> nn\src\multitask_learning.rs:543:36
+
+   --> nn\src\multitask_learning.rs:547:36
+
+   --> nn\src\multitask_learning.rs:547:60
+
+   --> nn\src\multitask_learning.rs:551:33
+
+   --> nn\src\multitask_learning.rs:551:41
+
+   --> nn\src\multitask_learning.rs:564:43
+
+   --> nn\src\multitask_learning.rs:564:79
+
+   --> nn\src\multitask_learning.rs:603:50
+
+   --> nn\src\clip\model.rs:474:13
+
+   --> nn\src\clip\model.rs:600:13
+
+   --> nn\src\clip\preprocessing.rs:137:32
+
+   --> nn\src\clip\trainer.rs:310:34
+
+   --> nn\src\clip\enhanced_trainer.rs:403:47
+
+   --> nn\src\clip\enhanced_trainer.rs:409:34
+
+   --> nn\src\clip\enhanced_trainer.rs:440:43
+
+   --> nn\src\clip\zero_shot.rs:148:14
+
+   --> nn\src\clip\validation.rs:317:13
+
+   --> nn\src\clip\validation.rs:330:17
+
+   --> nn\src\clip\validation.rs:258:9
+
+   --> nn\src\datasets\coco.rs:310:55
+
+   --> nn\src\datasets\flickr30k.rs:224:77
+
+   --> nn\src\datasets\flickr30k.rs:232:25
+
+   --> nn\src\datasets\batch_loader.rs:296:14
+
+   --> nn\src\datasets\streaming.rs:120:17
+
+   --> nn\src\evaluation\retrieval.rs:159:13
+
+   --> nn\src\evaluation\retrieval.rs:150:9
+
+   --> nn\src\evaluation\retrieval.rs:205:13
+
+   --> nn\src\evaluation\retrieval.rs:206:13
+
+   --> nn\src\evaluation\retrieval.rs:180:9
+
+  --> nn\src\evaluation\zeroshot.rs:91:13
+
+  --> nn\src\evaluation\zeroshot.rs:82:9
+
+   --> nn\src\evaluation\profiling.rs:192:13
+
+   --> nn\src\evaluation\profiling.rs:230:38
+
+   --> nn\src\evaluation\profiling.rs:231:13
+
+   --> nn\src\experiment_tracking.rs:222:29
+
+   --> nn\src\experiment_tracking.rs:223:47
+
+   --> nn\src\meta\maml.rs:311:21
+
+   --> nn\src\meta\maml.rs:315:21
+
+   --> nn\src\functional_loss.rs:168:9
+
+   --> nn\src\research\workflow.rs:839:17
+
+   --> nn\src\research\tracking\metadata.rs:278:17
+
+   --> nn\src\research\tracking\metadata.rs:278:17
+
+   --> nn\src\research\tracking\hyperparameters.rs:156:13
+
+   --> nn\src\research\tracking\hyperparameters.rs:156:13
+
+   --> nn\src\research\tracking\checkpoints.rs:172:39
+
+  --> nn\src\research\tracking\artifacts.rs:46:13
+
+   --> nn\src\research\metrics\mod.rs:273:14
+
+   --> nn\src\research\metrics\mod.rs:569:20
+
+   --> nn\src\research\nas_integration.rs:336:13
+
+   --> nn\src\research\nas_integration.rs:343:13
+
+   --> nn\src\research\nas_integration.rs:336:13
+
+   --> nn\src\research\nas_integration.rs:343:13
+
+   --> nn\src\research\nas_integration.rs:345:25
+
+   --> nn\src\research\nas_integration.rs:744:77
+
+   --> nn\src\research\nas_integration.rs:793:13
+
+   --> nn\src\research\nas_integration.rs:794:13
+
+   --> nn\src\research\nas_integration.rs:795:13
+
+   --> nn\src\research\nas_integration.rs:796:13
+
+   --> nn\src\research\nas_integration.rs:828:13
+
+   --> nn\src\research\nas_integration.rs:829:13
+
+   --> nn\src\research\nas_integration.rs:830:13
+
+   --> nn\src\research\nas_integration.rs:831:13
+
+   --> nn\src\research\hpo_integration.rs:368:13
+
+   --> nn\src\research\hpo_integration.rs:369:13
+
+   --> nn\src\research\hpo_integration.rs:348:13
+
+   --> nn\src\research\hpo_integration.rs:355:13
+
+   --> nn\src\research\hpo_integration.rs:369:13
+
+   --> nn\src\research\hpo_integration.rs:713:13
+
+
+
+   --> nn\src\research\joint_search.rs:339:17
+
+   --> nn\src\research\joint_search.rs:339:17
+
+   --> nn\src\research\joint_search.rs:346:17
+
+   --> nn\src\research\joint_search.rs:614:13
+
+   --> nn\src\research\automated_research.rs:320:21
+
+   --> nn\src\research\automated_research.rs:411:63
+
+   --> nn\src\research\benchmarking.rs:536:13
+
+   --> nn\src\research\clip_integration\hpo_space.rs:242:40
+
+   --> nn\src\research\clip_integration\hpo_space.rs:243:43
+
+   --> nn\src\research\clip_integration\hpo_space.rs:519:13
+
+   --> nn\src\research\clip_integration\automation.rs:207:17
+
+   --> nn\src\research\clip_integration\automation.rs:210:17
+
+   --> nn\src\research\meta_learning_integration.rs:282:33
+
+   --> nn\src\research\meta_learning_integration.rs:460:12
+
+   --> nn\src\datasets\coco.rs:427:5
+note: but type `ImageMetadata` is only usable at visibility `pub(self)`
+   --> nn\src\datasets\coco.rs:98:1
+ 98 | struct ImageMetadata {
+
+   --> nn\src\research\orchestrator.rs:672:5
+note: but type `orchestrator::ResourceAllocation` is only usable at visibility `pub(self)`
+   --> nn\src\research\orchestrator.rs:344:1
+344 | struct ResourceAllocation {
+
+   --> nn\src\research\clip_integration\automation.rs:184:5
+note: but type `automation::ExperimentStatus` is only usable at visibility `pub(self)`
+   --> nn\src\research\clip_integration\automation.rs:67:1
+ 67 | enum ExperimentStatus {
+
+  --> nn\src\rope.rs:31:5
+21 | pub struct RoPE<B, S, T>
+...
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+  --> nn\src\linear.rs:17:8
+17 | struct LinearFunction<B, S, T>
+
+  --> nn\src\linear.rs:34:8
+28 | / impl<B, S, T> LinearFunction<B, S, T>
+29 | | where
+33 |   {
+
+   --> nn\src\clip\model.rs:116:8
+ 80 | / impl<B, S, T> VisionEncoder<B, S, T>
+ 81 | | where
+...
+
+   --> nn\src\clip\model.rs:307:5
+300 | pub struct TextTransformer<B, S, T>
+...
+
+   --> nn\src\clip\model.rs:346:5
+339 | pub struct TextEncoder<B, S, T>
+...
+
+   --> nn\src\clip\model.rs:412:8
+353 | / impl<B, S, T> TextEncoder<B, S, T>
+354 | | where
+...
+
+   --> nn\src\clip\trainer.rs:149:5
+137 | pub struct ClipTrainer<B, T>
+...
+
+  --> nn\src\clip\enhanced_trainer.rs:84:5
+73 | pub struct EnhancedClipTrainer<B, S, T>
+...
+...
+
+  --> nn\src\datasets\coco.rs:38:5
+36 | pub struct CocoDataset {
+...
+
+   --> nn\src\datasets\coco.rs:102:5
+ 98 | struct ImageMetadata {
+...
+
+   --> nn\src\datasets\coco.rs:410:14
+408 | impl CocoDataset {
+
+  --> nn\src\datasets\flickr30k.rs:34:5
+32 | pub struct Flickr30kDataset {
+
+   --> nn\src\datasets\flickr30k.rs:411:14
+409 | impl Flickr30kDataset {
+
+  --> nn\src\datasets\vision_language.rs:70:5
+69 | pub struct DatasetIterator<'a, T> {
+
+  --> nn\src\datasets\batch_loader.rs:91:5
+79 | pub struct VisionLanguageBatchLoader<T: VisionLanguageData + Send + Sync + 'static> {
+...
+
+   --> nn\src\datasets\batch_loader.rs:425:5
+424 | struct MemoryManager {
+
+   --> nn\src\datasets\batch_loader.rs:439:8
+430 | impl MemoryManager {
+...
+...
+...
+...
+
+  --> nn\src\datasets\streaming.rs:54:5
+50 | pub struct StreamingDataset<T: VisionLanguageData + Send + Sync + 'static> {
+...
+
+   --> nn\src\datasets\streaming.rs:100:5
+ 99 | pub struct DatasetStream<T: VisionLanguageData + Send + Sync + 'static> {
+
+   --> nn\src\datasets\streaming.rs:181:5
+180 | pub struct BatchedDatasetStream<T: VisionLanguageData + Send + Sync + 'static> {
+
+  --> nn\src\evaluation\embeddings.rs:14:6
+14 | type Matrix = Vec<Vec<f64>>;
+
+  --> nn\src\evaluation\embeddings.rs:16:6
+16 | type Vector = Vec<f64>;
+
+  --> nn\src\evaluation\embeddings.rs:82:5
+81 | pub struct EmbeddingAnalyzer<E> {
+
+  --> nn\src\evaluation\retrieval.rs:60:5
+59 | struct SimilarityComputer {
+
+   --> nn\src\evaluation\retrieval.rs:106:8
+ 63 | impl SimilarityComputer {
+...
+
+  --> nn\src\evaluation\zeroshot.rs:70:5
+69 | pub struct ZeroShotEvaluator {
+
+  --> nn\src\research\orchestrator.rs:22:5
+20 | pub struct ResearchOrchestrator {
+   = note: `ResearchOrchestrator` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+  --> nn\src\research\orchestrator.rs:35:5
+33 | pub struct WorkflowExecutionEngine {
+   = note: `WorkflowExecutionEngine` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+   --> nn\src\research\orchestrator.rs:243:5
+237 | struct ExecutionGraph {
+...
+
+   --> nn\src\research\orchestrator.rs:250:5
+248 | struct ExecutionNode {
+...
+
+   --> nn\src\research\orchestrator.rs:273:5
+263 | enum ExecutionStatus {
+...
+
+   --> nn\src\research\orchestrator.rs:300:8
+276 | impl ExecutionGraph {
+...
+...
+...
+
+   --> nn\src\research\orchestrator.rs:452:5
+448 | pub struct WorkflowProgress {
+...
+...
+
+   --> nn\src\research\orchestrator.rs:468:5
+460 | pub struct StepMetrics {
+...
+
+   --> nn\src\research\tracking\artifacts.rs:458:5
+454 | pub struct ArtifactArchive {
+...
+
+   --> nn\src\research\nas_integration.rs:569:9
+
+   --> nn\src\research\nas_integration.rs:778:9
+
+   --> nn\src\research\nas_integration.rs:813:9
+
+   --> nn\src\research\hpo_integration.rs:206:5
+196 | pub struct IntegratedHPOFramework {
+...
+
+   --> nn\src\research\joint_search.rs:183:5
+175 | pub struct JointSearchFramework {
+...
+
+   --> nn\src\research\joint_search.rs:196:5
+190 | struct CoordinationMechanisms {
+...
+
+   --> nn\src\research\joint_search.rs:221:5
+219 | struct ResourceArbitrationCoordinator {
+
+   --> nn\src\research\joint_search.rs:231:5
+230 | struct PerformanceDatum {
+
+   --> nn\src\research\joint_search.rs:240:5
+239 | struct SearchEffectiveness {
+
+   --> nn\src\research\joint_search.rs:249:5
+248 | struct ResourceAllocation {
+
+   --> nn\src\research\joint_search.rs:258:5
+257 | struct ResourceConstraints {
+
+   --> nn\src\research\joint_search.rs:266:5
+265 | struct TimeLimits {
+
+   --> nn\src\research\joint_search.rs:273:5
+272 | struct FairnessPolicies {
+
+   --> nn\src\research\benchmarking.rs:179:5
+176 | pub struct BenchmarkExecutionEngine {
+...
+...
+
+   --> nn\src\research\benchmarking.rs:193:5
+191 | pub struct BenchmarkScheduler {
+
+   --> nn\src\research\benchmarking.rs:363:5
+359 | pub struct ResultsDatabase {
+...
+
+   --> nn\src\research\benchmarking.rs:381:5
+379 | pub struct StatisticalAnalyzer {
+
+   --> nn\src\research\benchmarking.rs:424:5
+422 | pub struct ReportGenerator {
+
+   --> nn\src\research\benchmarking.rs:470:5
+468 | struct ResourceMonitor {
+
+   --> nn\src\research\benchmarking.rs:480:5
+479 | struct ResourceThresholds {
+
+   --> nn\src\research\clip_integration\mod.rs:152:5
+150 | pub struct ClipResearchIntegrator {
+
+   --> nn\src\research\clip_integration\mod.rs:219:8
+158 | impl ClipResearchIntegrator {
+...
+...
+...
+
+  --> nn\src\research\clip_integration\automation.rs:52:5
+51 | pub struct AutomatedResearchWorkflow {
+
+  --> nn\src\research\clip_integration\automation.rs:63:5
+59 | struct QueuedExperiment {
+...
+   = note: `QueuedExperiment` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+  --> nn\src\research\clip_integration\automation.rs:68:5
+67 | enum ExperimentStatus {
+   = note: `ExperimentStatus` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+   --> nn\src\research\clip_integration\automation.rs:190:5
+188 | pub struct HpoAutomation {
+
+   --> nn\src\research\clip_integration\automation.rs:225:5
+223 | pub struct AblationAutomation {
+
+  --> nn\src\research\experiment_pipeline.rs:63:5
+61 | pub struct ExperimentPipeline {
+
+   --> nn\src\research\experiment_pipeline.rs:171:8
+ 66 | impl ExperimentPipeline {
+...
+
+  --> nn\src\datasets\vision_language.rs:59:17
+   = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+   = note: `#[warn(mismatched_lifetime_syntaxes)]` on by default
+help: use `'_` for type paths
+
+  --> nn\src\research\orchestrator.rs:72:21
+   = note: the type `ResearchAgentRegistry` does not implement `Clone`, so calling `clone` on `&ResearchAgentRegistry` copies the reference, which does not do anything and can be removed
+   = note: `#[warn(noop_method_call)]` on by default
+help: remove this redundant call
+help: if you meant to clone `ResearchAgentRegistry`, implement `Clone` for it
+  --> nn\src\research\registry.rs:16:1
+16 + #[derive(Clone)]
+17 | pub struct ResearchAgentRegistry {
+
+  --> nn\src\research\orchestrator.rs:73:29
+   = note: the type `orchestrator::ResourceManager` does not implement `Clone`, so calling `clone` on `&orchestrator::ResourceManager` copies the reference, which does not do anything and can be removed
+help: remove this redundant call
+help: if you meant to clone `orchestrator::ResourceManager`, implement `Clone` for it
+355+ #[derive(Clone)]
+356| pub struct ResourceManager {
+
+  --> nn\src\research\orchestrator.rs:74:29
+   = note: the type `ProgressTracker` does not implement `Clone`, so calling `clone` on `&ProgressTracker` copies the reference, which does not do anything and can be removed
+help: remove this redundant call
+help: if you meant to clone `ProgressTracker`, implement `Clone` for it
+440+ #[derive(Clone)]
+441| pub struct ProgressTracker {
+
+   --> nn\src\research\nas_integration.rs:270:9
+help: use `let _ = ...` to ignore the resulting value
+
+   --> nn\src\research\nas_integration.rs:275:9
+help: use `let _ = ...` to ignore the resulting value
+
+   --> nn\src\research\nas_integration.rs:280:9
+help: use `let _ = ...` to ignore the resulting value
+
+   --> nn\src\research\benchmarking.rs:527:16
+help: remove this redundant call
+help: if you meant to clone `benchmarking::BenchmarkSuite`, implement `Clone` for it
+ 36 + #[derive(Clone)]
+ 37 | pub struct BenchmarkSuite {
+

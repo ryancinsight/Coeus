@@ -30,6 +30,7 @@ pub mod loss;
 pub mod preprocessing;
 pub mod trainer;
 pub mod enhanced_trainer;
+mod imagenet_labels;
 pub mod zero_shot;
 pub mod validation;
 pub mod traits;
@@ -49,4 +50,4 @@ pub use traits::ClipEncoder;
 
 #[cfg(test)]
 mod tests;
-
+

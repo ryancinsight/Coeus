@@ -128,6 +128,64 @@ where
         }
     }
 
+    /// Returns the indices of the maximum value of all elements in the tensor.
+    ///
+    /// # Returns
+    ///
+    /// A scalar tensor containing the index of the maximum value.
+    #[must_use]
+    pub fn argmax_all(&self) -> Self
+    where
+        T: PartialOrd,
+    {
+        let data = self.as_slice();
+        if data.is_empty() {
+            return Self::from_vec(vec![T::zero()], &[1]).unwrap();
+        }
+
+        let mut max_idx = 0;
+        let mut max_val = data[0];
+
+        for (i, &x) in data.iter().enumerate().skip(1) {
+            if x > max_val {
+                max_val = x;
+                max_idx = i;
+            }
+        }
+
+        let idx_t = T::from(max_idx as f64).unwrap_or_else(T::zero);
+        Self::from_vec(vec![idx_t], &[1]).unwrap()
+    }
+
+    /// Returns the indices of the minimum value of all elements in the tensor.
+    ///
+    /// # Returns
+    ///
+    /// A scalar tensor containing the index of the minimum value.
+    #[must_use]
+    pub fn argmin_all(&self) -> Self
+    where
+        T: PartialOrd,
+    {
+        let data = self.as_slice();
+        if data.is_empty() {
+            return Self::from_vec(vec![T::zero()], &[1]).unwrap();
+        }
+
+        let mut min_idx = 0;
+        let mut min_val = data[0];
+
+        for (i, &x) in data.iter().enumerate().skip(1) {
+            if x < min_val {
+                min_val = x;
+                min_idx = i;
+            }
+        }
+
+        let idx_t = T::from(min_idx as f64).unwrap_or_else(T::zero);
+        Self::from_vec(vec![idx_t], &[1]).unwrap()
+    }
+
     /// Computes the sum of elements along specified dimensions.
     ///
     /// # Mathematical Definition
@@ -542,5 +600,204 @@ where
         T: PartialOrd + Clone,
     {
         self.min_dims(dim, keepdim)
+    }
+
+    /// Computes the indices of the maximum value along specified dimensions.
+    ///
+    /// # Arguments
+    ///
+    /// * `dim` - Dimension to reduce.
+    /// * `keepdim` - If true, keeps reduced dimensions with size 1.
+    ///
+    /// # Returns
+    ///
+    /// A tensor containing the indices of the maximum values.
+    #[must_use]
+    pub fn argmax_dims(&self, dim: usize, keepdim: bool) -> crate::Result<Self>
+    where
+        T: PartialOrd + Clone,
+    {
+        let input_shape = self.shape().dims();
+        let ndim = input_shape.len();
+
+        if dim >= ndim {
+            return Err(crate::TensorError::ShapeError {
+                expected: ndim,
+                actual: dim,
+                message: format!("Dimension {dim} is out of bounds"),
+            });
+        }
+
+        let mut output_shape: Vec<usize> = Vec::new();
+        for (i, &size) in input_shape.iter().enumerate() {
+            if i == dim {
+                if keepdim {
+                    output_shape.push(1);
+                }
+            } else {
+                output_shape.push(size);
+            }
+        }
+
+        if output_shape.is_empty() {
+            output_shape = vec![1];
+        }
+
+        let output_size: usize = output_shape.iter().product();
+        let mut output_data = vec![T::zero(); output_size];
+
+        let input_data = self.as_slice();
+        let mut input_strides = vec![1; ndim];
+        for i in (1..ndim).rev() {
+            input_strides[i - 1] = input_strides[i] * input_shape[i];
+        }
+
+        let mut output_strides = vec![1; output_shape.len()];
+        for i in (1..output_shape.len()).rev() {
+            output_strides[i - 1] = output_strides[i] * output_shape[i];
+        }
+
+        let stride_dim = input_strides[dim];
+        let size_dim = input_shape[dim];
+
+        for output_idx in 0..output_size {
+            let mut temp_idx = output_idx;
+            let mut input_flat_idx = 0;
+            let mut output_dim_idx = 0;
+
+            for i in 0..ndim {
+                if i == dim {
+                    continue;
+                }
+                let coord = temp_idx % output_shape[output_dim_idx];
+                input_flat_idx += coord * input_strides[i];
+                temp_idx /= output_shape[output_dim_idx];
+                output_dim_idx += 1;
+            }
+
+            let mut max_val = input_data[input_flat_idx];
+            let mut max_idx = 0;
+
+            for i in 1..size_dim {
+                let val = input_data[input_flat_idx + i * stride_dim];
+                if val > max_val {
+                    max_val = val;
+                    max_idx = i;
+                }
+            }
+
+            output_data[output_idx] = T::from(max_idx as f64).unwrap_or_else(T::zero);
+        }
+
+        Self::from_vec(output_data, &output_shape)
+    }
+
+    /// Computes the indices of the minimum value along specified dimensions.
+    ///
+    /// # Arguments
+    ///
+    /// * `dim` - Dimension to reduce.
+    /// * `keepdim` - If true, keeps reduced dimensions with size 1.
+    ///
+    /// # Returns
+    ///
+    /// A tensor containing the indices of the minimum values.
+    #[must_use]
+    pub fn argmin_dims(&self, dim: usize, keepdim: bool) -> crate::Result<Self>
+    where
+        T: PartialOrd + Clone,
+    {
+        let input_shape = self.shape().dims();
+        let ndim = input_shape.len();
+
+        if dim >= ndim {
+            return Err(crate::TensorError::ShapeError {
+                expected: ndim,
+                actual: dim,
+                message: format!("Dimension {dim} is out of bounds"),
+            });
+        }
+
+        let mut output_shape: Vec<usize> = Vec::new();
+        for (i, &size) in input_shape.iter().enumerate() {
+            if i == dim {
+                if keepdim {
+                    output_shape.push(1);
+                }
+            } else {
+                output_shape.push(size);
+            }
+        }
+
+        if output_shape.is_empty() {
+            output_shape = vec![1];
+        }
+
+        let output_size: usize = output_shape.iter().product();
+        let mut output_data = vec![T::zero(); output_size];
+
+        let input_data = self.as_slice();
+        let mut input_strides = vec![1; ndim];
+        for i in (1..ndim).rev() {
+            input_strides[i - 1] = input_strides[i] * input_shape[i];
+        }
+
+        let stride_dim = input_strides[dim];
+        let size_dim = input_shape[dim];
+
+        for output_idx in 0..output_size {
+            let mut temp_idx = output_idx;
+            let mut input_flat_idx = 0;
+            let mut output_dim_idx = 0;
+
+            for i in 0..ndim {
+                if i == dim {
+                    continue;
+                }
+                let coord = temp_idx % output_shape[output_dim_idx];
+                input_flat_idx += coord * input_strides[i];
+                temp_idx /= output_shape[output_dim_idx];
+                output_dim_idx += 1;
+            }
+
+            let mut min_val = input_data[input_flat_idx];
+            let mut min_idx = 0;
+
+            for i in 1..size_dim {
+                let val = input_data[input_flat_idx + i * stride_dim];
+                if val < min_val {
+                    min_val = val;
+                    min_idx = i;
+                }
+            }
+
+            output_data[output_idx] = T::from(min_idx as f64).unwrap_or_else(T::zero);
+        }
+
+        Self::from_vec(output_data, &output_shape)
+    }
+
+    /// PyTorch-compatible alias for `argmax_dims`.
+    #[must_use]
+    pub fn argmax(&self, dim: Option<usize>, keepdim: bool) -> crate::Result<Self>
+    where
+        T: PartialOrd + Clone,
+    {
+        match dim {
+            Some(d) => self.argmax_dims(d, keepdim),
+            None => Ok(self.argmax_all()),
+        }
+    }
+
+    /// PyTorch-compatible alias for `argmin_dims`.
+    #[must_use]
+    pub fn argmin(&self, dim: Option<usize>, keepdim: bool) -> crate::Result<Self>
+    where
+        T: PartialOrd + Clone,
+    {
+        match dim {
+            Some(d) => self.argmin_dims(d, keepdim),
+            None => Ok(self.argmin_all()),
+        }
     }
 }

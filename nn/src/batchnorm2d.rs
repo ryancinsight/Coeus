@@ -271,6 +271,27 @@ where
     fn name(&self) -> &str {
         "BatchNorm2d"
     }
+
+    fn named_buffers(&self) -> Vec<(String, Tensor<B, S, T>)> {
+        vec![
+            ("running_mean".to_string(), self.base.running_mean.borrow().clone()),
+            ("running_var".to_string(), self.base.running_var.borrow().clone()),
+        ]
+    }
+
+    fn load_buffer(&self, name: &str, value: &Tensor<B, S, T>) -> Result<()> {
+        match name {
+            "running_mean" => {
+                self.base.running_mean.replace(value.clone());
+                Ok(())
+            },
+            "running_var" => {
+                self.base.running_var.replace(value.clone());
+                Ok(())
+            },
+            _ => Ok(())
+        }
+    }
 }
 
 impl<B, S, T> BatchNorm2d<B, S, T>

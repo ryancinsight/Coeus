@@ -1,0 +1,100 @@
+warning: variable does not need to be mutable
+    --> nn\src\research\hpo_integration.rs:1210:29
+     |
+1210 |                         let mut new_config = config.clone();
+     |                             ----^^^^^^^^^^
+     |                             |
+     |                             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\joint_search.rs:339:17
+    |
+339 |             let mut tracker = framework.create_experiment(
+    |                 ----^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unused variable: `tracker`
+   --> nn\src\research\joint_search.rs:339:17
+    |
+339 |             let mut tracker = framework.create_experiment(
+    |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
+
+warning: unused variable: `search_time`
+   --> nn\src\research\joint_search.rs:346:17
+    |
+346 |             let search_time = start_time.elapsed();
+    |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_search_time`
+
+warning: unused variable: `sync_freq`
+   --> nn\src\research\joint_search.rs:614:13
+    |
+614 |             sync_freq: usize,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sync_freq`
+
+warning: unused variable: `research_framework`
+   --> nn\src\research\automated_research.rs:320:21
+    |
+320 |                 let mut research_framework = self.research_framework.write().unwrap();
+    |                     ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_research_framework`
+
+warning: unused variable: `metrics`
+   --> nn\src\research\automated_research.rs:411:63
+    |
+411 |     async fn execute_benchmarking(&self, datasets: &[String], metrics: &[String]) -> Result<BenchmarkResults> {
+    |                                                               ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metrics`
+
+warning: unused variable: `execution_handles`
+   --> nn\src\research\benchmarking.rs:536:13
+    |
+536 |         let mut execution_handles: Vec<()> = Vec::new();
+    |             ^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_execution_handles`
+
+warning: unused variable: `values`
+   --> nn\src\research\clip_integration\hpo_space.rs:242:40
+    |
+242 |             ParameterRange::Discrete { values } => self.sample_random(rng),
+    |                                        ^^^^^^ help: try ignoring the field: `values: _`
+
+warning: unused variable: `choices`
+   --> nn\src\research\clip_integration\hpo_space.rs:243:43
+    |
+243 |             ParameterRange::Categorical { choices } => self.sample_random(rng),
+    |                                           ^^^^^^^ help: try ignoring the field: `choices: _`
+
+warning: unused variable: `best_score`
+   --> nn\src\research\clip_integration\hpo_space.rs:519:13
+    |
+519 |         let best_score = history.iter().map(|t| t.score).fold(f64::NEG_INFINITY, f64::max);
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_best_score`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\clip_integration\automation.rs:207:17
+    |
+207 |             let mut builder = base_builder.clone();
+    |                 ----^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unused variable: `space`
+   --> nn\src\research\clip_integration\automation.rs:210:17
+    |
+210 |             for space in &self.spaces {
+    |                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_space`
+
+warning: unused variable: `tracker`
+   --> nn\src\research\meta_learning_integration.rs:282:33
+    |
+282 |     fn log_configuration(&self, tracker: &ExperimentTracker) -> Result<()> {
+    |                                 ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
+
+warning: unused variable: `config`
+   --> nn\src\research\meta_learning_integration.rs:460:12
+    |
+460 |     fn new(config: &MetaLearningConfig) -> Self {
+    |            ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+
+Some errors have detailed explanations: E0308, E0599.
+For more information about an error, try `rustc --explain E0308`.
+warning: `nn` (lib) generated 178 warnings
+error: could not compile `nn` (lib) due to 11 previous errors; 178 warnings emitted

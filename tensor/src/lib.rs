@@ -53,13 +53,9 @@
 //! - Complete sparse tensor support through generic operations
 
 // Module declarations
-pub mod ops {
-    pub mod arithmetic;
-    pub mod creation;
-    pub mod matrix;
-    pub mod reduction;
-    pub mod tensor_ops;
-}
+extern crate alloc;
+
+pub mod ops;
 
 // Temporarily disabled due to alloc issues
 pub mod minimal_tensor;
@@ -73,6 +69,7 @@ pub mod tensor_impl;
 pub mod elementwise;
 pub mod error;
 pub mod shape_ops;
+pub mod indexing;
 
 // Re-export full tensor implementation
 pub use tensor_core::{AsAny, DifferentiableFunction, Function, OperationName, Tensor};

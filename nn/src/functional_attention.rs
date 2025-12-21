@@ -7,7 +7,8 @@ use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
-use std::ops::Mul;
+use std::ops::{Mul, Neg};
+use num_traits::FromPrimitive;
 
 use crate::error::{NNError, Result};
 
@@ -23,7 +24,7 @@ fn create_dropout_mask<B, S, T>(tensor: &Tensor<B, S, T>, dropout_p: f32) -> Res
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + FromPrimitive,
 {
     use rand::prelude::*;
 
@@ -39,9 +40,9 @@ where
         // Keep element with probability (1 - dropout_p)
         let keep = rng.gen::<f32>() > dropout_p;
         mask_data.push(if keep {
-            T::from(1.0).unwrap()
+            T::from_f32(1.0).unwrap()
         } else {
-            T::from(0.0).unwrap()
+            T::from_f32(0.0).unwrap()
         });
     }
 
@@ -105,7 +106,7 @@ pub fn scaled_dot_product_attention<B, S, T>(
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd,
+    T: DataType + FloatExt + Neg<Output = T> + PartialOrd + FromPrimitive,
 {
     let query_shape = query.shape().dims();
     let key_shape = key.shape().dims();
@@ -165,8 +166,8 @@ where
     let attn_scores = query_dense.matmul(&key_t)?;
 
     // Scale by sqrt(d_k)
-    let scale_factor = T::from((d_k as f64).sqrt()).unwrap();
-    let attn_scores_scaled = attn_scores.mul_scalar(T::from(1.0).unwrap() / scale_factor)?;
+    let scale_factor = T::from_f64((d_k as f64).sqrt()).unwrap();
+    let attn_scores_scaled = attn_scores.mul_scalar(T::from_f64(1.0).unwrap() / scale_factor)?;
 
     // Apply attention mask if provided
     let attn_scores_masked = if let Some(mask) = attn_mask {
@@ -190,8 +191,8 @@ where
             let dropout_mask = create_dropout_mask(&attn_weights, dropout_p as f32)?;
             // Apply mask and scale to maintain expected value
             attn_weights
-                .mul(&dropout_mask)
-                .mul_scalar(T::from(1.0 / (1.0 - dropout_p)).unwrap())?
+                .mul(&dropout_mask)?
+                .mul_scalar(T::from_f64(1.0 / (1.0 - dropout_p as f64)).unwrap())?
         } else {
             // During inference, no dropout applied
             attn_weights
@@ -219,7 +220,7 @@ pub fn softmax<B: Backend<Data = T> + Default, S: Storage<T> + StorageToDense<T>
     input: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + Clone,
+    T: DataType + FloatExt + Neg<Output = T> + PartialOrd + Clone + FromPrimitive,
 {
     let input_dense = input.to_dense_generic()?;
     let input_shape = input_dense.shape().dims();
@@ -244,7 +245,7 @@ where
         }
 
         // Compute exp(x - max) and sum
-        let mut exp_sum = T::from(0.0).unwrap();
+        let mut exp_sum = T::from_f32(0.0).unwrap();
         let mut exp_values = Vec::with_capacity(last_dim_size);
 
         for val in slice {

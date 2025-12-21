@@ -10,6 +10,9 @@ use numpy::PyArrayMethods;
 
 // Import the new error handling macros (exported at crate root)
 use crate::tensor_error;
+use pyo3::types::{PySlice, PyTuple};
+use std::convert::TryFrom;
+use tensor::ops::comparison;
 
 /// Tensor wrapper for Python
 #[pyclass(name = "Tensor", module = "_coeus")]
@@ -28,6 +31,21 @@ impl PyTensor {
             tensor_error!(e)
         })?;
         Ok(PyTensor { inner: tensor })
+    }
+
+    /// Extract a scalar value from a single-element tensor
+    fn item(&self) -> PyResult<f32> {
+        if self.inner.shape().size() != 1 {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "item() can only be called on single-element tensors"
+            ));
+        }
+        Ok(self.inner.as_slice()[0].get())
+    }
+
+    /// Convert tensor to NumPy array
+    fn numpy(&self, py: Python) -> PyResult<PyObject> {
+        self.__array__(py, None, None)
     }
 
     fn __add__(&self, other: &PyTensor) -> PyResult<PyTensor> {
@@ -96,6 +114,191 @@ impl PyTensor {
         Ok(PyTensor { inner: result })
     }
 
+    // Comparison Operators
+
+    fn __eq__(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        let result = comparison::eq(&self.inner, &other.inner).map_err(|e| tensor_error!(e))?;
+        Ok(PyTensor { inner: result })
+    }
+
+    fn __ne__(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        let result = comparison::ne(&self.inner, &other.inner).map_err(|e| tensor_error!(e))?;
+        Ok(PyTensor { inner: result })
+    }
+
+    fn __lt__(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        let result = comparison::lt(&self.inner, &other.inner).map_err(|e| tensor_error!(e))?;
+        Ok(PyTensor { inner: result })
+    }
+
+    fn __le__(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        let result = comparison::le(&self.inner, &other.inner).map_err(|e| tensor_error!(e))?;
+        Ok(PyTensor { inner: result })
+    }
+
+    fn __gt__(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        let result = comparison::gt(&self.inner, &other.inner).map_err(|e| tensor_error!(e))?;
+        Ok(PyTensor { inner: result })
+    }
+
+    fn __ge__(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        let result = comparison::ge(&self.inner, &other.inner).map_err(|e| tensor_error!(e))?;
+        Ok(PyTensor { inner: result })
+    }
+
+    // Indexing
+
+    fn __getitem__(&self, index: Bound<PyAny>) -> PyResult<PyTensor> {
+        // Handle integer indexing (basic implementation)
+        if let Ok(idx) = index.extract::<i32>() {
+             // For 1D tensor, this is a single element selection, which strictly speaks returns a 0-d tensor in PyTorch
+             // implementation detail: use fancy index for consistency
+             let result = self.inner.fancy_index(&[idx]).map_err(|e| tensor_error!(e))?;
+             return Ok(PyTensor { inner: result });
+        }
+        
+        // Handle list of integers (fancy indexing)
+        if let Ok(indices) = index.extract::<Vec<i32>>() {
+             let result = self.inner.fancy_index(&indices).map_err(|e| tensor_error!(e))?;
+             return Ok(PyTensor { inner: result });
+        }
+
+        // Handle slice (advanced slicing) - simplified 1D support for now
+        if let Ok(slice) = index.downcast::<PySlice>() {
+             let indices = slice.indices(self.inner.len() as isize)?;
+             let start = indices.start as i32;
+             let stop = indices.stop as i32;
+             let step = indices.step as i32;
+             
+             // Convert to start/end/step format for advanced_slice
+             // Note: internal implementation expects [(start, end, step)] per dim
+             // This is a naive implementation assuming 1D for the slice or first dim
+             // Ideally we need to parse multi-dim slices from PyTuple
+             
+             // Using fancy indexing with generated range for simplicity in this iteration if advanced_slice usage is complex
+             // OR map to advanced_slice
+             let params = &[(Some(start), Some(stop), step)]; 
+             // Need to handle if tensor is > 1D, advanced_slice expects slice per dim
+             // For full support we need to parse PyTuple
+             
+             // Fallback to advanced_slice if 1D
+             if self.inner.shape().dims().len() == 1 {
+                 let result = self.inner.advanced_slice(params).map_err(|e| tensor_error!(e))?;
+                 return Ok(PyTensor { inner: result });
+             } else {
+                 return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                    "Slicing currently only fully supported for 1D tensors in this iteration"
+                 ));
+             }
+        }
+
+        Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+            "Unsupported index type. Currently supports int, list[int], and slice (1D)."
+        ))
+    }
+
+    fn __setitem__(&mut self, index: Bound<PyAny>, value: Bound<PyAny>) -> PyResult<()> {
+        let values: Vec<Float32> = if let Ok(val_tensor) = value.extract::<PyTensor>() {
+            val_tensor.inner.as_slice().to_vec()
+        } else if let Ok(val_float) = value.extract::<f32>() {
+            // Will be repeated to match target size
+            vec![Float32(val_float)]
+        } else if let Ok(val_int) = value.extract::<i32>() {
+             vec![Float32(val_int as f32)]
+        } else {
+             return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Unsupported value type. Expected Tensor, int, or float."
+            ));
+        };
+
+        // Helper to check and expand scalar
+        let expand_values = |target_len: usize, vals: &[Float32]| -> Result<Vec<Float32>, PyErr> {
+             if vals.len() == 1 {
+                 Ok(vec![vals[0]; target_len])
+             } else if vals.len() == target_len {
+                 Ok(vals.to_vec())
+             } else {
+                 Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    format!("Shape mismatch in assignment: target size {}, values size {}", target_len, vals.len())
+                ))
+             }
+        };
+
+        // Handle integer indexing
+        if let Ok(idx) = index.extract::<i32>() {
+             let expanded = expand_values(1, &values)?;
+             self.inner.fancy_assign(&[idx], &expanded).map_err(|e| tensor_error!(e))?;
+             return Ok(());
+        }
+
+        // Handle list of integers
+        if let Ok(indices) = index.extract::<Vec<i32>>() {
+             let expanded = expand_values(indices.len(), &values)?;
+             self.inner.fancy_assign(&indices, &expanded).map_err(|e| tensor_error!(e))?;
+             return Ok(());
+        }
+
+        // Handle slice
+        if let Ok(slice) = index.downcast::<PySlice>() {
+             let tensor_len = self.inner.len();
+             let indices = slice.indices(tensor_len as isize)?;
+             let start = indices.start as i32;
+             let stop = indices.stop as i32;
+             let step = indices.step as i32;
+
+             // Calculate number of steps
+             let steps = indices.slicelength as usize;
+             
+             let params = &[(Some(start), Some(stop), step)];
+             
+             // Check if 1D
+             if self.inner.shape().dims().len() == 1 {
+                 let expanded = expand_values(steps, &values)?;
+                 self.inner.advanced_assign(params, &expanded).map_err(|e| tensor_error!(e))?;
+                 return Ok(());
+             } else {
+                 return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                    "Slicing assignment currently only fully supported for 1D tensors in this iteration"
+                 ));
+             }
+        }
+
+        Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+            "Unsupported index type. Currently supports int, list[int], and slice (1D)."
+        ))
+    }
+    
+    fn clone(&self) -> PyTensor {
+        PyTensor { inner: self.inner.clone() }
+    }
+    
+    fn detach(&self) -> PyTensor {
+        // Create a new tensor sharing data but detached from graph
+        let mut new_tensor = PyTensor { inner: self.inner.clone() };
+        let _ = new_tensor.requires_grad_(false);
+        new_tensor
+    }
+    
+    fn cpu(&self) -> PyTensor {
+        // Already on CPU
+        self.clone()
+    }
+    
+    fn cuda(&self) -> PyResult<PyTensor> {
+        Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+            "CUDA backend not yet implemented"
+        ))
+    }
+    
+    #[pyo3(signature = (device=None, dtype=None))]
+    fn to(&self, device: Option<&Bound<'_, PyAny>>, dtype: Option<&Bound<'_, PyAny>>) -> PyResult<PyTensor> {
+        // Placeholder implementation
+        if let Some(_d) = device {
+             // Check if it's "cuda" -> error
+        }
+        // Dtype conversion not fully implemented yet
+        Ok(self.clone())
+    }
     fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
         let result = self.inner.matmul(&other.inner).map_err(|e| {
             tensor_error!(e)
@@ -141,10 +344,28 @@ impl PyTensor {
         Ok(PyTensor { inner: result })
     }
 
+    #[pyo3(signature = (dim=None, keepdim=false))]
+    pub fn argmax(&self, dim: Option<usize>, keepdim: bool) -> PyResult<PyTensor> {
+        let result = self.inner.argmax(dim, keepdim).map_err(|e| tensor_error!(e))?;
+        Ok(PyTensor { inner: result })
+    }
+
+    #[pyo3(signature = (dim=None, keepdim=false))]
+    pub fn argmin(&self, dim: Option<usize>, keepdim: bool) -> PyResult<PyTensor> {
+        let result = self.inner.argmin(dim, keepdim).map_err(|e| tensor_error!(e))?;
+        Ok(PyTensor { inner: result })
+    }
+
+    #[getter]
     fn shape(&self) -> Vec<usize> {
         self.inner.shape().dims().to_vec()
     }
 
+    fn size(&self) -> Vec<usize> {
+        self.inner.shape().dims().to_vec()
+    }
+
+    #[getter]
     fn requires_grad(&self) -> bool {
         self.inner.requires_grad()
     }
@@ -160,6 +381,7 @@ impl PyTensor {
         })?;
         Ok(())
     }
+
 
     /// Set the number of threads for CPU operations (static method)
     /// Note: Threading control is not yet implemented in the backend.

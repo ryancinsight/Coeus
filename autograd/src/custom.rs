@@ -26,7 +26,7 @@
 //! // Use the custom function
 //! let input = tensor::Tensor::from_vec(vec![Float32::new(3.0)], &[]).unwrap().requires_grad_(true);
 //! let output = apply_custom_function(&[&input], square_forward, square_backward, "Square").unwrap();
-//! backward(&output).unwrap();
+//! backward(&output, None, false, false).unwrap();
 //! ```
 
 extern crate alloc;

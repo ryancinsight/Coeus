@@ -4,6 +4,7 @@ use nn::{BatchNorm2d, Conv2D, Dropout, Linear, Module, ReLU};
 use storage::DenseStorage;
 use pyo3::prelude::*;
 use pyo3::{pyclass, pymethods, Py, PyErr, PyResult};
+use pyo3::types::PyDict;
 
 use crate::tensor::PyTensor;
 
@@ -146,6 +147,65 @@ impl PySequential {
         // Sequential doesn't have direct bias access
         Ok(None)
     }
+
+    fn parameters(&self) -> PyResult<Vec<PyTensor>> {
+        let params = self.inner.parameters();
+        let py_params = params.into_iter().map(|p| PyTensor { inner: p.data().clone() }).collect();
+        Ok(py_params)
+    }
+
+    fn named_parameters(&self) -> PyResult<Vec<(String, PyTensor)>> {
+        let params = self.inner.parameters();
+        let py_params = params.into_iter().map(|p| (p.name().to_string(), PyTensor { inner: p.data().clone() })).collect();
+        Ok(py_params)
+    }
+
+    fn state_dict(&self, py: Python) -> PyResult<PyObject> {
+        let dict = PyDict::new(py);
+        // Add parameters
+        for (name, tensor) in self.named_parameters()? {
+            dict.set_item(name, tensor)?;
+        }
+        // Add buffers
+        for (name, tensor) in self.named_buffers()? {
+            dict.set_item(name, tensor)?;
+        }
+        Ok(dict.to_object(py))
+    }
+
+    fn load_state_dict(&mut self, state_dict: Bound<PyDict>) -> PyResult<()> {
+        let params = self.inner.parameters(); // Get params with hierarchical names
+        for mut param in params {
+            let name = param.name(); 
+            if let Some(item) = state_dict.get_item(name)? {
+                 let pytensor: PyTensor = item.extract()?;
+                 *param.data_mut() = pytensor.inner.clone();
+            }
+        }
+
+        
+        // Load buffers
+        // We iterate named_buffers to get names, look them up in state_dict, and call load_buffer
+        let buffers = self.inner.named_buffers(); // returns Vec<(String, Tensor)> clones
+        for (name, _) in buffers {
+            if let Some(item) = state_dict.get_item(&name)? {
+                let pytensor: PyTensor = item.extract()?;
+                self.inner.load_buffer(&name, &pytensor.inner).map_err(|e| {
+                     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                        "Failed to load buffer {}: {:?}",
+                        name, e
+                     ))
+                })?;
+            }
+        }
+        Ok(())
+    }
+
+    fn named_buffers(&self) -> PyResult<Vec<(String, PyTensor)>> {
+        let buffers = self.inner.named_buffers();
+        let py_buffers = buffers.into_iter().map(|(n, t)| (n, PyTensor { inner: t })).collect();
+        Ok(py_buffers)
+    }
 }
 
 /// Linear (fully connected) neural network layer Python binding
@@ -203,6 +263,38 @@ impl PyLinear {
             ))
         })?;
         Ok(PyTensor { inner: output })
+    }
+
+    fn parameters(&self) -> PyResult<Vec<PyTensor>> {
+        let params = self.inner.parameters();
+        let py_params = params.into_iter().map(|p| PyTensor { inner: p.data().clone() }).collect();
+        Ok(py_params)
+    }
+
+    fn named_parameters(&self) -> PyResult<Vec<(String, PyTensor)>> {
+        let params = self.inner.parameters();
+        let py_params = params.into_iter().map(|p| (p.name().to_string(), PyTensor { inner: p.data().clone() })).collect();
+        Ok(py_params)
+    }
+
+    fn state_dict(&self, py: Python) -> PyResult<PyObject> {
+        let dict = PyDict::new_bound(py);
+        for (name, tensor) in self.named_parameters()? {
+            dict.set_item(name, tensor)?;
+        }
+        Ok(dict.to_object(py))
+    }
+
+    fn load_state_dict(&mut self, state_dict: Bound<PyDict>) -> PyResult<()> {
+        let params = self.inner.parameters();
+        for mut param in params {
+            let name = param.name(); 
+            if let Some(item) = state_dict.get_item(name)? {
+                 let pytensor: PyTensor = item.extract()?;
+                 *param.data_mut() = pytensor.inner.clone();
+            }
+        }
+        Ok(())
     }
 }
 
@@ -341,10 +433,58 @@ impl PyConv2D {
         Module::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::train(&mut self.inner, mode);
     }
 
-    /// Get output size for given input dimensions
-    #[pyo3(signature = (height, width))]
     fn output_size(&self, height: usize, width: usize) -> (usize, usize) {
         self.inner.output_size(height, width)
+    }
+
+    fn parameters(&self) -> PyResult<Vec<PyTensor>> {
+        let params = self.inner.parameters();
+        let py_params = params.into_iter().map(|p| PyTensor { inner: p.data().clone() }).collect();
+        Ok(py_params)
+    }
+
+    fn named_parameters(&self) -> PyResult<Vec<(String, PyTensor)>> {
+        let params = self.inner.parameters();
+        let py_params = params.into_iter().map(|p| (p.name().to_string(), PyTensor { inner: p.data().clone() })).collect();
+        Ok(py_params)
+    }
+
+    fn named_buffers(&self) -> PyResult<Vec<(String, PyTensor)>> {
+        let buffers = self.inner.named_buffers();
+        let py_buffers = buffers.into_iter().map(|(n, t)| (n, PyTensor { inner: t })).collect();
+        Ok(py_buffers)
+    }
+
+    fn state_dict(&self, py: Python) -> PyResult<PyObject> {
+        let dict = PyDict::new_bound(py);
+        for (name, tensor) in self.named_parameters()? {
+            dict.set_item(name, tensor)?;
+        }
+        for (name, tensor) in self.named_buffers()? {
+            dict.set_item(name, tensor)?;
+        }
+        Ok(dict.to_object(py))
+    }
+
+    fn load_state_dict(&mut self, state_dict: Bound<PyDict>) -> PyResult<()> {
+        let params = self.inner.parameters();
+        for mut param in params {
+            let name = param.name(); 
+            if let Some(item) = state_dict.get_item(name)? {
+                 let pytensor: PyTensor = item.extract()?;
+                 *param.data_mut() = pytensor.inner.clone();
+            }
+        }
+        let buffers = self.inner.named_buffers();
+        for (name, _) in buffers {
+            if let Some(item) = state_dict.get_item(&name)? {
+                let pytensor: PyTensor = item.extract()?;
+                self.inner.load_buffer(&name, &pytensor.inner).map_err(|e| {
+                     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to load buffer {}: {:?}", name, e))
+                })?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -428,6 +568,56 @@ impl PyBatchNorm2d {
     fn train(&mut self, mode: bool) {
         Module::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::train(&mut self.inner, mode);
     }
+
+    fn parameters(&self) -> PyResult<Vec<PyTensor>> {
+        let params = self.inner.parameters();
+        let py_params = params.into_iter().map(|p| PyTensor { inner: p.data().clone() }).collect();
+        Ok(py_params)
+    }
+
+    fn named_parameters(&self) -> PyResult<Vec<(String, PyTensor)>> {
+        let params = self.inner.parameters();
+        let py_params = params.into_iter().map(|p| (p.name().to_string(), PyTensor { inner: p.data().clone() })).collect();
+        Ok(py_params)
+    }
+
+    fn named_buffers(&self) -> PyResult<Vec<(String, PyTensor)>> {
+        let buffers = self.inner.named_buffers();
+        let py_buffers = buffers.into_iter().map(|(n, t)| (n, PyTensor { inner: t })).collect();
+        Ok(py_buffers)
+    }
+
+    fn state_dict(&self, py: Python) -> PyResult<PyObject> {
+        let dict = PyDict::new_bound(py);
+        for (name, tensor) in self.named_parameters()? {
+            dict.set_item(name, tensor)?;
+        }
+        for (name, tensor) in self.named_buffers()? {
+            dict.set_item(name, tensor)?;
+        }
+        Ok(dict.to_object(py))
+    }
+
+    fn load_state_dict(&mut self, state_dict: Bound<PyDict>) -> PyResult<()> {
+        let params = self.inner.parameters();
+        for mut param in params {
+            let name = param.name(); 
+            if let Some(item) = state_dict.get_item(name)? {
+                 let pytensor: PyTensor = item.extract()?;
+                 *param.data_mut() = pytensor.inner.clone();
+            }
+        }
+        let buffers = self.inner.named_buffers();
+        for (name, _) in buffers {
+            if let Some(item) = state_dict.get_item(&name)? {
+                let pytensor: PyTensor = item.extract()?;
+                self.inner.load_buffer(&name, &pytensor.inner).map_err(|e| {
+                     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to load buffer {}: {:?}", name, e))
+                })?;
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Dropout layer Python binding
@@ -468,5 +658,26 @@ impl PyDropout {
 
     fn train(&mut self, mode: bool) {
         self.inner.training = mode;
+    }
+
+    fn parameters(&self) -> PyResult<Vec<PyTensor>> {
+        Ok(Vec::new())
+    }
+
+    fn named_parameters(&self) -> PyResult<Vec<(String, PyTensor)>> {
+        Ok(Vec::new())
+    }
+
+    fn named_buffers(&self) -> PyResult<Vec<(String, PyTensor)>> {
+         Ok(Vec::new())
+    }
+
+    fn state_dict(&self, py: Python) -> PyResult<PyObject> {
+        let dict = PyDict::new_bound(py);
+        Ok(dict.to_object(py))
+    }
+
+    fn load_state_dict(&mut self, _state_dict: Bound<PyDict>) -> PyResult<()> {
+        Ok(())
     }
 }

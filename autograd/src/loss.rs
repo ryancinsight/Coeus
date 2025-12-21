@@ -112,6 +112,135 @@ where
     Ok(mse_loss)
 }
 
+/// Compute Negative Log Likelihood (NLL) loss with automatic differentiation support.
+///
+/// Computes the negative log likelihood loss between log-probabilities and targets:
+/// `loss = mean(-log_probs[target])`
+///
+/// # Arguments
+/// * `log_probs` - Log probabilities `[batch_size, num_classes]` tensor
+/// * `targets` - Class indices `[batch_size]` tensor (integer indices)
+///
+/// # Returns
+/// A scalar tensor containing the NLL loss value with gradient computation support.
+#[allow(clippy::missing_errors_doc)]
+pub fn nll_loss<B, S, T>(
+    log_probs: &Tensor<B, S, T>,
+    targets: &Tensor<B, S, T>,
+) -> crate::Result<Tensor<B, S, T>>
+where
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    T: DataType + FloatExt + FromPrimitive + ToPrimitive + Copy + Send + Sync + 'static,
+{
+    // Validate input dimensions
+    let logits_shape = log_probs.shape().dims();
+    let targets_shape = targets.shape().dims();
+
+    if logits_shape.len() != 2 {
+        return Err(crate::AutogradError::InvalidInput {
+            message: format!("Logits must be 2D tensor [batch_size, num_classes], got shape {:?}", logits_shape)
+        });
+    }
+    if targets_shape.len() != 1 {
+        return Err(crate::AutogradError::InvalidInput {
+            message: format!("Targets must be 1D tensor [batch_size], got shape {:?}", targets_shape)
+        });
+    }
+    if logits_shape[0] != targets_shape[0] {
+        return Err(crate::AutogradError::InvalidInput {
+            message: format!("Batch size mismatch: logits has batch_size={}, targets has batch_size={}",
+                   logits_shape[0], targets_shape[0])
+        });
+    }
+
+    let batch_size = logits_shape[0];
+    let num_classes = logits_shape[1];
+
+    // Convert to dense for manual indexing
+    let targets_dense = targets.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    let log_probs_dense = log_probs.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    
+    let targets_slice = targets_dense.storage_ref().as_slice();
+    let log_probs_slice = log_probs_dense.storage_ref().as_slice();
+    
+    let mut nll_loss_vals = Vec::new();
+
+    for batch_idx in 0..batch_size {
+        // Get target class index
+        let target_val = targets_slice[batch_idx];
+        
+        // Validate target is integer
+        if let Some(val_f64) = target_val.to_f64() {
+            if (val_f64 - val_f64.round()).abs() > 1e-5 {
+                return Err(crate::AutogradError::InvalidInput {
+                    message: format!("Target value {} is not an integer", val_f64)
+                });
+            }
+            if val_f64 < 0.0 {
+                 return Err(crate::AutogradError::InvalidInput {
+                    message: format!("Target class index {} is out of range", val_f64)
+                });
+            }
+        }
+
+        let target_idx = target_val.to_usize().unwrap_or(0);
+
+        if target_idx >= num_classes {
+            return Err(crate::AutogradError::InvalidInput {
+                message: format!("Target class index {} is out of range for {} classes", target_idx, num_classes)
+            });
+        }
+
+        // Get log_prob value for the target class
+        let log_prob_idx = batch_idx * num_classes + target_idx;
+        let log_prob = log_probs_slice[log_prob_idx];
+        
+        // Validate log_prob
+        if let Some(lp_f64) = log_prob.to_f64() {
+             if lp_f64.is_nan() {
+                  return Err(crate::AutogradError::InvalidInput {
+                     message: format!("Invalid log probability: encountered NaN at batch {}, class {}", batch_idx, target_idx)
+                 });
+             }
+        }
+
+        // Negative log likelihood: -log_prob
+        let neg_log_prob = T::zero() - log_prob;
+        nll_loss_vals.push(neg_log_prob);
+    }
+
+    // Compute mean loss across batch
+    let mut total_loss = T::zero();
+    for x in &nll_loss_vals {
+        total_loss = total_loss + *x;
+    }
+    
+    let batch_size_t = T::from_usize(batch_size).ok_or_else(|| {
+        crate::AutogradError::TensorError(tensor::TensorError::ShapeError {
+             expected: 0,
+             actual: 0,
+             message: "Failed to convert batch size to T".to_string()
+        })
+    })?;
+    
+    let mean_loss = total_loss / batch_size_t;
+
+    // Create result tensor
+    let result_data = vec![mean_loss];
+    let result_tensor = Tensor::from_vec(result_data, &[1])?;
+
+    // Attach gradient function if needed
+    if log_probs.requires_grad() {
+        Ok(result_tensor.with_grad_fn(Some(Arc::new(crate::functions::NLLLossFunction::new(
+            Arc::new(log_probs.clone()),
+            Arc::new(targets.clone()),
+        )))).requires_grad_(true))
+    } else {
+        Ok(result_tensor)
+    }
+}
+
 /// Compute Cross-Entropy loss with automatic differentiation support.
 ///
 /// Computes the cross-entropy loss between logits and class targets using the numerically stable

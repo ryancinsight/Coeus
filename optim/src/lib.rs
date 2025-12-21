@@ -64,6 +64,7 @@
 
 pub mod adagrad;
 pub mod adam;
+pub mod adamw;
 pub mod error;
 pub mod gpu_backend;
 pub mod optimizer;

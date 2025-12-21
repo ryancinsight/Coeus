@@ -5,8 +5,8 @@ that can be used without creating module instances.
 """
 
 from .. import relu, sigmoid, tanh, gelu, silu, leaky_relu, elu
-from .. import mse_loss, cross_entropy as cross_entropy_loss
-from .. import max_pool2d, avg_pool2d, dropout, layer_norm
+from .. import mse_loss, cross_entropy as cross_entropy_loss, bce_with_logits_loss
+from .. import max_pool2d, avg_pool2d, dropout, layer_norm, argmax, argmin
 from .. import Linear, Conv2D, BatchNorm2d, Dropout, Embedding
 
 # Expose functional operations
@@ -26,4 +26,7 @@ __all__ = [
     "max_pool2d",
     "avg_pool2d",
     "layer_norm",
+    "bce_with_logits_loss",
+    "argmax",
+    "argmin",
 ]

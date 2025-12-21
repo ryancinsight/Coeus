@@ -261,6 +261,7 @@ mod tests {
     use backend::CpuBackend;
     use dtype::float::Float32;
     use storage::DenseStorage;
+    use num_traits::Float;
 
     type TestBackend = CpuBackend<Float32>;
     type TestStorage = DenseStorage<Float32>;
@@ -356,8 +357,8 @@ mod tests {
         let output_data = output.as_slice();
 
         // Should be same as with affine but weight=1
-        let expected_rms = ((1.0 + 4.0 + 9.0 + 16.0) / 4.0).sqrt();
-        assert!((output_data[0] - Float32::new(1.0) / Float32::new(expected_rms as f32)).abs() < Float32::new(1e-5));
+        let expected_rms = ((1.0_f32 + 4.0 + 9.0 + 16.0) / 4.0).sqrt();
+        assert!((output_data[0] - Float32::new(1.0) / Float32::new(expected_rms)).abs() < Float32::new(1e-5));
     }
 
     #[test]

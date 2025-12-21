@@ -93,11 +93,72 @@ where
     ///
     /// # Returns
     /// Result containing the SwiGLU activated tensor
-    pub fn forward_split(&self, _input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
-        // TODO: Implement tensor slicing functionality
-        Err(NNError::NotImplemented {
-            operation: "forward_split".to_string(),
-        })
+    pub fn forward_split(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        let dims = input.shape().dims();
+        if dims.is_empty() {
+            return Err(NNError::InvalidInput {
+                message: "Empty input tensor for SwiGLU forward_split".to_string(),
+            });
+        }
+
+        let last_dim = *dims.last().unwrap();
+        if last_dim == 0 {
+            return Err(NNError::InvalidInput {
+                message: "Last dimension of input tensor must be > 0 for SwiGLU forward_split"
+                    .to_string(),
+            });
+        }
+        if last_dim % 2 != 0 {
+            return Err(NNError::InvalidInput {
+                message: format!(
+                    "Last dimension of input tensor must be even for SwiGLU forward_split (got {})",
+                    last_dim
+                ),
+            });
+        }
+
+        let half = last_dim / 2;
+        let half_i32 = i32::try_from(half).map_err(|_| NNError::InvalidInput {
+            message: format!(
+                "SwiGLU forward_split does not support last_dim/2={} exceeding i32::MAX",
+                half
+            ),
+        })?;
+        let last_i32 = i32::try_from(last_dim).map_err(|_| NNError::InvalidInput {
+            message: format!(
+                "SwiGLU forward_split does not support last_dim={} exceeding i32::MAX",
+                last_dim
+            ),
+        })?;
+
+        let dense = input.to_dense_generic()?;
+        let rank = dims.len();
+
+        let mut x_slices = Vec::with_capacity(rank);
+        let mut y_slices = Vec::with_capacity(rank);
+        for _ in 0..rank.saturating_sub(1) {
+            x_slices.push((None, None, 1));
+            y_slices.push((None, None, 1));
+        }
+        x_slices.push((Some(0), Some(half_i32), 1));
+        y_slices.push((Some(half_i32), Some(last_i32), 1));
+
+        let x_dense = dense.advanced_slice(&x_slices)?;
+        let y_dense = dense.advanced_slice(&y_slices)?;
+
+        let backend = dense.backend().clone();
+        let x = Tensor::<B, S, T>::from_vec_with_backend(
+            x_dense.as_slice().to_vec(),
+            x_dense.shape().dims(),
+            backend.clone(),
+        )?;
+        let y = Tensor::<B, S, T>::from_vec_with_backend(
+            y_dense.as_slice().to_vec(),
+            y_dense.shape().dims(),
+            backend,
+        )?;
+
+        self.forward(&x, &y)
     }
 }
 

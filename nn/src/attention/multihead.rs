@@ -595,11 +595,18 @@ mod tests {
         // Test gradient flow through attention computation
         let attention_logits = compute_attention_logits(&attention, &query, &key).unwrap();
         let attention_weights = attention.softmax_rows_dense(&attention_logits).unwrap();
-        let attended_output = attention_weights.matmul(&value).unwrap();
+        let value_flat = value
+            .reshape(&[batch_size as isize * seq_len as isize, embed_dim as isize])
+            .unwrap();
+        let attended_flat = attention_weights.matmul(&value_flat).unwrap();
+        let attended_output = attended_flat
+            .reshape(&[batch_size as isize, seq_len as isize, embed_dim as isize])
+            .unwrap();
 
         // Validate attention weights properties
         let weights_data = attention_weights.as_slice();
-        for chunk in weights_data.chunks(seq_len) {
+        let total_keys = batch_size * seq_len;
+        for chunk in weights_data.chunks(total_keys) {
             // Each row should sum to approximately 1 (softmax property)
             let row_sum: f32 = chunk.iter().map(|&x| x.to_f32().unwrap()).sum();
             assert!((row_sum - 1.0).abs() < 1e-5, "Softmax row sum {} should be 1.0", row_sum);
@@ -612,8 +619,10 @@ mod tests {
 
         // Validate scaling factor correctness
         let expected_scale = (embed_dim as f32 / num_heads as f32).sqrt();
-        assert!((attention.head_dim as f32).sqrt() == expected_scale,
-               "Head dimension scaling should match theoretical 1/√d_k");
+        assert!(
+            ((attention.head_dim as f32).sqrt() - expected_scale).abs() < 1e-6,
+            "Head dimension scaling should match theoretical 1/√d_k"
+        );
 
         // Test attention invariance under scaling
         let scale_tensor = TestTensor::from_vec(vec![Float32::from(2.0)], &[1]).unwrap();
@@ -624,7 +633,7 @@ mod tests {
         let scaled_weights = attention.softmax_rows_dense(&scaled_attention_logits).unwrap();
         let scaled_weights_data = scaled_weights.as_slice();
 
-        for chunk in scaled_weights_data.chunks(seq_len) {
+        for chunk in scaled_weights_data.chunks(total_keys) {
             let row_sum: f32 = chunk.iter().map(|&x| x.to_f32().unwrap()).sum();
             assert!((row_sum - 1.0).abs() < 1e-4, "Scaled attention softmax row sum should still be 1.0");
         }
@@ -707,5 +716,4 @@ mod tests {
         ).map_err(Into::into)
     }
 }
-
 

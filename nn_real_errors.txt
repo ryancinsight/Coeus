@@ -1,0 +1,118 @@
+
+  151 |         let mut tracker = self.framework.create_experiment(
+      |             ----^^^^^^^
+      |             |
+      |             help: remove this `mut`
+  
+> error[E0599]: no function or associated item named `from_f64` found for type parameter `T` in the current scope
+     --> nn\src\rope.rs:139:28
+      |
+   35 | impl<B, S, T> RoPE<B, S, T>
+      |            - function or associated item `from_f64` not found for this type parameter
+  ...
+      |
+  139 -                 let c = T::from_f64(idx.cos()).unwrap();
+  139 +                 let c = T::from(idx.cos()).unwrap();
+      |
+  
+> error[E0599]: no function or associated item named `from_f64` found for type parameter `T` in the current scope
+     --> nn\src\rope.rs:140:28
+      |
+   35 | impl<B, S, T> RoPE<B, S, T>
+      |            - function or associated item `from_f64` not found for this type parameter
+  ...
+      |
+  140 -                 let s = T::from_f64(idx.sin()).unwrap();
+  140 +                 let s = T::from(idx.sin()).unwrap();
+      |
+  
+> error[E0599]: no function or associated item named `from_f64` found for type parameter `T` in the current scope
+     --> nn\src\rope.rs:173:33
+      |
+   35 | impl<B, S, T> RoPE<B, S, T>
+      |            - function or associated item `from_f64` not found for this type parameter
+  ...
+      |
+  173 -                 row_cos.push(T::from_f64(val.cos()).unwrap());
+  173 +                 row_cos.push(T::from(val.cos()).unwrap());
+      |
+  
+> error[E0599]: no function or associated item named `from_f64` found for type parameter `T` in the current scope
+     --> nn\src\rope.rs:174:33
+      |
+   35 | impl<B, S, T> RoPE<B, S, T>
+      |            - function or associated item `from_f64` not found for this type parameter
+  ...
+      |
+  174 -                 row_sin.push(T::from_f64(val.sin()).unwrap());
+  174 +                 row_sin.push(T::from(val.sin()).unwrap());
+      |
+  
+> error[E0599]: no method named `fancy_index` found for struct `tensor::Tensor<B, S, T>` in the current scope
+     --> nn\src\rope.rs:215:29
+      |
+  215 |              Ok(dense_cache.fancy_index(&flat_indices)?)
+      |                             ^^^^^^^^^^^ method not found in `tensor::Tensor<B, DenseStorage<T>, T>`
+  
+> error[E0308]: mismatched types
+     --> nn\src\rope.rs:223:36
+      |
+  223 |         let cos = cos.reshape(&[1, seq_len, 1, head_dim])?;
+      |                                    ^^^^^^^ expected `isize`, found `usize`
+      |
+  help: you can convert a `usize` to an `isize` and panic if the converted value doesn't fit
+      |
+  223 |         let cos = cos.reshape(&[1, seq_len.try_into().unwrap(), 1, head_dim])?;
+      |                                           ++++++++++++++++++++
+  
+> error[E0308]: mismatched types
+     --> nn\src\rope.rs:224:36
+      |
+  224 |         let sin = sin.reshape(&[1, seq_len, 1, head_dim])?;
+      |                                    ^^^^^^^ expected `isize`, found `usize`
+      |
+  help: you can convert a `usize` to an `isize` and panic if the converted value doesn't fit
+      |
+  224 |         let sin = sin.reshape(&[1, seq_len.try_into().unwrap(), 1, head_dim])?;
+      |                                           ++++++++++++++++++++
+  
+> error[E0599]: no method named `mul` found for struct `tensor::Tensor<B, S, T>` in the current scope
+     --> nn\src\rope.rs:230:29
+      |
+  230 |         let term1 = x_dense.mul(&cos)?;
+      |                             ^^^
+      |
+  help: there is a method `matmul` with a similar name
+      |
+  230 |         let term1 = x_dense.matmul(&cos)?;
+      |                              +++
+  
+> error[E0599]: no method named `mul` found for struct `tensor::Tensor<B, S, T>` in the current scope
+     --> nn\src\rope.rs:231:31
+      |
+  231 |         let term2 = rotated_x.mul(&sin)?;
+      |                               ^^^
+      |
+  help: there is a method `matmul` with a similar name
+      |
+  231 |         let term2 = rotated_x.matmul(&sin)?;
+      |                                +++
+  
+> error[E0599]: no method named `advanced_slice` found for reference `&tensor::Tensor<B, DenseStorage<T>, T>` in the current scope
+     --> nn\src\rope.rs:254:20
+      |
+  254 |         let x1 = x.advanced_slice(&slices1)?;
+      |                    ^^^^^^^^^^^^^^
+      |
+     --> D:\coeus\tensor\src\tensor_impl.rs:616:5
+      |
+  616 |     pub fn as_slice(&self) -> &[T] {
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  
+> error[E0599]: no method named `advanced_slice` found for reference `&tensor::Tensor<B, DenseStorage<T>, T>` in the current scope
+     --> nn\src\rope.rs:259:20
+      |
+  259 |         let x2 = x.advanced_slice(&slices2)?;
+      |                    ^^^^^^^^^^^^^^
+      |
+

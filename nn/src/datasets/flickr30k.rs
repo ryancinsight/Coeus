@@ -207,9 +207,21 @@ impl Flickr30kDataset {
         let mut all_filenames: Vec<String> = image_id_to_filename.values().cloned().collect();
         all_filenames.sort();
 
-        // Standard Flickr30K split: last 1000 for validation
-        let val_size = 1000;
-        let train_size = all_filenames.len().saturating_sub(val_size);
+        let total_images = all_filenames.len();
+        if total_images <= 1 {
+            println!(
+                "Created train/val split: {} train, {} validation",
+                all_filenames.len(),
+                0
+            );
+            return (all_filenames, Vec::new());
+        }
+
+        // Standard Flickr30K split: last 1000 for validation.
+        // For small test fixtures, keep at least one image in train.
+        let desired_val_size = 1000.min((total_images / 5).max(1));
+        let val_size = desired_val_size.min(total_images - 1);
+        let train_size = total_images - val_size;
 
         let train_images = all_filenames[..train_size].to_vec();
         let val_images = all_filenames[train_size..].to_vec();
@@ -304,6 +316,7 @@ impl Flickr30kDataset {
         // Remove trailing periods if present (common in Flickr30K)
         if cleaned.ends_with('.') {
             cleaned = cleaned[..cleaned.len()-1].to_string();
+            cleaned = cleaned.trim_end().to_string();
         }
 
         cleaned

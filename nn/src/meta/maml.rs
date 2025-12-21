@@ -689,8 +689,8 @@ where
         // Convert to tensors
         let input_data_t: Vec<T> = input_data.into_iter().map(|x| x.into()).collect();
         let output_data_t: Vec<T> = output_data.into_iter().map(|x| x.into()).collect();
-        let input = Tensor::<B, S, T>::from_vec(input_data_t, &[self.input_dim])?;
-        let output = Tensor::<B, S, T>::from_vec(output_data_t, &[self.output_dim])?;
+        let input = Tensor::<B, S, T>::from_vec(input_data_t, &[1, self.input_dim])?;
+        let output = Tensor::<B, S, T>::from_vec(output_data_t, &[1, self.output_dim])?;
 
         Ok((input, output))
     }
@@ -750,8 +750,8 @@ mod tests {
 
         // Check tensor shapes
         for (input, target) in &task.support_set {
-            assert_eq!(input.shape().dims(), &[5]); // input_dim = 5
-            assert_eq!(target.shape().dims(), &[1]); // output_dim = 1
+            assert_eq!(input.shape().dims(), &[1, 5]); // input_dim = 5
+            assert_eq!(target.shape().dims(), &[1, 1]); // output_dim = 1
         }
     }
 
@@ -768,8 +768,8 @@ mod tests {
 
         // Check tensor shapes with custom dimensions
         for (input, target) in &task.support_set {
-            assert_eq!(input.shape().dims(), &[3]); // input_dim = 3
-            assert_eq!(target.shape().dims(), &[2]); // output_dim = 2
+            assert_eq!(input.shape().dims(), &[1, 3]); // input_dim = 3
+            assert_eq!(target.shape().dims(), &[1, 2]); // output_dim = 2
         }
     }
 
@@ -1094,36 +1094,36 @@ mod tests {
                 (
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(1.0), Float32::new(2.0)],
-                        &[2],
+                        &[1, 2],
                     )
                     .unwrap(),
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(0.0)],
-                        &[1],
+                        &[1, 1],
                     )
                     .unwrap(),
                 ),
                 (
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(2.0), Float32::new(3.0)],
-                        &[2],
+                        &[1, 2],
                     )
                     .unwrap(),
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(0.0)],
-                        &[1],
+                        &[1, 1],
                     )
                     .unwrap(),
                 ),
                 (
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(3.0), Float32::new(4.0)],
-                        &[2],
+                        &[1, 2],
                     )
                     .unwrap(),
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(1.0)],
-                        &[1],
+                        &[1, 1],
                     )
                     .unwrap(),
                 ),
@@ -1132,12 +1132,12 @@ mod tests {
                 (
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(1.5), Float32::new(2.5)],
-                        &[2],
+                        &[1, 2],
                     )
                     .unwrap(),
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(0.0)],
-                        &[1],
+                        &[1, 1],
                     )
                     .unwrap(),
                 ),
@@ -1248,8 +1248,8 @@ mod tests {
         let weight_grad = gradients.get("weight").unwrap();
         let bias_grad = gradients.get("bias").unwrap();
 
-        // Weight gradient should be [2] (input_features x output_features = 2 x 1)
-        assert_eq!(weight_grad.data().shape().dims(), &[2]);
+        // Weight gradient should be [1, 2] (output_features x input_features)
+        assert_eq!(weight_grad.data().shape().dims(), &[1, 2]);
         // Bias gradient should be [1] (output_features)
         assert_eq!(bias_grad.data().shape().dims(), &[1]);
 
@@ -1280,24 +1280,24 @@ mod tests {
                 (
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(1.0), Float32::new(0.5)],
-                        &[2],
+                        &[1, 2],
                     )
                     .unwrap(),
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(0.0)],
-                        &[1],
+                        &[1, 1],
                     )
                     .unwrap(),
                 ),
                 (
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(2.0), Float32::new(1.0)],
-                        &[2],
+                        &[1, 2],
                     )
                     .unwrap(),
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(0.0)],
-                        &[1],
+                        &[1, 1],
                     )
                     .unwrap(),
                 ),
@@ -1305,24 +1305,24 @@ mod tests {
                 (
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(0.5), Float32::new(1.0)],
-                        &[2],
+                        &[1, 2],
                     )
                     .unwrap(),
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(1.0)],
-                        &[1],
+                        &[1, 1],
                     )
                     .unwrap(),
                 ),
                 (
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(1.0), Float32::new(2.0)],
-                        &[2],
+                        &[1, 2],
                     )
                     .unwrap(),
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(1.0)],
-                        &[1],
+                        &[1, 1],
                     )
                     .unwrap(),
                 ),
@@ -1331,24 +1331,24 @@ mod tests {
                 (
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(1.5), Float32::new(0.8)],
-                        &[2],
+                        &[1, 2],
                     )
                     .unwrap(),
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(0.0)],
-                        &[1],
+                        &[1, 1],
                     )
                     .unwrap(),
                 ),
                 (
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(0.8), Float32::new(1.5)],
-                        &[2],
+                        &[1, 2],
                     )
                     .unwrap(),
                     Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                         vec![Float32::new(1.0)],
-                        &[1],
+                        &[1, 1],
                     )
                     .unwrap(),
                 ),
