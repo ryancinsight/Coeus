@@ -1141,12 +1141,12 @@ mod tests {
 
             // Handle NaN/inf properly
             let x_clamped = if x.is_finite() {
-                x.max(-2.0).min(2.0)
+                x.clamp(-2.0, 2.0)
             } else {
                 0.0
             };
             let y_clamped = if y.is_finite() {
-                y.max(-2.0).min(2.0)
+                y.clamp(-2.0, 2.0)
             } else {
                 0.0
             };

@@ -9,11 +9,13 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use crate::error::{NNError, Result};
+use crate::hpo::{HyperparameterConfig, HyperparameterSpace};
 use crate::nas::search_space::LayerSpec;
-use crate::nas::{Architecture, ArchitectureSpace, ArchitectureEvaluator};
-use crate::hpo::{HyperparameterSpace, HyperparameterConfig};
+use crate::nas::{Architecture, ArchitectureEvaluator, ArchitectureSpace};
+use crate::research::joint_search::algorithms::{
+    AlternatingSearch, ConcurrentSearch, EvolutionaryJointSearch, FactorizedSearch,
+};
 use crate::research::UnifiedResearchFramework;
-use crate::research::joint_search::algorithms::{AlternatingSearch, ConcurrentSearch, EvolutionaryJointSearch, FactorizedSearch};
 
 /// Joint Search Result
 #[derive(Debug, Clone)]
@@ -178,7 +180,8 @@ pub struct JointSearchFramework {
     /// Search history and meta-learning
     search_history: Vec<JointSearchResult>,
     /// Performance prediction framework
-    prediction_framework: Option<Arc<super::performance_prediction::PerformancePredictionFramework>>,
+    prediction_framework:
+        Option<Arc<super::performance_prediction::PerformancePredictionFramework>>,
     /// Multi-objective optimization utilities
     multi_objective_utils: MultiObjectiveUtils,
     /// Coordination mechanisms between NAS and HPO
@@ -270,8 +273,8 @@ struct TimeLimits {
 /// Fairness policies for resource allocation
 #[derive(Debug, Clone)]
 struct FairnessPolicies {
-    egalitarian: bool, // equal allocation
-    merit_based: bool, // based on potential
+    egalitarian: bool,           // equal allocation
+    merit_based: bool,           // based on potential
     starvation_prevention: bool, // prevent some algorithms from being starved
 }
 
@@ -279,6 +282,12 @@ struct FairnessPolicies {
 #[derive(Debug)]
 struct MultiObjectiveUtils {
     // Implementation details will be added as needed
+}
+
+impl Default for JointSearchFramework {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl JointSearchFramework {
@@ -307,9 +316,15 @@ impl JointSearchFramework {
         };
 
         // Register default algorithms
-        framework.register_algorithm("alternating".to_string(), Box::new(AlternatingSearch::new()));
+        framework.register_algorithm(
+            "alternating".to_string(),
+            Box::new(AlternatingSearch::new()),
+        );
         framework.register_algorithm("concurrent".to_string(), Box::new(ConcurrentSearch::new()));
-        framework.register_algorithm("evolutionary_joint".to_string(), Box::new(EvolutionaryJointSearch::new()));
+        framework.register_algorithm(
+            "evolutionary_joint".to_string(),
+            Box::new(EvolutionaryJointSearch::new()),
+        );
         framework.register_algorithm("factorized".to_string(), Box::new(FactorizedSearch::new()));
 
         framework
@@ -342,7 +357,8 @@ impl JointSearchFramework {
                 "Combined neural architecture and hyperparameter optimization".to_string(),
             );
 
-            let result = algorithm.joint_search(context, framework, arch_evaluator, arch_space, hp_space)?;
+            let result =
+                algorithm.joint_search(context, framework, arch_evaluator, arch_space, hp_space)?;
             let search_time = start_time.elapsed();
 
             // Store in search history for meta-learning
@@ -389,19 +405,25 @@ impl JointSearchFramework {
     ) {
         // Update transfer learning knowledge
         let architecture_family = self.classify_architecture_family(&result.best_architecture);
-        self.coordination_mechanisms.transfer_learning.architecture_knowledge
+        self.coordination_mechanisms
+            .transfer_learning
+            .architecture_knowledge
             .entry(architecture_family.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(result.best_architecture.clone());
 
         // Update hyperparameter transfers
-        self.coordination_mechanisms.transfer_learning.hyperparameter_transfers
+        self.coordination_mechanisms
+            .transfer_learning
+            .hyperparameter_transfers
             .entry(context.dataset_name.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(result.best_hyperparameters.clone());
 
         // Update shared performance data
-        self.coordination_mechanisms.knowledge_sharing.shared_performance_data
+        self.coordination_mechanisms
+            .knowledge_sharing
+            .shared_performance_data
             .push(PerformanceDatum {
                 architecture_family: architecture_family.clone(),
                 task_domain: context.task_type.clone(),
@@ -410,8 +432,11 @@ impl JointSearchFramework {
             });
 
         // Update meta-knowledge
-        if let Some(algorithm_name) = self.algorithms.keys().next() { // Use first algorithm as placeholder
-            self.coordination_mechanisms.knowledge_sharing.meta_knowledge
+        if let Some(algorithm_name) = self.algorithms.keys().next() {
+            // Use first algorithm as placeholder
+            self.coordination_mechanisms
+                .knowledge_sharing
+                .meta_knowledge
                 .entry(algorithm_name.clone())
                 .and_modify(|effectiveness| {
                     effectiveness.convergence_speed = result.search_time.as_secs_f64();
@@ -430,11 +455,15 @@ impl JointSearchFramework {
     /// Classify architecture family for transfer learning
     fn classify_architecture_family(&self, architecture: &Architecture) -> String {
         // Simple classification logic
-        let conv_count = architecture.layers.iter()
+        let conv_count = architecture
+            .layers
+            .iter()
             .filter(|layer| matches!(layer, crate::nas::search_space::LayerSpec::Conv2D { .. }))
             .count();
 
-        let attention_count = architecture.layers.iter()
+        let attention_count = architecture
+            .layers
+            .iter()
             .filter(|layer| matches!(layer, crate::nas::search_space::LayerSpec::Attention { .. }))
             .count();
 
@@ -458,11 +487,15 @@ impl JointSearchFramework {
 
         // Analyze algorithm effectiveness
         for result in &self.search_history {
-            insights.algorithm_effectiveness
+            insights
+                .algorithm_effectiveness
                 .entry("joint_search".to_string()) // Placeholder
                 .and_modify(|effectiveness| {
                     effectiveness.total_runs += 1;
-                    effectiveness.average_score = (effectiveness.average_score * (effectiveness.total_runs - 1) as f64 + result.best_score) / effectiveness.total_runs as f64;
+                    effectiveness.average_score = (effectiveness.average_score
+                        * (effectiveness.total_runs - 1) as f64
+                        + result.best_score)
+                        / effectiveness.total_runs as f64;
                     effectiveness.average_time += result.search_time.as_secs_f64();
                 })
                 .or_insert(AlgorithmEffectiveness {
@@ -536,7 +569,7 @@ impl Default for ResourceConstraints {
             total_cpu_cores: 8,
             time_limits: TimeLimits {
                 max_single_evaluation: std::time::Duration::from_secs(3600), // 1 hour
-                max_total_search: std::time::Duration::from_secs(86400), // 24 hours
+                max_total_search: std::time::Duration::from_secs(86400),     // 24 hours
             },
         }
     }
@@ -560,6 +593,12 @@ pub mod algorithms {
     #[derive(Debug)]
     pub struct AlternatingSearch;
 
+    impl Default for AlternatingSearch {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl AlternatingSearch {
         pub fn new() -> Self {
             Self {}
@@ -580,12 +619,16 @@ pub mod algorithms {
                     architecture_rounds,
                     hyperparameter_rounds,
                     synchronization_frequency,
-                } => {
-                    self.alternating_search(
-                        context, framework, arch_evaluator, arch_space, hp_space,
-                        *architecture_rounds, *hyperparameter_rounds, *synchronization_frequency,
-                    )
-                }
+                } => self.alternating_search(
+                    context,
+                    framework,
+                    arch_evaluator,
+                    arch_space,
+                    hp_space,
+                    *architecture_rounds,
+                    *hyperparameter_rounds,
+                    *synchronization_frequency,
+                ),
                 _ => Err(NNError::InvalidConfiguration {
                     message: "Alternating search requires Alternating strategy".to_string(),
                 }),
@@ -630,7 +673,8 @@ pub mod algorithms {
 
                 if round % 2 == 0 || round < arch_rounds {
                     // Architecture optimization round (keep hyperparameters fixed)
-                    for _ in 0..10 { // Architecture search budget per round
+                    for _ in 0..10 {
+                        // Architecture search budget per round
                         if evaluations >= context.budget.max_total_evaluations {
                             break;
                         }
@@ -640,12 +684,17 @@ pub mod algorithms {
 
                         // Evaluate joint configuration
                         let score = self.evaluate_joint_configuration(
-                            &candidate_arch, &test_config, arch_evaluator.clone(),
+                            &candidate_arch,
+                            &test_config,
+                            arch_evaluator.clone(),
                         )?;
 
                         evaluations += 1;
 
-                        if best_solution.as_ref().map_or(true, |s: &JointSolution| score > s.score) {
+                        if best_solution
+                            .as_ref()
+                            .map_or(true, |s: &JointSolution| score > s.score)
+                        {
                             best_solution = Some(JointSolution {
                                 architecture: candidate_arch.clone(),
                                 hyperparameters: current_hyperparameters.clone(),
@@ -664,7 +713,8 @@ pub mod algorithms {
                     }
                 } else {
                     // Hyperparameter optimization round (keep architecture fixed)
-                    for _ in 0..20 { // Hyperparameter search budget per round
+                    for _ in 0..20 {
+                        // Hyperparameter search budget per round
                         if evaluations >= context.budget.max_total_evaluations {
                             break;
                         }
@@ -673,7 +723,9 @@ pub mod algorithms {
 
                         // Evaluate joint configuration
                         let score = self.evaluate_joint_configuration(
-                            &current_architecture, &candidate_hp, arch_evaluator.clone(),
+                            &current_architecture,
+                            &candidate_hp,
+                            arch_evaluator.clone(),
                         )?;
 
                         evaluations += 1;
@@ -716,7 +768,13 @@ pub mod algorithms {
                     joint_regret_bounds: Some(0.1),
                 },
                 pareto_front: None,
-                experiment_summary: framework.experiment_registry.get_experiment(&context.experiment_id).ok_or(NNError::InvalidConfiguration { message: format!("Experiment {} not found", context.experiment_id) })?.summary(),
+                experiment_summary: framework
+                    .experiment_registry
+                    .get_experiment(&context.experiment_id)
+                    .ok_or(NNError::InvalidConfiguration {
+                        message: format!("Experiment {} not found", context.experiment_id),
+                    })?
+                    .summary(),
             })
         }
 
@@ -744,6 +802,12 @@ pub mod algorithms {
     /// Concurrent search in both spaces
     #[derive(Debug)]
     pub struct ConcurrentSearch;
+
+    impl Default for ConcurrentSearch {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
 
     impl ConcurrentSearch {
         pub fn new() -> Self {
@@ -778,30 +842,74 @@ pub mod algorithms {
     // Placeholder implementations for other algorithms
     #[derive(Debug)]
     pub struct EvolutionaryJointSearch;
+
+    impl Default for EvolutionaryJointSearch {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl EvolutionaryJointSearch {
-        pub fn new() -> Self { Self {} }
+        pub fn new() -> Self {
+            Self {}
+        }
     }
 
     impl JointSearchAlgorithm for EvolutionaryJointSearch {
-        fn joint_search(&self, _context: &JointSearchContext, _framework: &mut UnifiedResearchFramework, _arch_evaluator: Arc<dyn ArchitectureEvaluator>, _arch_space: &ArchitectureSpace, _hp_space: &HyperparameterSpace) -> Result<JointSearchResult> {
-            Err(NNError::NotImplemented { operation: "Evolutionary joint search".to_string() })
+        fn joint_search(
+            &self,
+            _context: &JointSearchContext,
+            _framework: &mut UnifiedResearchFramework,
+            _arch_evaluator: Arc<dyn ArchitectureEvaluator>,
+            _arch_space: &ArchitectureSpace,
+            _hp_space: &HyperparameterSpace,
+        ) -> Result<JointSearchResult> {
+            Err(NNError::NotImplemented {
+                operation: "Evolutionary joint search".to_string(),
+            })
         }
-        fn name(&self) -> &str { "Evolutionary Joint Search" }
-        fn description(&self) -> &str { "Evolutionary algorithms in joint space" }
+        fn name(&self) -> &str {
+            "Evolutionary Joint Search"
+        }
+        fn description(&self) -> &str {
+            "Evolutionary algorithms in joint space"
+        }
     }
 
     #[derive(Debug)]
     pub struct FactorizedSearch;
+
+    impl Default for FactorizedSearch {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl FactorizedSearch {
-        pub fn new() -> Self { Self {} }
+        pub fn new() -> Self {
+            Self {}
+        }
     }
 
     impl JointSearchAlgorithm for FactorizedSearch {
-        fn joint_search(&self, _context: &JointSearchContext, _framework: &mut UnifiedResearchFramework, _arch_evaluator: Arc<dyn ArchitectureEvaluator>, _arch_space: &ArchitectureSpace, _hp_space: &HyperparameterSpace) -> Result<JointSearchResult> {
-            Err(NNError::NotImplemented { operation: "Factorized search".to_string() })
+        fn joint_search(
+            &self,
+            _context: &JointSearchContext,
+            _framework: &mut UnifiedResearchFramework,
+            _arch_evaluator: Arc<dyn ArchitectureEvaluator>,
+            _arch_space: &ArchitectureSpace,
+            _hp_space: &HyperparameterSpace,
+        ) -> Result<JointSearchResult> {
+            Err(NNError::NotImplemented {
+                operation: "Factorized search".to_string(),
+            })
         }
-        fn name(&self) -> &str { "Factorized Search" }
-        fn description(&self) -> &str { "Separate but coordinated NAS and HPO" }
+        fn name(&self) -> &str {
+            "Factorized Search"
+        }
+        fn description(&self) -> &str {
+            "Separate but coordinated NAS and HPO"
+        }
     }
 }
 

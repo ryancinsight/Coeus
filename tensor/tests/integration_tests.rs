@@ -10,7 +10,6 @@
 use std::sync::Arc;
 use std::thread;
 
-
 use backend::CpuBackend;
 use dtype::{float::Float32, num_traits::ToPrimitive};
 use storage::DenseStorage;

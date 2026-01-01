@@ -20,9 +20,7 @@ use storage::{DenseStorage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 // NN modules
-use nn::clip::{
-    ClipConfig, ClipModel, InfoNCELoss
-};
+use nn::clip::{ClipConfig, ClipModel, InfoNCELoss};
 
 // Type aliases for clarity
 type Backend = CpuBackend<Float32>;
@@ -85,15 +83,19 @@ fn demonstrate_clip_architecture() -> Result<(), Box<dyn std::error::Error>> {
     println!("🏗️  Available CLIP Configurations:");
     for (name, config) in configs {
         println!("  {}:", name);
-        println!("    Vision: {}x{} patches, {} layers, {} heads",
+        println!(
+            "    Vision: {}x{} patches, {} layers, {} heads",
             config.vision_config.patch_size,
             config.vision_config.patch_size,
             config.vision_config.num_layers,
-            config.vision_config.num_heads);
-        println!("    Text: {} layers, {} heads, {} vocab",
+            config.vision_config.num_heads
+        );
+        println!(
+            "    Text: {} layers, {} heads, {} vocab",
             config.text_config.num_layers,
             config.text_config.num_heads,
-            config.text_config.vocab_size);
+            config.text_config.vocab_size
+        );
         println!("    Embed Dim: {}", config.embed_dim);
         println!();
     }
@@ -134,9 +136,15 @@ fn train_clip_model() -> Result<Model, Box<dyn std::error::Error>> {
 
         // Compute InfoNCE loss
         let loss = model.forward_train(
-            &image_features.iter().map(|&x| x as f32).collect::<Vec<f32>>(),
-            &text_features.iter().map(|&x| x as f32).collect::<Vec<f32>>(),
-            batch_size
+            &image_features
+                .iter()
+                .map(|&x| x as f32)
+                .collect::<Vec<f32>>(),
+            &text_features
+                .iter()
+                .map(|&x| x as f32)
+                .collect::<Vec<f32>>(),
+            batch_size,
         )?;
 
         let loss_val = loss.as_slice()[0];
@@ -155,7 +163,9 @@ fn train_clip_model() -> Result<Model, Box<dyn std::error::Error>> {
 }
 
 /// Generate synthetic batch of image-text pairs
-fn generate_synthetic_batch(batch_size: usize) -> Result<(Vec<f32>, Vec<f32>), Box<dyn std::error::Error>> {
+fn generate_synthetic_batch(
+    batch_size: usize,
+) -> Result<(Vec<f32>, Vec<f32>), Box<dyn std::error::Error>> {
     let embed_dim = 512;
     let mut rng = rand::thread_rng();
 
@@ -210,18 +220,26 @@ fn demonstrate_inference_pipeline(model: &Model) -> Result<(), Box<dyn std::erro
     }
 
     // Find best match
-    let best_idx = similarities.iter().enumerate()
+    let best_idx = similarities
+        .iter()
+        .enumerate()
         .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-        .unwrap().0;
+        .unwrap()
+        .0;
 
-    println!("\n🎯 Best Match: \"{}\" (similarity: {:.4})",
-        test_texts[best_idx], similarities[best_idx]);
+    println!(
+        "\n🎯 Best Match: \"{}\" (similarity: {:.4})",
+        test_texts[best_idx], similarities[best_idx]
+    );
 
     Ok(())
 }
 
 /// Simulate similarity computation
-fn compute_similarities(image_data: &[f32], texts: &[&str]) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+fn compute_similarities(
+    image_data: &[f32],
+    texts: &[&str],
+) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
     // Simple simulation: random similarities for demo
     // In real implementation, this would encode image and texts, then compute cosine similarity
     let mut similarities = Vec::new();
@@ -229,9 +247,9 @@ fn compute_similarities(image_data: &[f32], texts: &[&str]) -> Result<Vec<f32>, 
 
     for text in texts {
         let base_similarity = if text.contains("cat") || text.contains("dog") {
-            0.8 + (rand::random::<f32>() - 0.5) * 0.2  // High similarity for pets
+            0.8 + (rand::random::<f32>() - 0.5) * 0.2 // High similarity for pets
         } else {
-            0.3 + rand::random::<f32>() * 0.4  // Lower similarity for other categories
+            0.3 + rand::random::<f32>() * 0.4 // Lower similarity for other categories
         };
         similarities.push(base_similarity);
     }
@@ -271,11 +289,15 @@ fn demonstrate_zero_shot_classification(model: &Model) -> Result<(), Box<dyn std
     }
 
     // Find prediction
-    let (predicted_class, confidence) = scores.iter()
+    let (predicted_class, confidence) = scores
+        .iter()
         .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
         .unwrap();
 
-    println!("\n🎯 Prediction: {} (confidence: {:.4})", predicted_class, confidence);
+    println!(
+        "\n🎯 Prediction: {} (confidence: {:.4})",
+        predicted_class, confidence
+    );
 
     // Demonstrate text-to-image retrieval
     println!("\n🔍 Text-to-Image Retrieval:");
@@ -311,7 +333,10 @@ fn create_test_image() -> Vec<f32> {
 }
 
 /// Simulate image classification with a text prompt
-fn classify_image_with_prompt(image_data: &[f32], prompt: &str) -> Result<f32, Box<dyn std::error::Error>> {
+fn classify_image_with_prompt(
+    image_data: &[f32],
+    prompt: &str,
+) -> Result<f32, Box<dyn std::error::Error>> {
     // Simulated classification score
     // In a real implementation, this would compute similarity between
     // image embedding and text embedding
@@ -329,7 +354,10 @@ fn classify_image_with_prompt(image_data: &[f32], prompt: &str) -> Result<f32, B
 }
 
 /// Simulate text-to-image retrieval
-fn retrieve_image_with_text(query: &str, image_data: &[f32]) -> Result<f32, Box<dyn std::error::Error>> {
+fn retrieve_image_with_text(
+    query: &str,
+    image_data: &[f32],
+) -> Result<f32, Box<dyn std::error::Error>> {
     // Simulated retrieval score based on query
     let base_score = if query.contains("cat") {
         0.92
@@ -369,8 +397,10 @@ fn run_benchmarking(model: &Model) -> Result<(), Box<dyn std::error::Error>> {
         let elapsed = start.elapsed().as_secs_f64();
         let throughput = batch_size as f64 / elapsed;
 
-        println!("{:4} | {:11.3}s    | {:.1} samples/s",
-            batch_size, elapsed, throughput);
+        println!(
+            "{:4} | {:11.3}s    | {:.1} samples/s",
+            batch_size, elapsed, throughput
+        );
 
         results.push(BenchmarkResult {
             batch_size,
@@ -384,9 +414,15 @@ fn run_benchmarking(model: &Model) -> Result<(), Box<dyn std::error::Error>> {
     let baseline_throughput = 25.0; // Simulated PyTorch CLIP baseline
     let our_best = results.last().unwrap().throughput;
 
-    println!("• Baseline PyTorch CLIP: {:.1} samples/s", baseline_throughput);
+    println!(
+        "• Baseline PyTorch CLIP: {:.1} samples/s",
+        baseline_throughput
+    );
     println!("• Coeus CLIP Demo:      {:.1} samples/s", our_best);
-    println!("• Performance Ratio: {:.1}x", our_best / baseline_throughput);
+    println!(
+        "• Performance Ratio: {:.1}x",
+        our_best / baseline_throughput
+    );
 
     // Memory usage estimation
     println!("\n💾 Memory Usage Estimates:");
@@ -409,13 +445,3 @@ struct BenchmarkResult {
     inference_time: f64,
     throughput: f64,
 }
-
-// Helper implementations for display
-impl fmt::Display for ClipModel<Backend, Storage, Float32> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result> {
-        write!(f, "CLIP Model (ViT-{}, embed_dim={})",
-               self.config().vision_config.patch_size,
-               self.config().embed_dim)
-    }
-}
-

@@ -14,10 +14,10 @@
 //! - Triplet Margin Loss
 //! - Combo Loss
 
+pub mod bce;
 pub mod cross_entropy;
 pub mod mse;
 pub mod nll;
-pub mod bce;
 
 // Re-export commonly used loss functions
 pub use bce::BCEWithLogitsLoss;

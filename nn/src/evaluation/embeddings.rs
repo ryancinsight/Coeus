@@ -7,8 +7,8 @@
 
 use std::time::Instant;
 
+use super::{ClipEvaluationConfig, ClipModelEvaluator, EvaluationDataset};
 use crate::error::{NNError, Result};
-use super::{EvaluationDataset, ClipModelEvaluator, ClipEvaluationConfig};
 
 /// Simple matrix type for computations
 type Matrix = Vec<Vec<f64>>;
@@ -93,10 +93,7 @@ where
     }
 
     /// Analyze embedding space for a dataset
-    pub fn analyze_embeddings(
-        &self,
-        dataset: &dyn EvaluationDataset,
-    ) -> Result<EmbeddingAnalysis> {
+    pub fn analyze_embeddings(&self, dataset: &dyn EvaluationDataset) -> Result<EmbeddingAnalysis> {
         let start_time = Instant::now();
 
         // Get sample data for analysis (using first 1000 samples or all available)
@@ -126,7 +123,8 @@ where
 
         // Compute quality metrics
         let alignment_score = self.compute_alignment_score(&image_embeddings, &text_embeddings)?;
-        let uniformity_score = self.compute_uniformity_score(&image_embeddings, &text_embeddings)?;
+        let uniformity_score =
+            self.compute_uniformity_score(&image_embeddings, &text_embeddings)?;
 
         let quality_metrics = EmbeddingQualityMetrics {
             alignment_quality: alignment_score,
@@ -134,7 +132,10 @@ where
             overall_quality: (alignment_score + uniformity_score) / 2.0,
         };
 
-        println!("Embedding analysis completed in {:.2}s", start_time.elapsed().as_secs_f64());
+        println!(
+            "Embedding analysis completed in {:.2}s",
+            start_time.elapsed().as_secs_f64()
+        );
 
         Ok(EmbeddingAnalysis {
             dataset_name: dataset.name().to_string(),
@@ -217,7 +218,11 @@ where
             });
         }
 
-        let dot_product: f64 = a.iter().zip(b.iter()).map(|(x, y)| *x as f64 * *y as f64).sum();
+        let dot_product: f64 = a
+            .iter()
+            .zip(b.iter())
+            .map(|(x, y)| *x as f64 * *y as f64)
+            .sum();
         let norm_a: f64 = a.iter().map(|x| (*x as f64).powi(2)).sum::<f64>().sqrt();
         let norm_b: f64 = b.iter().map(|x| (*x as f64).powi(2)).sum::<f64>().sqrt();
 
@@ -242,9 +247,16 @@ where
         let mean = similarities.iter().sum::<f64>() / similarities.len() as f64;
         let std = self.compute_std(similarities, mean);
         let min = similarities.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-        let max = similarities.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+        let max = similarities
+            .iter()
+            .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
 
-        SimilarityStatistics { mean, std, min, max }
+        SimilarityStatistics {
+            mean,
+            std,
+            min,
+            max,
+        }
     }
 
     /// Compute standard deviation
@@ -253,7 +265,7 @@ where
             return 0.0;
         }
 
-        let variance = values.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (values.len() - 1) as f64;
+        let variance = values.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / values.len() as f64;
         variance.sqrt()
     }
 
@@ -294,46 +306,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::evaluation::{EvaluationDataset, BenchmarkDataset};
-
-    // Mock dataset for testing
-    struct MockDataset {
-        name: String,
-        size: usize,
-    }
-
-    impl MockDataset {
-        fn new(name: &str, size: usize) -> Self {
-            Self {
-                name: name.to_string(),
-                size,
-            }
-        }
-    }
-
-    impl EvaluationDataset for MockDataset {
-        fn name(&self) -> &str {
-            &self.name
-        }
-
-        fn len(&self) -> usize {
-            self.size
-        }
-
-        fn get_sample(&self, _index: usize) -> Option<&dyn std::any::Any> {
-            Some(&self.size as &dyn std::any::Any)
-        }
-
-        fn image_embeddings(&self) -> &[Vec<f32>] {
-            // Return empty slice for mock
-            &[]
-        }
-
-        fn text_embeddings(&self) -> &[Vec<f32>] {
-            // Return empty slice for mock
-            &[]
-        }
-    }
 
     // Mock model for testing
     struct MockModel;

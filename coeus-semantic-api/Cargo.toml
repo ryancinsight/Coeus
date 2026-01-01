@@ -6,6 +6,9 @@ authors = ["Ryan Clanton <ryanclanton@protomail.com>"]
 repository = "https://github.com/ryancinsight/Coeus"
 license = "MIT OR Apache-2.0"
 description = "Production REST API for CLIP semantic search with comprehensive error handling and monitoring"
+readme = "../README.md"
+keywords = ["machine-learning", "clip", "semantic-search", "api"]
+categories = ["science", "mathematics", "web-programming"]
 
 [dependencies]
 # Axum async web framework - memory safe, tokio integration, zero-unsafe
@@ -20,7 +23,7 @@ serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 
 # Tower ecosystem - compose services safely
-tower = "0.4"
+tower = "0.5"
 tower-http = { version = "0.5", features = ["cors", "trace", "request-id", "compression-gzip", "timeout"] }
 
 # UUID generation for request tracking
@@ -57,7 +60,6 @@ async-trait = "0.1"
 
 [dev-dependencies]
 # Testing - comprehensive HTTP API testing
-reqwest = { version = "0.12", features = ["json"] }
 tokio-test = "0.4"
 
 [features]

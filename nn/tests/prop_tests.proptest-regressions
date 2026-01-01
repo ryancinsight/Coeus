@@ -1,0 +1,12 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 1e48b163efc8535c1779d5c5aed2ac8700dc85ada338b2e5132405e3f2661c5f # shrinks to (values) = [35.154533]
+cc 7c62623f1d215d78b090e40fd7b52b7b508acf70e42bd5423554321e39a4c79b # shrinks to (values) = [38.079613]
+cc fb82ad7bb44ab9c01e2c54f514cee7edb33dddd9bc668bff40a053161477d81f # shrinks to (pred_values, target_values) = ([-8.917256, 0.0, 0.0, 2.9309564], [-4.3080225, -9.479345, -1.8489661, 0.0])
+cc b47f22f733b7a07369221437e1476d622771da20189f15a4147acdba0c47c70d # shrinks to (pred_values, target_values) = ([-4.0598435, 9.344011, 0.0], [9.971612])
+cc c4dac3c053fc09469a9e669db79f0f4ac2d8679ccdf0a71641d23f08b327b14a # shrinks to (pred_values, target_values) = ([-9.971468, 0.0, 0.0, 5.5384936, 1.758744, 8.306081, 3.5383177, -6.350185, 0.0, -8.651634, 9.347649, -1.8925271], [0.59363997, -3.4097612, 0.0, 5.145574, 7.5775847, -7.7281938, 0.0, -9.116017, -0.9754451, 0.0])
+cc b96978b3bec24d9d9f2ff42a6ce3196e2557cf59c3c338e1acc098d5692c8faa # shrinks to (pred_values, target_values) = ([9.700669, 0.0, 0.0, 9.211357, -3.0858068, -2.9951968, -9.783577, 0.0, 0.0, 1.9242694, 0.0, 3.546803, 7.5015984], [-3.490285, -4.983247, 7.5013604, -6.7471776, -5.2686954, -9.349917, 0.0, 0.0, 0.5684091, 0.0, 0.0, -4.5062385, -7.2088313])

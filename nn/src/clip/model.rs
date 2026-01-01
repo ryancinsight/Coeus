@@ -3,22 +3,22 @@
 //! This module contains the main CLIP model architecture with vision and text encoders,
 //! projection heads, and inference methods.
 
-use std::fmt;
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
+use std::fmt;
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
-use crate::error::{NNError, Result};
-use crate::module::Module;
-use crate::parameter::Parameter;
-use crate::attention::MultiHeadAttention;
-use crate::linear::Linear;
-use crate::layernorm::LayerNorm;
 use crate::activation::GeLU;
-use crate::conv2d::Conv2D; // For patch extraction in vision transformer
+use crate::attention::MultiHeadAttention;
+use crate::conv2d::Conv2D;
+use crate::error::{NNError, Result};
+use crate::layernorm::LayerNorm;
+use crate::linear::Linear;
+use crate::module::Module;
+use crate::parameter::Parameter; // For patch extraction in vision transformer
 
-use super::config::{ClipConfig, VisionConfig, TextConfig};
+use super::config::{ClipConfig, TextConfig, VisionConfig};
 use super::loss::InfoNCELoss;
 use super::traits::ClipEncoder;
 
@@ -96,11 +96,20 @@ where
     }
 
     /// Forward pass: image -> CLIP embedding
-    pub fn forward(&self, pixel_values: &[f32], batch_size: usize) -> Result<Tensor<B, DenseStorage<T>, T>> {
+    pub fn forward(
+        &self,
+        pixel_values: &[f32],
+        batch_size: usize,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>> {
         // Convert pixel values to correct format
         let image_tensor = Tensor::<B, S, T>::from_vec(
             pixel_values.iter().map(|&x| T::from(x).unwrap()).collect(),
-            &[batch_size, self.config.image_size, self.config.image_size, self.config.num_channels],
+            &[
+                batch_size,
+                self.config.image_size,
+                self.config.image_size,
+                self.config.num_channels,
+            ],
         )?;
 
         // Forward through ViT
@@ -139,10 +148,7 @@ where
         let embed_dim = config.hidden_size;
 
         // Patch embedding: flatten patches and project to embed_dim
-        let patch_embed = Linear::new(
-            config.num_channels * patch_size * patch_size,
-            embed_dim,
-        )?;
+        let patch_embed = Linear::new(config.num_channels * patch_size * patch_size, embed_dim)?;
 
         // Position embeddings for each patch + class token
         let position_tensor = Tensor::<B, S, T>::zeros(&[num_patches + 1, embed_dim])?;
@@ -182,14 +188,23 @@ where
 
         // Flatten image patches: [batch_size, H, W, C] -> [batch_size * num_patches, patch_size * patch_size * channels]
         let patch_data = pixel_values.as_slice().to_vec();
-        let patch_sequence = Tensor::<B, S, T>::from_vec(patch_data, &[batch_size * num_patches, self.config.patch_size * self.config.patch_size * self.config.num_channels])?;
+        let patch_sequence = Tensor::<B, S, T>::from_vec(
+            patch_data,
+            &[
+                batch_size * num_patches,
+                self.config.patch_size * self.config.patch_size * self.config.num_channels,
+            ],
+        )?;
 
         // Apply patch embedding: [batch_size * num_patches, embed_dim]
         let patch_embeddings = self.patch_embed.forward(&patch_sequence)?;
 
         // Reshape back to [batch_size, num_patches, embed_dim]
         let patch_embeddings_data = patch_embeddings.as_slice().to_vec();
-        let patch_embeddings_reshaped = Tensor::<B, S, T>::from_vec(patch_embeddings_data, &[batch_size, num_patches, embed_dim])?;
+        let patch_embeddings_reshaped = Tensor::<B, S, T>::from_vec(
+            patch_embeddings_data,
+            &[batch_size, num_patches, embed_dim],
+        )?;
 
         // Create class token and expand to batch
         let cls_token_data = vec![T::from(1.0).unwrap(); embed_dim]; // Initialize to non-zero for learning
@@ -206,9 +221,7 @@ where
 
         for b in 0..batch_size {
             // Add class token for this batch
-            for e in 0..embed_dim {
-                hidden_states_data.push(cls_tokens_data[e]);
-            }
+            hidden_states_data.extend(cls_tokens_data.iter().take(embed_dim).copied());
 
             // Add patch embeddings for this batch
             for p in 0..num_patches {
@@ -219,11 +232,15 @@ where
             }
         }
 
-        let mut hidden_states = Tensor::<B, S, T>::from_vec(hidden_states_data, &[batch_size, num_patches + 1, embed_dim])?;
+        let mut hidden_states = Tensor::<B, S, T>::from_vec(
+            hidden_states_data,
+            &[batch_size, num_patches + 1, embed_dim],
+        )?;
 
         // Add position embeddings (simplified - just add positional offset)
         let position_embeddings = self.position_embed.data();
-        let position_embeddings_broadcasted = position_embeddings.broadcast_to(&[batch_size, num_patches + 1, embed_dim])?;
+        let position_embeddings_broadcasted =
+            position_embeddings.broadcast_to(&[batch_size, num_patches + 1, embed_dim])?;
         hidden_states = &hidden_states + &position_embeddings_broadcasted;
 
         // Apply transformer layers
@@ -248,7 +265,10 @@ where
             }
         }
 
-        Ok(Tensor::<B, S, T>::from_vec(cls_output, &[batch_size, embed_dim])?)
+        Ok(Tensor::<B, S, T>::from_vec(
+            cls_output,
+            &[batch_size, embed_dim],
+        )?)
     }
 }
 
@@ -281,7 +301,11 @@ where
     pub fn forward(&self, hidden_states: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // Pre-norm attention
         let normed_hidden = self.norm1.forward(hidden_states)?;
-        let attn_output = self.attention.forward_cross_attention(&normed_hidden, &normed_hidden, &normed_hidden)?;
+        let attn_output = self.attention.forward_cross_attention(
+            &normed_hidden,
+            &normed_hidden,
+            &normed_hidden,
+        )?;
         let hidden_states = hidden_states + &attn_output; // Residual
 
         // Pre-norm MLP
@@ -369,7 +393,11 @@ where
     }
 
     /// Forward pass: token_ids -> CLIP embedding
-    pub fn forward(&self, input_ids: &[u32], batch_size: usize) -> Result<Tensor<B, DenseStorage<T>, T>> {
+    pub fn forward(
+        &self,
+        input_ids: &[u32],
+        batch_size: usize,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>> {
         // Forward through GPT model (placeholder - would need adaptation)
         let hidden_states = self.text_model_forward_placeholder(input_ids, batch_size)?;
 
@@ -378,18 +406,36 @@ where
         let eos_representation = self.extract_eos_token(&hidden_states);
 
         // Apply projection head
-        let projected = eos_representation.matmul(&self.projection_head.weight.data().to_dense_generic()?.transpose(0, 1)?)?;
+        let projected = eos_representation.matmul(
+            &self
+                .projection_head
+                .weight
+                .data()
+                .to_dense_generic()?
+                .transpose(0, 1)?,
+        )?;
 
         Ok(projected)
     }
 
-    fn text_model_forward_placeholder(&self, _input_ids: &[u32], batch_size: usize) -> Result<Tensor<B, DenseStorage<T>, T>> {
+    fn text_model_forward_placeholder(
+        &self,
+        _input_ids: &[u32],
+        batch_size: usize,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>> {
         // Placeholder - would integrate with actual GPT forward pass
         // Return sequence of embeddings: [batch_size, seq_len, hidden_size]
-        Ok(Tensor::<B, DenseStorage<T>, T>::zeros(&[batch_size, self.config.max_position_embeddings, self.config.hidden_size])?)
+        Ok(Tensor::<B, DenseStorage<T>, T>::zeros(&[
+            batch_size,
+            self.config.max_position_embeddings,
+            self.config.hidden_size,
+        ])?)
     }
 
-    fn extract_eos_token(&self, sequence_output: &Tensor<B, DenseStorage<T>, T>) -> Tensor<B, DenseStorage<T>, T> {
+    fn extract_eos_token(
+        &self,
+        sequence_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> Tensor<B, DenseStorage<T>, T> {
         // Extract last token representation: [batch_size, seq_len, hidden_size] -> [batch_size, hidden_size]
         let shape = sequence_output.shape().dims();
         let batch_size = shape[0];
@@ -402,7 +448,9 @@ where
             for h in 0..hidden_size {
                 // Take last position: [b, seq_len-1, h]
                 let seq_len = shape[1];
-                eos_features.push(sequence_output.as_slice()[(b * seq_len + seq_len - 1) * hidden_size + h]);
+                eos_features.push(
+                    sequence_output.as_slice()[(b * seq_len + seq_len - 1) * hidden_size + h],
+                );
             }
         }
 
@@ -521,7 +569,11 @@ where
     pub fn forward(&self, hidden_states: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // Pre-norm attention (causal for text)
         let normed_hidden = self.norm1.forward(hidden_states)?;
-        let attn_output = self.attention.forward_cross_attention(&normed_hidden, &normed_hidden, &normed_hidden)?;
+        let attn_output = self.attention.forward_cross_attention(
+            &normed_hidden,
+            &normed_hidden,
+            &normed_hidden,
+        )?;
         let hidden_states = hidden_states + &attn_output; // Residual
 
         // Pre-norm MLP
@@ -559,7 +611,12 @@ impl<B, S, T> ClipModel<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + num_traits::Float + 'static,
+    T: DataType
+        + FloatExt
+        + num_traits::FromPrimitive
+        + num_traits::Bounded
+        + num_traits::Float
+        + 'static,
 {
     /// Create new CLIP model
     pub fn new(config: ClipConfig) -> Result<Self> {
@@ -604,14 +661,19 @@ where
     }
 
     /// Forward pass for inference: encode image
-    pub fn encode_image(&self, images: &[f32], batch_size: usize) -> Result<Tensor<B, DenseStorage<T>, T>> {
+    pub fn encode_image(
+        &self,
+        images: &[f32],
+        batch_size: usize,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>> {
         self.vision_encoder.forward(images, batch_size)
     }
 
     /// Forward pass for inference: encode text
     pub fn encode_text(&self, texts: &[&str]) -> Result<Tensor<B, DenseStorage<T>, T>> {
         // This would need text tokenization - placeholder implementation
-        let dummy_tokens = vec![1u32; texts.len() * self.config.text_config.max_position_embeddings];
+        let dummy_tokens =
+            vec![1u32; texts.len() * self.config.text_config.max_position_embeddings];
         self.text_encoder.forward(&dummy_tokens, texts.len())
     }
 
@@ -630,7 +692,10 @@ where
         Ok(image_norm.matmul(&text_norm_t)?)
     }
 
-    fn normalize_features(&self, features: &Tensor<B, DenseStorage<T>, T>) -> Result<Tensor<B, DenseStorage<T>, T>> {
+    fn normalize_features(
+        &self,
+        features: &Tensor<B, DenseStorage<T>, T>,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>> {
         // Simplified L2 normalization - just return the input for now
         // TODO: Implement proper L2 normalization
         Ok(features.clone())
@@ -692,7 +757,10 @@ where
     T: DataType + FloatExt + num_traits::FromPrimitive + 'static,
 {
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
-        vec![self.projection_head.weight.clone(), self.projection_head.bias.clone()]
+        vec![
+            self.projection_head.weight.clone(),
+            self.projection_head.bias.clone(),
+        ]
     }
 }
 
@@ -703,7 +771,10 @@ where
     T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + 'static,
 {
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
-        vec![self.projection_head.weight.clone(), self.projection_head.bias.clone()]
+        vec![
+            self.projection_head.weight.clone(),
+            self.projection_head.bias.clone(),
+        ]
     }
 }
 
@@ -717,7 +788,11 @@ where
         self.encode_text(texts)
     }
 
-    fn encode_image(&self, image_data: &[f32], batch_size: usize) -> Result<Tensor<B, DenseStorage<T>, T>> {
+    fn encode_image(
+        &self,
+        image_data: &[f32],
+        batch_size: usize,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>> {
         self.encode_image(image_data, batch_size)
     }
 }
@@ -748,4 +823,3 @@ mod tests {
         assert_eq!(config.embed_dim, 512);
     }
 }
-

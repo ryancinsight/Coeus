@@ -9,6 +9,9 @@ keywords = ["profiling", "benchmarking", "performance", "rust", "deep-learning"]
 categories = ["development-tools", "science"]
 license = "MIT OR Apache-2.0"
 
+[lib]
+doctest = false
+
 [dependencies]
 # Workspace dependencies
 tracing = { workspace = true }

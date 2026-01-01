@@ -8,14 +8,13 @@
 //! - Real-time progress monitoring and failure recovery
 //! - Declarative workflow definition via YAML/JSON
 
+use nn::error::Result;
+use nn::research::{
+    ExecutionMode, FailureStrategy, ResearchDomain, ResourceRequirements, RetryConfig, StepSpec,
+    UnifiedResearchFramework, WorkflowConfig, WorkflowLoader, WorkflowMetadata, WorkflowSpec,
+};
 use std::path::Path;
 use tokio;
-use nn::research::{
-    UnifiedResearchFramework, WorkflowSpec, WorkflowMetadata, StepSpec,
-    ResearchDomain, ResourceRequirements, RetryConfig, WorkflowConfig,
-    ExecutionMode, FailureStrategy, WorkflowLoader
-};
-use nn::error::Result;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -29,22 +28,22 @@ async fn main() -> Result<()> {
     // Example 1: Template-based workflow execution
     println!("\n📋 Example 1: Template-based NAS-HPO Workflow");
     println!("------------------------------------------------");
-    await example_template_workflow(&mut framework).await?;
+    example_template_workflow(&mut framework).await?;
 
     // Example 2: Configuration-driven workflow from YAML
     println!("\n📄 Example 2: YAML Configuration-Driven Workflow");
     println!("-------------------------------------------------");
-    await example_yaml_workflow(&mut framework).await?;
+    example_yaml_workflow(&mut framework).await?;
 
     // Example 3: Advanced orchestration with monitoring
     println!("\n📊 Example 3: Advanced Orchestration with Monitoring");
     println!("-----------------------------------------------------");
-    await example_advanced_orchestration(&mut framework).await?;
+    example_advanced_orchestration(&mut framework).await?;
 
     // Example 4: Resource management and failure recovery
     println!("\n🛡️  Example 4: Resource Management & Failure Recovery");
     println!("-----------------------------------------------------");
-    await example_resource_management(&mut framework).await?;
+    example_resource_management(&mut framework).await?;
 
     println!("\n🎉 All workflow automation examples completed successfully!");
     println!("\nKey Features Demonstrated:");
@@ -65,14 +64,21 @@ async fn example_template_workflow(framework: &mut UnifiedResearchFramework) -> 
     // Create a template-based workflow
     let workflow = nn::research::WorkflowTemplate::nas_hpo_collaboration("accuracy");
 
-    println!("Workflow '{}' created with {} steps", workflow.name, workflow.steps.len());
+    println!(
+        "Workflow '{}' created with {} steps",
+        workflow.name,
+        workflow.steps.len()
+    );
 
     // Execute the workflow
     let result = framework.execute_workflow_async(&workflow).await?;
 
     println!("✅ Workflow completed in {:?}", result.execution_time);
     println!("   Status: {:?}", result.status);
-    println!("   Experiments completed: {}", result.experiment_results.len());
+    println!(
+        "   Experiments completed: {}",
+        result.experiment_results.len()
+    );
 
     Ok(())
 }
@@ -253,7 +259,8 @@ async fn example_advanced_orchestration(framework: &mut UnifiedResearchFramework
                     "total_gpus": 2,
                     "total_memory_mb": 32768
                 }
-            })).unwrap(),
+            }))
+            .unwrap(),
             parameters: serde_json::json!({
                 "input_data": "/data/input",
                 "output_models": "/models",
@@ -293,14 +300,21 @@ async fn example_advanced_orchestration(framework: &mut UnifiedResearchFramework
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
         if let Some(progress) = framework.get_workflow_progress(&workflow_id).await {
-            println!("Progress update {}: Status={:?}, Progress={:.1}%",
-                    i + 1, progress.status, progress.progress_percentage);
+            println!(
+                "Progress update {}: Status={:?}, Progress={:.1}%",
+                i + 1,
+                progress.status,
+                progress.progress_percentage
+            );
 
             // Check step metrics
             for step in &workflow.steps {
                 if let Some(metrics) = framework.get_step_metrics(&workflow_id, &step.id).await {
                     if matches!(metrics.status, nn::research::ExecutionStatus::Completed) {
-                        println!("   Step '{}' completed in {:?}", step.name, metrics.execution_time);
+                        println!(
+                            "   Step '{}' completed in {:?}",
+                            step.name, metrics.execution_time
+                        );
                     }
                 }
             }
@@ -393,7 +407,8 @@ async fn example_resource_management(framework: &mut UnifiedResearchFramework) -
                     "total_gpus": 1,  // Limited GPU resources
                     "total_memory_mb": 24576  // Limited memory
                 }
-            })).unwrap(),
+            }))
+            .unwrap(),
             parameters: serde_json::json!({}),
             execution_mode: ExecutionMode::Parallel,
             failure_strategy: FailureStrategy::RetryFailed,
@@ -422,18 +437,10 @@ async fn example_resource_management(framework: &mut UnifiedResearchFramework) -
 
     // Check final resource utilization
     let utilization = framework.orchestrator.get_resource_utilization()?;
-    println!("Final resource utilization: GPU={}, CPU={}, Memory={}MB",
-            utilization.gpu_count, utilization.cpu_cores, utilization.memory_mb);
+    println!(
+        "Final resource utilization: GPU={}, CPU={}, Memory={}MB",
+        utilization.gpu_count, utilization.cpu_cores, utilization.memory_mb
+    );
 
     Ok(())
 }
-
-
-
-
-
-
-
-
-
-

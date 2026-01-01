@@ -12,6 +12,9 @@ readme = "README.md"
 keywords = ["machine-learning", "neural-networks", "deep-learning", "pytorch", "rust"]
 categories = ["science", "algorithms"]
 
+[lib]
+doctest = false
+
 [features]
 default = ["std", "autograd", "attention", "normalization", "functional", "serde", "sysinfo"]
 std = []
@@ -29,6 +32,7 @@ embedding = []
 functional = []
 serde = ["dep:serde"]
 sysinfo = ["dep:sysinfo"]
+research = ["serde", "sysinfo"]
 cpu = []
 cuda = []
 
@@ -49,6 +53,7 @@ futures = "0.3"
 # External dependencies
 num-traits = { workspace = true }
 thiserror = { workspace = true }
+anyhow = { workspace = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 
 # System information (optional for metadata)

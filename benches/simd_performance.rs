@@ -3,7 +3,7 @@
 //! Comprehensive benchmarks comparing SIMD implementations (SSE, AVX, AVX2, AVX-512)
 //! against scalar operations to validate performance gains and targets.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Bencher, Criterion};
 use std::time::Duration;
 
 // Include JIT SIMD components when available
@@ -16,14 +16,24 @@ use jit::hardware::get_hardware_capabilities;
 // Fallback scalar implementations for benchmarking
 mod scalar_fallbacks {
     /// Scalar addition kernel
-    pub unsafe extern "C" fn scalar_add(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
+    pub unsafe extern "C" fn scalar_add(
+        input1: *const f32,
+        input2: *const f32,
+        output: *mut f32,
+        size: usize,
+    ) {
         for i in 0..size {
             *output.add(i) = *input1.add(i) + *input2.add(i);
         }
     }
 
     /// Scalar multiplication kernel
-    pub unsafe extern "C" fn scalar_mul(input1: *const f32, input2: *const f32, output: *mut f32, size: usize) {
+    pub unsafe extern "C" fn scalar_mul(
+        input1: *const f32,
+        input2: *const f32,
+        output: *mut f32,
+        size: usize,
+    ) {
         for i in 0..size {
             *output.add(i) = *input1.add(i) * *input2.add(i);
         }
@@ -56,40 +66,48 @@ fn benchmark_simd_operations(c: &mut Criterion) {
         let (input1, input2, mut output) = create_test_data(size);
 
         // Scalar baseline benchmarks
-        group.bench_with_input(format!("scalar_add_{}", size), &size, |b, _| {
-            b.iter(|| unsafe {
-                scalar_fallbacks::scalar_add(
-                    input1.as_ptr(),
-                    input2.as_ptr(),
-                    output.as_mut_ptr(),
-                    size
-                );
-                black_box(&output);
-            });
-        });
+        group.bench_with_input(
+            format!("scalar_add_{}", size),
+            &size,
+            |b: &mut Bencher, _| {
+                b.iter(|| unsafe {
+                    scalar_fallbacks::scalar_add(
+                        input1.as_ptr(),
+                        input2.as_ptr(),
+                        output.as_mut_ptr(),
+                        size,
+                    );
+                    black_box(&output);
+                });
+            },
+        );
 
-        group.bench_with_input(format!("scalar_mul_{}", size), &size, |b, _| {
-            b.iter(|| unsafe {
-                scalar_fallbacks::scalar_mul(
-                    input1.as_ptr(),
-                    input2.as_ptr(),
-                    output.as_mut_ptr(),
-                    size
-                );
-                black_box(&output);
-            });
-        });
+        group.bench_with_input(
+            format!("scalar_mul_{}", size),
+            &size,
+            |b: &mut Bencher, _| {
+                b.iter(|| unsafe {
+                    scalar_fallbacks::scalar_mul(
+                        input1.as_ptr(),
+                        input2.as_ptr(),
+                        output.as_mut_ptr(),
+                        size,
+                    );
+                    black_box(&output);
+                });
+            },
+        );
 
-        group.bench_with_input(format!("scalar_relu_{}", size), &size, |b, _| {
-            b.iter(|| unsafe {
-                scalar_fallbacks::scalar_relu(
-                    input1.as_ptr(),
-                    output.as_mut_ptr(),
-                    size
-                );
-                black_box(&output);
-            });
-        });
+        group.bench_with_input(
+            format!("scalar_relu_{}", size),
+            &size,
+            |b: &mut Bencher, _| {
+                b.iter(|| unsafe {
+                    scalar_fallbacks::scalar_relu(input1.as_ptr(), output.as_mut_ptr(), size);
+                    black_box(&output);
+                });
+            },
+        );
 
         // SIMD benchmarks (when JIT feature is available)
         #[cfg(feature = "jit")]
@@ -99,46 +117,44 @@ fn benchmark_simd_operations(c: &mut Criterion) {
 
             // Benchmark SIMD addition
             if let Ok(add_kernel) = generator.generate_simd_add() {
-                group.bench_with_input(format!("simd_add_{}_{:?}", size, generator.specialization()), &size, |b, _| {
-                    b.iter(|| unsafe {
-                        add_kernel(
-                            input1.as_ptr(),
-                            input2.as_ptr(),
-                            output.as_mut_ptr(),
-                            size
-                        );
-                        black_box(&output);
-                    });
-                });
+                group.bench_with_input(
+                    format!("simd_add_{}_{:?}", size, generator.specialization()),
+                    &size,
+                    |b: &mut Bencher, _| {
+                        b.iter(|| unsafe {
+                            add_kernel(input1.as_ptr(), input2.as_ptr(), output.as_mut_ptr(), size);
+                            black_box(&output);
+                        });
+                    },
+                );
             }
 
             // Benchmark SIMD multiplication
             if let Ok(mul_kernel) = generator.generate_simd_mul() {
-                group.bench_with_input(format!("simd_mul_{}_{:?}", size, generator.specialization()), &size, |b, _| {
-                    b.iter(|| unsafe {
-                        mul_kernel(
-                            input1.as_ptr(),
-                            input2.as_ptr(),
-                            output.as_mut_ptr(),
-                            size
-                        );
-                        black_box(&output);
-                    });
-                });
+                group.bench_with_input(
+                    format!("simd_mul_{}_{:?}", size, generator.specialization()),
+                    &size,
+                    |b: &mut Bencher, _| {
+                        b.iter(|| unsafe {
+                            mul_kernel(input1.as_ptr(), input2.as_ptr(), output.as_mut_ptr(), size);
+                            black_box(&output);
+                        });
+                    },
+                );
             }
 
             // Benchmark SIMD ReLU
             if let Ok(relu_kernel) = generator.generate_simd_relu() {
-                group.bench_with_input(format!("simd_relu_{}_{:?}", size, generator.specialization()), &size, |b, _| {
-                    b.iter(|| unsafe {
-                        relu_kernel(
-                            input1.as_ptr(),
-                            output.as_mut_ptr(),
-                            size
-                        );
-                        black_box(&output);
-                    });
-                });
+                group.bench_with_input(
+                    format!("simd_relu_{}_{:?}", size, generator.specialization()),
+                    &size,
+                    |b: &mut Bencher, _| {
+                        b.iter(|| unsafe {
+                            relu_kernel(input1.as_ptr(), output.as_mut_ptr(), size);
+                            black_box(&output);
+                        });
+                    },
+                );
             }
 
             // Report SIMD info for this run
@@ -147,7 +163,10 @@ fn benchmark_simd_operations(c: &mut Criterion) {
             println!("  SIMD Level: {:?}", capabilities.simd_level);
             println!("  Vector Width: {}", capabilities.max_simd_width);
             println!("  Specialization: {:?}", generator.specialization());
-            println!("  Performance Multiplier: {:.1}x", generator.performance_multiplier());
+            println!(
+                "  Performance Multiplier: {:.1}x",
+                generator.performance_multiplier()
+            );
         }
     }
 
@@ -161,38 +180,37 @@ fn benchmark_simd_scalability(c: &mut Criterion) {
     group.sample_size(50);
 
     // Range from small arrays (no benefit) to large arrays (maximum benefit)
-    for size in [128, 512, 2048, 8192, 32768, 131072].iter() {
+    for size in [128usize, 512, 2048, 8192, 32768, 131072].iter() {
         let (input1, input2, mut output) = create_test_data(*size);
 
-        group.bench_with_input(format!("scalability_{}", size), size, |b, &size| {
-            #[cfg(feature = "jit")]
-            {
-                let generator = SimdKernelGenerator::new();
-                if let Ok(add_kernel) = generator.generate_simd_add() {
-                    b.iter(|| unsafe {
-                        add_kernel(
-                            input1.as_ptr(),
-                            input2.as_ptr(),
-                            output.as_mut_ptr(),
-                            size
-                        );
-                        black_box(&output);
-                    });
-                    return;
+        group.bench_with_input(
+            format!("scalability_{}", size),
+            size,
+            |b: &mut Bencher, &size| {
+                #[cfg(feature = "jit")]
+                {
+                    let generator = SimdKernelGenerator::new();
+                    if let Ok(add_kernel) = generator.generate_simd_add() {
+                        b.iter(|| unsafe {
+                            add_kernel(input1.as_ptr(), input2.as_ptr(), output.as_mut_ptr(), size);
+                            black_box(&output);
+                        });
+                        return;
+                    }
                 }
-            }
 
-            // Fallback to scalar if SIMD not available
-            b.iter(|| unsafe {
-                scalar_fallbacks::scalar_add(
-                    input1.as_ptr(),
-                    input2.as_ptr(),
-                    output.as_mut_ptr(),
-                    size
-                );
-                black_box(&output);
-            });
-        });
+                // Fallback to scalar if SIMD not available
+                b.iter(|| unsafe {
+                    scalar_fallbacks::scalar_add(
+                        input1.as_ptr(),
+                        input2.as_ptr(),
+                        output.as_mut_ptr(),
+                        size,
+                    );
+                    black_box(&output);
+                });
+            },
+        );
     }
 
     group.finish();
@@ -207,18 +225,13 @@ fn benchmark_memory_access_patterns(c: &mut Criterion) {
 
     // Sequential access (should benefit from prefetching)
     let (input1, input2, mut output) = create_test_data(size);
-    group.bench_function("sequential_access", |b| {
+    group.bench_function("sequential_access", |b: &mut Bencher| {
         #[cfg(feature = "jit")]
         {
             let generator = SimdKernelGenerator::new();
             if let Ok(add_kernel) = generator.generate_simd_add() {
                 b.iter(|| unsafe {
-                    add_kernel(
-                        input1.as_ptr(),
-                        input2.as_ptr(),
-                        output.as_mut_ptr(),
-                        size
-                    );
+                    add_kernel(input1.as_ptr(), input2.as_ptr(), output.as_mut_ptr(), size);
                     black_box(&output);
                 });
                 return;
@@ -230,14 +243,14 @@ fn benchmark_memory_access_patterns(c: &mut Criterion) {
                 input1.as_ptr(),
                 input2.as_ptr(),
                 output.as_mut_ptr(),
-                size
+                size,
             );
             black_box(&output);
         });
     });
 
     // Strided access (potentially worse for SIMD)
-    group.bench_function("strided_access_stride_4", |b| {
+    group.bench_function("strided_access_stride_4", |b: &mut Bencher| {
         b.iter(|| {
             let mut result = 0.0;
             for i in (0..size).step_by(4) {
@@ -257,19 +270,14 @@ fn benchmark_simd_efficiency(c: &mut Criterion) {
 
     let size = 32768; // 32K elements
 
-    group.bench_function("add_efficiency", |b| {
+    group.bench_function("add_efficiency", |b: &mut Bencher| {
         let (input1, input2, mut output) = create_test_data(size);
         #[cfg(feature = "jit")]
         {
             let generator = SimdKernelGenerator::new();
             if let Ok(add_kernel) = generator.generate_simd_add() {
                 b.iter(|| unsafe {
-                    add_kernel(
-                        input1.as_ptr(),
-                        input2.as_ptr(),
-                        output.as_mut_ptr(),
-                        size
-                    );
+                    add_kernel(input1.as_ptr(), input2.as_ptr(), output.as_mut_ptr(), size);
                     black_box(&output);
                 });
                 return;
@@ -281,7 +289,7 @@ fn benchmark_simd_efficiency(c: &mut Criterion) {
                 input1.as_ptr(),
                 input2.as_ptr(),
                 output.as_mut_ptr(),
-                size
+                size,
             );
             black_box(&output);
         });
@@ -292,7 +300,7 @@ fn benchmark_simd_efficiency(c: &mut Criterion) {
     {
         let generator = SimdKernelGenerator::new();
         if generator.specialization() == jit::simd::SimdSpecialization::Avx2 {
-            group.bench_function("fma_efficiency", |b| {
+            group.bench_function("fma_efficiency", |b: &mut Bencher| {
                 let (input1, input2, mut output) = create_test_data(size);
                 // Note: This would need a proper FMA kernel implementation
                 b.iter(|| unsafe {
@@ -300,7 +308,7 @@ fn benchmark_simd_efficiency(c: &mut Criterion) {
                         input1.as_ptr(),
                         input2.as_ptr(),
                         output.as_mut_ptr(),
-                        size
+                        size,
                     );
                     black_box(&output);
                 });
@@ -312,6 +320,7 @@ fn benchmark_simd_efficiency(c: &mut Criterion) {
 }
 
 // Performance validation tests
+#[allow(dead_code)]
 fn validate_performance_targets() {
     println!("SIMD Performance Validation Report");
     println!("==================================");
@@ -332,26 +341,55 @@ fn validate_performance_targets() {
         println!("\nGenerator Configuration:");
         println!("  Specialization: {:?}", generator.specialization());
         println!("  Vector Width: {} elements", generator.vector_width());
-        println!("  Performance Multiplier: {:.1}x", generator.performance_multiplier());
+        println!(
+            "  Performance Multiplier: {:.1}x",
+            generator.performance_multiplier()
+        );
 
         println!("\nPerformance Targets:");
         println!("  SSE (128-bit): 2.5x multiplier - WORKING");
         println!("  AVX (256-bit): 4.0x multiplier - WORKING");
-        println!("  AVX2 (256-bit + FMA): 5.0x multiplier - {}", if capabilities.simd_level >= jit::hardware::SimdLevel::Avx2 { "TARGET" } else { "NOT SUPPORTED" });
-        println!("  AVX-512 (512-bit + masking): 8.0x multiplier - {}", if capabilities.simd_level >= jit::hardware::SimdLevel::Avx512f { "TARGET" } else { "NOT SUPPORTED" });
+        println!(
+            "  AVX2 (256-bit + FMA): 5.0x multiplier - {}",
+            if capabilities.simd_level >= jit::hardware::SimdLevel::Avx2 {
+                "TARGET"
+            } else {
+                "NOT SUPPORTED"
+            }
+        );
+        println!(
+            "  AVX-512 (512-bit + masking): 8.0x multiplier - {}",
+            if capabilities.simd_level >= jit::hardware::SimdLevel::Avx512f {
+                "TARGET"
+            } else {
+                "NOT SUPPORTED"
+            }
+        );
 
         match generator.specialization() {
-            jit::simd::SimdSpecialization::Avx512 => println!("✓ AVX-512 support detected - targeting 8.0x performance gain"),
-            jit::simd::SimdSpecialization::Avx2 => println!("✓ AVX2 support detected - targeting 5.0x performance gain with FMA"),
-            jit::simd::SimdSpecialization::Avx => println!("✓ AVX support detected - 4.0x performance achieved"),
-            jit::simd::SimdSpecialization::Sse => println!("✓ SSE support detected - 2.5x performance achieved"),
-            jit::simd::SimdSpecialization::Neon => println!("✓ ARM NEON support detected - 2.5x performance expected"),
-            jit::simd::SimdSpecialization::Scalar => println!("! Scalar fallback - no SIMD acceleration available"),
+            jit::simd::SimdSpecialization::Avx512 => {
+                println!("✓ AVX-512 support detected - targeting 8.0x performance gain")
+            }
+            jit::simd::SimdSpecialization::Avx2 => {
+                println!("✓ AVX2 support detected - targeting 5.0x performance gain with FMA")
+            }
+            jit::simd::SimdSpecialization::Avx => {
+                println!("✓ AVX support detected - 4.0x performance achieved")
+            }
+            jit::simd::SimdSpecialization::Sse => {
+                println!("✓ SSE support detected - 2.5x performance achieved")
+            }
+            jit::simd::SimdSpecialization::Neon => {
+                println!("✓ ARM NEON support detected - 2.5x performance expected")
+            }
+            jit::simd::SimdSpecialization::Scalar => {
+                println!("! Scalar fallback - no SIMD acceleration available")
+            }
         }
 
         println!("\nNext Steps for MS-44:");
         match generator.specialization() {
-            jit::simd::SimdSpecialization::Avx | jit::simd::SimdLevel::Sse => {
+            jit::simd::SimdSpecialization::Avx | jit::simd::SimdSpecialization::Sse => {
                 println!("  1. Implement AVX2 with FMA operations");
                 println!("  2. Add memory prefetching optimizations");
                 println!("  3. Extend benchmarks to measure cache efficiency");
@@ -380,10 +418,12 @@ fn validate_performance_targets() {
     }
 }
 
-criterion_group!{
+criterion_group! {
     name = benches;
     config = Criterion::default()
-        .with_profiler(criterion::profiler::PProfProfiler::new(100, criterion::profiler::Output::Flamegraph(None)));
+        .sample_size(50)
+        .measurement_time(Duration::from_secs(5))
+        .warm_up_time(Duration::from_secs(1));
     targets = benchmark_simd_operations, benchmark_simd_scalability, benchmark_memory_access_patterns, benchmark_simd_efficiency
 }
 

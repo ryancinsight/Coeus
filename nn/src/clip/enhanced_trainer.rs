@@ -9,10 +9,10 @@
 //! - Early stopping based on validation metrics
 
 use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
-use std::path::{Path, PathBuf};
-use std::fs;
 
 // Serialization dependencies
 #[cfg(feature = "serde")]
@@ -20,10 +20,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{NNError, Result};
 use backend::Backend;
-use storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
 use dtype::{DataType, FloatExt};
+use optim::{Adam, CosineAnnealingLR, LRScheduler};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
-use optim::{Adam, BaseOptimizer, CosineAnnealingLR, LRScheduler};
 
 use super::config::ClipConfig;
 use super::loss::InfoNCELoss;
@@ -169,7 +169,16 @@ impl<B, S, T> EnhancedClipTrainer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone + Default + num_traits::FromPrimitive + num_traits::Bounded + num_traits::Float,
+    T: DataType
+        + FloatExt
+        + std::ops::Neg<Output = T>
+        + Send
+        + Sync
+        + Clone
+        + Default
+        + num_traits::FromPrimitive
+        + num_traits::Bounded
+        + num_traits::Float,
 {
     /// Create new enhanced CLIP trainer
     pub fn new(config: EnhancedClipTrainingConfig) -> Result<Self> {
@@ -185,7 +194,7 @@ where
         let scheduler = CosineAnnealingLR::new(
             config.base_config.learning_rate,
             config.base_config.learning_rate * 0.1, // eta_min
-            config.base_config.num_epochs, // T_max
+            config.base_config.num_epochs,          // T_max
         );
 
         // Create training state
@@ -210,18 +219,21 @@ where
     }
 
     /// Train the CLIP model with enhanced features
-    pub async fn train<F>(
-        &mut self,
-        data_loader: F,
-    ) -> Result<EnhancedTrainingReport>
+    pub async fn train<F>(&mut self, data_loader: F) -> Result<EnhancedTrainingReport>
     where
         F: FnMut() -> Option<ClipBatch> + Clone,
     {
         let start_time = Instant::now();
         println!("🎯 Starting Enhanced CLIP Training");
         println!("   Epochs: {}", self.config.base_config.num_epochs);
-        println!("   Gradient Accumulation: {} steps", self.config.gradient_accumulation_steps);
-        println!("   Early Stopping Patience: {}", self.config.early_stopping_patience);
+        println!(
+            "   Gradient Accumulation: {} steps",
+            self.config.gradient_accumulation_steps
+        );
+        println!(
+            "   Early Stopping Patience: {}",
+            self.config.early_stopping_patience
+        );
 
         // Create checkpoint directory
         if let Err(e) = fs::create_dir_all(&self.config.checkpoint_dir) {
@@ -229,7 +241,11 @@ where
         }
 
         for epoch in self.training_state.epoch..self.config.base_config.num_epochs {
-            println!("📊 Epoch {}/{}", epoch + 1, self.config.base_config.num_epochs);
+            println!(
+                "📊 Epoch {}/{}",
+                epoch + 1,
+                self.config.base_config.num_epochs
+            );
 
             // Train epoch
             let epoch_metrics = self.train_epoch(data_loader.clone()).await?;
@@ -262,8 +278,12 @@ where
                 self.save_checkpoint(&format!("epoch_{}", epoch), &val_metrics)?;
             }
 
-            println!("   Train Loss: {:.4}, Val Loss: {:.4}, LR: {:.6}",
-                    epoch_metrics.loss, val_metrics.loss, self.get_current_lr());
+            println!(
+                "   Train Loss: {:.4}, Val Loss: {:.4}, LR: {:.6}",
+                epoch_metrics.loss,
+                val_metrics.loss,
+                self.get_current_lr()
+            );
         }
 
         let total_time = start_time.elapsed().as_secs_f64();
@@ -325,16 +345,23 @@ where
 
                 // Update training state
                 self.training_state.step += 1;
-                self.training_state.total_samples += batch.batch_size * self.config.gradient_accumulation_steps;
+                self.training_state.total_samples +=
+                    batch.batch_size * self.config.gradient_accumulation_steps;
                 self.training_state.lr_history.push(self.get_current_lr());
                 self.training_state.loss_history.push(loss_val);
-                self.training_state.temperature_history.push(self.model.temperature());
+                self.training_state
+                    .temperature_history
+                    .push(self.model.temperature());
 
                 accumulation_step = 0;
 
                 if batch_count % self.config.base_config.log_steps == 0 {
-                    println!("   Step {} | Loss: {:.4} | LR: {:.6}",
-                            self.training_state.step, loss_val, self.get_current_lr());
+                    println!(
+                        "   Step {} | Loss: {:.4} | LR: {:.6}",
+                        self.training_state.step,
+                        loss_val,
+                        self.get_current_lr()
+                    );
                 }
 
                 batch_count += 1;
@@ -386,11 +413,8 @@ where
         let text_input = self.preprocess_text(&batch.text_tokens, &batch.text_masks)?;
 
         // Forward pass through CLIP
-        self.model.forward_train(
-            &processed_images,
-            &text_input,
-            batch.batch_size,
-        )
+        self.model
+            .forward_train(&processed_images, &text_input, batch.batch_size)
     }
 
     /// Preprocess images
@@ -433,7 +457,7 @@ where
     /// Get current learning rate
     fn get_current_lr(&self) -> f64 {
         // TODO: Implement optimizer
-        self.config.base_config.learning_rate as f64
+        self.config.base_config.learning_rate
     }
 
     /// Save training checkpoint
@@ -469,7 +493,9 @@ where
                 match parts[0] {
                     "epoch" => state.epoch = parts[1].parse().unwrap_or(0),
                     "step" => state.step = parts[1].parse().unwrap_or(0),
-                    "best_val_loss" => state.best_val_loss = parts[1].parse().unwrap_or(f64::INFINITY),
+                    "best_val_loss" => {
+                        state.best_val_loss = parts[1].parse().unwrap_or(f64::INFINITY)
+                    }
                     "steps_since_best" => state.steps_since_best = parts[1].parse().unwrap_or(0),
                     "total_samples" => state.total_samples = parts[1].parse().unwrap_or(0),
                     _ => {}
@@ -516,7 +542,6 @@ pub struct EnhancedTrainingReport {
     pub final_temperature: f64,
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -550,13 +575,19 @@ mod tests {
 
     #[test]
     fn test_early_stopping_logic() {
-        let mut config = EnhancedClipTrainingConfig::default();
-        config.early_stopping_patience = 2;
+        let config = EnhancedClipTrainingConfig {
+            early_stopping_patience: 2,
+            ..Default::default()
+        };
 
-        let trainer = EnhancedClipTrainer::<TestBackend, TestStorage, Float32>::new(config).unwrap();
+        let trainer =
+            EnhancedClipTrainer::<TestBackend, TestStorage, Float32>::new(config).unwrap();
 
         // Test early stopping should not trigger initially
-        let val_metrics = ValidationMetrics { loss: 5.0, batches: 10 };
+        let val_metrics = ValidationMetrics {
+            loss: 5.0,
+            batches: 10,
+        };
         assert!(!trainer.should_early_stop(&val_metrics));
 
         // Would need to simulate multiple epochs for full early stopping test

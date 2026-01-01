@@ -102,32 +102,57 @@ where
         out_features: usize,
         sparsity: f64,
     ) -> Result<(Parameter<B, DenseStorage<T>, T>, CsrData<T>)> {
-        // Calculate number of non-zero elements
-        let total_elements = in_features * out_features;
-        let nnz = ((1.0 - sparsity) * total_elements as f64) as usize;
+        use rand::prelude::*;
+        use std::collections::HashSet;
 
-        // Generate sparse connectivity pattern
-        let mut csr_data = Vec::with_capacity(nnz);
-        let mut indices = Vec::with_capacity(nnz);
-        let mut indptr = vec![0; out_features + 1];
+        let total_elements = in_features * out_features;
         let mut dense_data = vec![T::zero(); total_elements];
 
-        // Simple random sparsity pattern
-        for row in 0..out_features {
-            let mut row_nnz = 0;
+        let target_nnz = if sparsity >= 1.0 {
+            0
+        } else {
+            ((1.0 - sparsity) * total_elements as f64)
+                .round()
+                .clamp(1.0, total_elements as f64) as usize
+        };
 
-            for col in 0..in_features {
-                if rand::random::<f64>() > sparsity {
-                    // Add non-zero element
-                    let value = T::from_f64(rand::random::<f64>() * 0.1 - 0.05).unwrap(); // Small random values
-                    csr_data.push(value);
-                    indices.push(col);
-                    dense_data[row * in_features + col] = value;
-                    row_nnz += 1;
-                }
+        let mut rng = rand::thread_rng();
+        let mut chosen: HashSet<(usize, usize)> = HashSet::with_capacity(target_nnz);
+
+        if target_nnz >= out_features && in_features > 0 {
+            for row in 0..out_features {
+                let col = rng.gen_range(0..in_features);
+                chosen.insert((row, col));
             }
+        }
 
-            indptr[row + 1] = indptr[row] + row_nnz;
+        while chosen.len() < target_nnz {
+            let row = rng.gen_range(0..out_features);
+            let col = rng.gen_range(0..in_features);
+            chosen.insert((row, col));
+        }
+
+        let mut per_row: Vec<Vec<(usize, T)>> = vec![Vec::new(); out_features];
+        for (row, col) in chosen.into_iter() {
+            let mut value_f64 = rng.gen_range(-0.05..0.05);
+            while value_f64 == 0.0 {
+                value_f64 = rng.gen_range(-0.05..0.05);
+            }
+            let value = T::from_f64(value_f64).unwrap();
+            per_row[row].push((col, value));
+            dense_data[row * in_features + col] = value;
+        }
+
+        let mut csr_data = Vec::with_capacity(target_nnz);
+        let mut indices = Vec::with_capacity(target_nnz);
+        let mut indptr = vec![0; out_features + 1];
+        for (row, row_entries) in per_row.iter_mut().enumerate() {
+            row_entries.sort_by_key(|(col, _)| *col);
+            indptr[row + 1] = indptr[row] + row_entries.len();
+            for (col, value) in row_entries.iter() {
+                indices.push(*col);
+                csr_data.push(*value);
+            }
         }
 
         let storage = DenseStorage::from_vec(dense_data, &[out_features, in_features])?;

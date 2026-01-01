@@ -148,6 +148,44 @@ def test_functional_api():
         print(f"[ERROR] Functional API failed: {e}")
         return False
 
+def test_sparse_tensors():
+    """Test sparse tensor operations."""
+    print("\n[TEST] Testing sparse tensors...")
+
+    try:
+        # Create CSR tensor
+        # Matrix:
+        # [1, 0, 2]
+        # [0, 0, 3]
+        # [4, 5, 0]
+        data = [1.0, 2.0, 3.0, 4.0, 5.0]
+        indices = [0, 2, 2, 0, 1]
+        indptr = [0, 2, 3, 5]
+        shape = [3, 3]
+
+        csr = torch.sparse.sparse_csr_tensor(data, indices, indptr, shape)
+        print(f"[OK] Created CSR tensor: {csr}")
+
+        # Basic operations
+        # Convert to dense (if supported, otherwise skip)
+        dense = csr.to_dense()
+        print(f"[OK] Converted to dense: {dense}")
+
+        # Create COO tensor and add
+        coo = torch.sparse.sparse_coo_tensor(data, [0, 0, 1, 2, 2], indices, shape)
+        print(f"[OK] Created COO tensor: {coo}")
+        
+        # Test addition (COO + COO)
+        sum_result = coo.add(coo)
+        print(f"[OK] Sparse addition result (COO): {sum_result}")
+
+        return True
+    except Exception as e:
+        print(f"[ERROR] Sparse tensors failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 def main():
     """Run all compatibility tests."""
     print("Testing Coeus PyTorch Compatibility")
@@ -159,6 +197,7 @@ def main():
         test_tensor_manipulation,
         test_neural_networks,
         test_functional_api,
+        test_sparse_tensors,
     ]
 
     passed = 0

@@ -3,12 +3,12 @@
 //! Automated research workflows for CLIP including hyperparameter
 //! optimization, ablation studies, and experiment orchestration.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use serde::{Deserialize, Serialize};
 
-use super::{ClipResearchConfig, HpoSpace, AblationStudy, ClipExperimentBuilder};
+use super::{AblationStudy, ClipExperimentBuilder, ClipResearchConfig, HpoSpace};
 
 /// Research automation configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -124,7 +124,10 @@ impl AutomatedResearchWorkflow {
     }
 
     /// Start a queued experiment
-    async fn start_experiment(&self, queued: QueuedExperiment) -> Result<(), Box<dyn std::error::Error>> {
+    async fn start_experiment(
+        &self,
+        queued: QueuedExperiment,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut active = self.active_experiments.lock().await;
         active.insert(queued.id.clone(), ExperimentStatus::Running);
 
@@ -159,7 +162,7 @@ impl AutomatedResearchWorkflow {
     }
 
     /// Sort queue by priority
-    fn sort_queue_by_priority(&self, queue: &mut Vec<QueuedExperiment>) {
+    fn sort_queue_by_priority(&self, queue: &mut [QueuedExperiment]) {
         queue.sort_by(|a, b| b.priority.cmp(&a.priority)); // Higher priority first
     }
 
@@ -200,7 +203,11 @@ impl HpoAutomation {
     }
 
     /// Generate experiment configurations for HPO
-    pub fn generate_hpo_experiments(&self, base_builder: ClipExperimentBuilder, num_samples: usize) -> Vec<ClipExperimentBuilder> {
+    pub fn generate_hpo_experiments(
+        &self,
+        base_builder: ClipExperimentBuilder,
+        num_samples: usize,
+    ) -> Vec<ClipExperimentBuilder> {
         let mut builders = Vec::new();
 
         for _ in 0..num_samples {
@@ -235,7 +242,10 @@ impl AblationAutomation {
     }
 
     /// Generate experiment configurations for ablation studies
-    pub fn generate_ablation_experiments(&self, base_builder: ClipExperimentBuilder) -> Vec<(String, ClipExperimentBuilder)> {
+    pub fn generate_ablation_experiments(
+        &self,
+        base_builder: ClipExperimentBuilder,
+    ) -> Vec<(String, ClipExperimentBuilder)> {
         let mut experiments = Vec::new();
 
         for study in &self.studies {
@@ -280,10 +290,7 @@ mod tests {
     fn test_workflow_creation() {
         let config = ClipResearchConfig::default();
         let automation = ResearchAutomation::default();
-        let workflow = AutomatedResearchWorkflow::new(config, automation);
-
-        // Test that workflow is created successfully
-        assert!(true); // If we get here, creation succeeded
+        let _workflow = AutomatedResearchWorkflow::new(config, automation);
     }
 
     #[test]

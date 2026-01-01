@@ -29,7 +29,7 @@ pub fn linear(
     weight: &Float32Tensor,
     bias: Option<&Float32Tensor>,
 ) -> AutogradResult<Float32Tensor> {
-    use autograd::ops::{matmul, add};
+    use autograd::ops::{add, matmul};
 
     // Perform: output = input @ weight
     let output = matmul(input, weight)?;

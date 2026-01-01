@@ -4,9 +4,9 @@
 //! of hyperparameters across experiments, including automatic discovery,
 //! validation, and cross-experiment comparison capabilities.
 
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 use crate::hpo::HyperparameterValue;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Hyperparameter tracker with versioning and analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,7 +39,12 @@ impl HyperparameterTracker {
     }
 
     /// Log hyperparameter with automatic versioning
-    pub fn log_hyperparameter(&mut self, key: String, value: serde_json::Value, description: Option<String>) -> crate::error::Result<()> {
+    pub fn log_hyperparameter(
+        &mut self,
+        key: String,
+        value: serde_json::Value,
+        description: Option<String>,
+    ) -> crate::error::Result<()> {
         let entry = HyperparameterEntry {
             key: key.clone(),
             value: value.clone(),
@@ -69,11 +74,19 @@ impl HyperparameterTracker {
     }
 
     /// Auto-discover hyperparameter from model configuration
-    pub fn auto_discover_parameter(&mut self, key: String, value: serde_json::Value, category: ParameterCategory) -> crate::error::Result<()> {
+    pub fn auto_discover_parameter(
+        &mut self,
+        key: String,
+        value: serde_json::Value,
+        category: ParameterCategory,
+    ) -> crate::error::Result<()> {
         let entry = HyperparameterEntry {
             key: key.clone(),
             value,
-            description: format!("Auto-discovered {} parameter", category.to_string().to_lowercase()),
+            description: format!(
+                "Auto-discovered {} parameter",
+                category.to_string().to_lowercase()
+            ),
             timestamp: chrono::Utc::now(),
             source: ParameterSource::AutoDiscovered,
             confidence: 0.8,
@@ -96,14 +109,23 @@ impl HyperparameterTracker {
 
     /// Record parameter correlation
     pub fn set_correlation(&mut self, param1: String, param2: String, correlation: f64) {
-        self.correlations.entry(param1.clone()).or_insert_with(HashMap::new)
-                       .insert(param2.clone(), correlation);
-        self.correlations.entry(param2).or_insert_with(HashMap::new)
-                       .insert(param1, correlation);
+        self.correlations
+            .entry(param1.clone())
+            .or_default()
+            .insert(param2.clone(), correlation);
+        self.correlations
+            .entry(param2)
+            .or_default()
+            .insert(param1, correlation);
     }
 
     /// Update parameter with performance impact tracking
-    pub fn update_with_performance(&mut self, updates: HashMap<String, serde_json::Value>, performance: f64, old_performance: f64) {
+    pub fn update_with_performance(
+        &mut self,
+        updates: HashMap<String, serde_json::Value>,
+        performance: f64,
+        old_performance: f64,
+    ) {
         let performance_impact = performance - old_performance;
 
         for (key, new_value) in updates {
@@ -146,7 +168,8 @@ impl HyperparameterTracker {
 
     /// Get parameter evolution history
     pub fn get_parameter_history(&self, key: &str) -> Vec<&HyperparameterVersion> {
-        self.history.iter()
+        self.history
+            .iter()
             .filter(|v| v.parameter_key == key)
             .collect()
     }
@@ -171,7 +194,9 @@ impl HyperparameterTracker {
 
         // Calculate summary statistics
         let total_parameters = self.parameters.len();
-        let manual_parameters = self.parameters.values()
+        let manual_parameters = self
+            .parameters
+            .values()
             .filter(|p| matches!(p.source, ParameterSource::Manual))
             .count();
         let auto_discovered = self.auto_discovered.len();
@@ -197,14 +222,16 @@ impl HyperparameterTracker {
             ExportFormat::Yaml => {
                 // Fallback to JSON for YAML since we don't have yaml crate
                 serde_json::to_string_pretty(self).unwrap_or_default()
-            },
+            }
             ExportFormat::Python => self.export_python_config(),
             ExportFormat::Shell => self.export_shell_config(),
         }
     }
 
     fn export_python_config(&self) -> String {
-        let mut config = String::from("# Hyperparameter Configuration\n# Auto-generated from Coeus Research Framework\n\n");
+        let mut config = String::from(
+            "# Hyperparameter Configuration\n# Auto-generated from Coeus Research Framework\n\n",
+        );
         config.push_str("hyperparameters = {\n");
 
         for (key, entry) in &self.parameters {
@@ -224,18 +251,34 @@ impl HyperparameterTracker {
     }
 
     fn export_shell_config(&self) -> String {
-        let mut config = String::from("# Hyperparameter Configuration\n# Auto-generated from Coeus Research Framework\n\n");
+        let mut config = String::from(
+            "# Hyperparameter Configuration\n# Auto-generated from Coeus Research Framework\n\n",
+        );
 
         for (key, entry) in &self.parameters {
             match &entry.value {
-                serde_json::Value::String(s) => config.push_str(&format!("export {}=\"{}\"\n", key.to_uppercase(), s)),
-                serde_json::Value::Number(n) => config.push_str(&format!("export {}={}\n", key.to_uppercase(), n)),
-                serde_json::Value::Bool(b) => config.push_str(&format!("export {}={}\n", key.to_uppercase(), if *b { "true" } else { "false" })),
+                serde_json::Value::String(s) => {
+                    config.push_str(&format!("export {}=\"{}\"\n", key.to_uppercase(), s))
+                }
+                serde_json::Value::Number(n) => {
+                    config.push_str(&format!("export {}={}\n", key.to_uppercase(), n))
+                }
+                serde_json::Value::Bool(b) => config.push_str(&format!(
+                    "export {}={}\n",
+                    key.to_uppercase(),
+                    if *b { "true" } else { "false" }
+                )),
                 _ => {} // Skip complex types for shell export
             }
         }
 
         config
+    }
+}
+
+impl Default for HyperparameterTracker {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -371,7 +414,10 @@ pub enum ParameterDistribution {
     /// Discrete set of values
     Discrete { values: Vec<serde_json::Value> },
     /// Categorical distribution with weights
-    Categorical { categories: Vec<String>, weights: Vec<f64> },
+    Categorical {
+        categories: Vec<String>,
+        weights: Vec<f64>,
+    },
 }
 
 /// Parameter constraints for feasibility
@@ -463,7 +509,8 @@ impl std::fmt::Display for HyperparameterAnalysisReport {
             self.importance_scored_parameters,
             self.version_changes,
             self.correlations_found,
-            self.parameter_types.iter()
+            self.parameter_types
+                .iter()
                 .map(|(t, c)| format!("{}: {}", t, c))
                 .collect::<Vec<_>>()
                 .join(", ")

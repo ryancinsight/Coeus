@@ -24,13 +24,21 @@
 //! - Caption preprocessing and filtering
 //! - Image aspect ratio handling for batch formation
 
+use super::{
+    DatasetSplit, DatasetStatistics, ImageTextPair, VisionLanguageData, VisionLanguageDataset,
+};
 use crate::error::{NNError, Result};
-use super::{VisionLanguageData, VisionLanguageDataset, ImageTextPair, DatasetSplit, DatasetStatistics};
-use std::path::{Path, PathBuf};
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use tokio::fs;
 use futures::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use tokio::fs;
+
+type MetadataBuildOutput = (
+    Vec<ImageMetadata>,
+    HashMap<String, Vec<String>>,
+    DatasetStatistics,
+);
 
 /// COCO dataset implementation
 pub struct CocoDataset {
@@ -143,12 +151,16 @@ impl CocoDataset {
         let (annotations_file, image_subdir) = match split {
             DatasetSplit::Train => ("captions_train2017.json", "train2017"),
             DatasetSplit::Validation => ("captions_val2017.json", "val2017"),
-            DatasetSplit::Test => return Err(NNError::InvalidInput {
-                message: "COCO test split requires separate test2017 dataset".to_string(),
-            }),
-            DatasetSplit::All => return Err(NNError::InvalidInput {
-                message: "Use Train or Validation split specifically for COCO".to_string(),
-            }),
+            DatasetSplit::Test => {
+                return Err(NNError::InvalidInput {
+                    message: "COCO test split requires separate test2017 dataset".to_string(),
+                })
+            }
+            DatasetSplit::All => {
+                return Err(NNError::InvalidInput {
+                    message: "Use Train or Validation split specifically for COCO".to_string(),
+                })
+            }
         };
 
         let annotations_path = base_path.join("annotations").join(annotations_file);
@@ -158,7 +170,8 @@ impl CocoDataset {
         let coco_data = Self::load_annotations(&annotations_path).await?;
 
         // Build metadata and annotations mapping
-        let (image_metadata, annotations, statistics) = Self::build_metadata(&coco_data, &image_dir)?;
+        let (image_metadata, annotations, statistics) =
+            Self::build_metadata(&coco_data, &image_dir)?;
 
         Ok(Self {
             base_path,
@@ -212,22 +225,24 @@ impl CocoDataset {
 
         let content = fs::read_to_string(annotations_path).await?;
 
-        let coco_data: CocoAnnotations = serde_json::from_str(&content)
-            .map_err(|e| NNError::InvalidInput {
+        let coco_data: CocoAnnotations =
+            serde_json::from_str(&content).map_err(|e| NNError::InvalidInput {
                 message: format!("Failed to parse COCO annotations JSON: {}", e),
             })?;
 
-        println!("Loaded {} annotations for {} images",
-                coco_data.annotations.len(), coco_data.images.len());
+        println!(
+            "Loaded {} annotations for {} images",
+            coco_data.annotations.len(),
+            coco_data.images.len()
+        );
 
         Ok(coco_data)
     }
 
-    /// Build metadata structures from parsed COCO data
     fn build_metadata(
         coco_data: &CocoAnnotations,
         image_dir: &Path,
-    ) -> Result<(Vec<ImageMetadata>, HashMap<String, Vec<String>>, DatasetStatistics)> {
+    ) -> Result<MetadataBuildOutput> {
         let mut image_map = HashMap::new();
         let mut image_metadata = Vec::new();
         let mut annotations = HashMap::new();
@@ -238,14 +253,17 @@ impl CocoDataset {
             let image_id_str = image.id.to_string();
             let filename = format!("{:012}.jpg", image.id);
 
-            image_map.insert(image.id, ImageMetadata {
-                image_id: image_id_str.clone(),
-                filename: filename.clone(),
-                dimensions: (image.width, image.height),
-                captions: Vec::new(), // Will be filled below
-                aspect_ratio: image.width as f64 / image.height as f64,
-                image_path: image_dir.join(filename),
-            });
+            image_map.insert(
+                image.id,
+                ImageMetadata {
+                    image_id: image_id_str.clone(),
+                    filename: filename.clone(),
+                    dimensions: (image.width, image.height),
+                    captions: Vec::new(), // Will be filled below
+                    aspect_ratio: image.width as f64 / image.height as f64,
+                    image_path: image_dir.join(filename),
+                },
+            );
 
             image_sizes.push((image.width, image.height));
         }
@@ -270,8 +288,14 @@ impl CocoDataset {
             }
         }
 
-        // Convert to vector and compute statistics
+        // Convert to vector and compute statistics (deterministic ordering)
         image_metadata.extend(image_map.into_values());
+        image_metadata.sort_by(|a, b| {
+            match (a.image_id.parse::<u64>(), b.image_id.parse::<u64>()) {
+                (Ok(a_id), Ok(b_id)) => a_id.cmp(&b_id),
+                _ => a.image_id.cmp(&b.image_id),
+            }
+        });
 
         let total_captions: usize = image_metadata.iter().map(|m| m.captions.len()).sum();
         let avg_caption_length = Self::compute_average_caption_length(&image_metadata);
@@ -326,7 +350,7 @@ impl CocoDataset {
                 .iter()
                 .filter(|caption| {
                     let word_count = caption.split_whitespace().count();
-                    word_count >= min_words && word_count <= max_words
+                    word_count > min_words && word_count <= max_words
                 })
                 .cloned()
                 .collect();
@@ -342,7 +366,8 @@ impl CocoDataset {
         println!("Removed {} images with no valid captions", removed_count);
 
         // Update image metadata
-        self.image_metadata = self.image_metadata
+        self.image_metadata = self
+            .image_metadata
             .iter()
             .filter(|meta| self.annotations.contains_key(&meta.image_id))
             .cloned()
@@ -350,19 +375,27 @@ impl CocoDataset {
 
         // Update statistics
         self.statistics.total_pairs = self.annotations.values().map(|v| v.len()).sum();
-        self.statistics.avg_caption_length = Self::compute_average_caption_length(&self.image_metadata);
+        self.statistics.avg_caption_length =
+            Self::compute_average_caption_length(&self.image_metadata);
     }
 }
 
 #[async_trait::async_trait(?Send)]
 impl VisionLanguageData for CocoDataset {
     fn len(&self) -> usize {
-        self.annotations.values().map(|captions| captions.len()).sum()
+        self.annotations
+            .values()
+            .map(|captions| captions.len())
+            .sum()
     }
 
-    fn get(&self, mut index: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>> {
+    fn get(
+        &self,
+        mut index: usize,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>>
+    {
         let image_metadata = self.image_metadata.clone();
-        let split = self.split.clone();
+        let split = self.split;
         let total_len = self.len();
 
         Box::pin(async move {
@@ -380,10 +413,22 @@ impl VisionLanguageData for CocoDataset {
                         image_id: metadata.image_id.clone(),
                         caption_ids: vec![format!("{}_{}", metadata.image_id, index)],
                         metadata: HashMap::from([
-                            ("width".to_string(), serde_json::json!(metadata.dimensions.0.to_string())),
-                            ("height".to_string(), serde_json::json!(metadata.dimensions.1.to_string())),
-                            ("aspect_ratio".to_string(), serde_json::json!(metadata.aspect_ratio.to_string())),
-                            ("split".to_string(), serde_json::json!(format!("{:?}", split).to_lowercase())),
+                            (
+                                "width".to_string(),
+                                serde_json::json!(metadata.dimensions.0.to_string()),
+                            ),
+                            (
+                                "height".to_string(),
+                                serde_json::json!(metadata.dimensions.1.to_string()),
+                            ),
+                            (
+                                "aspect_ratio".to_string(),
+                                serde_json::json!(metadata.aspect_ratio.to_string()),
+                            ),
+                            (
+                                "split".to_string(),
+                                serde_json::json!(format!("{:?}", split).to_lowercase()),
+                            ),
                         ]),
                     });
                 }
@@ -418,14 +463,17 @@ impl CocoDataset {
             });
         }
 
-        fs::read(image_path).await.map_err(|e| NNError::InvalidInput {
-            message: format!("Failed to read image file: {}", e),
-        })
+        fs::read(image_path)
+            .await
+            .map_err(|e| NNError::InvalidInput {
+                message: format!("Failed to read image file: {}", e),
+            })
     }
 
     /// Get all images for a specific image ID
     pub fn get_images_by_id(&self, image_id: &str) -> Option<&ImageMetadata> {
-        self.image_metadata.iter()
+        self.image_metadata
+            .iter()
             .find(|meta| meta.image_id == image_id)
     }
 
@@ -443,9 +491,9 @@ impl CocoDataset {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs as std_fs;
     use tempfile::tempdir;
     use tokio::fs;
-    use std::fs as std_fs;
 
     // Create minimal test JSON files
     async fn create_test_annotations(dir: &Path) -> Result<()> {
@@ -513,7 +561,9 @@ mod tests {
 
         create_test_annotations(coco_path).await.unwrap();
 
-        let dataset = CocoDataset::with_split(coco_path, DatasetSplit::Train).await.unwrap();
+        let dataset = CocoDataset::with_split(coco_path, DatasetSplit::Train)
+            .await
+            .unwrap();
 
         assert_eq!(dataset.len(), 3); // 3 captions total
         assert_eq!(dataset.split(), DatasetSplit::Train);
@@ -532,7 +582,9 @@ mod tests {
 
         create_test_annotations(coco_path).await.unwrap();
 
-        let mut dataset = CocoDataset::with_split(coco_path, DatasetSplit::Train).await.unwrap();
+        let mut dataset = CocoDataset::with_split(coco_path, DatasetSplit::Train)
+            .await
+            .unwrap();
 
         // Filter to only 5+ word captions (should keep 2, remove 1)
         dataset.filter_captions(5, 10);

@@ -3,12 +3,12 @@
 //! Production-grade state management with proper resource lifecycle,
 //! health monitoring, and enterprise features.
 
-use std::sync::Arc;
-use std::collections::HashMap;
-use tokio::sync::RwLock;
-use crate::types::*;
 use crate::errors::SemanticError;
+use crate::types::ServiceStatus;
 use serde_json;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 /// Application state container with all services and configuration
 #[derive(Clone)]
@@ -49,10 +49,19 @@ pub trait CLIPService: Send + Sync {
 #[async_trait::async_trait]
 pub trait VectorDatabase: Send + Sync {
     /// Add embedding with metadata
-    async fn add(&self, id: String, embedding: Vec<f32>, metadata: serde_json::Value) -> Result<(), SemanticError>;
+    async fn add(
+        &self,
+        id: String,
+        embedding: Vec<f32>,
+        metadata: serde_json::Value,
+    ) -> Result<(), SemanticError>;
 
     /// Search for similar embeddings
-    async fn search(&self, query_embedding: &[f32], top_k: usize) -> Result<Vec<VectorSearchResult>, SemanticError>;
+    async fn search(
+        &self,
+        query_embedding: &[f32],
+        top_k: usize,
+    ) -> Result<Vec<VectorSearchResult>, SemanticError>;
 
     /// Delete embedding by ID
     async fn delete(&self, id: &str) -> Result<bool, SemanticError>;
@@ -219,8 +228,9 @@ impl AppState {
 
     /// Create test state for unit testing
     #[cfg(test)]
+    #[allow(clippy::missing_errors_doc)]
     pub fn new_for_testing() -> Result<Self, SemanticError> {
-        use crate::mock_services::*;
+        use self::mock_services::*;
 
         let clip_service = Arc::new(MockCLIPService::new());
         let vector_db = Arc::new(MockVectorDatabase::new());
@@ -230,19 +240,20 @@ impl AppState {
     }
 
     /// Update health status
+    #[allow(clippy::missing_errors_doc)]
     pub async fn update_health(&self) -> Result<(), SemanticError> {
         let mut health = self.health.write().await;
 
         // Check CLIP service health
         let clip_health = match self.clip_service.health_check().await {
-            Ok(_) => ComponentHealth {
+            Ok(()) => ComponentHealth {
                 status: ComponentStatus::Healthy,
                 message: "CLIP service operational".to_string(),
                 response_time_ms: None,
             },
             Err(e) => ComponentHealth {
                 status: ComponentStatus::Unhealthy,
-                message: format!("CLIP service error: {}", e),
+                message: format!("CLIP service error: {e}"),
                 response_time_ms: None,
             },
         };
@@ -256,7 +267,7 @@ impl AppState {
             },
             Err(e) => ComponentHealth {
                 status: ComponentStatus::Unhealthy,
-                message: format!("Database error: {}", e),
+                message: format!("Database error: {e}"),
                 response_time_ms: None,
             },
         };
@@ -266,9 +277,15 @@ impl AppState {
         components.insert("vector_database".to_string(), db_health);
 
         // Determine overall status
-        let overall_status = if components.values().all(|c| matches!(c.status, ComponentStatus::Healthy)) {
+        let overall_status = if components
+            .values()
+            .all(|c| matches!(c.status, ComponentStatus::Healthy))
+        {
             ServiceStatus::Operational
-        } else if components.values().any(|c| matches!(c.status, ComponentStatus::Unhealthy)) {
+        } else if components
+            .values()
+            .any(|c| matches!(c.status, ComponentStatus::Unhealthy))
+        {
             ServiceStatus::Degraded
         } else {
             ServiceStatus::Maintenance
@@ -288,7 +305,8 @@ impl AppState {
 
         // Update rolling average
         let alpha = 0.1; // Smoothing factor
-        metrics.avg_search_latency_ms = metrics.avg_search_latency_ms * (1.0 - alpha) + latency_ms * alpha;
+        metrics.avg_search_latency_ms =
+            metrics.avg_search_latency_ms * (1.0 - alpha) + latency_ms * alpha;
     }
 
     /// Record index operation
@@ -324,8 +342,9 @@ mod mock_services {
         async fn encode_text(&self, text: &str) -> Result<Vec<f32>, SemanticError> {
             let mut embedding = Vec::new();
             for i in 0..self.embedding_dim {
-                let hash = text.chars().map(|c| c as u32).sum::<u32>() + i as u32;
-                embedding.push((hash % 1000) as f32 / 1000.0);
+                let hash = text.chars().map(|c| u64::from(c as u32)).sum::<u64>() + i as u64;
+                let value = (hash % 1000) as u16;
+                embedding.push(f32::from(value) / 1000.0);
             }
             Ok(embedding)
         }
@@ -333,8 +352,9 @@ mod mock_services {
         async fn encode_image(&self, image_data: &[u8]) -> Result<Vec<f32>, SemanticError> {
             let mut embedding = Vec::new();
             for i in 0..self.embedding_dim {
-                let hash = image_data.len() as u32 + i as u32;
-                embedding.push((hash % 1000) as f32 / 1000.0);
+                let hash = image_data.len() as u64 + i as u64;
+                let value = (hash % 1000) as u16;
+                embedding.push(f32::from(value) / 1000.0);
             }
             Ok(embedding)
         }
@@ -348,8 +368,10 @@ mod mock_services {
         }
     }
 
+    type MockVectorEntry = (Vec<f32>, serde_json::Value);
+
     pub struct MockVectorDatabase {
-        entries: Arc<RwLock<HashMap<String, (Vec<f32>, serde_json::Value)>>>,
+        entries: Arc<RwLock<HashMap<String, MockVectorEntry>>>,
     }
 
     impl MockVectorDatabase {
@@ -362,18 +384,28 @@ mod mock_services {
 
     #[async_trait::async_trait]
     impl VectorDatabase for MockVectorDatabase {
-        async fn add(&self, id: String, embedding: Vec<f32>, metadata: serde_json::Value) -> Result<(), SemanticError> {
+        async fn add(
+            &self,
+            id: String,
+            embedding: Vec<f32>,
+            metadata: serde_json::Value,
+        ) -> Result<(), SemanticError> {
             let mut entries = self.entries.write().await;
             entries.insert(id, (embedding, metadata));
             Ok(())
         }
 
-        async fn search(&self, query_embedding: &[f32], top_k: usize) -> Result<Vec<SearchResult>, SemanticError> {
+        async fn search(
+            &self,
+            query_embedding: &[f32],
+            top_k: usize,
+        ) -> Result<Vec<VectorSearchResult>, SemanticError> {
             let entries = self.entries.read().await;
-            let mut results: Vec<_> = entries.iter()
+            let mut results: Vec<_> = entries
+                .iter()
                 .map(|(id, (emb, meta))| {
                     let similarity = cosine_similarity(query_embedding, emb);
-                    SearchResult {
+                    VectorSearchResult {
                         id: id.clone(),
                         similarity,
                         metadata: meta.clone(),
@@ -381,7 +413,11 @@ mod mock_services {
                 })
                 .collect();
 
-            results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
+            results.sort_by(|a, b| {
+                b.similarity
+                    .partial_cmp(&a.similarity)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             Ok(results.into_iter().take(top_k).collect())
         }
 
@@ -394,7 +430,7 @@ mod mock_services {
             let entries = self.entries.read().await;
             Ok(DatabaseStats {
                 total_items: entries.len(),
-                embedding_dim: entries.values().next().map(|(emb, _)| emb.len()).unwrap_or(512),
+                embedding_dim: entries.values().next().map_or(512, |(emb, _)| emb.len()),
                 index_size_bytes: entries.len() * 512 * 4, // Rough estimate
                 last_updated: chrono::Utc::now(),
             })
@@ -411,13 +447,10 @@ mod mock_services {
         let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
         let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
         let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-        if norm_a == 0.0 || norm_b == 0.0 { 0.0 } else { dot / (norm_a * norm_b) }
+        if norm_a == 0.0 || norm_b == 0.0 {
+            0.0
+        } else {
+            dot / (norm_a * norm_b)
+        }
     }
 }
-
-
-
-
-
-
-

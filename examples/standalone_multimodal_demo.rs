@@ -86,7 +86,10 @@ impl MultimodalProcessor {
 
     /// Process multimodal inputs using advanced fusion techniques
     pub fn process(&self, inputs: &HashMap<Modality, Vec<f32>>) -> Result<Vec<f32>, String> {
-        println!("🎯 Processing multimodal inputs with {} modalities", inputs.len());
+        println!(
+            "🎯 Processing multimodal inputs with {} modalities",
+            inputs.len()
+        );
 
         // Simulate advanced multimodal processing
         let mut modality_embeddings = Vec::new();
@@ -113,35 +116,42 @@ impl MultimodalProcessor {
         match modality {
             Modality::Vision => {
                 // Simulate CLIP vision encoder: patch-based processing
-                let patches = features.chunks(16).map(|patch| {
-                    patch.iter().sum::<f32>() / patch.len() as f32
-                }).collect::<Vec<f32>>();
+                let patches = features
+                    .chunks(16)
+                    .map(|patch| patch.iter().sum::<f32>() / patch.len() as f32)
+                    .collect::<Vec<f32>>();
                 Ok(patches)
-            },
+            }
             Modality::Language => {
                 // Simulate BERT-style processing: attention over tokens
-                let attention_weights = (0..features.len()).map(|i| {
-                    (i as f32 * 0.1).sin() * 0.5 + 0.5
-                }).collect::<Vec<f32>>();
+                let attention_weights = (0..features.len())
+                    .map(|i| (i as f32 * 0.1).sin() * 0.5 + 0.5)
+                    .collect::<Vec<f32>>();
 
-                let weighted_sum = features.iter().zip(&attention_weights)
+                let weighted_sum = features
+                    .iter()
+                    .zip(&attention_weights)
                     .map(|(f, w)| f * w)
                     .sum::<f32>();
 
                 Ok(vec![weighted_sum / attention_weights.iter().sum::<f32>()])
-            },
+            }
             Modality::Audio => {
                 // Simulate audio processing: spectrogram analysis
-                let spectrogram = features.chunks(32).map(|chunk| {
-                    chunk.iter().fold(0.0f32, |acc, &x| acc + x * x).sqrt()
-                }).collect::<Vec<f32>>();
+                let spectrogram = features
+                    .chunks(32)
+                    .map(|chunk| chunk.iter().fold(0.0f32, |acc, &x| acc + x * x).sqrt())
+                    .collect::<Vec<f32>>();
                 Ok(spectrogram)
             }
         }
     }
 
     /// Apply advanced cross-modal fusion techniques
-    fn apply_cross_modal_fusion(&self, modality_embeddings: &[Vec<f32>]) -> Result<Vec<f32>, String> {
+    fn apply_cross_modal_fusion(
+        &self,
+        modality_embeddings: &[Vec<f32>],
+    ) -> Result<Vec<f32>, String> {
         // Simulate cross-modal attention mechanism
         let mut fused = Vec::new();
 
@@ -157,7 +167,8 @@ impl MultimodalProcessor {
             }
 
             // Apply feed-forward network simulation
-            let ff_output = attention_weighted_sum * (1.0 / (1.0 + (-attention_weighted_sum).exp()));
+            let ff_output =
+                attention_weighted_sum * (1.0 / (1.0 + (-attention_weighted_sum).exp()));
             fused.push(ff_output);
         }
 
@@ -172,14 +183,15 @@ impl MultimodalProcessor {
         stats.insert("layers".to_string(), self.config.num_layers);
 
         // Estimate parameters for multimodal transformer
-        let total_params = self.config.modalities.len() * (
-            // Modality encoders
-            self.config.hidden_dim * self.config.hidden_dim * self.config.num_layers +
+        let total_params = self.config.modalities.len()
+            * (
+                // Modality encoders
+                self.config.hidden_dim * self.config.hidden_dim * self.config.num_layers +
             // Cross-modal attention
             self.config.hidden_dim * self.config.hidden_dim * 3 +
             // Fusion layers
             self.config.hidden_dim * self.config.hidden_dim * self.config.num_layers
-        );
+            );
 
         stats.insert("total_params".to_string(), total_params);
         stats
@@ -206,23 +218,35 @@ fn demo_vision_language() -> Result<()> {
     let mut inputs = HashMap::new();
 
     // Vision: simulated CLIP vision features (ViT patch embeddings)
-    let vision_features: Vec<f32> = (0..512).enumerate()
+    let vision_features: Vec<f32> = (0..512)
+        .enumerate()
         .map(|(i, _)| (i as f32 * 0.01).sin() * (1.0 + (i as f32 * 0.005).cos()))
         .collect();
     inputs.insert(Modality::Vision, vision_features);
 
     // Language: simulated BERT embeddings (contextualized token embeddings)
-    let text_features: Vec<f32> = (0..768).enumerate()
+    let text_features: Vec<f32> = (0..768)
+        .enumerate()
         .map(|(i, _)| (i as f32 * 0.02).cos() * (1.0 + (i as f32 * 0.01).sin()))
         .collect();
     inputs.insert(Modality::Language, text_features);
 
     let output = processor.process(&inputs)?;
-    println!("  ✅ Generated {} fused vision-language features", output.len());
+    println!(
+        "  ✅ Generated {} fused vision-language features",
+        output.len()
+    );
 
     // Simulate downstream tasks
-    let classification_logits = output.iter().take(1000).map(|&x| x * 2.0).collect::<Vec<f32>>();
-    println!("  🏷️  Simulated image classification: {} classes", classification_logits.len());
+    let classification_logits = output
+        .iter()
+        .take(1000)
+        .map(|&x| x * 2.0)
+        .collect::<Vec<f32>>();
+    println!(
+        "  🏷️  Simulated image classification: {} classes",
+        classification_logits.len()
+    );
 
     Ok(())
 }
@@ -253,14 +277,19 @@ fn demo_multimodal_retrieval() -> Result<()> {
     let candidate_embedding = processor.process(&candidate1)?;
 
     // Compute multimodal similarity
-    let similarity = query_embedding.iter().zip(&candidate_embedding)
+    let similarity = query_embedding
+        .iter()
+        .zip(&candidate_embedding)
         .take(256) // Use first 256 dimensions for similarity
         .map(|(q, c)| q * c)
-        .sum::<f32>() / (query_embedding.len().min(candidate_embedding.len()) as f32).sqrt();
+        .sum::<f32>()
+        / (query_embedding.len().min(candidate_embedding.len()) as f32).sqrt();
 
     println!("  📊 Query-Candidate Similarity: {:.3}", similarity);
-    println!("  🎯 Retrieval ranking would place this candidate at position: {}",
-             ((1.0 - similarity) * 100.0) as usize);
+    println!(
+        "  🎯 Retrieval ranking would place this candidate at position: {}",
+        ((1.0 - similarity) * 100.0) as usize
+    );
 
     Ok(())
 }
@@ -270,24 +299,33 @@ fn demo_model_analysis() -> Result<()> {
     println!("\n📊 Advanced Multimodal Model Analysis");
 
     let configs = vec![
-        ("CLIP-Style", MultimodalConfig {
-            modalities: vec![Modality::Vision, Modality::Language],
-            hidden_dim: 768,
-            num_layers: 12,
-            dropout: 0.1,
-        }),
-        ("Audio-Visual-Language", MultimodalConfig {
-            modalities: vec![Modality::Vision, Modality::Audio, Modality::Language],
-            hidden_dim: 1024,
-            num_layers: 24,
-            dropout: 0.1,
-        }),
-        ("Compact Multimodal", MultimodalConfig {
-            modalities: vec![Modality::Vision, Modality::Language],
-            hidden_dim: 256,
-            num_layers: 6,
-            dropout: 0.2,
-        }),
+        (
+            "CLIP-Style",
+            MultimodalConfig {
+                modalities: vec![Modality::Vision, Modality::Language],
+                hidden_dim: 768,
+                num_layers: 12,
+                dropout: 0.1,
+            },
+        ),
+        (
+            "Audio-Visual-Language",
+            MultimodalConfig {
+                modalities: vec![Modality::Vision, Modality::Audio, Modality::Language],
+                hidden_dim: 1024,
+                num_layers: 24,
+                dropout: 0.1,
+            },
+        ),
+        (
+            "Compact Multimodal",
+            MultimodalConfig {
+                modalities: vec![Modality::Vision, Modality::Language],
+                hidden_dim: 256,
+                num_layers: 6,
+                dropout: 0.2,
+            },
+        ),
     ];
 
     for (name, config) in configs {
@@ -295,11 +333,22 @@ fn demo_model_analysis() -> Result<()> {
         let stats = processor.stats();
 
         println!("  🏗️  {} Model:", name);
-        println!("    • Modalities: {} ({})", stats["modalities"],
-                 config.modalities.iter().map(|m| m.as_str()).collect::<Vec<_>>().join(", "));
+        println!(
+            "    • Modalities: {} ({})",
+            stats["modalities"],
+            config
+                .modalities
+                .iter()
+                .map(|m| m.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
         println!("    • Hidden Dimension: {}", stats["hidden_dim"]);
         println!("    • Transformer Layers: {}", stats["layers"]);
-        println!("    • Total Parameters: {}M", stats["total_params"] / 1_000_000);
+        println!(
+            "    • Total Parameters: {}M",
+            stats["total_params"] / 1_000_000
+        );
         println!("    • Capabilities: Vision-Language Understanding, Cross-Modal Retrieval, Zero-Shot Classification");
     }
 
@@ -327,15 +376,15 @@ fn demo_temporal_multimodal() -> Result<()> {
         let mut frame_input = HashMap::new();
 
         // Time-varying vision features (simulating video frames)
-        let vision_frame: Vec<f32> = (0..256).map(|i| {
-            (i as f32 * 0.01 + t as f32 * 0.1).sin()
-        }).collect();
+        let vision_frame: Vec<f32> = (0..256)
+            .map(|i| (i as f32 * 0.01 + t as f32 * 0.1).sin())
+            .collect();
         frame_input.insert(Modality::Vision, vision_frame);
 
         // Time-varying audio features (simulating audio spectrograms)
-        let audio_frame: Vec<f32> = (0..128).map(|i| {
-            (i as f32 * 0.02 + t as f32 * 0.15).cos()
-        }).collect();
+        let audio_frame: Vec<f32> = (0..128)
+            .map(|i| (i as f32 * 0.02 + t as f32 * 0.15).cos())
+            .collect();
         frame_input.insert(Modality::Audio, audio_frame);
 
         let frame_embedding = processor.process(&frame_input)?;
@@ -343,15 +392,20 @@ fn demo_temporal_multimodal() -> Result<()> {
     }
 
     println!("  🎬 Processed {} temporal frames", time_steps);
-    println!("  📈 Temporal sequence length: {} embeddings", temporal_embeddings.len());
+    println!(
+        "  📈 Temporal sequence length: {} embeddings",
+        temporal_embeddings.len()
+    );
 
     // Simulate temporal fusion (sequence modeling)
-    let sequence_embedding = temporal_embeddings.iter()
+    let sequence_embedding = temporal_embeddings
+        .iter()
         .flatten()
         .take(512)
         .enumerate()
         .map(|(i, &x)| x * (i as f32 * 0.001).cos()) // Temporal attention
-        .sum::<f32>() / 512.0;
+        .sum::<f32>()
+        / 512.0;
 
     println!("  🔄 Temporal fusion result: {:.3}", sequence_embedding);
 
@@ -373,7 +427,9 @@ fn main() -> Result<()> {
     println!("\n✅ All multimodal AI capabilities demonstrated successfully!");
     println!("🏆 Sprint MS-54 Goals: Core multimodal AI functionality validated");
     println!("📈 Demonstrated: Vision-Language fusion, temporal processing, retrieval systems");
-    println!("🔬 Architecture: Cross-modal attention, hierarchical fusion, modality-specific encoding");
+    println!(
+        "🔬 Architecture: Cross-modal attention, hierarchical fusion, modality-specific encoding"
+    );
     println!("⚡ Performance: Zero-cost abstractions, SIMD acceleration ready");
 
     Ok(())

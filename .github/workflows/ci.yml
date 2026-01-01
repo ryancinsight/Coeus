@@ -95,7 +95,7 @@ jobs:
         run: cargo test --workspace --lib --bins
 
       - name: Run integration tests
-        run: cargo test --test integration_tests
+        run: cargo test -p tensor --test integration_tests
 
       - name: Run doctests
         run: cargo test --workspace --doc

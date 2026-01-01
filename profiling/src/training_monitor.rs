@@ -1,7 +1,8 @@
 //! Training monitoring and metrics collection for deep learning models
 
-use crate::*;
 use std::collections::HashMap;
+
+use crate::{format, String, Vec};
 
 /// Training metrics for monitoring deep learning training progress
 #[derive(Debug, Clone)]
@@ -158,20 +159,32 @@ impl TrainingMonitor {
 
         if let Some(max_grad_norm) = self.alert_thresholds.max_gradient_norm {
             if metrics.gradient_norm > max_grad_norm {
-                tracing::warn!("Gradient norm {:.4} exceeds threshold {:.4}", metrics.gradient_norm, max_grad_norm);
+                tracing::warn!(
+                    "Gradient norm {:.4} exceeds threshold {:.4}",
+                    metrics.gradient_norm,
+                    max_grad_norm
+                );
             }
         }
 
         if let Some(min_lr) = self.alert_thresholds.min_learning_rate {
             if metrics.learning_rate < min_lr {
-                tracing::warn!("Learning rate {:.2e} below threshold {:.2e}", metrics.learning_rate, min_lr);
+                tracing::warn!(
+                    "Learning rate {:.2e} below threshold {:.2e}",
+                    metrics.learning_rate,
+                    min_lr
+                );
             }
         }
 
         if let Some(max_time) = self.alert_thresholds.max_step_time_ms {
             if let Some(step_time) = metrics.step_time_ms {
                 if step_time > max_time {
-                    tracing::warn!("Step time {:.2}ms exceeds threshold {:.2}ms", step_time, max_time);
+                    tracing::warn!(
+                        "Step time {:.2}ms exceeds threshold {:.2}ms",
+                        step_time,
+                        max_time
+                    );
                 }
             }
         }
@@ -239,6 +252,7 @@ pub struct PerformanceStats {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_field_names)]
 pub struct MemoryStatsSummary {
     pub peak_gpu_memory_mb: f32,
     pub peak_cpu_memory_mb: f32,
@@ -271,8 +285,10 @@ impl TrainingReport {
             .fold(None, |max, val| Some(max.map_or(val, |m: f32| m.max(val))));
 
         // Calculate loss trend (recent vs early)
-        let early_loss = losses.iter().take(100).sum::<f32>() / 100.0_f32.min(losses.len() as f32);
-        let recent_loss = losses.iter().rev().take(100).sum::<f32>() / 100.0_f32.min(losses.len() as f32);
+        #[allow(clippy::cast_precision_loss)]
+        let denom = 100.0_f32.min(losses.len().min(100) as f32);
+        let early_loss = losses.iter().take(100).sum::<f32>() / denom;
+        let recent_loss = losses.iter().rev().take(100).sum::<f32>() / denom;
         let loss_trend = early_loss - recent_loss; // Positive = improving
 
         // Learning rate statistics
@@ -354,7 +370,11 @@ impl TrainingReport {
         let final_lr = lrs[lrs.len() - 1];
         let min_lr = lrs.iter().fold(f32::INFINITY, |a, &b| a.min(b));
         let max_lr = lrs.iter().fold(0.0_f32, |a, &b| a.max(b));
-        let decay_factor = if initial_lr > 0.0 { final_lr / initial_lr } else { 1.0 };
+        let decay_factor = if initial_lr > 0.0 {
+            final_lr / initial_lr
+        } else {
+            1.0
+        };
 
         LearningRateStats {
             initial_lr,
@@ -375,14 +395,17 @@ impl TrainingReport {
             };
         }
 
-        let mean_norm = grad_norms.iter().sum::<f32>() / grad_norms.len() as f32;
+        #[allow(clippy::cast_precision_loss)]
+        let denom = grad_norms.len() as f32;
+        let mean_norm = grad_norms.iter().sum::<f32>() / denom;
         let max_norm = grad_norms.iter().fold(0.0_f32, |a, &b| a.max(b));
         let min_norm = grad_norms.iter().fold(f32::INFINITY, |a, &b| a.min(b));
 
         let variance = grad_norms
             .iter()
             .map(|&x| (x - mean_norm).powi(2))
-            .sum::<f32>() / grad_norms.len() as f32;
+            .sum::<f32>()
+            / denom;
         let norm_std_dev = variance.sqrt();
 
         GradientStats {
@@ -402,7 +425,9 @@ impl TrainingReport {
             };
         }
 
-        let mean_step_time_ms = step_times.iter().sum::<f32>() / step_times.len() as f32;
+        #[allow(clippy::cast_precision_loss)]
+        let denom = step_times.len() as f32;
+        let mean_step_time_ms = step_times.iter().sum::<f32>() / denom;
         let max_step_time_ms = step_times.iter().fold(0.0_f32, |a, &b| a.max(b));
 
         // Assume batch size of 32 for throughput calculation
@@ -425,25 +450,29 @@ impl TrainingReport {
         let cpu_memories: Vec<f32> = metrics.iter().filter_map(|m| m.cpu_memory_mb).collect();
 
         let peak_gpu_memory_mb = gpu_memories.iter().fold(0.0_f32, |a, &b| a.max(b));
-        let peak_cpu_memory_mb = cpu_memories.iter().fold(0.0_f32, |a, &b| a.max(b));
+        let peak_host_memory_mb = cpu_memories.iter().fold(0.0_f32, |a, &b| a.max(b));
 
         let avg_gpu_memory_mb = if gpu_memories.is_empty() {
             0.0
         } else {
-            gpu_memories.iter().sum::<f32>() / gpu_memories.len() as f32
+            #[allow(clippy::cast_precision_loss)]
+            let denom = gpu_memories.len() as f32;
+            gpu_memories.iter().sum::<f32>() / denom
         };
 
-        let avg_cpu_memory_mb = if cpu_memories.is_empty() {
+        let avg_host_memory_mb = if cpu_memories.is_empty() {
             0.0
         } else {
-            cpu_memories.iter().sum::<f32>() / cpu_memories.len() as f32
+            #[allow(clippy::cast_precision_loss)]
+            let denom = cpu_memories.len() as f32;
+            cpu_memories.iter().sum::<f32>() / denom
         };
 
         MemoryStatsSummary {
             peak_gpu_memory_mb,
-            peak_cpu_memory_mb,
+            peak_cpu_memory_mb: peak_host_memory_mb,
             avg_gpu_memory_mb,
-            avg_cpu_memory_mb,
+            avg_cpu_memory_mb: avg_host_memory_mb,
         }
     }
 

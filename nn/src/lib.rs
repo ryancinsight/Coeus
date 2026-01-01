@@ -356,8 +356,8 @@
 //! This crate is part of the Coeus project and follows the same license terms.
 
 // Error handling
-pub mod error;
 pub mod autograd_compat;
+pub mod error;
 
 // Re-export error types for convenience
 pub use error::{NNError, Result};
@@ -366,12 +366,12 @@ pub use error::{NNError, Result};
 pub use backend::Backend;
 
 // Re-export workspace dependencies for internal use
-pub use backend as backend_crate;
-pub use storage as storage_crate;
-pub use dtype as dtype_crate;
-pub use tensor as tensor_crate;
 pub use autograd as autograd_crate;
+pub use backend as backend_crate;
+pub use dtype as dtype_crate;
 pub use optim as optim_crate;
+pub use storage as storage_crate;
+pub use tensor as tensor_crate;
 
 // Core modules
 pub mod module;
@@ -383,14 +383,14 @@ pub mod sequential;
 
 // Layers
 pub mod activation;
-pub mod rope;
 pub mod batchnorm;
 pub mod dropout;
 pub mod embedding;
 pub mod groupnorm;
 pub mod layernorm;
-pub mod rms_norm;
 pub mod linear;
+pub mod rms_norm;
+pub mod rope;
 
 // Convolutional layers
 pub mod conv1d;
@@ -404,22 +404,25 @@ pub mod pooling;
 pub mod rnn;
 
 // Multimodal architectures (Sprint MS-47)
-pub mod multimodal;
 pub mod cross_modal_attention;
+pub mod multimodal;
 pub mod multitask_learning;
 
 // CLIP vision-language model
+#[cfg(feature = "clip")]
 pub mod clip;
 
 // Vision-language datasets (Sprint MS-49)
+#[cfg(feature = "clip")]
 pub mod datasets;
+#[cfg(feature = "clip")]
 pub mod evaluation;
 
 // Attention layers
 pub mod attention;
+pub mod experiment_tracking;
 pub mod feature;
 pub mod hpo;
-pub mod experiment_tracking;
 pub mod meta;
 pub mod nas;
 
@@ -462,12 +465,11 @@ pub mod upsample;
 #[cfg(feature = "distributed")]
 pub mod distributed;
 pub mod init;
+#[cfg(feature = "research")]
 pub mod research;
 
 // Re-exports for convenience
-pub use activation::{
-    GeLU, PReLU, ReLU, SiLU, SwiGLU,
-};
+pub use activation::{GeLU, PReLU, ReLU, SiLU, SwiGLU};
 pub use batchnorm::{BatchNorm2d, BatchNorm3d};
 pub use layernorm::LayerNorm;
 pub use linear::Linear;
@@ -510,4 +512,3 @@ pub use meta::maml::MAML;
 pub use meta::prototypical::{FewShotEpisodeGenerator, PrototypicalNetwork};
 pub use nas::search_space::{Architecture, ArchitectureSpace};
 // Functional API re-exports will be added as modules are verified
-

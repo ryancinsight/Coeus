@@ -4,8 +4,6 @@
 //! and generating tensors with specific fill patterns.
 
 use std::vec::Vec;
-use num_traits::FromPrimitive;
-
 
 /// Creation operations for tensors with any storage type.
 ///
@@ -164,6 +162,60 @@ where
 
         Self::from_vec(data, dims)
     }
+
+    /// Creates a tensor with random numbers from a uniform distribution [0, 1).
+    pub fn rand(dims: &[usize]) -> crate::Result<Self>
+    where
+        B: Default,
+        S: storage::StorageFromVec<T>,
+    {
+        use rand::Rng;
+
+        let mut rng = rand::thread_rng();
+        let size: usize = dims.iter().product();
+        let mut data = Vec::with_capacity(size);
+
+        for _ in 0..size {
+            let sample: f64 = rng.gen_range(0.0..1.0);
+            let val = num_traits::NumCast::from(sample).ok_or_else(|| {
+                crate::TensorError::BackendError(format!(
+                    "Failed to convert random sample {} to type {}",
+                    sample,
+                    T::name()
+                ))
+            })?;
+            data.push(val);
+        }
+
+        Self::from_vec(data, dims)
+    }
+
+    /// Creates a tensor with random integers from a discrete uniform distribution [low, high).
+    pub fn randint(low: i64, high: i64, dims: &[usize]) -> crate::Result<Self>
+    where
+        B: Default,
+        S: storage::StorageFromVec<T>,
+    {
+        use rand::Rng;
+
+        let mut rng = rand::thread_rng();
+        let size: usize = dims.iter().product();
+        let mut data = Vec::with_capacity(size);
+
+        for _ in 0..size {
+            let sample: i64 = rng.gen_range(low..high);
+            let val = num_traits::NumCast::from(sample).ok_or_else(|| {
+                crate::TensorError::BackendError(format!(
+                    "Failed to convert random sample {} to type {}",
+                    sample,
+                    T::name()
+                ))
+            })?;
+            data.push(val);
+        }
+
+        Self::from_vec(data, dims)
+    }
 }
 
 impl<B, S, T> crate::Tensor<B, S, T>
@@ -292,7 +344,8 @@ where
         B: Clone + Default,
         S: Clone,
     {
-        let storage = S::full(tensor.shape().dims(), value).map_err(crate::TensorError::StorageError)?;
+        let storage =
+            S::full(tensor.shape().dims(), value).map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, tensor.backend().clone()))
     }
 }
@@ -357,7 +410,11 @@ mod tensor_creation_convenience {
     use std::sync::Mutex;
 
     /// Type alias for the most common CPU float32 tensor type.
-    pub type CpuF32Tensor = crate::Tensor<crate::CpuBackend<dtype::float::Float32>, crate::DenseStorage<dtype::float::Float32>, dtype::float::Float32>;
+    pub type CpuF32Tensor = crate::Tensor<
+        crate::CpuBackend<dtype::float::Float32>,
+        crate::DenseStorage<dtype::float::Float32>,
+        dtype::float::Float32,
+    >;
 
     /// Creates a tensor filled with random values from a normal distribution.
     ///
@@ -380,7 +437,7 @@ mod tensor_creation_convenience {
         static RNG: Mutex<Option<rand::rngs::StdRng>> = Mutex::new(None);
 
         let mut rng_lock = RNG.lock().unwrap();
-        let rng = rng_lock.get_or_insert_with(|| rand::rngs::StdRng::from_entropy());
+        let rng = rng_lock.get_or_insert_with(rand::rngs::StdRng::from_entropy);
 
         let total_elements: usize = shape.iter().product();
         let mut data = Vec::with_capacity(total_elements);
@@ -423,7 +480,11 @@ mod tensor_creation_convenience {
             return Err(crate::TensorError::ShapeError {
                 expected: 0,
                 actual: dim,
-                message: format!("Dimension {} out of bounds for tensor with {} dimensions", dim, first_shape.len()),
+                message: format!(
+                    "Dimension {} out of bounds for tensor with {} dimensions",
+                    dim,
+                    first_shape.len()
+                ),
             });
         }
 
@@ -434,7 +495,12 @@ mod tensor_creation_convenience {
                 return Err(crate::TensorError::ShapeError {
                     expected: first_shape.len(),
                     actual: shape.len(),
-                    message: format!("Tensor {} has {} dimensions, expected {}", i, shape.len(), first_shape.len()),
+                    message: format!(
+                        "Tensor {} has {} dimensions, expected {}",
+                        i,
+                        shape.len(),
+                        first_shape.len()
+                    ),
                 });
             }
 
@@ -443,7 +509,10 @@ mod tensor_creation_convenience {
                     return Err(crate::TensorError::ShapeError {
                         expected,
                         actual,
-                        message: format!("Tensor {} dimension {} has size {}, expected {}", i, j, actual, expected),
+                        message: format!(
+                            "Tensor {} dimension {} has size {}, expected {}",
+                            i, j, actual, expected
+                        ),
                     });
                 }
             }
@@ -567,6 +636,3 @@ where
         Ok(Self::from_storage(storage, B::default()))
     }
 }
-
-
-

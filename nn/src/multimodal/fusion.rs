@@ -3,21 +3,20 @@
 //! Implementation of various strategies for fusing information across multiple modalities.
 //! Provides both simple concatenation and complex cross-modal transformer approaches.
 
-use std::collections::HashMap;
-use crate::error::Result;
-use crate::attention::MultiHeadAttention;
-use crate::linear::Linear;
-use crate::layernorm::LayerNorm;
-use crate::activation::GeLU;
-use crate::dropout::Dropout;
-use crate::functional::linear;
-use crate::module::{Module, ModuleExt};
-use tensor::Tensor;
-use backend::Backend;
-use storage::{Storage, StorageFromVec, StorageToDense};
-use dtype::DataType;
-use super::modality::Modality;
 use super::attention::CrossModalAttention;
+use super::modality::Modality;
+use crate::activation::GeLU;
+use crate::attention::MultiHeadAttention;
+use crate::error::Result;
+use crate::functional::linear;
+use crate::layernorm::LayerNorm;
+use crate::linear::Linear;
+use crate::module::{Module, ModuleExt};
+use backend::Backend;
+use dtype::DataType;
+use std::collections::HashMap;
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 /// Strategy for fusing information across multiple modalities
 ///
@@ -87,6 +86,7 @@ where
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum FusionLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
@@ -109,7 +109,12 @@ pub struct FusionBlock<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + Default + StorageFromVec<T> + StorageToDense<T>,
-    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded + std::cmp::PartialOrd,
+    T: DataType
+        + 'static
+        + dtype::FloatExt
+        + num_traits::FromPrimitive
+        + num_traits::Bounded
+        + std::cmp::PartialOrd,
 {
     /// Self-attention within each modality
     pub intra_attention: HashMap<Modality, MultiHeadAttention<B, S, T>>,
@@ -125,7 +130,12 @@ impl<B, S, T> FusionBlock<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + Default + StorageFromVec<T> + StorageToDense<T>,
-    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded + std::cmp::PartialOrd,
+    T: DataType
+        + 'static
+        + dtype::FloatExt
+        + num_traits::FromPrimitive
+        + num_traits::Bounded
+        + std::cmp::PartialOrd,
 {
     /// Forward pass through cross-modal transformer block
     pub fn forward(
@@ -231,7 +241,6 @@ where
         let linear1 = Linear::new(hidden_dim, ff_dim)?;
         let linear2 = Linear::new(ff_dim, hidden_dim)?;
         let gelu = GeLU::new();
-        let dropout = dropout;
 
         Ok(Self {
             linear1,
@@ -244,7 +253,11 @@ where
     /// Forward pass
     pub fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // Linear transformation to higher dimension
-        let hidden = linear(input, &self.linear1.weight.data, Some(&self.linear1.bias.data))?;
+        let hidden = linear(
+            input,
+            &self.linear1.weight.data,
+            Some(&self.linear1.bias.data),
+        )?;
 
         // Apply GELU activation
         let activated = self.gelu.forward(&hidden)?;
@@ -254,7 +267,11 @@ where
         let dropped = activated;
 
         // Linear transformation back to hidden dimension
-        linear(&dropped, &self.linear2.weight.data, Some(&self.linear2.bias.data))
+        linear(
+            &dropped,
+            &self.linear2.weight.data,
+            Some(&self.linear2.bias.data),
+        )
     }
 
     /// Get number of parameters
@@ -267,18 +284,20 @@ where
 mod tests {
     use super::*;
     use backend::CpuBackend;
-    use storage::DenseStorage;
     use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_feed_forward_creation() {
-        let ff = FeedForward::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(768, 3072, 0.1).unwrap();
+        let ff =
+            FeedForward::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(768, 3072, 0.1)
+                .unwrap();
         assert_eq!(ff.dropout, 0.1);
     }
 
     #[test]
     fn test_fusion_strategy_enum() {
-        let strategies = vec![
+        let strategies = [
             FusionStrategy::EarlyFusion,
             FusionStrategy::LateFusion,
             FusionStrategy::HierarchicalFusion,
@@ -291,7 +310,11 @@ mod tests {
 
     #[test]
     fn test_fusion_creation() {
-        let fusion = Fusion::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(768, FusionStrategy::HierarchicalFusion).unwrap();
+        let fusion = Fusion::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+            768,
+            FusionStrategy::HierarchicalFusion,
+        )
+        .unwrap();
         assert_eq!(fusion.strategy, FusionStrategy::HierarchicalFusion);
         assert_eq!(fusion.output_dim, 768);
         assert_eq!(fusion.fusion_layers.len(), 0); // Starts empty

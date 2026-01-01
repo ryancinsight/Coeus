@@ -5,8 +5,8 @@
 //! multi-dimensional metrics, automatic aggregation, statistical analysis,
 //! and research publication-ready outputs.
 
-use std::collections::{HashMap, BTreeMap};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
 
 // Re-export core types
 // pub mod collection; // TODO: Implement metrics collection module
@@ -63,7 +63,9 @@ impl AggregationRule {
             AggregationOperation::Mean => Ok(values.iter().sum::<f64>() / values.len() as f64),
             AggregationOperation::Sum => Ok(values.iter().sum()),
             AggregationOperation::Min => Ok(values.iter().fold(f64::INFINITY, |a, &b| a.min(b))),
-            AggregationOperation::Max => Ok(values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b))),
+            AggregationOperation::Max => {
+                Ok(values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b)))
+            }
             AggregationOperation::Count => Ok(values.len() as f64),
         }
     }
@@ -155,7 +157,8 @@ impl StatisticalAnalysis {
         let lower_bound = q1 - 1.5 * iqr;
         let upper_bound = q3 + 1.5 * iqr;
 
-        let outliers = values.iter()
+        let outliers = values
+            .iter()
             .filter(|&&v| v < lower_bound || v > upper_bound)
             .cloned()
             .collect();
@@ -215,9 +218,15 @@ pub struct MetricsSummary {
 
 impl std::fmt::Display for MetricsSummary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Total Metrics: {}, Active: {}, Collections: {}, Alerts: {}, Data Points: {}",
-               self.total_metrics, self.active_metrics, self.total_collections,
-               self.alerts_triggered, self.data_points)
+        write!(
+            f,
+            "Total Metrics: {}, Active: {}, Collections: {}, Alerts: {}, Data Points: {}",
+            self.total_metrics,
+            self.active_metrics,
+            self.total_collections,
+            self.alerts_triggered,
+            self.data_points
+        )
     }
 }
 
@@ -288,8 +297,14 @@ impl MetricsCollector {
     }
 
     /// Manually record a metric value
-    pub fn record_metric(&mut self, name: String, value: f64, timestamp: Option<chrono::DateTime<chrono::Utc>>, context: HashMap<String, serde_json::Value>) {
-        let timestamp = timestamp.unwrap_or_else(|| chrono::Utc::now());
+    pub fn record_metric(
+        &mut self,
+        name: String,
+        value: f64,
+        timestamp: Option<chrono::DateTime<chrono::Utc>>,
+        context: HashMap<String, serde_json::Value>,
+    ) {
+        let timestamp = timestamp.unwrap_or_else(chrono::Utc::now);
 
         let entry = MetricEntry {
             name: name.clone(),
@@ -304,9 +319,15 @@ impl MetricsCollector {
     }
 
     /// Get metric values over time
-    pub fn get_metric_series(&self, name: &str, start_time: Option<chrono::DateTime<chrono::Utc>>, end_time: Option<chrono::DateTime<chrono::Utc>>) -> Vec<&MetricEntry> {
+    pub fn get_metric_series(
+        &self,
+        name: &str,
+        start_time: Option<chrono::DateTime<chrono::Utc>>,
+        end_time: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Vec<&MetricEntry> {
         if let Some(entries) = self.metrics_data.get(name) {
-            entries.iter()
+            entries
+                .iter()
                 .filter(|entry| {
                     let after_start = start_time.map_or(true, |start| entry.timestamp >= start);
                     let before_end = end_time.map_or(true, |end| entry.timestamp <= end);
@@ -415,7 +436,7 @@ impl MetricsCollector {
                 };
 
                 ExportResult::Json(serde_json::to_value(&export_data).unwrap_or_default())
-            },
+            }
             ExportFormat::Csv => ExportResult::Csv(self.export_csv()),
             ExportFormat::Plotly => ExportResult::Json(self.export_plotly()),
         }
@@ -423,8 +444,9 @@ impl MetricsCollector {
 
     // Private helper methods
     fn store_metric(&mut self, metric: MetricEntry) {
-        self.metrics_data.entry(metric.name.clone())
-            .or_insert_with(Vec::new)
+        self.metrics_data
+            .entry(metric.name.clone())
+            .or_default()
             .push(metric);
         self.stats.total_metrics += 1;
     }
@@ -437,24 +459,37 @@ impl MetricsCollector {
             if let Some(entries) = self.metrics_data.get(metric_name) {
                 let values: Vec<f64> = entries.iter().map(|e| e.value).collect();
                 let aggregated_value = rule.apply(&values)?;
-                aggregations_to_record.push((metric_name.clone(), rule.name.clone(), aggregated_value, rule.operation.clone()));
+                aggregations_to_record.push((
+                    metric_name.clone(),
+                    rule.name.clone(),
+                    aggregated_value,
+                    rule.operation.clone(),
+                ));
             }
         }
 
         // Record them with mutable borrow
         for (metric_name, rule_name, aggregated_value, operation) in aggregations_to_record {
-            let context = HashMap::from([("aggregation".to_string(), serde_json::Value::String(format!("{:?}", operation)))]);
-            self.record_metric(format!("{}_{}", metric_name, rule_name), aggregated_value, None, context);
+            let context = HashMap::from([(
+                "aggregation".to_string(),
+                serde_json::Value::String(format!("{:?}", operation)),
+            )]);
+            self.record_metric(
+                format!("{}_{}", metric_name, rule_name),
+                aggregated_value,
+                None,
+                context,
+            );
         }
 
         Ok(())
     }
 
     fn check_alerts(&self) {
-        let latest_values: HashMap<String, f64> = self.metrics_data.iter()
-            .filter_map(|(name, entries)| {
-                entries.last().map(|entry| (name.clone(), entry.value))
-            })
+        let latest_values: HashMap<String, f64> = self
+            .metrics_data
+            .iter()
+            .filter_map(|(name, entries)| entries.last().map(|entry| (name.clone(), entry.value)))
             .collect();
 
         for alert in &self.alerts {
@@ -472,7 +507,11 @@ impl MetricsCollector {
         self.stats.total_collections += 1;
     }
 
-    fn calculate_correlation(&self, series1: &[&MetricEntry], series2: &[&MetricEntry]) -> Option<f64> {
+    fn calculate_correlation(
+        &self,
+        series1: &[&MetricEntry],
+        series2: &[&MetricEntry],
+    ) -> Option<f64> {
         // Simple pearson correlation calculation
         if series1.is_empty() || series2.is_empty() {
             return None;
@@ -486,7 +525,9 @@ impl MetricsCollector {
         let mean1 = values1.iter().sum::<f64>() / len as f64;
         let mean2 = values2.iter().sum::<f64>() / len as f64;
 
-        let numerator: f64 = (0..len).map(|i| (values1[i] - mean1) * (values2[i] - mean2)).sum();
+        let numerator: f64 = (0..len)
+            .map(|i| (values1[i] - mean1) * (values2[i] - mean2))
+            .sum();
         let denominator1: f64 = values1.iter().map(|v| (v - mean1).powi(2)).sum();
         let denominator2: f64 = values2.iter().map(|v| (v - mean2).powi(2)).sum();
 
@@ -499,7 +540,11 @@ impl MetricsCollector {
         }
     }
 
-    fn find_divergence_points(&self, series1: &[&MetricEntry], series2: &[&MetricEntry]) -> Vec<usize> {
+    fn find_divergence_points(
+        &self,
+        series1: &[&MetricEntry],
+        series2: &[&MetricEntry],
+    ) -> Vec<usize> {
         let mut divergences = Vec::new();
         let threshold = 0.1; // 10% relative difference
 
@@ -534,13 +579,19 @@ impl MetricsCollector {
 
         // Analyze metric distributions and suggest improvements
         for (name, analysis) in &self.analysis_results {
-                if analysis.variance > analysis.mean * 0.5 {
-                    recommendations.push(format!("High variance detected in '{}'. Consider stabilizing the metric.", name));
-                }
+            if analysis.variance > analysis.mean * 0.5 {
+                recommendations.push(format!(
+                    "High variance detected in '{}'. Consider stabilizing the metric.",
+                    name
+                ));
+            }
 
-                if analysis.outliers.len() > analysis.data_points as usize / 10 {
-                    recommendations.push(format!("Many outliers detected in '{}'. Consider data cleaning.", name));
-                }
+            if analysis.outliers.len() > analysis.data_points / 10 {
+                recommendations.push(format!(
+                    "Many outliers detected in '{}'. Consider data cleaning.",
+                    name
+                ));
+            }
         }
 
         recommendations
@@ -551,7 +602,8 @@ impl MetricsCollector {
 
         for (metric_name, entries) in &self.metrics_data {
             for entry in entries {
-                csv.push_str(&format!("{},{},{:.6}\n",
+                csv.push_str(&format!(
+                    "{},{},{:.6}\n",
                     metric_name,
                     entry.timestamp.to_rfc3339(),
                     entry.value
@@ -564,7 +616,9 @@ impl MetricsCollector {
 
     fn export_plotly(&self) -> serde_json::Value {
         // Basic plotly-compatible format for metrics visualization
-        let traces: Vec<serde_json::Value> = self.metrics_data.iter()
+        let traces: Vec<serde_json::Value> = self
+            .metrics_data
+            .iter()
             .enumerate()
             .map(|(i, (name, entries))| {
                 let x: Vec<String> = entries.iter().map(|e| e.timestamp.to_rfc3339()).collect();
@@ -591,7 +645,13 @@ impl MetricsCollector {
     }
 }
 
-/// Configuration for metrics collection system
+impl Default for MetricsCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Configuration for metrics collection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetricsConfig {
     /// Collection interval in seconds
@@ -635,7 +695,7 @@ pub struct MetricsCollectionStats {
 }
 
 /// Trait for custom metric collectors
-pub trait MetricCollector: std::fmt::Debug {
+pub trait MetricCollector: std::fmt::Debug + Send + Sync {
     /// Collect metrics from this collector
     fn collect_metrics(&mut self) -> crate::error::Result<Vec<MetricEntry>>;
 

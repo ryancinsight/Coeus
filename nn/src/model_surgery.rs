@@ -62,10 +62,10 @@ use crate::parameter::Parameter;
 use crate::Sequential;
 use backend::Backend;
 use dtype::DataType;
-use storage::{Storage, StorageFromVec};
-use tensor::{Shape, Tensor};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use storage::{Storage, StorageFromVec};
+use tensor::{Shape, Tensor};
 
 /// Pruning methods for model compression
 #[derive(Debug, Clone)]

@@ -12,9 +12,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 fn init_tracing() {
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                "tensor=trace,autograd=trace,coeus_examples=info".into()
-            }),
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "tensor=trace,autograd=trace,coeus_examples=info".into()),
         )
         .with(
             tracing_subscriber::fmt::layer()
@@ -106,4 +105,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-

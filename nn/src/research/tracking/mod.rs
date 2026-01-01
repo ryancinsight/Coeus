@@ -4,21 +4,21 @@
 //! hyperparameter versioning, model checkpoints, and artifact management
 //! for research-grade experimentation.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Instant;
 use std::sync::{Arc, RwLock};
-use serde::{Serialize, Deserialize};
+use std::time::Instant;
 
 // Re-export core types
-pub mod metadata;
-pub mod hyperparameters;
-pub mod checkpoints;
 pub mod artifacts;
+pub mod checkpoints;
+pub mod hyperparameters;
+pub mod metadata;
 
-pub use metadata::*;
-pub use hyperparameters::*;
-pub use checkpoints::*;
 pub use artifacts::*;
+pub use checkpoints::*;
+pub use hyperparameters::*;
+pub use metadata::*;
 
 /// Enhanced experiment tracker with comprehensive metadata
 #[derive(Debug, Clone)]
@@ -78,17 +78,32 @@ impl ExperimentTracker {
     }
 
     /// Log hyperparameter with automatic versioning
-    pub fn log_hyperparameter(&mut self, key: String, value: serde_json::Value, description: Option<String>) -> crate::error::Result<()> {
-        self.hyperparameters.log_hyperparameter(key, value, description)
+    pub fn log_hyperparameter(
+        &mut self,
+        key: String,
+        value: serde_json::Value,
+        description: Option<String>,
+    ) -> crate::error::Result<()> {
+        self.hyperparameters
+            .log_hyperparameter(key, value, description)
     }
 
     /// Create checkpoint
-    pub fn create_checkpoint(&mut self, name: String, data: CheckpointData) -> crate::error::Result<String> {
+    pub fn create_checkpoint(
+        &mut self,
+        name: String,
+        data: CheckpointData,
+    ) -> crate::error::Result<String> {
         self.checkpoints.create_checkpoint(name, data)
     }
 
     /// Store artifact
-    pub fn store_artifact(&mut self, name: String, artifact_type: ArtifactType, data: Vec<u8>) -> crate::error::Result<String> {
+    pub fn store_artifact(
+        &mut self,
+        name: String,
+        artifact_type: ArtifactType,
+        data: Vec<u8>,
+    ) -> crate::error::Result<String> {
         self.artifacts.store_artifact(name, artifact_type, data)
     }
 
@@ -174,9 +189,17 @@ impl ExperimentRegistry {
     }
 
     /// Start new experiment
-    pub fn start_experiment(&self, experiment_id: String, name: String, description: String) -> ExperimentTracker {
+    pub fn start_experiment(
+        &self,
+        experiment_id: String,
+        name: String,
+        description: String,
+    ) -> ExperimentTracker {
         let tracker = ExperimentTracker::new(experiment_id.clone(), name, description);
-        self.experiments.write().unwrap().insert(experiment_id, tracker.clone());
+        self.experiments
+            .write()
+            .unwrap()
+            .insert(experiment_id, tracker.clone());
         tracker
     }
 
@@ -221,8 +244,14 @@ impl ExperimentRegistry {
     }
 }
 
+impl Default for ExperimentRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Default configuration for experiment types
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ExperimentConfig {
     /// Default hyperparameters
     pub default_hyperparameters: HashMap<String, serde_json::Value>,
@@ -232,17 +261,6 @@ pub struct ExperimentConfig {
     pub checkpoint_policy: CheckpointPolicy,
     /// Artifact retention policy
     pub artifact_retention: ArtifactRetentionPolicy,
-}
-
-impl Default for ExperimentConfig {
-    fn default() -> Self {
-        Self {
-            default_hyperparameters: HashMap::new(),
-            auto_logging: AutoLoggingConfig::default(),
-            checkpoint_policy: CheckpointPolicy::default(),
-            artifact_retention: ArtifactRetentionPolicy::default(),
-        }
-    }
 }
 
 /// Auto-logging configuration

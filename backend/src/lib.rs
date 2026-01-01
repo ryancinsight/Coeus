@@ -28,7 +28,6 @@
 //!
 //! All backend operations are memory-safe with zero cost abstractions.
 
-
 use std::string::String;
 
 pub use dtype::{num_traits, DataType};
@@ -129,7 +128,6 @@ struct PerformanceRecord {
     timestamp: u64,
 }
 
-
 /// Adaptive backend selector with learning capabilities
 #[derive(Debug)]
 pub struct BackendSelector {
@@ -169,7 +167,10 @@ impl BackendSelector {
     }
 
     /// Select backend with memory-aware decision making
-    pub async fn select_backend_memory_aware(&self, workload: &WorkloadCharacteristics) -> BackendType {
+    pub async fn select_backend_memory_aware(
+        &self,
+        workload: &WorkloadCharacteristics,
+    ) -> BackendType {
         // If we have memory integration, use it for enhanced selection
         if let Some(memory_mgr) = &self.memory_manager {
             // Get distributed workload representation (simplified for single process)
@@ -182,10 +183,9 @@ impl BackendSelector {
             };
 
             // Analyze memory constraints
-            let memory_hints = memory_mgr.analyze_memory_for_selection(
-                &local_workload,
-                &self.available_backends
-            ).await;
+            let memory_hints = memory_mgr
+                .analyze_memory_for_selection(&local_workload, &self.available_backends)
+                .await;
 
             // Return memory-recommended backend if available
             if let Some(recommended) = memory_hints.recommended_backend {
@@ -268,17 +268,21 @@ impl BackendSelector {
                     .enable_all()
                     .build()
                     .ok()
-                    .map(|rt| rt.block_on(async {
-                        // Try to create WGPU instance and adapter
-                        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
-                        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
-                            power_preference: wgpu::PowerPreference::HighPerformance,
-                            compatible_surface: None,
-                            force_fallback_adapter: false,
-                        }).await;
+                    .map(|rt| {
+                        rt.block_on(async {
+                            // Try to create WGPU instance and adapter
+                            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+                            let adapter = instance
+                                .request_adapter(&wgpu::RequestAdapterOptions {
+                                    power_preference: wgpu::PowerPreference::HighPerformance,
+                                    compatible_surface: None,
+                                    force_fallback_adapter: false,
+                                })
+                                .await;
 
-                        adapter.is_some()
-                    }))
+                            adapter.is_some()
+                        })
+                    })
                     .unwrap_or(false)
             })
             .join()
@@ -301,19 +305,19 @@ impl BackendSelector {
                     BackendType::Gpu => {
                         // GPUs have significant overhead for small ops, only beneficial for large workloads
                         if workload.total_elements < 10000 {
-                            30.0  // GPU not suitable for small element-wise ops
+                            30.0 // GPU not suitable for small element-wise ops
                         } else if workload.total_elements < 100000 {
-                            70.0  // GPU becomes viable for medium workloads
+                            70.0 // GPU becomes viable for medium workloads
                         } else {
-                            90.0  // GPU excels at large element-wise ops
+                            90.0 // GPU excels at large element-wise ops
                         }
                     }
                     BackendType::Cpu => {
                         // CPUs efficient for element-wise ops up to large sizes
                         if workload.total_elements < 100000 {
-                            85.0  // CPU preferred for most element-wise workloads
+                            85.0 // CPU preferred for most element-wise workloads
                         } else {
-                            75.0  // CPU still competitive for very large ops
+                            75.0 // CPU still competitive for very large ops
                         }
                     }
                     BackendType::Tpu => 60.0,
@@ -460,7 +464,12 @@ impl BackendSelector {
     }
 
     /// Record actual performance for learning
-    pub fn record_performance(&mut self, backend: BackendType, workload: WorkloadCharacteristics, actual_time_us: f64) {
+    pub fn record_performance(
+        &mut self,
+        backend: BackendType,
+        workload: WorkloadCharacteristics,
+        actual_time_us: f64,
+    ) {
         let record = PerformanceRecord {
             backend,
             workload,
@@ -495,8 +504,15 @@ pub trait AdaptiveBackendDispatch<T: DataType> {
     fn dispatch_mul(&self, lhs: &[T], rhs: &[T], result: &mut [T]) -> crate::Result<()>;
 
     /// Dispatch matrix multiplication through backend selection
-    fn dispatch_matmul(&self, lhs: &[T], rhs: &[T], result: &mut [T],
-                      m: usize, k: usize, n: usize) -> crate::Result<()>;
+    fn dispatch_matmul(
+        &self,
+        lhs: &[T],
+        rhs: &[T],
+        result: &mut [T],
+        m: usize,
+        k: usize,
+        n: usize,
+    ) -> crate::Result<()>;
 
     /// Dispatch element-wise activation function (ReLU) through backend selection
     fn dispatch_relu(&self, input: &[T], result: &mut [T]) -> crate::Result<()>;
@@ -545,10 +561,21 @@ impl<T: DataType + std::cmp::PartialOrd> AdaptiveBackendDispatch<T> for BackendS
         self.execute_mul(backend_type, lhs, rhs, result)
     }
 
-    fn dispatch_matmul(&self, lhs: &[T], rhs: &[T], result: &mut [T],
-                      m: usize, k: usize, n: usize) -> crate::Result<()> {
+    fn dispatch_matmul(
+        &self,
+        lhs: &[T],
+        rhs: &[T],
+        result: &mut [T],
+        m: usize,
+        k: usize,
+        n: usize,
+    ) -> crate::Result<()> {
         let total_elements = m * k * n;
-        let compute_intensity = if k > 0 { (m * n * k) as f32 / total_elements as f32 } else { 1.0 };
+        let compute_intensity = if k > 0 {
+            (m * n * k) as f32 / total_elements as f32
+        } else {
+            1.0
+        };
 
         let characteristics = WorkloadCharacteristics {
             total_elements,
@@ -591,7 +618,13 @@ impl<T: DataType + std::cmp::PartialOrd> AdaptiveBackendDispatch<T> for BackendS
 
 /// Backend execution methods (internal implementation)
 impl BackendSelector {
-    fn execute_add<T: DataType + std::cmp::PartialOrd>(&self, backend_type: BackendType, lhs: &[T], rhs: &[T], result: &mut [T]) -> crate::Result<()> {
+    fn execute_add<T: DataType + std::cmp::PartialOrd>(
+        &self,
+        backend_type: BackendType,
+        lhs: &[T],
+        rhs: &[T],
+        result: &mut [T],
+    ) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
                 // Use actual CPU backend implementation
@@ -617,11 +650,17 @@ impl BackendSelector {
             _ => Err(crate::BackendError::UnsupportedOperation {
                 operation: "add".to_string(),
                 backend: backend_type.to_string(),
-            })
+            }),
         }
     }
 
-    fn execute_mul<T: DataType + std::cmp::PartialOrd>(&self, backend_type: BackendType, lhs: &[T], rhs: &[T], result: &mut [T]) -> crate::Result<()> {
+    fn execute_mul<T: DataType + std::cmp::PartialOrd>(
+        &self,
+        backend_type: BackendType,
+        lhs: &[T],
+        rhs: &[T],
+        result: &mut [T],
+    ) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
                 // Use actual CPU backend implementation
@@ -647,12 +686,20 @@ impl BackendSelector {
             _ => Err(crate::BackendError::UnsupportedOperation {
                 operation: "mul".to_string(),
                 backend: backend_type.to_string(),
-            })
+            }),
         }
     }
 
-    fn execute_matmul<T: DataType + std::cmp::PartialOrd>(&self, backend_type: BackendType, lhs: &[T], rhs: &[T], result: &mut [T],
-                  m: usize, k: usize, n: usize) -> crate::Result<()> {
+    fn execute_matmul<T: DataType + std::cmp::PartialOrd>(
+        &self,
+        backend_type: BackendType,
+        lhs: &[T],
+        rhs: &[T],
+        result: &mut [T],
+        m: usize,
+        k: usize,
+        n: usize,
+    ) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
                 // Use actual CPU backend implementation
@@ -678,11 +725,16 @@ impl BackendSelector {
             _ => Err(crate::BackendError::UnsupportedOperation {
                 operation: "matmul".to_string(),
                 backend: backend_type.to_string(),
-            })
+            }),
         }
     }
 
-    fn execute_relu<T: DataType + std::cmp::PartialOrd>(&self, backend_type: BackendType, input: &[T], result: &mut [T]) -> crate::Result<()> {
+    fn execute_relu<T: DataType + std::cmp::PartialOrd>(
+        &self,
+        backend_type: BackendType,
+        input: &[T],
+        result: &mut [T],
+    ) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
                 // Use actual CPU backend implementation
@@ -707,11 +759,16 @@ impl BackendSelector {
             _ => Err(crate::BackendError::UnsupportedOperation {
                 operation: "relu".to_string(),
                 backend: backend_type.to_string(),
-            })
+            }),
         }
     }
 
-    fn execute_sum<T: DataType + std::cmp::PartialOrd>(&self, backend_type: BackendType, input: &[T], result: &mut [T]) -> crate::Result<()> {
+    fn execute_sum<T: DataType + std::cmp::PartialOrd>(
+        &self,
+        backend_type: BackendType,
+        input: &[T],
+        result: &mut [T],
+    ) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
                 // Use actual CPU backend implementation
@@ -732,7 +789,7 @@ impl BackendSelector {
             _ => Err(crate::BackendError::UnsupportedOperation {
                 operation: "sum".to_string(),
                 backend: backend_type.to_string(),
-            })
+            }),
         }
     }
 }
@@ -809,15 +866,16 @@ impl PerformanceMonitor {
             return 0.0;
         }
 
-        let avg_memory_usage = self.gpu_memory_usage.iter().sum::<f64>() / self.gpu_memory_usage.len() as f64;
-        let avg_utilization = self.gpu_utilization.iter().sum::<f32>() / self.gpu_utilization.len() as f32;
+        let avg_memory_usage =
+            self.gpu_memory_usage.iter().sum::<f64>() / self.gpu_memory_usage.len() as f64;
+        let avg_utilization =
+            self.gpu_utilization.iter().sum::<f32>() / self.gpu_utilization.len() as f32;
 
         // Estimate overhead as function of memory transfers and kernel launch overhead
         let memory_overhead_factor = (avg_memory_usage / 1000.0).min(1.0) as f32;
         let kernel_overhead_factor = (1.0 - avg_utilization / 100.0).max(0.0);
 
         // Total estimated overhead
-        
 
         (memory_overhead_factor * 0.3 + kernel_overhead_factor * 0.7) * 100.0
     }
@@ -867,10 +925,7 @@ pub type Result<T> = core::result::Result<T, BackendError>;
 #[derive(Debug)]
 pub enum BackendError {
     /// Unsupported operation for this backend
-    UnsupportedOperation {
-        operation: String,
-        backend: String,
-    },
+    UnsupportedOperation { operation: String, backend: String },
     /// Invalid input parameters
     InvalidInput(String),
     /// Storage operation error
@@ -934,16 +989,31 @@ pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
     fn device_info(&self) -> Box<dyn DeviceInfo>;
 
     /// Add dense storage element-wise
-    fn add_dense(&self, lhs: &storage::DenseStorage<Self::Data>, rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
+    fn add_dense(
+        &self,
+        lhs: &storage::DenseStorage<Self::Data>,
+        rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Multiply dense storage element-wise
-    fn mul_dense(&self, lhs: &storage::DenseStorage<Self::Data>, rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
+    fn mul_dense(
+        &self,
+        lhs: &storage::DenseStorage<Self::Data>,
+        rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Matrix multiplication for dense storage
-    fn matmul_dense(&self, lhs: &storage::DenseStorage<Self::Data>, rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
+    fn matmul_dense(
+        &self,
+        lhs: &storage::DenseStorage<Self::Data>,
+        rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply ReLU activation to dense storage
-    fn relu_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+    fn relu_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
     where
         Self::Data: PartialOrd + Default;
 
@@ -971,54 +1041,149 @@ pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
         Self::Data: PartialOrd;
 
     /// Subtract dense storages element-wise
-    fn sub_dense(&self, lhs: &storage::DenseStorage<Self::Data>, rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
+    fn sub_dense(
+        &self,
+        lhs: &storage::DenseStorage<Self::Data>,
+        rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply exponential function element-wise
-    fn exp_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
+    fn exp_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply natural logarithm element-wise
-    fn log_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
+    fn log_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply sine function element-wise
-    fn sin_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
+    fn sin_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply cosine function element-wise
-    fn cos_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
+    fn cos_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Apply 2D convolution
-    fn conv2d_dense(&self, input: &storage::DenseStorage<Self::Data>, weight: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>;
+    fn conv2d_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+        weight: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Compute mean along specified axes (dense)
-    fn mean_dense(&self, input: &storage::DenseStorage<Self::Data>, axes: Option<&[usize]>) -> Result<storage::DenseStorage<Self::Data>>;
+    fn mean_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+        axes: Option<&[usize]>,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Sparse matrix-matrix multiplication (CSR format)
-    fn spmm_csr(&self, data: &[Self::Data], indices: &[usize], indptr: &[usize], other: &storage::DenseStorage<Self::Data>, num_rows: usize, num_cols: usize) -> Result<Vec<Self::Data>>;
+    fn spmm_csr(
+        &self,
+        data: &[Self::Data],
+        indices: &[usize],
+        indptr: &[usize],
+        other: &storage::DenseStorage<Self::Data>,
+        num_rows: usize,
+        num_cols: usize,
+    ) -> Result<Vec<Self::Data>>;
 
     /// Sparse matrix-vector multiplication (CSR format)
-    fn spmv_csr(&self, data: &[Self::Data], indices: &[usize], indptr: &[usize], vector: &[Self::Data], num_rows: usize, num_cols: usize) -> Result<Vec<Self::Data>>;
+    fn spmv_csr(
+        &self,
+        data: &[Self::Data],
+        indices: &[usize],
+        indptr: &[usize],
+        vector: &[Self::Data],
+        num_rows: usize,
+        num_cols: usize,
+    ) -> Result<Vec<Self::Data>>;
 
     /// Coordinate format sparse matrix multiplication (matrix-sparse)
-    fn coo_matmul_sparse(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs_data: &[Self::Data], rhs_row: &[usize], rhs_col: &[usize], m: usize, k: usize, n: usize) -> Result<storage::CooStorage<Self::Data>>;
+    fn coo_matmul_sparse(
+        &self,
+        lhs_data: &[Self::Data],
+        lhs_row: &[usize],
+        lhs_col: &[usize],
+        rhs_data: &[Self::Data],
+        rhs_row: &[usize],
+        rhs_col: &[usize],
+        m: usize,
+        k: usize,
+        n: usize,
+    ) -> Result<storage::CooStorage<Self::Data>>;
 
     /// Coordinate format sparse matrix multiplication (sparse-dense)
-    fn coo_matmul_dense(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs: &storage::DenseStorage<Self::Data>, m: usize, k: usize, n: usize) -> Result<storage::DenseStorage<Self::Data>>;
+    fn coo_matmul_dense(
+        &self,
+        lhs_data: &[Self::Data],
+        lhs_row: &[usize],
+        lhs_col: &[usize],
+        rhs: &storage::DenseStorage<Self::Data>,
+        m: usize,
+        k: usize,
+        n: usize,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 
     /// Coordinate format sparse addition
-    fn coo_add_sparse(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs_data: &[Self::Data], rhs_row: &[usize], rhs_col: &[usize], m: usize, n: usize) -> Result<storage::CooStorage<Self::Data>>;
+    fn coo_add_sparse(
+        &self,
+        lhs_data: &[Self::Data],
+        lhs_row: &[usize],
+        lhs_col: &[usize],
+        rhs_data: &[Self::Data],
+        rhs_row: &[usize],
+        rhs_col: &[usize],
+        m: usize,
+        n: usize,
+    ) -> Result<storage::CooStorage<Self::Data>>;
 
     /// Coordinate format sparse multiplication
-    fn coo_mul_sparse(&self, lhs_data: &[Self::Data], lhs_row: &[usize], lhs_col: &[usize], rhs_data: &[Self::Data], rhs_row: &[usize], rhs_col: &[usize], m: usize, n: usize) -> Result<storage::CooStorage<Self::Data>>;
+    fn coo_mul_sparse(
+        &self,
+        lhs_data: &[Self::Data],
+        lhs_row: &[usize],
+        lhs_col: &[usize],
+        rhs_data: &[Self::Data],
+        rhs_row: &[usize],
+        rhs_col: &[usize],
+        m: usize,
+        n: usize,
+    ) -> Result<storage::CooStorage<Self::Data>>;
 
     /// Quantization operation
-    fn quantize(&self, input: &storage::DenseStorage<Self::Data>, levels: usize) -> Result<storage::DenseStorage<Self::Data>>
+    fn quantize(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+        levels: usize,
+    ) -> Result<storage::DenseStorage<Self::Data>>
     where
         Self::Data: PartialOrd;
 
     /// Compute CLIP InfoNCE loss for contrastive learning
-    fn clip_info_nce_loss(&self, image_embeddings: &storage::DenseStorage<Self::Data>, text_embeddings: &storage::DenseStorage<Self::Data>, temperature: f32) -> Result<Self::Data>;
+    fn clip_info_nce_loss(
+        &self,
+        image_embeddings: &storage::DenseStorage<Self::Data>,
+        text_embeddings: &storage::DenseStorage<Self::Data>,
+        temperature: f32,
+    ) -> Result<Self::Data>;
 
     /// Compute CLIP attention mechanism
-    fn clip_attention(&self, queries: &storage::DenseStorage<Self::Data>, keys: &storage::DenseStorage<Self::Data>, values: &storage::DenseStorage<Self::Data>, num_heads: usize) -> Result<storage::DenseStorage<Self::Data>>;
+    fn clip_attention(
+        &self,
+        queries: &storage::DenseStorage<Self::Data>,
+        keys: &storage::DenseStorage<Self::Data>,
+        values: &storage::DenseStorage<Self::Data>,
+        num_heads: usize,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
 }
 
 /// Stub backend for compilation - provides minimal interface to allow dependent crate testing
@@ -1062,28 +1227,43 @@ impl<D: DataType> Backend for StubBackend<D> {
         Box::new(StubDevice)
     }
 
-    fn add_dense(&self, _lhs: &storage::DenseStorage<Self::Data>, _rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
+    fn add_dense(
+        &self,
+        _lhs: &storage::DenseStorage<Self::Data>,
+        _rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "add_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn mul_dense(&self, _lhs: &storage::DenseStorage<Self::Data>, _rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
+    fn mul_dense(
+        &self,
+        _lhs: &storage::DenseStorage<Self::Data>,
+        _rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "mul_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn matmul_dense(&self, _lhs: &storage::DenseStorage<Self::Data>, _rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
+    fn matmul_dense(
+        &self,
+        _lhs: &storage::DenseStorage<Self::Data>,
+        _rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "matmul_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn relu_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+    fn relu_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
     where
         Self::Data: PartialOrd + Default,
     {
@@ -1140,98 +1320,182 @@ impl<D: DataType> Backend for StubBackend<D> {
         })
     }
 
-    fn sub_dense(&self, _lhs: &storage::DenseStorage<Self::Data>, _rhs: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
+    fn sub_dense(
+        &self,
+        _lhs: &storage::DenseStorage<Self::Data>,
+        _rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "sub_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn exp_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
+    fn exp_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "exp_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn log_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
+    fn log_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "log_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn sin_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
+    fn sin_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "sin_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn cos_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
+    fn cos_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "cos_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn conv2d_dense(&self, _input: &storage::DenseStorage<Self::Data>, _weight: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>> {
+    fn conv2d_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+        _weight: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "conv2d_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn mean_dense(&self, _input: &storage::DenseStorage<Self::Data>, _axes: Option<&[usize]>) -> Result<storage::DenseStorage<Self::Data>> {
+    fn mean_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+        _axes: Option<&[usize]>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "mean_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn spmm_csr(&self, _data: &[Self::Data], _indices: &[usize], _indptr: &[usize], _other: &storage::DenseStorage<Self::Data>, _num_rows: usize, _num_cols: usize) -> Result<Vec<Self::Data>> {
+    fn spmm_csr(
+        &self,
+        _data: &[Self::Data],
+        _indices: &[usize],
+        _indptr: &[usize],
+        _other: &storage::DenseStorage<Self::Data>,
+        _num_rows: usize,
+        _num_cols: usize,
+    ) -> Result<Vec<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "spmm_csr".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn spmv_csr(&self, _data: &[Self::Data], _indices: &[usize], _indptr: &[usize], _vector: &[Self::Data], _num_rows: usize, _num_cols: usize) -> Result<Vec<Self::Data>> {
+    fn spmv_csr(
+        &self,
+        _data: &[Self::Data],
+        _indices: &[usize],
+        _indptr: &[usize],
+        _vector: &[Self::Data],
+        _num_rows: usize,
+        _num_cols: usize,
+    ) -> Result<Vec<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "spmv_csr".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn coo_matmul_sparse(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs_data: &[Self::Data], _rhs_row: &[usize], _rhs_col: &[usize], _m: usize, _k: usize, _n: usize) -> Result<storage::CooStorage<Self::Data>> {
+    fn coo_matmul_sparse(
+        &self,
+        _lhs_data: &[Self::Data],
+        _lhs_row: &[usize],
+        _lhs_col: &[usize],
+        _rhs_data: &[Self::Data],
+        _rhs_row: &[usize],
+        _rhs_col: &[usize],
+        _m: usize,
+        _k: usize,
+        _n: usize,
+    ) -> Result<storage::CooStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "coo_matmul_sparse".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn coo_matmul_dense(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs: &storage::DenseStorage<Self::Data>, _m: usize, _k: usize, _n: usize) -> Result<storage::DenseStorage<Self::Data>> {
+    fn coo_matmul_dense(
+        &self,
+        _lhs_data: &[Self::Data],
+        _lhs_row: &[usize],
+        _lhs_col: &[usize],
+        _rhs: &storage::DenseStorage<Self::Data>,
+        _m: usize,
+        _k: usize,
+        _n: usize,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "coo_matmul_dense".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn coo_add_sparse(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs_data: &[Self::Data], _rhs_row: &[usize], _rhs_col: &[usize], _m: usize, _n: usize) -> Result<storage::CooStorage<Self::Data>> {
+    fn coo_add_sparse(
+        &self,
+        _lhs_data: &[Self::Data],
+        _lhs_row: &[usize],
+        _lhs_col: &[usize],
+        _rhs_data: &[Self::Data],
+        _rhs_row: &[usize],
+        _rhs_col: &[usize],
+        _m: usize,
+        _n: usize,
+    ) -> Result<storage::CooStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "coo_add_sparse".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn coo_mul_sparse(&self, _lhs_data: &[Self::Data], _lhs_row: &[usize], _lhs_col: &[usize], _rhs_data: &[Self::Data], _rhs_row: &[usize], _rhs_col: &[usize], _m: usize, _n: usize) -> Result<storage::CooStorage<Self::Data>> {
+    fn coo_mul_sparse(
+        &self,
+        _lhs_data: &[Self::Data],
+        _lhs_row: &[usize],
+        _lhs_col: &[usize],
+        _rhs_data: &[Self::Data],
+        _rhs_row: &[usize],
+        _rhs_col: &[usize],
+        _m: usize,
+        _n: usize,
+    ) -> Result<storage::CooStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "coo_mul_sparse".to_string(),
             backend: "stub".to_string(),
         })
     }
 
-    fn quantize(&self, _input: &storage::DenseStorage<Self::Data>, _levels: usize) -> Result<storage::DenseStorage<Self::Data>>
+    fn quantize(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+        _levels: usize,
+    ) -> Result<storage::DenseStorage<Self::Data>>
     where
         Self::Data: PartialOrd,
     {
@@ -1242,7 +1506,12 @@ impl<D: DataType> Backend for StubBackend<D> {
     }
 
     /// Compute CLIP InfoNCE loss for contrastive learning
-    fn clip_info_nce_loss(&self, _image_embeddings: &storage::DenseStorage<Self::Data>, _text_embeddings: &storage::DenseStorage<Self::Data>, _temperature: f32) -> Result<Self::Data> {
+    fn clip_info_nce_loss(
+        &self,
+        _image_embeddings: &storage::DenseStorage<Self::Data>,
+        _text_embeddings: &storage::DenseStorage<Self::Data>,
+        _temperature: f32,
+    ) -> Result<Self::Data> {
         Err(BackendError::UnsupportedOperation {
             operation: "clip_info_nce_loss".to_string(),
             backend: "stub".to_string(),
@@ -1250,7 +1519,13 @@ impl<D: DataType> Backend for StubBackend<D> {
     }
 
     /// Compute CLIP attention mechanism
-    fn clip_attention(&self, _queries: &storage::DenseStorage<Self::Data>, _keys: &storage::DenseStorage<Self::Data>, _values: &storage::DenseStorage<Self::Data>, _num_heads: usize) -> Result<storage::DenseStorage<Self::Data>> {
+    fn clip_attention(
+        &self,
+        _queries: &storage::DenseStorage<Self::Data>,
+        _keys: &storage::DenseStorage<Self::Data>,
+        _values: &storage::DenseStorage<Self::Data>,
+        _num_heads: usize,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "clip_attention".to_string(),
             backend: "stub".to_string(),
@@ -1334,9 +1609,9 @@ pub mod gpu;
 // Distributed backend coordination
 pub mod distributed;
 pub use distributed::{
-    DistributedBackendCoordinator, DistributedWorkloadAnalyzer,
-    DistributedWorkloadCharacteristics, BackendSelectionDecision,
-    CoordinationStats, FaultToleranceState, MemoryConstraints,
+    BackendSelectionDecision, CoordinationStats, DistributedBackendCoordinator,
+    DistributedWorkloadAnalyzer, DistributedWorkloadCharacteristics, FaultToleranceState,
+    MemoryConstraints,
 };
 
 // Memory management integration
@@ -1445,7 +1720,7 @@ mod tests {
         let total_training_time = 100_000.0;
         let overhead = monitor.calculate_gpu_overhead(total_training_time);
         // Overhead calculation may vary based on recorded metrics
-        assert!(overhead >= 0.0 && overhead <= 50.0);
+        assert!((0.0..=50.0).contains(&overhead));
     }
 
     #[test]
@@ -1455,13 +1730,20 @@ mod tests {
 
         // Test case: 2x3 @ 3x2 = 2x2
         let lhs_data = vec![
-            Float32::new(1.0), Float32::new(2.0), Float32::new(3.0),
-            Float32::new(4.0), Float32::new(5.0), Float32::new(6.0),
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+            Float32::new(5.0),
+            Float32::new(6.0),
         ];
         let rhs_data = vec![
-            Float32::new(7.0), Float32::new(8.0),
-            Float32::new(9.0), Float32::new(10.0),
-            Float32::new(11.0), Float32::new(12.0),
+            Float32::new(7.0),
+            Float32::new(8.0),
+            Float32::new(9.0),
+            Float32::new(10.0),
+            Float32::new(11.0),
+            Float32::new(12.0),
         ];
 
         let lhs = storage::DenseStorage::from_vec(lhs_data, &[2, 3]).unwrap();
@@ -1473,14 +1755,21 @@ mod tests {
         //         = [[7+18+33, 8+20+36], [28+45+66, 32+50+72]]
         //         = [[58, 64], [139, 154]]
         let expected_data = vec![
-            Float32::new(58.0), Float32::new(64.0),
-            Float32::new(139.0), Float32::new(154.0),
+            Float32::new(58.0),
+            Float32::new(64.0),
+            Float32::new(139.0),
+            Float32::new(154.0),
         ];
         let expected = storage::DenseStorage::from_vec(expected_data, &[2, 2]).unwrap();
 
         assert_eq!(result.shape().dims(), &[2, 2]);
         for (r, e) in result.as_slice().iter().zip(expected.as_slice().iter()) {
-            assert!((r.get() - e.get()).abs() < 1e-6, "Result: {}, Expected: {}", r.get(), e.get());
+            assert!(
+                (r.get() - e.get()).abs() < 1e-6,
+                "Result: {}, Expected: {}",
+                r.get(),
+                e.get()
+            );
         }
     }
 
@@ -1491,8 +1780,12 @@ mod tests {
 
         // 2x3 matrix: [[1, 2, 3], [4, 5, 6]]
         let data = vec![
-            Float32::new(1.0), Float32::new(2.0), Float32::new(3.0),
-            Float32::new(4.0), Float32::new(5.0), Float32::new(6.0),
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+            Float32::new(5.0),
+            Float32::new(6.0),
         ];
         let tensor = storage::DenseStorage::from_vec(data, &[2, 3]).unwrap();
 
@@ -1504,7 +1797,7 @@ mod tests {
         // Mean along axis 0 (reduce first dimension): [(1+4)/2, (2+5)/2, (3+6)/2] = [2.5, 3.5, 4.5]
         let axis0_mean = backend.mean_dense(&tensor, Some(&[0])).unwrap();
         assert_eq!(axis0_mean.shape().dims(), &[3]);
-        let expected_axis0 = vec![Float32::new(2.5), Float32::new(3.5), Float32::new(4.5)];
+        let expected_axis0 = [Float32::new(2.5), Float32::new(3.5), Float32::new(4.5)];
         for (r, e) in axis0_mean.as_slice().iter().zip(expected_axis0.iter()) {
             assert!((r.get() - e.get()).abs() < 1e-6);
         }
@@ -1512,7 +1805,7 @@ mod tests {
         // Mean along axis 1 (reduce second dimension): [(1+2+3)/3, (4+5+6)/3] = [2.0, 5.0]
         let axis1_mean = backend.mean_dense(&tensor, Some(&[1])).unwrap();
         assert_eq!(axis1_mean.shape().dims(), &[2]);
-        let expected_axis1 = vec![Float32::new(2.0), Float32::new(5.0)];
+        let expected_axis1 = [Float32::new(2.0), Float32::new(5.0)];
         for (r, e) in axis1_mean.as_slice().iter().zip(expected_axis1.iter()) {
             assert!((r.get() - e.get()).abs() < 1e-6);
         }
@@ -1524,8 +1817,12 @@ mod tests {
         let backend = CpuBackend::<Float32>::new();
 
         let data = vec![
-            Float32::new(1.5), Float32::new(-2.7), Float32::new(3.14),
-            Float32::new(-0.5), Float32::new(10.0), Float32::new(0.001),
+            Float32::new(1.5),
+            Float32::new(-2.7),
+            Float32::new(core::f32::consts::PI),
+            Float32::new(-0.5),
+            Float32::new(10.0),
+            Float32::new(0.001),
         ];
         let tensor = storage::DenseStorage::from_vec(data.clone(), &[2, 3]).unwrap();
 
@@ -1534,15 +1831,27 @@ mod tests {
         for (i, &val) in data.iter().enumerate() {
             let expected = val.get().exp();
             let actual = exp_result.as_slice()[i].get();
-            assert!((actual - expected).abs() < 1e-6, "exp({}) = {} vs {}", val.get(), actual, expected);
+            assert!(
+                (actual - expected).abs() < 1e-6,
+                "exp({}) = {} vs {}",
+                val.get(),
+                actual,
+                expected
+            );
         }
 
         // Test ReLU: max(0, x)
         let relu_result = backend.relu_dense(&tensor).unwrap();
-        let expected_relu = vec![1.5, 0.0, 3.14, 0.0, 10.0, 0.001];
+        let expected_relu = [1.5, 0.0, core::f32::consts::PI, 0.0, 10.0, 0.001];
         for (i, &expected) in expected_relu.iter().enumerate() {
             let actual = relu_result.as_slice()[i].get();
-            assert!((actual - expected).abs() < 1e-6, "ReLU result[{}] = {} vs {}", i, actual, expected);
+            assert!(
+                (actual - expected).abs() < 1e-6,
+                "ReLU result[{}] = {} vs {}",
+                i,
+                actual,
+                expected
+            );
         }
     }
 
@@ -1560,7 +1869,11 @@ mod tests {
         let rhs_row = vec![0, 1];
         let rhs_col = vec![1, 0];
 
-        let result = backend.coo_add_sparse(&lhs_data, &lhs_row, &lhs_col, &rhs_data, &rhs_row, &rhs_col, 2, 2).unwrap();
+        let result = backend
+            .coo_add_sparse(
+                &lhs_data, &lhs_row, &lhs_col, &rhs_data, &rhs_row, &rhs_col, 2, 2,
+            )
+            .unwrap();
 
         // Should have 4 non-zero elements: (0,0)=1, (0,1)=1, (1,0)=3, (1,1)=2
         assert_eq!(result.nnz(), 4);
@@ -1568,7 +1881,11 @@ mod tests {
         assert_eq!(result.col_indices().len(), 4);
 
         // Test coo_mul_sparse: element-wise multiplication
-        let mul_result = backend.coo_mul_sparse(&lhs_data, &lhs_row, &lhs_col, &rhs_data, &rhs_row, &rhs_col, 2, 2).unwrap();
+        let mul_result = backend
+            .coo_mul_sparse(
+                &lhs_data, &lhs_row, &lhs_col, &rhs_data, &rhs_row, &rhs_col, 2, 2,
+            )
+            .unwrap();
         // Only position (0,1) has non-zero values in both matrices: 0 * 1 = 0, so result should be empty or have zero elements
         // Actually, no positions have non-zero values in both matrices, so result should be empty
         assert_eq!(mul_result.nnz(), 0);
@@ -1583,26 +1900,40 @@ mod tests {
         // image_embeddings: [[1, 0], [0, 1]]
         // text_embeddings: [[1, 0], [0, 1]]
         let image_data = vec![
-            Float32::new(1.0), Float32::new(0.0),
-            Float32::new(0.0), Float32::new(1.0),
+            Float32::new(1.0),
+            Float32::new(0.0),
+            Float32::new(0.0),
+            Float32::new(1.0),
         ];
         let text_data = vec![
-            Float32::new(1.0), Float32::new(0.0),
-            Float32::new(0.0), Float32::new(1.0),
+            Float32::new(1.0),
+            Float32::new(0.0),
+            Float32::new(0.0),
+            Float32::new(1.0),
         ];
 
         let image_tensor = storage::DenseStorage::from_vec(image_data, &[2, 2]).unwrap();
         let text_tensor = storage::DenseStorage::from_vec(text_data, &[2, 2]).unwrap();
 
         let temperature = 1.0f32;
-        let loss = backend.clip_info_nce_loss(&image_tensor, &text_tensor, temperature).unwrap();
+        let loss = backend
+            .clip_info_nce_loss(&image_tensor, &text_tensor, temperature)
+            .unwrap();
 
         // For this case with identical normalized embeddings:
         // Each positive pair has similarity = 1.0, negative pairs have similarity = 0.0
         // The loss should be a positive value (since it's a contrastive loss)
         // We just verify it's reasonable and not NaN/Infinite
-        assert!(loss.get() > 0.0 && loss.get() < 2.0, "CLIP InfoNCE loss should be positive and reasonable: {}", loss.get());
-        assert!(loss.get().is_finite(), "CLIP InfoNCE loss should be finite: {}", loss.get());
+        assert!(
+            loss.get() > 0.0 && loss.get() < 2.0,
+            "CLIP InfoNCE loss should be positive and reasonable: {}",
+            loss.get()
+        );
+        assert!(
+            loss.get().is_finite(),
+            "CLIP InfoNCE loss should be finite: {}",
+            loss.get()
+        );
     }
 
     #[test]
@@ -1611,8 +1942,12 @@ mod tests {
         let backend = CpuBackend::<Float32>::new();
 
         let data = vec![
-            Float32::new(3.0), Float32::new(1.0), Float32::new(4.0),
-            Float32::new(1.0), Float32::new(5.0), Float32::new(9.0),
+            Float32::new(3.0),
+            Float32::new(1.0),
+            Float32::new(4.0),
+            Float32::new(1.0),
+            Float32::new(5.0),
+            Float32::new(9.0),
         ];
         let tensor = storage::DenseStorage::from_vec(data, &[2, 3]).unwrap();
 

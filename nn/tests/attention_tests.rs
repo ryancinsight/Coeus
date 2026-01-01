@@ -127,7 +127,7 @@ fn test_attention_gradient_flow() {
         .unwrap()
         .requires_grad_(true);
 
-    let output = attention.forward(&input).unwrap();
+    let _output = attention.forward(&input).unwrap();
 
     // Note: Storage type conversion during computation may not preserve gradients
     // in the current implementation. Parameters should still require gradients.

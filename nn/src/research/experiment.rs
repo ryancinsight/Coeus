@@ -90,7 +90,9 @@ impl ExperimentSpec {
 
     /// Check if experiment dependencies are satisfied
     pub fn dependencies_satisfied(&self, completed_experiments: &[&str]) -> bool {
-        self.dependencies.iter().all(|dep| completed_experiments.contains(&dep.as_str()))
+        self.dependencies
+            .iter()
+            .all(|dep| completed_experiments.contains(&dep.as_str()))
     }
 
     /// Validate experiment specification
@@ -254,7 +256,8 @@ impl ExperimentResult {
     pub fn mark_failed(&mut self, error_message: String) {
         self.status = ExperimentStatus::Failed;
         self.end_time = Instant::now();
-        self.metadata.insert("error_message".to_string(), error_message);
+        self.metadata
+            .insert("error_message".to_string(), error_message);
     }
 
     /// Get execution duration
@@ -291,14 +294,22 @@ impl ExperimentResult {
 
         // Check custom metrics
         for (metric_name, quality_metric) in &constraints.custom_metrics {
-            if let Some(actual_value) = self.metadata.get(metric_name)
-                .and_then(|v| v.parse::<f64>().ok()) {
-
+            if let Some(actual_value) = self
+                .metadata
+                .get(metric_name)
+                .and_then(|v| v.parse::<f64>().ok())
+            {
                 let meets_constraint = match quality_metric.operator {
                     QualityOperator::GreaterEqual => actual_value >= quality_metric.target_value,
                     QualityOperator::LessEqual => actual_value <= quality_metric.target_value,
-                    QualityOperator::Equal => (actual_value - quality_metric.target_value).abs() <= quality_metric.tolerance,
-                    QualityOperator::NotEqual => (actual_value - quality_metric.target_value).abs() > quality_metric.tolerance,
+                    QualityOperator::Equal => {
+                        (actual_value - quality_metric.target_value).abs()
+                            <= quality_metric.tolerance
+                    }
+                    QualityOperator::NotEqual => {
+                        (actual_value - quality_metric.target_value).abs()
+                            > quality_metric.tolerance
+                    }
                 };
 
                 if !meets_constraint {
@@ -363,8 +374,7 @@ impl Default for ResourceUsage {
 }
 
 /// Statistical analysis results
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ExperimentStatistics {
     /// Mean performance
     pub mean: Option<f64>,
@@ -385,7 +395,6 @@ pub struct ExperimentStatistics {
     /// Distribution characteristics
     pub distribution: Option<DistributionType>,
 }
-
 
 /// Distribution type for statistical analysis
 #[derive(Debug, Clone)]
@@ -432,10 +441,18 @@ impl ExperimentBatch {
         self.experiments.push(experiment);
         // Update batch resource requirements
         self.batch_resources.cpu_cores = self.batch_resources.cpu_cores.max(
-            self.experiments.iter().map(|e| e.resource_requirements.cpu_cores).max().unwrap_or(1)
+            self.experiments
+                .iter()
+                .map(|e| e.resource_requirements.cpu_cores)
+                .max()
+                .unwrap_or(1),
         );
         self.batch_resources.gpu_memory_gb = self.batch_resources.gpu_memory_gb.max(
-            self.experiments.iter().map(|e| e.resource_requirements.gpu_memory_gb).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0)
+            self.experiments
+                .iter()
+                .map(|e| e.resource_requirements.gpu_memory_gb)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap_or(0.0),
         );
     }
 
@@ -488,10 +505,10 @@ impl ExecutionContext {
     pub fn has_sufficient_resources(&self, experiment: &ExperimentSpec) -> bool {
         let req = &experiment.resource_requirements;
 
-        self.available_resources.cpu_cores >= req.cpu_cores &&
-        self.available_resources.gpu_memory_gb >= req.gpu_memory_gb &&
-        self.available_resources.system_memory_gb >= req.system_memory_gb &&
-        self.available_resources.storage_gb >= req.storage_gb
+        self.available_resources.cpu_cores >= req.cpu_cores
+            && self.available_resources.gpu_memory_gb >= req.gpu_memory_gb
+            && self.available_resources.system_memory_gb >= req.system_memory_gb
+            && self.available_resources.storage_gb >= req.storage_gb
     }
 
     /// Check if time budget allows experiment execution
@@ -502,8 +519,7 @@ impl ExecutionContext {
 }
 
 /// Experiment queue for scheduling
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ExperimentQueue {
     /// Pending experiments
     pending: Vec<ExperimentSpec>,
@@ -537,9 +553,14 @@ impl ExperimentQueue {
 
         for (i, experiment) in self.pending.iter().enumerate() {
             if experiment.dependencies_satisfied(
-                &self.completed.keys().map(|s| s.as_str()).collect::<Vec<_>>()
+                &self
+                    .completed
+                    .keys()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>(),
             ) && context.has_sufficient_resources(experiment)
-            && context.within_time_budget(experiment) {
+                && context.within_time_budget(experiment)
+            {
                 index_to_remove = Some(i);
                 break;
             }
@@ -547,7 +568,8 @@ impl ExperimentQueue {
 
         if let Some(index) = index_to_remove {
             let experiment = self.pending.remove(index);
-            self.running.insert(experiment.id.clone(), experiment.clone());
+            self.running
+                .insert(experiment.id.clone(), experiment.clone());
             Some(experiment)
         } else {
             None
@@ -631,14 +653,16 @@ mod tests {
             "Experiment 1".to_string(),
             ResearchDomain::GeneralML,
             "agent1".to_string(),
-        ).with_priority(2);
+        )
+        .with_priority(2);
 
         let exp2 = ExperimentSpec::new(
             "exp2".to_string(),
             "Experiment 2".to_string(),
             ResearchDomain::GeneralML,
             "agent1".to_string(),
-        ).with_priority(1);
+        )
+        .with_priority(1);
 
         queue.enqueue(exp2);
         queue.enqueue(exp1);

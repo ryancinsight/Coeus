@@ -43,11 +43,10 @@
 use num_traits::cast;
 use rand::Rng;
 use std::collections::HashMap;
-use std::ops::{Add, Div, Mul, Sub};
 
 use crate::error::{NNError, Result};
+use crate::module::Module;
 use crate::parameter::Parameter;
-use crate::module::{Module, ModuleExt};
 use backend::{Backend, DataType, Storage};
 use dtype::traits::FloatExt;
 use storage::{StorageFromVec, StorageToDense};
@@ -236,11 +235,7 @@ where
     }
 
     /// Compute loss for a task on given dataset
-    fn compute_task_loss(
-        &self,
-        model: &M,
-        dataset: &TensorPairVec<B, S, T>,
-    ) -> Result<f64> {
+    fn compute_task_loss(&self, model: &M, dataset: &TensorPairVec<B, S, T>) -> Result<f64> {
         let mut total_loss = 0.0;
 
         for (input, target) in dataset {
@@ -308,11 +303,13 @@ where
 
                 // Create positive perturbation: original_val + epsilon
                 let pos_val = original_val + epsilon;
-                let pos_perturbation = <T as num_traits::cast::NumCast>::from(pos_val).unwrap_or(T::zero());
+                let _pos_perturbation =
+                    <T as num_traits::cast::NumCast>::from(pos_val).unwrap_or(T::zero());
 
                 // Create negative perturbation: original_val - epsilon
                 let neg_val = original_val - epsilon;
-                let neg_perturbation = <T as num_traits::cast::NumCast>::from(neg_val).unwrap_or(T::zero());
+                let _neg_perturbation =
+                    <T as num_traits::cast::NumCast>::from(neg_val).unwrap_or(T::zero());
 
                 // For autograd integration, we would:
                 // 1. Create perturbed model parameters
@@ -339,14 +336,13 @@ where
 
                 // Clamp gradients to prevent numerical instability
                 let clamped_grad = grad_val.clamp(-1e3, 1e3);
-                gradient_data[i] = <T as num_traits::cast::NumCast>::from(clamped_grad).unwrap_or(T::zero());
+                gradient_data[i] =
+                    <T as num_traits::cast::NumCast>::from(clamped_grad).unwrap_or(T::zero());
             }
 
             let gradient_tensor = Tensor::<B, S, T>::from_vec(gradient_data, param_shape)?;
-            let gradient_param = crate::parameter::Parameter::new(
-                gradient_tensor,
-                format!("grad_{}", param_name),
-            );
+            let gradient_param =
+                crate::parameter::Parameter::new(gradient_tensor, format!("grad_{}", param_name));
 
             gradients.insert(param_name, gradient_param);
         }
@@ -429,7 +425,10 @@ where
         meta_gradients: HashMap<String, Parameter<B, S, T>>,
     ) -> Result<()> {
         // Get parameter names first to avoid borrowing conflicts
-        let param_names: Vec<String> = self.base_model.parameters().iter()
+        let param_names: Vec<String> = self
+            .base_model
+            .parameters()
+            .iter()
             .map(|p| p.name().to_string())
             .collect();
 
@@ -437,9 +436,14 @@ where
         for param_name in param_names {
             if let Some(meta_grad) = meta_gradients.get(&param_name) {
                 // Find the mutable parameter reference
-                if let Some(param) = self.base_model.parameters_mut().iter_mut().find(|p| p.name() == param_name) {
+                if let Some(param) = self
+                    .base_model
+                    .parameters_mut()
+                    .iter_mut()
+                    .find(|p| p.name() == param_name)
+                {
                     // Update parameter: θ = θ - β∇_θ L_meta(θ)
-                    param.update_with_gradient(&meta_grad.data(), self.outer_lr)?;
+                    param.update_with_gradient(meta_grad.data(), self.outer_lr)?;
 
                     // Log parameter update statistics
                     let grad_data = meta_grad.data();
@@ -454,19 +458,28 @@ where
                         .sqrt();
 
                     if self.iteration % 100 == 0 {
-                        println!("Meta-update - Parameter {}: grad_norm={:.6}, lr={:.6}",
-                                param_name, grad_norm, self.outer_lr);
+                        println!(
+                            "Meta-update - Parameter {}: grad_norm={:.6}, lr={:.6}",
+                            param_name, grad_norm, self.outer_lr
+                        );
                     }
                 }
             } else if self.iteration % 100 == 0 {
-                println!("Meta-update - No gradient found for parameter: {}", param_name);
+                println!(
+                    "Meta-update - No gradient found for parameter: {}",
+                    param_name
+                );
             }
         }
 
         // Log overall meta-update statistics
         if self.iteration % 100 == 0 {
-            println!("Meta-update step {} completed: {} parameters updated with {} gradients",
-                    self.iteration, self.base_model.parameters().len(), meta_gradients.len());
+            println!(
+                "Meta-update step {} completed: {} parameters updated with {} gradients",
+                self.iteration,
+                self.base_model.parameters().len(),
+                meta_gradients.len()
+            );
         }
 
         Ok(())
@@ -486,7 +499,9 @@ where
         lr: f64,
     ) -> Result<()> {
         // Get parameter names first to avoid borrowing conflicts
-        let param_names: Vec<String> = model.parameters().iter()
+        let param_names: Vec<String> = model
+            .parameters()
+            .iter()
             .map(|p| p.name().to_string())
             .collect();
 
@@ -494,9 +509,13 @@ where
         for param_name in param_names {
             if let Some(grad) = gradients.get(&param_name) {
                 // Find the mutable parameter reference
-                if let Some(param) = model.parameters_mut().iter_mut().find(|p| p.name() == param_name) {
+                if let Some(param) = model
+                    .parameters_mut()
+                    .iter_mut()
+                    .find(|p| p.name() == param_name)
+                {
                     // Gradient descent update: θ = θ - α∇_θ L
-                    param.update_with_gradient(&grad.data(), lr)?;
+                    param.update_with_gradient(grad.data(), lr)?;
 
                     // Log parameter update statistics
                     let grad_data = grad.data();
@@ -511,9 +530,9 @@ where
                         .sqrt();
 
                     if self.iteration % 100 == 0 {
-                        let grad_mean: f64 = grad_data.as_slice().iter()
-                            .map(|&x| x.into())
-                            .sum::<f64>() / grad_data.as_slice().len() as f64;
+                        let grad_mean: f64 =
+                            grad_data.as_slice().iter().map(|&x| x.into()).sum::<f64>()
+                                / grad_data.as_slice().len() as f64;
 
                         println!(
                             "Inner loop - Parameter {}: norm={:.6}, mean={:.6}, lr={:.6}",
@@ -522,16 +541,22 @@ where
                     }
                 }
             } else if self.iteration % 100 == 0 {
-                println!("Inner loop - No gradient found for parameter: {}", param_name);
+                println!(
+                    "Inner loop - No gradient found for parameter: {}",
+                    param_name
+                );
             }
         }
 
         // Log aggregate statistics
         let param_count = gradients.len();
         if self.iteration % 100 == 0 && param_count > 0 {
-            let total_grad_norm: f64 = gradients.values()
+            let total_grad_norm: f64 = gradients
+                .values()
                 .map(|grad| {
-                    grad.data().as_slice().iter()
+                    grad.data()
+                        .as_slice()
+                        .iter()
                         .map(|&x| {
                             let val: f64 = x.into();
                             val * val
@@ -817,7 +842,8 @@ mod tests {
         let test_input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.5), Float32::new(2.5)],
             &[1, 2],
-        ).unwrap();
+        )
+        .unwrap();
         let output = adapted_model.forward(&test_input).unwrap();
         assert_eq!(output.shape().dims(), &[1, 1]);
     }
@@ -828,20 +854,18 @@ mod tests {
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(2, 1).unwrap();
         let maml = MAML::new(model);
 
-        let dataset = vec![
-            (
-                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                    vec![Float32::new(1.0), Float32::new(0.0)],
-                    &[1, 2],
-                )
-                .unwrap(),
-                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                    vec![Float32::new(1.0)],
-                    &[1, 1],
-                )
-                .unwrap(),
-            ),
-        ];
+        let dataset = vec![(
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                vec![Float32::new(1.0), Float32::new(0.0)],
+                &[1, 2],
+            )
+            .unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                vec![Float32::new(1.0)],
+                &[1, 1],
+            )
+            .unwrap(),
+        )];
 
         let gradients = maml.compute_gradients(&maml.base_model, &dataset).unwrap();
         assert!(!gradients.is_empty());
@@ -860,20 +884,18 @@ mod tests {
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(2, 1).unwrap();
         let maml = MAML::new(model);
 
-        let dataset = vec![
-            (
-                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                    vec![Float32::new(1.0), Float32::new(2.0)],
-                    &[1, 2],
-                )
-                .unwrap(),
-                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                    vec![Float32::new(3.0)],
-                    &[1, 1],
-                )
-                .unwrap(),
-            ),
-        ];
+        let dataset = vec![(
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                vec![Float32::new(1.0), Float32::new(2.0)],
+                &[1, 2],
+            )
+            .unwrap(),
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                vec![Float32::new(3.0)],
+                &[1, 1],
+            )
+            .unwrap(),
+        )];
 
         let loss = maml.compute_task_loss(&maml.base_model, &dataset).unwrap();
         assert!(loss >= 0.0); // MSE loss should be non-negative
@@ -887,34 +909,30 @@ mod tests {
 
         // Create a simple task
         let task = Task {
-            support_set: vec![
-                (
-                    Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                        vec![Float32::new(1.0), Float32::new(2.0)],
-                        &[1, 2],
-                    )
-                    .unwrap(),
-                    Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                        vec![Float32::new(3.0)],
-                        &[1, 1],
-                    )
-                    .unwrap(),
-                ),
-            ],
-            query_set: vec![
-                (
-                    Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                        vec![Float32::new(2.0), Float32::new(3.0)],
-                        &[1, 2],
-                    )
-                    .unwrap(),
-                    Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                        vec![Float32::new(5.0)],
-                        &[1, 1],
-                    )
-                    .unwrap(),
-                ),
-            ],
+            support_set: vec![(
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(1.0), Float32::new(2.0)],
+                    &[1, 2],
+                )
+                .unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(3.0)],
+                    &[1, 1],
+                )
+                .unwrap(),
+            )],
+            query_set: vec![(
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(2.0), Float32::new(3.0)],
+                    &[1, 2],
+                )
+                .unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(5.0)],
+                    &[1, 1],
+                )
+                .unwrap(),
+            )],
             task_id: "test_task".to_string(),
         };
 
@@ -932,34 +950,30 @@ mod tests {
         let maml = MAML::new(model);
 
         let task = Task {
-            support_set: vec![
-                (
-                    Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                        vec![Float32::new(1.0), Float32::new(2.0)],
-                        &[1, 2],
-                    )
-                    .unwrap(),
-                    Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                        vec![Float32::new(3.0)],
-                        &[1, 1],
-                    )
-                    .unwrap(),
-                ),
-            ],
-            query_set: vec![
-                (
-                    Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                        vec![Float32::new(2.0), Float32::new(3.0)],
-                        &[1, 2],
-                    )
-                    .unwrap(),
-                    Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                        vec![Float32::new(5.0)],
-                        &[1, 1],
-                    )
-                    .unwrap(),
-                ),
-            ],
+            support_set: vec![(
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(1.0), Float32::new(2.0)],
+                    &[1, 2],
+                )
+                .unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(3.0)],
+                    &[1, 1],
+                )
+                .unwrap(),
+            )],
+            query_set: vec![(
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(2.0), Float32::new(3.0)],
+                    &[1, 2],
+                )
+                .unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(5.0)],
+                    &[1, 1],
+                )
+                .unwrap(),
+            )],
             task_id: "test_adaptation".to_string(),
         };
 
@@ -983,7 +997,8 @@ mod tests {
         let grad_tensor1 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
-        ).unwrap();
+        )
+        .unwrap();
         grad_map1.insert(
             "weight".to_string(),
             Parameter::new(grad_tensor1, "grad_weight".to_string()),
@@ -993,7 +1008,8 @@ mod tests {
         let grad_tensor2 = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(0.5), Float32::new(1.5)],
             &[2],
-        ).unwrap();
+        )
+        .unwrap();
         grad_map2.insert(
             "weight".to_string(),
             Parameter::new(grad_tensor2, "grad_weight".to_string()),
@@ -1020,7 +1036,10 @@ mod tests {
 
         let result = maml.meta_step(&[]);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), NNError::InvalidConfiguration { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            NNError::InvalidConfiguration { .. }
+        ));
     }
 
     #[test]
@@ -1031,7 +1050,10 @@ mod tests {
 
         let result = maml.sample_tasks(5);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), NNError::InvalidConfiguration { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            NNError::InvalidConfiguration { .. }
+        ));
     }
 
     #[test]
@@ -1084,7 +1106,7 @@ mod tests {
         let original_bias = model.bias.data().as_slice().to_vec();
 
         let mut maml = MAML::new(model)
-            .with_inner_lr(0.1)  // Higher learning rate for visible changes
+            .with_inner_lr(0.1) // Higher learning rate for visible changes
             .with_outer_lr(0.1)
             .with_inner_steps(3);
 
@@ -1128,20 +1150,18 @@ mod tests {
                     .unwrap(),
                 ),
             ],
-            query_set: vec![
-                (
-                    Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                        vec![Float32::new(1.5), Float32::new(2.5)],
-                        &[1, 2],
-                    )
-                    .unwrap(),
-                    Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                        vec![Float32::new(0.0)],
-                        &[1, 1],
-                    )
-                    .unwrap(),
-                ),
-            ],
+            query_set: vec![(
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(1.5), Float32::new(2.5)],
+                    &[1, 2],
+                )
+                .unwrap(),
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(0.0)],
+                    &[1, 1],
+                )
+                .unwrap(),
+            )],
             task_id: "param_update_test".to_string(),
         };
 
@@ -1154,12 +1174,19 @@ mod tests {
         let updated_bias = maml.base_model.bias.data().as_slice().to_vec();
 
         // Parameters should have changed (with high probability)
-        let weight_changed = original_weight.iter().zip(&updated_weight)
+        let weight_changed = original_weight
+            .iter()
+            .zip(&updated_weight)
             .any(|(orig, updated)| (orig.get() - updated.get()).abs() > 1e-6);
-        let bias_changed = original_bias.iter().zip(&updated_bias)
+        let bias_changed = original_bias
+            .iter()
+            .zip(&updated_bias)
             .any(|(orig, updated)| (orig.get() - updated.get()).abs() > 1e-6);
 
-        assert!(weight_changed || bias_changed, "Parameters should have been updated during meta-learning");
+        assert!(
+            weight_changed || bias_changed,
+            "Parameters should have been updated during meta-learning"
+        );
 
         // Iteration counter should be incremented
         assert_eq!(maml.iteration, 1);
@@ -1258,7 +1285,10 @@ mod tests {
             for &val in grad.data().as_slice() {
                 let val_f64: f64 = val.into();
                 assert!(val_f64.is_finite(), "Gradient value should be finite");
-                assert!(val_f64.abs() < 1000.0, "Gradient magnitude should be reasonable");
+                assert!(
+                    val_f64.abs() < 1000.0,
+                    "Gradient magnitude should be reasonable"
+                );
             }
         }
     }
@@ -1270,7 +1300,7 @@ mod tests {
         let model =
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(2, 1).unwrap();
         let maml = MAML::new(model)
-            .with_inner_lr(0.1)  // Higher learning rate for adaptation
+            .with_inner_lr(0.1) // Higher learning rate for adaptation
             .with_inner_steps(5);
 
         // Create a task with clear linear relationship
@@ -1357,20 +1387,34 @@ mod tests {
         };
 
         // Compute loss before adaptation
-        let loss_before = maml.compute_task_loss(&maml.base_model, &task.support_set).unwrap();
+        let loss_before = maml
+            .compute_task_loss(&maml.base_model, &task.support_set)
+            .unwrap();
+        assert!(
+            loss_before >= 0.0,
+            "Loss before adaptation should be non-negative"
+        );
 
         // Adapt to the task
         let (adapted_model, _) = maml.adapt_to_task(&task).unwrap();
 
         // Compute loss after adaptation on the same support set
-        let loss_after = maml.compute_task_loss(&adapted_model, &task.support_set).unwrap();
+        let loss_after = maml
+            .compute_task_loss(&adapted_model, &task.support_set)
+            .unwrap();
 
         // Adaptation should generally improve performance (loss should decrease or stay similar)
         // Note: Due to the simplified gradient computation, we don't enforce strict improvement
         // but the adaptation process should complete without errors
-        assert!(loss_after >= 0.0, "Loss after adaptation should be non-negative");
+        assert!(
+            loss_after >= 0.0,
+            "Loss after adaptation should be non-negative"
+        );
 
         // The adapted model should have the same parameter structure
-        assert_eq!(adapted_model.parameters().len(), maml.base_model.parameters().len());
+        assert_eq!(
+            adapted_model.parameters().len(),
+            maml.base_model.parameters().len()
+        );
     }
 }

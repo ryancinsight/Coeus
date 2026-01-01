@@ -117,8 +117,8 @@ where
                 let w_ih = Self::xavier_uniform_init(gate_size, layer_input_size, limit);
                 let w_hh = Self::xavier_uniform_init(gate_size, hidden_size, limit);
 
-                let weight_ih_var = w_ih;
-                let weight_hh_var = w_hh;
+                let weight_ih_var = w_ih.requires_grad_(true);
+                let weight_hh_var = w_hh.requires_grad_(true);
 
                 weight_ih.push(Parameter::new(
                     weight_ih_var,
@@ -135,8 +135,8 @@ where
                     let b_hh =
                         Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[gate_size]).unwrap();
 
-                    let bias_ih_var = b_ih;
-                    let bias_hh_var = b_hh;
+                    let bias_ih_var = b_ih.requires_grad_(true);
+                    let bias_hh_var = b_hh.requires_grad_(true);
 
                     bias_ih.push(Parameter::new(bias_ih_var, format!("bias_ih_l{}", layer)));
                     bias_hh.push(Parameter::new(bias_hh_var, format!("bias_hh_l{}", layer)));

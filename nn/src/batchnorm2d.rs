@@ -273,6 +273,7 @@ where
     }
 
     fn named_buffers(&self) -> Vec<(String, Tensor<B, S, T>)> {
+        println!("DEBUG: BatchNorm2d::named_buffers TRAIT OVERRIDE called for {}", self.name());
         vec![
             ("running_mean".to_string(), self.base.running_mean.borrow().clone()),
             ("running_var".to_string(), self.base.running_var.borrow().clone()),
@@ -293,6 +294,8 @@ where
         }
     }
 }
+
+
 
 impl<B, S, T> BatchNorm2d<B, S, T>
 where

@@ -4,15 +4,15 @@
 //! NAS algorithms, HPO methods, and joint optimization approaches across multiple
 //! dimensions including performance, efficiency, robustness, and scalability.
 
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use crate::error::{NNError, Result};
 use crate::research::{
+    hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
+    joint_search::{JointSearchContext, JointSearchFramework},
     nas_integration::{IntegratedNASFramework, NASExperimentContext},
-    hpo_integration::{IntegratedHPOFramework, HPOExperimentContext},
-    joint_search::{JointSearchFramework, JointSearchContext},
     performance_prediction::PerformancePredictionFramework,
     UnifiedResearchFramework,
 };
@@ -361,8 +361,6 @@ pub struct ResultsDatabase {
     results: HashMap<String, Vec<BenchmarkResult>>,
     /// Metadata and indexing
     metadata: HashMap<String, BenchmarkMetadata>,
-    /// Query cache
-    cache: HashMap<String, Vec<BenchmarkResult>>,
 }
 
 /// Benchmark metadata
@@ -403,7 +401,11 @@ pub struct StatisticalTestResult {
 
 /// Comparative analyzer trait
 pub trait ComparativeAnalyzer: Send + Sync + std::fmt::Debug {
-    fn analyze(&self, group1: &[BenchmarkResult], group2: &[BenchmarkResult]) -> Result<ComparativeAnalysis>;
+    fn analyze(
+        &self,
+        group1: &[BenchmarkResult],
+        group2: &[BenchmarkResult],
+    ) -> Result<ComparativeAnalysis>;
     fn analysis_type(&self) -> &str;
 }
 
@@ -470,17 +472,12 @@ struct ResourceMonitor {
     monitoring_interval: std::time::Duration,
     /// Resource thresholds
     thresholds: ResourceThresholds,
-    /// Historical monitoring data
-    history: Vec<ResourceUsageSnapshot>,
 }
 
 /// Resource thresholds for alerts
 #[derive(Debug)]
 struct ResourceThresholds {
     cpu_threshold_percent: f64,
-    memory_threshold_gb: f64,
-    gpu_threshold_percent: f64,
-    energy_threshold_wh: Option<f64>,
 }
 
 impl NASBenchmarkingFramework {
@@ -520,20 +517,24 @@ impl NASBenchmarkingFramework {
     }
 
     /// Execute benchmark suite
-    pub async fn execute_suite(&mut self, suite_name: &str, parallel_runs: usize) -> Result<BenchmarkSuiteReport> {
-        let suite = self.benchmark_suites.get(suite_name)
-            .ok_or_else(|| NNError::InvalidConfiguration {
-                message: format!("Benchmark suite '{}' not found", suite_name),
-            })?
-            .clone();
+    pub async fn execute_suite(
+        &mut self,
+        suite_name: &str,
+        parallel_runs: usize,
+    ) -> Result<BenchmarkSuiteReport> {
+        let suite =
+            self.benchmark_suites
+                .get(suite_name)
+                .ok_or_else(|| NNError::InvalidConfiguration {
+                    message: format!("Benchmark suite '{}' not found", suite_name),
+                })?;
 
         let start_time = Instant::now();
 
         // Generate all benchmark runs for this suite
-        let runs = self.generate_suite_runs(&suite)?;
+        let runs = self.generate_suite_runs(suite)?;
 
         // Execute runs with parallelism control
-        let mut execution_handles: Vec<()> = Vec::new();
         let mut completed_results = Vec::new();
 
         for chunk in runs.chunks(parallel_runs) {
@@ -551,7 +552,9 @@ impl NASBenchmarkingFramework {
         let execution_time = start_time.elapsed();
 
         // Analyze results
-        let analysis = self.statistical_analyzer.analyze_suite_results(&completed_results)?;
+        let analysis = self
+            .statistical_analyzer
+            .analyze_suite_results(&completed_results)?;
 
         // Generate report
         let report = self.report_generator.generate_suite_report(
@@ -562,7 +565,8 @@ impl NASBenchmarkingFramework {
         )?;
 
         // Store results
-        self.results_database.store_suite_results(suite_name, completed_results)?;
+        self.results_database
+            .store_suite_results(suite_name, completed_results)?;
 
         Ok(report)
     }
@@ -586,43 +590,44 @@ impl NASBenchmarkingFramework {
                     gpu_usage_percent: vec![0.0],
                     energy_consumption_wh: None,
                 },
-            }
+            },
         );
 
         let result = match &run.algorithm_config.algorithm_type {
-            BenchmarkAlgorithmType::NAS(_) => {
-                self.execute_nas_benchmark(&run).await
-            }
-            BenchmarkAlgorithmType::HPO(_) => {
-                self.execute_hpo_benchmark(&run).await
-            }
-            BenchmarkAlgorithmType::Joint(_) => {
-                self.execute_joint_benchmark(&run).await
-            }
-            BenchmarkAlgorithmType::Custom(_) => {
-                Err(NNError::NotImplemented {
-                    operation: "Custom algorithm benchmarks".to_string(),
-                })
-            }
+            BenchmarkAlgorithmType::NAS(_) => self.execute_nas_benchmark(&run).await,
+            BenchmarkAlgorithmType::HPO(_) => self.execute_hpo_benchmark(&run).await,
+            BenchmarkAlgorithmType::Joint(_) => self.execute_joint_benchmark(&run).await,
+            BenchmarkAlgorithmType::Custom(_) => Err(NNError::NotImplemented {
+                operation: "Custom algorithm benchmarks".to_string(),
+            }),
         };
 
         // Remove from active runs
-        self.execution_engine.scheduler.active_runs.remove(&run.benchmark_id);
+        self.execution_engine
+            .scheduler
+            .active_runs
+            .remove(&run.benchmark_id);
 
         match result {
             Ok(result) => {
                 // Add to completed runs
-                self.execution_engine.scheduler.completed_runs.push(result.clone());
+                self.execution_engine
+                    .scheduler
+                    .completed_runs
+                    .push(result.clone());
                 Ok(result)
             }
             Err(e) => {
                 // Add to failed runs
-                self.execution_engine.scheduler.failed_runs.push(FailedBenchmarkRun {
-                    benchmark_id: run.benchmark_id.clone(),
-                    suite_name: run.suite_name.clone(),
-                    error: e.to_string(),
-                    failure_time: std::time::Instant::now(),
-                });
+                self.execution_engine
+                    .scheduler
+                    .failed_runs
+                    .push(FailedBenchmarkRun {
+                        benchmark_id: run.benchmark_id.clone(),
+                        suite_name: run.suite_name.clone(),
+                        error: e.to_string(),
+                        failure_time: std::time::Instant::now(),
+                    });
                 Err(e)
             }
         }
@@ -664,7 +669,8 @@ impl NASBenchmarkingFramework {
         let nas_result = {
             let mut nas_framework = self.execution_engine.nas_framework.write().unwrap();
             let evaluator = Arc::new(crate::nas::SimpleEvaluator::new(0.5, 0.01, 0.05));
-            let space = crate::nas::ArchitectureSpace::new(crate::nas::search_space::ArchitectureType::CNN);
+            let space =
+                crate::nas::ArchitectureSpace::new(crate::nas::search_space::ArchitectureType::CNN);
 
             nas_framework.execute_nas_search(&context.experiment_id, evaluator, &space)?
         };
@@ -677,24 +683,27 @@ impl NASBenchmarkingFramework {
             dataset: run.dataset.clone(),
             algorithm: run.algorithm_config.clone(),
             hardware: run.hardware_config.clone(),
-            performance_metrics: HashMap::from([
-                ("accuracy".to_string(), MetricValue {
+            performance_metrics: HashMap::from([(
+                "accuracy".to_string(),
+                MetricValue {
                     value: nas_result.best_performance,
                     confidence_interval: None,
                     sample_count: 1,
                     standard_deviation: None,
                     distribution_stats: None,
-                }),
-            ]),
-            efficiency_metrics: HashMap::from([
-                ("search_efficiency".to_string(), MetricValue {
-                    value: nas_result.total_evaluations as f64 / nas_result.search_time.as_secs_f64(),
+                },
+            )]),
+            efficiency_metrics: HashMap::from([(
+                "search_efficiency".to_string(),
+                MetricValue {
+                    value: nas_result.total_evaluations as f64
+                        / nas_result.search_time.as_secs_f64(),
                     confidence_interval: None,
                     sample_count: 1,
                     standard_deviation: None,
                     distribution_stats: None,
-                }),
-            ]),
+                },
+            )]),
             robustness_metrics: HashMap::new(),
             resource_usage: ResourceUsageSnapshot {
                 cpu_usage_percent: 50.0,
@@ -758,8 +767,10 @@ impl NASBenchmarkingFramework {
 
                     for algorithm in algorithms {
                         let run = BenchmarkRun {
-                            benchmark_id: format!("{}_{}_{:?}_{}",
-                                suite.name, dataset.name, algorithm, hardware_config.name),
+                            benchmark_id: format!(
+                                "{}_{}_{:?}_{}",
+                                suite.name, dataset.name, algorithm, hardware_config.name
+                            ),
                             suite_name: suite.name.clone(),
                             category: category.clone(),
                             dataset: dataset.clone(),
@@ -797,15 +808,15 @@ impl NASBenchmarkingFramework {
         };
 
         for metric in metrics {
-            let comparison = self.statistical_analyzer.compare_metrics_across_suites(
-                suite_names, metric,
-            )?;
+            let comparison = self
+                .statistical_analyzer
+                .compare_metrics_across_suites(suite_names, metric)?;
             report.metric_comparisons.insert(metric.clone(), comparison);
         }
 
         // Generate rankings
         for (metric, comparison) in &report.metric_comparisons {
-            let ranking = self.generate_algorithm_ranking(&comparison);
+            let ranking = self.generate_algorithm_ranking(comparison);
             report.algorithm_rankings.insert(metric.clone(), ranking);
         }
 
@@ -885,11 +896,14 @@ impl ResultsDatabase {
         Self {
             results: HashMap::new(),
             metadata: HashMap::new(),
-            cache: HashMap::new(),
         }
     }
 
-    fn store_suite_results(&mut self, suite_name: &str, results: Vec<BenchmarkResult>) -> Result<()> {
+    fn store_suite_results(
+        &mut self,
+        suite_name: &str,
+        results: Vec<BenchmarkResult>,
+    ) -> Result<()> {
         self.results.insert(suite_name.to_string(), results);
         Ok(())
     }
@@ -913,7 +927,11 @@ impl StatisticalAnalyzer {
         })
     }
 
-    fn compare_metrics_across_suites(&self, _suite_names: &[String], _metric: &str) -> Result<MetricComparison> {
+    fn compare_metrics_across_suites(
+        &self,
+        _suite_names: &[String],
+        _metric: &str,
+    ) -> Result<MetricComparison> {
         // Placeholder comparison
         Ok(MetricComparison {
             metric_name: _metric.to_string(),
@@ -958,11 +976,7 @@ impl ResourceMonitor {
             monitoring_interval: std::time::Duration::from_secs(10),
             thresholds: ResourceThresholds {
                 cpu_threshold_percent: 90.0,
-                memory_threshold_gb: 16.0,
-                gpu_threshold_percent: 95.0,
-                energy_threshold_wh: Some(500.0),
             },
-            history: Vec::new(),
         }
     }
 }
@@ -1046,17 +1060,31 @@ mod tests {
 
     #[test]
     fn test_algorithm_config() {
+        let mutation_rate = match serde_json::Number::from_f64(0.1) {
+            Some(n) => n,
+            None => panic!("mutation_rate must be finite"),
+        };
+
         let config = AlgorithmConfig {
             algorithm_type: BenchmarkAlgorithmType::NAS(AlgorithmVariant::Evolutionary),
             hyperparameters: HashMap::from([
-                ("population_size".to_string(), serde_json::Value::Number(50.into())),
-                ("mutation_rate".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(0.1).unwrap())),
+                (
+                    "population_size".to_string(),
+                    serde_json::Value::Number(50.into()),
+                ),
+                (
+                    "mutation_rate".to_string(),
+                    serde_json::Value::Number(mutation_rate),
+                ),
             ]),
             search_budget: 1000,
             random_seed: Some(42),
         };
 
-        assert!(matches!(config.algorithm_type, BenchmarkAlgorithmType::NAS(_)));
+        assert!(matches!(
+            config.algorithm_type,
+            BenchmarkAlgorithmType::NAS(_)
+        ));
         assert_eq!(config.search_budget, 1000);
     }
 
@@ -1070,7 +1098,10 @@ mod tests {
     #[test]
     fn test_resource_monitor_creation() {
         let monitor = ResourceMonitor::new();
-        assert_eq!(monitor.monitoring_interval, std::time::Duration::from_secs(10));
+        assert_eq!(
+            monitor.monitoring_interval,
+            std::time::Duration::from_secs(10)
+        );
         assert_eq!(monitor.thresholds.cpu_threshold_percent, 90.0);
     }
 }

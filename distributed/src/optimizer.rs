@@ -8,9 +8,9 @@ use crate::process_group::ProcessGroup;
 use crate::reducer::GradientReducer;
 use dtype::float::Float32;
 use optim::Optimizer;
-use tensor::Tensor;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tensor::Tensor;
 
 /// Distributed optimizer wrapper
 ///
@@ -222,7 +222,7 @@ mod tests {
             &mut self,
             _param: &mut Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
             _name: String,
-        ) -> std::result::Result<(), coeus_optim::error::OptimError> {
+        ) -> std::result::Result<(), optim::error::OptimError> {
             // No-op for mock
             Ok(())
         }
@@ -239,7 +239,7 @@ mod tests {
             0.01
         }
 
-        fn set_lr(&mut self, _lr: f64) -> std::result::Result<(), coeus_optim::error::OptimError> {
+        fn set_lr(&mut self, _lr: f64) -> std::result::Result<(), optim::error::OptimError> {
             // No-op for mock
             Ok(())
         }
@@ -251,7 +251,7 @@ mod tests {
         fn set_weight_decay(
             &mut self,
             _weight_decay: f64,
-        ) -> std::result::Result<(), coeus_optim::error::OptimError> {
+        ) -> std::result::Result<(), optim::error::OptimError> {
             // No-op for mock
             Ok(())
         }
@@ -260,7 +260,7 @@ mod tests {
             // No-op for mock
         }
 
-        fn step(&mut self) -> std::result::Result<usize, coeus_optim::error::OptimError> {
+        fn step(&mut self) -> std::result::Result<usize, optim::error::OptimError> {
             Ok(1) // Mock step count
         }
 
@@ -279,7 +279,7 @@ mod tests {
                 String,
                 Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
             >,
-        ) -> std::result::Result<(), coeus_optim::error::OptimError> {
+        ) -> std::result::Result<(), optim::error::OptimError> {
             Ok(())
         }
     }

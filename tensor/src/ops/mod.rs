@@ -7,6 +7,7 @@ pub mod comparison;
 pub mod creation;
 pub mod matrix;
 pub mod reduction;
+pub mod sparse;
 pub mod tensor_ops;
 
 // Re-export convenience functions

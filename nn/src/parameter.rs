@@ -90,7 +90,11 @@ where
     ///
     /// # Errors
     /// Returns an error if the gradient shape doesn't match the parameter shape
-    pub fn update_with_gradient(&mut self, gradient: &Tensor<B, S, T>, learning_rate: f64) -> Result<()> {
+    pub fn update_with_gradient(
+        &mut self,
+        gradient: &Tensor<B, S, T>,
+        learning_rate: f64,
+    ) -> Result<()> {
         if self.data.shape() != gradient.shape() {
             return Err(NNError::InvalidInput {
                 message: format!(
@@ -400,8 +404,6 @@ where
         &self.data
     }
 
-
-
     /// Check if this parameter requires gradient computation.
     ///
     /// # Returns
@@ -488,7 +490,7 @@ where
             // Only place if not already set (avoid duplicates)
             if weight_data[idx] == T::zero() {
                 // Generate random value in [-limit, limit] using FloatExt
-                let rand_val: f64 = if limit_f64 <= std::f64::EPSILON {
+                let rand_val: f64 = if limit_f64 <= f64::EPSILON {
                     0.0
                 } else {
                     rng.gen_range(-limit_f64..=limit_f64)
@@ -517,6 +519,60 @@ where
             self.data().shape().dims(),
             self.requires_grad()
         )
+    }
+}
+
+// Future enhancement: Add rkyv zero-copy serialization for parameters
+
+// Module implementation for Parameter
+// Parameter acts as a leaf module containing a single tensor
+impl<B, S, T> Module<B, S, T> for Parameter<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + dtype::traits::FloatExt,
+{
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        // Parameter doesn't transform input - just return input unchanged
+        // This is unusual but allows Parameter to be used as a module
+        Ok(input.clone())
+    }
+
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
+        vec![self.clone()]
+    }
+
+    fn zero_grad(&mut self) {
+        // Handle empty/invalid parameter shapes gracefully to prevent ShapeMismatch errors
+        // This handles edge cases with empty sparse parameters that may have malformed shapes
+        let shape_dims = self.data.shape().dims();
+
+        // Skip gradient operations for empty or invalid tensors
+        if shape_dims.is_empty() || shape_dims.contains(&0) {
+            // Empty/invalid parameters - no gradients to zero
+            return;
+        }
+
+        // Create zero gradient tensor with validated shape
+        match Tensor::<B, S, T>::zeros(shape_dims) {
+            Ok(zero_grad) => {
+                let _ = self.data.set_grad(zero_grad);
+            }
+            Err(_) => {
+                // If gradient tensor creation fails, silently ignore
+                // Handles cases where sparse parameter shapes are not supported for gradient operations
+            }
+        }
+    }
+
+    fn train(&mut self, mode: bool) {
+        // Parameters don't have training-specific behavior like dropout,
+        // but we can set requires_grad based on training mode
+        self.data = self.data.clone().requires_grad_(mode);
+    }
+
+    fn name(&self) -> &str {
+        "Parameter"
     }
 }
 
@@ -722,59 +778,5 @@ mod tests {
                 "invalid".to_string(),
             );
         assert!(result.is_err());
-    }
-}
-
-// Future enhancement: Add rkyv zero-copy serialization for parameters
-
-// Module implementation for Parameter
-// Parameter acts as a leaf module containing a single tensor
-impl<B, S, T> Module<B, S, T> for Parameter<B, S, T>
-where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType,
-{
-    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
-        // Parameter doesn't transform input - just return input unchanged
-        // This is unusual but allows Parameter to be used as a module
-        Ok(input.clone())
-    }
-
-    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
-        vec![self.clone()]
-    }
-
-    fn zero_grad(&mut self) {
-        // Handle empty/invalid parameter shapes gracefully to prevent ShapeMismatch errors
-        // This handles edge cases with empty sparse parameters that may have malformed shapes
-        let shape_dims = self.data.shape().dims();
-
-        // Skip gradient operations for empty or invalid tensors
-        if shape_dims.is_empty() || shape_dims.contains(&0) {
-            // Empty/invalid parameters - no gradients to zero
-            return;
-        }
-
-        // Create zero gradient tensor with validated shape
-        match Tensor::<B, S, T>::zeros(shape_dims) {
-            Ok(zero_grad) => {
-                let _ = self.data.set_grad(zero_grad);
-            }
-            Err(_) => {
-                // If gradient tensor creation fails, silently ignore
-                // Handles cases where sparse parameter shapes are not supported for gradient operations
-            }
-        }
-    }
-
-    fn train(&mut self, mode: bool) {
-        // Parameters don't have training-specific behavior like dropout,
-        // but we can set requires_grad based on training mode
-        self.data = self.data.clone().requires_grad_(mode);
-    }
-
-    fn name(&self) -> &str {
-        "Parameter"
     }
 }

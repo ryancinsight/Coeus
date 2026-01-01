@@ -9,6 +9,7 @@ use core::any::Any;
 use core::fmt;
 use std::sync::Arc;
 
+#[cfg(feature = "std")]
 /// Extension trait for downcasting Function objects
 ///
 /// This trait enables safe downcasting of trait objects to concrete types
@@ -27,6 +28,64 @@ where
 {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+}
+
+#[cfg(feature = "std")]
+thread_local! {
+    #[allow(clippy::missing_const_for_thread_local)]
+    static GRAD_ENABLED: std::cell::Cell<bool> = std::cell::Cell::new(true);
+}
+
+#[must_use]
+pub fn grad_enabled() -> bool {
+    #[cfg(feature = "std")]
+    {
+        GRAD_ENABLED.with(|v| v.get())
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        true
+    }
+}
+
+pub fn set_grad_enabled(enabled: bool) {
+    #[cfg(feature = "std")]
+    {
+        GRAD_ENABLED.with(|v| v.set(enabled));
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        let _ = enabled;
+    }
+}
+
+pub struct GradModeGuard {
+    #[cfg(feature = "std")]
+    prev: bool,
+}
+
+impl Drop for GradModeGuard {
+    fn drop(&mut self) {
+        #[cfg(feature = "std")]
+        {
+            GRAD_ENABLED.with(|v| v.set(self.prev));
+        }
+    }
+}
+
+#[must_use]
+pub fn scoped_grad_enabled(enabled: bool) -> GradModeGuard {
+    #[cfg(feature = "std")]
+    {
+        let prev = grad_enabled();
+        set_grad_enabled(enabled);
+        GradModeGuard { prev }
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        let _ = enabled;
+        GradModeGuard {}
     }
 }
 
@@ -78,10 +137,11 @@ where
     ///
     /// # Returns
     /// Vector of gradient tensors w.r.t. each input, in the same order as inputs.
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>>;
-
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>>;
 }
-
 
 // Re-exports for convenience
 pub use backend::{Backend, CpuBackend};

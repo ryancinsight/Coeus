@@ -6,8 +6,8 @@
 use crate::linear::Linear;
 use crate::module::ModuleExt;
 use backend::Backend;
-use storage::{Storage, StorageFromVec, StorageToDense};
 use dtype::{DataType, FloatExt};
+use storage::{Storage, StorageFromVec, StorageToDense};
 
 /// Task-specific outputs
 #[derive(Debug)]
@@ -88,17 +88,21 @@ where
 mod tests {
     use super::*;
     use backend::CpuBackend;
-    use storage::DenseStorage;
     use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_task_num_parameters() {
-        let classification_task = Task::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::Classification(
-            Classifier {
-                classifier: Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(768, 10).unwrap(),
-                num_classes: 10,
-            }
-        );
+        let classification_task =
+            Task::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::Classification(
+                Classifier {
+                    classifier: Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                        768, 10,
+                    )
+                    .unwrap(),
+                    num_classes: 10,
+                },
+            );
 
         // Test that num_parameters doesn't panic
         let _params = classification_task.num_parameters();
@@ -108,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_similarity_type_enum() {
-        let types = vec![
+        let types = [
             SimilarityType::Cosine,
             SimilarityType::DotProduct,
             SimilarityType::Euclidean,

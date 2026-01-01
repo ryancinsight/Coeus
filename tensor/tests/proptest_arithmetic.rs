@@ -5,9 +5,9 @@
 use backend::CpuBackend;
 use dtype::float::{Float32, Float64};
 use dtype::int::Int32;
+use proptest::prelude::*;
 use storage::DenseStorage;
 use tensor::Tensor;
-use proptest::prelude::*;
 
 type CpuTensorF32 = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 type CpuTensorF64 = Tensor<CpuBackend<Float64>, DenseStorage<Float64>, Float64>;

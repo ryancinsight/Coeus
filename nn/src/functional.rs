@@ -92,9 +92,7 @@ pub fn sigmoid<T: DataType + FloatExt + std::ops::Neg<Output = T>>(
 ///
 /// # Returns
 /// Tensor with tanh applied element-wise
-pub fn tanh<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn tanh<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone,
@@ -756,7 +754,6 @@ pub fn bce_with_logits_loss<T: DataType + FloatExt + PartialOrd>(
     Tensor::from_vec(vec![mean_loss], &[]).map_err(Into::into)
 }
 
-
 /// Compute mean squared error loss
 ///
 /// # Arguments
@@ -975,163 +972,6 @@ fn softmax_rows<T: DataType + FloatExt + num_traits::Bounded + PartialOrd>(
     }
 
     Ok(result)
-}
-
-// Re-exports from loss module for functional API compatibility
-// Loss functions are now in separate modules
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use approx::assert_relative_eq;
-    use dtype::float::Float32;
-
-    #[test]
-    fn test_functional_relu() {
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(-1.0), Float32::new(0.5), Float32::new(2.0)],
-            &[3],
-        )
-        .unwrap();
-
-        let output = relu(&input).unwrap();
-
-        let expected = [0.0, 0.5, 2.0];
-        let actual: Vec<f32> = output
-            .as_slice()
-            .iter()
-            .map(|x: &Float32| x.get())
-            .collect();
-
-        for (a, e) in actual.iter().zip(expected.iter()) {
-            assert_relative_eq!(*a, *e);
-        }
-    }
-
-    #[test]
-    fn test_functional_sigmoid() {
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(0.0)],
-            &[1],
-        )
-        .unwrap();
-
-        let output = sigmoid(&input).unwrap();
-
-        // sigmoid(0) = 0.5
-        let actual = output.as_slice()[0].get();
-        assert_relative_eq!(actual, 0.5, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_functional_tanh() {
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(0.0)],
-            &[1],
-        )
-        .unwrap();
-
-        let output = tanh(&input).unwrap();
-
-        // tanh(0) = 0
-        let actual = output.as_slice()[0].get();
-        assert_relative_eq!(actual, 0.0, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_functional_mse_loss() {
-        let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(1.0), Float32::new(2.0)],
-            &[2],
-        )
-        .unwrap();
-
-        let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(1.5), Float32::new(2.5)],
-            &[2],
-        )
-        .unwrap();
-
-        let loss = mse_loss(&predictions, &targets).unwrap();
-
-        // MSE = mean((1.0-1.5)² + (2.0-2.5)²) = mean(0.25 + 0.25) = 0.25
-        assert_relative_eq!(loss.as_slice()[0].get(), 0.25);
-    }
-
-    #[test]
-    fn test_functional_softmax() {
-        // Test softmax with 2 classes, 1 sample
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(1.0), Float32::new(2.0)],
-            &[1, 2],
-        )
-        .unwrap();
-
-        let output = softmax(&input).unwrap();
-
-        // softmax([1, 2]) = [exp(1-2)/(exp(1-2)+exp(2-2)), exp(2-2)/(exp(1-2)+exp(2-2))]
-        // = [exp(-1)/(exp(-1)+exp(0)), exp(0)/(exp(-1)+exp(0))]
-        // ≈ [0.269, 0.731]
-        let expected = [0.268_941_4, 0.731_058_6];
-        let actual: Vec<f32> = output
-            .as_slice()
-            .iter()
-            .map(|x: &Float32| x.get())
-            .collect();
-
-        for (a, e) in actual.iter().zip(expected.iter()) {
-            assert_relative_eq!(*a, *e, epsilon = 1e-6);
-        }
-
-        // Check that probabilities sum to 1
-        let sum: f32 = actual.iter().sum();
-        assert_relative_eq!(sum, 1.0, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_functional_cross_entropy() {
-        // Test cross-entropy with 3 classes, 2 samples
-        let logits = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![
-                Float32::new(1.0),
-                Float32::new(0.5),
-                Float32::new(0.2), // sample 1
-                Float32::new(0.1),
-                Float32::new(2.0),
-                Float32::new(0.3), // sample 2
-            ],
-            &[2, 3],
-        )
-        .unwrap();
-
-        let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(1.0), Float32::new(0.0)], // class 1 for sample 1, class 0 for sample 2
-            &[2],
-        )
-        .unwrap();
-
-        let loss = cross_entropy(&logits, &targets).unwrap();
-
-        // This should be a positive scalar loss
-        let loss_val = loss.as_slice()[0].get();
-        assert!(loss_val > 0.0);
-        assert!(loss_val.is_finite());
-    }
-
-    #[test]
-    fn test_simd_accumulate_gradients() {
-        let mut target = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-        let source = vec![Float32::new(0.5), Float32::new(1.5), Float32::new(2.5)];
-
-        // Scalar implementation (SIMD not implemented)
-        for i in 0..target.len().min(source.len()) {
-            target[i] = Float32::new(target[i].get() + source[i].get());
-        }
-
-        assert_eq!(target[0].get(), 1.5); // 1.0 + 0.5
-        assert_eq!(target[1].get(), 3.5); // 2.0 + 1.5
-        assert_eq!(target[2].get(), 5.5); // 3.0 + 2.5
-    }
 }
 
 /// Apply 2D convolution operation.
@@ -1713,4 +1553,161 @@ pub fn conv_transpose_2d<T: DataType + FloatExt>(
         input_grad_data,
         &[batch_size, weight_in_channels, input_height, input_width],
     )?)
+}
+
+// Re-exports from loss module for functional API compatibility
+// Loss functions are now in separate modules
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+    use dtype::float::Float32;
+
+    #[test]
+    fn test_functional_relu() {
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(-1.0), Float32::new(0.5), Float32::new(2.0)],
+            &[3],
+        )
+        .unwrap();
+
+        let output = relu(&input).unwrap();
+
+        let expected = [0.0, 0.5, 2.0];
+        let actual: Vec<f32> = output
+            .as_slice()
+            .iter()
+            .map(|x: &Float32| x.get())
+            .collect();
+
+        for (a, e) in actual.iter().zip(expected.iter()) {
+            assert_relative_eq!(*a, *e);
+        }
+    }
+
+    #[test]
+    fn test_functional_sigmoid() {
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(0.0)],
+            &[1],
+        )
+        .unwrap();
+
+        let output = sigmoid(&input).unwrap();
+
+        // sigmoid(0) = 0.5
+        let actual = output.as_slice()[0].get();
+        assert_relative_eq!(actual, 0.5, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_functional_tanh() {
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(0.0)],
+            &[1],
+        )
+        .unwrap();
+
+        let output = tanh(&input).unwrap();
+
+        // tanh(0) = 0
+        let actual = output.as_slice()[0].get();
+        assert_relative_eq!(actual, 0.0, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_functional_mse_loss() {
+        let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(1.0), Float32::new(2.0)],
+            &[2],
+        )
+        .unwrap();
+
+        let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(1.5), Float32::new(2.5)],
+            &[2],
+        )
+        .unwrap();
+
+        let loss = mse_loss(&predictions, &targets).unwrap();
+
+        // MSE = mean((1.0-1.5)² + (2.0-2.5)²) = mean(0.25 + 0.25) = 0.25
+        assert_relative_eq!(loss.as_slice()[0].get(), 0.25);
+    }
+
+    #[test]
+    fn test_functional_softmax() {
+        // Test softmax with 2 classes, 1 sample
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(1.0), Float32::new(2.0)],
+            &[1, 2],
+        )
+        .unwrap();
+
+        let output = softmax(&input).unwrap();
+
+        // softmax([1, 2]) = [exp(1-2)/(exp(1-2)+exp(2-2)), exp(2-2)/(exp(1-2)+exp(2-2))]
+        // = [exp(-1)/(exp(-1)+exp(0)), exp(0)/(exp(-1)+exp(0))]
+        // ≈ [0.269, 0.731]
+        let expected = [0.268_941_4, 0.731_058_6];
+        let actual: Vec<f32> = output
+            .as_slice()
+            .iter()
+            .map(|x: &Float32| x.get())
+            .collect();
+
+        for (a, e) in actual.iter().zip(expected.iter()) {
+            assert_relative_eq!(*a, *e, epsilon = 1e-6);
+        }
+
+        // Check that probabilities sum to 1
+        let sum: f32 = actual.iter().sum();
+        assert_relative_eq!(sum, 1.0, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_functional_cross_entropy() {
+        // Test cross-entropy with 3 classes, 2 samples
+        let logits = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![
+                Float32::new(1.0),
+                Float32::new(0.5),
+                Float32::new(0.2), // sample 1
+                Float32::new(0.1),
+                Float32::new(2.0),
+                Float32::new(0.3), // sample 2
+            ],
+            &[2, 3],
+        )
+        .unwrap();
+
+        let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(1.0), Float32::new(0.0)], // class 1 for sample 1, class 0 for sample 2
+            &[2],
+        )
+        .unwrap();
+
+        let loss = cross_entropy(&logits, &targets).unwrap();
+
+        // This should be a positive scalar loss
+        let loss_val = loss.as_slice()[0].get();
+        assert!(loss_val > 0.0);
+        assert!(loss_val.is_finite());
+    }
+
+    #[test]
+    fn test_simd_accumulate_gradients() {
+        let mut target = [Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
+        let source = [Float32::new(0.5), Float32::new(1.5), Float32::new(2.5)];
+
+        // Scalar implementation (SIMD not implemented)
+        for i in 0..target.len().min(source.len()) {
+            target[i] = Float32::new(target[i].get() + source[i].get());
+        }
+
+        assert_eq!(target[0].get(), 1.5); // 1.0 + 0.5
+        assert_eq!(target[1].get(), 3.5); // 2.0 + 1.5
+        assert_eq!(target[2].get(), 5.5); // 3.0 + 2.5
+    }
 }

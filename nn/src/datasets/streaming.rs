@@ -3,15 +3,15 @@
 //! This module provides streaming capabilities for processing large vision-language datasets
 //! that don't fit entirely in memory. Supports distributed processing and prefetching.
 
+use super::{ImageTextPair, VisionLanguageData};
 use crate::error::{NNError, Result};
-use super::{VisionLanguageData, ImageTextPair};
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::{mpsc, Semaphore};
-use futures::stream::{Stream, StreamExt};
-use std::pin::Pin;
-use std::task::{Context, Poll};
 use async_stream;
+use futures::stream::{Stream, StreamExt};
+use std::collections::HashMap;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::task::{Context, Poll};
+use tokio::sync::{mpsc, Semaphore};
 
 /// Configuration for streaming dataset processing
 #[derive(Debug, Clone)]
@@ -78,10 +78,7 @@ impl<T: VisionLanguageData + Send + Sync + 'static> StreamingDataset<T> {
 
     /// Create a batched stream (groups items into batches)
     pub fn batched_stream(&self) -> BatchedDatasetStream<T> {
-        BatchedDatasetStream::new(
-            self.dataset.clone(),
-            self.config.clone(),
-        )
+        BatchedDatasetStream::new(self.dataset.clone(), self.config.clone())
     }
 
     /// Get current stream position
@@ -91,7 +88,8 @@ impl<T: VisionLanguageData + Send + Sync + 'static> StreamingDataset<T> {
 
     /// Reset stream position to beginning
     pub fn reset(&self) {
-        self.current_index.store(0, std::sync::atomic::Ordering::SeqCst);
+        self.current_index
+            .store(0, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
@@ -119,7 +117,8 @@ impl<T: VisionLanguageData + Send + Sync + 'static> DatasetStream<T> {
             let mut sent = 0;
             let mut indices: Vec<usize> = if config.shuffle {
                 // Create shuffled indices
-                let mut indices: Vec<usize> = (start_index..std::cmp::min(start_index + max_items, total_items)).collect();
+                let mut indices: Vec<usize> =
+                    (start_index..std::cmp::min(start_index + max_items, total_items)).collect();
                 let mut rng = rand::thread_rng();
                 for i in (1..indices.len()).rev() {
                     let j = rand::Rng::gen_range(&mut rng, 0..=i);
@@ -305,18 +304,15 @@ pub mod distributed {
 
             // Partition the dataset
             let total_items = self.dataset.len();
-            let items_per_worker = (total_items + self.config.world_size - 1) / self.config.world_size;
+            let items_per_worker =
+                (total_items + self.config.world_size - 1) / self.config.world_size;
 
             let start_idx = self.config.rank * items_per_worker;
             let max_items = std::cmp::min(items_per_worker, total_items - start_idx);
 
             worker_config.max_items = Some(max_items);
 
-            DatasetStream::new(
-                self.dataset.clone(),
-                worker_config,
-                start_idx,
-            )
+            DatasetStream::new(self.dataset.clone(), worker_config, start_idx)
         }
 
         /// Get worker statistics
@@ -324,10 +320,14 @@ pub mod distributed {
             let mut stats = HashMap::new();
             stats.insert("world_size".to_string(), self.config.world_size.to_string());
             stats.insert("rank".to_string(), self.config.rank.to_string());
-            stats.insert("epoch".to_string(), self.epoch_counter.load(Ordering::Relaxed).to_string());
+            stats.insert(
+                "epoch".to_string(),
+                self.epoch_counter.load(Ordering::Relaxed).to_string(),
+            );
 
             let total_items = self.dataset.len();
-            let items_per_worker = (total_items + self.config.world_size - 1) / self.config.world_size;
+            let items_per_worker =
+                (total_items + self.config.world_size - 1) / self.config.world_size;
             stats.insert("items_per_worker".to_string(), items_per_worker.to_string());
 
             stats
@@ -386,7 +386,7 @@ pub mod utils {
             match item {
                 Ok(pair) => {
                     results.push(pair);
-                    if max_items.map_or(false, |max| results.len() >= max) {
+                    if max_items.is_some_and(|max| results.len() >= max) {
                         break;
                     }
                 }
@@ -425,29 +425,35 @@ pub mod utils {
         let start_time = Instant::now();
         let stream_instance = DatasetStream::new(dataset, config, 0);
 
-        stream::unfold((stream_instance, stats, start_time), |(mut stream, stats, start_time)| async move {
-            match stream.next().await {
-                Some(item) => {
-                    let mut current_stats = stats.lock().unwrap();
-                    let elapsed = start_time.elapsed().as_millis() as u64;
+        stream::unfold(
+            (stream_instance, stats, start_time),
+            |(mut stream, stats, start_time)| async move {
+                match stream.next().await {
+                    Some(item) => {
+                        let mut current_stats = stats.lock().unwrap();
+                        let elapsed = start_time.elapsed().as_millis() as u64;
 
-                    match &item {
-                        Ok(_) => current_stats.items_processed += 1,
-                        Err(_) => current_stats.errors_encountered += 1,
+                        match &item {
+                            Ok(_) => current_stats.items_processed += 1,
+                            Err(_) => current_stats.errors_encountered += 1,
+                        }
+
+                        current_stats.processing_time_ms = elapsed;
+                        current_stats.throughput_items_per_sec = if elapsed > 0 {
+                            current_stats.items_processed as f64 * 1000.0 / elapsed as f64
+                        } else {
+                            0.0
+                        };
+
+                        Some((
+                            (item, current_stats.clone()),
+                            (stream, stats.clone(), start_time),
+                        ))
                     }
-
-                    current_stats.processing_time_ms = elapsed;
-                    current_stats.throughput_items_per_sec = if elapsed > 0 {
-                        current_stats.items_processed as f64 * 1000.0 / elapsed as f64
-                    } else {
-                        0.0
-                    };
-
-                    Some(((item, current_stats.clone()), (stream, stats.clone(), start_time)))
+                    None => None,
                 }
-                None => None,
-            }
-        })
+            },
+        )
     }
 }
 
@@ -466,7 +472,17 @@ mod tests {
             self.pairs.len()
         }
 
-        fn get(&self, index: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = crate::error::Result<crate::datasets::ImageTextPair>> + Send + '_>> {
+        fn get(
+            &self,
+            index: usize,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = crate::error::Result<crate::datasets::ImageTextPair>,
+                    > + Send
+                    + '_,
+            >,
+        > {
             let pair = self.pairs[index].clone();
             Box::pin(async move { Ok(pair) })
         }
@@ -479,7 +495,7 @@ mod tests {
             crate::datasets::DatasetStatistics {
                 total_pairs: self.pairs.len(),
                 avg_caption_length: 10.0, // Mock value
-                vocab_size: 1000, // Mock value
+                vocab_size: 1000,         // Mock value
                 image_sizes: Some(vec![]),
                 disk_size_mb: Some(1.0), // Mock value
             }
@@ -537,8 +553,10 @@ mod tests {
     #[tokio::test]
     async fn test_batched_streaming() {
         let dataset = create_test_dataset();
-        let mut streaming_config = StreamingConfig::default();
-        streaming_config.batch_size = 1;
+        let streaming_config = StreamingConfig {
+            batch_size: 1,
+            ..Default::default()
+        };
         let streaming = StreamingDataset::new(dataset, streaming_config);
         let mut stream = streaming.batched_stream();
 
@@ -562,7 +580,8 @@ mod tests {
             base_seed: 42,
         };
 
-        let distributed = distributed::DistributedStreamingDataset::new(dataset, distributed_config);
+        let distributed =
+            distributed::DistributedStreamingDataset::new(dataset, distributed_config);
         let mut stream = distributed.stream();
 
         let mut count = 0;
@@ -604,4 +623,3 @@ mod tests {
         assert_eq!(count, 2);
     }
 }
-

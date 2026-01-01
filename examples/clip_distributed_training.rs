@@ -29,14 +29,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use nn::clip::{ClipModel, ClipConfig, InfoNCELoss};
+use error::Result;
+use nn::clip::{ClipConfig, ClipModel, InfoNCELoss};
 use nn::datasets::{
-    CocoDataset, VisionLanguageBatchLoader, BatchConfig, vision_language::clip_augmentation_pipeline,
+    vision_language::clip_augmentation_pipeline, BatchConfig, CocoDataset,
+    VisionLanguageBatchLoader,
 };
 use nn::error::NNError;
 use nn::module::Module;
 use nn::{Backend, Storage};
-use error::Result;
 
 // Distributed training imports
 use distributed::DataParallel;
@@ -85,8 +86,14 @@ impl Default for DistributedTrainingConfig {
             batch_size: 64,
             num_epochs: 10,
             temperature: 0.07,
-            rank: std::env::var("RANK").unwrap_or("0".to_string()).parse().unwrap_or(0),
-            world_size: std::env::var("WORLD_SIZE").unwrap_or("1".to_string()).parse().unwrap_or(1),
+            rank: std::env::var("RANK")
+                .unwrap_or("0".to_string())
+                .parse()
+                .unwrap_or(0),
+            world_size: std::env::var("WORLD_SIZE")
+                .unwrap_or("1".to_string())
+                .parse()
+                .unwrap_or(1),
             coco_path: std::env::var("COCO_PATH").ok(),
         }
     }
@@ -112,7 +119,10 @@ async fn main() -> Result<()> {
     println!("📊 Distributed Configuration:");
     println!("   - Rank: {}/{}", config.rank, config.world_size);
     println!("   - GPUs per node: {}", config.world_size);
-    println!("   - Global batch size: {}", config.batch_size * config.world_size);
+    println!(
+        "   - Global batch size: {}",
+        config.batch_size * config.world_size
+    );
     println!("   - Learning rate: {:.1e}", config.learning_rate);
 
     // Phase 1: Data Preparation
@@ -125,7 +135,10 @@ async fn main() -> Result<()> {
 
     println!("✅ Distributed dataset loaded");
     println!("   - Local batch size: {}", config.batch_size);
-    println!("   - Global batch size: {}", config.batch_size * config.world_size);
+    println!(
+        "   - Global batch size: {}",
+        config.batch_size * config.world_size
+    );
 
     // Phase 2: Model and Distributed Setup
     println!("\n🧠 Phase 2: Distributed Model Setup");
@@ -136,25 +149,25 @@ async fn main() -> Result<()> {
     let model = ClipModel::new_with_backend(
         config.clip_config.clone(),
         cpu_backend.clone(),
-        DenseStorage::<Float32>::default()
+        DenseStorage::<Float32>::default(),
     )?;
 
     // Wrap model with data parallelism (CPU mode)
     let data_parallel_model = DataParallel::new(model, config.rank, config.world_size)?;
 
     println!("✅ Distributed CLIP model created on CPU");
-    println!("   - Model parameters: {}M", data_parallel_model.model().num_parameters() / 1_000_000);
+    println!(
+        "   - Model parameters: {}M",
+        data_parallel_model.model().num_parameters() / 1_000_000
+    );
     println!("   - Simulated {} devices", config.world_size);
 
     // Phase 3: Distributed Training
     println!("\n🚀 Phase 3: Distributed Training");
     println!("================================");
 
-    let training_stats = run_distributed_training_cpu(
-        data_parallel_model,
-        &batch_loader,
-        &config,
-    ).await?;
+    let training_stats =
+        run_distributed_training_cpu(data_parallel_model, &batch_loader, &config).await?;
 
     print_training_summary(&training_stats);
 
@@ -166,7 +179,8 @@ async fn main() -> Result<()> {
 async fn initialize_gpu_backend() -> Result<(GpuBackend<Float32>, wgpu::Device, wgpu::Queue)> {
     println!("🎯 Initializing WGPU backend for distributed training");
 
-    let gpu_backend = GpuBackend::<Float32>::new().await
+    let gpu_backend = GpuBackend::<Float32>::new()
+        .await
         .map_err(|e| NNError::BackendError(format!("Failed to initialize GPU backend: {}", e)))?;
 
     // Get the underlying WGPU device and queue for distributed training
@@ -181,8 +195,9 @@ async fn initialize_gpu_backend() -> Result<(GpuBackend<Float32>, wgpu::Device, 
 }
 
 async fn prepare_distributed_dataset(config: &DistributedTrainingConfig) -> Result<CocoDataset> {
-    let coco_path = config.coco_path.as_ref()
-        .ok_or_else(|| NNError::InvalidConfiguration("COCO_PATH environment variable required".to_string()))?;
+    let coco_path = config.coco_path.as_ref().ok_or_else(|| {
+        NNError::InvalidConfiguration("COCO_PATH environment variable required".to_string())
+    })?;
 
     println!("📂 Loading COCO dataset from: {}", coco_path);
 
@@ -208,10 +223,10 @@ where
     T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone,
     M: Module<B, S, T> + Send + Sync,
 {
-    use std::time::Instant;
     use nn::clip::trainer::ClipTrainingConfig;
     use nn::optim::{Adam, Optimizer};
     use optim::BaseOptimizer;
+    use std::time::Instant;
 
     println!("🎯 Starting GPU-accelerated distributed training");
 
@@ -219,9 +234,9 @@ where
     let mut optimizer = Adam::new(
         data_parallel_model.model().parameters().clone(),
         config.learning_rate,
-        0.9, // beta1
+        0.9,   // beta1
         0.999, // beta2
-        1e-8, // epsilon
+        1e-8,  // epsilon
     );
 
     // Create loss function
@@ -268,8 +283,10 @@ where
                 let elapsed = training_start.elapsed().as_secs_f64();
                 let throughput = total_samples_processed as f64 / elapsed;
 
-                println!("  📊 Rank {} | Batch {} | Loss: {:.4} | Throughput: {:.1} samples/s",
-                        config.rank, batch_count, loss_value, throughput);
+                println!(
+                    "  📊 Rank {} | Batch {} | Loss: {:.4} | Throughput: {:.1} samples/s",
+                    config.rank, batch_count, loss_value, throughput
+                );
 
                 metrics.push(TrainingMetrics {
                     epoch,
@@ -284,17 +301,26 @@ where
 
         let epoch_time = epoch_start.elapsed().as_secs_f64();
         if config.rank == 0 {
-            println!("  ✅ Epoch {} completed in {:.2}s | Avg Loss: {:.4}",
-                    epoch + 1, epoch_time, epoch_loss / batch_count as f64);
+            println!(
+                "  ✅ Epoch {} completed in {:.2}s | Avg Loss: {:.4}",
+                epoch + 1,
+                epoch_time,
+                epoch_loss / batch_count as f64
+            );
         }
     }
 
     if config.rank == 0 {
         println!("🎉 Distributed training completed!");
         println!("   - Total samples processed: {}", total_samples_processed);
-        println!("   - Training time: {:.2}s", training_start.elapsed().as_secs_f64());
-        println!("   - Final throughput: {:.1} samples/s",
-                total_samples_processed as f64 / training_start.elapsed().as_secs_f64());
+        println!(
+            "   - Training time: {:.2}s",
+            training_start.elapsed().as_secs_f64()
+        );
+        println!(
+            "   - Final throughput: {:.1} samples/s",
+            total_samples_processed as f64 / training_start.elapsed().as_secs_f64()
+        );
     }
 
     Ok(metrics)
@@ -318,17 +344,27 @@ where
     let mut metrics = Vec::new();
     let mut total_samples_processed = 0;
 
-    for epoch in 0..std::cmp::min(config.num_epochs, 2) { // Limit epochs for demo
-        println!("📈 Epoch {}/{} (CPU simulation)", epoch + 1, config.num_epochs);
+    for epoch in 0..std::cmp::min(config.num_epochs, 2) {
+        // Limit epochs for demo
+        println!(
+            "📈 Epoch {}/{} (CPU simulation)",
+            epoch + 1,
+            config.num_epochs
+        );
 
-        for batch_idx in 0..5 { // Simulate 5 batches per epoch
+        for batch_idx in 0..5 {
+            // Simulate 5 batches per epoch
             total_samples_processed += config.batch_size;
 
             let simulated_loss = 2.5 - (epoch as f64 * 0.3) - (batch_idx as f64 * 0.1);
 
             if config.rank == 0 && batch_idx % 2 == 0 {
-                println!("  📊 Rank {} | Batch {} | Simulated Loss: {:.4}",
-                        config.rank, batch_idx + 1, simulated_loss);
+                println!(
+                    "  📊 Rank {} | Batch {} | Simulated Loss: {:.4}",
+                    config.rank,
+                    batch_idx + 1,
+                    simulated_loss
+                );
             }
 
             metrics.push(TrainingMetrics {
@@ -362,7 +398,11 @@ fn print_training_summary(metrics: &[TrainingMetrics]) {
 
     let final_metrics = &metrics[metrics.len() - 1];
     let avg_loss = metrics.iter().map(|m| m.loss).sum::<f64>() / metrics.len() as f64;
-    let avg_throughput = metrics.iter().map(|m| m.throughput_samples_per_sec).sum::<f64>() / metrics.len() as f64;
+    let avg_throughput = metrics
+        .iter()
+        .map(|m| m.throughput_samples_per_sec)
+        .sum::<f64>()
+        / metrics.len() as f64;
 
     println!("\n📊 Training Summary:");
     println!("===================");
@@ -372,4 +412,3 @@ fn print_training_summary(metrics: &[TrainingMetrics]) {
     println!("Total Training Steps: {}", metrics.len());
     println!("Final Learning Rate: {:.1e}", final_metrics.learning_rate);
 }
-

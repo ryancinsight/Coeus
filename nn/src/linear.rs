@@ -4,65 +4,13 @@ use std::fmt;
 
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
+use num_traits;
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
-use num_traits;
 
 use crate::error::Result;
-use crate::module::{Module, ModuleExt};
+use crate::module::Module;
 use crate::parameter::Parameter;
-
-/// Autograd function for linear transformation
-#[derive(Debug)]
-struct LinearFunction<B, S, T>
-where
-    B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType,
-{
-    input: Tensor<B, S, T>,
-    weight: Tensor<B, S, T>,
-    bias: Option<Tensor<B, S, T>>,
-}
-
-impl<B, S, T> LinearFunction<B, S, T>
-where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType + FloatExt + num_traits::Zero + num_traits::One,
-{
-    fn forward(&self) -> Result<Tensor<B, S, T>> {
-        // Linear transformation: output = input @ weight.T + bias
-        let input_dense = self.input.to_dense_generic()?;
-        let weight_t = self.weight.to_dense_generic()?.transpose(1, 0)?;
-
-        let output = input_dense.matmul(&weight_t)?;
-
-        // Add bias if provided
-        if let Some(bias) = &self.bias {
-            // Broadcast bias to match output shape
-            let bias_data = bias.as_slice();
-            let mut output_data = output.as_slice().to_vec();
-            let batch_size = self.input.shape().dims()[0];
-            let out_features = bias_data.len();
-
-            for batch in 0..batch_size {
-                for feature in 0..out_features {
-                    let idx = batch * out_features + feature;
-                    if idx < output_data.len() && feature < bias_data.len() {
-                        output_data[idx] = output_data[idx] + bias_data[feature];
-                    }
-                }
-            }
-
-            Ok(Tensor::<B, S, T>::from_vec(output_data, output.shape().dims())?)
-        } else {
-            // Convert back to generic storage type
-            let output_data = output.as_slice().to_vec();
-            Ok(Tensor::<B, S, T>::from_vec(output_data, output.shape().dims())?)
-        }
-    }
-}
 
 /// A linear (fully connected) neural network layer.
 ///
@@ -298,7 +246,7 @@ where
         let mut rng = rand::thread_rng();
         let weight_data: Vec<T> = (0..total_elements)
             .map(|_| {
-                let rand_val: f64 = if limit_f64 <= std::f64::EPSILON {
+                let rand_val: f64 = if limit_f64 <= f64::EPSILON {
                     0.0
                 } else {
                     rng.gen_range(-limit_f64..=limit_f64)
@@ -356,7 +304,7 @@ where
 
             // Only place if not already set (avoid duplicates)
             if weight_data[idx] == T::zero() {
-                let weight_val = if limit_f64 <= std::f64::EPSILON {
+                let weight_val = if limit_f64 <= f64::EPSILON {
                     0.0
                 } else {
                     rng.gen_range(-limit_f64..=limit_f64)
@@ -417,27 +365,30 @@ where
         // For now, use direct operations - autograd integration will be completed later
         // TODO: Integrate with working autograd system
         let input_dense = input.to_dense_generic()?;
-        let weight_t = self.weight_t.as_ref().unwrap();
-        let output = input_dense.matmul(weight_t)?;
+        let weight_t = self.weight.data().to_dense_generic()?.transpose(1, 0)?;
+        let output = input_dense.matmul(&weight_t)?;
 
-            // Add bias manually - add bias to each sample in the batch
-            let bias_data = self.bias.data().as_slice();
-            let mut output_data = output.as_slice().to_vec();
-            let batch_size = input.shape().dims()[0];
-            let out_features = bias_data.len(); // Use bias length as out_features
+        // Add bias manually - add bias to each sample in the batch
+        let bias_data = self.bias.data().as_slice();
+        let mut output_data = output.as_slice().to_vec();
+        let batch_size = input.shape().dims()[0];
+        let out_features = bias_data.len(); // Use bias length as out_features
 
-            for batch in 0..batch_size {
-                for feature in 0..out_features {
-                    let idx = batch * out_features + feature;
-                    if idx < output_data.len() && feature < bias_data.len() {
-                        output_data[idx] = output_data[idx] + bias_data[feature];
-                    }
+        for batch in 0..batch_size {
+            for feature in 0..out_features {
+                let idx = batch * out_features + feature;
+                if idx < output_data.len() && feature < bias_data.len() {
+                    output_data[idx] = output_data[idx] + bias_data[feature];
                 }
             }
-
-            let result = Tensor::<B, S, T>::from_vec(output_data, output.shape().dims())?;
-            Ok(result)
         }
+
+        let requires_grad =
+            input.requires_grad() || self.weight.requires_grad() || self.bias.requires_grad();
+        let result = Tensor::<B, S, T>::from_vec(output_data, output.shape().dims())?
+            .requires_grad_(requires_grad);
+        Ok(result)
+    }
 
     fn forward_autograd(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
     where
@@ -513,15 +464,8 @@ where
 impl<B, S, T> crate::module::ModuleSerialize<B, S, T> for Linear<B, S, T>
 where
     B: Backend<Data = T> + Clone + std::default::Default,
-    S: Storage<T>
-        + Clone
-        + 'static
-        + storage::StorageFromVec<T>
-        + storage::StorageToDense<T>,
-    T: DataType
-        + serde::Serialize
-        + for<'de> serde::Deserialize<'de>
-        + dtype::traits::FloatExt,
+    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
+    T: DataType + serde::Serialize + for<'de> serde::Deserialize<'de> + dtype::traits::FloatExt,
 {
     // Default implementation from the trait is sufficient
 }

@@ -11,11 +11,11 @@ use std::time::{Duration, Instant};
 use crate::error::{NNError, Result};
 use crate::research::nas_integration::NASSearchResult;
 use crate::research::{
-    nas_integration::{IntegratedNASFramework, NASExperimentContext},
-    hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
-    performance_prediction::PerformancePredictionFramework,
-    joint_search::{JointSearchFramework, JointSearchContext, JointSearchStrategy},
     hpo_integration::JointAlgorithm,
+    hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
+    joint_search::{JointSearchContext, JointSearchFramework, JointSearchStrategy},
+    nas_integration::{IntegratedNASFramework, NASExperimentContext},
+    performance_prediction::PerformancePredictionFramework,
     UnifiedResearchFramework,
 };
 
@@ -86,13 +86,21 @@ pub enum PipelineStage {
     /// Joint NAS-HPO phase
     Joint { context: JointSearchContext },
     /// Performance prediction phase
-    Prediction { prediction_tasks: Vec<PredictionTask> },
+    Prediction {
+        prediction_tasks: Vec<PredictionTask>,
+    },
     /// Benchmarking and validation phase
-    Benchmarking { datasets: Vec<String>, metrics: Vec<String> },
+    Benchmarking {
+        datasets: Vec<String>,
+        metrics: Vec<String>,
+    },
     /// Analysis and reporting phase
     Analysis { analysis_types: Vec<AnalysisType> },
     /// Transfer learning phase
-    TransferLearning { source_domain: String, target_domain: String },
+    TransferLearning {
+        source_domain: String,
+        target_domain: String,
+    },
     /// Meta-learning phase
     MetaLearning { meta_tasks: Vec<String> },
 }
@@ -321,7 +329,9 @@ impl AutomatedResearchPipeline {
 
                 let experiment_id = nas_framework.start_nas_experiment(context.clone())?;
                 let evaluator = Arc::new(crate::nas::SimpleEvaluator::new(0.5, 0.01, 0.05)); // Placeholder
-                let space = crate::nas::ArchitectureSpace::new(crate::nas::search_space::ArchitectureType::CNN);
+                let space = crate::nas::ArchitectureSpace::new(
+                    crate::nas::search_space::ArchitectureType::CNN,
+                );
 
                 let result = nas_framework.execute_nas_search(&experiment_id, evaluator, &space)?;
                 Ok(PipelineStageResult::NAS(result))
@@ -340,7 +350,9 @@ impl AutomatedResearchPipeline {
                 let algorithm_name = joint_framework.recommend_algorithm(context);
 
                 let mut research_framework = self.research_framework.write().unwrap();
-                let arch_space = crate::nas::ArchitectureSpace::new(crate::nas::search_space::ArchitectureType::CNN);
+                let arch_space = crate::nas::ArchitectureSpace::new(
+                    crate::nas::search_space::ArchitectureType::CNN,
+                );
                 let hp_space = crate::hpo::space::HyperparameterSpace::new(); // Create empty HPO space for now
                 let result = joint_framework.execute_joint_search(
                     &algorithm_name,
@@ -358,26 +370,33 @@ impl AutomatedResearchPipeline {
                 for task in prediction_tasks {
                     // Parse prediction input from task.input_data
                     // This would need proper JSON parsing in real implementation
-                    let input = crate::research::performance_prediction::PredictionInput::Architecture(
-                        crate::research::performance_prediction::ArchitecturePredictionInput {
-                            architecture: crate::nas::ArchitectureSpace::new(
-                                crate::nas::search_space::ArchitectureType::CNN
-                            ).sample_random(3)?,
-                            dataset_info: crate::research::performance_prediction::DatasetInfo {
-                                name: "default".to_string(),
-                                size: 1000,
-                                input_shape: vec![28, 28, 1],
-                                output_classes: 10,
-                                complexity_score: 0.5,
+                    let input =
+                        crate::research::performance_prediction::PredictionInput::Architecture(
+                            crate::research::performance_prediction::ArchitecturePredictionInput {
+                                architecture: crate::nas::ArchitectureSpace::new(
+                                    crate::nas::search_space::ArchitectureType::CNN,
+                                )
+                                .sample_random(3)?,
+                                dataset_info:
+                                    crate::research::performance_prediction::DatasetInfo {
+                                        name: "default".to_string(),
+                                        size: 1000,
+                                        input_shape: vec![28, 28, 1],
+                                        output_classes: 10,
+                                        complexity_score: 0.5,
+                                    },
+                                task_info: crate::research::performance_prediction::TaskInfo {
+                                    task_type: task.task_type.clone(),
+                                    metric: task
+                                        .output_metrics
+                                        .first()
+                                        .cloned()
+                                        .unwrap_or("accuracy".to_string()),
+                                    domain: "vision".to_string(),
+                                },
+                                hardware_info: None,
                             },
-                            task_info: crate::research::performance_prediction::TaskInfo {
-                                task_type: task.task_type.clone(),
-                                metric: task.output_metrics.first().cloned().unwrap_or("accuracy".to_string()),
-                                domain: "vision".to_string(),
-                            },
-                            hardware_info: None,
-                        }
-                    );
+                        );
 
                     let prediction = self.prediction_framework.predict(&input)?;
                     results.push(prediction);
@@ -395,8 +414,13 @@ impl AutomatedResearchPipeline {
                 Ok(PipelineStageResult::Analysis(analysis_results))
             }
 
-            PipelineStage::TransferLearning { source_domain, target_domain } => {
-                let transfer_results = self.execute_transfer_learning(source_domain, target_domain).await?;
+            PipelineStage::TransferLearning {
+                source_domain,
+                target_domain,
+            } => {
+                let transfer_results = self
+                    .execute_transfer_learning(source_domain, target_domain)
+                    .await?;
                 Ok(PipelineStageResult::TransferLearning(transfer_results))
             }
 
@@ -408,17 +432,24 @@ impl AutomatedResearchPipeline {
     }
 
     /// Execute benchmarking phase
-    async fn execute_benchmarking(&self, datasets: &[String], metrics: &[String]) -> Result<BenchmarkResults> {
+    async fn execute_benchmarking(
+        &self,
+        datasets: &[String],
+        metrics: &[String],
+    ) -> Result<BenchmarkResults> {
         // Placeholder benchmarking implementation
         let mut dataset_results = HashMap::new();
 
         for dataset in datasets {
-            dataset_results.insert(dataset.clone(), DatasetBenchmark {
-                accuracy: 0.85, // Placeholder
-                latency: 10.0,
-                memory_usage: 1024,
-                energy_consumption: Some(50.0),
-            });
+            dataset_results.insert(
+                dataset.clone(),
+                DatasetBenchmark {
+                    accuracy: 0.85, // Placeholder
+                    latency: 10.0,
+                    memory_usage: 1024,
+                    energy_consumption: Some(50.0),
+                },
+            );
         }
 
         Ok(BenchmarkResults {
@@ -437,14 +468,24 @@ impl AutomatedResearchPipeline {
             match analysis_type {
                 AnalysisType::PerformanceAnalysis => {
                     insights.push("Performance analysis completed: models show good accuracy-latency tradeoffs".to_string());
-                    recommendations.push("Consider exploring larger model variants for better accuracy".to_string());
+                    recommendations.push(
+                        "Consider exploring larger model variants for better accuracy".to_string(),
+                    );
                 }
                 AnalysisType::ArchitectureAnalysis => {
-                    insights.push("Architecture analysis: CNN-based models dominate current search space".to_string());
-                    recommendations.push("Expand search space to include transformer architectures".to_string());
+                    insights.push(
+                        "Architecture analysis: CNN-based models dominate current search space"
+                            .to_string(),
+                    );
+                    recommendations.push(
+                        "Expand search space to include transformer architectures".to_string(),
+                    );
                 }
                 AnalysisType::HyperparameterSensitivity => {
-                    insights.push("Learning rate shows highest sensitivity in current configurations".to_string());
+                    insights.push(
+                        "Learning rate shows highest sensitivity in current configurations"
+                            .to_string(),
+                    );
                     recommendations.push("Implement adaptive learning rate schedules".to_string());
                 }
                 _ => insights.push(format!("{:?} analysis completed", analysis_type)),
@@ -460,7 +501,11 @@ impl AutomatedResearchPipeline {
     }
 
     /// Execute transfer learning phase
-    async fn execute_transfer_learning(&self, source: &str, target: &str) -> Result<TransferResults> {
+    async fn execute_transfer_learning(
+        &self,
+        source: &str,
+        target: &str,
+    ) -> Result<TransferResults> {
         Ok(TransferResults {
             source_domain: source.to_string(),
             target_domain: target.to_string(),
@@ -475,7 +520,10 @@ impl AutomatedResearchPipeline {
     /// Execute meta-learning phase
     async fn execute_meta_learning(&self, meta_tasks: &[String]) -> Result<MetaLearningResults> {
         Ok(MetaLearningResults {
-            learned_meta_knowledge: meta_tasks.iter().map(|t| format!("Learned: {}", t)).collect(),
+            learned_meta_knowledge: meta_tasks
+                .iter()
+                .map(|t| format!("Learned: {}", t))
+                .collect(),
             meta_model_performance: HashMap::from([
                 ("meta_accuracy".to_string(), 0.8),
                 ("generalization_score".to_string(), 0.75),
@@ -487,15 +535,9 @@ impl AutomatedResearchPipeline {
     /// Evaluate quality achieved by a stage
     fn evaluate_stage_quality(&self, result: &PipelineStageResult) -> Result<f64> {
         match result {
-            PipelineStageResult::NAS(nas_result) => {
-                Ok(nas_result.best_performance)
-            }
-            PipelineStageResult::HPO(hpo_result) => {
-                Ok(hpo_result.best_score)
-            }
-            PipelineStageResult::Joint(joint_result) => {
-                Ok(joint_result.best_score)
-            }
+            PipelineStageResult::NAS(nas_result) => Ok(nas_result.best_performance),
+            PipelineStageResult::HPO(hpo_result) => Ok(hpo_result.best_score),
+            PipelineStageResult::Joint(joint_result) => Ok(joint_result.best_score),
             _ => Ok(0.8), // Default quality for other stages
         }
     }
@@ -503,18 +545,25 @@ impl AutomatedResearchPipeline {
     /// Check if pipeline should continue execution
     fn should_continue_pipeline(&self) -> Result<bool> {
         // Check resource constraints
-        if self.execution_state.resource_usage.total_gpu_hours > self.config.resource_constraints.max_total_budget {
+        if self.execution_state.resource_usage.total_gpu_hours
+            > self.config.resource_constraints.max_total_budget
+        {
             return Ok(false);
         }
 
         // Check time constraints
         let elapsed = self.execution_state.start_time.elapsed();
-        if elapsed > self.config.resource_constraints.max_time_per_stage * self.execution_state.current_stage as u32 {
+        if elapsed
+            > self.config.resource_constraints.max_time_per_stage
+                * self.execution_state.current_stage as u32
+        {
             return Ok(false);
         }
 
         // Check quality targets
-        if self.execution_state.quality_metrics.current_accuracy < self.config.quality_targets.min_accuracy {
+        if self.execution_state.quality_metrics.current_accuracy
+            < self.config.quality_targets.min_accuracy
+        {
             // Only continue if we haven't met quality targets in the first few stages
             if self.execution_state.current_stage < 3 {
                 return Ok(true);
@@ -527,12 +576,18 @@ impl AutomatedResearchPipeline {
 
     /// Update quality metrics based on completed stages
     fn update_quality_metrics(&mut self) -> Result<()> {
-        let recent_stages = &self.execution_state.completed_stages[self.execution_state.completed_stages.len().saturating_sub(5)..];
+        let recent_stages = &self.execution_state.completed_stages[self
+            .execution_state
+            .completed_stages
+            .len()
+            .saturating_sub(5)..];
 
         if !recent_stages.is_empty() {
-            let avg_quality = recent_stages.iter()
+            let avg_quality = recent_stages
+                .iter()
                 .map(|s| s.quality_achieved)
-                .sum::<f64>() / recent_stages.len() as f64;
+                .sum::<f64>()
+                / recent_stages.len() as f64;
 
             self.execution_state.quality_metrics.current_accuracy = avg_quality;
 
@@ -547,10 +602,12 @@ impl AutomatedResearchPipeline {
             self.execution_state.quality_metrics.convergence_rate = convergence.max(0.0);
 
             // Simple resource efficiency calculation
-            let total_time = recent_stages.iter()
+            let total_time = recent_stages
+                .iter()
                 .map(|s| s.execution_time.as_secs_f64())
                 .sum::<f64>();
-            self.execution_state.quality_metrics.resource_efficiency = avg_quality / (total_time + 1.0).ln();
+            self.execution_state.quality_metrics.resource_efficiency =
+                avg_quality / (total_time + 1.0).ln();
         }
 
         Ok(())
@@ -561,26 +618,41 @@ impl AutomatedResearchPipeline {
         let mut recommendations = Vec::new();
 
         // Analyze pipeline execution
-        if self.execution_state.quality_metrics.current_accuracy >= self.config.quality_targets.min_accuracy {
-            recommendations.push("Pipeline achieved target quality metrics - ready for production deployment".to_string());
+        if self.execution_state.quality_metrics.current_accuracy
+            >= self.config.quality_targets.min_accuracy
+        {
+            recommendations.push(
+                "Pipeline achieved target quality metrics - ready for production deployment"
+                    .to_string(),
+            );
         } else {
-            recommendations.push("Consider adjusting pipeline parameters to improve quality metrics".to_string());
+            recommendations.push(
+                "Consider adjusting pipeline parameters to improve quality metrics".to_string(),
+            );
             recommendations.push("Review stage configurations for better performance".to_string());
         }
 
         if self.execution_state.quality_metrics.resource_efficiency < 0.5 {
-            recommendations.push("Optimize resource usage by adjusting parallelization and early stopping".to_string());
+            recommendations.push(
+                "Optimize resource usage by adjusting parallelization and early stopping"
+                    .to_string(),
+            );
         }
 
-        recommendations.push("Consider meta-learning from this pipeline execution for future improvements".to_string());
+        recommendations.push(
+            "Consider meta-learning from this pipeline execution for future improvements"
+                .to_string(),
+        );
 
         Ok(recommendations)
     }
 
     /// Check if pipeline was successful
     fn was_pipeline_successful(&self) -> bool {
-        let quality_ok = self.execution_state.quality_metrics.current_accuracy >= self.config.quality_targets.min_accuracy;
-        let stages_completed = self.execution_state.completed_stages.len() == self.config.pipeline_stages.len();
+        let quality_ok = self.execution_state.quality_metrics.current_accuracy
+            >= self.config.quality_targets.min_accuracy;
+        let stages_completed =
+            self.execution_state.completed_stages.len() == self.config.pipeline_stages.len();
 
         quality_ok && stages_completed
     }
@@ -638,7 +710,6 @@ impl Default for QualityMetrics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::research::UnifiedResearchFramework;
 
     #[test]
     fn test_pipeline_config() {
@@ -646,15 +717,13 @@ mod tests {
             name: "test_pipeline".to_string(),
             description: "Test automated research pipeline".to_string(),
             research_domain: ResearchDomain::ComputerVision,
-            pipeline_stages: vec![
-                PipelineStage::Prediction {
-                    prediction_tasks: vec![PredictionTask {
-                        task_type: "accuracy".to_string(),
-                        input_data: serde_json::Value::Null,
-                        output_metrics: vec!["accuracy".to_string()],
-                    }],
-                },
-            ],
+            pipeline_stages: vec![PipelineStage::Prediction {
+                prediction_tasks: vec![PredictionTask {
+                    task_type: "accuracy".to_string(),
+                    input_data: serde_json::Value::Null,
+                    output_metrics: vec!["accuracy".to_string()],
+                }],
+            }],
             resource_constraints: ResourceConstraints {
                 max_concurrent_experiments: 4,
                 max_time_per_stage: Duration::from_secs(3600),
@@ -674,7 +743,10 @@ mod tests {
 
         assert_eq!(config.name, "test_pipeline");
         assert_eq!(config.pipeline_stages.len(), 1);
-        assert!(matches!(config.research_domain, ResearchDomain::ComputerVision));
+        assert!(matches!(
+            config.research_domain,
+            ResearchDomain::ComputerVision
+        ));
     }
 
     #[test]

@@ -8,9 +8,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use nn::hpo::{HpoRunner, RandomSearchOptimizer, Objective, clip_spaces};
-use nn::experiment_tracking::{ExperimentTracker, ExperimentSpec, ExperimentStorage, InMemoryStorage, create_experiment_spec};
 use nn::error::Result;
+use nn::experiment_tracking::{
+    create_experiment_spec, ExperimentSpec, ExperimentStorage, ExperimentTracker, InMemoryStorage,
+};
+use nn::hpo::{clip_spaces, HpoRunner, Objective, RandomSearchOptimizer};
 
 // Mock CLIP trainer for demonstration (would use real CLIP training in production)
 #[derive(Clone)]
@@ -128,7 +130,8 @@ impl AutomatedCLIPResearch {
                 }
 
                 // Create experiment tracker
-                let exp_config = config.iter()
+                let exp_config = config
+                    .iter()
                     .map(|(k, v)| (k.clone(), serde_json::Value::from(*v)))
                     .collect();
 
@@ -192,7 +195,14 @@ impl AutomatedCLIPResearch {
         }
 
         println!("   Total Trials: {}", study.trials.len());
-        println!("   Completed Trials: {}", study.trials.iter().filter(|t| matches!(t.status, nn::hpo::TrialStatus::Completed)).count());
+        println!(
+            "   Completed Trials: {}",
+            study
+                .trials
+                .iter()
+                .filter(|t| matches!(t.status, nn::hpo::TrialStatus::Completed))
+                .count()
+        );
 
         Ok(())
     }
@@ -204,9 +214,18 @@ impl AutomatedCLIPResearch {
 
         // Define benchmark configurations
         let benchmark_configs = vec![
-            ("CLIP-B/32 (ViT-Base)", vec![("embed_dim", 512.0), ("patch_size", 32.0)]),
-            ("CLIP-L/14 (ViT-Large)", vec![("embed_dim", 768.0), ("patch_size", 14.0)]),
-            ("CLIP-B/16 (ViT-Base)", vec![("embed_dim", 512.0), ("patch_size", 16.0)]),
+            (
+                "CLIP-B/32 (ViT-Base)",
+                vec![("embed_dim", 512.0), ("patch_size", 32.0)],
+            ),
+            (
+                "CLIP-L/14 (ViT-Large)",
+                vec![("embed_dim", 768.0), ("patch_size", 14.0)],
+            ),
+            (
+                "CLIP-B/16 (ViT-Base)",
+                vec![("embed_dim", 512.0), ("patch_size", 16.0)],
+            ),
         ];
 
         for (model_name, model_config) in benchmark_configs {
@@ -216,7 +235,8 @@ impl AutomatedCLIPResearch {
 
             // Run multiple trials for statistical significance
             for trial in 0..3 {
-                let config: HashMap<String, f64> = model_config.iter()
+                let config: HashMap<String, f64> = model_config
+                    .iter()
                     .map(|(k, v)| (k.to_string(), *v))
                     .collect();
 
@@ -228,20 +248,37 @@ impl AutomatedCLIPResearch {
                 let throughput = 1000.0 / elapsed.as_millis() as f64; // samples/sec
 
                 results.push(BenchmarkResult {
-                    experiment_id: format!("{}_trial_{}", model_name.replace("/", "_").replace(" ", "_"), trial),
+                    experiment_id: format!(
+                        "{}_trial_{}",
+                        model_name.replace("/", "_").replace(" ", "_"),
+                        trial
+                    ),
                     clip_score: 1.0 / (1.0 + loss), // Convert loss to score
                     throughput,
-                    memory_usage: 1024.0 + (config.get("embed_dim").unwrap_or(&512.0) / 512.0) * 512.0, // Mock memory usage
+                    memory_usage: 1024.0
+                        + (config.get("embed_dim").unwrap_or(&512.0) / 512.0) * 512.0, // Mock memory usage
                     parameters: config,
                 });
             }
 
             // Calculate averages
-            let avg_clip_score = results.iter().map(|r| r.clip_score).sum::<f64>() / results.len() as f64;
-            let avg_throughput = results.iter().map(|r| r.throughput).sum::<f64>() / results.len() as f64;
-            let avg_memory = results.iter().map(|r| r.memory_usage).sum::<f64>() / results.len() as f64;
+            let avg_clip_score =
+                results.iter().map(|r| r.clip_score).sum::<f64>() / results.len() as f64;
+            let avg_throughput =
+                results.iter().map(|r| r.throughput).sum::<f64>() / results.len() as f64;
+            let avg_memory =
+                results.iter().map(|r| r.memory_usage).sum::<f64>() / results.len() as f64;
 
-            println!("   CLIP Score: {:.3} ±{:.3}", avg_clip_score, results.iter().map(|r| (r.clip_score - avg_clip_score).powi(2)).sum::<f64>().sqrt() / results.len() as f64);
+            println!(
+                "   CLIP Score: {:.3} ±{:.3}",
+                avg_clip_score,
+                results
+                    .iter()
+                    .map(|r| (r.clip_score - avg_clip_score).powi(2))
+                    .sum::<f64>()
+                    .sqrt()
+                    / results.len() as f64
+            );
             println!("   Throughput: {:.1} samples/sec", avg_throughput);
             println!("   Memory Usage: {:.0} MB", avg_memory);
         }
@@ -257,8 +294,14 @@ impl AutomatedCLIPResearch {
         // Load all experiments
         let experiments = self.storage.list_experiments(None).await?;
 
-        let completed_experiments: Vec<_> = experiments.into_iter()
-            .filter(|exp| matches!(exp.status, nn::experiment_tracking::ExperimentStatus::Completed))
+        let completed_experiments: Vec<_> = experiments
+            .into_iter()
+            .filter(|exp| {
+                matches!(
+                    exp.status,
+                    nn::experiment_tracking::ExperimentStatus::Completed
+                )
+            })
             .collect();
 
         println!("📊 Experiment Summary:");
@@ -270,7 +313,8 @@ impl AutomatedCLIPResearch {
         }
 
         // Analyze HPO results
-        let hpo_experiments: Vec<_> = completed_experiments.iter()
+        let hpo_experiments: Vec<_> = completed_experiments
+            .iter()
             .filter(|exp| exp.spec.tags.contains(&"hpo".to_string()))
             .collect();
 
@@ -278,18 +322,21 @@ impl AutomatedCLIPResearch {
             println!("🎯 HPO Analysis:");
 
             // Find best performing experiment
-            let best_exp = hpo_experiments.iter()
-                .min_by(|a, b| {
-                    let a_loss = a.metrics.get("validation_loss")
-                        .and_then(|points| points.last())
-                        .map(|p| p.value)
-                        .unwrap_or(f64::INFINITY);
-                    let b_loss = b.metrics.get("validation_loss")
-                        .and_then(|points| points.last())
-                        .map(|p| p.value)
-                        .unwrap_or(f64::INFINITY);
-                    a_loss.partial_cmp(&b_loss).unwrap()
-                });
+            let best_exp = hpo_experiments.iter().min_by(|a, b| {
+                let a_loss = a
+                    .metrics
+                    .get("validation_loss")
+                    .and_then(|points| points.last())
+                    .map(|p| p.value)
+                    .unwrap_or(f64::INFINITY);
+                let b_loss = b
+                    .metrics
+                    .get("validation_loss")
+                    .and_then(|points| points.last())
+                    .map(|p| p.value)
+                    .unwrap_or(f64::INFINITY);
+                a_loss.partial_cmp(&b_loss).unwrap()
+            });
 
             if let Some(best) = best_exp {
                 println!("   Best Configuration:");
@@ -297,7 +344,9 @@ impl AutomatedCLIPResearch {
                     println!("     {}: {}", key, value);
                 }
 
-                let best_loss = best.metrics.get("validation_loss")
+                let best_loss = best
+                    .metrics
+                    .get("validation_loss")
                     .and_then(|points| points.last())
                     .map(|p| p.value)
                     .unwrap_or(0.0);
@@ -307,12 +356,9 @@ impl AutomatedCLIPResearch {
         }
 
         // Performance analysis
-        let avg_training_times: Vec<f64> = completed_experiments.iter()
-            .filter_map(|exp| {
-                exp.metrics.get("training_time")?
-                    .last()
-                    .map(|p| p.value)
-            })
+        let avg_training_times: Vec<f64> = completed_experiments
+            .iter()
+            .filter_map(|exp| exp.metrics.get("training_time")?.last().map(|p| p.value))
             .collect();
 
         if !avg_training_times.is_empty() {
@@ -404,4 +450,3 @@ mod tests {
         assert!(loss > 0.0 && loss < 5.0);
     }
 }
-

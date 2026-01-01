@@ -4,6 +4,7 @@
 //! learning-to-learn algorithms, few-shot learning, and adaptation strategies.
 
 pub mod adaptation;
+#[cfg(feature = "research")]
 pub mod adapters;
 pub mod benchmark;
 pub mod datasets;
@@ -14,9 +15,10 @@ pub mod task_distribution;
 
 // Re-export main meta-learning types
 pub use adaptation::MetaLearner;
+#[cfg(feature = "research")]
 pub use adapters::{MAMLAdapter, MAMLAgentFactory, PrototypicalAdapter, PrototypicalAgentFactory};
 pub use benchmark::{FewShotDataset, MetaLearningBenchmark};
-pub use datasets::{DatasetStats, FewShotEpisode, MetaDataset, DatasetSplit};
+pub use datasets::{DatasetSplit, DatasetStats, FewShotEpisode, MetaDataset};
 // Re-export dataset types
 pub use maml::MAML;
 pub use meta_optimizer::{MetaLSTM, MetaSGD};

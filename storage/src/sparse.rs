@@ -3,7 +3,6 @@
 //! Provides memory-efficient storage for tensors with many zero elements.
 //! Supports CSR, CSC, and COO sparse matrix formats.
 
-use crate::sparse_arithmetic::SparseMatMul;
 use crate::{AsAny, DataType, Result, Shape, Storage, StorageError};
 use alloc::{vec, vec::Vec};
 
@@ -674,9 +673,9 @@ impl<T: DataType> CsrStorage<T> {
         let mut indptr = Vec::with_capacity(rows + 1);
 
         indptr.push(0);
-        for row in 0..rows {
+        for _row in 0..rows {
             for col in 0..cols {
-                data.push(value.clone());
+                data.push(value);
                 indices.push(col);
             }
             indptr.push(data.len());
@@ -715,9 +714,9 @@ impl<T: DataType> CscStorage<T> {
         let mut indptr = Vec::with_capacity(cols + 1);
 
         indptr.push(0);
-        for col in 0..cols {
+        for _col in 0..cols {
             for row in 0..rows {
-                data.push(value.clone());
+                data.push(value);
                 indices.push(row);
             }
             indptr.push(data.len());
@@ -757,7 +756,7 @@ impl<T: DataType> CooStorage<T> {
 
         for row in 0..rows {
             for col in 0..cols {
-                data.push(value.clone());
+                data.push(value);
                 row_indices.push(row);
                 col_indices.push(col);
             }
@@ -1119,41 +1118,6 @@ impl<T: DataType> crate::StorageToDense<T> for CooStorage<T> {
         }
 
         crate::DenseStorage::from_vec(dense_data, dims)
-    }
-}
-
-// Implement MatMulStorage for sparse types using existing sparse arithmetic
-impl<T: DataType> crate::MatMulStorage<T> for CsrStorage<T>
-where
-    T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
-{
-    fn matmul_storage(&self, other: &Self) -> crate::Result<Self> {
-        // Use the existing sparse matrix multiplication
-        let result_coo = self.matmul_sparse(other, crate::SparseFormat::Csr)?;
-        Ok(result_coo.to_csr())
-    }
-}
-
-impl<T: DataType> crate::MatMulStorage<T> for CscStorage<T>
-where
-    T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
-{
-    fn matmul_storage(&self, other: &Self) -> crate::Result<Self> {
-        // Convert to CSR, multiply, convert back to CSC
-        let self_csr = self.to_csr();
-        let other_csr = other.to_csr();
-        let result_csr = self_csr.matmul_sparse(&other_csr, crate::SparseFormat::Csr)?;
-        Ok(result_csr.to_csc())
-    }
-}
-
-impl<T: DataType> crate::MatMulStorage<T> for CooStorage<T>
-where
-    T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
-{
-    fn matmul_storage(&self, other: &Self) -> crate::Result<Self> {
-        // Use COO × COO multiplication
-        self.matmul_sparse(other, crate::SparseFormat::Coo)
     }
 }
 

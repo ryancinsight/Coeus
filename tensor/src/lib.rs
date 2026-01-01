@@ -5,12 +5,6 @@
 //! This crate provides a unified tensor architecture that consolidates all tensor forms
 //! into a single type with simplified generic backend abstraction.
 //!
-//! ## Architecture Update (October 2025)
-//!
-//! **Major Simplification**: `Tensor<B, S, T>` → `Tensor<B>` using associated types.
-//! The backend trait now encapsulates storage and datatype through associated types,
-//! eliminating redundant generics while maintaining full functionality.
-//!
 //! ## Architecture
 //!
 //! The tensor library provides a single unified tensor type that works across all backends
@@ -20,10 +14,11 @@
 //! ```rust
 //! use tensor::Tensor;
 //! use backend::CpuBackend;
+//! use dtype::float::Float32;
+//! use storage::DenseStorage;
 //!
-//! // Create CPU tensor with simplified API - backend encapsulates storage and dtype
-//! let tensor = Tensor::<CpuBackend>::from_vec(
-//!     vec![1.0, 2.0, 3.0],
+//! let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+//!     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
 //!     &[3]
 //! ).unwrap();
 //!
@@ -58,18 +53,18 @@ extern crate alloc;
 pub mod ops;
 
 // Temporarily disabled due to alloc issues
+pub mod functions;
 pub mod minimal_tensor;
 pub mod tensor_backend_dispatch;
 pub mod tensor_backend_integration_tests;
 pub mod tensor_core;
-pub mod functions;
 pub mod tensor_impl;
 
 // Additional modules
 pub mod elementwise;
 pub mod error;
-pub mod shape_ops;
 pub mod indexing;
+pub mod shape_ops;
 
 // Re-export full tensor implementation
 pub use tensor_core::{AsAny, DifferentiableFunction, Function, OperationName, Tensor};
@@ -98,7 +93,7 @@ pub use backend::CpuBackend;
 pub type Result<T> = std::result::Result<T, TensorError>;
 
 // Re-export convenience functions from ops::creation
-pub use ops::creation::{randn, cat};
+pub use ops::creation::{cat, randn};
 
 /// Creates a thread-safe gradient storage container
 pub fn grad_rwlock<T>(value: T) -> std::sync::RwLock<T> {
@@ -199,7 +194,7 @@ mod tests {
         .unwrap();
 
         let result = add(&a, &b).unwrap();
-        let expected = vec![Float32::new(4.0), Float32::new(6.0)];
+        let expected = [Float32::new(4.0), Float32::new(6.0)];
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -217,7 +212,7 @@ mod tests {
         .unwrap();
 
         let result = sub(&a, &b).unwrap();
-        let expected = vec![Float32::new(2.0), Float32::new(5.0)];
+        let expected = [Float32::new(2.0), Float32::new(5.0)];
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -235,7 +230,7 @@ mod tests {
         .unwrap();
 
         let result = mul(&a, &b).unwrap();
-        let expected = vec![Float32::new(8.0), Float32::new(15.0)];
+        let expected = [Float32::new(8.0), Float32::new(15.0)];
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -253,7 +248,7 @@ mod tests {
         .unwrap();
 
         let result = div(&a, &b).unwrap();
-        let expected = vec![Float32::new(2.0), Float32::new(3.0)];
+        let expected = [Float32::new(2.0), Float32::new(3.0)];
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -266,7 +261,7 @@ mod tests {
         .unwrap();
 
         let result = neg(&tensor).unwrap();
-        let expected = vec![Float32::new(-1.0), Float32::new(2.0), Float32::new(-3.0)];
+        let expected = [Float32::new(-1.0), Float32::new(2.0), Float32::new(-3.0)];
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -284,7 +279,7 @@ mod tests {
         .unwrap();
 
         let result = maximum(&a, &b).unwrap();
-        let expected = vec![Float32::new(3.0), Float32::new(4.0), Float32::new(5.0)];
+        let expected = [Float32::new(3.0), Float32::new(4.0), Float32::new(5.0)];
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -302,7 +297,7 @@ mod tests {
         .unwrap();
 
         let result = minimum(&a, &b).unwrap();
-        let expected = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(2.0)];
+        let expected = [Float32::new(1.0), Float32::new(2.0), Float32::new(2.0)];
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -320,7 +315,7 @@ mod tests {
         .unwrap();
 
         let result = pow(&base, &exponent).unwrap();
-        let expected = vec![Float32::new(8.0), Float32::new(9.0)]; // 2^3 = 8, 3^2 = 9
+        let expected = [Float32::new(8.0), Float32::new(9.0)]; // 2^3 = 8, 3^2 = 9
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -333,7 +328,7 @@ mod tests {
         .unwrap();
 
         let result = abs(&tensor).unwrap();
-        let expected = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
+        let expected = [Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -365,7 +360,7 @@ mod tests {
         let result = a.matmul(&b).unwrap();
         assert_eq!(result.shape().dims(), &[2, 2]);
         // Expected: [[1*5+2*7, 1*6+2*8], [3*5+4*7, 3*6+4*8]] = [[19, 22], [43, 50]]
-        let expected = vec![
+        let expected = [
             Float32::new(19.0),
             Float32::new(22.0),
             Float32::new(43.0),
@@ -432,7 +427,7 @@ mod tests {
         // Sum along dimension 0 (rows)
         let result = tensor.sum_dims(Some(&[0]), false).unwrap();
         assert_eq!(result.shape().dims(), &[4]);
-        let expected = vec![
+        let expected = [
             Float32::new(6.0),
             Float32::new(8.0),
             Float32::new(10.0),
@@ -461,7 +456,7 @@ mod tests {
         // Mean along dimension 1 (columns)
         let result = tensor.mean_dims(Some(&[1]), false).unwrap();
         assert_eq!(result.shape().dims(), &[2]);
-        let expected = vec![Float32::new(2.5), Float32::new(6.5)]; // [(1+2+3+4)/4, (5+6+7+8)/4]
+        let expected = [Float32::new(2.5), Float32::new(6.5)]; // [(1+2+3+4)/4, (5+6+7+8)/4]
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -490,7 +485,7 @@ mod tests {
 
         // Scalar multiplication
         let result = tensor.mul_scalar(Float32::new(2.0)).unwrap();
-        let expected = vec![Float32::new(2.0), Float32::new(4.0), Float32::new(6.0)];
+        let expected = [Float32::new(2.0), Float32::new(4.0), Float32::new(6.0)];
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -503,7 +498,7 @@ mod tests {
         .unwrap();
 
         let result = tensor.clamp(Float32::new(1.0), Float32::new(2.0)).unwrap();
-        let expected = vec![Float32::new(1.0), Float32::new(1.5), Float32::new(2.0)];
+        let expected = [Float32::new(1.0), Float32::new(1.5), Float32::new(2.0)];
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -569,7 +564,7 @@ mod tests {
         .unwrap();
 
         let result = add(&tensor, &scalar).unwrap();
-        let expected = vec![Float32::new(11.0), Float32::new(12.0)];
+        let expected = [Float32::new(11.0), Float32::new(12.0)];
         assert_eq!(result.as_slice(), &expected[..]);
     }
 
@@ -595,7 +590,7 @@ mod tests {
         )
         .unwrap();
 
-        let expected = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
+        let expected = [Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
         for (i, &val) in result.as_slice().iter().enumerate() {
             assert!((val.get() - expected[i].get()).abs() < 1e-6);
         }

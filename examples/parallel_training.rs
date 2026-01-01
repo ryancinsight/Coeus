@@ -13,11 +13,11 @@
 
 use dtype::float::Float32;
 use nn::{Linear, Module};
+use std::sync::{Arc, RwLock};
+use std::thread;
 use storage::DenseStorage;
 use tensor::CpuBackend;
 use tensor::Tensor;
-use std::sync::{Arc, RwLock};
-use std::thread;
 
 /// Type alias for the complex tensor type used in this example
 type TrainingTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
@@ -206,4 +206,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-

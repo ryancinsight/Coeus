@@ -3,21 +3,21 @@
 //! Production-grade CLIP service that integrates with the GPU-accelerated
 //! CLIP models from Sprint MS-50, providing semantic search capabilities.
 
-use std::sync::Arc;
 use async_trait::async_trait;
-use base64::{Engine as _, engine::general_purpose};
+use base64::{engine::general_purpose, Engine as _};
+use std::sync::Arc;
 
+use crate::errors::{ErrorHandler, SemanticError};
 use crate::state::CLIPService;
-use crate::errors::{SemanticError, ErrorHandler};
 
 // Import core crates
-use nn::clip::ClipModel;
 use backend::{Backend, GpuBackend};
+use dtype::{float::Float32, traits::FloatExt, DataType};
+use nn::clip::ClipModel;
 use storage::{Storage, StorageFromVec};
-use dtype::{DataType, traits::FloatExt, float::Float32};
 
 /// Real CLIP service using GPU-accelerated CLIP models
-pub struct RealCLIPService<B, S, T> 
+pub struct RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T>,
@@ -37,7 +37,14 @@ impl<B, S, T> RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
     S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone + backend::num_traits::FromPrimitive + backend::num_traits::Bounded,
+    T: DataType
+        + FloatExt
+        + std::ops::Neg<Output = T>
+        + Send
+        + Sync
+        + Clone
+        + backend::num_traits::FromPrimitive
+        + backend::num_traits::Bounded,
 {
     /// Create a new CLIP service with the specified backend
     pub fn new(clip_model: ClipModel<B, S, T>) -> Self {
@@ -54,20 +61,17 @@ where
         println!("🎯 Initializing GPU-accelerated CLIP service");
 
         // Initialize GPU backend
-        let _gpu_backend = GpuBackend::<Float32>::new()
-            .await
-            .map_err(|e| SemanticError::ServiceUnavailable(
-                format!("Failed to initialize GPU backend: {}", e)
-            ))?;
+        let _gpu_backend = GpuBackend::<Float32>::new().await.map_err(|e| {
+            SemanticError::ServiceUnavailable(format!("Failed to initialize GPU backend: {}", e))
+        })?;
 
         println!("✅ GPU backend initialized");
 
         // Create CLIP model with GPU acceleration
         let clip_config = nn::clip::ClipConfig::vit_b32();
-        let clip_model = ClipModel::new(clip_config)
-            .map_err(|e| SemanticError::ServiceUnavailable(
-                format!("Failed to initialize CLIP model: {:?}", e)
-            ))?;
+        let clip_model = ClipModel::new(clip_config).map_err(|e| {
+            SemanticError::ServiceUnavailable(format!("Failed to initialize CLIP model: {:?}", e))
+        })?;
 
         println!("✅ CLIP model loaded on GPU");
         println!("   - Vision: ViT-B/32 (224x224 patches)");
@@ -86,10 +90,9 @@ where
 
         // Create CLIP model with CPU
         let clip_config = nn::clip::ClipConfig::vit_b32();
-        let clip_model = ClipModel::new(clip_config)
-            .map_err(|e| SemanticError::ServiceUnavailable(
-                format!("Failed to initialize CLIP model: {:?}", e)
-            ))?;
+        let clip_model = ClipModel::new(clip_config).map_err(|e| {
+            SemanticError::ServiceUnavailable(format!("Failed to initialize CLIP model: {:?}", e))
+        })?;
 
         println!("✅ CLIP model loaded on CPU");
 
@@ -110,7 +113,9 @@ where
             .join(" ");
 
         if processed.trim().is_empty() {
-            return Err(SemanticError::InvalidInput("Text is empty after preprocessing".to_string()));
+            return Err(SemanticError::InvalidInput(
+                "Text is empty after preprocessing".to_string(),
+            ));
         }
 
         Ok(processed)
@@ -120,16 +125,16 @@ where
     fn decode_image_data(&self, base64_data: &str) -> Result<Vec<u8>, SemanticError> {
         general_purpose::STANDARD
             .decode(base64_data)
-            .map_err(|e| SemanticError::InvalidInput(
-                format!("Invalid base64 image data: {}", e)
-            ))
+            .map_err(|e| SemanticError::InvalidInput(format!("Invalid base64 image data: {}", e)))
     }
 
     /// Preprocess image data (basic validation)
     fn preprocess_image(&self, image_data: &[u8]) -> Result<Vec<u8>, SemanticError> {
         // Basic image validation - check for common image headers
         if image_data.len() < 8 {
-            return Err(SemanticError::InvalidInput("Image data too small".to_string()));
+            return Err(SemanticError::InvalidInput(
+                "Image data too small".to_string(),
+            ));
         }
 
         // Check for PNG, JPEG, or other common formats
@@ -142,7 +147,7 @@ where
 
         if !is_valid_format {
             return Err(SemanticError::InvalidInput(
-                "Unsupported image format. Supported: PNG, JPEG, GIF, WebP".to_string()
+                "Unsupported image format. Supported: PNG, JPEG, GIF, WebP".to_string(),
             ));
         }
 
@@ -157,14 +162,25 @@ impl<B, S, T> CLIPService for RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
     S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + Send + Sync + Clone + backend::num_traits::FromPrimitive + backend::num_traits::Bounded,
+    T: DataType
+        + FloatExt
+        + std::ops::Neg<Output = T>
+        + Send
+        + Sync
+        + Clone
+        + backend::num_traits::FromPrimitive
+        + backend::num_traits::Bounded,
 {
     async fn encode_text(&self, text: &str) -> Result<Vec<f32>, SemanticError> {
         let start_time = std::time::Instant::now();
 
         // Preprocess text
         let processed_text = self.preprocess_text(text)?;
-        tracing::debug!("Processing text: {} chars -> {} chars", text.len(), processed_text.len());
+        tracing::debug!(
+            "Processing text: {} chars -> {} chars",
+            text.len(),
+            processed_text.len()
+        );
 
         // For now, we'll create a mock embedding based on text hash
         // In production, this would use the actual CLIP text encoder
@@ -223,7 +239,12 @@ impl InMemoryVectorDB {
 
 #[async_trait]
 impl crate::state::VectorDatabase for InMemoryVectorDB {
-    async fn add(&self, id: String, embedding: Vec<f32>, metadata: serde_json::Value) -> Result<(), SemanticError> {
+    async fn add(
+        &self,
+        id: String,
+        embedding: Vec<f32>,
+        metadata: serde_json::Value,
+    ) -> Result<(), SemanticError> {
         let mut entries = self.entries.write().map_err(|_| {
             SemanticError::ServiceUnavailable("Vector database lock poisoned".to_string())
         })?;
@@ -232,23 +253,34 @@ impl crate::state::VectorDatabase for InMemoryVectorDB {
         Ok(())
     }
 
-    async fn search(&self, query_embedding: &[f32], top_k: usize) -> Result<Vec<crate::state::VectorSearchResult>, SemanticError> {
+    async fn search(
+        &self,
+        query_embedding: &[f32],
+        top_k: usize,
+    ) -> Result<Vec<crate::state::VectorSearchResult>, SemanticError> {
         let entries = self.entries.read().map_err(|_| {
             SemanticError::ServiceUnavailable("Vector database lock poisoned".to_string())
         })?;
 
-        let mut results: Vec<_> = entries.iter()
-            .map(|(id, (emb, meta)): (&String, &(Vec<f32>, serde_json::Value))| {
-                let similarity = cosine_similarity(query_embedding, emb);
-                crate::state::VectorSearchResult {
-                    id: id.clone(),
-                    similarity,
-                    metadata: meta.clone(),
-                }
-            })
+        let mut results: Vec<_> = entries
+            .iter()
+            .map(
+                |(id, (emb, meta)): (&String, &(Vec<f32>, serde_json::Value))| {
+                    let similarity = cosine_similarity(query_embedding, emb);
+                    crate::state::VectorSearchResult {
+                        id: id.clone(),
+                        similarity,
+                        metadata: meta.clone(),
+                    }
+                },
+            )
             .collect();
 
-        results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.similarity
+                .partial_cmp(&a.similarity)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         Ok(results.into_iter().take(top_k).collect())
     }
 
@@ -267,7 +299,11 @@ impl crate::state::VectorDatabase for InMemoryVectorDB {
 
         Ok(crate::state::DatabaseStats {
             total_items: entries.len(),
-            embedding_dim: entries.values().next().map(|(emb, _): &(Vec<f32>, serde_json::Value)| emb.len()).unwrap_or(512),
+            embedding_dim: entries
+                .values()
+                .next()
+                .map(|(emb, _): &(Vec<f32>, serde_json::Value)| emb.len())
+                .unwrap_or(512),
             index_size_bytes: entries.len() * 512 * 4, // Rough estimate: 512 floats * 4 bytes each
             last_updated: chrono::Utc::now(),
         })
@@ -317,23 +353,35 @@ mod tests {
     use crate::state::VectorDatabase;
 
     #[tokio::test]
-    async fn test_vector_database() {
+    async fn test_vector_database() -> Result<(), SemanticError> {
         let db = InMemoryVectorDB::new();
 
         // Add some test data
-        db.add("test1".to_string(), vec![1.0f32, 0.0, 0.0], serde_json::json!({"name": "test1"})).await.unwrap();
-        db.add("test2".to_string(), vec![0.0f32, 1.0, 0.0], serde_json::json!({"name": "test2"})).await.unwrap();
+        db.add(
+            "test1".to_string(),
+            vec![1.0f32, 0.0, 0.0],
+            serde_json::json!({"name": "test1"}),
+        )
+        .await?;
+        db.add(
+            "test2".to_string(),
+            vec![0.0f32, 1.0, 0.0],
+            serde_json::json!({"name": "test2"}),
+        )
+        .await?;
 
         // Search
-        let results = db.search(&[1.0f32, 0.0, 0.0], 5).await.unwrap();
+        let results = db.search(&[1.0f32, 0.0, 0.0], 5).await?;
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].id, "test1");
         assert_eq!(results[0].similarity, 1.0);
 
         // Stats
-        let stats = db.stats().await.unwrap();
+        let stats = db.stats().await?;
         assert_eq!(stats.total_items, 2);
         assert_eq!(stats.embedding_dim, 3);
+
+        Ok(())
     }
 
     #[test]
@@ -347,28 +395,44 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_clip_service_health_check() {
+    async fn test_clip_service_health_check() -> Result<(), SemanticError> {
         // Test with CPU backend for CI/CD
-        let service = RealCLIPService::new_with_cpu().unwrap();
-        assert!(service.health_check().await.is_ok());
+        let service: RealCLIPService<
+            backend::CpuBackend<Float32>,
+            storage::DenseStorage<Float32>,
+            Float32,
+        > = RealCLIPService::new_with_cpu()?;
+        service.health_check().await?;
         assert_eq!(service.embedding_dim(), 512);
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_text_encoding() {
-        let service = RealCLIPService::new_with_cpu().unwrap();
-        let embedding = service.encode_text("test query").await.unwrap();
+    async fn test_text_encoding() -> Result<(), SemanticError> {
+        let service: RealCLIPService<
+            backend::CpuBackend<Float32>,
+            storage::DenseStorage<Float32>,
+            Float32,
+        > = RealCLIPService::new_with_cpu()?;
+        let embedding = service.encode_text("test query").await?;
         assert_eq!(embedding.len(), 512);
 
         // Check that embeddings are in reasonable range [-1, 1]
         for &val in &embedding {
             assert!(val >= -1.0 && val <= 1.0);
         }
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_image_encoding() {
-        let service = RealCLIPService::new_with_cpu().unwrap();
+    async fn test_image_encoding() -> Result<(), SemanticError> {
+        let service: RealCLIPService<
+            backend::CpuBackend<Float32>,
+            storage::DenseStorage<Float32>,
+            Float32,
+        > = RealCLIPService::new_with_cpu()?;
 
         // Create a minimal valid PNG header
         let png_data = vec![
@@ -377,7 +441,9 @@ mod tests {
             0x49, 0x48, 0x44, 0x52, // IHDR
         ];
 
-        let embedding = service.encode_image(&png_data).await.unwrap();
+        let embedding = service.encode_image(&png_data).await?;
         assert_eq!(embedding.len(), 512);
+
+        Ok(())
     }
 }

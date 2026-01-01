@@ -11,15 +11,15 @@
 //! - Heterogeneous utilization monitoring
 //! - Performance benchmarking for transfer operations
 
-use std::time::Instant;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::RwLock;
 
 use backend::{
-    BackendType, MemoryAccessPattern, DataLocality, OperationType,
-    MemoryManager, HeterogeneousMemoryPool, HeterogeneousMemoryAllocation,
-    TransferPerformance, HeterogeneousUtilizationStatus,
+    BackendType, DataLocality, HeterogeneousMemoryAllocation, HeterogeneousMemoryPool,
+    HeterogeneousUtilizationStatus, MemoryAccessPattern, MemoryManager, OperationType,
+    TransferPerformance,
 };
 
 #[tokio::main]
@@ -71,29 +71,46 @@ async fn benchmark_heterogeneous_allocation(
     let mut results = Vec::new();
 
     let workloads = vec![
-        (BackendType::Gpu, OperationType::MatrixMultiplication, 1_073_741_824), // 1GB
-        (BackendType::Tpu, OperationType::MatrixMultiplication, 2_147_483_648), // 2GB
-        (BackendType::Npu, OperationType::Convolution, 536_870_912),           // 512MB
+        (
+            BackendType::Gpu,
+            OperationType::MatrixMultiplication,
+            1_073_741_824,
+        ), // 1GB
+        (
+            BackendType::Tpu,
+            OperationType::MatrixMultiplication,
+            2_147_483_648,
+        ), // 2GB
+        (BackendType::Npu, OperationType::Convolution, 536_870_912), // 512MB
     ];
 
     for (target_backend, operation, size_bytes) in workloads {
         let start = Instant::now();
 
-        let allocation = memory_manager.allocate_heterogeneous_memory(
-            size_bytes,
-            MemoryAccessPattern::Dense,
-            DataLocality::High,
-            operation,
-        ).await?;
+        let allocation = memory_manager
+            .allocate_heterogeneous_memory(
+                size_bytes,
+                MemoryAccessPattern::Dense,
+                DataLocality::High,
+                operation,
+            )
+            .await?;
 
         let duration_ms = start.elapsed().as_micros() as f64 / 1000.0;
 
-        println!("   {} allocation: {} MB in {:.3}ms",
-                 target_backend, size_bytes / 1_048_576, duration_ms);
+        println!(
+            "   {} allocation: {} MB in {:.3}ms",
+            target_backend,
+            size_bytes / 1_048_576,
+            duration_ms
+        );
 
         // Verify allocation was made on the preferred backend when possible
         if allocation.backend_type == target_backend {
-            println!("   ✓ Affinity maintained: allocated on {}", allocation.backend_type);
+            println!(
+                "   ✓ Affinity maintained: allocated on {}",
+                allocation.backend_type
+            );
         }
     }
 
@@ -115,18 +132,22 @@ async fn benchmark_cross_hardware_transfers(
     for (source, dest) in transfer_pairs {
         println!("   Transferring {} → {}...", source, dest);
 
-        let performance = memory_manager.transfer_memory_cross_hardware(
-            source,
-            dest,
-            268_435_456, // 256MB
-            MemoryAccessPattern::Dense,
-        ).await?;
+        let performance = memory_manager
+            .transfer_memory_cross_hardware(
+                source,
+                dest,
+                268_435_456, // 256MB
+                MemoryAccessPattern::Dense,
+            )
+            .await?;
 
         results.insert((source, dest), performance);
 
-        println!("   ✓ Completed in {:.3}μs ({:.1} GB/s)",
-                 performance.transfer_time_us,
-                 performance.bandwidth_mbps / 1000.0);
+        println!(
+            "   ✓ Completed in {:.3}μs ({:.1} GB/s)",
+            performance.transfer_time_us,
+            performance.bandwidth_mbps / 1000.0
+        );
     }
 
     Ok(results)
@@ -140,19 +161,24 @@ async fn benchmark_affinity_aware_allocation(
 
     let test_cases = vec![
         (100_000_000, OperationType::MatrixMultiplication), // 100MB MatMul
-        (50_000_000, OperationType::Convolution),            // 50MB Conv
-        (25_000_000, OperationType::Reduction),              // 25MB Reduction
+        (50_000_000, OperationType::Convolution),           // 50MB Conv
+        (25_000_000, OperationType::Reduction),             // 25MB Reduction
     ];
 
-    println!("   Creating {} affinity-aware allocations...", test_cases.len());
+    println!(
+        "   Creating {} affinity-aware allocations...",
+        test_cases.len()
+    );
 
     for (size_bytes, operation) in test_cases {
-        let allocation = memory_manager.allocate_heterogeneous_memory(
-            size_bytes,
-            MemoryAccessPattern::Dense,
-            DataLocality::High,
-            operation,
-        ).await?;
+        let allocation = memory_manager
+            .allocate_heterogeneous_memory(
+                size_bytes,
+                MemoryAccessPattern::Dense,
+                DataLocality::High,
+                operation,
+            )
+            .await?;
 
         allocations.push(allocation);
     }
@@ -172,8 +198,13 @@ fn print_allocation_benchmark_results(results: &[(BackendType, f64)]) {
 fn print_transfer_performance(results: &HashMap<(BackendType, BackendType), TransferPerformance>) {
     println!("🔄 Cross-Hardware Transfer Performance:");
     for ((source, dest), perf) in results {
-        println!("   {}→{}: {:.3}μs ({:.1} GB/s)",
-                 source, dest, perf.transfer_time_us, perf.bandwidth_mbps / 1000.0);
+        println!(
+            "   {}→{}: {:.3}μs ({:.1} GB/s)",
+            source,
+            dest,
+            perf.transfer_time_us,
+            perf.bandwidth_mbps / 1000.0
+        );
     }
 
     println!("   🧠 Transfer optimizations applied:");
@@ -187,8 +218,14 @@ fn print_transfer_performance(results: &HashMap<(BackendType, BackendType), Tran
 /// Print heterogeneous utilization status
 fn print_heterogeneous_utilization(status: &HeterogeneousUtilizationStatus) {
     println!("📈 Heterogeneous Utilization Status:");
-    println!("   Total allocated: {} GB", status.total_allocated as f64 / 1_073_741_824.0);
-    println!("   Heterogeneity score: {:.3} (higher = better balanced)", status.heterogeneity_score);
+    println!(
+        "   Total allocated: {} GB",
+        status.total_allocated as f64 / 1_073_741_824.0
+    );
+    println!(
+        "   Heterogeneity score: {:.3} (higher = better balanced)",
+        status.heterogeneity_score
+    );
 
     println!("   Backend utilization:");
     for (backend, usage) in &status.backend_utilization {
@@ -196,9 +233,18 @@ fn print_heterogeneous_utilization(status: &HeterogeneousUtilizationStatus) {
     }
 
     println!("   NUMA affinity metrics:");
-    println!("     Cross-NUMA violations: {}", status.affinity_metrics.cross_numa_violations);
-    println!("     NUMA-aware success rate: {:.1}%", status.affinity_metrics.numa_aware_success_rate * 100.0);
-    println!("     Affinity optimization impact: {:.1}%", status.affinity_metrics.optimization_impact * 100.0);
+    println!(
+        "     Cross-NUMA violations: {}",
+        status.affinity_metrics.cross_numa_violations
+    );
+    println!(
+        "     NUMA-aware success rate: {:.1}%",
+        status.affinity_metrics.numa_aware_success_rate * 100.0
+    );
+    println!(
+        "     Affinity optimization impact: {:.1}%",
+        status.affinity_metrics.optimization_impact * 100.0
+    );
 }
 
 /// Print affinity benchmark results
@@ -209,7 +255,9 @@ fn print_affinity_benchmark_results(allocations: &[HeterogeneousMemoryAllocation
     let mut numa_distribution = HashMap::new();
 
     for allocation in allocations {
-        *backend_distribution.entry(allocation.backend_type).or_insert(0) += 1;
+        *backend_distribution
+            .entry(allocation.backend_type)
+            .or_insert(0) += 1;
         *numa_distribution.entry(allocation.numa_node).or_insert(0) += 1;
     }
 
@@ -225,10 +273,11 @@ fn print_affinity_benchmark_results(allocations: &[HeterogeneousMemoryAllocation
 
     println!("   Affinity-aware routing table:");
     for allocation in allocations {
-        println!("     {}MB block → {} (NUMA {})",
-                 allocation.memory_block.size_bytes / 1_048_576,
-                 allocation.backend_type,
-                 allocation.numa_node);
+        println!(
+            "     {}MB block → {} (NUMA {})",
+            allocation.memory_block.size_bytes / 1_048_576,
+            allocation.backend_type,
+            allocation.numa_node
+        );
     }
 }
-

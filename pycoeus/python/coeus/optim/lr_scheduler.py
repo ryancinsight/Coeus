@@ -3,11 +3,20 @@
 This module provides PyTorch-compatible learning rate schedulers.
 """
 
-# from .. import StepLR, CosineAnnealingLR, ExponentialLR
+from .._coeus import (
+    StepLR,
+    ExponentialLR,
+    CosineAnnealingLR,
+    MultiStepLR,
+    ReduceLROnPlateau,
+    OneCycleLR
+)
 
-# Expose PyTorch-compatible API (currently empty until schedulers are implemented)
 __all__ = [
-#    "StepLR",
-#    "CosineAnnealingLR",
-#    "ExponentialLR",
+    "StepLR",
+    "ExponentialLR",
+    "CosineAnnealingLR",
+    "MultiStepLR",
+    "ReduceLROnPlateau",
+    "OneCycleLR",
 ]

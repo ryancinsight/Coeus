@@ -4,9 +4,9 @@
 //! error handling, monitoring, and enterprise features.
 
 use axum::{
+    middleware,
     routing::{get, post},
     Router,
-    middleware,
 };
 // use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
@@ -17,28 +17,28 @@ use tower_http::{
 };
 
 // Re-export for convenience
-pub use crate::types::*;
-pub use crate::state::*;
-pub use crate::handlers::*;
 pub use crate::custom_middleware::*;
 pub use crate::errors::*;
+pub use crate::handlers::*;
+pub use crate::state::{AppConfig, AppState, CLIPService, VectorDatabase};
+pub use crate::types::*;
 
 // Add async_trait for async trait methods
 // #[macro_use]
 extern crate async_trait;
 
-/// Core API module
-pub mod types;
-/// Application state management
-pub mod state;
 /// CLIP service implementation
 pub mod clip_service;
-/// Request handlers
-pub mod handlers;
 /// Custom middleware
 pub mod custom_middleware;
 /// Error handling
 pub mod errors;
+/// Request handlers
+pub mod handlers;
+/// Application state management
+pub mod state;
+/// Core API module
+pub mod types;
 
 /// Create the complete REST API router with all endpoints and middleware
 pub fn create_router() -> Router<AppState> {
@@ -69,14 +69,19 @@ pub fn create_router() -> Router<AppState> {
                 .layer(TimeoutLayer::new(std::time::Duration::from_secs(30)))
                 .layer(tower_http::request_id::PropagateRequestIdLayer::x_request_id())
                 .layer(tower_http::request_id::SetRequestIdLayer::x_request_id(
-                    MakeRequestUuid::default(),
+                    MakeRequestUuid,
                 )),
         )
 }
 
 /// Initialize and start the semantic search API server
-pub async fn start_server(state: AppState, host: &str, port: u16) -> Result<(), Box<dyn std::error::Error>> {
-    let addr = format!("{}:{}", host, port);
+#[allow(clippy::missing_errors_doc)]
+pub async fn start_server(
+    state: AppState,
+    host: &str,
+    port: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let addr = format!("{host}:{port}");
     let listener = TcpListener::bind(&addr).await?;
     let router = create_router().with_state(state);
 
@@ -87,6 +92,7 @@ pub async fn start_server(state: AppState, host: &str, port: u16) -> Result<(), 
 }
 
 /// Initialize tracing for observability
+#[allow(clippy::missing_errors_doc)]
 pub fn init_tracing() -> Result<(), Box<dyn std::error::Error>> {
     use tracing_subscriber::{filter::LevelFilter, EnvFilter};
 
@@ -105,6 +111,7 @@ pub fn init_tracing() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Initialize metrics for monitoring
+#[allow(clippy::missing_errors_doc)]
 pub fn init_metrics() -> Result<(), Box<dyn std::error::Error>> {
     // use metrics_exporter_prometheus::Matcher;
 
@@ -114,8 +121,8 @@ pub fn init_metrics() -> Result<(), Box<dyn std::error::Error>> {
     // metrics::set_global_recorder is not needed as install_recorder already sets it
 
     // Register standard metrics
-    metrics::counter!("requests_total");
-    metrics::histogram!("request_duration_seconds");
+    let _ = metrics::counter!("requests_total");
+    let _ = metrics::histogram!("request_duration_seconds");
     metrics::gauge!("search_index_size").set(0.0);
 
     Ok(())
@@ -124,32 +131,50 @@ pub fn init_metrics() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::SocketAddr;
     use axum::body::Body;
     use axum::extract::Request;
-    use http::StatusCode;
+    use axum::http::StatusCode;
     use tower::util::ServiceExt;
 
     #[tokio::test]
     async fn test_health_check() {
-        let state = AppState::new_for_testing().unwrap();
+        let state = match AppState::new_for_testing() {
+            Ok(state) => state,
+            Err(e) => panic!("failed to build test state: {e}"),
+        };
         let router = create_router().with_state(state);
 
-        let request = Request::builder()
-            .uri("/health")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/health").body(Body::empty());
+        let request = match request {
+            Ok(request) => request,
+            Err(e) => panic!("request builder should not fail: {e}"),
+        };
 
-        let response = router.oneshot(request).await.unwrap();
+        let response = match router.oneshot(request).await {
+            Ok(response) => response,
+            Err(err) => match err {},
+        };
         assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn test_router_creation() {
-        let state = AppState::new_for_testing().unwrap();
+        let state = match AppState::new_for_testing() {
+            Ok(state) => state,
+            Err(e) => panic!("failed to build test state: {e}"),
+        };
         let router = create_router().with_state(state);
 
-        // Router should be created without panicking
-        assert!(router.ready().await.is_ok());
+        let request = Request::builder().uri("/health").body(Body::empty());
+        let request = match request {
+            Ok(request) => request,
+            Err(e) => panic!("request builder should not fail: {e}"),
+        };
+
+        let response = match router.oneshot(request).await {
+            Ok(response) => response,
+            Err(err) => match err {},
+        };
+        assert_eq!(response.status(), StatusCode::OK);
     }
 }

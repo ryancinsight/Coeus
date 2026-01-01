@@ -4,12 +4,9 @@
 //! including export capabilities for Conv2D, BatchNorm2d, activation functions,
 //! and pooling operations.
 
-use nn::{
-    Conv2D, BatchNorm2d, ReLU, MaxPool2d, AvgPool2d, Module, OnnxExporter,
-    Sequential,
-};
 use backend::CpuBackend;
 use dtype::float::Float32;
+use nn::{AvgPool2d, BatchNorm2d, Conv2D, MaxPool2d, Module, OnnxExporter, ReLU, Sequential};
 use storage::DenseStorage;
 use tensor::Tensor;
 
@@ -22,14 +19,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Add Conv2D layer
     let conv = Conv2D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-        3, 64, (3, 3), None, None, Some(true)
+        3,
+        64,
+        (3, 3),
+        None,
+        None,
+        Some(true),
     )?;
     model.add_module("conv1".to_string(), Box::new(conv));
 
     // Add BatchNorm2d
-    let batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-        64, 1e-5, 0.1
-    )?;
+    let batchnorm =
+        BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(64, 1e-5, 0.1)?;
     model.add_module("bn1".to_string(), Box::new(batchnorm));
 
     // Add ReLU activation

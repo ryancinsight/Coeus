@@ -99,11 +99,11 @@ pub fn fuzz_conv2d(data: &[u8]) {
     };
 
     // Only test 4D tensors for conv2d
-    if input_data.shape.len() != 4 || input_data.shape.iter().any(|&x| x == 0) {
+    if input_data.shape.len() != 4 || input_data.shape.contains(&0) {
         return;
     }
 
-    let batch_size = input_data.shape[0];
+    let _batch_size = input_data.shape[0];
     let in_channels = input_data.shape[1];
 
     // Generate weight tensor with compatible dimensions
@@ -172,7 +172,7 @@ pub fn fuzz_max_pool2d(data: &[u8]) {
     };
 
     // Only test 4D tensors for pooling
-    if arb_data.shape.len() != 4 || arb_data.shape.iter().any(|&x| x == 0) {
+    if arb_data.shape.len() != 4 || arb_data.shape.contains(&0) {
         return;
     }
 

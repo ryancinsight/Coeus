@@ -3,17 +3,17 @@
 //! This example demonstrates end-to-end CLIP training using the foundation framework,
 //! showcasing GPU acceleration and modern deep learning best practices.
 
-use std::time::Instant;
 use std::collections::HashMap;
+use std::time::Instant;
 
 // Import CLIP components
-use nn::clip::{ClipModel, ClipConfig};
-use nn::clip::config::{VisionConfig, TextConfig};
+use nn::clip::config::{TextConfig, VisionConfig};
+use nn::clip::{ClipConfig, ClipModel};
 
 // Import foundation training infrastructure
 use foundation::{
-    TrainingOrchestrator, TrainingConfig, LearningRateScheduler, LRSchedulerType,
-    CurriculumLearningManager, TrainingMonitor, CheckpointManager,
+    CheckpointManager, CurriculumLearningManager, LRSchedulerType, LearningRateScheduler,
+    TrainingConfig, TrainingMonitor, TrainingOrchestrator,
 };
 
 // Import backend and tensor types
@@ -126,9 +126,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Periodic logging
         if step % training_config.log_steps == 0 {
-            println!("Step {}/{} | Loss: {:.4} | LR: {:.6}",
-                    step, training_config.total_steps, loss_value,
-                    lr_scheduler.get_lr(step as usize));
+            println!(
+                "Step {}/{} | Loss: {:.4} | LR: {:.6}",
+                step,
+                training_config.total_steps,
+                loss_value,
+                lr_scheduler.get_lr(step as usize)
+            );
         }
     }
 
@@ -137,7 +141,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     training_report.print_summary();
 
     println!("🎉 CLIP training completed!");
-    println!("⏱️  Total training time: {:.2}s", start_time.elapsed().as_secs_f64());
+    println!(
+        "⏱️  Total training time: {:.2}s",
+        start_time.elapsed().as_secs_f64()
+    );
     println!("📈 Final loss: {:.4}", step_losses.last().unwrap_or(&0.0));
     println!("💾 Model checkpoint: training completed");
 
@@ -149,8 +156,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let text_embeddings = model.encode_text(&["a photo", "a diagram"])?;
 
     let similarity = model.get_similarity(&image_embeddings, &text_embeddings)?;
-    println!("✅ Similarity matrix computed: {}x{}",
-             similarity.shape().dims()[0], similarity.shape().dims()[1]);
+    println!(
+        "✅ Similarity matrix computed: {}x{}",
+        similarity.shape().dims()[0],
+        similarity.shape().dims()[1]
+    );
 
     println!("🏆 CLIP Pipeline Complete!");
     println!("   - ✅ GPU-accelerated vision and text encoders");
@@ -221,4 +231,3 @@ mod tests {
         assert!(texts.iter().all(|&t| t > 0));
     }
 }
-

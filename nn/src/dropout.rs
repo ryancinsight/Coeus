@@ -139,177 +139,6 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropo
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use approx::assert_relative_eq;
-    use dtype::float::Float32;
-
-    #[test]
-    fn test_dropout_eval_mode() {
-        let mut dropout = Dropout::new(0.5);
-        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
-            &mut dropout,
-            false,
-        ); // Evaluation mode
-
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![
-                Float32::new(1.0),
-                Float32::new(2.0),
-                Float32::new(3.0),
-                Float32::new(4.0),
-            ],
-            &[4],
-        )
-        .unwrap();
-
-        let output =
-            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
-                &dropout, &input,
-            )
-            .unwrap();
-        let input_data: Vec<f32> = input.as_slice().iter().map(|x: &Float32| x.get()).collect();
-        let output_data: Vec<f32> = output
-            .as_slice()
-            .iter()
-            .map(|x: &Float32| x.get())
-            .collect();
-
-        // In eval mode, output should equal input
-        for (i, o) in input_data.iter().zip(output_data.iter()) {
-            assert_relative_eq!(i, o);
-        }
-    }
-
-    #[test]
-    fn test_dropout_training_mode() {
-        let mut dropout = Dropout::new(0.5);
-        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
-            &mut dropout,
-            true,
-        ); // Training mode
-
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(1.0); 100], // 100 ones
-            &[100],
-        )
-        .unwrap();
-
-        let output =
-            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
-                &dropout, &input,
-            )
-            .unwrap();
-        let output_data: Vec<f32> = output
-            .as_slice()
-            .iter()
-            .map(|x: &Float32| x.get())
-            .collect();
-
-        // Count zeros (dropped) and non-zeros (kept)
-        let zeros = output_data.iter().filter(|&&x| x == 0.0).count();
-        let non_zeros = output_data.iter().filter(|&&x| x != 0.0).count();
-
-        // With p=0.5, expect roughly 50% zeros and 50% non-zeros
-        // Allow 20% tolerance for randomness
-        assert!(
-            (30..=70).contains(&zeros),
-            "Expected ~50 zeros, got {}",
-            zeros
-        );
-        assert!(
-            (30..=70).contains(&non_zeros),
-            "Expected ~50 non-zeros, got {}",
-            non_zeros
-        );
-
-        // Non-zero values should be scaled by 1/(1-p) = 2.0
-        for &val in output_data.iter().filter(|&&x| x != 0.0) {
-            assert_relative_eq!(val, 2.0, epsilon = 1e-5);
-        }
-    }
-
-    #[test]
-    fn test_dropout_p_zero() {
-        let mut dropout = Dropout::new(0.0);
-        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
-            &mut dropout,
-            true,
-        );
-
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
-            &[3],
-        )
-        .unwrap();
-
-        let output =
-            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
-                &dropout, &input,
-            )
-            .unwrap();
-        let input_data: Vec<f32> = input.as_slice().iter().map(|x: &Float32| x.get()).collect();
-        let output_data: Vec<f32> = output
-            .as_slice()
-            .iter()
-            .map(|x: &Float32| x.get())
-            .collect();
-
-        // With p=0, no dropout should occur
-        for (i, o) in input_data.iter().zip(output_data.iter()) {
-            assert_relative_eq!(i, o);
-        }
-    }
-
-    #[test]
-    fn test_dropout_p_one() {
-        let mut dropout = Dropout::new(1.0);
-        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
-            &mut dropout,
-            true,
-        );
-
-        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
-            &[3],
-        )
-        .unwrap();
-
-        let output =
-            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
-                &dropout, &input,
-            )
-            .unwrap();
-        let output_data: Vec<f32> = output
-            .as_slice()
-            .iter()
-            .map(|x: &Float32| x.get())
-            .collect();
-
-        // With p=1, all values should be zero
-        for &val in &output_data {
-            assert_relative_eq!(val, 0.0);
-        }
-    }
-
-    #[test]
-    fn test_dropout_no_parameters() {
-        let dropout = Dropout::new(0.5);
-        let params =
-            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::parameters(
-                &dropout,
-            );
-        assert_eq!(params.len(), 0);
-    }
-
-    #[test]
-    #[should_panic(expected = "Dropout probability must be in [0.0, 1.0], got 1.5")]
-    fn test_dropout_invalid_probability() {
-        let _ = Dropout::new(1.5); // Invalid probability
-    }
-}
-
 /// Dropout2d layer for spatial regularization in CNNs.
 ///
 /// Randomly zeros entire channels of the input tensor with probability `p`.
@@ -907,6 +736,165 @@ mod tests_dropout3d {
 }
 
 #[cfg(test)]
-mod dropout_forward_var_tests {
-    // Empty test module placeholder
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+    use dtype::float::Float32;
+
+    #[test]
+    fn test_dropout_eval_mode() {
+        let mut dropout = Dropout::new(0.5);
+        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            false,
+        );
+
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![
+                Float32::new(1.0),
+                Float32::new(2.0),
+                Float32::new(3.0),
+                Float32::new(4.0),
+            ],
+            &[4],
+        )
+        .unwrap();
+
+        let output =
+            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
+        let input_data: Vec<f32> = input.as_slice().iter().map(|x: &Float32| x.get()).collect();
+        let output_data: Vec<f32> = output
+            .as_slice()
+            .iter()
+            .map(|x: &Float32| x.get())
+            .collect();
+
+        for (i, o) in input_data.iter().zip(output_data.iter()) {
+            assert_relative_eq!(i, o);
+        }
+    }
+
+    #[test]
+    fn test_dropout_training_mode() {
+        let mut dropout = Dropout::new(0.5);
+        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
+
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(1.0); 100],
+            &[100],
+        )
+        .unwrap();
+
+        let output =
+            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
+        let output_data: Vec<f32> = output
+            .as_slice()
+            .iter()
+            .map(|x: &Float32| x.get())
+            .collect();
+
+        let zeros = output_data.iter().filter(|&&x| x == 0.0).count();
+        let non_zeros = output_data.iter().filter(|&&x| x != 0.0).count();
+
+        assert!(
+            (30..=70).contains(&zeros),
+            "Expected ~50 zeros, got {}",
+            zeros
+        );
+        assert!(
+            (30..=70).contains(&non_zeros),
+            "Expected ~50 non-zeros, got {}",
+            non_zeros
+        );
+
+        for &val in output_data.iter().filter(|&&x| x != 0.0) {
+            assert_relative_eq!(val, 2.0, epsilon = 1e-5);
+        }
+    }
+
+    #[test]
+    fn test_dropout_p_zero() {
+        let mut dropout = Dropout::new(0.0);
+        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
+
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+            &[3],
+        )
+        .unwrap();
+
+        let output =
+            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
+        let input_data: Vec<f32> = input.as_slice().iter().map(|x: &Float32| x.get()).collect();
+        let output_data: Vec<f32> = output
+            .as_slice()
+            .iter()
+            .map(|x: &Float32| x.get())
+            .collect();
+
+        for (i, o) in input_data.iter().zip(output_data.iter()) {
+            assert_relative_eq!(i, o);
+        }
+    }
+
+    #[test]
+    fn test_dropout_p_one() {
+        let mut dropout = Dropout::new(1.0);
+        <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::train(
+            &mut dropout,
+            true,
+        );
+
+        let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+            &[3],
+        )
+        .unwrap();
+
+        let output =
+            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::forward(
+                &dropout, &input,
+            )
+            .unwrap();
+        let output_data: Vec<f32> = output
+            .as_slice()
+            .iter()
+            .map(|x: &Float32| x.get())
+            .collect();
+
+        for &val in &output_data {
+            assert_relative_eq!(val, 0.0);
+        }
+    }
+
+    #[test]
+    fn test_dropout_no_parameters() {
+        let dropout = Dropout::new(0.5);
+        let params =
+            <Dropout as Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>::parameters(
+                &dropout,
+            );
+        assert_eq!(params.len(), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Dropout probability must be in [0.0, 1.0], got 1.5")]
+    fn test_dropout_invalid_probability() {
+        let _ = Dropout::new(1.5);
+    }
 }

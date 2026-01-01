@@ -6,8 +6,8 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
+use super::{BenchmarkDataset, ClipEvaluationConfig, ClipModelEvaluator, EvaluationResult};
 use crate::error::{NNError, Result};
-use super::{BenchmarkDataset, ClipModelEvaluator, EvaluationResult, ClipEvaluationConfig};
 
 /// Comprehensive benchmark result
 #[derive(Debug, Clone)]
@@ -95,7 +95,10 @@ impl ClipBenchmarkRunner {
         }
 
         // Extract images and labels
-        let images: Vec<_> = image_label_pairs.iter().map(|(img, _)| img.clone()).collect();
+        let images: Vec<_> = image_label_pairs
+            .iter()
+            .map(|(img, _)| img.clone())
+            .collect();
         let labels: Vec<_> = image_label_pairs.iter().map(|(_, label)| *label).collect();
 
         // Generate image embeddings
@@ -165,7 +168,10 @@ impl ClipBenchmarkRunner {
         }
 
         if count > 0 {
-            aggregated.insert("average_zero_shot_accuracy".to_string(), total_accuracy / count as f64);
+            aggregated.insert(
+                "average_zero_shot_accuracy".to_string(),
+                total_accuracy / count as f64,
+            );
         }
 
         // Add total datasets count
@@ -220,9 +226,7 @@ mod tests {
 
     impl MockDataset {
         fn new(name: &str, num_classes: usize, num_samples: usize) -> Self {
-            let classes = (0..num_classes)
-                .map(|i| format!("class_{}", i))
-                .collect();
+            let classes = (0..num_classes).map(|i| format!("class_{}", i)).collect();
 
             let data = (0..num_samples)
                 .map(|i| {
@@ -254,10 +258,7 @@ mod tests {
             // Extract labels from data for convenience
             unsafe {
                 // This is safe because we're only reading
-                std::slice::from_raw_parts(
-                    self.data.as_ptr() as *const usize,
-                    self.data.len(),
-                )
+                std::slice::from_raw_parts(self.data.as_ptr() as *const usize, self.data.len())
             }
         }
     }
@@ -272,7 +273,9 @@ mod tests {
         }
 
         fn get_sample(&self, index: usize) -> Option<&dyn std::any::Any> {
-            self.data.get(index).map(|_| &self.data[index] as &dyn std::any::Any)
+            self.data
+                .get(index)
+                .map(|_| &self.data[index] as &dyn std::any::Any)
         }
 
         fn image_embeddings(&self) -> &[Vec<f32>] {
@@ -310,11 +313,7 @@ mod tests {
         ) -> Result<Vec<Vec<f32>>> {
             let mut similarities = Vec::new();
             for _ in image_embeddings {
-                let mut row = Vec::new();
-                for _ in text_embeddings {
-                    row.push(0.5); // Mock similarity
-                }
-                similarities.push(row);
+                similarities.push(vec![0.5; text_embeddings.len()]);
             }
             Ok(similarities)
         }
@@ -328,11 +327,15 @@ mod tests {
         let dataset = Box::new(MockDataset::new("test_dataset", 3, 10));
         let model = MockModel;
 
-        let result = runner.run_benchmark(&model, &[dataset], "Test Benchmark").unwrap();
+        let result = runner
+            .run_benchmark(&model, &[dataset], "Test Benchmark")
+            .unwrap();
 
         assert_eq!(result.benchmark_name, "Test Benchmark");
         assert!(result.dataset_results.contains_key("test_dataset"));
-        assert!(result.aggregated_metrics.contains_key("average_zero_shot_accuracy"));
+        assert!(result
+            .aggregated_metrics
+            .contains_key("average_zero_shot_accuracy"));
         assert!(result.execution_time_sec >= 0.0);
     }
 
@@ -348,7 +351,7 @@ mod tests {
         let pairs = dataset.get_image_label_pairs();
         assert_eq!(pairs.len(), 20);
 
-        for (i, (_, label)) in pairs.iter().enumerate() {
+        for (_, label) in &pairs {
             assert!(*label < 5); // Label should be within class range
         }
     }

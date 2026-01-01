@@ -6,13 +6,20 @@
 
 extern crate alloc;
 
-use crate::{functions::*, Result};
-use dtype::{DataType, traits::FloatExt};
-use tensor::Tensor;
+use crate::{
+    functions::{
+        AddFunction, CosFunction, DivFunction, ExpFunction, LogFunction, MatMulFunction,
+        MaxFunction, MeanFunction, MulFunction, NegFunction, PowFunction, ReshapeFunction,
+        SinFunction, SubFunction, SumFunction, SqrtFunction, TransposeFunction,
+    },
+    Result,
+};
 use alloc::sync::Arc;
 use backend::Backend;
-use storage::{Storage, StorageFromVec, StorageToDense};
+use dtype::{traits::FloatExt, DataType};
 use num_traits::FromPrimitive;
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 // Function to create proper Function objects for gradient computation
 fn create_add_function<B, S, T>(
@@ -24,7 +31,10 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + 'static,
 {
-    Arc::new(AddFunction::new(Arc::new(lhs.clone()), Arc::new(rhs.clone())))
+    Arc::new(AddFunction::new(
+        Arc::new(lhs.clone()),
+        Arc::new(rhs.clone()),
+    ))
 }
 
 fn create_sub_function<B, S, T>(
@@ -36,7 +46,10 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + 'static,
 {
-    Arc::new(SubFunction::new(Arc::new(lhs.clone()), Arc::new(rhs.clone())))
+    Arc::new(SubFunction::new(
+        Arc::new(lhs.clone()),
+        Arc::new(rhs.clone()),
+    ))
 }
 
 fn create_matmul_function<B, S, T>(
@@ -48,12 +61,13 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + 'static,
 {
-    Arc::new(MatMulFunction::new(Arc::new(lhs.clone()), Arc::new(rhs.clone())))
+    Arc::new(MatMulFunction::new(
+        Arc::new(lhs.clone()),
+        Arc::new(rhs.clone()),
+    ))
 }
 
-fn create_mean_function<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Arc<dyn tensor::Function<B, S, T>>
+fn create_mean_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
@@ -84,7 +98,10 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + 'static,
 {
-    Arc::new(MulFunction::new(Arc::new(lhs.clone()), Arc::new(rhs.clone())))
+    Arc::new(MulFunction::new(
+        Arc::new(lhs.clone()),
+        Arc::new(rhs.clone()),
+    ))
 }
 
 fn create_reshape_function<B, S, T>(
@@ -121,12 +138,13 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + 'static,
 {
-    Arc::new(DivFunction::new(Arc::new(lhs.clone()), Arc::new(rhs.clone())))
+    Arc::new(DivFunction::new(
+        Arc::new(lhs.clone()),
+        Arc::new(rhs.clone()),
+    ))
 }
 
-fn create_neg_function<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Arc<dyn tensor::Function<B, S, T>>
+fn create_neg_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
@@ -147,9 +165,7 @@ where
     Arc::new(PowFunction::new(Arc::new(input.clone()), exponent))
 }
 
-fn create_sqrt_function<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Arc<dyn tensor::Function<B, S, T>>
+fn create_sqrt_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
@@ -160,26 +176,29 @@ where
 
 /// Element-wise square root with automatic differentiation
 #[allow(clippy::missing_errors_doc)]
-pub fn sqrt<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn sqrt<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + Copy + 'static + dtype::traits::FloatExt + num_traits::FromPrimitive,
 {
     // Perform sqrt operation via dense fallback
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
     let result_dense = input_dense.sqrt();
-    
+
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
-    let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims).map_err(|e| crate::AutogradError::TensorError(e))?;
+    let result_dims = result_dense.shape().dims();
+    let result = Tensor::<B, S, T>::from_vec(data, result_dims)
+        .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
     if input.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_sqrt_function(input))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_sqrt_function(input)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -216,21 +235,19 @@ where
 /// assert!(z.function_object().is_some()); // Has AddBackward function attached
 /// ```
 #[allow(clippy::missing_errors_doc)]
-pub fn add<B, S, T>(
-    lhs: &Tensor<B, S, T>,
-    rhs: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn add<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + std::ops::Add<Output = T> + Copy + 'static,
 {
     // Perform the addition operation using the arithmetic module directly to avoid trait ambiguity
-    let result = tensor::ops::arithmetic::add(lhs, rhs).map_err(|e| crate::AutogradError::TensorError(e))?;
-
-    // Create computation graph if gradients are required
+    let result =
+        tensor::ops::arithmetic::add(lhs, rhs).map_err(crate::AutogradError::TensorError)?;
     if lhs.requires_grad() || rhs.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_add_function(lhs, rhs))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_add_function(lhs, rhs)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -249,19 +266,26 @@ where
     T: DataType + Clone + Copy + 'static,
 {
     // Convert to dense for operation
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
-    
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
+
     // Perform transpose operation
-    let result_dense = input_dense.transpose(dim0, dim1).map_err(|e| crate::AutogradError::TensorError(e))?;
-    
+    let result_dense = input_dense
+        .transpose(dim0, dim1)
+        .map_err(crate::AutogradError::TensorError)?;
+
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
-    let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims).map_err(|e| crate::AutogradError::TensorError(e))?;
+    let result_dims = result_dense.shape().dims();
+    let result = Tensor::<B, S, T>::from_vec(data, result_dims)
+        .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
     if input.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_transpose_function(input, dim0, dim1))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_transpose_function(input, dim0, dim1)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -279,21 +303,19 @@ where
 /// # Returns
 /// Result tensor with automatic differentiation support
 #[allow(clippy::missing_errors_doc)]
-pub fn mul<B, S, T>(
-    lhs: &Tensor<B, S, T>,
-    rhs: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn mul<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + std::ops::Mul<Output = T> + Copy + 'static,
 {
     // Perform the multiplication operation using the arithmetic module directly
-    let result = tensor::ops::arithmetic::mul(lhs, rhs).map_err(|e| crate::AutogradError::TensorError(e))?;
-
-    // Create computation graph if gradients are required
+    let result =
+        tensor::ops::arithmetic::mul(lhs, rhs).map_err(crate::AutogradError::TensorError)?;
     if lhs.requires_grad() || rhs.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_mul_function(lhs, rhs))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_mul_function(lhs, rhs)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -301,21 +323,19 @@ where
 
 /// Element-wise subtraction with automatic differentiation
 #[allow(clippy::missing_errors_doc)]
-pub fn sub<B, S, T>(
-    lhs: &Tensor<B, S, T>,
-    rhs: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn sub<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + std::ops::Sub<Output = T> + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform the subtraction operation using the arithmetic module directly
-    let result = tensor::ops::arithmetic::sub(lhs, rhs).map_err(|e| crate::AutogradError::TensorError(e))?;
-
-    // Create computation graph if gradients are required
+    let result =
+        tensor::ops::arithmetic::sub(lhs, rhs).map_err(crate::AutogradError::TensorError)?;
     if lhs.requires_grad() || rhs.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_sub_function(lhs, rhs))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_sub_function(lhs, rhs)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -333,30 +353,42 @@ where
 /// # Returns
 /// Result tensor with automatic differentiation support
 #[allow(clippy::missing_errors_doc)]
-pub fn matmul<B, S, T>(
-    lhs: &Tensor<B, S, T>,
-    rhs: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn matmul<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T> + 'static,
+    T: DataType
+        + Clone
+        + Copy
+        + num_traits::Zero
+        + std::ops::Add<Output = T>
+        + std::ops::Mul<Output = T>
+        + 'static,
 {
     // Convert to dense for operation
-    let lhs_dense = lhs.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
-    let rhs_dense = rhs.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
-    
+    let lhs_dense = lhs
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
+    let rhs_dense = rhs
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
+
     // Perform matrix multiplication on dense tensors
-    let result_dense = lhs_dense.matmul(&rhs_dense).map_err(|e| crate::AutogradError::TensorError(e))?;
-    
+    let result_dense = lhs_dense
+        .matmul(&rhs_dense)
+        .map_err(crate::AutogradError::TensorError)?;
+
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims).map_err(|e| crate::AutogradError::TensorError(e))?;
+    let result = Tensor::<B, S, T>::from_vec(data, dims)
+        .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
     if lhs.requires_grad() || rhs.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_matmul_function(lhs, rhs))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_matmul_function(lhs, rhs)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -383,25 +415,39 @@ pub fn mean<B, S, T>(
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Div<Output = T> + num_traits::One + 'static,
+    T: DataType
+        + Clone
+        + Copy
+        + num_traits::Zero
+        + std::ops::Add<Output = T>
+        + std::ops::Div<Output = T>
+        + num_traits::One
+        + 'static,
 {
     // Convert to dense for operation
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
-    
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
+
     // Perform mean operation on dense tensor
     // Note: mean_dims is the method name in reduction.rs
-    let result_dense = input_dense.mean_dims(dim, keepdim).map_err(|e| crate::AutogradError::TensorError(e))?;
-    
+    let result_dense = input_dense
+        .mean_dims(dim, keepdim)
+        .map_err(crate::AutogradError::TensorError)?;
+
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims).map_err(|e| crate::AutogradError::TensorError(e))?;
+    let result = Tensor::<B, S, T>::from_vec(data, dims)
+        .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
     if input.requires_grad() {
         // Note: Current MeanFunction implementation assumes global mean
         // TODO: Update MeanFunction to support dim/keepdim for correct gradients
-        Ok(result.with_grad_fn(Some(create_mean_function(input))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_mean_function(input)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -431,20 +477,27 @@ where
     T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + 'static,
 {
     // Convert to dense for operation
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
-    
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
+
     // Perform sum operation on dense tensor
-    let result_dense = input_dense.sum_dims(dim, keepdim).map_err(|e| crate::AutogradError::TensorError(e))?;
-    
+    let result_dense = input_dense
+        .sum_dims(dim, keepdim)
+        .map_err(crate::AutogradError::TensorError)?;
+
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims).map_err(|e| crate::AutogradError::TensorError(e))?;
+    let result = Tensor::<B, S, T>::from_vec(data, dims)
+        .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
     if input.requires_grad() {
-        let dim_vec = dim.map(|d| d.to_vec());
-        Ok(result.with_grad_fn(Some(create_sum_function(input, dim_vec, keepdim))).requires_grad_(true))
+        let dim_vec = dim.map(<[usize]>::to_vec);
+        Ok(result
+            .with_grad_fn(Some(create_sum_function(input, dim_vec, keepdim)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -452,21 +505,19 @@ where
 
 /// Element-wise division with automatic differentiation
 #[allow(clippy::missing_errors_doc)]
-pub fn div<B, S, T>(
-    lhs: &Tensor<B, S, T>,
-    rhs: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn div<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + std::ops::Div<Output = T> + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform the division operation using the arithmetic module directly
-    let result = tensor::ops::arithmetic::div(lhs, rhs).map_err(|e| crate::AutogradError::TensorError(e))?;
-
-    // Create computation graph if gradients are required
+    let result =
+        tensor::ops::arithmetic::div(lhs, rhs).map_err(crate::AutogradError::TensorError)?;
     if lhs.requires_grad() || rhs.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_div_function(lhs, rhs))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_div_function(lhs, rhs)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -474,28 +525,18 @@ where
 
 /// Element-wise negation with automatic differentiation
 #[allow(clippy::missing_errors_doc)]
-pub fn neg<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn neg<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + std::ops::Neg<Output = T> + Copy + 'static + dtype::traits::FloatExt,
 {
-    // Perform the negation operation via dense fallback for safety
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
-    let data = input_dense.storage_ref().as_slice();
-    let mut neg_data = Vec::with_capacity(data.len());
-    for &val in data {
-        neg_data.push(-val);
-    }
-    
-    let result = Tensor::<B, S, T>::from_vec(neg_data, input_dense.shape().dims())
-        .map_err(|e| crate::AutogradError::TensorError(e))?;
-
-    // Create computation graph if gradients are required
+    let result =
+        tensor::ops::arithmetic::neg(input).map_err(crate::AutogradError::TensorError)?;
     if input.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_neg_function(input))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_neg_function(input)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -503,40 +544,44 @@ where
 
 /// Element-wise power with scalar exponent with automatic differentiation
 #[allow(clippy::missing_errors_doc)]
-pub fn pow<B, S, T>(
-    input: &Tensor<B, S, T>,
-    exponent: f64,
-) -> Result<Tensor<B, S, T>>
+pub fn pow<B, S, T>(input: &Tensor<B, S, T>, exponent: f64) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + Copy + 'static + FloatExt + FromPrimitive,
 {
     // Perform power operation via dense fallback
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
     let data = input_dense.storage_ref().as_slice();
     let mut res_data = Vec::with_capacity(data.len());
-    
+
     for &val in data {
-        let val_f64 = val.to_f64().unwrap();
+        let val_f64 = val.to_f64().ok_or_else(|| crate::AutogradError::NumericalError {
+            details: "pow: failed to convert input element to f64".to_string(),
+        })?;
         let res = val_f64.powf(exponent);
-        res_data.push(T::from_f64(res).unwrap_or(T::zero()));
+        let res_t = T::from_f64(res).ok_or_else(|| crate::AutogradError::NumericalError {
+            details: "pow: failed to convert pow result from f64".to_string(),
+        })?;
+        res_data.push(res_t);
     }
-    
+
     let result = Tensor::<B, S, T>::from_vec(res_data, input_dense.shape().dims())
-        .map_err(|e| crate::AutogradError::TensorError(e))?;
+        .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
     if input.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_pow_function(input, exponent))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_pow_function(input, exponent)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
 }
 
-fn create_exp_function<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Arc<dyn tensor::Function<B, S, T>>
+fn create_exp_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
@@ -545,9 +590,7 @@ where
     Arc::new(ExpFunction::new(Arc::new(input.clone())))
 }
 
-fn create_log_function<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Arc<dyn tensor::Function<B, S, T>>
+fn create_log_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
@@ -558,26 +601,29 @@ where
 
 /// Element-wise exponential with automatic differentiation
 #[allow(clippy::missing_errors_doc)]
-pub fn exp<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn exp<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform exp operation via dense fallback
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
     let result_dense = input_dense.exp();
-    
+
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims).map_err(|e| crate::AutogradError::TensorError(e))?;
+    let result = Tensor::<B, S, T>::from_vec(data, dims)
+        .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
     if input.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_exp_function(input))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_exp_function(input)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -585,34 +631,35 @@ where
 
 /// Element-wise natural logarithm with automatic differentiation
 #[allow(clippy::missing_errors_doc)]
-pub fn log<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn log<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform log operation via dense fallback
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
     let result_dense = input_dense.log();
-    
+
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims).map_err(|e| crate::AutogradError::TensorError(e))?;
+    let result = Tensor::<B, S, T>::from_vec(data, dims)
+        .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
     if input.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_log_function(input))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_log_function(input)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
 }
 
-fn create_sin_function<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Arc<dyn tensor::Function<B, S, T>>
+fn create_sin_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
@@ -621,9 +668,7 @@ where
     Arc::new(SinFunction::new(Arc::new(input.clone())))
 }
 
-fn create_cos_function<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Arc<dyn tensor::Function<B, S, T>>
+fn create_cos_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
@@ -634,26 +679,29 @@ where
 
 /// Element-wise sine with automatic differentiation
 #[allow(clippy::missing_errors_doc)]
-pub fn sin<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn sin<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform sin operation via dense fallback
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
     let result_dense = input_dense.sin();
-    
+
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims).map_err(|e| crate::AutogradError::TensorError(e))?;
+    let result = Tensor::<B, S, T>::from_vec(data, dims)
+        .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
     if input.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_sin_function(input))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_sin_function(input)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -661,26 +709,29 @@ where
 
 /// Element-wise cosine with automatic differentiation
 #[allow(clippy::missing_errors_doc)]
-pub fn cos<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn cos<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform cos operation via dense fallback
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
     let result_dense = input_dense.cos();
-    
+
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims).map_err(|e| crate::AutogradError::TensorError(e))?;
+    let result = Tensor::<B, S, T>::from_vec(data, dims)
+        .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
     if input.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_cos_function(input))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_cos_function(input)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -697,32 +748,39 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + dtype::traits::FloatExt + Copy + 'static,
 {
-    Arc::new(MaxFunction::new(Arc::new(input.clone()), Arc::new(mask.clone()), dim, keepdim))
+    Arc::new(MaxFunction::new(
+        Arc::new(input.clone()),
+        Arc::new(mask.clone()),
+        dim,
+        keepdim,
+    ))
 }
 
 /// Maximum reduction along dimension with automatic differentiation
 #[allow(clippy::missing_errors_doc)]
-pub fn max<B, S, T>(
-    input: &Tensor<B, S, T>,
-    dim: usize,
-    keepdim: bool,
-) -> Result<Tensor<B, S, T>>
+pub fn max<B, S, T>(input: &Tensor<B, S, T>, dim: usize, keepdim: bool) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + Copy + 'static + dtype::traits::FloatExt + PartialOrd,
 {
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
     let input_shape = input_dense.shape().dims();
-    
+
     if dim >= input_shape.len() {
-        return Err(crate::AutogradError::InvalidInput { 
-            message: format!("Dimension {} out of bounds for tensor with {} dimensions", dim, input_shape.len()) 
+        return Err(crate::AutogradError::InvalidInput {
+            message: format!(
+                "Dimension {} out of bounds for tensor with {} dimensions",
+                dim,
+                input_shape.len()
+            ),
         });
     }
 
     // Manual reduction implementation
-    
+
     // Calculate output shape
     let mut output_shape = input_shape.to_vec();
     if keepdim {
@@ -730,16 +788,16 @@ where
     } else {
         output_shape.remove(dim);
     }
-    
+
     let output_size: usize = output_shape.iter().product();
     // Use neg_infinity for float types
     let min_val = T::neg_infinity();
     let mut output_data = vec![min_val; output_size];
-    
+
     let ndim = input_shape.len();
-    
+
     let input_data_slice = input_dense.storage_ref().as_slice();
-    
+
     // Iterate over input and compute corresponding output index
     for (i, &val) in input_data_slice.iter().enumerate() {
         // Convert linear input index i to coords
@@ -749,34 +807,38 @@ where
             coords[d] = temp % input_shape[d];
             temp /= input_shape[d];
         }
-        
+
         // Convert coords to output linear index
         let mut out_idx = 0;
         let mut current_stride = 1;
-        
+
         // Output shape matches input shape except at dim.
         // We iterate output dims in reverse to match linear layout
         for d in (0..output_shape.len()).rev() {
-             let out_coord = if keepdim {
-                 if d == dim { 0 } else { coords[d] }
-             } else {
-                 let input_d = if d < dim { d } else { d + 1 };
-                 coords[input_d]
-             };
-             
-             out_idx += out_coord * current_stride;
-             current_stride *= output_shape[d];
+            let out_coord = if keepdim {
+                if d == dim {
+                    0
+                } else {
+                    coords[d]
+                }
+            } else {
+                let input_d = if d < dim { d } else { d + 1 };
+                coords[input_d]
+            };
+
+            out_idx += out_coord * current_stride;
+            current_stride *= output_shape[d];
         }
-        
+
         if val > output_data[out_idx] {
             output_data[out_idx] = val;
         }
     }
-    
+
     // Now create result tensor
     let result = Tensor::<B, S, T>::from_vec(output_data.clone(), &output_shape)
-        .map_err(|e| crate::AutogradError::TensorError(e))?;
-        
+        .map_err(crate::AutogradError::TensorError)?;
+
     // If gradients required, create mask
     if input.requires_grad() {
         let mut mask_data = Vec::with_capacity(input_data_slice.len());
@@ -787,31 +849,37 @@ where
                 coords[d] = temp % input_shape[d];
                 temp /= input_shape[d];
             }
-            
+
             let mut out_idx = 0;
             let mut current_stride = 1;
             for d in (0..output_shape.len()).rev() {
-                 let out_coord = if keepdim {
-                     if d == dim { 0 } else { coords[d] }
-                 } else {
-                     let input_d = if d < dim { d } else { d + 1 };
-                     coords[input_d]
-                 };
-                 out_idx += out_coord * current_stride;
-                 current_stride *= output_shape[d];
+                let out_coord = if keepdim {
+                    if d == dim {
+                        0
+                    } else {
+                        coords[d]
+                    }
+                } else {
+                    let input_d = if d < dim { d } else { d + 1 };
+                    coords[input_d]
+                };
+                out_idx += out_coord * current_stride;
+                current_stride *= output_shape[d];
             }
-            
+
             if (val - output_data[out_idx]).abs() < T::epsilon() {
-                 mask_data.push(T::one());
+                mask_data.push(T::one());
             } else {
-                 mask_data.push(T::zero());
+                mask_data.push(T::zero());
             }
         }
-        
+
         let mask = Tensor::<B, S, T>::from_vec(mask_data, input_shape)
-            .map_err(|e| crate::AutogradError::TensorError(e))?;
-            
-        Ok(result.with_grad_fn(Some(create_max_function(input, &mask, dim, keepdim))).requires_grad_(true))
+            .map_err(crate::AutogradError::TensorError)?;
+
+        Ok(result
+            .with_grad_fn(Some(create_max_function(input, &mask, dim, keepdim)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }
@@ -819,33 +887,34 @@ where
 
 /// Reshape tensor with automatic differentiation
 #[allow(clippy::missing_errors_doc)]
-pub fn reshape<B, S, T>(
-    input: &Tensor<B, S, T>,
-    shape: &[usize],
-) -> Result<Tensor<B, S, T>>
+pub fn reshape<B, S, T>(input: &Tensor<B, S, T>, shape: &[usize]) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + Copy + 'static,
 {
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
     let input_shape_vec = input.shape().dims().to_vec();
-    
+
     let current_size: usize = input_shape_vec.iter().product();
     let new_size: usize = shape.iter().product();
-    
+
     if current_size != new_size {
-         return Err(crate::AutogradError::InvalidInput {
-            message: format!("Shape mismatch: cannot reshape from {:?} to {:?}", input_shape_vec, shape)
+        return Err(crate::AutogradError::InvalidInput {
+            message: format!("Shape mismatch: cannot reshape from {input_shape_vec:?} to {shape:?}"),
         });
     }
 
     let data = input_dense.storage_ref().as_slice().to_vec();
     let result = Tensor::<B, S, T>::from_vec_with_backend(data, shape, input.backend().clone())
-        .map_err(|e| crate::AutogradError::TensorError(e))?;
+        .map_err(crate::AutogradError::TensorError)?;
 
     if input.requires_grad() {
-        Ok(result.with_grad_fn(Some(create_reshape_function(input, input_shape_vec))).requires_grad_(true))
+        Ok(result
+            .with_grad_fn(Some(create_reshape_function(input, input_shape_vec)))
+            .requires_grad_(true))
     } else {
         Ok(result)
     }

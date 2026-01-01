@@ -566,7 +566,7 @@ mod tests {
         let analysis = arena.analyze_lifetimes(&graph).unwrap();
 
         assert_eq!(analysis.total_allocations, 3);
-        assert!(analysis.max_concurrent_usage >= 0);
+        assert!(analysis.max_concurrent_usage > 0);
     }
 
     #[test]

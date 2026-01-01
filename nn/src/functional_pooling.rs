@@ -61,8 +61,12 @@ where
     let input_w = input_shape[3];
 
     let stride = stride.unwrap_or(kernel_size);
-    let output_h = ((input_h as f64 + 2.0 * padding.0 as f64 - kernel_size.0 as f64) / stride.0 as f64 + 1.0) as usize;
-    let output_w = ((input_w as f64 + 2.0 * padding.1 as f64 - kernel_size.1 as f64) / stride.1 as f64 + 1.0) as usize;
+    let output_h = ((input_h as f64 + 2.0 * padding.0 as f64 - kernel_size.0 as f64)
+        / stride.0 as f64
+        + 1.0) as usize;
+    let output_w = ((input_w as f64 + 2.0 * padding.1 as f64 - kernel_size.1 as f64)
+        / stride.1 as f64
+        + 1.0) as usize;
 
     let input_data = input_dense.as_slice();
     let mut output_data = Vec::with_capacity(batch_size * channels * output_h * output_w);
@@ -163,8 +167,12 @@ where
     let input_w = input_shape[3];
 
     let stride = stride.unwrap_or(kernel_size);
-    let output_h = ((input_h as f64 + 2.0 * padding.0 as f64 - kernel_size.0 as f64) / stride.0 as f64 + 1.0) as usize;
-    let output_w = ((input_w as f64 + 2.0 * padding.1 as f64 - kernel_size.1 as f64) / stride.1 as f64 + 1.0) as usize;
+    let output_h = ((input_h as f64 + 2.0 * padding.0 as f64 - kernel_size.0 as f64)
+        / stride.0 as f64
+        + 1.0) as usize;
+    let output_w = ((input_w as f64 + 2.0 * padding.1 as f64 - kernel_size.1 as f64)
+        / stride.1 as f64
+        + 1.0) as usize;
 
     let input_data = input_dense.as_slice();
     let mut output_data = Vec::with_capacity(batch_size * channels * output_h * output_w);

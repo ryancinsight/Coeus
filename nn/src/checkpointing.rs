@@ -11,7 +11,7 @@ use autograd::backward;
 #[cfg(not(feature = "autograd"))]
 use crate::autograd_stub::backward;
 use backend::Backend;
-use dtype::DataType;
+use dtype::{traits::FloatExt, DataType};
 use storage::DenseStorage;
 use tensor::Tensor;
 use std::collections::HashMap;
@@ -54,7 +54,7 @@ impl<M, B, T> Checkpointed<M, B, T>
 where
     M: Module<B, DenseStorage<T>, T>,
     B: Backend<Data = T> + Default + Clone,
-    T: DataType + Clone,
+    T: DataType + FloatExt + Clone,
 {
     /// Create a new checkpointed wrapper
     ///
@@ -150,10 +150,10 @@ impl<M, B, T> Module<B, DenseStorage<T>, T> for Checkpointed<M, B, T>
 where
     M: Module<B, DenseStorage<T>, T> + Clone,
     B: Backend<Data = T> + Default + Clone,
-    T: DataType + Clone,
+    T: DataType + FloatExt + Clone,
 {
     fn forward(&self, input: &Tensor<B, DenseStorage<T>, T>) -> Result<Tensor<B, DenseStorage<T>, T>> {
-        self.forward(input)
+        self.module.forward(input)
     }
 
     fn parameters(&self) -> Vec<crate::Parameter<B, DenseStorage<T>, T>> {
@@ -177,7 +177,7 @@ impl<M, B, T> ModuleSerialize<B, DenseStorage<T>, T> for Checkpointed<M, B, T>
 where
     M: Module<B, DenseStorage<T>, T> + ModuleSerialize<B, DenseStorage<T>, T> + Clone,
     B: Backend<Data = T> + Default + Clone,
-    T: DataType + Clone + serde::Serialize + serde::de::DeserializeOwned,
+    T: DataType + FloatExt + Clone + serde::Serialize + serde::de::DeserializeOwned,
 {
     fn state_dict(&self) -> StateDict<T> {
         self.module.state_dict()

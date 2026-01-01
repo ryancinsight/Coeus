@@ -1000,4 +1000,3 @@ pub const IMAGENET_SIMPLE_LABELS: [&str; 1000] = [
     "ear of corn",
     "toilet paper",
 ];
-

@@ -1,0 +1,32 @@
+Traceback (most recent call last):
+  File "d:\coeus\pycoeus\tests\test_fft_parity.py", line 52, in <module>
+    test_fft_forward_parity()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "d:\coeus\pycoeus\tests\test_fft_parity.py", line 24, in test_fft_forward_parity
+    np.testing.assert_allclose(fft_coeus_np, fft_torch.numpy(), atol=1e-5)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\coeus\pycoeus\venv\Lib\site-packages\numpy\testing\_private\utils.py", line 1768, in assert_allclose
+    assert_array_compare(compare, actual, desired, err_msg=str(err_msg),
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                         verbose=verbose, header=header, equal_nan=equal_nan,
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                         strict=strict)
+                         ^^^^^^^^^^^^^^
+  File "D:\coeus\pycoeus\venv\Lib\site-packages\numpy\testing\_private\utils.py", line 983, in assert_array_compare
+    raise AssertionError(msg)
+AssertionError: 
+Not equal to tolerance rtol=1e-07, atol=1e-05
+
+Mismatched elements: 1 / 1024 (0.0977%)
+Mismatch at index:
+ [599]: (29.052562713623047+27.19256019592285j) (ACTUAL), (29.052568435668945+27.19257354736328j) (DESIRED)
+Max absolute difference among violations: 1.4525935e-05
+Max relative difference among violations: 3.6503684e-07
+ ACTUAL: array([-25.416252 +0.j      ,  -1.495653-36.872406j,
+       -38.52391  +8.57102j , ...,   9.762304+18.82283j ,
+       -38.52391  -8.571022j,  -1.495655+36.87241j ],
+      shape=(1024,), dtype=complex64)
+ DESIRED: array([-25.416252 +0.j      ,  -1.495651-36.872406j,
+       -38.52391  +8.571023j, ...,   9.7623  +18.822832j,
+       -38.52391  -8.571023j,  -1.495651+36.872406j],
+      shape=(1024,), dtype=complex64)

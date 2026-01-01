@@ -5,7 +5,6 @@ use std::fmt;
 use backend::Backend;
 use dtype::traits::FloatExt;
 use dtype::DataType;
-use storage::{Storage, StorageFromVec};
 use tensor::Tensor;
 
 use crate::error::Result;
@@ -67,7 +66,14 @@ impl BCEWithLogitsLoss {
     where
         B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
         S: storage::StorageToDense<T> + storage::StorageFromVec<T> + 'static,
-        T: DataType + FloatExt + num_traits::FromPrimitive + PartialOrd + Copy + Send + Sync + 'static,
+        T: DataType
+            + FloatExt
+            + num_traits::FromPrimitive
+            + PartialOrd
+            + Copy
+            + Send
+            + Sync
+            + 'static,
     {
         bce_with_logits_loss(input, target)
     }

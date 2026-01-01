@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 use storage::{Storage, StorageFromVec, StorageToDense};
-use tensor::{ops::arithmetic, Tensor};
+use tensor::Tensor;
 
 #[cfg(feature = "safetensors")]
 use crate::error::NNError;
@@ -69,7 +69,7 @@ pub trait Module<B, S, T>: core::fmt::Debug + std::any::Any
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType,
+    T: DataType + FloatExt,
 {
     /// Perform forward pass through the module.
     ///
@@ -220,6 +220,7 @@ where
     /// # Returns
     /// Vector of (name, tensor) pairs.
     fn named_buffers(&self) -> Vec<(String, Tensor<B, S, T>)> {
+        println!("DEBUG: Default named_buffers called for module");
         Vec::new() // Default: no buffers
     }
 
@@ -237,7 +238,7 @@ where
 pub trait ModuleExt<
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType,
+    T: DataType + FloatExt,
 >: Module<B, S, T>
 {
     /// Count total number of parameters in this module.
@@ -273,7 +274,7 @@ pub trait ModuleExt<
 impl<
         B: Backend<Data = T> + Clone,
         S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-        T: DataType,
+        T: DataType + FloatExt,
         M: Module<B, S, T>,
     > ModuleExt<B, S, T> for M
 {

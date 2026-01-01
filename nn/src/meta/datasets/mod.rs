@@ -5,16 +5,16 @@
 
 use backend::{Backend, DataType, Storage};
 
-pub mod omniglot;
-pub mod miniimagenet;
-pub mod tiered_imagenet;
 pub mod common;
+pub mod miniimagenet;
+pub mod omniglot;
+pub mod tiered_imagenet;
 
 // Re-export main dataset types
-pub use omniglot::{OmniglotDataset, OmniglotEpisode};
+pub use common::{DatasetConfig, DatasetSplit, FewShotDataset, FewShotEpisode};
 pub use miniimagenet::{MiniImageNetDataset, MiniImageNetEpisode};
+pub use omniglot::{OmniglotDataset, OmniglotEpisode};
 pub use tiered_imagenet::{TieredImageNetDataset, TieredImageNetEpisode};
-pub use common::{FewShotEpisode, FewShotDataset, DatasetSplit, DatasetConfig};
 
 /// Standard few-shot learning dataset interface
 pub trait MetaDataset<B, S, T>
@@ -52,6 +52,6 @@ pub struct DatasetStats {
     pub test_classes: usize,
     pub total_examples: usize,
     pub image_size: (usize, usize, usize), // (height, width, channels)
-    pub image_mean: Vec<f32>, // Normalization mean
-    pub image_std: Vec<f32>,  // Normalization std
+    pub image_mean: Vec<f32>,              // Normalization mean
+    pub image_std: Vec<f32>,               // Normalization std
 }

@@ -2,9 +2,11 @@
 //!
 //! Tests automatic detection of TPU/NPU architectures and memory-aware backend selection.
 
-use std::{collections::HashMap};
-use backend::{BackendType, BackendSelector, WorkloadCharacteristics,
-              MemoryAccessPattern, DataLocality, OperationType, MemoryManager};
+use backend::{
+    BackendSelector, BackendType, DataLocality, MemoryAccessPattern, MemoryManager, OperationType,
+    WorkloadCharacteristics,
+};
+use std::collections::HashMap;
 
 fn main() -> backend::Result<()> {
     println!("=== Sprint MS-41 Phase 1: Hardware Acceleration Foundation ===");
@@ -18,8 +20,10 @@ fn main() -> backend::Result<()> {
     let available_backends = selector.available_backends();
 
     println!("   ✅ Detected backends: {:?}", available_backends);
-    assert!(available_backends.contains(&BackendType::Cpu),
-            "CPU backend should always be available");
+    assert!(
+        available_backends.contains(&BackendType::Cpu),
+        "CPU backend should always be available"
+    );
 
     // Show which specialized hardware was detected
     if available_backends.contains(&BackendType::Tpu) {
@@ -44,8 +48,14 @@ fn main() -> backend::Result<()> {
 
     // Test different workload characteristics
     let workloads = vec![
-        ("Small element-wise operations", create_element_wise_workload(1000)),
-        ("Large matrix multiplication", create_matmul_workload(2_000_000)),
+        (
+            "Small element-wise operations",
+            create_element_wise_workload(1000),
+        ),
+        (
+            "Large matrix multiplication",
+            create_matmul_workload(2_000_000),
+        ),
         ("Convolution operations", create_convolution_workload()),
         ("Sparse operations", create_sparse_workload()),
     ];
@@ -69,9 +79,15 @@ fn main() -> backend::Result<()> {
     // Verify memory integration
     let memory_hints = test_memory_integration()?;
 
-    println!("   ✅ Memory analysis completed: {} backends analyzed, {} recommendations",
-             memory_hints.memory_efficiency_scores.len(),
-             if memory_hints.recommended_backend.is_some() { "1" } else { "0" });
+    println!(
+        "   ✅ Memory analysis completed: {} backends analyzed, {} recommendations",
+        memory_hints.memory_efficiency_scores.len(),
+        if memory_hints.recommended_backend.is_some() {
+            "1"
+        } else {
+            "0"
+        }
+    );
 
     println!();
     println!("=== Phase 1 Hardware Acceleration Foundation: COMPLETE ===");
@@ -138,8 +154,8 @@ fn test_backend_scoring(selector: &BackendSelector) -> backend::Result<()> {
 }
 
 fn test_memory_integration() -> backend::Result<backend::memory_integration::MemorySelectionHints> {
-    use backend::memory_integration::{DistributedWorkloadCharacteristics, MemoryConstraints};
     use backend::distributed::Rank;
+    use backend::memory_integration::{DistributedWorkloadCharacteristics, MemoryConstraints};
 
     // Create memory manager
     let memory_manager = MemoryManager::new();
@@ -158,11 +174,14 @@ fn test_memory_integration() -> backend::Result<backend::memory_integration::Mem
         memory_constraints: {
             let mut constraints = HashMap::new();
             for rank in 0..4 {
-                constraints.insert(Rank(rank), MemoryConstraints {
-                    available_memory_bytes: 8 * 1_073_741_824, // 8GB
-                    fragmentation_ratio: 0.1,
-                    memory_pressure: 0.5,
-                });
+                constraints.insert(
+                    Rank(rank),
+                    MemoryConstraints {
+                        available_memory_bytes: 8 * 1_073_741_824, // 8GB
+                        fragmentation_ratio: 0.1,
+                        memory_pressure: 0.5,
+                    },
+                );
             }
             constraints
         },
@@ -170,11 +189,17 @@ fn test_memory_integration() -> backend::Result<backend::memory_integration::Mem
     };
 
     // Test memory analysis
-    let available_backends = vec![BackendType::Cpu, BackendType::Gpu, BackendType::Tpu, BackendType::Npu];
+    let available_backends = vec![
+        BackendType::Cpu,
+        BackendType::Gpu,
+        BackendType::Tpu,
+        BackendType::Npu,
+    ];
 
     // Block on the async operation for this simple test
     tokio::runtime::Handle::current().block_on(async {
-        memory_manager.analyze_memory_for_selection(&distributed_workload, &available_backends).await
+        memory_manager
+            .analyze_memory_for_selection(&distributed_workload, &available_backends)
+            .await
     })
 }
-

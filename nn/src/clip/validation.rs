@@ -12,10 +12,10 @@
 use crate::error::Result;
 use backend::Backend;
 use dtype::{DataType, FloatExt};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::Arc;
 use storage::StorageFromVec;
 use tensor::Tensor;
-use std::collections::{HashMap, HashSet, BTreeMap};
-use std::sync::Arc;
 
 /// Core CLIP validation framework
 pub struct ClipValidator<B, T>
@@ -130,7 +130,14 @@ pub struct ValidationReport {
 impl<B, T> ClipValidator<B, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + num_traits::Float + Send + Sync + 'static,
+    T: DataType
+        + FloatExt
+        + num_traits::FromPrimitive
+        + num_traits::Bounded
+        + num_traits::Float
+        + Send
+        + Sync
+        + 'static,
 {
     /// Create a new CLIP validator
     pub fn new(
@@ -163,17 +170,20 @@ where
             EvaluationType::ZeroShot => {
                 // For zero-shot, we need a classification dataset
                 // This would typically be ImageNet or similar
-                report.zero_shot = Some(self.evaluate_zero_shot_classification(
-                    dataset,
-                    &["class1", "class2", "class3"], // Placeholder classes
-                ).await?);
+                report.zero_shot = Some(
+                    self.evaluate_zero_shot_classification(
+                        dataset,
+                        &["class1", "class2", "class3"], // Placeholder classes
+                    )
+                    .await?,
+                );
             }
             EvaluationType::Full => {
                 report.retrieval = Some(self.evaluate_retrieval(dataset).await?);
-                report.zero_shot = Some(self.evaluate_zero_shot_classification(
-                    dataset,
-                    &["placeholder_class"],
-                ).await?);
+                report.zero_shot = Some(
+                    self.evaluate_zero_shot_classification(dataset, &["placeholder_class"])
+                        .await?,
+                );
                 report.embedding_quality = Some(self.analyze_embedding_quality(dataset).await?);
             }
         }
@@ -213,7 +223,11 @@ where
             }
 
             // Encode batch
-            let image_data: Vec<f32> = image_batch.iter().flatten().map(|&x| x as f32 / 255.0).collect();
+            let image_data: Vec<f32> = image_batch
+                .iter()
+                .flatten()
+                .map(|&x| x as f32 / 255.0)
+                .collect();
             let batch_embeddings = self.model.encode_image(&image_data, image_batch.len())?;
             image_embeddings.push(batch_embeddings);
 
@@ -272,7 +286,8 @@ where
             similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
             // Find rank of correct match
-            let correct_rank = similarities.iter()
+            let correct_rank = similarities
+                .iter()
                 .position(|(idx, _)| *idx == query_idx)
                 .map(|pos| pos + 1)
                 .unwrap_or(candidate_embeddings.len()) as f64;
@@ -308,7 +323,8 @@ where
         println!("Evaluating zero-shot classification...");
 
         // Create class prompts (e.g., "a photo of a {class}")
-        let class_prompts: Vec<String> = class_names.iter()
+        let class_prompts: Vec<String> = class_names
+            .iter()
             .map(|class| format!("a photo of a {}", class))
             .collect();
 
@@ -348,17 +364,20 @@ where
 
             if predicted_class == true_class {
                 correct_predictions += 1;
-                *class_correct.entry(predicted_class.to_string()).or_insert(0) += 1;
+                *class_correct
+                    .entry(predicted_class.to_string())
+                    .or_insert(0) += 1;
             }
 
             // Check top-5
-            let top5_indices: HashSet<usize> = similarities.iter()
-                .take(5)
-                .map(|(idx, _)| *idx)
-                .collect();
+            let top5_indices: HashSet<usize> =
+                similarities.iter().take(5).map(|(idx, _)| *idx).collect();
 
-            if class_names.iter().position(|&c| c == true_class)
-                .map_or(false, |true_idx| top5_indices.contains(&true_idx)) {
+            if class_names
+                .iter()
+                .position(|&c| c == true_class)
+                .is_some_and(|true_idx| top5_indices.contains(&true_idx))
+            {
                 top5_correct += 1;
             }
         }
@@ -366,11 +385,16 @@ where
         let top1_accuracy = correct_predictions as f64 / total_predictions as f64;
         let top5_accuracy = top5_correct as f64 / total_predictions as f64;
 
-        let class_accuracies = class_names.iter()
+        let class_accuracies = class_names
+            .iter()
             .map(|class| {
                 let correct = *class_correct.get(*class).unwrap_or(&0);
                 let total = total_predictions / class_names.len(); // Approximate
-                let accuracy = if total > 0 { correct as f64 / total as f64 } else { 0.0 };
+                let accuracy = if total > 0 {
+                    correct as f64 / total as f64
+                } else {
+                    0.0
+                };
                 (class.to_string(), accuracy)
             })
             .collect();
@@ -407,7 +431,11 @@ where
                 text_batch.push(pair.captions.first().unwrap_or(&"".to_string()).clone());
             }
 
-            let image_data: Vec<f32> = image_batch.iter().flatten().map(|&x| x as f32 / 255.0).collect();
+            let image_data: Vec<f32> = image_batch
+                .iter()
+                .flatten()
+                .map(|&x| x as f32 / 255.0)
+                .collect();
             let batch_image_embs = self.model.encode_image(&image_data, image_batch.len())?;
             let text_refs: Vec<&str> = text_batch.iter().map(|s| s.as_str()).collect();
             let batch_text_embs = self.model.encode_text(&text_refs)?;
@@ -427,7 +455,8 @@ where
 
         // Compute variances
         let intra_modal_variance = self.compute_intra_modal_variance(&text_embeddings)?;
-        let inter_modal_variance = self.compute_inter_modal_variance(&text_embeddings, &image_embeddings)?;
+        let inter_modal_variance =
+            self.compute_inter_modal_variance(&text_embeddings, &image_embeddings)?;
 
         Ok(EmbeddingQualityMetrics {
             uniformity,
@@ -449,13 +478,22 @@ where
         let emb1_data = emb1.as_slice();
         let emb2_data = emb2.as_slice();
 
-        let dot_product: f64 = emb1_data.iter()
+        let dot_product: f64 = emb1_data
+            .iter()
             .zip(emb2_data.iter())
             .map(|(&a, &b)| a.to_f64().unwrap_or(0.0) * b.to_f64().unwrap_or(0.0))
             .sum();
 
-        let norm1: f64 = emb1_data.iter().map(|&x| x.to_f64().unwrap_or(0.0).powi(2)).sum::<f64>().sqrt();
-        let norm2: f64 = emb2_data.iter().map(|&x| x.to_f64().unwrap_or(0.0).powi(2)).sum::<f64>().sqrt();
+        let norm1: f64 = emb1_data
+            .iter()
+            .map(|&x| x.to_f64().unwrap_or(0.0).powi(2))
+            .sum::<f64>()
+            .sqrt();
+        let norm2: f64 = emb2_data
+            .iter()
+            .map(|&x| x.to_f64().unwrap_or(0.0).powi(2))
+            .sum::<f64>()
+            .sqrt();
 
         if norm1 > 0.0 && norm2 > 0.0 {
             Ok(dot_product / (norm1 * norm2))
@@ -465,7 +503,10 @@ where
     }
 
     /// Compute uniformity of embeddings
-    fn compute_uniformity(&self, embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>]) -> Result<f64> {
+    fn compute_uniformity(
+        &self,
+        embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
+    ) -> Result<f64> {
         // Uniformity measures how uniformly distributed embeddings are on the hypersphere
         // Higher uniformity = better distributed embeddings
         let n = embeddings.len() as f64;
@@ -509,7 +550,10 @@ where
     }
 
     /// Compute intra-modal variance
-    fn compute_intra_modal_variance(&self, embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>]) -> Result<f64> {
+    fn compute_intra_modal_variance(
+        &self,
+        embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
+    ) -> Result<f64> {
         if embeddings.is_empty() {
             return Ok(0.0);
         }
@@ -528,9 +572,8 @@ where
 
             if values.len() > 1 {
                 let mean = values.iter().sum::<f64>() / values.len() as f64;
-                let variance = values.iter()
-                    .map(|x| (x - mean).powi(2))
-                    .sum::<f64>() / (values.len() - 1) as f64;
+                let variance = values.iter().map(|x| (x - mean).powi(2)).sum::<f64>()
+                    / (values.len() - 1) as f64;
                 variances.push(variance);
             }
         }
@@ -558,7 +601,8 @@ where
             let min_len = std::cmp::min(text_data.len(), image_data.len());
 
             for i in 0..min_len {
-                let diff = text_data[i].to_f64().unwrap_or(0.0) - image_data[i].to_f64().unwrap_or(0.0);
+                let diff =
+                    text_data[i].to_f64().unwrap_or(0.0) - image_data[i].to_f64().unwrap_or(0.0);
                 variances.push(diff.powi(2));
             }
         }
@@ -640,7 +684,10 @@ where
             summary.insert("retrieval_r5".to_string(), retrieval.text_to_image.r5);
             summary.insert("retrieval_r10".to_string(), retrieval.text_to_image.r10);
             summary.insert("retrieval_mrr".to_string(), retrieval.mean_reciprocal_rank);
-            summary.insert("retrieval_map".to_string(), retrieval.mean_average_precision);
+            summary.insert(
+                "retrieval_map".to_string(),
+                retrieval.mean_average_precision,
+            );
         }
 
         if let Some(ref zero_shot) = report.zero_shot {
@@ -680,78 +727,10 @@ enum RetrievalType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dtype::float::Float32;
-
-    // Mock dataset for testing
-    struct MockDataset {
-        pairs: Vec<crate::datasets::ImageTextPair>,
-    }
-
-    #[async_trait::async_trait(?Send)]
-    impl crate::datasets::VisionLanguageData for MockDataset {
-        fn len(&self) -> usize {
-            self.pairs.len()
-        }
-
-        fn get(&self, index: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = crate::error::Result<crate::datasets::ImageTextPair>> + Send + '_>> {
-            let pair = self.pairs[index].clone();
-            Box::pin(async move { Ok(pair) })
-        }
-
-        fn split(&self) -> crate::datasets::DatasetSplit {
-            crate::datasets::DatasetSplit::Train
-        }
-
-        fn statistics(&self) -> crate::datasets::DatasetStatistics {
-            crate::datasets::DatasetStatistics {
-                total_pairs: self.pairs.len(),
-                avg_caption_length: 10.0, // Mock value
-                vocab_size: 1000, // Mock value
-                image_sizes: Some(vec![]),
-                disk_size_mb: Some(1.0), // Mock value
-            }
-        }
-    }
-
-    // Mock CLIP model for testing
-    struct MockClipModel;
-
-    impl MockClipModel {
-        fn encode_texts(&self, _texts: &[String]) -> Result<Vec<Tensor<crate::backend_crate::CpuBackend<crate::dtype_crate::float::Float32>, crate::storage_crate::DenseStorage<crate::dtype_crate::float::Float32>, crate::dtype_crate::float::Float32>>> {
-            // Return dummy embeddings
-            let mut embeddings = Vec::new();
-            for _ in _texts {
-                let data = vec![Float32::new(1.0), Float32::new(0.5), Float32::new(-0.5), Float32::new(0.0)]; // Simple embedding
-                let tensor = Tensor::from_vec(data, &[4])?;
-                embeddings.push(tensor);
-            }
-            Ok(embeddings)
-        }
-
-        fn encode_images(&self, _images: &[Vec<u8>]) -> Result<Vec<Tensor<crate::backend_crate::CpuBackend<crate::dtype_crate::float::Float32>, crate::storage_crate::DenseStorage<crate::dtype_crate::float::Float32>, crate::dtype_crate::float::Float32>>> {
-            // Return dummy embeddings
-            let mut embeddings = Vec::new();
-            for _ in _images {
-                let data = vec![Float32::new(0.5), Float32::new(1.0), Float32::new(-0.2), Float32::new(0.8)]; // Simple embedding
-                let tensor = Tensor::from_vec(data, &[4])?;
-                embeddings.push(tensor);
-            }
-            Ok(embeddings)
-        }
-    }
 
     #[tokio::test]
     async fn test_retrieval_evaluation() {
-        let _mock_model = Arc::new(MockClipModel);
         let config = ValidationConfig::default();
-
-        // Note: This test would need proper type alignment with the actual CLIP model
-        // For now, just verify the structure compiles
         assert!(config.batch_size > 0);
     }
 }
-
-
-
-
-

@@ -9,7 +9,6 @@ pub enum NNError {
         source: tensor::TensorError,
     },
 
-
     #[error("Storage operation failed: {source}")]
     StorageError {
         #[from]
@@ -80,7 +79,7 @@ pub enum NNError {
     #[error("I/O error: {error}")]
     IoError {
         #[from]
-        error: std::io::Error
+        error: std::io::Error,
     },
 
     #[error("Resource not found: {resource}")]
@@ -89,13 +88,13 @@ pub enum NNError {
     #[error("JSON serialization error: {error}")]
     JsonError {
         #[from]
-        error: serde_json::Error
+        error: serde_json::Error,
     },
 
     #[error("Autograd error: {error}")]
     AutogradError {
         #[from]
-        error: autograd::AutogradError
+        error: autograd::AutogradError,
     },
 }
 

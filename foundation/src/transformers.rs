@@ -70,7 +70,10 @@ impl FlashAttention {
     ) -> Result<Vec<f32>> {
         if seq_len > self.max_seq_len {
             return Err(NNError::InvalidInput {
-                message: format!("Sequence length {} exceeds maximum {}", seq_len, self.max_seq_len),
+                message: format!(
+                    "Sequence length {} exceeds maximum {}",
+                    seq_len, self.max_seq_len
+                ),
             });
         }
 
@@ -172,8 +175,7 @@ pub struct MultiHeadAttention {
     _bias: bool,
 }
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum AttentionType {
     /// Standard attention (O(n²) memory)
     Standard,
@@ -220,20 +222,32 @@ impl MultiHeadAttention {
         match &self.attention_type {
             AttentionType::Flash => {
                 // Implement flash attention forward
-                let flash_attn = FlashAttention::new(self.num_heads, self.hidden_size / self.num_heads, seq_len);
-                flash_attn.forward(hidden_states, hidden_states, hidden_states, batch_size, seq_len).await
-            },
+                let flash_attn =
+                    FlashAttention::new(self.num_heads, self.hidden_size / self.num_heads, seq_len);
+                flash_attn
+                    .forward(
+                        hidden_states,
+                        hidden_states,
+                        hidden_states,
+                        batch_size,
+                        seq_len,
+                    )
+                    .await
+            }
             AttentionType::Standard => {
                 // Standard attention implementation
-                self.standard_attention(hidden_states, attention_mask, batch_size, seq_len).await
-            },
+                self.standard_attention(hidden_states, attention_mask, batch_size, seq_len)
+                    .await
+            }
             AttentionType::Sparse(_) => {
                 // Sparse attention implementation
-                self.sparse_attention(hidden_states, attention_mask, batch_size, seq_len).await
-            },
+                self.sparse_attention(hidden_states, attention_mask, batch_size, seq_len)
+                    .await
+            }
             AttentionType::Linear => {
                 // Linear attention implementation
-                self.linear_attention(hidden_states, attention_mask, batch_size, seq_len).await
+                self.linear_attention(hidden_states, attention_mask, batch_size, seq_len)
+                    .await
             }
         }
     }
@@ -323,8 +337,10 @@ impl TransformerBlock {
             _dropout: 0.1,
             is_decoder,
             cross_attention: if is_decoder {
-                Some(MultiHeadAttention::new(num_heads, hidden_size)
-                    .with_attention_type(attention_type))
+                Some(
+                    MultiHeadAttention::new(num_heads, hidden_size)
+                        .with_attention_type(attention_type),
+                )
             } else {
                 None
             },
@@ -346,23 +362,35 @@ impl TransformerBlock {
         seq_len: usize,
     ) -> Result<Vec<f32>> {
         // Self-attention with residual connection and layer norm
-        let mut hidden_states = self.attention_norm.forward(&self.self_attention
-            .forward(hidden_states, attention_mask, batch_size, seq_len).await?)?;
+        let mut hidden_states = self.attention_norm.forward(
+            &self
+                .self_attention
+                .forward(hidden_states, attention_mask, batch_size, seq_len)
+                .await?,
+        )?;
 
         // Add residual connection and dropout
         // hidden_states = hidden_states + residual + dropout
 
         // Cross-attention for decoder blocks
         if self.is_decoder && encoder_hidden_states.is_some() {
-            if let (Some(cross_attn), Some(cross_norm)) = (&self.cross_attention, &self.cross_attention_norm) {
-                hidden_states = cross_norm.forward(&cross_attn
-                    .forward(&hidden_states, None, batch_size, seq_len).await?)?;
+            if let (Some(cross_attn), Some(cross_norm)) =
+                (&self.cross_attention, &self.cross_attention_norm)
+            {
+                hidden_states = cross_norm.forward(
+                    &cross_attn
+                        .forward(&hidden_states, None, batch_size, seq_len)
+                        .await?,
+                )?;
                 // Add residual: hidden_states = hidden_states + residual + dropout
             }
         }
 
         // Feed-forward network with residual connection
-        let ff_output = self.feed_forward.forward(&hidden_states, batch_size * seq_len).await?;
+        let ff_output = self
+            .feed_forward
+            .forward(&hidden_states, batch_size * seq_len)
+            .await?;
         let output = self.feed_forward_norm.forward(&ff_output)?;
 
         // Final residual connection
@@ -417,17 +445,33 @@ impl FeedForwardNetwork {
 
     fn apply_activation(&self, input: &[f32]) -> Vec<f32> {
         match self.activation {
-            ActivationType::GELU => input.iter().map(|x| x * 0.5 * (1.0 + (x * 0.79788).tanh())).collect(),
+            ActivationType::GELU => input
+                .iter()
+                .map(|x| x * 0.5 * (1.0 + (x * 0.79788).tanh()))
+                .collect(),
             ActivationType::ReLU => input.iter().map(|x| x.max(0.0)).collect(),
             ActivationType::Swish => input.iter().map(|x| x / (1.0 + (-x).exp())).collect(),
-            ActivationType::GLU => input.iter().step_by(2).zip(input.iter().skip(1).step_by(2))
-                .flat_map(|(a, b)| vec![a * (1.0 / (1.0 + (-b).exp()))]).collect(),
+            ActivationType::GLU => input
+                .iter()
+                .step_by(2)
+                .zip(input.iter().skip(1).step_by(2))
+                .flat_map(|(a, b)| vec![a * (1.0 / (1.0 + (-b).exp()))])
+                .collect(),
         }
     }
 
     fn apply_dropout(&self, input: &[f32]) -> Vec<f32> {
         // Simple dropout implementation (would need proper random state)
-        input.iter().map(|x| if rand::random::<f64>() < self.dropout { 0.0 } else { *x / (1.0 - self.dropout as f32) }).collect()
+        input
+            .iter()
+            .map(|x| {
+                if rand::random::<f64>() < self.dropout {
+                    0.0
+                } else {
+                    *x / (1.0 - self.dropout as f32)
+                }
+            })
+            .collect()
     }
 }
 
@@ -512,7 +556,7 @@ impl GPTModel {
                 config.num_heads,
                 config.hidden_size,
                 config.feed_forward_size,
-                false, // GPT is decoder-only
+                false,                // GPT is decoder-only
                 AttentionType::Flash, // Use flash attention by default
             ));
         }
@@ -544,20 +588,24 @@ impl GPTModel {
 
         // Transformer blocks
         for block in &self.blocks {
-            hidden_states = block.forward(
-                &hidden_states,
-                Some(&attention_mask),
-                None, // No encoder states for GPT
-                batch_size,
-                seq_len,
-            ).await?;
+            hidden_states = block
+                .forward(
+                    &hidden_states,
+                    Some(&attention_mask),
+                    None, // No encoder states for GPT
+                    batch_size,
+                    seq_len,
+                )
+                .await?;
         }
 
         // Final normalization
         hidden_states = self.final_norm.forward(&hidden_states)?;
 
         // Output projection
-        self.output_projection.forward(&hidden_states, batch_size * seq_len).await
+        self.output_projection
+            .forward(&hidden_states, batch_size * seq_len)
+            .await
     }
 
     /// Generate text autoregressively
@@ -573,7 +621,8 @@ impl GPTModel {
 
         while tokens.len() < max_length {
             let logits = self.forward(&tokens, 1).await?;
-            let next_token_logits = &logits[(tokens.len() - 1) * self.vocab_size..tokens.len() * self.vocab_size];
+            let next_token_logits =
+                &logits[(tokens.len() - 1) * self.vocab_size..tokens.len() * self.vocab_size];
 
             // Apply temperature
             let next_token = if temperature != 1.0 {
@@ -585,7 +634,8 @@ impl GPTModel {
             tokens.push(next_token);
 
             // Check for EOS token (simplified)
-            if next_token == 0 { // Assume 0 is EOS
+            if next_token == 0 {
+                // Assume 0 is EOS
                 break;
             }
         }
@@ -604,7 +654,13 @@ impl GPTModel {
         mask
     }
 
-    fn sample_with_temperature(&self, logits: &[f32], temperature: f64, top_k: Option<usize>, top_p: Option<f64>) -> usize {
+    fn sample_with_temperature(
+        &self,
+        logits: &[f32],
+        temperature: f64,
+        top_k: Option<usize>,
+        top_p: Option<f64>,
+    ) -> usize {
         // Apply temperature scaling
         let scaled_logits: Vec<f64> = logits.iter().map(|&x| x as f64 / temperature).collect();
 
@@ -629,7 +685,8 @@ impl GPTModel {
 
     fn apply_top_k(&self, logits: &[f64], k: usize) -> Vec<f64> {
         // Simple implementation - set all but top-k to -inf
-        let mut indexed_logits: Vec<(f64, usize)> = logits.iter().enumerate().map(|(i, &x)| (x, i)).collect();
+        let mut indexed_logits: Vec<(f64, usize)> =
+            logits.iter().enumerate().map(|(i, &x)| (x, i)).collect();
         indexed_logits.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
 
         let mut result = vec![f64::NEG_INFINITY; logits.len()];
@@ -642,7 +699,8 @@ impl GPTModel {
 
     fn apply_top_p(&self, logits: &[f64], p: f64) -> Vec<f64> {
         // Nucleus sampling implementation
-        let mut indexed_logits: Vec<(f64, usize)> = logits.iter().enumerate().map(|(i, &x)| (x, i)).collect();
+        let mut indexed_logits: Vec<(f64, usize)> =
+            logits.iter().enumerate().map(|(i, &x)| (x, i)).collect();
         indexed_logits.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
 
         // Calculate cumulative probabilities
@@ -824,30 +882,45 @@ impl VisionTransformer {
 
     fn add_positional_embeddings(&self, patches: &[f32]) -> Result<Vec<f32>> {
         // Add position embeddings to patches
-        Ok(patches.iter().zip(self.pos_embed.iter())
+        Ok(patches
+            .iter()
+            .zip(self.pos_embed.iter())
             .map(|(patch, pos)| patch + pos)
             .collect())
     }
 }
 
 impl ViTTransformerBlock {
-    pub async fn forward(&self, hidden_states: &[f32], batch_size: usize, seq_len: usize) -> Result<Vec<f32>> {
+    pub async fn forward(
+        &self,
+        hidden_states: &[f32],
+        batch_size: usize,
+        seq_len: usize,
+    ) -> Result<Vec<f32>> {
         // Self-attention with residual
-        let attn_output = self.attention.forward(hidden_states, None, batch_size, seq_len).await?;
+        let attn_output = self
+            .attention
+            .forward(hidden_states, None, batch_size, seq_len)
+            .await?;
         let normalized = self.norm1.forward(&attn_output)?;
         // Add residual and apply feed-forward
         let residual = vec![0.0; normalized.len()]; // Would compute actual residual
         self.add_residual_and_norm(&normalized, &residual)?;
 
         // Feed-forward with residual
-        let ff_output = self.feed_forward.forward(&normalized, batch_size * seq_len).await?;
+        let ff_output = self
+            .feed_forward
+            .forward(&normalized, batch_size * seq_len)
+            .await?;
         let normalized_ff = self.norm2.forward(&ff_output)?;
         self.add_residual_and_norm(&normalized_ff, &normalized)
     }
 
     fn add_residual_and_norm(&self, input: &[f32], residual: &[f32]) -> Result<Vec<f32>> {
         // input + residual with layer norm
-        let combined: Vec<f32> = input.iter().zip(residual.iter())
+        let combined: Vec<f32> = input
+            .iter()
+            .zip(residual.iter())
             .map(|(a, b)| a + b)
             .collect();
         self.norm1.forward(&combined)
@@ -918,7 +991,7 @@ impl Conv2DLayer {
             _in_channels: in_channels,
             out_channels,
             _kernel_size: kernel_h, // Assuming square kernel
-            _stride: kernel_h, // Assuming stride equals kernel size for patch embedding
+            _stride: kernel_h,      // Assuming stride equals kernel size for patch embedding
         }
     }
 

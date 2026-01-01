@@ -6,8 +6,8 @@
 
 use crate::error::{NNError, Result};
 use crate::research::{ExperimentTracker, UnifiedResearchFramework};
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Configuration for meta-learning research
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,7 +146,10 @@ impl MetaLearningExperiment {
 
     /// Run meta-learning experiment
     pub async fn run_experiment(&mut self, num_iterations: usize) -> Result<MetaLearningReport> {
-        println!("🧠 Starting meta-learning experiment with {} iterations", num_iterations);
+        println!(
+            "🧠 Starting meta-learning experiment with {} iterations",
+            num_iterations
+        );
 
         let mut tracker = self.framework.create_experiment(
             "meta_learning_exp".to_string(),
@@ -163,7 +166,9 @@ impl MetaLearningExperiment {
             println!("Iteration {}/{}", iteration + 1, num_iterations);
 
             // Sample meta-batch of tasks
-            let tasks = self.task_generator.sample_tasks(self.config.tasks_per_batch)?;
+            let tasks = self
+                .task_generator
+                .sample_tasks(self.config.tasks_per_batch)?;
 
             // Execute meta-learning step
             let iteration_result = self.execute_meta_step(&tasks).await?;
@@ -186,7 +191,10 @@ impl MetaLearningExperiment {
     }
 
     /// Execute one meta-learning step
-    async fn execute_meta_step(&mut self, tasks: &[MetaLearningTask]) -> Result<MetaIterationResult> {
+    async fn execute_meta_step(
+        &mut self,
+        tasks: &[MetaLearningTask],
+    ) -> Result<MetaIterationResult> {
         let mut task_results = Vec::new();
         let mut meta_loss = 0.0;
 
@@ -230,8 +238,13 @@ impl MetaLearningExperiment {
             adaptation_losses.push(current_loss);
 
             if step % 2 == 0 {
-                println!("  Task {}: Step {}/{}, Loss: {:.4}",
-                    task.task_id, step + 1, self.config.inner_steps, current_loss);
+                println!(
+                    "  Task {}: Step {}/{}, Loss: {:.4}",
+                    task.task_id,
+                    step + 1,
+                    self.config.inner_steps,
+                    current_loss
+                );
             }
         }
 
@@ -250,8 +263,10 @@ impl MetaLearningExperiment {
         // 2. Update meta-parameters (base model)
         // 3. Apply meta-optimization step
 
-        println!("  📈 Meta-update: Average task loss: {:.4}",
-            task_results.iter().map(|r| r.final_loss).sum::<f64>() / task_results.len() as f64);
+        println!(
+            "  📈 Meta-update: Average task loss: {:.4}",
+            task_results.iter().map(|r| r.final_loss).sum::<f64>() / task_results.len() as f64
+        );
 
         Ok(())
     }
@@ -264,12 +279,14 @@ impl MetaLearningExperiment {
 
         // Check if meta-loss has not improved significantly in last 5 iterations
         let recent_results = &results[results.len().saturating_sub(5)..];
-        let min_recent = recent_results.iter()
+        let min_recent = recent_results
+            .iter()
             .map(|r| r.meta_loss)
             .min_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap_or(0.0);
 
-        let best_overall = results.iter()
+        let best_overall = results
+            .iter()
             .map(|r| r.meta_loss)
             .min_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap_or(0.0);
@@ -295,7 +312,8 @@ impl MetaLearningExperiment {
     /// Generate final meta-learning report
     fn generate_report(&self, results: Vec<MetaIterationResult>) -> Result<MetaLearningReport> {
         let final_meta_loss = results.last().map(|r| r.meta_loss).unwrap_or(0.0);
-        let best_meta_loss = results.iter()
+        let best_meta_loss = results
+            .iter()
             .map(|r| r.meta_loss)
             .min_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap_or(0.0);
@@ -392,27 +410,53 @@ impl TaskGenerator {
         min_diff + (self.seed as f64 * 0.01) % (max_diff - min_diff)
     }
 
-    fn generate_task_parameters(&self, task_type: &TaskType, difficulty: f64) -> HashMap<String, serde_json::Value> {
+    fn generate_task_parameters(
+        &self,
+        task_type: &TaskType,
+        difficulty: f64,
+    ) -> HashMap<String, serde_json::Value> {
         match task_type {
             TaskType::Classification => {
                 let num_classes = (2.0 + difficulty * 8.0) as u32; // 2-10 classes
                 HashMap::from([
-                    ("num_classes".to_string(), serde_json::Value::Number(num_classes.into())),
-                    ("difficulty".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(difficulty).unwrap())),
+                    (
+                        "num_classes".to_string(),
+                        serde_json::Value::Number(num_classes.into()),
+                    ),
+                    (
+                        "difficulty".to_string(),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(difficulty).unwrap(),
+                        ),
+                    ),
                 ])
             }
             TaskType::Regression => {
                 let noise_level = difficulty * 0.5; // 0-0.5 noise
                 HashMap::from([
-                    ("noise_level".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(noise_level).unwrap())),
-                    ("difficulty".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(difficulty).unwrap())),
+                    (
+                        "noise_level".to_string(),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(noise_level).unwrap(),
+                        ),
+                    ),
+                    (
+                        "difficulty".to_string(),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(difficulty).unwrap(),
+                        ),
+                    ),
                 ])
             }
             _ => HashMap::new(),
         }
     }
 
-    fn generate_data_specs(&self, task_type: &TaskType, difficulty: f64) -> (DataSpecification, DataSpecification) {
+    fn generate_data_specs(
+        &self,
+        task_type: &TaskType,
+        difficulty: f64,
+    ) -> (DataSpecification, DataSpecification) {
         let base_samples = 100;
         let samples_multiplier = 1.0 + difficulty * 2.0; // 1-3x samples based on difficulty
         let num_train_samples = (base_samples as f64 * samples_multiplier) as usize;
@@ -428,18 +472,14 @@ impl TaskGenerator {
             num_samples: num_train_samples,
             input_dim,
             output_dim,
-            distribution_params: HashMap::from([
-                ("complexity".to_string(), difficulty),
-            ]),
+            distribution_params: HashMap::from([("complexity".to_string(), difficulty)]),
         };
 
         let val_data = DataSpecification {
             num_samples: num_val_samples,
             input_dim,
             output_dim,
-            distribution_params: HashMap::from([
-                ("complexity".to_string(), difficulty),
-            ]),
+            distribution_params: HashMap::from([("complexity".to_string(), difficulty)]),
         };
 
         (train_data, val_data)
@@ -545,7 +585,11 @@ impl std::fmt::Display for MetaLearningReport {
         writeln!(f, "├── Total Iterations: {}", self.total_iterations)?;
         writeln!(f, "├── Final Meta-Loss: {:.6}", self.final_meta_loss)?;
         writeln!(f, "├── Best Meta-Loss: {:.6}", self.best_meta_loss)?;
-        writeln!(f, "├── Convergence Rate: {:.2}%", self.convergence_rate * 100.0)?;
+        writeln!(
+            f,
+            "├── Convergence Rate: {:.2}%",
+            self.convergence_rate * 100.0
+        )?;
         writeln!(f, "├── Inner Steps: {}", self.config.inner_steps)?;
         writeln!(f, "├── Tasks per Batch: {}", self.config.tasks_per_batch)?;
         writeln!(f, "└── First Order: {}", self.config.first_order)?;

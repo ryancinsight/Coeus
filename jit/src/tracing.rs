@@ -177,7 +177,9 @@ pub fn record_operation(
     metadata: NodeMetadata,
 ) -> Option<NodeId> {
     TRACING_CONTEXT.with(|ctx| {
-        (*ctx.borrow_mut()).as_mut().map(|tracing_ctx| tracing_ctx.record_operation(operation, input_vars, output_var, metadata))
+        (*ctx.borrow_mut()).as_mut().map(|tracing_ctx| {
+            tracing_ctx.record_operation(operation, input_vars, output_var, metadata)
+        })
     })
 }
 
@@ -191,7 +193,9 @@ pub fn record_operation(
 /// Some(node_id) if tracing was active, None otherwise
 pub fn record_parameter(var_id: usize, metadata: NodeMetadata) -> Option<NodeId> {
     TRACING_CONTEXT.with(|ctx| {
-        (*ctx.borrow_mut()).as_mut().map(|tracing_ctx| tracing_ctx.record_parameter(var_id, metadata))
+        (*ctx.borrow_mut())
+            .as_mut()
+            .map(|tracing_ctx| tracing_ctx.record_parameter(var_id, metadata))
     })
 }
 
@@ -201,9 +205,7 @@ pub(crate) fn with_tracing_context<F, R>(f: F) -> Option<R>
 where
     F: FnOnce(&mut TracingContext) -> R,
 {
-    TRACING_CONTEXT.with(|ctx| {
-        (*ctx.borrow_mut()).as_mut().map(f)
-    })
+    TRACING_CONTEXT.with(|ctx| (*ctx.borrow_mut()).as_mut().map(f))
 }
 
 #[cfg(test)]

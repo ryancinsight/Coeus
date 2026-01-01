@@ -87,8 +87,12 @@ impl Hub {
     where
         M: Module<B, S, T>,
         B: Backend,
-        S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
-        T: DataType,
+        S: storage::Storage<T>
+            + Clone
+            + 'static
+            + storage::StorageFromVec<T>
+            + storage::StorageToDense<T>,
+        T: DataType + dtype::FloatExt,
     {
         let config = LoadConfig {
             task,

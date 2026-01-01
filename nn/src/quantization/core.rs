@@ -122,7 +122,11 @@ where
     where
         T: From<f64>,
     {
-        let data: Vec<T> = serializable.data.into_iter().map(<T as From<f64>>::from).collect();
+        let data: Vec<T> = serializable
+            .data
+            .into_iter()
+            .map(<T as From<f64>>::from)
+            .collect();
 
         match serializable.bitwidth {
             QuantizationBitwidth::Bits4 => {

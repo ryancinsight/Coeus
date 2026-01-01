@@ -4,12 +4,12 @@
 //! enabling reproducible experiments, hyperparameter optimization,
 //! and collaboration across research teams.
 
+use crate::error::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use crate::error::{NNError, Result};
 
 /// Experiment specification defining what to run
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,7 +52,7 @@ pub struct ExperimentResult {
 }
 
 /// Experiment execution status
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExperimentStatus {
     Pending,
     Running,
@@ -148,13 +148,25 @@ pub trait ExperimentStorage: Send + Sync + std::fmt::Debug {
     async fn load_experiment(&self, id: &str) -> Result<Option<ExperimentResult>>;
 
     /// List experiments with optional filtering
-    async fn list_experiments(&self, filter: Option<&ExperimentFilter>) -> Result<Vec<ExperimentResult>>;
+    async fn list_experiments(
+        &self,
+        filter: Option<&ExperimentFilter>,
+    ) -> Result<Vec<ExperimentResult>>;
 
     /// Save artifact to storage
-    async fn save_artifact(&self, experiment_id: &str, artifact: &Artifact, data: &[u8]) -> Result<String>;
+    async fn save_artifact(
+        &self,
+        experiment_id: &str,
+        artifact: &Artifact,
+        data: &[u8],
+    ) -> Result<String>;
 
     /// Load artifact from storage
-    async fn load_artifact(&self, experiment_id: &str, artifact_name: &str) -> Result<Option<Vec<u8>>>;
+    async fn load_artifact(
+        &self,
+        experiment_id: &str,
+        artifact_name: &str,
+    ) -> Result<Option<Vec<u8>>>;
 }
 
 /// Filter for experiment queries
@@ -178,12 +190,18 @@ pub struct InMemoryStorage {
     artifacts: RwLock<HashMap<String, HashMap<String, Vec<u8>>>>,
 }
 
-impl InMemoryStorage {
-    pub fn new() -> Self {
+impl Default for InMemoryStorage {
+    fn default() -> Self {
         Self {
             experiments: RwLock::new(HashMap::new()),
             artifacts: RwLock::new(HashMap::new()),
         }
+    }
+}
+
+impl InMemoryStorage {
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -200,7 +218,10 @@ impl ExperimentStorage for InMemoryStorage {
         Ok(experiments.get(id).cloned())
     }
 
-    async fn list_experiments(&self, filter: Option<&ExperimentFilter>) -> Result<Vec<ExperimentResult>> {
+    async fn list_experiments(
+        &self,
+        filter: Option<&ExperimentFilter>,
+    ) -> Result<Vec<ExperimentResult>> {
         let experiments = self.experiments.read().await;
         let mut results: Vec<_> = experiments.values().cloned().collect();
 
@@ -220,7 +241,7 @@ impl ExperimentStorage for InMemoryStorage {
                 }
 
                 if let Some(status) = &filter.status {
-                    if !matches!(&exp.status, status) {
+                    if &exp.status != status {
                         return false;
                     }
                 }
@@ -244,17 +265,29 @@ impl ExperimentStorage for InMemoryStorage {
         Ok(results)
     }
 
-    async fn save_artifact(&self, experiment_id: &str, artifact: &Artifact, data: &[u8]) -> Result<String> {
+    async fn save_artifact(
+        &self,
+        experiment_id: &str,
+        artifact: &Artifact,
+        data: &[u8],
+    ) -> Result<String> {
         let mut artifacts = self.artifacts.write().await;
-        let exp_artifacts = artifacts.entry(experiment_id.to_string()).or_insert_with(HashMap::new);
+        let exp_artifacts = artifacts
+            .entry(experiment_id.to_string())
+            .or_insert_with(HashMap::new);
         exp_artifacts.insert(artifact.name.clone(), data.to_vec());
 
         Ok(format!("memory://{}/{}", experiment_id, artifact.name))
     }
 
-    async fn load_artifact(&self, experiment_id: &str, artifact_name: &str) -> Result<Option<Vec<u8>>> {
+    async fn load_artifact(
+        &self,
+        experiment_id: &str,
+        artifact_name: &str,
+    ) -> Result<Option<Vec<u8>>> {
         let artifacts = self.artifacts.read().await;
-        Ok(artifacts.get(experiment_id)
+        Ok(artifacts
+            .get(experiment_id)
             .and_then(|exp_artifacts| exp_artifacts.get(artifact_name))
             .cloned())
     }
@@ -304,7 +337,11 @@ impl ExperimentTracker {
         self.storage.save_experiment(&result).await?;
 
         // Log completion
-        tracing::info!("Completed experiment: {} ({})", self.spec.name, self.spec.id);
+        tracing::info!(
+            "Completed experiment: {} ({})",
+            self.spec.name,
+            self.spec.id
+        );
 
         Ok(())
     }
@@ -326,7 +363,12 @@ impl ExperimentTracker {
 
         self.storage.save_experiment(&result).await?;
 
-        tracing::error!("Failed experiment: {} ({}): {}", self.spec.name, self.spec.id, error);
+        tracing::error!(
+            "Failed experiment: {} ({}): {}",
+            self.spec.name,
+            self.spec.id,
+            error
+        );
 
         Ok(())
     }
@@ -340,7 +382,10 @@ impl ExperimentTracker {
             timestamp: current_timestamp(),
         };
 
-        self.metrics.entry(name.to_string()).or_insert_with(Vec::new).push(point);
+        self.metrics
+            .entry(name.to_string())
+            .or_default()
+            .push(point);
     }
 
     /// Log hyperparameter value
@@ -355,7 +400,9 @@ impl ExperimentTracker {
 
     /// Save artifact data
     pub async fn save_artifact_data(&self, artifact: &Artifact, data: &[u8]) -> Result<String> {
-        self.storage.save_artifact(&self.spec.id, artifact, data).await
+        self.storage
+            .save_artifact(&self.spec.id, artifact, data)
+            .await
     }
 
     /// Get current experiment status
@@ -395,10 +442,12 @@ fn collect_environment_info() -> EnvironmentInfo {
     EnvironmentInfo {
         os: std::env::consts::OS.to_string(),
         cpu: "Unknown".to_string(), // Would need external crate for CPU detection
-        gpu: None, // Would need GPU detection
-        ram_gb: 16, // Default assumption
+        gpu: None,                  // Would need GPU detection
+        ram_gb: 16,                 // Default assumption
         python_version: None,
-        rust_version: rustc_version::version().map(|v| v.to_string()).unwrap_or_else(|_| "unknown".to_string()),
+        rust_version: rustc_version::version()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|_| "unknown".to_string()),
         cuda_version: None,
         dependencies: HashMap::new(), // Would need to collect actual dependencies
     }
@@ -442,7 +491,11 @@ mod tests {
         assert!(matches!(tracker.status(), ExperimentStatus::Completed));
 
         // Verify experiment was saved
-        let saved = storage.load_experiment(tracker.id()).await.unwrap().unwrap();
+        let saved = storage
+            .load_experiment(tracker.id())
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(saved.spec.name, "test_experiment");
         assert!(saved.metrics.contains_key("loss"));
         assert!(saved.metrics.contains_key("accuracy"));
@@ -493,8 +546,3 @@ mod tests {
         assert!(!env.rust_version.is_empty());
     }
 }
-
-
-
-
-

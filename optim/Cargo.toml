@@ -27,3 +27,4 @@ futures = "0.3"
 
 [dev-dependencies]
 approx = { workspace = true }
+criterion = { workspace = true }

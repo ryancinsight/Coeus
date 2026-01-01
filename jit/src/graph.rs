@@ -54,8 +54,7 @@ pub enum Operation {
 }
 
 /// Metadata associated with graph nodes
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct NodeMetadata {
     pub shape: Option<Vec<usize>>,
     pub dtype: Option<String>,
@@ -390,4 +389,3 @@ mod tests {
         assert!(!node3.can_fuse_with(&node4));
     }
 }
-

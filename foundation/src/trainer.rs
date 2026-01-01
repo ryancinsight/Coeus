@@ -4,8 +4,8 @@
 //! supporting transformers, distributed training, memory optimization, and
 //! advanced parallelism strategies for training large language and vision models.
 
-use crate::error::Result;
 use crate::distributed::DistributedCoordinator;
+use crate::error::Result;
 
 /// Core foundation model training framework
 pub struct FoundationModelTrainer {
@@ -40,15 +40,38 @@ pub struct ModelConfig {
 #[derive(Debug, Clone)]
 pub enum ModelType {
     /// GPT-style decoder-only transformer
-    GPT { num_layers: usize, num_heads: usize, hidden_size: usize },
+    GPT {
+        num_layers: usize,
+        num_heads: usize,
+        hidden_size: usize,
+    },
     /// BERT-style encoder-only transformer
-    BERT { num_layers: usize, num_heads: usize, hidden_size: usize },
+    BERT {
+        num_layers: usize,
+        num_heads: usize,
+        hidden_size: usize,
+    },
     /// T5-style encoder-decoder transformer
-    T5 { encoder_layers: usize, decoder_layers: usize, num_heads: usize, hidden_size: usize },
+    T5 {
+        encoder_layers: usize,
+        decoder_layers: usize,
+        num_heads: usize,
+        hidden_size: usize,
+    },
     /// Vision Transformer (ViT)
-    ViT { num_layers: usize, num_heads: usize, hidden_size: usize, patch_size: usize },
+    ViT {
+        num_layers: usize,
+        num_heads: usize,
+        hidden_size: usize,
+        patch_size: usize,
+    },
     /// CLIP-style vision-language model
-    CLIP { vision_layers: usize, text_layers: usize, vision_heads: usize, text_heads: usize },
+    CLIP {
+        vision_layers: usize,
+        text_layers: usize,
+        vision_heads: usize,
+        text_heads: usize,
+    },
     /// Custom model specification
     Custom { config: serde_json::Value },
 }
@@ -98,11 +121,26 @@ pub struct TrainingConfig {
 #[derive(Debug, Clone)]
 pub enum LearningRateSchedule {
     /// Cosine learning rate decay
-    Cosine { peak_lr: f64, min_lr: f64, warmup_steps: usize, total_steps: usize },
+    Cosine {
+        peak_lr: f64,
+        min_lr: f64,
+        warmup_steps: usize,
+        total_steps: usize,
+    },
     /// Linear learning rate decay
-    Linear { peak_lr: f64, min_lr: f64, warmup_steps: usize, total_steps: usize },
+    Linear {
+        peak_lr: f64,
+        min_lr: f64,
+        warmup_steps: usize,
+        total_steps: usize,
+    },
     /// Polynomial learning rate decay
-    Polynomial { peak_lr: f64, min_lr: f64, warmup_steps: usize, power: f64 },
+    Polynomial {
+        peak_lr: f64,
+        min_lr: f64,
+        warmup_steps: usize,
+        power: f64,
+    },
     /// Custom learning rate schedule
     Custom { schedule: Vec<(usize, f64)> },
 }
@@ -353,7 +391,6 @@ pub struct MemoryStats {
     pub parameter_memory: u64,
 }
 
-
 /// Memory management for foundation models
 #[derive(Debug)]
 pub struct MemoryManager {
@@ -454,7 +491,13 @@ impl FoundationModelTrainer {
     }
 
     /// Initialize distributed training (if enabled)
-    pub fn initialize_distributed(&mut self, rank: usize, world_size: usize, master_addr: String, master_port: u16) -> Result<()> {
+    pub fn initialize_distributed(
+        &mut self,
+        rank: usize,
+        world_size: usize,
+        master_addr: String,
+        master_port: u16,
+    ) -> Result<()> {
         self.distributed_coordinator = Some(DistributedCoordinator::new(
             rank,
             world_size,
@@ -494,7 +537,12 @@ impl FoundationModelTrainer {
         Ok(TrainingReport {
             total_steps: self.training_state.current_step,
             total_time,
-            final_loss: self.training_state.loss_history.last().copied().unwrap_or(0.0),
+            final_loss: self
+                .training_state
+                .loss_history
+                .last()
+                .copied()
+                .unwrap_or(0.0),
             final_metrics: self.training_state.metrics_history.clone(),
             throughput_tokens_per_second: self.calculate_throughput(),
             peak_memory_usage: self.training_state.memory_stats.gpu_memory_used,
@@ -557,7 +605,7 @@ impl FoundationModelTrainer {
             // Simulate synchronization overhead
             // In reality, this would be measured around the all-reduce call
             // Using a simple variation based on loss to simulate network jitter
-            let simulated_sync_time = 10.0 + (loss * 10.0).fract() * 5.0; 
+            let simulated_sync_time = 10.0 + (loss * 10.0).fract() * 5.0;
             dc.record_sync(simulated_sync_time).await;
         }
 
@@ -627,7 +675,8 @@ pub struct GradientBatch {
 impl TrainingConfig {
     /// Calculate total training steps
     pub fn total_steps(&self) -> usize {
-        self.phases.last()
+        self.phases
+            .last()
             .map(|phase| phase.end_step)
             .unwrap_or(100000) // Default fallback
     }

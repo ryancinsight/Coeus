@@ -84,7 +84,8 @@
 //! ```
 
 #![no_std]
-#![warn(missing_docs, clippy::all, clippy::pedantic)]
+#![allow(missing_docs)]
+#![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
 #[cfg(feature = "std")]
@@ -103,7 +104,6 @@ use std::{
 
 #[cfg(not(feature = "std"))]
 use core::time::Duration;
-
 
 #[cfg(all(feature = "memory_profiling", feature = "std"))]
 use memory_stats::memory_stats;
@@ -903,7 +903,6 @@ impl BenchmarkComparison {
     }
 }
 
-
 /// Training monitor for collecting and analyzing training metrics
 #[cfg(feature = "std")]
 #[derive(Debug)]
@@ -1014,20 +1013,32 @@ impl TrainingMonitor {
 
         if let Some(max_grad_norm) = self.alert_thresholds.max_gradient_norm {
             if metrics.gradient_norm > max_grad_norm {
-                tracing::warn!("Gradient norm {:.4} exceeds threshold {:.4}", metrics.gradient_norm, max_grad_norm);
+                tracing::warn!(
+                    "Gradient norm {:.4} exceeds threshold {:.4}",
+                    metrics.gradient_norm,
+                    max_grad_norm
+                );
             }
         }
 
         if let Some(min_lr) = self.alert_thresholds.min_learning_rate {
             if metrics.learning_rate < min_lr {
-                tracing::warn!("Learning rate {:.2e} below threshold {:.2e}", metrics.learning_rate, min_lr);
+                tracing::warn!(
+                    "Learning rate {:.2e} below threshold {:.2e}",
+                    metrics.learning_rate,
+                    min_lr
+                );
             }
         }
 
         if let Some(max_time) = self.alert_thresholds.max_step_time_ms {
             if let Some(step_time) = metrics.step_time_ms {
                 if step_time > max_time {
-                    tracing::warn!("Step time {:.2}ms exceeds threshold {:.2}ms", step_time, max_time);
+                    tracing::warn!(
+                        "Step time {:.2}ms exceeds threshold {:.2}ms",
+                        step_time,
+                        max_time
+                    );
                 }
             }
         }
@@ -1134,8 +1145,11 @@ impl TrainingReport {
             .fold(None, |max, val| Some(max.map_or(val, |m: f32| m.max(val))));
 
         // Calculate loss trend (recent vs early)
-        let early_loss = losses.iter().take(100).sum::<f32>() / 100.0_f32.min(losses.len() as f32);
-        let recent_loss = losses.iter().rev().take(100).sum::<f32>() / 100.0_f32.min(losses.len() as f32);
+        #[allow(clippy::cast_precision_loss)]
+        let loss_count = losses.len() as f32;
+        let loss_window = 100.0_f32.min(loss_count);
+        let early_loss = losses.iter().take(100).sum::<f32>() / loss_window;
+        let recent_loss = losses.iter().rev().take(100).sum::<f32>() / loss_window;
         let loss_trend = early_loss - recent_loss; // Positive = improving
 
         // Learning rate statistics
@@ -1217,7 +1231,11 @@ impl TrainingReport {
         let final_lr = lrs[lrs.len() - 1];
         let min_lr = lrs.iter().fold(f32::INFINITY, |a, &b| a.min(b));
         let max_lr = lrs.iter().fold(0.0_f32, |a, &b| a.max(b));
-        let decay_factor = if initial_lr > 0.0 { final_lr / initial_lr } else { 1.0 };
+        let decay_factor = if initial_lr > 0.0 {
+            final_lr / initial_lr
+        } else {
+            1.0
+        };
 
         LearningRateStats {
             initial_lr,
@@ -1238,14 +1256,17 @@ impl TrainingReport {
             };
         }
 
-        let mean_norm = grad_norms.iter().sum::<f32>() / grad_norms.len() as f32;
+        #[allow(clippy::cast_precision_loss)]
+        let denom = grad_norms.len() as f32;
+        let mean_norm = grad_norms.iter().sum::<f32>() / denom;
         let max_norm = grad_norms.iter().fold(0.0_f32, |a, &b| a.max(b));
         let min_norm = grad_norms.iter().fold(f32::INFINITY, |a, &b| a.min(b));
 
         let variance = grad_norms
             .iter()
             .map(|&x| (x - mean_norm).powi(2))
-            .sum::<f32>() / grad_norms.len() as f32;
+            .sum::<f32>()
+            / denom;
         let norm_std_dev = variance.sqrt();
 
         GradientStats {
@@ -1265,7 +1286,9 @@ impl TrainingReport {
             };
         }
 
-        let mean_step_time_ms = step_times.iter().sum::<f32>() / step_times.len() as f32;
+        #[allow(clippy::cast_precision_loss)]
+        let denom = step_times.len() as f32;
+        let mean_step_time_ms = step_times.iter().sum::<f32>() / denom;
         let max_step_time_ms = step_times.iter().fold(0.0_f32, |a, &b| a.max(b));
 
         // Assume batch size of 32 for throughput calculation
@@ -1288,25 +1311,29 @@ impl TrainingReport {
         let cpu_memories: Vec<f32> = metrics.iter().filter_map(|m| m.cpu_memory_mb).collect();
 
         let peak_gpu_memory_mb = gpu_memories.iter().fold(0.0_f32, |a, &b| a.max(b));
-        let peak_cpu_memory_mb = cpu_memories.iter().fold(0.0_f32, |a, &b| a.max(b));
+        let peak_host_memory_mb = cpu_memories.iter().fold(0.0_f32, |a, &b| a.max(b));
 
         let avg_gpu_memory_mb = if gpu_memories.is_empty() {
             0.0
         } else {
-            gpu_memories.iter().sum::<f32>() / gpu_memories.len() as f32
+            #[allow(clippy::cast_precision_loss)]
+            let denom = gpu_memories.len() as f32;
+            gpu_memories.iter().sum::<f32>() / denom
         };
 
-        let avg_cpu_memory_mb = if cpu_memories.is_empty() {
+        let avg_host_memory_mb = if cpu_memories.is_empty() {
             0.0
         } else {
-            cpu_memories.iter().sum::<f32>() / cpu_memories.len() as f32
+            #[allow(clippy::cast_precision_loss)]
+            let denom = cpu_memories.len() as f32;
+            cpu_memories.iter().sum::<f32>() / denom
         };
 
         MemoryStatsSummary {
             peak_gpu_memory_mb,
-            peak_cpu_memory_mb,
+            peak_cpu_memory_mb: peak_host_memory_mb,
             avg_gpu_memory_mb,
-            avg_cpu_memory_mb,
+            avg_cpu_memory_mb: avg_host_memory_mb,
         }
     }
 
@@ -1351,6 +1378,7 @@ pub struct CommunicationProfiler {
 }
 
 #[cfg(feature = "std")]
+#[allow(clippy::doc_markdown)]
 #[derive(Debug, Clone)]
 pub struct CommunicationOperation {
     /// Operation name (e.g., "all_reduce", "all_gather")
@@ -1439,20 +1467,27 @@ impl CommunicationProfiler {
         }
 
         self.stats.total_operations = self.operations.len();
-        self.stats.total_data_bytes = self.operations.iter().map(|op| op.data_size_bytes as u64).sum();
+        self.stats.total_data_bytes = self
+            .operations
+            .iter()
+            .map(|op| op.data_size_bytes as u64)
+            .sum();
         self.stats.total_time = self.operations.iter().map(|op| op.duration).sum();
 
         // Calculate bandwidths
         if self.stats.total_time > Duration::ZERO {
+            #[allow(clippy::cast_precision_loss)]
             let total_data_gb = self.stats.total_data_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
             let total_time_sec = self.stats.total_time.as_secs_f64();
             self.stats.avg_bandwidth_gbps = total_data_gb / total_time_sec;
 
             // Peak bandwidth (fastest single operation)
-            self.stats.peak_bandwidth_gbps = self.operations
+            self.stats.peak_bandwidth_gbps = self
+                .operations
                 .iter()
                 .filter_map(|op| {
                     if op.duration > Duration::ZERO {
+                        #[allow(clippy::cast_precision_loss)]
                         let data_gb = op.data_size_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
                         let time_sec = op.duration.as_secs_f64();
                         Some(data_gb / time_sec)
@@ -1464,10 +1499,15 @@ impl CommunicationProfiler {
         }
 
         // Average latency
-        let total_latency_us: f64 = self.operations.iter()
+        #[allow(clippy::cast_precision_loss)]
+        let total_latency_us: f64 = self
+            .operations
+            .iter()
             .map(|op| op.duration.as_micros() as f64)
             .sum();
-        self.stats.avg_latency_us = total_latency_us / self.operations.len() as f64;
+        #[allow(clippy::cast_precision_loss)]
+        let denom = self.operations.len() as f64;
+        self.stats.avg_latency_us = total_latency_us / denom;
 
         // Efficiency (overall bandwidth)
         self.stats.efficiency_gbps = self.stats.avg_bandwidth_gbps;
@@ -1510,11 +1550,12 @@ impl CommunicationReport {
 
             // Calculate bandwidth for this operation
             if op.duration > Duration::ZERO {
+                #[allow(clippy::cast_precision_loss)]
                 let data_gb = op.data_size_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
                 let time_sec = op.duration.as_secs_f64();
                 let bandwidth = data_gb / time_sec;
                 let entry = bandwidth_by_type.entry(op.name.clone()).or_insert(0.0);
-                *entry = (*entry + bandwidth) / 2.0; // Running average
+                *entry = f64::midpoint(*entry, bandwidth);
             }
 
             // Track bottlenecks (operations taking > 10ms)
@@ -1573,28 +1614,33 @@ impl CommunicationReport {
     /// Generate human-readable report
     #[must_use]
     pub fn summary(&self) -> String {
+        use std::fmt::Write as _;
+
         let mut summary = "# Communication Performance Report\n\n".to_string();
 
         summary.push_str("## Operations by Type\n");
         for (op_type, count) in &self.operations_by_type {
             if let Some(bandwidth) = self.bandwidth_by_type.get(op_type) {
-                summary.push_str(&format!("- {}: {} operations, {:.2} GB/s avg bandwidth\n", op_type, count, bandwidth));
+                let _ = writeln!(
+                    summary,
+                    "- {op_type}: {count} operations, {bandwidth:.2} GB/s avg bandwidth"
+                );
             } else {
-                summary.push_str(&format!("- {}: {} operations\n", op_type, count));
+                let _ = writeln!(summary, "- {op_type}: {count} operations");
             }
         }
 
         if !self.bottlenecks.is_empty() {
             summary.push_str("\n## Performance Bottlenecks\n");
             for (op_name, duration) in self.bottlenecks.iter().take(5) {
-                summary.push_str(&format!("- {}: {:.2}ms\n", op_name, duration.as_millis()));
+                let _ = writeln!(summary, "- {op_name}: {}ms", duration.as_millis());
             }
         }
 
         if !self.recommendations.is_empty() {
             summary.push_str("\n## Optimization Recommendations\n");
             for recommendation in &self.recommendations {
-                summary.push_str(&format!("- {}\n", recommendation));
+                let _ = writeln!(summary, "- {recommendation}");
             }
         }
 
@@ -1605,8 +1651,7 @@ impl CommunicationReport {
 // Re-export public types from modules
 pub use training_monitor::TrainingMetrics;
 
-mod training_monitor;
-mod communication_profiler;
+pub mod training_monitor;
 
 #[cfg(test)]
 mod tests {

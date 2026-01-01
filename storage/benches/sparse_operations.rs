@@ -3,9 +3,10 @@
 //! Tests CSR-dense matrix multiplication, sparse-sparse multiplication,
 //! and vector operations with various sparsity patterns.
 
-use dtype::float::F32;
-use storage::{CsrStorage, SparseFormat, SparseMatMul, SparseReduce};
+use coeus_sparse::{SparseMatMul, SparseReduce};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use dtype::float::F32;
+use storage::{CsrStorage, SparseFormat};
 
 /// Create a sparse CSR matrix with given dimensions and sparsity
 fn create_sparse_csr(rows: usize, cols: usize, sparsity: f64) -> CsrStorage<F32> {
@@ -19,14 +20,14 @@ fn create_sparse_csr(rows: usize, cols: usize, sparsity: f64) -> CsrStorage<F32>
 
     let mut current_nnz = 0;
 
-    for row in 0..rows {
+    for (row, indptr_slot) in indptr.iter_mut().take(rows).enumerate() {
         let row_nnz = if row < rows - 1 {
             ((nnz - current_nnz) as f64 / (rows - row) as f64).round() as usize
         } else {
             nnz - current_nnz
         };
 
-        indptr[row] = current_nnz;
+        *indptr_slot = current_nnz;
 
         for _ in 0..row_nnz {
             let col = rng.gen_range(0..cols);

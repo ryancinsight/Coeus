@@ -4,25 +4,33 @@
 //! enabling systematic hyperparameter optimization, ablation studies,
 //! automated experiment tracking, and reproducible research automation.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
+pub mod ablation_studies;
+pub mod automation;
 pub mod experiment_builder;
 pub mod hpo_space;
-pub mod ablation_studies;
 pub mod tracking;
-pub mod automation;
 
 // Re-exports for convenient access
-pub use experiment_builder::{ClipExperimentBuilder, ClipExperimentRunner, ExperimentResult, ExperimentStatus, ExperimentPriority};
-pub use hpo_space::{HpoSpace, SamplingStrategy, HpoDimension, ParameterType, ParameterRange, ParameterValue, HpoConstraint};
-pub use ablation_studies::{AblationStudy, AblationConfig, AblationRunner};
-pub use tracking::{ClipExperimentTracking, ClipExperimentTracker};
-pub use automation::{ResearchAutomation, AutomatedResearchWorkflow, HpoAutomation, AblationAutomation};
+pub use ablation_studies::{AblationConfig, AblationRunner, AblationStudy};
+pub use automation::{
+    AblationAutomation, AutomatedResearchWorkflow, HpoAutomation, ResearchAutomation,
+};
+pub use experiment_builder::{
+    ClipExperimentBuilder, ClipExperimentRunner, ExperimentPriority, ExperimentResult,
+    ExperimentStatus,
+};
+pub use hpo_space::{
+    HpoConstraint, HpoDimension, HpoSpace, ParameterRange, ParameterType, ParameterValue,
+    SamplingStrategy,
+};
+pub use tracking::{ClipExperimentTracker, ClipExperimentTracking};
 
 /// CLIP research experiment configuration
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ClipResearchConfig {
     /// Base CLIP training configuration to extend
     pub base_training_config: crate::clip::enhanced_trainer::EnhancedClipTrainingConfig,
@@ -36,19 +44,6 @@ pub struct ClipResearchConfig {
     pub metadata: ClipExperimentMetadata,
     /// Research automation settings
     pub automation: ResearchAutomation,
-}
-
-impl Default for ClipResearchConfig {
-    fn default() -> Self {
-        Self {
-            base_training_config: Default::default(),
-            hpo_spaces: Default::default(),
-            ablation_configs: Default::default(),
-            stopping_criteria: Default::default(),
-            metadata: Default::default(),
-            automation: Default::default(),
-        }
-    }
 }
 
 /// Automatic stopping criteria for experiments
@@ -76,8 +71,8 @@ impl Default for StoppingCriteria {
             max_hpo_trials: 100,
             max_ablation_experiments: 50,
             experiment_time_limit_hours: 24.0, // 24 hours max per experiment
-            experiment_memory_limit_gb: 16.0, // 16GB memory limit
-            convergence_threshold: 0.005, // 0.5% R@1 improvement threshold
+            experiment_memory_limit_gb: 16.0,  // 16GB memory limit
+            convergence_threshold: 0.005,      // 0.5% R@1 improvement threshold
         }
     }
 }
@@ -115,8 +110,6 @@ impl Default for ClipExperimentMetadata {
         }
     }
 }
-
-
 
 /// Notification settings for experiment completion/failure
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -185,7 +178,10 @@ impl ClipResearchIntegrator {
         println!("   Experiment: {}", self.config.metadata.name);
         println!("   Author: {}", self.config.metadata.author);
         println!("   HPO Spaces: {}", self.config.hpo_spaces.len());
-        println!("   Ablation Studies: {}", self.config.ablation_configs.len());
+        println!(
+            "   Ablation Studies: {}",
+            self.config.ablation_configs.len()
+        );
 
         // TODO: Implement full research pipeline
         println!("✅ CLIP Research Pipeline stub completed");
@@ -210,7 +206,9 @@ impl ClipResearchIntegrator {
     }
 
     /// Get best configuration from current research state
-    pub fn get_best_configuration(&self) -> Result<ClipTrainingConfiguration, crate::error::NNError> {
+    pub fn get_best_configuration(
+        &self,
+    ) -> Result<ClipTrainingConfiguration, crate::error::NNError> {
         // This would query the experiment tracker for the best performing config
         Ok(ClipTrainingConfiguration::default())
     }
@@ -241,7 +239,6 @@ impl ClipResearchIntegrator {
         }
     }
 }
-
 
 /// Compute resource usage tracking
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -277,12 +274,9 @@ pub struct ExperimentSuggestion {
     pub estimated_time_hours: f64,
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::clip::ClipConfig;
-    use crate::clip::enhanced_trainer::EnhancedClipTrainingConfig;
 
     #[test]
     fn test_clip_research_config_default() {
@@ -371,10 +365,19 @@ pub struct ResearchResults {
 }
 
 /// CLIP training configuration (simplified)
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClipTrainingConfiguration {
     pub learning_rate: f64,
     pub batch_size: usize,
     pub temperature: f64,
 }
 
+impl Default for ClipTrainingConfiguration {
+    fn default() -> Self {
+        Self {
+            learning_rate: 5e-4,
+            batch_size: 32,
+            temperature: 0.07,
+        }
+    }
+}

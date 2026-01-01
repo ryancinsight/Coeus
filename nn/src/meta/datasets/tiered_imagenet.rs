@@ -109,7 +109,8 @@ mod tests {
 
     #[test]
     fn test_tiered_imagenet_stub() {
-        let dataset = TieredImageNetDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
+        let dataset =
+            TieredImageNetDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         assert!(!dataset.is_loaded());
 
         let stats = dataset.statistics();

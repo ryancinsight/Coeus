@@ -4,15 +4,15 @@
 //! joint training across multiple related tasks, with shared representations and
 //! task-specific heads to improve generalization and efficiency.
 
-use std::collections::HashMap;
-use crate::error::{NNError, Result};
-use crate::linear::Linear;
-use crate::layernorm::LayerNorm;
 use crate::activation::GeLU;
 use crate::attention::MultiHeadAttention;
+use crate::error::{NNError, Result};
+use crate::layernorm::LayerNorm;
+use crate::linear::Linear;
 use backend::Backend;
-use storage::{Storage, StorageFromVec, StorageToDense};
 use dtype::{DataType, FloatExt};
+use std::collections::HashMap;
+use storage::{Storage, StorageFromVec, StorageToDense};
 
 /// Supported task types for multi-task learning
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -228,12 +228,21 @@ impl UncertaintyWeighting {
         let mut weighted_losses = HashMap::new();
 
         // Compute total weighted loss for normalization
-        let total_weight: f64 = self.log_vars.values().map(|log_var| (2.0 * log_var).exp()).sum();
+        let total_weight: f64 = self
+            .log_vars
+            .values()
+            .map(|log_var| (2.0 * log_var).exp())
+            .sum();
 
         for (task, loss) in task_losses {
             if let Some(log_var) = self.log_vars.get(task) {
                 let precision = (2.0 * log_var).exp(); // 1/variance
-                let weighted_loss = loss * precision;
+                let normalized_precision = if total_weight > 0.0 {
+                    precision / total_weight
+                } else {
+                    precision
+                };
+                let weighted_loss = loss * normalized_precision;
                 weighted_losses.insert(task.clone(), weighted_loss);
             }
         }
@@ -243,7 +252,8 @@ impl UncertaintyWeighting {
 
     /// Get current precision weights for tasks
     pub fn get_weights(&self) -> HashMap<String, f64> {
-        self.log_vars.iter()
+        self.log_vars
+            .iter()
             .map(|(task, log_var)| (task.clone(), (2.0 * log_var).exp()))
             .collect()
     }
@@ -284,11 +294,16 @@ impl GradNormWeighting {
     }
 
     /// Update gradient norms and compute weights
-    pub fn update_and_weight(&mut self, grad_norms: &HashMap<String, f64>, task_losses: &HashMap<String, f64>) -> HashMap<String, f64> {
+    pub fn update_and_weight(
+        &mut self,
+        grad_norms: &HashMap<String, f64>,
+        task_losses: &HashMap<String, f64>,
+    ) -> HashMap<String, f64> {
         // Update initial losses if not set
         for (task, loss) in task_losses {
             if let Some(init_loss) = self.initial_losses.get_mut(task) {
-                if *init_loss == 1.0 { // Still default
+                if *init_loss == 1.0 {
+                    // Still default
                     *init_loss = *loss;
                 }
             }
@@ -332,7 +347,7 @@ impl GradNormWeighting {
         let total_target: f64 = self.target_ratios.values().sum();
         let mut weights = HashMap::new();
 
-        for (task, _) in grad_norms {
+        for task in grad_norms.keys() {
             let target = self.target_ratios.get(task).unwrap_or(&0.0);
             let weight = target / total_target;
             weights.insert(task.clone(), weight);
@@ -447,7 +462,12 @@ where
     }
 
     /// Forward pass for a specific task
-    pub fn forward_task(&self, input: &[f32], task_name: &str, batch_size: usize) -> Result<Vec<f32>> {
+    pub fn forward_task(
+        &self,
+        input: &[f32],
+        task_name: &str,
+        batch_size: usize,
+    ) -> Result<Vec<f32>> {
         // Shared encoding
         let mut hidden_states = input.to_vec();
 
@@ -487,71 +507,89 @@ where
     }
 
     /// Create task head based on task configuration
-    fn create_task_head(task_config: &TaskConfig) -> Result<TaskHead<B, S, T>>
-    {
+    fn create_task_head(task_config: &TaskConfig) -> Result<TaskHead<B, S, T>> {
         match task_config.task_type {
-            TaskType::Classification => {
-                Ok(TaskHead::Standard(Linear::new(task_config.input_dim, task_config.output_dim)?))
-            },
+            TaskType::Classification => Ok(TaskHead::Standard(Linear::new(
+                task_config.input_dim,
+                task_config.output_dim,
+            )?)),
             TaskType::Generation => {
                 // For simplicity, assume output_dim represents vocab size
                 Ok(TaskHead::Generation {
                     lm_head: Linear::new(task_config.input_dim, task_config.output_dim)?,
                     vocab_size: task_config.output_dim,
                 })
-            },
-            TaskType::Regression => {
-                Ok(TaskHead::Standard(Linear::new(task_config.input_dim, task_config.output_dim)?))
-            },
-            TaskType::MultiLabel => {
-                Ok(TaskHead::MultiLabel {
-                    classifier: Linear::new(task_config.input_dim, task_config.output_dim)?,
-                    num_labels: task_config.output_dim,
-                    threshold: 0.5,
-                })
-            },
-            TaskType::Ranking => {
-                Ok(TaskHead::Ranking {
-                    scorer: Linear::new(task_config.input_dim, 1)?,
-                    margin: 1.0,
-                })
-            },
+            }
+            TaskType::Regression => Ok(TaskHead::Standard(Linear::new(
+                task_config.input_dim,
+                task_config.output_dim,
+            )?)),
+            TaskType::MultiLabel => Ok(TaskHead::MultiLabel {
+                classifier: Linear::new(task_config.input_dim, task_config.output_dim)?,
+                num_labels: task_config.output_dim,
+                threshold: 0.5,
+            }),
+            TaskType::Ranking => Ok(TaskHead::Ranking {
+                scorer: Linear::new(task_config.input_dim, 1)?,
+                margin: 1.0,
+            }),
             TaskType::Custom(_) => {
                 // Default to standard head
-                Ok(TaskHead::Standard(Linear::new(task_config.input_dim, task_config.output_dim)?))
+                Ok(TaskHead::Standard(Linear::new(
+                    task_config.input_dim,
+                    task_config.output_dim,
+                )?))
             }
         }
     }
 
-    fn apply_task_specific_processing(&self, hidden_states: &[f32], task_name: &str) -> Result<Vec<f32>> {
+    fn apply_task_specific_processing(
+        &self,
+        hidden_states: &[f32],
+        _task_name: &str,
+    ) -> Result<Vec<f32>> {
         match &self.strategy {
             MTLStrategy::AdapterBased => {
                 // Apply task-specific adapter if available
                 // For now, return unchanged
                 Ok(hidden_states.to_vec())
-            },
+            }
             _ => Ok(hidden_states.to_vec()),
         }
     }
 
-    fn apply_task_head(&self, hidden_states: &[f32], head: &TaskHead<B, S, T>) -> Result<Vec<f32>> {
+    fn apply_task_head(
+        &self,
+        _hidden_states: &[f32],
+        head: &TaskHead<B, S, T>,
+    ) -> Result<Vec<f32>> {
         match head {
             TaskHead::Standard(linear) => {
                 // Apply linear head (placeholder)
                 Ok(vec![0.0; linear.out_features])
-            },
-            TaskHead::Generation { lm_head, vocab_size } => {
+            }
+            TaskHead::Generation {
+                lm_head: _,
+                vocab_size,
+            } => {
                 // Apply generation head (placeholder)
                 Ok(vec![0.0; *vocab_size])
-            },
-            TaskHead::MultiLabel { classifier, num_labels, threshold } => {
+            }
+            TaskHead::MultiLabel {
+                classifier: _,
+                num_labels,
+                threshold: _,
+            } => {
                 // Apply multi-label head (placeholder)
                 Ok(vec![0.0; *num_labels])
-            },
-            TaskHead::Ranking { scorer, margin } => {
+            }
+            TaskHead::Ranking {
+                scorer: _,
+                margin: _,
+            } => {
                 // Apply ranking head (placeholder)
                 Ok(vec![0.0; 1])
-            },
+            }
         }
     }
 
@@ -561,25 +599,29 @@ where
     }
 
     /// Update task loss weights based on strategy
-    pub fn update_loss_weights(&mut self, task_losses: &HashMap<String, f64>, grad_norms: Option<&HashMap<String, f64>>) {
+    pub fn update_loss_weights(
+        &mut self,
+        _task_losses: &HashMap<String, f64>,
+        _grad_norms: Option<&HashMap<String, f64>>,
+    ) {
         match &self.config.loss_weighting {
             LossWeighting::Uniform => {
                 // Equal weights - no update needed
-            },
+            }
             LossWeighting::Manual => {
                 // Weights set manually in task configs - no update needed
-            },
+            }
             LossWeighting::Uncertainty => {
                 // Would update uncertainty weights based on losses
                 // This requires additional implementation
-            },
+            }
             LossWeighting::GradNorm => {
                 // Would update GradNorm weights based on gradient norms
                 // This requires additional implementation
-            },
+            }
             LossWeighting::Dynamic => {
                 // Dynamic weighting logic here
-            },
+            }
         }
     }
 }
@@ -612,6 +654,7 @@ where
         // Final residual: normalized_ff + normalized
 
         // Placeholder
+        let _batch_size = batch_size;
         Ok(hidden_states.to_vec())
     }
 }
@@ -620,7 +663,7 @@ impl<B, S, T> FeedForwardNetwork<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-        T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + 'static,
+    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + 'static,
 {
     pub fn new(hidden_dim: usize, ff_dim: usize) -> Result<Self> {
         Ok(Self {
@@ -648,15 +691,18 @@ mod tests {
         let config = MTLConfig::default();
         let mut task_configs = HashMap::new();
 
-        task_configs.insert("classification".to_string(), TaskConfig {
-            task_type: TaskType::Classification,
-            task_name: "classification".to_string(),
-            input_dim: 768,
-            output_dim: 10,
-            loss_weight: 1.0,
-            active: true,
-            params: HashMap::new(),
-        });
+        task_configs.insert(
+            "classification".to_string(),
+            TaskConfig {
+                task_type: TaskType::Classification,
+                task_name: "classification".to_string(),
+                input_dim: 768,
+                output_dim: 10,
+                loss_weight: 1.0,
+                active: true,
+                params: HashMap::new(),
+            },
+        );
 
         let result = MultiTaskTransformer::<B, S, T>::new(config, task_configs);
         assert!(result.is_ok());
@@ -667,10 +713,7 @@ mod tests {
         let tasks = vec!["task1".to_string(), "task2".to_string()];
         let uw = UncertaintyWeighting::new(&tasks);
 
-        let task_losses = HashMap::from([
-            ("task1".to_string(), 0.5),
-            ("task2".to_string(), 1.0),
-        ]);
+        let task_losses = HashMap::from([("task1".to_string(), 0.5), ("task2".to_string(), 1.0)]);
 
         let weighted = uw.weight_loss(&task_losses);
         assert!(weighted.contains_key("task1"));
@@ -682,15 +725,9 @@ mod tests {
         let tasks = vec!["task1".to_string(), "task2".to_string()];
         let mut gnw = GradNormWeighting::new(&tasks, 0.1);
 
-        let grad_norms = HashMap::from([
-            ("task1".to_string(), 1.0),
-            ("task2".to_string(), 2.0),
-        ]);
+        let grad_norms = HashMap::from([("task1".to_string(), 1.0), ("task2".to_string(), 2.0)]);
 
-        let task_losses = HashMap::from([
-            ("task1".to_string(), 0.5),
-            ("task2".to_string(), 1.0),
-        ]);
+        let task_losses = HashMap::from([("task1".to_string(), 0.5), ("task2".to_string(), 1.0)]);
 
         let weights = gnw.update_and_weight(&grad_norms, &task_losses);
         assert!(weights.contains_key("task1"));

@@ -62,13 +62,14 @@ fn test_prelu_shared_parameter() {
 fn test_prelu_gradient_flow() {
     let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, None);
 
-    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec_with_backend(
-        vec![Float32::new(1.0), Float32::new(-1.0)],
-        &[2],
-        CpuBackend::<Float32>::new(),
-    )
-    .unwrap()
-    .requires_grad_(true);
+    let input =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec_with_backend(
+            vec![Float32::new(1.0), Float32::new(-1.0)],
+            &[2],
+            CpuBackend::<Float32>::new(),
+        )
+        .unwrap()
+        .requires_grad_(true);
 
     let output = prelu.forward(&input).unwrap();
 
@@ -77,7 +78,9 @@ fn test_prelu_gradient_flow() {
 
     // Parameters should require gradients
     let params = prelu.parameters();
-    assert!(params.iter().all(|p: &Parameter<CpuBackend<Float32>, DenseStorage<Float32>, Float32>| p.requires_grad()));
+    assert!(params.iter().all(
+        |p: &Parameter<CpuBackend<Float32>, DenseStorage<Float32>, Float32>| p.requires_grad()
+    ));
 }
 
 #[test]
@@ -260,7 +263,10 @@ fn test_prelu_edge_cases() {
 
 #[test]
 fn test_prelu_zero_init() {
-    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, Some(Float32::new(0.0)));
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        1,
+        Some(Float32::new(0.0)),
+    );
 
     let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(-1.0), Float32::new(-2.0)],
@@ -274,7 +280,10 @@ fn test_prelu_zero_init() {
 
 #[test]
 fn test_prelu_positive_init() {
-    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, Some(Float32::new(0.5)));
+    let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+        1,
+        Some(Float32::new(0.5)),
+    );
 
     let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
         vec![Float32::new(-2.0), Float32::new(-4.0)],

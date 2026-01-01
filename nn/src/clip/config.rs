@@ -189,7 +189,7 @@ pub struct TextConfig {
 impl Default for TextConfig {
     fn default() -> Self {
         Self {
-            vocab_size: 49408, // CLIP's BPE vocabulary size
+            vocab_size: 49408,           // CLIP's BPE vocabulary size
             max_position_embeddings: 77, // CLIP standard context length
             hidden_size: 512,
             num_layers: 12,

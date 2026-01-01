@@ -212,8 +212,8 @@
 //! The system is designed to support cutting-edge machine learning research
 //! while maintaining the highest standards of experimental rigor and reproducibility.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 // Re-export all research modules for unified API
 pub mod agent;
@@ -224,37 +224,42 @@ pub mod registry;
 pub mod workflow;
 
 // Advanced research modules
-pub mod tracking;
 pub mod metrics;
+pub mod tracking;
 // pub mod logging; // TODO: Implement research logging module
 // pub mod visualization; // TODO: Implement research visualization module
 // pub mod integrations; // TODO: Implement research integrations module
 
 // Sprint MS-44: NAS & AutoML Integration
-pub mod nas_integration;
-pub mod hpo_integration;
-pub mod performance_prediction;
-pub mod joint_search;
 pub mod automated_research;
 pub mod benchmarking;
 pub mod clip_integration;
+pub mod hpo_integration;
+pub mod joint_search;
+pub mod nas_integration;
+pub mod performance_prediction;
 
 // Sprint MS-55: Ecosystem Expansion & Community Building
 pub mod experiment_pipeline;
-pub mod reproducible_research;
 pub mod meta_learning_integration;
+pub mod reproducible_research;
 
 // Re-export unified types
-pub use agent::{ResearchAgent, ResearchAgentFactory, AgentMetadata};
-pub use experiment::{ExperimentSpec, ExperimentResult, ExperimentStatus};
-pub use meta_agents::{MAMLResearchAgent, MAMLResearchAgentFactory, PrototypicalResearchAgent, PrototypicalResearchAgentFactory};
-pub use orchestrator::{ResearchOrchestrator, OrchestratorHealthStatus, ResourceManager, ProgressTracker};
+pub use agent::{AgentMetadata, ResearchAgent, ResearchAgentFactory};
+pub use experiment::{ExperimentResult, ExperimentSpec, ExperimentStatus};
+pub use meta_agents::{
+    MAMLResearchAgent, MAMLResearchAgentFactory, PrototypicalResearchAgent,
+    PrototypicalResearchAgentFactory,
+};
+pub use orchestrator::{
+    OrchestratorHealthStatus, ProgressTracker, ResearchOrchestrator, ResourceManager,
+};
 pub use registry::ResearchAgentRegistry;
-pub use workflow::{ResearchWorkflow, WorkflowTemplate, WorkflowSpec, WorkflowLoader};
+pub use workflow::{ResearchWorkflow, WorkflowLoader, WorkflowSpec, WorkflowTemplate};
 
 // Research domain and insight types
-pub use automated_research::ResearchDomain;
 pub use crate::nas::ResearchInsight;
+pub use automated_research::ResearchDomain;
 
 /// Configuration for research workflows
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -271,21 +276,19 @@ pub struct ResearchConfig {
 
 // CLIP research integration
 pub use clip_integration::{
-    ClipResearchConfig, HpoSpace, AblationStudy,
-    ClipExperimentBuilder, ClipExperimentRunner,
-    ResearchAutomation, AutomatedResearchWorkflow, HpoAutomation, AblationAutomation
+    AblationAutomation, AblationStudy, AutomatedResearchWorkflow, ClipExperimentBuilder,
+    ClipExperimentRunner, ClipResearchConfig, HpoAutomation, HpoSpace, ResearchAutomation,
 };
 pub use tracking::ExperimentMetadata;
 
 // Advanced research system exports
-pub use tracking::{
-    ExperimentTracker, ExperimentRegistry, ExperimentSummary,
-    ExperimentStatus as TrackingStatus
-};
-pub use metrics::{MetricsCollector, MetricEntry, MetricCollector as MetricCollectorTrait};
+pub use metrics::{MetricCollector as MetricCollectorTrait, MetricEntry, MetricsCollector};
 pub use tracking::artifacts::{ArtifactStorage, ArtifactType};
+pub use tracking::checkpoints::{CheckpointData, CheckpointManager};
 pub use tracking::hyperparameters::{HyperparameterTracker, ParameterSearchSpace};
-pub use tracking::checkpoints::{CheckpointManager, CheckpointData};
+pub use tracking::{
+    ExperimentRegistry, ExperimentStatus as TrackingStatus, ExperimentSummary, ExperimentTracker,
+};
 
 /// Enhanced Unified Research Framework
 /// Combines all research capabilities into a single, coherent system
@@ -319,13 +322,22 @@ impl UnifiedResearchFramework {
     }
 
     /// Create a new experiment with full tracking capabilities
-    pub fn create_experiment(&mut self, id: String, name: String, description: String) -> ExperimentTracker {
+    pub fn create_experiment(
+        &mut self,
+        id: String,
+        name: String,
+        description: String,
+    ) -> ExperimentTracker {
         self.stats.total_experiments_created += 1;
-        self.experiment_registry.start_experiment(id, name, description)
+        self.experiment_registry
+            .start_experiment(id, name, description)
     }
 
     /// Execute workflow with full research tracking
-    pub fn execute_research_workflow(&mut self, workflow: &ResearchWorkflow) -> crate::error::Result<ExperimentResult> {
+    pub fn execute_research_workflow(
+        &mut self,
+        workflow: &ResearchWorkflow,
+    ) -> crate::error::Result<ExperimentResult> {
         self.stats.workflows_executed += 1;
         self.orchestrator.execute_workflow(workflow, &self.registry)
     }
@@ -338,7 +350,9 @@ impl UnifiedResearchFramework {
             stats: self.stats.clone(),
             active_experiments: self.experiment_registry.list_active_experiments().len(),
             completed_experiments: self.experiment_registry.list_archived_experiments().len(),
-            metrics_summary: self.metrics.generate_report("Research Metrics Summary".to_string(), true),
+            metrics_summary: self
+                .metrics
+                .generate_report("Research Metrics Summary".to_string(), true),
             recommendations: self.generate_research_recommendations(),
         }
     }
@@ -347,10 +361,10 @@ impl UnifiedResearchFramework {
     pub fn health_status(&self) -> ResearchHealthStatus {
         ResearchHealthStatus {
             experiments_active: self.experiment_registry.list_active_experiments().len(),
-            agents_registered: 0, // TODO: Implement when expanded
-            metrics_healthy: true, // Basic health check
-            storage_healthy: true, // TODO: Implement actual checks
-            integrations_healthy: true, // TODO: Implement actual checks
+            agents_registered: 0,              // TODO: Implement when expanded
+            metrics_healthy: true,             // Basic health check
+            storage_healthy: true,             // TODO: Implement actual checks
+            integrations_healthy: true,        // TODO: Implement actual checks
             last_activity: chrono::Utc::now(), // TODO: Track actual activity
         }
     }
@@ -361,7 +375,9 @@ impl UnifiedResearchFramework {
         workflow: &ResearchWorkflow,
     ) -> crate::error::Result<orchestrator::WorkflowResult> {
         self.stats.workflows_executed += 1;
-        self.orchestrator.execute_workflow_async(workflow, &self.registry).await
+        self.orchestrator
+            .execute_workflow_async(workflow, &self.registry)
+            .await
     }
 
     /// Load and execute workflow from YAML specification
@@ -383,13 +399,22 @@ impl UnifiedResearchFramework {
     }
 
     /// Get workflow execution progress
-    pub async fn get_workflow_progress(&self, workflow_id: &str) -> Option<orchestrator::WorkflowProgress> {
+    pub async fn get_workflow_progress(
+        &self,
+        workflow_id: &str,
+    ) -> Option<orchestrator::WorkflowProgress> {
         self.orchestrator.get_workflow_progress(workflow_id).await
     }
 
     /// Get step execution metrics
-    pub async fn get_step_metrics(&self, workflow_id: &str, step_id: &str) -> Option<orchestrator::StepMetrics> {
-        self.orchestrator.get_step_metrics(workflow_id, step_id).await
+    pub async fn get_step_metrics(
+        &self,
+        workflow_id: &str,
+        step_id: &str,
+    ) -> Option<orchestrator::StepMetrics> {
+        self.orchestrator
+            .get_step_metrics(workflow_id, step_id)
+            .await
     }
 
     /// Cancel workflow execution
@@ -419,18 +444,32 @@ impl UnifiedResearchFramework {
         let mut recommendations = Vec::new();
 
         if self.stats.total_experiments_created == 0 {
-            recommendations.push("Start your first experiment to begin collecting research data.".to_string());
+            recommendations
+                .push("Start your first experiment to begin collecting research data.".to_string());
         }
 
         if self.stats.workflows_executed == 0 {
-            recommendations.push("Execute research workflows to leverage automated experimentation.".to_string());
+            recommendations.push(
+                "Execute research workflows to leverage automated experimentation.".to_string(),
+            );
         }
 
-        if self.metrics.get_metric_series("validation_accuracy", None, None).is_empty() {
-            recommendations.push("Configure metrics collection to track experiment performance.".to_string());
+        if self
+            .metrics
+            .get_metric_series("validation_accuracy", None, None)
+            .is_empty()
+        {
+            recommendations
+                .push("Configure metrics collection to track experiment performance.".to_string());
         }
 
         recommendations
+    }
+}
+
+impl Default for UnifiedResearchFramework {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -505,7 +544,8 @@ impl std::fmt::Display for ResearchExecutionReport {
             self.stats.reproducible_experiments,
             self.active_experiments,
             self.completed_experiments,
-            self.generated_at.signed_duration_since(self.stats.system_start_time.unwrap_or(self.generated_at))
+            self.generated_at
+                .signed_duration_since(self.stats.system_start_time.unwrap_or(self.generated_at))
                 .num_hours(),
             self.metrics_summary.summary,
             self.recommendations.join("\n"),
@@ -553,7 +593,11 @@ impl std::fmt::Display for ResearchHealthStatus {
             self.agents_registered,
             if self.metrics_healthy { "🟢" } else { "🔴" },
             if self.storage_healthy { "🟢" } else { "🔴" },
-            if self.integrations_healthy { "🟢" } else { "🔴" },
+            if self.integrations_healthy {
+                "🟢"
+            } else {
+                "🔴"
+            },
             self.last_activity.format("%Y-%m-%d %H:%M:%S UTC")
         )
     }
@@ -565,7 +609,7 @@ mod tests {
 
     #[test]
     fn test_unified_research_framework_creation() {
-        let mut framework = UnifiedResearchFramework::new();
+        let framework = UnifiedResearchFramework::new();
         assert_eq!(framework.stats.total_experiments_created, 0);
         assert_eq!(framework.stats.workflows_executed, 0);
     }
@@ -589,7 +633,9 @@ mod tests {
         let report = framework.generate_research_report();
 
         assert!(report.framework_version.contains("0"));
-        assert!(report.recommendations.contains(&"Start your first experiment to begin collecting research data.".to_string()));
+        assert!(report.recommendations.contains(
+            &"Start your first experiment to begin collecting research data.".to_string()
+        ));
     }
 
     #[test]

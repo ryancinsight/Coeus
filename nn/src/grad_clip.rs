@@ -384,11 +384,4 @@ mod tests {
         assert_eq!(config_inf.max_norm, 1.0);
         assert_eq!(config_inf.norm_type, f32::INFINITY);
     }
-
-    #[test]
-    fn test_gradient_health_check() {
-        // This would need actual tensor implementations to test properly
-        // For now, just test the interface exists
-        assert!(true);
-    }
 }

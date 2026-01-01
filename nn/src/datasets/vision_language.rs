@@ -9,9 +9,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
 
-/// Re-export common types
-pub use super::{VisionLanguageData, DatasetSplit, DatasetStatistics};
 use super::ImageTextPair;
+/// Re-export common types
+pub use super::{DatasetSplit, DatasetStatistics, VisionLanguageData};
 
 /// Wrapper for vision-language datasets providing additional utilities
 pub struct VisionLanguageDataset<T> {
@@ -42,21 +42,26 @@ impl<T: VisionLanguageData> VisionLanguageDataset<T> {
         println!("=== Dataset Statistics ===");
         println!("Split: {:?}", split);
         println!("Total Pairs: {}", stats.total_pairs);
-        println!("Average Caption Length: {:.1} words", stats.avg_caption_length);
+        println!(
+            "Average Caption Length: {:.1} words",
+            stats.avg_caption_length
+        );
         println!("Vocabulary Size: {}", stats.vocab_size);
         println!("Disk Size: {:.1} MB", stats.disk_size_mb.unwrap_or(0.0));
 
         if let Some(sizes) = &stats.image_sizes {
             if !sizes.is_empty() {
-                let avg_width = sizes.iter().map(|(w, _)| *w).sum::<u32>() as f64 / sizes.len() as f64;
-                let avg_height = sizes.iter().map(|(_, h)| *h).sum::<u32>() as f64 / sizes.len() as f64;
+                let avg_width =
+                    sizes.iter().map(|(w, _)| *w).sum::<u32>() as f64 / sizes.len() as f64;
+                let avg_height =
+                    sizes.iter().map(|(_, h)| *h).sum::<u32>() as f64 / sizes.len() as f64;
                 println!("Average Image Size: {:.0}x{:.0}", avg_width, avg_height);
             }
         }
     }
 
     /// Create iterator over the dataset
-    pub fn iter(&self) -> DatasetIterator<T> {
+    pub fn iter(&self) -> DatasetIterator<'_, T> {
         DatasetIterator {
             dataset: &self.dataset,
             current_index: 0,
@@ -83,7 +88,9 @@ impl<'a, T: VisionLanguageData> Iterator for DatasetIterator<'a, T> {
             // In practice, you might want to use streams/futures
             // For now, return an error indicating async iteration is needed
             self.current_index += 1;
-            Some(Err(crate::error::NNError::NotImplemented { operation: "Async iteration required".to_string() }))
+            Some(Err(crate::error::NNError::NotImplemented {
+                operation: "Async iteration required".to_string(),
+            }))
         }
     }
 }
@@ -171,16 +178,15 @@ pub mod streaming {
         F: Fn(ImageTextPair) -> Fut + Send + Sync + Clone + 'static,
         Fut: std::future::Future<Output = Result<ImageTextPair>> + Send + Sync,
     {
-        stream_dataset(dataset, config)
-            .then(move |pair_result| {
-                let transform_clone = transform.clone();
-                async move {
-                    match pair_result {
-                        Ok(pair) => transform_clone(pair).await,
-                        Err(e) => Err(e),
-                    }
+        stream_dataset(dataset, config).then(move |pair_result| {
+            let transform_clone = transform.clone();
+            async move {
+                match pair_result {
+                    Ok(pair) => transform_clone(pair).await,
+                    Err(e) => Err(e),
                 }
-            })
+            }
+        })
     }
 }
 
@@ -215,9 +221,26 @@ pub mod quality {
         dataset: &T,
         sample_size: Option<usize>,
     ) -> Result<QualityMetrics> {
-        let sample_size = sample_size.unwrap_or(1000).min(dataset.len());
+        if dataset.is_empty() {
+            return Ok(QualityMetrics {
+                language_diversity: 0.0,
+                avg_caption_length: 0.0,
+                caption_length_variance: 0.0,
+                duplicate_percentage: 0.0,
+                missing_images: 0,
+                corrupt_images: 0,
+                short_captions: 0,
+                long_captions: 0,
+            });
+        }
 
-        println!("Analyzing dataset quality with sample of {} items...", sample_size);
+        let dataset_len = dataset.len();
+        let sample_size = sample_size.unwrap_or(1000).min(dataset_len);
+
+        println!(
+            "Analyzing dataset quality with sample of {} items...",
+            sample_size
+        );
 
         let mut all_words = HashSet::new();
         let mut total_words = 0;
@@ -231,8 +254,8 @@ pub mod quality {
         let mut long_captions = 0;
 
         // Sample analysis
-        let step = dataset.len() / sample_size;
-        for i in (0..dataset.len()).step_by(step).take(sample_size) {
+        let step = dataset_len / sample_size;
+        for i in (0..dataset_len).step_by(step).take(sample_size) {
             match dataset.get(i).await {
                 Ok(pair) => {
                     // Check image data
@@ -287,21 +310,23 @@ pub mod quality {
 
         let caption_length_variance = if caption_lengths.len() > 1 {
             let mean = avg_caption_length;
-            caption_lengths.iter()
+            caption_lengths
+                .iter()
                 .map(|&len| (len as f64 - mean).powi(2))
-                .sum::<f64>() / (caption_lengths.len() - 1) as f64
+                .sum::<f64>()
+                / (caption_lengths.len() - 1) as f64
         } else {
             0.0
         };
 
-        let duplicate_percentage = if all_captions.len() > 0 {
+        let duplicate_percentage = if !all_captions.is_empty() {
             (duplicate_captions as f64 / (all_captions.len() + duplicate_captions) as f64) * 100.0
         } else {
             0.0
         };
 
         // Scale to full dataset
-        let scale_factor = dataset.len() as f64 / sample_size as f64;
+        let scale_factor = dataset_len as f64 / sample_size as f64;
         missing_images = (missing_images as f64 * scale_factor) as usize;
         corrupt_images = (corrupt_images as f64 * scale_factor) as usize;
 
@@ -321,9 +346,18 @@ pub mod quality {
         /// Print quality analysis report
         pub fn print_report(&self) {
             println!("=== Dataset Quality Analysis ===");
-            println!("Language Diversity: {:.3} (unique/total words)", self.language_diversity);
-            println!("Average Caption Length: {:.1} words", self.avg_caption_length);
-            println!("Caption Length Variance: {:.1}", self.caption_length_variance);
+            println!(
+                "Language Diversity: {:.3} (unique/total words)",
+                self.language_diversity
+            );
+            println!(
+                "Average Caption Length: {:.1} words",
+                self.avg_caption_length
+            );
+            println!(
+                "Caption Length Variance: {:.1}",
+                self.caption_length_variance
+            );
             println!("Duplicate Captions: {:.2}%", self.duplicate_percentage);
             println!("Missing Images: {}", self.missing_images);
             println!("Corrupt Images: {}", self.corrupt_images);
@@ -373,12 +407,19 @@ mod tests {
             self.pairs.len()
         }
 
-        fn get(&self, index: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>> {
+        fn get(
+            &self,
+            index: usize,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>>
+        {
             let pairs = self.pairs.clone();
             Box::pin(async move {
-                pairs.get(index).cloned().ok_or_else(|| NNError::InvalidInput {
-                    message: format!("Index out of bounds: {}", index),
-                })
+                pairs
+                    .get(index)
+                    .cloned()
+                    .ok_or_else(|| NNError::InvalidInput {
+                        message: format!("Index out of bounds: {}", index),
+                    })
             })
         }
 
@@ -399,16 +440,14 @@ mod tests {
 
     #[test]
     fn test_dataset_wrapper() {
-        let mock_pairs = vec![
-            ImageTextPair {
-                image_data: vec![1, 2, 3],
-                image_path: "test1.jpg".to_string(),
-                captions: vec!["Test caption 1".to_string()],
-                image_id: "1".to_string(),
-                caption_ids: vec!["1_0".to_string()],
-                metadata: HashMap::new(),
-            }
-        ];
+        let mock_pairs = vec![ImageTextPair {
+            image_data: vec![1, 2, 3],
+            image_path: "test1.jpg".to_string(),
+            captions: vec!["Test caption 1".to_string()],
+            image_id: "1".to_string(),
+            caption_ids: vec!["1_0".to_string()],
+            metadata: HashMap::new(),
+        }];
 
         let dataset = VisionLanguageDataset::new(MockDataset { pairs: mock_pairs });
         assert_eq!(dataset.inner().len(), 1);
@@ -438,7 +477,7 @@ mod tests {
                 image_id: "2".to_string(),
                 caption_ids: vec!["2_0".to_string()],
                 metadata: HashMap::new(),
-            }
+            },
         ];
 
         let dataset = MockDataset { pairs: mock_pairs };
@@ -449,8 +488,3 @@ mod tests {
         assert!(quality.language_diversity > 0.0);
     }
 }
-
-
-
-
-

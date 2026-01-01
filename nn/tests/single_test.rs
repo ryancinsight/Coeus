@@ -9,13 +9,14 @@ fn test_prelu_gradient_flow() {
     // Modified to force recompile
     let prelu = PReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, None);
 
-    let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec_with_backend(
-        vec![Float32::new(1.0), Float32::new(-1.0)],
-        &[2],
-        CpuBackend::new(),
-    )
-    .unwrap()
-    .requires_grad_(true);
+    let input =
+        Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec_with_backend(
+            vec![Float32::new(1.0), Float32::new(-1.0)],
+            &[2],
+            CpuBackend::new(),
+        )
+        .unwrap()
+        .requires_grad_(true);
 
     let output = prelu.forward(&input).unwrap();
 

@@ -194,7 +194,6 @@ impl GpuOptimizerBackend {
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Dense RMSprop Bind Group Layout"),
                 entries: &[
-                    // dense_rmsprop_gradients
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -205,18 +204,16 @@ impl GpuOptimizerBackend {
                         },
                         count: None,
                     },
-                    // dense_rmsprop_parameters
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
                             min_binding_size: None,
                         },
                         count: None,
                     },
-                    // dense_square_avg
                     wgpu::BindGroupLayoutEntry {
                         binding: 2,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -227,7 +224,6 @@ impl GpuOptimizerBackend {
                         },
                         count: None,
                     },
-                    // dense_grad_avg
                     wgpu::BindGroupLayoutEntry {
                         binding: 3,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -238,7 +234,6 @@ impl GpuOptimizerBackend {
                         },
                         count: None,
                     },
-                    // dense_momentum_buffer
                     wgpu::BindGroupLayoutEntry {
                         binding: 4,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -249,9 +244,18 @@ impl GpuOptimizerBackend {
                         },
                         count: None,
                     },
-                    // dense_rmsprop_config
                     wgpu::BindGroupLayoutEntry {
                         binding: 5,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 6,
                         visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
@@ -587,6 +591,15 @@ impl GpuOptimizerBackend {
         }
 
         // Create GPU buffers
+        let dummy_indices = [0u32];
+        let indices_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Dense RMSprop Dummy Indices"),
+                contents: bytemuck::cast_slice(&dummy_indices),
+                usage: wgpu::BufferUsages::STORAGE,
+            });
+
         let grads_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -654,26 +667,30 @@ impl GpuOptimizerBackend {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: grads_buffer.as_entire_binding(),
+                    resource: indices_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: params_buffer.as_entire_binding(),
+                    resource: grads_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: square_avg_buffer.as_entire_binding(),
+                    resource: params_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: grad_avg_buffer.as_entire_binding(),
+                    resource: square_avg_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 4,
-                    resource: momentum_buffer_gpu.as_entire_binding(),
+                    resource: grad_avg_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 5,
+                    resource: momentum_buffer_gpu.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
                     resource: config_buffer.as_entire_binding(),
                 },
             ],
@@ -814,6 +831,7 @@ pub struct RMSpropConfig {
     pub momentum: f32,
     pub centered: u32, // 1 if centered, 0 otherwise
     pub param_count: u32,
+    pub _pad: u32,
 }
 
 impl Default for RMSpropConfig {
@@ -826,6 +844,7 @@ impl Default for RMSpropConfig {
             momentum: 0.0,
             centered: 0, // 0 = not centered
             param_count: 0,
+            _pad: 0,
         }
     }
 }

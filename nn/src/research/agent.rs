@@ -59,12 +59,14 @@ pub trait ResearchAgent: Send + Sync {
 }
 
 /// Factory trait for creating research agents
-pub trait ResearchAgentFactory: std::fmt::Debug {
+pub trait ResearchAgentFactory: std::fmt::Debug + Send + Sync {
     /// Create a new instance of the agent
     fn create(&self, config: serde_json::Value) -> Result<Box<dyn ResearchAgent>>;
 
     /// Create a factory instance
-    fn create_factory() -> Box<dyn ResearchAgentFactory> where Self: Sized;
+    fn create_factory() -> Box<dyn ResearchAgentFactory>
+    where
+        Self: Sized;
 }
 
 /// Agent type enumeration
@@ -257,17 +259,18 @@ impl MultiAgentCoordinator {
         for existing_id in self.agents.keys() {
             if existing_id != &new_agent_id {
                 let channel = CommunicationChannel::new(existing_id.clone(), new_agent_id.clone());
-                self.communication_channels.insert(
-                    (existing_id.clone(), new_agent_id.clone()),
-                    channel,
-                );
+                self.communication_channels
+                    .insert((existing_id.clone(), new_agent_id.clone()), channel);
             }
         }
         Ok(())
     }
 
     /// Execute coordinated research step
-    pub fn execute_coordinated_step(&mut self, context: &ResearchContext) -> Result<CoordinatedResult> {
+    pub fn execute_coordinated_step(
+        &mut self,
+        context: &ResearchContext,
+    ) -> Result<CoordinatedResult> {
         match &self.strategy {
             CoordinationStrategy::Sequential => self.execute_sequential(context),
             CoordinationStrategy::Parallel => self.execute_parallel(context),
@@ -281,7 +284,8 @@ impl MultiAgentCoordinator {
         let mut results = Vec::new();
 
         // First pass: collect insights for each agent
-        let insights_map: HashMap<String, Vec<ResearchInsight>> = self.agents
+        let insights_map: HashMap<String, Vec<ResearchInsight>> = self
+            .agents
             .iter()
             .map(|(agent_id, agent)| {
                 let insights = self.get_relevant_insights(&**agent).unwrap_or_default();
@@ -302,7 +306,10 @@ impl MultiAgentCoordinator {
                     .map(|insight| {
                         // Convert insight to experiment result format
                         ExperimentResult {
-                            experiment_id: format!("insight_{}", insight.description.replace(" ", "_")),
+                            experiment_id: format!(
+                                "insight_{}",
+                                insight.description.replace(" ", "_")
+                            ),
                             agent_id: agent_id.clone(),
                             status: ExperimentStatus::Completed,
                             final_performance: insight.confidence,
@@ -352,10 +359,14 @@ impl MultiAgentCoordinator {
     /// Hierarchical execution strategy
     fn execute_hierarchical(&mut self, context: &ResearchContext) -> Result<CoordinatedResult> {
         // Identify master agent (first registered)
-        let master_id = self.agents.keys().next().cloned()
-            .ok_or_else(|| NNError::InvalidConfiguration {
-                message: "No agents registered for hierarchical coordination".to_string(),
-            })?;
+        let master_id =
+            self.agents
+                .keys()
+                .next()
+                .cloned()
+                .ok_or_else(|| NNError::InvalidConfiguration {
+                    message: "No agents registered for hierarchical coordination".to_string(),
+                })?;
 
         // Master agent makes decisions
         let master_exp = {
@@ -388,7 +399,8 @@ impl MultiAgentCoordinator {
         let mut results = Vec::new();
 
         // First pass: collect collaborative inputs for each agent
-        let _collaborative_inputs: HashMap<String, CollaborativeInput> = self.agents
+        let _collaborative_inputs: HashMap<String, CollaborativeInput> = self
+            .agents
             .keys()
             .map(|agent_id| {
                 let input = self.get_collaborative_input(agent_id).unwrap_or_default();
@@ -426,7 +438,9 @@ impl MultiAgentCoordinator {
         let knowledge_base = self.knowledge_base.read().unwrap();
         let agent_domains = agent.metadata().supported_domains;
 
-        Ok(knowledge_base.insights.iter()
+        Ok(knowledge_base
+            .insights
+            .iter()
             .filter(|insight| {
                 insight.domains.iter().any(|domain| {
                     agent_domains.iter().any(|agent_domain| {
@@ -457,7 +471,11 @@ impl MultiAgentCoordinator {
     }
 
     /// Share intermediate results with other agents
-    fn share_intermediate_results(&self, _agent_id: &str, _result: &ExperimentResult) -> Result<()> {
+    fn share_intermediate_results(
+        &self,
+        _agent_id: &str,
+        _result: &ExperimentResult,
+    ) -> Result<()> {
         // Store intermediate results for collaborative use
         Ok(())
     }
@@ -571,8 +589,7 @@ pub enum MessageType {
 }
 
 /// Shared knowledge base for multi-agent coordination
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SharedKnowledgeBase {
     /// Stored insights
     pub insights: Vec<ResearchInsight>,
@@ -668,9 +685,15 @@ mod tests {
     }
 
     impl ResearchAgent for MockResearchAgent {
-        fn id(&self) -> &str { &self.id }
-        fn name(&self) -> &str { &self.id }
-        fn agent_type(&self) -> AgentType { self.agent_type.clone() }
+        fn id(&self) -> &str {
+            &self.id
+        }
+        fn name(&self) -> &str {
+            &self.id
+        }
+        fn agent_type(&self) -> AgentType {
+            self.agent_type.clone()
+        }
 
         fn metadata(&self) -> AgentMetadata {
             AgentMetadata {
@@ -682,8 +705,12 @@ mod tests {
             }
         }
 
-        fn supports_domain(&self, _domain: &ResearchDomain) -> bool { true }
-        fn initialize(&mut self, _config: serde_json::Value) -> Result<()> { Ok(()) }
+        fn supports_domain(&self, _domain: &ResearchDomain) -> bool {
+            true
+        }
+        fn initialize(&mut self, _config: serde_json::Value) -> Result<()> {
+            Ok(())
+        }
 
         fn run_step(&mut self, experiment: &ExperimentSpec) -> Result<ExperimentResult> {
             self.step_count += 1;
@@ -714,17 +741,29 @@ mod tests {
             )]
         }
 
-        fn update_with_results(&mut self, _results: &[ExperimentResult]) -> Result<()> { Ok(()) }
-        fn get_best_result(&self) -> Option<ExperimentResult> { None }
-        fn get_state(&self) -> Result<serde_json::Value> { Ok(json!({"step_count": self.step_count})) }
+        fn update_with_results(&mut self, _results: &[ExperimentResult]) -> Result<()> {
+            Ok(())
+        }
+        fn get_best_result(&self) -> Option<ExperimentResult> {
+            None
+        }
+        fn get_state(&self) -> Result<serde_json::Value> {
+            Ok(json!({"step_count": self.step_count}))
+        }
         fn set_state(&mut self, state: serde_json::Value) -> Result<()> {
             self.step_count = state["step_count"].as_u64().unwrap_or(0) as usize;
             Ok(())
         }
 
-        fn is_ready(&self) -> bool { true }
-        fn get_resource_requirements(&self) -> ResourceRequirements { ResourceRequirements::default() }
-        fn generate_insights(&self) -> Vec<ResearchInsight> { Vec::new() }
+        fn is_ready(&self) -> bool {
+            true
+        }
+        fn get_resource_requirements(&self) -> ResourceRequirements {
+            ResourceRequirements::default()
+        }
+        fn generate_insights(&self) -> Vec<ResearchInsight> {
+            Vec::new()
+        }
     }
 
     #[test]
@@ -742,8 +781,12 @@ mod tests {
         let agent1 = Box::new(MockResearchAgent::new("agent1", AgentType::HPO));
         let agent2 = Box::new(MockResearchAgent::new("agent2", AgentType::NAS));
 
-        coordinator.register_agent("agent1".to_string(), agent1).unwrap();
-        coordinator.register_agent("agent2".to_string(), agent2).unwrap();
+        coordinator
+            .register_agent("agent1".to_string(), agent1)
+            .unwrap();
+        coordinator
+            .register_agent("agent2".to_string(), agent2)
+            .unwrap();
 
         // Execute coordinated step
         let context = ResearchContext {

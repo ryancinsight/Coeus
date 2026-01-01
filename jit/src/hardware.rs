@@ -151,9 +151,8 @@ impl HardwareCapabilities {
 
         // Check for additional features
         let has_fma3 = feature_info.has_fma();
-        let has_fma4 = extended_processor_and_feature_identifiers.is_some_and(
-            |e: raw_cpuid::ExtendedProcessorFeatureIdentifiers| e.has_fma4(),
-        );
+        let has_fma4 = extended_processor_and_feature_identifiers
+            .is_some_and(|e: raw_cpuid::ExtendedProcessorFeatureIdentifiers| e.has_fma4());
 
         let has_prefetch = feature_info.has_sse(); // Simplified prefetch detection
 

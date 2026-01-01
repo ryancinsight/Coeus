@@ -20,8 +20,8 @@ impl Default for ImageProcessor {
         Self {
             image_size: 224,
             // CLIP standard normalization
-            mean: [0.48145466, 0.4578275, 0.40821073],
-            std: [0.26862954, 0.26130258, 0.27577711],
+            mean: [0.481_454_7, 0.457_827_5, 0.408_210_7],
+            std: [0.268_629_5, 0.261_302_6, 0.275_777_1],
         }
     }
 }
@@ -56,7 +56,13 @@ impl ImageProcessor {
     }
 
     /// Preprocess batch of images
-    pub fn preprocess_batch(&self, images: &[f32], height: usize, width: usize, batch_size: usize) -> Vec<f32> {
+    pub fn preprocess_batch(
+        &self,
+        images: &[f32],
+        height: usize,
+        width: usize,
+        batch_size: usize,
+    ) -> Vec<f32> {
         let single_image_size = height * width * 3;
         let mut processed = Vec::with_capacity(batch_size * self.image_size * self.image_size * 3);
 
@@ -71,7 +77,14 @@ impl ImageProcessor {
         processed
     }
 
-    fn resize_bilinear(&self, image: &[f32], src_h: usize, src_w: usize, dst_h: usize, dst_w: usize) -> Vec<f32> {
+    fn resize_bilinear(
+        &self,
+        image: &[f32],
+        src_h: usize,
+        src_w: usize,
+        dst_h: usize,
+        dst_w: usize,
+    ) -> Vec<f32> {
         // Placeholder bilinear resize implementation
         // In practice, this would use proper interpolation
 
@@ -173,15 +186,21 @@ impl TextProcessor {
 
 impl fmt::Display for ImageProcessor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ImageProcessor(size={}, mean={:?}, std={:?})",
-               self.image_size, self.mean, self.std)
+        write!(
+            f,
+            "ImageProcessor(size={}, mean={:?}, std={:?})",
+            self.image_size, self.mean, self.std
+        )
     }
 }
 
 impl fmt::Display for TextProcessor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TextProcessor(max_length={}, truncate={}, add_special={})",
-               self.max_length, self.truncate, self.add_special_tokens)
+        write!(
+            f,
+            "TextProcessor(max_length={}, truncate={}, add_special={})",
+            self.max_length, self.truncate, self.add_special_tokens
+        )
     }
 }
 
@@ -193,8 +212,8 @@ mod tests {
     fn test_image_processor_defaults() {
         let processor = ImageProcessor::default();
         assert_eq!(processor.image_size, 224);
-        assert_eq!(processor.mean, [0.48145466, 0.4578275, 0.40821073]);
-        assert_eq!(processor.std, [0.26862954, 0.26130258, 0.27577711]);
+        assert_eq!(processor.mean, [0.481_454_7, 0.457_827_5, 0.408_210_7]);
+        assert_eq!(processor.std, [0.268_629_5, 0.261_302_6, 0.275_777_1]);
     }
 
     #[test]
@@ -203,10 +222,10 @@ mod tests {
 
         // Create a simple 2x2 RGB image (12 values)
         let image = vec![
-            0.0, 0.0, 0.0,    // Black pixel
-            1.0, 1.0, 1.0,    // White pixel
-            0.5, 0.5, 0.5,    // Gray pixel
-            0.0, 1.0, 0.0,    // Green pixel
+            0.0, 0.0, 0.0, // Black pixel
+            1.0, 1.0, 1.0, // White pixel
+            0.5, 0.5, 0.5, // Gray pixel
+            0.0, 1.0, 0.0, // Green pixel
         ];
 
         let processed = processor.preprocess(&image, 2, 2);
@@ -234,7 +253,7 @@ mod tests {
 
         // Should contain SOS and EOS tokens when add_special_tokens=true
         assert_eq!(tokens[0], 49406); // [SOS]
-        // Would have EOS at some position
+                                      // Would have EOS at some position
     }
 
     #[test]

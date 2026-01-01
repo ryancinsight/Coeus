@@ -4,13 +4,13 @@
 //! including artifact versioning, environment capture, and deterministic execution.
 
 use crate::error::{NNError, Result};
-use crate::research::{ExperimentTracker, ExperimentMetadata};
+use crate::research::{ExperimentMetadata, ExperimentTracker};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 /// Configuration for reproducible research
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -175,7 +175,11 @@ impl ReproducibleExecutor {
     }
 
     /// Create reproducibility snapshot before experiment execution
-    pub fn create_snapshot(&mut self, experiment_id: &str, tracker: &ExperimentTracker) -> Result<String> {
+    pub fn create_snapshot(
+        &mut self,
+        experiment_id: &str,
+        tracker: &ExperimentTracker,
+    ) -> Result<String> {
         let snapshot_id = format!("{}_{}", experiment_id, Utc::now().timestamp());
 
         let snapshot = ReproducibilitySnapshot {
@@ -207,7 +211,7 @@ impl ReproducibleExecutor {
     pub async fn execute_reproducible<F, Fut, T>(
         &self,
         snapshot_id: &str,
-        experiment_fn: F
+        experiment_fn: F,
     ) -> Result<T>
     where
         F: FnOnce() -> Fut,
@@ -231,10 +235,12 @@ impl ReproducibleExecutor {
 
     /// Restore experiment environment from snapshot
     pub fn restore_environment(&self, snapshot_id: &str) -> Result<()> {
-        let snapshot = self.snapshots.get(snapshot_id)
-            .ok_or_else(|| NNError::InvalidConfiguration {
-                message: format!("Snapshot {} not found", snapshot_id)
-            })?;
+        let snapshot =
+            self.snapshots
+                .get(snapshot_id)
+                .ok_or_else(|| NNError::InvalidConfiguration {
+                    message: format!("Snapshot {} not found", snapshot_id),
+                })?;
 
         // Restore random seed
         if let Some(seed) = snapshot.random_seed {
@@ -257,10 +263,12 @@ impl ReproducibleExecutor {
 
     /// Verify that current environment matches snapshot
     pub fn verify_reproducibility(&self, snapshot_id: &str) -> Result<ReproducibilityReport> {
-        let snapshot = self.snapshots.get(snapshot_id)
-            .ok_or_else(|| NNError::InvalidConfiguration {
-                message: format!("Snapshot {} not found", snapshot_id)
-            })?;
+        let snapshot =
+            self.snapshots
+                .get(snapshot_id)
+                .ok_or_else(|| NNError::InvalidConfiguration {
+                    message: format!("Snapshot {} not found", snapshot_id),
+                })?;
 
         let mut report = ReproducibilityReport {
             snapshot_id: snapshot_id.to_string(),
@@ -273,7 +281,10 @@ impl ReproducibleExecutor {
         report.checks.push(ReproducibilityCheck {
             name: "Environment".to_string(),
             status: current_env.os_info == snapshot.environment.os_info,
-            details: format!("OS: {} -> {}", snapshot.environment.os_info, current_env.os_info),
+            details: format!(
+                "OS: {} -> {}",
+                snapshot.environment.os_info, current_env.os_info
+            ),
         });
 
         // Check code state
@@ -282,9 +293,11 @@ impl ReproducibleExecutor {
         report.checks.push(ReproducibilityCheck {
             name: "Code State".to_string(),
             status: code_match,
-            details: format!("Git commit: {} -> {}",
+            details: format!(
+                "Git commit: {} -> {}",
                 snapshot.code_state.git_commit.as_deref().unwrap_or("none"),
-                current_code.git_commit.as_deref().unwrap_or("none")),
+                current_code.git_commit.as_deref().unwrap_or("none")
+            ),
         });
 
         // Check dependencies
@@ -293,7 +306,10 @@ impl ReproducibleExecutor {
         report.checks.push(ReproducibilityCheck {
             name: "Dependencies".to_string(),
             status: deps_match,
-            details: format!("Rust version: {} -> {}", snapshot.dependencies.rust_version, current_deps.rust_version),
+            details: format!(
+                "Rust version: {} -> {}",
+                snapshot.dependencies.rust_version, current_deps.rust_version
+            ),
         });
 
         // Update overall status
@@ -310,7 +326,10 @@ impl ReproducibleExecutor {
         let cpu_info = format!("{} cores", num_cpus::get());
 
         // Memory info
-        let memory_info = format!("Available: {} MB", sysinfo::System::new_all().total_memory() / 1024 / 1024);
+        let memory_info = format!(
+            "Available: {} MB",
+            sysinfo::System::new_all().total_memory() / 1024 / 1024
+        );
 
         // GPU info (placeholder)
         let gpu_info = None; // Would need GPU detection library
@@ -378,8 +397,8 @@ impl ReproducibleExecutor {
     /// Capture dependency information
     fn capture_dependencies(&self) -> Result<DependencySnapshot> {
         // Rust version
-        let rust_version = Self::run_command("rustc", &["--version"])
-            .unwrap_or_else(|_| "unknown".to_string());
+        let rust_version =
+            Self::run_command("rustc", &["--version"]).unwrap_or_else(|_| "unknown".to_string());
 
         // Cargo dependencies (simplified - would parse Cargo.lock in real implementation)
         let cargo_deps = HashMap::new(); // Would parse Cargo.lock
@@ -425,12 +444,7 @@ impl ReproducibleExecutor {
         use std::hash::{Hash, Hasher};
 
         let mut checksums = HashMap::new();
-        let important_files = vec![
-            "Cargo.toml",
-            "Cargo.lock",
-            "src/lib.rs",
-            "src/main.rs",
-        ];
+        let important_files = vec!["Cargo.toml", "Cargo.lock", "src/lib.rs", "src/main.rs"];
 
         for file_path in important_files {
             if Path::new(file_path).exists() {
@@ -448,7 +462,10 @@ impl ReproducibleExecutor {
 
     /// Save snapshot to disk
     fn save_snapshot(&self, snapshot: &ReproducibilitySnapshot) -> Result<()> {
-        let snapshot_path = self.config.storage_dir.join(format!("{}.json", snapshot.snapshot_id));
+        let snapshot_path = self
+            .config
+            .storage_dir
+            .join(format!("{}.json", snapshot.snapshot_id));
         let json = serde_json::to_string_pretty(snapshot)?;
         fs::write(snapshot_path, json)?;
         Ok(())
@@ -456,7 +473,10 @@ impl ReproducibleExecutor {
 
     /// Load snapshot from disk
     pub fn load_snapshot(&mut self, snapshot_id: &str) -> Result<()> {
-        let snapshot_path = self.config.storage_dir.join(format!("{}.json", snapshot_id));
+        let snapshot_path = self
+            .config
+            .storage_dir
+            .join(format!("{}.json", snapshot_id));
         let json = fs::read_to_string(snapshot_path)?;
         let snapshot: ReproducibilitySnapshot = serde_json::from_str(&json)?;
         self.snapshots.insert(snapshot_id.to_string(), snapshot);
@@ -476,7 +496,10 @@ impl ReproducibleExecutor {
         std::env::set_var("CUBLAS_WORKSPACE_CONFIG", ":4096:8"); // Deterministic CUDA
         std::env::set_var("PYTHONHASHSEED", "42"); // Python hash seed
 
-        println!("🔒 Deterministic execution environment set up for snapshot {}", snapshot_id);
+        println!(
+            "🔒 Deterministic execution environment set up for snapshot {}",
+            snapshot_id
+        );
         Ok(())
     }
 
@@ -491,26 +514,31 @@ impl ReproducibleExecutor {
                 }
             }
         } else {
-            println!("✅ Reproducibility check passed for snapshot {}", snapshot_id);
+            println!(
+                "✅ Reproducibility check passed for snapshot {}",
+                snapshot_id
+            );
         }
         Ok(())
     }
 
     /// Run system command and return output
     fn run_command(command: &str, args: &[&str]) -> Result<String> {
-        let output = Command::new(command)
-            .args(args)
-            .output()
-            .map_err(|e| NNError::InvalidConfiguration {
-                message: format!("Failed to run command '{}': {}", command, e)
-            })?;
+        let output = Command::new(command).args(args).output().map_err(|e| {
+            NNError::InvalidConfiguration {
+                message: format!("Failed to run command '{}': {}", command, e),
+            }
+        })?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
         } else {
             Err(NNError::InvalidConfiguration {
-                message: format!("Command '{}' failed: {}", command,
-                    String::from_utf8_lossy(&output.stderr))
+                message: format!(
+                    "Command '{}' failed: {}",
+                    command,
+                    String::from_utf8_lossy(&output.stderr)
+                ),
             })
         }
     }
@@ -540,8 +568,20 @@ pub struct ReproducibilityCheck {
 
 impl std::fmt::Display for ReproducibilityReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "🔍 Reproducibility Report for Snapshot: {}", self.snapshot_id)?;
-        writeln!(f, "├── Overall Status: {}", if self.overall_reproducible { "✅ REPRODUCIBLE" } else { "❌ ISSUES FOUND" })?;
+        writeln!(
+            f,
+            "🔍 Reproducibility Report for Snapshot: {}",
+            self.snapshot_id
+        )?;
+        writeln!(
+            f,
+            "├── Overall Status: {}",
+            if self.overall_reproducible {
+                "✅ REPRODUCIBLE"
+            } else {
+                "❌ ISSUES FOUND"
+            }
+        )?;
 
         for check in &self.checks {
             let status = if check.status { "✅" } else { "❌" };
@@ -618,4 +658,3 @@ mod tests {
         assert!(!report.checks.is_empty());
     }
 }
-

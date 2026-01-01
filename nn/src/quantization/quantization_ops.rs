@@ -1,6 +1,6 @@
 //! Common quantization operations used across different quantization modules
 
-use crate::error::Result;
+use crate::error::{NNError, Result};
 
 use crate::quantization::core::QuantizationScheme;
 
@@ -11,6 +11,24 @@ use tensor::Tensor;
 
 /// Common quantization operations that can be shared across different quantization implementations
 pub trait QuantizationOps<T> {
+    fn to_f64_checked(value: &T) -> Result<f64>
+    where
+        T: num_traits::ToPrimitive,
+    {
+        value.to_f64().ok_or_else(|| NNError::NumericalError {
+            message: "Failed to convert value to f64".to_string(),
+        })
+    }
+
+    fn from_f64_checked(value: f64) -> Result<T>
+    where
+        T: num_traits::FromPrimitive,
+    {
+        T::from_f64(value).ok_or_else(|| NNError::NumericalError {
+            message: "Failed to convert f64 to value".to_string(),
+        })
+    }
+
     /// Get the quantization range for a given bitwidth
     fn quantization_range(bits: usize) -> (i32, i32) {
         match bits {
@@ -28,50 +46,57 @@ pub trait QuantizationOps<T> {
         zero_point: &T,
         scheme: QuantizationScheme,
         bits: usize,
-    ) -> i32
+    ) -> Result<i32>
     where
-        T: Clone + PartialOrd,
+        T: DataType + PartialOrd + num_traits::ToPrimitive,
     {
         let (qmin, qmax) = Self::quantization_range(bits);
 
-        match scheme {
-            QuantizationScheme::Affine => {
-                // Affine: q = round((x - zero_point) / scale)
-                if *val >= *zero_point {
-                    ((*val - *zero_point) / *scale).round_to_int()
-                } else {
-                    -((*zero_point - *val) / *scale).round_to_int()
-                }
-            }
-            QuantizationScheme::Symmetric => {
-                // Symmetric: q = round(x / scale)
-                (*val / *scale).round_to_int()
-            }
+        let val_f = Self::to_f64_checked(val)?;
+        let scale_f = Self::to_f64_checked(scale)?;
+        let zero_point_f = Self::to_f64_checked(zero_point)?;
+
+        if !scale_f.is_finite() || scale_f == 0.0 {
+            return Err(NNError::NumericalError {
+                message: "Invalid quantization scale".to_string(),
+            });
         }
-        .max(qmin)
-        .min(qmax)
+
+        let q_f = match scheme {
+            QuantizationScheme::Affine => (val_f / scale_f + zero_point_f).round(),
+            QuantizationScheme::Symmetric => (val_f / scale_f).round(),
+        };
+
+        let q_i = q_f.max(qmin as f64).min(qmax as f64).trunc() as i32;
+
+        Ok(q_i)
     }
 
     /// Dequantize a single quantized value using the specified scheme
-    fn dequantize_value(quantized: &i32, scale: &T, zero_point: &T, scheme: QuantizationScheme) -> T
+    fn dequantize_value(
+        quantized: &i32,
+        scale: &T,
+        zero_point: &T,
+        scheme: QuantizationScheme,
+    ) -> Result<T>
     where
-        T: Clone,
+        T: DataType + num_traits::ToPrimitive + num_traits::FromPrimitive,
     {
-        match scheme {
-            QuantizationScheme::Affine => {
-                // x_dq = (q - zero_point) * scale
-                let q_f32 = *quantized as f32;
-                let zp_f32 = zero_point.to_f64().unwrap_or(0.0) as f32;
-                let scale_f32 = scale.to_f64().unwrap_or(1.0) as f32;
-                T::from_f64((q_f32 - zp_f32) * scale_f32).unwrap_or_else(|| *zero_point)
-            }
-            QuantizationScheme::Symmetric => {
-                // x_dq = q * scale
-                let q_f32 = *quantized as f32;
-                let scale_f32 = scale.to_f64().unwrap_or(1.0) as f32;
-                T::from_f64(q_f32 * scale_f32).unwrap_or_else(T::zero)
-            }
+        let scale_f = Self::to_f64_checked(scale)?;
+        let zero_point_f = Self::to_f64_checked(zero_point)?;
+        if !scale_f.is_finite() {
+            return Err(NNError::NumericalError {
+                message: "Invalid quantization scale".to_string(),
+            });
         }
+
+        let q_f = f64::from(*quantized);
+        let value_f = match scheme {
+            QuantizationScheme::Affine => (q_f - zero_point_f) * scale_f,
+            QuantizationScheme::Symmetric => q_f * scale_f,
+        };
+
+        Self::from_f64_checked(value_f)
     }
 
     /// Create quantized storage from tensor data
@@ -82,9 +107,13 @@ pub trait QuantizationOps<T> {
         zero_point: T,
     ) -> Result<QuantizedStorage<T, BITS>>
     where
-        T: Clone,
+        T: DataType
+            + core::cmp::PartialOrd
+            + num_traits::Float
+            + num_traits::FromPrimitive
+            + num_traits::ToPrimitive,
     {
-        QuantizedStorage::<T, BITS>::from_vec(data.to_vec(), shape, scale, zero_point)
+        QuantizedStorage::<T, BITS>::from_vec_with_params(data, shape, scale, zero_point)
     }
 
     /// Convert tensor to quantized format
@@ -96,7 +125,11 @@ pub trait QuantizationOps<T> {
     where
         B: Backend<Data = T> + Clone,
         S: Storage<T> + Clone + 'static,
-        T: Clone,
+        T: DataType
+            + core::cmp::PartialOrd
+            + num_traits::Float
+            + num_traits::FromPrimitive
+            + num_traits::ToPrimitive,
     {
         let shape = tensor.shape().dims();
         let data = tensor.as_slice();
@@ -114,15 +147,9 @@ pub trait QuantizationOps<T> {
 /// Blanket implementation for any type that implements the required traits
 impl<T> QuantizationOps<T> for T where
     T: DataType
-        + Clone
-        + PartialOrd
-        + Into<f64>
-        + From<f64>
-        + std::ops::Sub<Output = T>
-        + std::ops::Div<Output = T>
+        + core::cmp::PartialOrd
+        + num_traits::Float
         + num_traits::ToPrimitive
         + num_traits::FromPrimitive
-        + num_traits::Zero
-        + num_traits::One
 {
 }

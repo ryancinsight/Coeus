@@ -3,12 +3,12 @@
 //! This module provides predefined workflow templates and custom workflow construction
 //! for coordinating research experiments across multiple agents.
 
+use super::ResearchDomain;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use super::ResearchDomain;
 
 /// Research workflow definition
 #[derive(Debug, Clone)]
@@ -57,7 +57,6 @@ pub struct WorkflowConstraints {
     pub quality_thresholds: HashMap<String, f64>,
 }
 
-
 /// Predefined workflow templates
 pub struct WorkflowTemplate;
 
@@ -67,7 +66,8 @@ impl WorkflowTemplate {
         ResearchWorkflow {
             id: "nas_hpo_collaboration".to_string(),
             name: "NAS-HPO Collaborative Optimization".to_string(),
-            description: "Joint neural architecture search and hyperparameter optimization".to_string(),
+            description: "Joint neural architecture search and hyperparameter optimization"
+                .to_string(),
             domain: ResearchDomain::AutoML,
             steps: vec![
                 WorkflowStep {
@@ -182,7 +182,8 @@ impl WorkflowTemplate {
         ResearchWorkflow {
             id: "comparative_benchmark".to_string(),
             name: "Comparative Algorithm Benchmark".to_string(),
-            description: "Compare different optimization algorithms on standard benchmarks".to_string(),
+            description: "Compare different optimization algorithms on standard benchmarks"
+                .to_string(),
             domain: ResearchDomain::GeneralML,
             steps: vec![
                 WorkflowStep {
@@ -226,7 +227,7 @@ impl WorkflowTemplate {
                     dependencies: vec![
                         "nas_benchmark".to_string(),
                         "hpo_benchmark".to_string(),
-                        "meta_benchmark".to_string()
+                        "meta_benchmark".to_string(),
                     ],
                     priority: 5,
                 },
@@ -244,7 +245,9 @@ impl WorkflowTemplate {
         ResearchWorkflow {
             id: "few_shot_learning_pipeline".to_string(),
             name: "Few-Shot Learning Research Pipeline".to_string(),
-            description: "Complete pipeline for few-shot learning research with meta-training and adaptation".to_string(),
+            description:
+                "Complete pipeline for few-shot learning research with meta-training and adaptation"
+                    .to_string(),
             domain: ResearchDomain::MetaLearning,
             steps: vec![
                 WorkflowStep {
@@ -302,7 +305,7 @@ impl WorkflowTemplate {
                     }),
                     dependencies: vec![
                         "maml_meta_training".to_string(),
-                        "prototypical_training".to_string()
+                        "prototypical_training".to_string(),
                     ],
                     priority: 8,
                 },
@@ -351,7 +354,8 @@ impl WorkflowTemplate {
         ResearchWorkflow {
             id: "continual_learning_research".to_string(),
             name: "Continual Learning Research Pipeline".to_string(),
-            description: "Research pipeline for continual learning with meta-learning approaches".to_string(),
+            description: "Research pipeline for continual learning with meta-learning approaches"
+                .to_string(),
             domain: ResearchDomain::MetaLearning,
             steps: vec![
                 WorkflowStep {
@@ -417,7 +421,7 @@ impl WorkflowTemplate {
                     }),
                     dependencies: vec![
                         "baseline_training".to_string(),
-                        "maml_continual".to_string()
+                        "maml_continual".to_string(),
                     ],
                     priority: 7,
                 },
@@ -453,7 +457,8 @@ impl WorkflowTemplate {
         ResearchWorkflow {
             id: "meta_learning_benchmark_orchestration".to_string(),
             name: "Meta-Learning Benchmark Suite".to_string(),
-            description: "Comprehensive benchmark suite for meta-learning algorithms and setups".to_string(),
+            description: "Comprehensive benchmark suite for meta-learning algorithms and setups"
+                .to_string(),
             domain: ResearchDomain::MetaLearning,
             steps: vec![
                 WorkflowStep {
@@ -514,7 +519,7 @@ impl WorkflowTemplate {
                     }),
                     dependencies: vec![
                         "maml_benchmarking".to_string(),
-                        "prototypical_benchmarking".to_string()
+                        "prototypical_benchmarking".to_string(),
                     ],
                     priority: 8,
                 },
@@ -557,7 +562,8 @@ impl WorkflowTemplate {
         ResearchWorkflow {
             id: "cross_agent_meta_learning".to_string(),
             name: "Cross-Agent Meta-Learning Pipeline".to_string(),
-            description: "Meta-learning enhanced by knowledge transfer from NAS and HPO agents".to_string(),
+            description: "Meta-learning enhanced by knowledge transfer from NAS and HPO agents"
+                .to_string(),
             domain: ResearchDomain::AutoML,
             steps: vec![
                 WorkflowStep {
@@ -596,7 +602,7 @@ impl WorkflowTemplate {
                     }),
                     dependencies: vec![
                         "nas_architecture_search".to_string(),
-                        "hpo_hyperparameter_search".to_string()
+                        "hpo_hyperparameter_search".to_string(),
                     ],
                     priority: 9,
                 },
@@ -755,37 +761,27 @@ pub struct WorkflowConfig {
 }
 
 /// Execution modes for workflows
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum ExecutionMode {
     /// Sequential execution
     Sequential,
     /// Parallel execution where possible
+    #[default]
     Parallel,
     /// Adaptive execution based on results
     Adaptive,
 }
 
-impl Default for ExecutionMode {
-    fn default() -> Self {
-        ExecutionMode::Parallel
-    }
-}
-
 /// Failure handling strategies
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum FailureStrategy {
     /// Stop on first failure
+    #[default]
     FailFast,
     /// Continue with remaining steps
     ContinueOnFailure,
     /// Retry failed steps
     RetryFailed,
-}
-
-impl Default for FailureStrategy {
-    fn default() -> Self {
-        FailureStrategy::FailFast
-    }
 }
 
 /// Workflow loader for declarative specifications
@@ -795,10 +791,11 @@ impl WorkflowLoader {
     /// Load workflow from YAML file
     pub fn load_from_yaml<P: AsRef<Path>>(path: P) -> crate::error::Result<ResearchWorkflow> {
         let content = fs::read_to_string(path)?;
-        let spec: WorkflowSpec = serde_yaml::from_str(&content)
-            .map_err(|e| crate::error::NNError::InvalidConfiguration {
+        let spec: WorkflowSpec = serde_yaml::from_str(&content).map_err(|e| {
+            crate::error::NNError::InvalidConfiguration {
                 message: format!("Failed to parse workflow YAML: {}", e),
-            })?;
+            }
+        })?;
 
         Self::spec_to_workflow(spec)
     }
@@ -806,17 +803,20 @@ impl WorkflowLoader {
     /// Load workflow from JSON file
     pub fn load_from_json<P: AsRef<Path>>(path: P) -> crate::error::Result<ResearchWorkflow> {
         let content = fs::read_to_string(path)?;
-        let spec: WorkflowSpec = serde_json::from_str(&content)
-            .map_err(|e| crate::error::NNError::InvalidConfiguration {
+        let spec: WorkflowSpec = serde_json::from_str(&content).map_err(|e| {
+            crate::error::NNError::InvalidConfiguration {
                 message: format!("Failed to parse workflow JSON: {}", e),
-            })?;
+            }
+        })?;
 
         Self::spec_to_workflow(spec)
     }
 
     /// Convert workflow specification to ResearchWorkflow
     pub fn spec_to_workflow(spec: WorkflowSpec) -> crate::error::Result<ResearchWorkflow> {
-        let steps = spec.steps.into_iter()
+        let steps = spec
+            .steps
+            .into_iter()
             .map(|step_spec| {
                 // Convert step config to JSON Value
                 let config = serde_json::to_value(step_spec.config)
@@ -835,11 +835,7 @@ impl WorkflowLoader {
 
         // Merge global parameters with constraints
         let mut constraints = spec.config.constraints;
-        constraints.resource_limits = Some({
-            let mut limits = HashMap::new();
-            // Add global resource limits if specified
-            limits
-        });
+        constraints.resource_limits = Some(HashMap::new());
 
         Ok(ResearchWorkflow {
             id: spec.metadata.id,
@@ -853,10 +849,13 @@ impl WorkflowLoader {
     }
 
     /// Save workflow specification to YAML file
-    pub fn save_to_yaml<P: AsRef<Path>>(workflow: &ResearchWorkflow, path: P) -> crate::error::Result<()> {
+    pub fn save_to_yaml<P: AsRef<Path>>(
+        workflow: &ResearchWorkflow,
+        path: P,
+    ) -> crate::error::Result<()> {
         let spec = Self::workflow_to_spec(workflow)?;
-        let yaml = serde_yaml::to_string(&spec)
-            .map_err(|e| crate::error::NNError::ExecutionError {
+        let yaml =
+            serde_yaml::to_string(&spec).map_err(|e| crate::error::NNError::ExecutionError {
                 message: format!("Failed to serialize workflow to YAML: {}", e),
             })?;
         fs::write(path, yaml)?;
@@ -865,10 +864,11 @@ impl WorkflowLoader {
 
     /// Convert ResearchWorkflow to specification
     pub fn workflow_to_spec(workflow: &ResearchWorkflow) -> crate::error::Result<WorkflowSpec> {
-        let steps = workflow.steps.iter()
+        let steps = workflow
+            .steps
+            .iter()
             .map(|step| {
-                let config = serde_json::from_value(step.config.clone())
-                    .unwrap_or_default();
+                let config = serde_json::from_value(step.config.clone()).unwrap_or_default();
 
                 StepSpec {
                     id: step.id.clone(),
@@ -911,11 +911,21 @@ impl WorkflowLoader {
 }
 
 // Default value functions
-fn default_priority() -> u32 { 5 }
-fn default_cpu_required() -> usize { 1 }
-fn default_memory_mb() -> usize { 1024 }
-fn default_retry_delay() -> u64 { 60 }
-fn default_backoff_multiplier() -> f64 { 2.0 }
+fn default_priority() -> u32 {
+    5
+}
+fn default_cpu_required() -> usize {
+    1
+}
+fn default_memory_mb() -> usize {
+    1024
+}
+fn default_retry_delay() -> u64 {
+    60
+}
+fn default_backoff_multiplier() -> f64 {
+    2.0
+}
 
 #[cfg(test)]
 mod tests {
@@ -933,19 +943,17 @@ mod tests {
                 author: "test".to_string(),
                 tags: vec!["test".to_string()],
             },
-            steps: vec![
-                StepSpec {
-                    id: "step1".to_string(),
-                    name: "Step 1".to_string(),
-                    agent_type: "nas".to_string(),
-                    config: HashMap::new(),
-                    depends_on: vec![],
-                    priority: 10,
-                    resources: ResourceRequirements::default(),
-                    retry: RetryConfig::default(),
-                    condition: None,
-                }
-            ],
+            steps: vec![StepSpec {
+                id: "step1".to_string(),
+                name: "Step 1".to_string(),
+                agent_type: "nas".to_string(),
+                config: HashMap::new(),
+                depends_on: vec![],
+                priority: 10,
+                resources: ResourceRequirements::default(),
+                retry: RetryConfig::default(),
+                condition: None,
+            }],
             config: WorkflowConfig {
                 constraints: WorkflowConstraints::default(),
                 parameters: HashMap::new(),

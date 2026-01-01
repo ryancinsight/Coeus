@@ -58,29 +58,17 @@
 //! - **Memory Safety**: Full Rust ownership and borrowing guarantees
 //! - **Performance Optimized**: SIMD acceleration and parallel processing support
 
-pub mod modality;
 pub mod attention;
-pub mod fusion;
 pub mod encoder;
+pub mod fusion;
+pub mod modality;
 pub mod task;
 pub mod transformer;
 
 // Re-export main types for convenience
-pub use modality::{Modality, ModalityConfig};
 pub use attention::CrossModalAttention;
-pub use fusion::{FusionStrategy, Fusion, FusionLayer, FusionBlock, FeedForward};
 pub use encoder::{Encoder, Layer};
-pub use task::{Task, Classifier, Generator, Retriever, SimilarityType};
-pub use transformer::{MultimodalTransformer, MultimodalConfig};
-
-
-
-
-
-
-
-
-
-
-
-
+pub use fusion::{FeedForward, Fusion, FusionBlock, FusionLayer, FusionStrategy};
+pub use modality::{Modality, ModalityConfig};
+pub use task::{Classifier, Generator, Retriever, SimilarityType, Task};
+pub use transformer::{MultimodalConfig, MultimodalTransformer};

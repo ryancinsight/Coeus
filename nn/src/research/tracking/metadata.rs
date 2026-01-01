@@ -4,9 +4,9 @@
 //! environment information, system details, reproducibility data,
 //! and research context information.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
-use serde::{Deserialize, Serialize};
 #[cfg(feature = "sysinfo")]
 use sysinfo::System;
 
@@ -145,7 +145,8 @@ impl ExperimentMetadata {
 
     /// Update data lineage
     pub fn update_data_lineage(&mut self, dataset_hash: String, transformation: String) {
-        self.data_lineage.add_transformation(dataset_hash, transformation);
+        self.data_lineage
+            .add_transformation(dataset_hash, transformation);
         self.mark_modified();
     }
 
@@ -193,7 +194,11 @@ impl ExperimentMetadata {
             self.software.framework_version,
             self.reproducibility.git_commit,
             self.reproducibility.numerical_precision,
-            if self.reproducibility.hardware_pinning { "Pinned" } else { "Variable" },
+            if self.reproducibility.hardware_pinning {
+                "Pinned"
+            } else {
+                "Variable"
+            },
             self.environment.os_name,
             self.environment.os_version,
             self.software.dependencies.len()
@@ -289,14 +294,24 @@ impl EnvironmentInfo {
             os_name: std::env::consts::OS.to_string(),
             os_version,
             os_arch: std::env::consts::ARCH.to_string(),
-            hostname: hostname::get().map(|h| h.to_string_lossy().to_string()).unwrap_or_else(|_| "Unknown".to_string()),
+            hostname: hostname::get()
+                .map(|h| h.to_string_lossy().to_string())
+                .unwrap_or_else(|_| "Unknown".to_string()),
             username: get_current_user(),
-            working_directory: std::env::current_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|_| "Unknown".to_string()),
+            working_directory: std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| "Unknown".to_string()),
             environment_variables: collect_relevant_env_vars(),
-            python_version: std::process::Command::new("python").arg("--version").output().ok()
+            python_version: std::process::Command::new("python")
+                .arg("--version")
+                .output()
+                .ok()
                 .and_then(|o| String::from_utf8(o.stdout).ok())
                 .map(|s| s.trim().to_string()),
-            nodejs_version: std::process::Command::new("node").arg("--version").output().ok()
+            nodejs_version: std::process::Command::new("node")
+                .arg("--version")
+                .output()
+                .ok()
                 .and_then(|o| String::from_utf8(o.stdout).ok())
                 .map(|s| s.trim().to_string()),
             gpu_available: !gpu_info.is_empty(),
@@ -332,9 +347,8 @@ impl HardwareInfo {
         };
 
         #[cfg(not(feature = "sysinfo"))]
-        let (cpu_model, cpu_cores, cpu_frequency, total_memory_gb) = {
-            ("Unknown".to_string(), num_cpus::get(), 0, 0.0)
-        };
+        let (cpu_model, cpu_cores, cpu_frequency, total_memory_gb) =
+            { ("Unknown".to_string(), num_cpus::get(), 0, 0.0) };
 
         let gpu_devices = collect_detailed_gpu_info();
 
@@ -488,6 +502,12 @@ impl DataLineage {
     }
 }
 
+impl Default for DataLineage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Data transformation record
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataTransformation {
@@ -502,11 +522,18 @@ pub struct DataTransformation {
 /// Helper functions
 
 fn get_current_user() -> String {
-    std::env::var("USERNAME").unwrap_or_else(|_| std::env::var("USER").unwrap_or_else(|_| "Unknown".to_string()))
+    std::env::var("USERNAME")
+        .unwrap_or_else(|_| std::env::var("USER").unwrap_or_else(|_| "Unknown".to_string()))
 }
 
 fn collect_relevant_env_vars() -> HashMap<String, String> {
-    let relevant_vars = ["PATH", "PYTHONPATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "CUDA_HOME"];
+    let relevant_vars = [
+        "PATH",
+        "PYTHONPATH",
+        "LD_LIBRARY_PATH",
+        "DYLD_LIBRARY_PATH",
+        "CUDA_HOME",
+    ];
     let mut result = HashMap::new();
 
     for var in relevant_vars {
@@ -567,7 +594,7 @@ fn get_cargo_version() -> String {
 
 fn get_git_commit() -> String {
     std::process::Command::new("git")
-        .args(&["rev-parse", "HEAD"])
+        .args(["rev-parse", "HEAD"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "Not in git repository".to_string())
@@ -575,7 +602,7 @@ fn get_git_commit() -> String {
 
 fn get_git_branch() -> String {
     std::process::Command::new("git")
-        .args(&["rev-parse", "--abbrev-ref", "HEAD"])
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "Unknown".to_string())
@@ -583,7 +610,7 @@ fn get_git_branch() -> String {
 
 fn get_git_status() -> String {
     std::process::Command::new("git")
-        .args(&["status", "--porcelain"])
+        .args(["status", "--porcelain"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "Unknown".to_string())
@@ -593,24 +620,29 @@ fn collect_dependencies() -> HashMap<String, String> {
     // This would ideally read Cargo.toml or lockfile
     // For now, return basic framework dependencies
     let mut deps = HashMap::new();
-    deps.insert("coeus-core".to_string(), env!("CARGO_PKG_VERSION").to_string());
+    deps.insert(
+        "coeus-core".to_string(),
+        env!("CARGO_PKG_VERSION").to_string(),
+    );
     deps
 }
 
 fn collect_build_config() -> String {
     let mut config = Vec::new();
 
-    #[cfg(debug_assertions)]
-    config.push("debug");
+    if cfg!(debug_assertions) {
+        config.push("debug");
+    } else {
+        config.push("release");
+    }
 
-    #[cfg(not(debug_assertions))]
-    config.push("release");
+    if cfg!(feature = "cuda") {
+        config.push("cuda");
+    }
 
-    #[cfg(feature = "cuda")]
-    config.push("cuda");
-
-    #[cfg(feature = "cpu")]
-    config.push("cpu");
+    if cfg!(feature = "cpu") {
+        config.push("cpu");
+    }
 
     config.join(", ")
 }
@@ -620,7 +652,9 @@ fn generate_seed() -> u64 {
     use std::hash::{Hash, Hasher};
 
     let mut hasher = DefaultHasher::new();
-    let time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap();
+    let time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap();
     time.hash(&mut hasher);
     hostname::get().unwrap_or_default().hash(&mut hasher);
     hasher.finish()

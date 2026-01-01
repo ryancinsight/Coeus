@@ -342,8 +342,10 @@ impl Dataset<TensorSample> for TensorDataset {
             }
             // Create a new 1-element tensor with the sample
             let sample_data = vec![slice[index]];
-            let sample =
-                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(sample_data, &[1])?;
+            let sample = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                sample_data,
+                &[1],
+            )?;
             inputs.push(sample);
         }
 
@@ -355,8 +357,10 @@ impl Dataset<TensorSample> for TensorDataset {
             }
             // Create a new 1-element tensor with the sample
             let sample_data = vec![slice[index]];
-            let sample =
-                Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec(sample_data, &[1])?;
+            let sample = Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec(
+                sample_data,
+                &[1],
+            )?;
             targets.push(sample);
         }
 

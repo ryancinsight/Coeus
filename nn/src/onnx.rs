@@ -42,9 +42,9 @@ use crate::error::{NNError, Result};
 use crate::module::Module;
 use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
+use std::collections::HashMap;
 use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::{DenseStorage, Tensor};
-use std::collections::HashMap;
 
 /// ONNX model representation
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -310,7 +310,13 @@ impl OnnxExporter {
                 self.convert_conv2d_to_onnx(module, input_name, output_name, nodes, initializers)?;
             }
             "BatchNorm2d" => {
-                self.convert_batchnorm2d_to_onnx(module, input_name, output_name, nodes, initializers)?;
+                self.convert_batchnorm2d_to_onnx(
+                    module,
+                    input_name,
+                    output_name,
+                    nodes,
+                    initializers,
+                )?;
             }
             "ReLU" | "SwiGLU" | "GeLU" | "SiLU" => {
                 self.convert_activation_to_onnx(module, input_name, output_name, nodes)?;
@@ -447,7 +453,7 @@ impl OnnxExporter {
         }
 
         let weight = params[0].data(); // gamma (scale)
-        let bias = params[1].data();   // beta (shift)
+        let bias = params[1].data(); // beta (shift)
 
         // Convert parameters to ONNX format
         let scale_name = format!("{}_scale", module.name().to_lowercase());

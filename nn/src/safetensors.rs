@@ -397,7 +397,12 @@ pub mod conversion {
     #[allow(clippy::type_complexity)]
     pub fn safetensors_to_state_dict(
         safetensors: &SafeTensors,
-    ) -> Result<std::collections::HashMap<String, Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>> {
+    ) -> Result<
+        std::collections::HashMap<
+            String,
+            Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+        >,
+    > {
         let mut state_dict = std::collections::HashMap::new();
         let safetensors_dict: StateDict<Float32> = safetensors.to_state_dict()?;
 
@@ -546,7 +551,8 @@ pub mod conversion {
         #[test]
         fn test_module_conversion() {
             // Create a simple linear layer
-            let layer = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
+            let layer =
+                Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
 
             // Convert to SafeTensors
             let safetensors = module_to_safetensors(&layer).unwrap();

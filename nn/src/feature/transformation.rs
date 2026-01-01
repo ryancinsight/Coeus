@@ -642,7 +642,7 @@ mod tests {
         // Check range [0, 1]
         for row in &result.transformed_features {
             for &val in row {
-                assert!(val >= 0.0 && val <= 1.0);
+                assert!((0.0..=1.0).contains(&val));
             }
         }
     }

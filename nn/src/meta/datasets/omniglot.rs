@@ -4,8 +4,8 @@
 //! from 50 different alphabets. Each character has only 20 examples.
 //! This makes it ideal for few-shot learning research.
 
-use std::path::Path;
 use rand::Rng;
+use std::path::Path;
 
 use crate::error::{NNError, Result};
 use backend::{Backend, DataType, Storage};
@@ -45,7 +45,8 @@ where
     /// Base dataset functionality
     pub base: FewShotDataset<B, S, T>,
     /// Character examples: alphabet -> character -> paths
-    pub character_examples: std::collections::HashMap<String, std::collections::HashMap<String, Vec<String>>>,
+    pub character_examples:
+        std::collections::HashMap<String, std::collections::HashMap<String, Vec<String>>>,
     /// Image size (28x28 for Omniglot)
     pub image_size: (usize, usize),
 }
@@ -89,7 +90,10 @@ where
             data.push(pixel_value.into());
         }
 
-        Ok(Tensor::from_vec(data, &[self.image_size.0, self.image_size.1])?)
+        Ok(Tensor::from_vec(
+            data,
+            &[self.image_size.0, self.image_size.1],
+        )?)
     }
 
     /// Parse Omniglot directory structure to find all characters
@@ -137,7 +141,8 @@ where
         // Background alphabets (training)
         for alphabet_idx in 0..BACKGROUND_ALPHABETS {
             let alphabet_name = format!("background_alphabet_{:02}", alphabet_idx);
-            let _alphabet_data: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+            let _alphabet_data: std::collections::HashMap<String, Vec<String>> =
+                std::collections::HashMap::new();
 
             // Add characters for this alphabet
             for char_idx in 0..(AVG_CHARS_PER_ALPHABET + rng.gen_range(0..10)) {
@@ -163,7 +168,8 @@ where
         // Evaluation alphabets (testing)
         for alphabet_idx in 0..EVALUATION_ALPHABETS {
             let alphabet_name = format!("evaluation_alphabet_{:02}", alphabet_idx);
-            let _alphabet_data: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+            let _alphabet_data: std::collections::HashMap<String, Vec<String>> =
+                std::collections::HashMap::new();
 
             // Add characters for this alphabet
             for char_idx in 0..(AVG_CHARS_PER_ALPHABET + rng.gen_range(0..10)) {
@@ -235,7 +241,7 @@ where
             test_classes,
             total_examples,
             image_size: (28, 28, 1), // Grayscale images
-            image_mean: vec![0.0], // No specific normalization for Omniglot
+            image_mean: vec![0.0],   // No specific normalization for Omniglot
             image_std: vec![1.0],
         }
     }
@@ -304,7 +310,12 @@ where
             query_set,
             num_classes: n_way,
             num_support_per_class: k_shot,
-            episode_id: format!("omniglot_{}_way_{}_shot_{}", n_way, k_shot, rng.gen::<u64>()),
+            episode_id: format!(
+                "omniglot_{}_way_{}_shot_{}",
+                n_way,
+                k_shot,
+                rng.gen::<u64>()
+            ),
         })
     }
 }
@@ -316,8 +327,8 @@ where
     T: DataType + From<f32>,
 {
     /// Override for Omniglot-specific image loading
-      #[allow(dead_code)]
-      fn load_omniglot_image(&self, _path: &str) -> Result<Tensor<B, S, T>> {
+    #[allow(dead_code)]
+    fn load_omniglot_image(&self, _path: &str) -> Result<Tensor<B, S, T>> {
         // Omniglot images are 28x28 grayscale PNGs
         // This is a placeholder - real implementation would use image crate
         // For synthetic testing, generate random data
@@ -345,7 +356,8 @@ mod tests {
     #[test]
     fn test_omniglot_dataset_creation() {
         let config = DatasetConfig::default();
-        let dataset = OmniglotDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
+        let dataset =
+            OmniglotDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
 
         assert!(!dataset.is_loaded());
         assert_eq!(dataset.statistics().name, "Omniglot");
@@ -360,7 +372,8 @@ mod tests {
             ..Default::default()
         };
 
-        let mut dataset = OmniglotDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
+        let mut dataset =
+            OmniglotDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
 
         // This should work even with non-existent directory (uses synthetic data)
         dataset.load("./nonexistent/path").unwrap();
@@ -375,17 +388,20 @@ mod tests {
     #[test]
     fn test_omniglot_episode_sampling() {
         let config = DatasetConfig::default();
-        let mut dataset = OmniglotDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
+        let mut dataset =
+            OmniglotDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
 
         dataset.load("./data").unwrap();
 
         // Sample a 5-way 5-shot episode
-        let episode = dataset.sample_episode(5, 5, 10, DatasetSplit::Test).unwrap();
+        let episode = dataset
+            .sample_episode(5, 5, 10, DatasetSplit::Test)
+            .unwrap();
 
         assert_eq!(episode.num_classes, 5);
         assert_eq!(episode.num_support_per_class, 5);
         assert_eq!(episode.support_set.len(), 5 * 5); // 5 classes * 5 shots
-        assert_eq!(episode.query_set.len(), 5 * 10);  // 5 classes * 10 queries
+        assert_eq!(episode.query_set.len(), 5 * 10); // 5 classes * 10 queries
 
         // Check that all images have correct dimensions
         for (image, _) in &episode.support_set {
@@ -402,13 +418,17 @@ mod tests {
     #[test]
     fn test_omniglot_class_distribution() {
         let config = DatasetConfig::default();
-        let mut dataset = OmniglotDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
+        let mut dataset =
+            OmniglotDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
 
         dataset.load("./data").unwrap();
 
         let stats = dataset.statistics();
         assert!(stats.train_classes > 0);
         assert!(stats.test_classes > 0);
-        assert_eq!(stats.train_classes + stats.val_classes + stats.test_classes, stats.num_classes);
+        assert_eq!(
+            stats.train_classes + stats.val_classes + stats.test_classes,
+            stats.num_classes
+        );
     }
 }

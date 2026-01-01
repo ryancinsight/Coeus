@@ -287,11 +287,8 @@ where
         }
 
         // Reshape back to [batch_size, query_seq_len, embed_dim]
-        Tensor::<B, S, T>::from_vec(
-            attended_data,
-            &[batch_size, query_seq_len, self.embed_dim],
-        )
-        .map_err(Into::into)
+        Tensor::<B, S, T>::from_vec(attended_data, &[batch_size, query_seq_len, self.embed_dim])
+            .map_err(Into::into)
     }
 
     /// Apply softmax along rows of a dense tensor.
@@ -566,9 +563,9 @@ mod tests {
     use super::*;
     use backend::CpuBackend;
     use dtype::float::Float32;
+    use num_traits::ToPrimitive;
     use storage::DenseStorage;
     use tensor::Tensor;
-    use num_traits::ToPrimitive;
 
     type TestBackend = CpuBackend<Float32>;
     type TestStorage = DenseStorage<Float32>;
@@ -585,7 +582,9 @@ mod tests {
         let seq_len = 6;
         let batch_size = 2;
 
-        let attention = MultiHeadAttention::<TestBackend, TestStorage, Float32>::new(embed_dim, num_heads).unwrap();
+        let attention =
+            MultiHeadAttention::<TestBackend, TestStorage, Float32>::new(embed_dim, num_heads)
+                .unwrap();
 
         // Create input tensors
         let query = TestTensor::randn(&[batch_size, seq_len, embed_dim]).unwrap();
@@ -602,6 +601,10 @@ mod tests {
         let attended_output = attended_flat
             .reshape(&[batch_size as isize, seq_len as isize, embed_dim as isize])
             .unwrap();
+        assert_eq!(
+            attended_output.shape().dims(),
+            &[batch_size, seq_len, embed_dim]
+        );
 
         // Validate attention weights properties
         let weights_data = attention_weights.as_slice();
@@ -609,11 +612,19 @@ mod tests {
         for chunk in weights_data.chunks(total_keys) {
             // Each row should sum to approximately 1 (softmax property)
             let row_sum: f32 = chunk.iter().map(|&x| x.to_f32().unwrap()).sum();
-            assert!((row_sum - 1.0).abs() < 1e-5, "Softmax row sum {} should be 1.0", row_sum);
+            assert!(
+                (row_sum - 1.0).abs() < 1e-5,
+                "Softmax row sum {} should be 1.0",
+                row_sum
+            );
 
             // All weights should be non-negative
             for &weight in chunk {
-                assert!(weight.to_f32().unwrap() >= 0.0, "Attention weight {} should be non-negative", weight.to_f32().unwrap());
+                assert!(
+                    weight.to_f32().unwrap() >= 0.0,
+                    "Attention weight {} should be non-negative",
+                    weight.to_f32().unwrap()
+                );
             }
         }
 
@@ -627,15 +638,21 @@ mod tests {
         // Test attention invariance under scaling
         let scale_tensor = TestTensor::from_vec(vec![Float32::from(2.0)], &[1]).unwrap();
         let scaled_query = tensor::ops::arithmetic::mul(&query, &scale_tensor).unwrap();
-        let scaled_attention_logits = compute_attention_logits(&attention, &scaled_query, &key).unwrap();
+        let scaled_attention_logits =
+            compute_attention_logits(&attention, &scaled_query, &key).unwrap();
 
         // Scaled attention should maintain proper softmax properties
-        let scaled_weights = attention.softmax_rows_dense(&scaled_attention_logits).unwrap();
+        let scaled_weights = attention
+            .softmax_rows_dense(&scaled_attention_logits)
+            .unwrap();
         let scaled_weights_data = scaled_weights.as_slice();
 
         for chunk in scaled_weights_data.chunks(total_keys) {
             let row_sum: f32 = chunk.iter().map(|&x| x.to_f32().unwrap()).sum();
-            assert!((row_sum - 1.0).abs() < 1e-4, "Scaled attention softmax row sum should still be 1.0");
+            assert!(
+                (row_sum - 1.0).abs() < 1e-4,
+                "Scaled attention softmax row sum should still be 1.0"
+            );
         }
     }
 
@@ -650,15 +667,21 @@ mod tests {
         let seq_len = 4;
         let batch_size = 1;
 
-        let attention = MultiHeadAttention::<TestBackend, TestStorage, Float32>::new(embed_dim, num_heads).unwrap();
+        let attention =
+            MultiHeadAttention::<TestBackend, TestStorage, Float32>::new(embed_dim, num_heads)
+                .unwrap();
 
         // Create simple test case
         let query = TestTensor::ones(&[batch_size, seq_len, embed_dim]).unwrap();
         let key = TestTensor::ones(&[batch_size, seq_len, embed_dim]).unwrap();
 
         // Compute attention logits before scaling
-        let query_flat = query.reshape(&[batch_size as isize * seq_len as isize, embed_dim as isize]).unwrap();
-        let key_flat = key.reshape(&[batch_size as isize * seq_len as isize, embed_dim as isize]).unwrap();
+        let query_flat = query
+            .reshape(&[batch_size as isize * seq_len as isize, embed_dim as isize])
+            .unwrap();
+        let key_flat = key
+            .reshape(&[batch_size as isize * seq_len as isize, embed_dim as isize])
+            .unwrap();
         let key_t = key_flat.transpose(0, 1).unwrap();
         let unscaled_logits = query_flat.matmul(&key_t).unwrap();
 
@@ -668,21 +691,33 @@ mod tests {
         for &logit in unscaled_logits.as_slice() {
             scaled_logits_data.push(logit / scale);
         }
-        let scaled_logits = TestTensor::from_vec(
-            scaled_logits_data,
-            unscaled_logits.shape().dims(),
-        ).unwrap();
+        let scaled_logits =
+            TestTensor::from_vec(scaled_logits_data, unscaled_logits.shape().dims()).unwrap();
 
         // Without scaling, large logits can cause numerical issues
-        let max_unscaled: f32 = unscaled_logits.as_slice().iter().map(|&x| x.to_f32().unwrap()).fold(f32::NEG_INFINITY, |a: f32, b: f32| a.max(b));
-        let max_scaled: f32 = scaled_logits.as_slice().iter().map(|&x| x.to_f32().unwrap()).fold(f32::NEG_INFINITY, |a: f32, b: f32| a.max(b));
+        let max_unscaled: f32 = unscaled_logits
+            .as_slice()
+            .iter()
+            .map(|&x| x.to_f32().unwrap())
+            .fold(f32::NEG_INFINITY, |a: f32, b: f32| a.max(b));
+        let max_scaled: f32 = scaled_logits
+            .as_slice()
+            .iter()
+            .map(|&x| x.to_f32().unwrap())
+            .fold(f32::NEG_INFINITY, |a: f32, b: f32| a.max(b));
 
         // Scaling should reduce the magnitude of large logits
-        assert!(max_scaled < max_unscaled, "Scaling should reduce logit magnitudes");
+        assert!(
+            max_scaled < max_unscaled,
+            "Scaling should reduce logit magnitudes"
+        );
 
         // Validate scaling factor is correct
         let theoretical_scale = (embed_dim as f32 / num_heads as f32).sqrt();
-        assert!((scale.to_f32().unwrap() - theoretical_scale).abs() < 1e-6, "Scaling factor should match theory");
+        assert!(
+            (scale.to_f32().unwrap() - theoretical_scale).abs() < 1e-6,
+            "Scaling factor should match theory"
+        );
     }
 
     // Helper function for testing attention logits computation
@@ -696,8 +731,18 @@ mod tests {
         let key_seq_len = key.shape().dims()[1];
 
         // Simulate the attention computation logic
-        let query_flat = query.reshape(&[batch_size as isize * query_seq_len as isize, attention.embed_dim as isize]).unwrap();
-        let key_flat = key.reshape(&[batch_size as isize * key_seq_len as isize, attention.embed_dim as isize]).unwrap();
+        let query_flat = query
+            .reshape(&[
+                batch_size as isize * query_seq_len as isize,
+                attention.embed_dim as isize,
+            ])
+            .unwrap();
+        let key_flat = key
+            .reshape(&[
+                batch_size as isize * key_seq_len as isize,
+                attention.embed_dim as isize,
+            ])
+            .unwrap();
         let key_t = key_flat.transpose(0, 1).unwrap();
         let attention_logits = query_flat.matmul(&key_t).unwrap();
 
@@ -710,10 +755,6 @@ mod tests {
             scaled_logits_data.push(logit / scale);
         }
 
-        TestTensor::from_vec(
-            scaled_logits_data,
-            attention_dense.shape().dims(),
-        ).map_err(Into::into)
+        TestTensor::from_vec(scaled_logits_data, attention_dense.shape().dims()).map_err(Into::into)
     }
 }
-

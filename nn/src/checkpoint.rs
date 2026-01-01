@@ -219,8 +219,8 @@ pub mod async_checkpoint {
         use crate::Linear;
         use backend::CpuBackend;
         use dtype::float::Float32;
-        use storage::DenseStorage;
         use std::collections::HashMap;
+        use storage::DenseStorage;
 
         #[tokio::test]
         async fn test_async_checkpoint_save_load() {
@@ -410,9 +410,9 @@ mod tests {
     use crate::Linear;
     use backend::CpuBackend;
     use dtype::float::Float32;
-    use storage::DenseStorage;
     use std::collections::HashMap;
     use std::path::Path;
+    use storage::DenseStorage;
 
     // Mock types for testing without optim dependency
     type OptimizerStateDict<T> = HashMap<String, Vec<T>>;

@@ -5,10 +5,10 @@
 
 use backend::Backend;
 use dtype::DataType;
-use storage::DenseStorage;
-use tensor::Tensor;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use storage::DenseStorage;
+use tensor::Tensor;
 
 /// Unique identifier for nodes in the computation graph
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -373,8 +373,7 @@ where
     pub fn apply_gradients(&mut self) -> Result<(), crate::error::AutogradError> {
         for (tensor_ptr, grad) in self.gradients.drain() {
             // Convert pointer back to reference (unsafe but controlled)
-            let tensor =
-                unsafe { &*tensor_ptr.cast::<Tensor<B, storage::DenseStorage<T>, T>>() };
+            let tensor = unsafe { &*tensor_ptr.cast::<Tensor<B, storage::DenseStorage<T>, T>>() };
 
             // Check if tensor already has a gradient and accumulate
             if let Ok(existing_grad) = tensor.grad() {
@@ -387,8 +386,9 @@ where
                     accumulated_data.push(*a + *b);
                 }
 
-                let accumulated: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec(accumulated_data, existing_grad.shape().dims())
-                    .map_err(crate::error::AutogradError::TensorError)?;
+                let accumulated: Tensor<B, DenseStorage<T>, T> =
+                    Tensor::from_vec(accumulated_data, existing_grad.shape().dims())
+                        .map_err(crate::error::AutogradError::TensorError)?;
 
                 if let Err(e) = tensor.set_grad(accumulated) {
                     return Err(crate::error::AutogradError::GradientError {

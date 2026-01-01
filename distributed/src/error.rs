@@ -30,9 +30,7 @@ pub enum DistributedError {
     BackendUnavailable { backend: String },
 
     #[error("Tensor operation failed: {source}")]
-    TensorError {
-        source: Box<tensor::TensorError>,
-    },
+    TensorError { source: Box<tensor::TensorError> },
 
     #[error("Optimizer operation failed: {source}")]
     OptimizerError {

@@ -3,9 +3,10 @@
 use backend::CpuBackend;
 use dtype::float::{Float32, Float64};
 use dtype::int::{Int32, Int64};
-use storage::DenseStorage;
-use tensor::Tensor;
 use num_traits::{One, Zero};
+use storage::DenseStorage;
+use tensor::tensor_core::{grad_enabled, scoped_grad_enabled};
+use tensor::Tensor;
 
 // GPU backend is not implemented - commented out
 // #[cfg(feature = "gpu")]
@@ -212,15 +213,12 @@ fn test_add_negative_values() {
 }
 
 #[test]
+#[should_panic]
 fn test_add_shape_mismatch() {
     let a = CpuTensorF32::zeros(&[3]).unwrap();
     let b = CpuTensorF32::zeros(&[4]).unwrap();
 
-    // std::ops Add doesn't panic - it returns a safe fallback
-    let result = &a + &b;
-    // The result should be the left operand (safe fallback behavior)
-    assert_eq!(result.shape().dims(), a.shape().dims());
-    assert_eq!(result.as_slice(), a.as_slice());
+    let _result = &a + &b;
 }
 
 #[test]
@@ -246,15 +244,45 @@ fn test_sub_negative_result() {
 }
 
 #[test]
+#[should_panic]
 fn test_sub_shape_mismatch() {
     let a = CpuTensorF32::zeros(&[2, 3]).unwrap();
     let b = CpuTensorF32::zeros(&[3, 2]).unwrap();
 
-    // std::ops Sub doesn't panic - it returns a safe fallback
-    let result = &a - &b;
-    // The result should be the left operand (safe fallback behavior)
-    assert_eq!(result.shape().dims(), a.shape().dims());
-    assert_eq!(result.as_slice(), a.as_slice());
+    let _result = &a - &b;
+}
+
+#[test]
+fn test_scoped_grad_enabled_restores_previous_state() {
+    assert!(grad_enabled());
+    {
+        let _g1 = scoped_grad_enabled(false);
+        assert!(!grad_enabled());
+        {
+            let _g2 = scoped_grad_enabled(true);
+            assert!(grad_enabled());
+        }
+        assert!(!grad_enabled());
+    }
+    assert!(grad_enabled());
+}
+
+#[test]
+fn test_no_grad_disables_autograd_graph_construction() {
+    let x = CpuTensorF32::ones(&[3]).unwrap().requires_grad_(true);
+
+    let y = {
+        let _guard = scoped_grad_enabled(false);
+        &x + &x
+    };
+
+    assert!(x.requires_grad());
+    assert!(!y.requires_grad());
+    assert!(y.grad_fn().is_none());
+
+    let z = &x + &x;
+    assert!(z.requires_grad());
+    assert!(z.grad_fn().is_some());
 }
 
 #[test]

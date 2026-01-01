@@ -3,7 +3,7 @@
 use crate::error::{HubError, Result};
 use crate::registry::ModelEntry;
 use backend::Backend;
-use dtype::DataType;
+use dtype::{DataType, FloatExt};
 use nn::Module;
 
 /// Validation result containing errors and metrics
@@ -60,8 +60,12 @@ impl ModelValidator {
     where
         M: Module<B, S, T>,
         B: Backend<Data = T>,
-        S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
-        T: DataType,
+        S: storage::Storage<T>
+            + Clone
+            + 'static
+            + storage::StorageFromVec<T>
+            + storage::StorageToDense<T>,
+        T: DataType + FloatExt,
     {
         let mut result = ValidationResult {
             errors: Vec::new(),

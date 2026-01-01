@@ -3,11 +3,14 @@
 //! This example demonstrates GPU acceleration capabilities in the Coeus framework,
 //! showing performance improvements for matrix operations and neural network computations.
 
-use std::time::Instant;
-use nn::backend::{Backend, BackendSelector, BackendType, WorkloadCharacteristics, OperationType, MemoryAccessPattern, DataLocality};
-use nn::tensor::{Tensor, ops::creation};
+use nn::backend::{
+    Backend, BackendSelector, BackendType, DataLocality, MemoryAccessPattern, OperationType,
+    WorkloadCharacteristics,
+};
 use nn::dtype::float::Float32;
 use nn::storage::DenseStorage;
+use nn::tensor::{ops::creation, Tensor};
+use std::time::Instant;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -36,8 +39,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let k = 1024;
     let n = 512;
 
-    let lhs_data: Vec<f32> = (0..m*k).map(|i| (i as f32).sin()).collect();
-    let rhs_data: Vec<f32> = (0..k*n).map(|i| (i as f32).cos()).collect();
+    let lhs_data: Vec<f32> = (0..m * k).map(|i| (i as f32).sin()).collect();
+    let rhs_data: Vec<f32> = (0..k * n).map(|i| (i as f32).cos()).collect();
 
     let lhs_shape = vec![m, k];
     let rhs_shape = vec![k, n];
@@ -192,7 +195,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let gpu_add_time = gpu_start.elapsed();
 
     let add_speedup = cpu_add_time.as_secs_f64() / gpu_add_time.as_secs_f64();
-    println!("      CPU: {:.4}s, GPU: {:.4}s, Speedup: {:.2}x", cpu_add_time.as_secs_f64(), gpu_add_time.as_secs_f64(), add_speedup);
+    println!(
+        "      CPU: {:.4}s, GPU: {:.4}s, Speedup: {:.2}x",
+        cpu_add_time.as_secs_f64(),
+        gpu_add_time.as_secs_f64(),
+        add_speedup
+    );
 
     // ReLU benchmark
     println!("   ReLU activation ({} elements):", size);
@@ -228,7 +236,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let gpu_relu_time = gpu_start.elapsed();
 
     let relu_speedup = cpu_relu_time.as_secs_f64() / gpu_relu_time.as_secs_f64();
-    println!("      CPU: {:.4}s, GPU: {:.4}s, Speedup: {:.2}x", cpu_relu_time.as_secs_f64(), gpu_relu_time.as_secs_f64(), relu_speedup);
+    println!(
+        "      CPU: {:.4}s, GPU: {:.4}s, Speedup: {:.2}x",
+        cpu_relu_time.as_secs_f64(),
+        gpu_relu_time.as_secs_f64(),
+        relu_speedup
+    );
 
     // Summary
     println!("\n📈 Summary:");
@@ -255,13 +268,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
-
-
-
-
-
-
-
-
-

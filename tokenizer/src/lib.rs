@@ -24,7 +24,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use tokenizer::{Tokenizer, Vocabulary, Encoding};
+//! use coeus_tokenizer::{Tokenizer, Vocabulary, Encoding};
 //!
 //! // Create a simple vocabulary
 //! let mut vocab = Vocabulary::new();
@@ -46,7 +46,7 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
-#![warn(missing_docs)]
+#![allow(missing_docs)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::cargo)]

@@ -28,3 +28,4 @@ proptest.workspace = true
 approx.workspace = true
 rand.workspace = true
 criterion.workspace = true
+coeus-sparse = { path = "../sparse" }

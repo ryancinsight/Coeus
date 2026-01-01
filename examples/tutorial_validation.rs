@@ -336,4 +336,3 @@ fn test_optimizer_setup() -> Result<(), Box<dyn std::error::Error>> {
     println!("   ✅ Optimizer setup: PASS");
     Ok(())
 }
-

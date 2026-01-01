@@ -10,12 +10,12 @@
 //! 4. Knowledge transfer between agents
 //! 5. Workflow orchestration
 
-use std::collections::HashMap;
 use nn::research::{
-    UnifiedResearchFramework, ResearchConfig, ResearchDomain, ResearchWorkflow, WorkflowTemplate,
-    ResearchAgent, ResearchAgentFactory, AgentType, ExperimentSpec, ExperimentResult,
+    AgentType, ExperimentResult, ExperimentSpec, ResearchAgent, ResearchAgentFactory,
+    ResearchConfig, ResearchDomain, ResearchWorkflow, UnifiedResearchFramework, WorkflowTemplate,
 };
 use serde_json::json;
+use std::collections::HashMap;
 
 /// Example research agent adapter for existing HPO system
 struct HPOAgentAdapter<H> {
@@ -25,9 +25,15 @@ struct HPOAgentAdapter<H> {
 }
 
 impl<H: nn::research::ResearchAgent> ResearchAgent for HPOAgentAdapter<H> {
-    fn id(&self) -> &str { &self.agent_id }
-    fn name(&self) -> &str { "HPO Agent Adapter" }
-    fn agent_type(&self) -> AgentType { AgentType::HPO }
+    fn id(&self) -> &str {
+        &self.agent_id
+    }
+    fn name(&self) -> &str {
+        "HPO Agent Adapter"
+    }
+    fn agent_type(&self) -> AgentType {
+        AgentType::HPO
+    }
 
     fn metadata(&self) -> super::AgentMetadata {
         super::AgentMetadata {
@@ -47,7 +53,10 @@ impl<H: nn::research::ResearchAgent> ResearchAgent for HPOAgentAdapter<H> {
         Ok(())
     }
 
-    fn run_step(&mut self, _experiment: &ExperimentSpec) -> Result<ExperimentResult, coeus_error::NNError> {
+    fn run_step(
+        &mut self,
+        _experiment: &ExperimentSpec,
+    ) -> Result<ExperimentResult, coeus_error::NNError> {
         // Simulate running HPO
         let mut result = ExperimentResult::new(_experiment.id.clone(), self.id().to_string());
         result.mark_started();
@@ -65,15 +74,28 @@ impl<H: nn::research::ResearchAgent> ResearchAgent for HPOAgentAdapter<H> {
         )]
     }
 
-    fn update_with_results(&mut self, _results: &[ExperimentResult]) -> Result<(), coeus_error::NNError> {
+    fn update_with_results(
+        &mut self,
+        _results: &[ExperimentResult],
+    ) -> Result<(), coeus_error::NNError> {
         Ok(())
     }
 
-    fn get_best_result(&self) -> Option<ExperimentResult> { None }
-    fn get_state(&self) -> Result<serde_json::Value, coeus_error::NNError> { Ok(json!({"state": "active"})) }
-    fn set_state(&mut self, _state: serde_json::Value) -> Result<(), coeus_error::NNError> { Ok(()) }
-    fn is_ready(&self) -> bool { true }
-    fn get_resource_requirements(&self) -> super::ResourceRequirements { Default::default() }
+    fn get_best_result(&self) -> Option<ExperimentResult> {
+        None
+    }
+    fn get_state(&self) -> Result<serde_json::Value, coeus_error::NNError> {
+        Ok(json!({"state": "active"}))
+    }
+    fn set_state(&mut self, _state: serde_json::Value) -> Result<(), coeus_error::NNError> {
+        Ok(())
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
+    fn get_resource_requirements(&self) -> super::ResourceRequirements {
+        Default::default()
+    }
 
     fn generate_insights(&self) -> Vec<super::ResearchInsight> {
         vec![super::ResearchInsight {
@@ -95,9 +117,15 @@ struct NASAgentAdapter<N> {
 }
 
 impl<N> ResearchAgent for NASAgentAdapter<N> {
-    fn id(&self) -> &str { &self.agent_id }
-    fn name(&self) -> &str { "NAS Agent Adapter" }
-    fn agent_type(&self) -> AgentType { AgentType::NAS }
+    fn id(&self) -> &str {
+        &self.agent_id
+    }
+    fn name(&self) -> &str {
+        "NAS Agent Adapter"
+    }
+    fn agent_type(&self) -> AgentType {
+        AgentType::NAS
+    }
 
     fn metadata(&self) -> super::AgentMetadata {
         super::AgentMetadata {
@@ -110,12 +138,20 @@ impl<N> ResearchAgent for NASAgentAdapter<N> {
     }
 
     fn supports_domain(&self, domain: &ResearchDomain) -> bool {
-        matches!(domain, ResearchDomain::ComputerVision | ResearchDomain::GeneralML)
+        matches!(
+            domain,
+            ResearchDomain::ComputerVision | ResearchDomain::GeneralML
+        )
     }
 
-    fn initialize(&mut self, _config: serde_json::Value) -> Result<(), coeus_error::NNError> { Ok(()) }
+    fn initialize(&mut self, _config: serde_json::Value) -> Result<(), coeus_error::NNError> {
+        Ok(())
+    }
 
-    fn run_step(&mut self, _experiment: &ExperimentSpec) -> Result<ExperimentResult, coeus_error::NNError> {
+    fn run_step(
+        &mut self,
+        _experiment: &ExperimentSpec,
+    ) -> Result<ExperimentResult, coeus_error::NNError> {
         let mut result = ExperimentResult::new(_experiment.id.clone(), self.id().to_string());
         result.mark_started();
         std::thread::sleep(std::time::Duration::from_millis(200));
@@ -132,12 +168,27 @@ impl<N> ResearchAgent for NASAgentAdapter<N> {
         )]
     }
 
-    fn update_with_results(&mut self, _results: &[ExperimentResult]) -> Result<(), coeus_error::NNError> { Ok(()) }
-    fn get_best_result(&self) -> Option<ExperimentResult> { None }
-    fn get_state(&self) -> Result<serde_json::Value, coeus_error::NNError> { Ok(json!({"state": "searching"})) }
-    fn set_state(&mut self, _state: serde_json::Value) -> Result<(), coeus_error::NNError> { Ok(()) }
-    fn is_ready(&self) -> bool { true }
-    fn get_resource_requirements(&self) -> super::ResourceRequirements { Default::default() }
+    fn update_with_results(
+        &mut self,
+        _results: &[ExperimentResult],
+    ) -> Result<(), coeus_error::NNError> {
+        Ok(())
+    }
+    fn get_best_result(&self) -> Option<ExperimentResult> {
+        None
+    }
+    fn get_state(&self) -> Result<serde_json::Value, coeus_error::NNError> {
+        Ok(json!({"state": "searching"}))
+    }
+    fn set_state(&mut self, _state: serde_json::Value) -> Result<(), coeus_error::NNError> {
+        Ok(())
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
+    fn get_resource_requirements(&self) -> super::ResourceRequirements {
+        Default::default()
+    }
 
     fn generate_insights(&self) -> Vec<super::ResearchInsight> {
         vec![super::ResearchInsight {
@@ -159,9 +210,15 @@ struct MetaAgentAdapter<M> {
 }
 
 impl<M> ResearchAgent for MetaAgentAdapter<M> {
-    fn id(&self) -> &str { &self.agent_id }
-    fn name(&self) -> &str { "Meta-Learning Agent Adapter" }
-    fn agent_type(&self) -> AgentType { AgentType::MetaLearning }
+    fn id(&self) -> &str {
+        &self.agent_id
+    }
+    fn name(&self) -> &str {
+        "Meta-Learning Agent Adapter"
+    }
+    fn agent_type(&self) -> AgentType {
+        AgentType::MetaLearning
+    }
 
     fn metadata(&self) -> super::AgentMetadata {
         super::AgentMetadata {
@@ -174,12 +231,20 @@ impl<M> ResearchAgent for MetaAgentAdapter<M> {
     }
 
     fn supports_domain(&self, domain: &ResearchDomain) -> bool {
-        matches!(domain, ResearchDomain::MetaLearning | ResearchDomain::GeneralML)
+        matches!(
+            domain,
+            ResearchDomain::MetaLearning | ResearchDomain::GeneralML
+        )
     }
 
-    fn initialize(&mut self, _config: serde_json::Value) -> Result<(), coeus_error::NNError> { Ok(()) }
+    fn initialize(&mut self, _config: serde_json::Value) -> Result<(), coeus_error::NNError> {
+        Ok(())
+    }
 
-    fn run_step(&mut self, _experiment: &ExperimentSpec) -> Result<ExperimentResult, coeus_error::NNError> {
+    fn run_step(
+        &mut self,
+        _experiment: &ExperimentSpec,
+    ) -> Result<ExperimentResult, coeus_error::NNError> {
         let mut result = ExperimentResult::new(_experiment.id.clone(), self.id().to_string());
         result.mark_started();
         std::thread::sleep(std::time::Duration::from_millis(150));
@@ -196,12 +261,27 @@ impl<M> ResearchAgent for MetaAgentAdapter<M> {
         )]
     }
 
-    fn update_with_results(&mut self, _results: &[ExperimentResult]) -> Result<(), coeus_error::NNError> { Ok(()) }
-    fn get_best_result(&self) -> Option<ExperimentResult> { None }
-    fn get_state(&self) -> Result<serde_json::Value, coeus_error::NNError> { Ok(json!({"state": "adapting"})) }
-    fn set_state(&mut self, _state: serde_json::Value) -> Result<(), coeus_error::NNError> { Ok(()) }
-    fn is_ready(&self) -> bool { true }
-    fn get_resource_requirements(&self) -> super::ResourceRequirements { Default::default() }
+    fn update_with_results(
+        &mut self,
+        _results: &[ExperimentResult],
+    ) -> Result<(), coeus_error::NNError> {
+        Ok(())
+    }
+    fn get_best_result(&self) -> Option<ExperimentResult> {
+        None
+    }
+    fn get_state(&self) -> Result<serde_json::Value, coeus_error::NNError> {
+        Ok(json!({"state": "adapting"}))
+    }
+    fn set_state(&mut self, _state: serde_json::Value) -> Result<(), coeus_error::NNError> {
+        Ok(())
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
+    fn get_resource_requirements(&self) -> super::ResourceRequirements {
+        Default::default()
+    }
 
     fn generate_insights(&self) -> Vec<super::ResearchInsight> {
         vec![super::ResearchInsight {
@@ -228,20 +308,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Simulate registering different types of agents
     // In practice, these would wrap existing HPO, NAS, and Meta agents
-    framework.registry.register("mock_hpo_agent", json!({
-        "type": "hpo",
-        "domain": "GeneralML"
-    }))?;
+    framework.registry.register(
+        "mock_hpo_agent",
+        json!({
+            "type": "hpo",
+            "domain": "GeneralML"
+        }),
+    )?;
 
-    framework.registry.register("mock_nas_agent", json!({
-        "type": "nas",
-        "domain": "ComputerVision"
-    }))?;
+    framework.registry.register(
+        "mock_nas_agent",
+        json!({
+            "type": "nas",
+            "domain": "ComputerVision"
+        }),
+    )?;
 
-    framework.registry.register("mock_meta_agent", json!({
-        "type": "meta",
-        "domain": "MetaLearning"
-    }))?;
+    framework.registry.register(
+        "mock_meta_agent",
+        json!({
+            "type": "meta",
+            "domain": "MetaLearning"
+        }),
+    )?;
 
     println!("✅ Registered 3 research agents");
 
@@ -256,22 +345,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📊 Example 1: NAS-HPO Collaborative Optimization");
     let nas_hpo_workflow = WorkflowTemplate::nas_hpo_collaboration("accuracy");
     let result1 = framework.execute_workflow(&nas_hpo_workflow)?;
-    println!("Result: {:.3} performance, {} insights generated",
-             result1.final_performance, result1.insights.len());
+    println!(
+        "Result: {:.3} performance, {} insights generated",
+        result1.final_performance,
+        result1.insights.len()
+    );
 
     // Example 2: Comprehensive AutoML pipeline
     println!("\n🤖 Example 2: Comprehensive AutoML Pipeline");
     let automl_workflow = WorkflowTemplate::comprehensive_automl();
     let result2 = framework.execute_workflow(&automl_workflow)?;
-    println!("Result: {:.3} performance, {} insights generated",
-             result2.final_performance, result2.insights.len());
+    println!(
+        "Result: {:.3} performance, {} insights generated",
+        result2.final_performance,
+        result2.insights.len()
+    );
 
     // Example 3: Comparative benchmark
     println!("\n⚖️  Example 3: Comparative Algorithm Benchmark");
     let benchmark_workflow = WorkflowTemplate::comparative_benchmark();
     let result3 = framework.execute_workflow(&benchmark_workflow)?;
-    println!("Result: {:.3} performance, {} insights generated",
-             result3.final_performance, result3.insights.len());
+    println!(
+        "Result: {:.3} performance, {} insights generated",
+        result3.final_performance,
+        result3.insights.len()
+    );
 
     println!("\n📈 Framework Statistics:");
     let report = framework.generate_report();
@@ -279,7 +377,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n🧠 Knowledge Transfer Examples:");
     let general_ml_insights = framework.get_domain_insights(&ResearchDomain::GeneralML);
-    println!("General ML insights available: {}", general_ml_insights.len());
+    println!(
+        "General ML insights available: {}",
+        general_ml_insights.len()
+    );
 
     let cv_insights = framework.get_domain_insights(&ResearchDomain::ComputerVision);
     println!("Computer Vision insights available: {}", cv_insights.len());
@@ -314,8 +415,10 @@ mod tests {
     fn test_agent_registration() {
         let config = ResearchConfig::default();
         let mut framework = UnifiedResearchFramework::new(config);
-        framework.registry.register("test_agent", json!({"test": true})).unwrap();
+        framework
+            .registry
+            .register("test_agent", json!({"test": true}))
+            .unwrap();
         assert!(framework.registry.has_agent("test_agent"));
     }
 }
-

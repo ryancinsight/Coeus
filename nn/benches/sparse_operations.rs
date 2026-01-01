@@ -1,10 +1,11 @@
-#[cfg(feature = "gpu")]
+#[cfg(feature = "cuda")]
 use backend::GpuBackend;
 use backend::{Backend, CpuBackend};
-use dtype::float::Float32;
-use storage::DenseStorage;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use dtype::float::Float32;
 use std::time::Duration;
+use storage::DenseStorage;
+use storage::Storage;
 
 fn create_sparse_matrix(
     m: usize,
@@ -15,7 +16,7 @@ fn create_sparse_matrix(
     let mut indices = Vec::new();
     let mut indptr = vec![0];
 
-    for i in 0..m {
+    for _ in 0..m {
         for j in 0..n {
             if rand::random::<f32>() > sparsity {
                 data.push(Float32::new(rand::random::<f32>()));
@@ -28,10 +29,11 @@ fn create_sparse_matrix(
     (data, indices, indptr)
 }
 
-fn create_dense_matrix(rows: usize, cols: usize) -> Vec<Float32> {
-    (0..rows * cols)
+fn create_dense_matrix(rows: usize, cols: usize) -> DenseStorage<Float32> {
+    let data = (0..rows * cols)
         .map(|_| Float32::new(rand::random::<f32>()))
-        .collect()
+        .collect();
+    DenseStorage::from_vec(data, &[rows, cols]).unwrap()
 }
 
 fn bench_sparse_matvec_cpu(c: &mut Criterion) {
@@ -78,7 +80,7 @@ fn bench_sparse_matvec_cpu(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "cuda")]
 fn bench_sparse_matvec_gpu(c: &mut Criterion) {
     let mut group = c.benchmark_group("sparse_matvec_gpu");
 
@@ -152,12 +154,9 @@ fn bench_sparse_matmul_cpu(c: &mut Criterion) {
                 black_box(&sparse_data),
                 black_box(&sparse_indices),
                 black_box(&sparse_indptr),
-                black_box(dense_matrix.as_slice()),
-                black_box(&vec![0; 0]), // empty rhs indices for dense
-                black_box(&vec![0; 0]), // empty rhs indptr for dense
+                black_box(&dense_matrix),
                 500,
                 500,
-                100,
             );
             black_box(result.unwrap());
         })
@@ -166,7 +165,7 @@ fn bench_sparse_matmul_cpu(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "cuda")]
 fn bench_sparse_matmul_gpu(c: &mut Criterion) {
     let mut group = c.benchmark_group("sparse_matmul_gpu");
 
@@ -244,7 +243,7 @@ fn bench_sparse_efficiency_comparison(c: &mut Criterion) {
                     for dense_col in 0..1000 {
                         let dense_idx = col * 1000 + dense_col;
                         let result_idx = row * 1000 + dense_col;
-                        result[result_idx] += val * dense_matrix[dense_idx].get();
+                        result[result_idx] += val * dense_matrix.as_slice()[dense_idx].get();
                     }
                 }
             }
@@ -255,14 +254,14 @@ fn bench_sparse_efficiency_comparison(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(not(feature = "gpu"))]
+#[cfg(not(feature = "cuda"))]
 criterion_group! {
     name = benches;
     config = Criterion::default().measurement_time(Duration::from_secs(30));
     targets = bench_sparse_matvec_cpu, bench_sparse_matmul_cpu, bench_sparse_efficiency_comparison
 }
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "cuda")]
 criterion_group! {
     name = benches;
     config = Criterion::default().measurement_time(Duration::from_secs(30));

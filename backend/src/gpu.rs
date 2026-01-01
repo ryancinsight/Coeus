@@ -24,7 +24,7 @@ use std::{
     sync::Arc,
     vec::Vec,
 };
-use storage::{Storage, DenseStorage};
+use storage::{DenseStorage, Storage};
 use wgpu::util::DeviceExt;
 #[derive(Debug, thiserror::Error)]
 pub enum GpuError {
@@ -35,7 +35,6 @@ pub enum GpuError {
     #[error("Buffer creation failed: {0}")]
     BufferCreation(String),
 }
-
 
 /// GPU compute pipeline for shader execution
 #[derive(Debug, Clone)]
@@ -50,7 +49,6 @@ struct GpuShaders {
     element_wise: ComputePipeline,
     binary_ops: ComputePipeline,
     matmul: ComputePipeline,
-    squares: ComputePipeline,
     fft: ComputePipeline,
     clip_attention: ComputePipeline,
     clip_loss: ComputePipeline,
@@ -62,290 +60,290 @@ impl GpuShaders {
             device,
             include_str!("shaders/element_wise.wgsl"),
             "main",
-            &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+            &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
-        ).await?;
+            ],
+        )
+        .await?;
 
         let binary_ops = Self::create_pipeline(
             device,
             include_str!("shaders/binary_ops.wgsl"),
             "main",
-            &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+            &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 3,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
-        ).await?;
+            ],
+        )
+        .await?;
 
         let matmul = Self::create_pipeline(
             device,
             include_str!("shaders/matmul.wgsl"),
             "main",
-            &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+            &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 3,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
-        ).await?;
-
-        let squares = Self::create_pipeline(
-            device,
-            include_str!("shaders/squares.wgsl"),
-            "main",
-            &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        ).await?;
+            ],
+        )
+        .await?;
 
         let clip_attention = Self::create_pipeline(
             device,
             include_str!("shaders/clip_attention.wgsl"),
             "clip_attention",
-            &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+            &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 3,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 4,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
-        ).await?;
+            ],
+        )
+        .await?;
 
         let fft = Self::create_pipeline(
             device,
             include_str!("shaders/fft.wgsl"),
             "fft_forward",
-            &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+            &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
-        ).await?;
+            ],
+        )
+        .await?;
 
         let clip_loss = Self::create_pipeline(
             device,
             include_str!("shaders/clip_loss.wgsl"),
             "compute_clip_loss",
-            &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+            &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }, wgpu::BindGroupLayoutEntry {
-                binding: 3,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
-        ).await?;
+            ],
+        )
+        .await?;
 
         Ok(Self {
             element_wise,
             binary_ops,
             matmul,
-            squares,
             fft,
             clip_attention,
             clip_loss,
@@ -402,9 +400,9 @@ pub struct GpuBackend<T: crate::DataType> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-
-
-impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive> Default for GpuBackend<T> {
+impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive> Default
+    for GpuBackend<T>
+{
     fn default() -> Self {
         panic!("GpuBackend requires async initialization. Use GpuBackend::new() instead.");
     }
@@ -493,11 +491,12 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
         data: &[U],
         usage: wgpu::BufferUsages,
     ) -> wgpu::Buffer {
-        self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("GPU Buffer"),
-            contents: bytemuck::cast_slice(data),
-            usage,
-        })
+        self.device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("GPU Buffer"),
+                contents: bytemuck::cast_slice(data),
+                usage,
+            })
     }
 
     /// Reads data from GPU buffer back to CPU
@@ -514,7 +513,9 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
         });
 
         self.queue.submit([]);
-        rx.await.unwrap().map_err(|e| GpuError::BufferCreation(format!("Failed to map buffer: {e}")))?;
+        rx.await
+            .unwrap()
+            .map_err(|e| GpuError::BufferCreation(format!("Failed to map buffer: {e}")))?;
 
         let data = buffer_slice.get_mapped_range();
         let result = bytemuck::cast_slice(&data).to_vec();
@@ -530,9 +531,11 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
         bind_group: &wgpu::BindGroup,
         workgroups: (u32, u32, u32),
     ) -> Result<(), GpuError> {
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Compute Encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Compute Encoder"),
+            });
 
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -566,120 +569,120 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
     }
 
     //     /// Dispatch operation with dynamic shape specialization
-//     /// Records runtime shapes for analysis and selects optimal specialized kernels
-//     pub fn dispatch_with_shape_specialization(
-//         &mut self,
-//         operation: &str,
-//         shapes: &[jit::shapes::Shape],
-//     ) -> jit::shapes::SpecializedKernel {
-//         // Record runtime shapes for pattern analysis
-//         self.shape_specializer.record_runtime_shapes(shapes);
+    //     /// Records runtime shapes for analysis and selects optimal specialized kernels
+    //     pub fn dispatch_with_shape_specialization(
+    //         &mut self,
+    //         operation: &str,
+    //         shapes: &[jit::shapes::Shape],
+    //     ) -> jit::shapes::SpecializedKernel {
+    //         // Record runtime shapes for pattern analysis
+    //         self.shape_specializer.record_runtime_shapes(shapes);
 
-//         // Try to select existing specialization for these shapes
-//         if let Some(specialized) = self.shape_specializer.select_specialization(shapes) {
-//             //             tracing::info!(
-// //                 "Using specialized kernel {} for operation {}",
-// //                 specialized.kernel_id,
-// //                 operation
-// //             );
-//             return specialized;
-//         }
+    //         // Try to select existing specialization for these shapes
+    //         if let Some(specialized) = self.shape_specializer.select_specialization(shapes) {
+    //             //             tracing::info!(
+    // //                 "Using specialized kernel {} for operation {}",
+    // //                 specialized.kernel_id,
+    // //                 operation
+    // //             );
+    //             return specialized;
+    //         }
 
-//         // Create a fallback general kernel for this operation and shapes
-//         let key = jit::shapes::ShapeKey::from_shapes(shapes);
-//         let kernel_id = format!("general_{}_{}_{}x{}",
-//             operation,
-//             self.shape_specializer.stats().total_specializations,
-//             shapes.get(0).map(|s| s.dims.len()).unwrap_or(0),
-//             shapes.get(0).map(|s| s.dims.iter().product::<usize>()).unwrap_or(0)
-//         );
+    //         // Create a fallback general kernel for this operation and shapes
+    //         let key = jit::shapes::ShapeKey::from_shapes(shapes);
+    //         let kernel_id = format!("general_{}_{}_{}x{}",
+    //             operation,
+    //             self.shape_specializer.stats().total_specializations,
+    //             shapes.get(0).map(|s| s.dims.len()).unwrap_or(0),
+    //             shapes.get(0).map(|s| s.dims.iter().product::<usize>()).unwrap_or(0)
+    //         );
 
-//         // Estimate performance score based on shapes and operation
-//         let performance_score = self.estimate_operation_performance(operation, shapes);
+    //         // Estimate performance score based on shapes and operation
+    //         let performance_score = self.estimate_operation_performance(operation, shapes);
 
-//         //         tracing::info!(
-// //             "Using general kernel {} for operation {} (performance score: {})",
-// //             kernel_id,
-// //             operation,
-// //             performance_score
-// //         );
+    //         //         tracing::info!(
+    // //             "Using general kernel {} for operation {} (performance score: {})",
+    // //             kernel_id,
+    // //             operation,
+    // //             performance_score
+    // //         );
 
-//         jit::shapes::SpecializedKernel {
-//             shape_key: key,
-//             kernel_id,
-//             performance_score,
-//         }
-//     }
+    //         jit::shapes::SpecializedKernel {
+    //             shape_key: key,
+    //             kernel_id,
+    //             performance_score,
+    //         }
+    //     }
 
     //     /// Estimate performance score for an operation with given shapes
-//     fn estimate_operation_performance(&self, operation: &str, shapes: &[jit::shapes::Shape]) -> f32 {
-//         let mut score = 1.0;
+    //     fn estimate_operation_performance(&self, operation: &str, shapes: &[jit::shapes::Shape]) -> f32 {
+    //         let mut score = 1.0;
 
-//         // Operation-specific base performance
-//         score *= match operation {
-//             "matmul" => {
-//                 // Matrix multiplication performance based on dimensions
-//                 if shapes.len() >= 2 {
-//                     let m = shapes[0].dims.get(0).copied().unwrap_or(1);
-//                     let k = shapes[0].dims.get(1).copied().unwrap_or(1);
-//                     let n = shapes[1].dims.get(1).copied().unwrap_or(1);
-//                     (m * k * n) as f32 / 1000000.0 // Normalize large operations
-//                 } else {
-//                     10.0
-//                 }
-//             }
-//             "add" | "mul" | "sub" => {
-//                 // Element-wise operations scale with total elements
-//                 let total_elements = shapes.iter().map(|s| s.size()).max().unwrap_or(1);
-//                 (total_elements as f32).sqrt() // Diminishing returns for large tensors
-//             }
-//             "exp" | "log" | "sin" | "cos" => {
-//                 // Unary operations
-//                 let total_elements = shapes.iter().map(|s| s.size()).max().unwrap_or(1);
-//                 (total_elements as f32).log2().max(1.0)
-//             }
-//             _ => 5.0, // Default score
-//         };
+    //         // Operation-specific base performance
+    //         score *= match operation {
+    //             "matmul" => {
+    //                 // Matrix multiplication performance based on dimensions
+    //                 if shapes.len() >= 2 {
+    //                     let m = shapes[0].dims.get(0).copied().unwrap_or(1);
+    //                     let k = shapes[0].dims.get(1).copied().unwrap_or(1);
+    //                     let n = shapes[1].dims.get(1).copied().unwrap_or(1);
+    //                     (m * k * n) as f32 / 1000000.0 // Normalize large operations
+    //                 } else {
+    //                     10.0
+    //                 }
+    //             }
+    //             "add" | "mul" | "sub" => {
+    //                 // Element-wise operations scale with total elements
+    //                 let total_elements = shapes.iter().map(|s| s.size()).max().unwrap_or(1);
+    //                 (total_elements as f32).sqrt() // Diminishing returns for large tensors
+    //             }
+    //             "exp" | "log" | "sin" | "cos" => {
+    //                 // Unary operations
+    //                 let total_elements = shapes.iter().map(|s| s.size()).max().unwrap_or(1);
+    //                 (total_elements as f32).log2().max(1.0)
+    //             }
+    //             _ => 5.0, // Default score
+    //         };
 
-//         // Contiguity bonus
-//         score *= shapes.iter().all(|s| s.dims.len() <= 4) as i32 as f32 * 0.2 + 0.8;
+    //         // Contiguity bonus
+    //         score *= shapes.iter().all(|s| s.dims.len() <= 4) as i32 as f32 * 0.2 + 0.8;
 
-//         // Power-of-2 dimension bonus (good for GPU)
-//         let has_power_of_two = shapes.iter().any(|s|
-//             s.dims.iter().any(|&dim| dim & (dim - 1) == 0 && dim > 1)
-//         );
-//         if has_power_of_two {
-//             score *= 1.3;
-//         }
+    //         // Power-of-2 dimension bonus (good for GPU)
+    //         let has_power_of_two = shapes.iter().any(|s|
+    //             s.dims.iter().any(|&dim| dim & (dim - 1) == 0 && dim > 1)
+    //         );
+    //         if has_power_of_two {
+    //             score *= 1.3;
+    //         }
 
-//         score
-//     }
+    //         score
+    //     }
 
     //     /// Create specialized kernel for frequently observed shape patterns
-//     pub fn create_shape_specialization(
-//         &mut self,
-//         shapes: &[jit::shapes::Shape],
-//         operation: &str,
-//     ) -> jit::shapes::SpecializedKernel {
-//         // This would be called when shape specializer detects a pattern
-//         // For now, create a placeholder specialized kernel
-//         let key = jit::shapes::ShapeKey::from_shapes(shapes);
-//         let kernel_id = format!("specialized_{}_{}_{}",
-//             operation,
-//             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
-//                 .unwrap().as_nanos(),
-//             shapes.iter().map(|s| format!("{}x", s.dims.iter().map(|d| d.to_string()).collect::<Vec<_>>().join("x")))
-//                 .collect::<Vec<_>>().join("_")
-//         );
+    //     pub fn create_shape_specialization(
+    //         &mut self,
+    //         shapes: &[jit::shapes::Shape],
+    //         operation: &str,
+    //     ) -> jit::shapes::SpecializedKernel {
+    //         // This would be called when shape specializer detects a pattern
+    //         // For now, create a placeholder specialized kernel
+    //         let key = jit::shapes::ShapeKey::from_shapes(shapes);
+    //         let kernel_id = format!("specialized_{}_{}_{}",
+    //             operation,
+    //             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+    //                 .unwrap().as_nanos(),
+    //             shapes.iter().map(|s| format!("{}x", s.dims.iter().map(|d| d.to_string()).collect::<Vec<_>>().join("x")))
+    //                 .collect::<Vec<_>>().join("_")
+    //         );
 
-//         let performance_score = self.estimate_operation_performance(operation, shapes) * 1.5; // Bonus for specialization
+    //         let performance_score = self.estimate_operation_performance(operation, shapes) * 1.5; // Bonus for specialization
 
-//         jit::shapes::SpecializedKernel {
-//             shape_key: key,
-//             kernel_id,
-//             performance_score,
-//         }
-//     }
+    //         jit::shapes::SpecializedKernel {
+    //             shape_key: key,
+    //             kernel_id,
+    //             performance_score,
+    //         }
+    //     }
 
     /// Returns true if GPU backend is available on this system
     pub fn is_available() -> bool {
@@ -692,11 +695,14 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
                 gles_minor_version: wgpu::Gles3MinorVersion::default(),
             });
 
-            instance.request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: None,
-                force_fallback_adapter: false,
-            }).await.is_some()
+            instance
+                .request_adapter(&wgpu::RequestAdapterOptions {
+                    power_preference: wgpu::PowerPreference::HighPerformance,
+                    compatible_surface: None,
+                    force_fallback_adapter: false,
+                })
+                .await
+                .is_some()
         })
     }
 
@@ -1125,7 +1131,16 @@ impl<T: crate::DataType + bytemuck::Pod> GpuBackend<T> {
     }
 }
 
-impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std::ops::Add<Output = T> + dtype::num_traits::Zero + Copy + std::cmp::PartialOrd> Backend for GpuBackend<T> {
+impl<
+        T: crate::DataType
+            + bytemuck::Pod
+            + dtype::num_traits::FromPrimitive
+            + std::ops::Add<Output = T>
+            + dtype::num_traits::Zero
+            + Copy
+            + std::cmp::PartialOrd,
+    > Backend for GpuBackend<T>
+{
     type Data = T;
     type Device = Device;
 
@@ -1144,14 +1159,32 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
     fn supports(&self, operation: &str) -> bool {
         matches!(
             operation,
-            "add" | "mul" | "sub" | "matmul" | "exp" | "log" | "sin" | "cos" | "sum" | "mean"
-                | "max" | "min" | "argmax" | "argmin" | "relu" | "spmm_csr" | "spmv_csr"
-                | "coo_matmul_sparse" | "coo_matmul_dense" | "coo_add_sparse" | "coo_mul_sparse"
-                | "quantize" | "clip_info_nce_loss" | "clip_attention"
+            "add"
+                | "mul"
+                | "sub"
+                | "matmul"
+                | "exp"
+                | "log"
+                | "sin"
+                | "cos"
+                | "sum"
+                | "mean"
+                | "max"
+                | "min"
+                | "argmax"
+                | "argmin"
+                | "relu"
+                | "spmm_csr"
+                | "spmv_csr"
+                | "coo_matmul_sparse"
+                | "coo_matmul_dense"
+                | "coo_add_sparse"
+                | "coo_mul_sparse"
+                | "quantize"
+                | "clip_info_nce_loss"
+                | "clip_attention"
         )
     }
-
-
 
     fn spmm_csr(
         &self,
@@ -1267,7 +1300,11 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         crate::cpu::CpuBackend::<T>::new().sum_dense(input)
     }
 
-    fn mean_dense(&self, input: &storage::DenseStorage<T>, axes: Option<&[usize]>) -> crate::Result<storage::DenseStorage<T>> {
+    fn mean_dense(
+        &self,
+        input: &storage::DenseStorage<T>,
+        axes: Option<&[usize]>,
+    ) -> crate::Result<storage::DenseStorage<T>> {
         // Fallback to CPU for all types in GPU backend for now
         crate::cpu::CpuBackend::<T>::new().mean_dense(input, axes)
     }
@@ -1325,13 +1362,10 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
             lhs_data,
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
         );
-        let rhs_buffer = self.create_buffer_from_slice(
-            rhs_data,
-            wgpu::BufferUsages::STORAGE,
-        );
+        let rhs_buffer = self.create_buffer_from_slice(rhs_data, wgpu::BufferUsages::STORAGE);
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Output Buffer"),
-            size: (lhs_data.len() * std::mem::size_of::<T>()) as u64,
+            size: std::mem::size_of_val(lhs_data) as u64,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
@@ -1356,11 +1390,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
                 wgpu::BindGroupEntry {
                     binding: 3,
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: &self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("Op Type Buffer"),
-                            contents: bytemuck::bytes_of(&0u32), // 0 = add
-                            usage: wgpu::BufferUsages::UNIFORM,
-                        }),
+                        buffer: &self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Op Type Buffer"),
+                                contents: bytemuck::bytes_of(&0u32), // 0 = add
+                                usage: wgpu::BufferUsages::UNIFORM,
+                            },
+                        ),
                         offset: 0,
                         size: None,
                     }),
@@ -1377,15 +1413,16 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         ))?;
 
         // Read back results
-        let result_f32_data = futures::executor::block_on(self.read_buffer::<f32>(
-            &output_buffer,
-            lhs_data.len(),
-        ))?;
+        let result_f32_data =
+            futures::executor::block_on(self.read_buffer::<f32>(&output_buffer, lhs_data.len()))?;
 
         // Convert back to DenseStorage with proper dimensions
         let shape = lhs.shape().dims().to_vec();
         // Convert f32 results back to original type T
-        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        let result_data: Vec<T> = result_f32_data
+            .into_iter()
+            .map(|x| T::from_f32(x).unwrap())
+            .collect();
         Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
 
@@ -1414,13 +1451,10 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
             lhs_data,
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
         );
-        let rhs_buffer = self.create_buffer_from_slice(
-            rhs_data,
-            wgpu::BufferUsages::STORAGE,
-        );
+        let rhs_buffer = self.create_buffer_from_slice(rhs_data, wgpu::BufferUsages::STORAGE);
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Output Buffer"),
-            size: (lhs_data.len() * std::mem::size_of::<T>()) as u64,
+            size: std::mem::size_of_val(lhs_data) as u64,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
@@ -1445,11 +1479,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
                 wgpu::BindGroupEntry {
                     binding: 3,
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: &self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("Op Type Buffer"),
-                            contents: bytemuck::bytes_of(&1u32), // 1 = multiply
-                            usage: wgpu::BufferUsages::UNIFORM,
-                        }),
+                        buffer: &self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Op Type Buffer"),
+                                contents: bytemuck::bytes_of(&1u32), // 1 = multiply
+                                usage: wgpu::BufferUsages::UNIFORM,
+                            },
+                        ),
                         offset: 0,
                         size: None,
                     }),
@@ -1466,15 +1502,16 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         ))?;
 
         // Read back results
-        let result_f32_data = futures::executor::block_on(self.read_buffer::<f32>(
-            &output_buffer,
-            lhs_data.len(),
-        ))?;
+        let result_f32_data =
+            futures::executor::block_on(self.read_buffer::<f32>(&output_buffer, lhs_data.len()))?;
 
         // Convert back to DenseStorage with proper dimensions
         let shape = lhs.shape().dims().to_vec();
         // Convert f32 results back to original type T
-        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        let result_data: Vec<T> = result_f32_data
+            .into_iter()
+            .map(|x| T::from_f32(x).unwrap())
+            .collect();
         Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
 
@@ -1482,8 +1519,7 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         &self,
         lhs: &storage::DenseStorage<Self::Data>,
         rhs: &storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<storage::DenseStorage<Self::Data>>
-    {
+    ) -> crate::Result<storage::DenseStorage<Self::Data>> {
         crate::cpu::CpuBackend::<T>::new().sub_dense(lhs, rhs)
     }
 
@@ -1491,8 +1527,7 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         &self,
         lhs: &storage::DenseStorage<Self::Data>,
         rhs: &storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<storage::DenseStorage<Self::Data>>
-    {
+    ) -> crate::Result<storage::DenseStorage<Self::Data>> {
         // For now, only support Float32 for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().matmul_dense(lhs, rhs);
@@ -1512,9 +1547,10 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         let (k_rhs, n) = (rhs_shape.dims()[0], rhs_shape.dims()[1]);
 
         if k != k_rhs {
-            return Err(crate::BackendError::InvalidInput(
-                format!("Matrix dimension mismatch: {}x{} @ {}x{}", m, k, k_rhs, n),
-            ));
+            return Err(crate::BackendError::InvalidInput(format!(
+                "Matrix dimension mismatch: {}x{} @ {}x{}",
+                m, k, k_rhs, n
+            )));
         }
 
         // Convert to f32 slices for GPU computation
@@ -1539,11 +1575,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
 
         // Matrix dimensions uniform buffer: [M, K, N]
         let dims = [m as u32, k as u32, n as u32];
-        let dims_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Matrix Dimensions"),
-            contents: bytemuck::bytes_of(&dims),
-            usage: wgpu::BufferUsages::UNIFORM,
-        });
+        let dims_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Matrix Dimensions"),
+                contents: bytemuck::bytes_of(&dims),
+                usage: wgpu::BufferUsages::UNIFORM,
+            });
 
         // Create bind group
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -1574,27 +1612,31 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         futures::executor::block_on(self.execute_compute(
             &self.shaders.matmul.pipeline,
             &bind_group,
-            (workgroups.0 as u32, workgroups.1 as u32, workgroups.2 as u32),
+            (
+                workgroups.0 as u32,
+                workgroups.1 as u32,
+                workgroups.2 as u32,
+            ),
         ))?;
 
         // Read back results
-        let result_f32_data = futures::executor::block_on(self.read_buffer::<f32>(
-            &output_buffer,
-            m * n,
-        ))?;
+        let result_f32_data =
+            futures::executor::block_on(self.read_buffer::<f32>(&output_buffer, m * n))?;
 
         // Convert back to DenseStorage with result dimensions [M, N]
         let result_shape = vec![m, n];
         // Convert f32 results back to original type T
-        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        let result_data: Vec<T> = result_f32_data
+            .into_iter()
+            .map(|x| T::from_f32(x).unwrap())
+            .collect();
         Ok(DenseStorage::from_vec(result_data, &result_shape)?)
     }
 
     fn exp_dense(
         &self,
         input: &storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<storage::DenseStorage<Self::Data>>
-    {
+    ) -> crate::Result<storage::DenseStorage<Self::Data>> {
         // For now, only support Float32 for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().exp_dense(input);
@@ -1610,7 +1652,7 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         );
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Output Buffer"),
-            size: (input_data.len() * std::mem::size_of::<T>()) as u64,
+            size: std::mem::size_of_val(input_data) as u64,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
@@ -1631,11 +1673,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: &self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("Op Type Buffer"),
-                            contents: bytemuck::bytes_of(&3u32), // 3 = exp
-                            usage: wgpu::BufferUsages::UNIFORM,
-                        }),
+                        buffer: &self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Op Type Buffer"),
+                                contents: bytemuck::bytes_of(&3u32), // 3 = exp
+                                usage: wgpu::BufferUsages::UNIFORM,
+                            },
+                        ),
                         offset: 0,
                         size: None,
                     }),
@@ -1652,32 +1696,30 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         ))?;
 
         // Read back results
-        let result_f32_data = futures::executor::block_on(self.read_buffer::<f32>(
-            &output_buffer,
-            input_data.len(),
-        ))?;
+        let result_f32_data =
+            futures::executor::block_on(self.read_buffer::<f32>(&output_buffer, input_data.len()))?;
 
         // Convert back to DenseStorage with proper dimensions
         let shape = input.shape().dims().to_vec();
         // Convert f32 results back to original type T
-        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        let result_data: Vec<T> = result_f32_data
+            .into_iter()
+            .map(|x| T::from_f32(x).unwrap())
+            .collect();
         Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
-
 
     fn log_dense(
         &self,
         input: &storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<storage::DenseStorage<Self::Data>>
-    {
+    ) -> crate::Result<storage::DenseStorage<Self::Data>> {
         crate::cpu::CpuBackend::<T>::new().log_dense(input)
     }
 
     fn sin_dense(
         &self,
         input: &storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<storage::DenseStorage<Self::Data>>
-    {
+    ) -> crate::Result<storage::DenseStorage<Self::Data>> {
         // For now, only support Float32 for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().sin_dense(input);
@@ -1693,7 +1735,7 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         );
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Sin Output Buffer"),
-            size: (input_data.len() * std::mem::size_of::<f32>()) as u64,
+            size: std::mem::size_of_val(input_data) as u64,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
@@ -1714,11 +1756,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: &self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("Op Type Buffer"),
-                            contents: bytemuck::bytes_of(&1u32), // 1 = sin
-                            usage: wgpu::BufferUsages::UNIFORM,
-                        }),
+                        buffer: &self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Op Type Buffer"),
+                                contents: bytemuck::bytes_of(&1u32), // 1 = sin
+                                usage: wgpu::BufferUsages::UNIFORM,
+                            },
+                        ),
                         offset: 0,
                         size: None,
                     }),
@@ -1735,23 +1779,23 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         ))?;
 
         // Read back results
-        let result_f32_data = futures::executor::block_on(self.read_buffer::<f32>(
-            &output_buffer,
-            input_data.len(),
-        ))?;
+        let result_f32_data =
+            futures::executor::block_on(self.read_buffer::<f32>(&output_buffer, input_data.len()))?;
 
         // Convert back to DenseStorage with proper dimensions
         let shape = input.shape().dims().to_vec();
         // Convert f32 results back to original type T
-        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        let result_data: Vec<T> = result_f32_data
+            .into_iter()
+            .map(|x| T::from_f32(x).unwrap())
+            .collect();
         Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
 
     fn cos_dense(
         &self,
         input: &storage::DenseStorage<Self::Data>,
-    ) -> crate::Result<storage::DenseStorage<Self::Data>>
-    {
+    ) -> crate::Result<storage::DenseStorage<Self::Data>> {
         // For now, only support Float32 for GPU operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
             return crate::cpu::CpuBackend::<T>::new().cos_dense(input);
@@ -1767,7 +1811,7 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         );
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Cos Output Buffer"),
-            size: (input_data.len() * std::mem::size_of::<f32>()) as u64,
+            size: std::mem::size_of_val(input_data) as u64,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
@@ -1788,11 +1832,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: &self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("Op Type Buffer"),
-                            contents: bytemuck::bytes_of(&2u32), // 2 = cos
-                            usage: wgpu::BufferUsages::UNIFORM,
-                        }),
+                        buffer: &self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Op Type Buffer"),
+                                contents: bytemuck::bytes_of(&2u32), // 2 = cos
+                                usage: wgpu::BufferUsages::UNIFORM,
+                            },
+                        ),
                         offset: 0,
                         size: None,
                     }),
@@ -1809,15 +1855,16 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         ))?;
 
         // Read back results
-        let result_f32_data = futures::executor::block_on(self.read_buffer::<f32>(
-            &output_buffer,
-            input_data.len(),
-        ))?;
+        let result_f32_data =
+            futures::executor::block_on(self.read_buffer::<f32>(&output_buffer, input_data.len()))?;
 
         // Convert back to DenseStorage with proper dimensions
         let shape = input.shape().dims().to_vec();
         // Convert f32 results back to original type T
-        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        let result_data: Vec<T> = result_f32_data
+            .into_iter()
+            .map(|x| T::from_f32(x).unwrap())
+            .collect();
         Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
 
@@ -1826,10 +1873,7 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         _input: &storage::DenseStorage<Self::Data>,
         _weight: &storage::DenseStorage<Self::Data>,
     ) -> crate::Result<storage::DenseStorage<T>> {
-        crate::cpu::CpuBackend::<T>::new().conv2d_dense(
-            _input,
-            _weight,
-        )
+        crate::cpu::CpuBackend::<T>::new().conv2d_dense(_input, _weight)
     }
 
     fn relu_dense(
@@ -1854,7 +1898,7 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         );
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("ReLU Output Buffer"),
-            size: (input_data.len() * std::mem::size_of::<f32>()) as u64,
+            size: std::mem::size_of_val(input_data) as u64,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
@@ -1875,11 +1919,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: &self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("Op Type Buffer"),
-                            contents: bytemuck::bytes_of(&7u32), // 7 = relu (max(0, x))
-                            usage: wgpu::BufferUsages::UNIFORM,
-                        }),
+                        buffer: &self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Op Type Buffer"),
+                                contents: bytemuck::bytes_of(&7u32), // 7 = relu (max(0, x))
+                                usage: wgpu::BufferUsages::UNIFORM,
+                            },
+                        ),
                         offset: 0,
                         size: None,
                     }),
@@ -1896,15 +1942,16 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         ))?;
 
         // Read back results
-        let result_f32_data = futures::executor::block_on(self.read_buffer::<f32>(
-            &output_buffer,
-            input_data.len(),
-        ))?;
+        let result_f32_data =
+            futures::executor::block_on(self.read_buffer::<f32>(&output_buffer, input_data.len()))?;
 
         // Convert back to DenseStorage with proper dimensions
         let shape = input.shape().dims().to_vec();
         // Convert f32 results back to original type T
-        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        let result_data: Vec<T> = result_f32_data
+            .into_iter()
+            .map(|x| T::from_f32(x).unwrap())
+            .collect();
         Ok(DenseStorage::from_vec(result_data, &shape)?)
     }
 
@@ -1917,11 +1964,17 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
     ) -> crate::Result<Self::Data> {
         // For now, only support Float32 for GPU CLIP operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
-            return crate::cpu::CpuBackend::<T>::new().clip_info_nce_loss(image_embeddings, text_embeddings, temperature);
+            return crate::cpu::CpuBackend::<T>::new().clip_info_nce_loss(
+                image_embeddings,
+                text_embeddings,
+                temperature,
+            );
         }
 
-        let image_data: &[f32] = unsafe { &*(image_embeddings.as_slice() as *const [T] as *const [f32]) };
-        let text_data: &[f32] = unsafe { &*(text_embeddings.as_slice() as *const [T] as *const [f32]) };
+        let image_data: &[f32] =
+            unsafe { &*(image_embeddings.as_slice() as *const [T] as *const [f32]) };
+        let text_data: &[f32] =
+            unsafe { &*(text_embeddings.as_slice() as *const [T] as *const [f32]) };
 
         let image_shape = image_embeddings.shape().dims();
         let text_shape = text_embeddings.shape().dims();
@@ -1938,7 +1991,8 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
 
         if text_shape[0] != batch_size || text_shape[1] != embed_dim {
             return Err(crate::BackendError::InvalidInput(
-                "Image and text embeddings must have same shape [batch_size, embed_dim]".to_string(),
+                "Image and text embeddings must have same shape [batch_size, embed_dim]"
+                    .to_string(),
             ));
         }
 
@@ -1991,7 +2045,8 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         });
 
         // Write parameters to GPU
-        self.queue.write_buffer(&params_buffer, 0, bytemuck::bytes_of(&params));
+        self.queue
+            .write_buffer(&params_buffer, 0, bytemuck::bytes_of(&params));
 
         // Create bind group for CLIP loss computation
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -2034,9 +2089,11 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         });
 
         // Create command encoder
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("CLIP Loss Encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("CLIP Loss Encoder"),
+            });
 
         // Compute loss for each batch element
         {
@@ -2054,7 +2111,13 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         }
 
         // Copy final loss from GPU to staging buffer
-        encoder.copy_buffer_to_buffer(&loss_buffer, 0, &staging_buffer, 0, std::mem::size_of::<f32>() as u64);
+        encoder.copy_buffer_to_buffer(
+            &loss_buffer,
+            0,
+            &staging_buffer,
+            0,
+            std::mem::size_of::<f32>() as u64,
+        );
 
         // Submit and wait
         self.queue.submit(Some(encoder.finish()));
@@ -2088,7 +2151,8 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
     ) -> crate::Result<storage::DenseStorage<Self::Data>> {
         // For now, only support Float32 for GPU CLIP operations
         if !std::any::TypeId::of::<T>().eq(&std::any::TypeId::of::<dtype::float::Float32>()) {
-            return crate::cpu::CpuBackend::<T>::new().clip_attention(queries, keys, values, num_heads);
+            return crate::cpu::CpuBackend::<T>::new()
+                .clip_attention(queries, keys, values, num_heads);
         }
 
         let query_data: &[f32] = unsafe { &*(queries.as_slice() as *const [T] as *const [f32]) };
@@ -2111,17 +2175,21 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         let seq_len_kv = key_shape[1];
         let embed_dim = query_shape[2];
 
-        if key_shape[0] != batch_size || value_shape[0] != batch_size ||
-           key_shape[2] != embed_dim || value_shape[2] != embed_dim {
+        if key_shape[0] != batch_size
+            || value_shape[0] != batch_size
+            || key_shape[2] != embed_dim
+            || value_shape[2] != embed_dim
+        {
             return Err(crate::BackendError::InvalidInput(
                 "Incompatible tensor shapes for attention".to_string(),
             ));
         }
 
         if embed_dim % num_heads != 0 {
-            return Err(crate::BackendError::InvalidInput(
-                format!("embed_dim ({}) must be divisible by num_heads ({})", embed_dim, num_heads),
-            ));
+            return Err(crate::BackendError::InvalidInput(format!(
+                "embed_dim ({}) must be divisible by num_heads ({})",
+                embed_dim, num_heads
+            )));
         }
 
         let head_dim = embed_dim / num_heads;
@@ -2143,7 +2211,7 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         // Output buffer for attention results
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("CLIP Attention Output"),
-            size: (query_data.len() * std::mem::size_of::<f32>()) as u64,
+            size: std::mem::size_of_val(query_data) as u64,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
@@ -2179,7 +2247,8 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         });
 
         // Write parameters to GPU
-        self.queue.write_buffer(&params_buffer, 0, bytemuck::bytes_of(&params));
+        self.queue
+            .write_buffer(&params_buffer, 0, bytemuck::bytes_of(&params));
 
         // Create bind group
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -2232,15 +2301,17 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
         // Create staging buffer for reading results
         let staging_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Attention Staging Buffer"),
-            size: (query_data.len() * std::mem::size_of::<f32>()) as u64,
+            size: std::mem::size_of_val(query_data) as u64,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
 
         // Create command encoder
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("CLIP Attention Encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("CLIP Attention Encoder"),
+            });
 
         // Execute attention computation
         {
@@ -2257,12 +2328,21 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
             let workgroups_y = seq_len_q; // query positions
             let workgroups_z = batch_size * num_heads; // batch * heads
 
-            compute_pass.dispatch_workgroups(workgroups_x as u32, workgroups_y as u32, workgroups_z as u32);
+            compute_pass.dispatch_workgroups(
+                workgroups_x as u32,
+                workgroups_y as u32,
+                workgroups_z as u32,
+            );
         }
 
         // Copy results back to staging buffer
-        encoder.copy_buffer_to_buffer(&output_buffer, 0, &staging_buffer, 0,
-                                    (query_data.len() * std::mem::size_of::<f32>()) as u64);
+        encoder.copy_buffer_to_buffer(
+            &output_buffer,
+            0,
+            &staging_buffer,
+            0,
+            std::mem::size_of_val(query_data) as u64,
+        );
 
         // Submit and wait
         self.queue.submit(Some(encoder.finish()));
@@ -2283,7 +2363,10 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
 
         drop(data);
         staging_buffer.unmap();
-        let result_data: Vec<T> = result_f32_data.into_iter().map(|x| T::from_f32(x).unwrap()).collect();
+        let result_data: Vec<T> = result_f32_data
+            .into_iter()
+            .map(|x| T::from_f32(x).unwrap())
+            .collect();
 
         Ok(DenseStorage::from_vec(result_data, query_shape)?)
     }
@@ -2291,8 +2374,6 @@ impl<T: crate::DataType + bytemuck::Pod + dtype::num_traits::FromPrimitive + std
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use storage::DenseStorage;
     // Note: GPU backend tests use f32 directly since Float32 doesn't implement Pod
 
     // GPU tests disabled - GPU backend is currently a stub implementation

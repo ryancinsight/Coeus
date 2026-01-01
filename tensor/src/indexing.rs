@@ -362,20 +362,32 @@ where
             let start = start_opt.unwrap_or(if step >= 0 { 0 } else { dim_size - 1 });
             let end = end_opt.unwrap_or(if step >= 0 { dim_size } else { -1 });
 
-            let start_idx = if start < 0 { (dim_size + start).max(0) } else { start.min(dim_size) };
-            let end_idx = if end < 0 { (dim_size + end).max(-1) } else { end.min(dim_size) };
+            let start_idx = if start < 0 {
+                (dim_size + start).max(0)
+            } else {
+                start.min(dim_size)
+            };
+            let end_idx = if end < 0 {
+                (dim_size + end).max(-1)
+            } else {
+                end.min(dim_size)
+            };
 
             let mut indices = Vec::new();
             if step > 0 {
                 let mut idx = start_idx;
                 while idx < end_idx {
-                    if idx >= 0 && idx < dim_size { indices.push(idx); }
+                    if idx >= 0 && idx < dim_size {
+                        indices.push(idx);
+                    }
                     idx += step;
                 }
             } else if step < 0 {
                 let mut idx = start_idx;
                 while idx > end_idx {
-                    if idx >= 0 && idx < dim_size { indices.push(idx); }
+                    if idx >= 0 && idx < dim_size {
+                        indices.push(idx);
+                    }
                     idx += step;
                 }
             }
@@ -393,7 +405,7 @@ where
 
         // Validate values length
         if values.len() != flat_indices.len() {
-             return Err(TensorError::ShapeMismatch {
+            return Err(TensorError::ShapeMismatch {
                 expected: alloc::vec![flat_indices.len()],
                 actual: alloc::vec![values.len()],
                 operation: "advanced_assign",
@@ -442,8 +454,10 @@ fn generate_multi_dim_indices(
 mod tests {
     use crate::Tensor;
     use alloc::vec;
-    use backend::CpuBackend;
+    use backend::CpuBackend as RawCpuBackend;
     use dtype::float::Float32;
+
+    type CpuBackend = RawCpuBackend<Float32>;
 
     #[test]
     #[allow(clippy::float_cmp)]
@@ -456,11 +470,9 @@ mod tests {
             Float32::new(5.0),
             Float32::new(6.0),
         ];
-        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-            data,
-            &[2, 3],
-        )
-        .unwrap();
+        let tensor =
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[2, 3])
+                .unwrap();
 
         // Create mask for elements > 3 (last 3 elements)
         let mask = vec![false, false, false, true, true, true];
@@ -476,11 +488,9 @@ mod tests {
     #[test]
     fn test_boolean_index_empty() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-            data,
-            &[3],
-        )
-        .unwrap();
+        let tensor =
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[3])
+                .unwrap();
 
         // All false mask
         let mask = vec![false, false, false];
@@ -494,11 +504,9 @@ mod tests {
     #[test]
     fn test_boolean_index_length_mismatch() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-            data,
-            &[3],
-        )
-        .unwrap();
+        let tensor =
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[3])
+                .unwrap();
 
         let mask = vec![true, false]; // Wrong length
 
@@ -515,11 +523,8 @@ mod tests {
             Float32::new(4.0),
         ];
         let mut tensor =
-            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-                data,
-                &[4],
-            )
-            .unwrap();
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[4])
+                .unwrap();
 
         // Set elements at indices 1 and 3 to 99.0
         let mask = vec![false, true, false, true];
@@ -542,11 +547,9 @@ mod tests {
             Float32::new(40.0),
             Float32::new(50.0),
         ];
-        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-            data,
-            &[5],
-        )
-        .unwrap();
+        let tensor =
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[5])
+                .unwrap();
 
         // Select elements at indices [0, 2, 4, 1]
         let indices = [0i32, 2, 4, 1];
@@ -562,11 +565,9 @@ mod tests {
     #[test]
     fn test_fancy_index_out_of_bounds() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-            data,
-            &[3],
-        )
-        .unwrap();
+        let tensor =
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[3])
+                .unwrap();
 
         // Index 5 is out of bounds for tensor of length 3
         let indices = [0i32, 5];
@@ -576,11 +577,9 @@ mod tests {
     #[test]
     fn test_fancy_index_negative() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-            data,
-            &[3],
-        )
-        .unwrap();
+        let tensor =
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[3])
+                .unwrap();
 
         // Negative indices should be out of bounds
         let indices = [-1i32];
@@ -598,11 +597,8 @@ mod tests {
             Float32::new(50.0),
         ];
         let mut tensor =
-            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-                data,
-                &[5],
-            )
-            .unwrap();
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[5])
+                .unwrap();
 
         // Set elements at indices [1, 3] to [100.0, 200.0]
         let indices = [1i32, 3];
@@ -621,11 +617,8 @@ mod tests {
     fn test_fancy_assign_length_mismatch() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
         let mut tensor =
-            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-                data,
-                &[3],
-            )
-            .unwrap();
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[3])
+                .unwrap();
 
         let indices = [0i32, 1];
         let values = [Float32::new(10.0)]; // Wrong length
@@ -643,11 +636,9 @@ mod tests {
             Float32::new(4.0),
             Float32::new(5.0),
         ];
-        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-            data,
-            &[6],
-        )
-        .unwrap();
+        let tensor =
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[6])
+                .unwrap();
 
         // Slice [1:5:2] -> elements at indices 1, 3
         let slices = [(Some(1), Some(5), 2)];
@@ -669,11 +660,9 @@ mod tests {
             Float32::new(4.0),
             Float32::new(5.0),
         ];
-        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-            data,
-            &[6],
-        )
-        .unwrap();
+        let tensor =
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[6])
+                .unwrap();
 
         // Slice [4:0:-1] -> elements at indices 4, 3, 2, 1
         let slices = [(Some(4), Some(0), -1)];
@@ -703,11 +692,9 @@ mod tests {
             Float32::new(10.0),
             Float32::new(11.0),
         ];
-        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-            data,
-            &[3, 4],
-        )
-        .unwrap();
+        let tensor =
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[3, 4])
+                .unwrap();
 
         // Slice rows [0:2:1], cols [1:4:2] -> elements at (0,1), (0,3), (1,1), (1,3)
         let slices = [(Some(0), Some(2), 1), (Some(1), Some(4), 2)];
@@ -731,11 +718,9 @@ mod tests {
             Float32::new(4.0),
             Float32::new(5.0),
         ];
-        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-            data,
-            &[6],
-        )
-        .unwrap();
+        let tensor =
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[6])
+                .unwrap();
 
         // Slice [::2] -> all elements with step 2
         let slices = [(None, None, 2)];
@@ -750,15 +735,12 @@ mod tests {
     #[test]
     fn test_advanced_slice_dimension_mismatch() {
         let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
-        let tensor = Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(
-            data,
-            &[3],
-        )
-        .unwrap();
+        let tensor =
+            Tensor::<CpuBackend, storage::DenseStorage<Float32>, Float32>::from_vec(data, &[3])
+                .unwrap();
 
         // Wrong number of dimensions
         let slices = [(Some(0), Some(2), 1), (Some(0), Some(2), 1)];
         assert!(tensor.advanced_slice(&slices).is_err());
     }
 }
-

@@ -217,11 +217,12 @@ fn test_adam_multiple_params() {
     assert_eq!(updated, 2);
 
     // Both parameters should be updated
-    let data1 = param1.as_slice();
+    let params = optimizer.parameters();
+    let data1 = params[0].as_slice();
     assert!(data1[0].get() < 1.0);
     assert!(data1[1].get() < 2.0);
 
-    let data2 = param2.as_slice();
+    let data2 = params[1].as_slice();
     assert!(data2[0].get() < 3.0);
     assert!(data2[1].get() < 4.0);
 }

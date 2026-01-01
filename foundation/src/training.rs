@@ -7,12 +7,12 @@
 //! - Automated convergence detection and early stopping
 //! - Checkpoint management and recovery
 
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
-use std::sync::Arc;
-use crate::Result;
-use crate::monitoring::{TrainingMonitor, MonitoringReport};
 use crate::distributed::DistributedCoordinator;
+use crate::monitoring::{MonitoringReport, TrainingMonitor};
+use crate::Result;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 /// Training Orchestrator - coordinates the entire training process
 #[derive(Debug)]
@@ -70,11 +70,15 @@ impl TrainingOrchestrator {
         step: usize,
         loss: f64,
         metrics: &HashMap<String, f64>,
-        gradients: &[f32]
+        gradients: &[f32],
     ) -> Result<TrainingAction> {
         // Calculate step metrics
         let step_duration = self.last_step_time.elapsed().as_secs_f64();
-        let throughput = if step_duration > 0.0 { 1.0 / step_duration } else { 0.0 };
+        let throughput = if step_duration > 0.0 {
+            1.0 / step_duration
+        } else {
+            0.0
+        };
         self.last_step_time = Instant::now();
 
         // Update learning rate (needed for monitoring)
@@ -85,23 +89,34 @@ impl TrainingOrchestrator {
 
         // Update monitor
         let mut combined_metrics = metrics.clone();
-        
+
         // Add distributed metrics if available
         if let Some(coordinator) = &self.distributed_coordinator {
             let state = coordinator.state.read().await;
-            combined_metrics.insert("dist_load_balance".to_string(), state.sync_stats.load_balance_score());
-            combined_metrics.insert("dist_comm_overhead".to_string(), state.sync_stats.communication_overhead);
-            combined_metrics.insert("dist_avg_sync_ms".to_string(), state.sync_stats.average_sync_time_ms);
+            combined_metrics.insert(
+                "dist_load_balance".to_string(),
+                state.sync_stats.load_balance_score(),
+            );
+            combined_metrics.insert(
+                "dist_comm_overhead".to_string(),
+                state.sync_stats.communication_overhead,
+            );
+            combined_metrics.insert(
+                "dist_avg_sync_ms".to_string(),
+                state.sync_stats.average_sync_time_ms,
+            );
         }
 
-        self.monitor.record_training_metrics(
-            step,
-            loss,
-            lr,
-            grad_norm,
-            throughput,
-            Some(combined_metrics)
-        ).await?;
+        self.monitor
+            .record_training_metrics(
+                step,
+                loss,
+                lr,
+                grad_norm,
+                throughput,
+                Some(combined_metrics),
+            )
+            .await?;
 
         // Update curriculum
         self.curriculum.update(step);
@@ -122,7 +137,9 @@ impl TrainingOrchestrator {
 
         // Handle checkpoints
         if step % self.config.save_steps == 0 {
-            self.checkpoint_manager.save_checkpoint(step, loss, &metrics).await?;
+            self.checkpoint_manager
+                .save_checkpoint(step, loss, &metrics)
+                .await?;
         }
 
         // Log progress
@@ -140,28 +157,25 @@ impl TrainingOrchestrator {
                     self.current_phase = TrainingPhase::Training;
                     self.lr_scheduler.set_peak_lr();
                 }
-            },
+            }
             TrainingPhase::Training => {
                 if step >= self.config.total_steps - self.config.cooldown_steps {
                     self.current_phase = TrainingPhase::Cooldown;
                 }
-            },
+            }
             TrainingPhase::Cooldown => {
                 if step >= self.config.total_steps {
                     self.current_phase = TrainingPhase::Finished;
                 }
-            },
-            TrainingPhase::Finished => {},
+            }
+            TrainingPhase::Finished => {}
         }
         Ok(())
     }
 
     fn apply_gradient_clipping(&self, gradients: &[f32], max_norm: f64) -> Result<()> {
         // Calculate global norm
-        let global_norm: f64 = gradients.iter()
-            .map(|g| (g * g) as f64)
-            .sum::<f64>()
-            .sqrt();
+        let global_norm: f64 = gradients.iter().map(|g| (g * g) as f64).sum::<f64>().sqrt();
 
         if global_norm > max_norm {
             // Clip gradients
@@ -173,8 +187,10 @@ impl TrainingOrchestrator {
     }
 
     fn log_progress(&self, step: usize, loss: f64, lr: f64, metrics: &HashMap<String, f64>) {
-        println!("Step {}/{} | Loss: {:.4} | LR: {:.6} | Phase: {:?}",
-                 step, self.config.total_steps, loss, lr, self.current_phase);
+        println!(
+            "Step {}/{} | Loss: {:.4} | LR: {:.6} | Phase: {:?}",
+            step, self.config.total_steps, loss, lr, self.current_phase
+        );
 
         for (name, value) in metrics {
             println!("  {}: {:.4}", name, value);
@@ -189,8 +205,19 @@ impl TrainingOrchestrator {
 
         // Calculate training statistics from monitoring report
         let performance_stats = TrainingStatistics {
-            total_steps: self.monitor.state.read().await.training_metrics.loss_values.len(),
-            average_step_time: if stats.avg_throughput > 0.0 { 1.0 / stats.avg_throughput } else { 0.0 },
+            total_steps: self
+                .monitor
+                .state
+                .read()
+                .await
+                .training_metrics
+                .loss_values
+                .len(),
+            average_step_time: if stats.avg_throughput > 0.0 {
+                1.0 / stats.avg_throughput
+            } else {
+                0.0
+            },
             total_training_time: self.monitor.state.read().await.last_update.elapsed(), // This is approximation, ideal would be start time
             peak_memory_usage: (sys_stats.peak_gpu_memory_mb * 1024.0 * 1024.0) as u64,
             throughput: stats.avg_throughput,
@@ -213,8 +240,18 @@ impl TrainingOrchestrator {
             return 0.0;
         }
 
-        let initial_loss = state.training_metrics.loss_values.front().map(|p| p.value).unwrap_or(0.0);
-        let final_loss = state.training_metrics.loss_values.back().map(|p| p.value).unwrap_or(0.0);
+        let initial_loss = state
+            .training_metrics
+            .loss_values
+            .front()
+            .map(|p| p.value)
+            .unwrap_or(0.0);
+        let final_loss = state
+            .training_metrics
+            .loss_values
+            .back()
+            .map(|p| p.value)
+            .unwrap_or(0.0);
 
         if initial_loss == 0.0 {
             return 0.0;
@@ -225,9 +262,15 @@ impl TrainingOrchestrator {
 
     fn get_final_metrics(&self, report: &MonitoringReport) -> HashMap<String, f64> {
         let mut metrics = HashMap::new();
-        metrics.insert("loss".to_string(), report.training_metrics_summary.final_loss);
+        metrics.insert(
+            "loss".to_string(),
+            report.training_metrics_summary.final_loss,
+        );
         metrics.insert("lr".to_string(), report.training_metrics_summary.final_lr);
-        metrics.insert("grad_norm".to_string(), report.training_metrics_summary.avg_grad_norm); // Using avg as final might not be available in summary
+        metrics.insert(
+            "grad_norm".to_string(),
+            report.training_metrics_summary.avg_grad_norm,
+        ); // Using avg as final might not be available in summary
         metrics
     }
 }
@@ -282,7 +325,14 @@ impl LearningRateScheduler {
         }
     }
 
-    pub fn configure(&mut self, scheduler_type: LRSchedulerType, peak_lr: f64, min_lr: f64, total_steps: usize, warmup_steps: usize) {
+    pub fn configure(
+        &mut self,
+        scheduler_type: LRSchedulerType,
+        peak_lr: f64,
+        min_lr: f64,
+        total_steps: usize,
+        warmup_steps: usize,
+    ) {
         self.scheduler_type = scheduler_type;
         self.peak_lr = peak_lr;
         self.min_lr = min_lr;
@@ -311,8 +361,12 @@ impl LearningRateScheduler {
             self.peak_lr * (step as f64 / self.warmup_steps as f64)
         } else {
             // Cosine decay
-            let progress = (step - self.warmup_steps) as f64 / (self.total_steps - self.warmup_steps) as f64;
-            self.min_lr + 0.5 * (self.peak_lr - self.min_lr) * (1.0 + (progress * std::f64::consts::PI).cos())
+            let progress =
+                (step - self.warmup_steps) as f64 / (self.total_steps - self.warmup_steps) as f64;
+            self.min_lr
+                + 0.5
+                    * (self.peak_lr - self.min_lr)
+                    * (1.0 + (progress * std::f64::consts::PI).cos())
         }
     }
 
@@ -320,7 +374,8 @@ impl LearningRateScheduler {
         if step < self.warmup_steps {
             self.peak_lr * (step as f64 / self.warmup_steps as f64)
         } else {
-            let progress = (step - self.warmup_steps) as f64 / (self.total_steps - self.warmup_steps) as f64;
+            let progress =
+                (step - self.warmup_steps) as f64 / (self.total_steps - self.warmup_steps) as f64;
             self.peak_lr - (self.peak_lr - self.min_lr) * progress
         }
     }
@@ -329,7 +384,8 @@ impl LearningRateScheduler {
         if step < self.warmup_steps {
             self.peak_lr * (step as f64 / self.warmup_steps as f64)
         } else {
-            let progress = (step - self.warmup_steps) as f64 / (self.total_steps - self.warmup_steps) as f64;
+            let progress =
+                (step - self.warmup_steps) as f64 / (self.total_steps - self.warmup_steps) as f64;
             self.min_lr + (self.peak_lr - self.min_lr) * (1.0 - progress).powf(power)
         }
     }
@@ -370,7 +426,13 @@ pub enum CurriculumStrategy {
 impl CurriculumLearningManager {
     pub fn new() -> Self {
         Self {
-            seq_len_schedule: vec![(0, 128), (1000, 256), (5000, 512), (10000, 1024), (50000, 2048)],
+            seq_len_schedule: vec![
+                (0, 128),
+                (1000, 256),
+                (5000, 512),
+                (10000, 1024),
+                (50000, 2048),
+            ],
             difficulty_schedule: vec![(0, 0.1), (2000, 0.5), (8000, 0.8), (15000, 1.0)],
             current_seq_len: 128,
             current_difficulty: 0.1,
@@ -502,7 +564,12 @@ impl CheckpointManager {
         }
     }
 
-    pub async fn save_checkpoint(&mut self, step: usize, loss: f64, metrics: &HashMap<String, f64>) -> Result<()> {
+    pub async fn save_checkpoint(
+        &mut self,
+        step: usize,
+        loss: f64,
+        metrics: &HashMap<String, f64>,
+    ) -> Result<()> {
         // Create checkpoint directory if needed
         std::fs::create_dir_all(&self.checkpoint_dir)?;
 
@@ -547,7 +614,10 @@ impl CheckpointManager {
     }
 
     pub async fn load_latest_checkpoint(&self) -> Result<Option<CheckpointInfo>> {
-        self.checkpoints.last().cloned().map_or(Ok(None), |c| Ok(Some(c)))
+        self.checkpoints
+            .last()
+            .cloned()
+            .map_or(Ok(None), |c| Ok(Some(c)))
     }
 
     fn cleanup_old_checkpoints(&mut self) -> Result<()> {
@@ -584,9 +654,18 @@ impl TrainingReport {
         println!("Total Steps: {}", self.total_steps);
         println!("Convergence Rate: {:.2}%", self.convergence_rate * 100.0);
         println!("Early Stopped: {}", self.early_stopped);
-        println!("Average Throughput: {:.2} steps/sec", self.performance_stats.throughput);
-        println!("Total Training Time: {:.2}s", self.performance_stats.total_training_time.as_secs_f64());
-        println!("Peak Memory Usage: {} MB", self.performance_stats.peak_memory_usage / (1024 * 1024));
+        println!(
+            "Average Throughput: {:.2} steps/sec",
+            self.performance_stats.throughput
+        );
+        println!(
+            "Total Training Time: {:.2}s",
+            self.performance_stats.total_training_time.as_secs_f64()
+        );
+        println!(
+            "Peak Memory Usage: {} MB",
+            self.performance_stats.peak_memory_usage / (1024 * 1024)
+        );
 
         println!("\nFinal Metrics:");
         for (name, value) in &self.final_metrics {
@@ -621,25 +700,22 @@ mod tests {
             0,
             2,
             "127.0.0.1".to_string(),
-            8000
+            8000,
         ));
         orchestrator.distributed_coordinator = Some(coordinator.clone());
 
         // Record some sync stats to verify they flow through
         coordinator.record_sync(50.0).await; // 50ms sync
         coordinator.record_sync(150.0).await; // 150ms sync
-        // Min: 50, Max: 150, Avg: 100, Load Balance: 50/150 = 0.33
+                                              // Min: 50, Max: 150, Avg: 100, Load Balance: 50/150 = 0.33
 
         // Perform a training step
         let metrics = HashMap::new();
         let gradients = vec![0.1; 10];
-        
-        let result = orchestrator.training_step(
-            1,
-            0.5,
-            &metrics,
-            &gradients
-        ).await;
+
+        let result = orchestrator
+            .training_step(1, 0.5, &metrics, &gradients)
+            .await;
 
         assert!(result.is_ok());
 
@@ -648,13 +724,13 @@ mod tests {
         // The last recorded metrics should contain distributed stats
         // We can't easily access the exact last metric map from here without public accessors or digging into the deque
         // But we can check if the monitor has data.
-        
+
         assert!(!state.training_metrics.loss_values.is_empty());
-        
+
         // In a real integration test we might expose ways to inspect the last metrics more directly,
         // or check the log output if we could capture it.
         // For now, ensuring it runs without error and correctly accesses the coordinator is a good first step.
-        
+
         // Let's verify via the distributed state directly that it was updated
         let dist_state = coordinator.state.read().await;
         assert_eq!(dist_state.sync_stats.total_sync_ops, 2);

@@ -76,7 +76,6 @@ pub mod strided;
 
 // Sparse storage
 pub mod sparse;
-pub mod sparse_arithmetic;
 pub mod sparse_indexing;
 
 // Distributed storage
@@ -191,12 +190,6 @@ pub use error::StorageError;
 pub use quantized::{QuantizedStorage, QuantizedStorage16, QuantizedStorage4, QuantizedStorage8};
 pub use shape::Shape;
 pub use sparse::{CooStorage, CscStorage, CsrStorage, SparseFormat};
-pub use sparse_arithmetic::{
-    SparseAdd, SparseDiv, SparseElementWise, SparseMatMul, SparseMul, SparseReduce, SparseReshape,
-    SparseSub, SparseTranspose,
-};
-
-
 
 /// Storage-level matrix multiplication trait
 ///

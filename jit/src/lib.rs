@@ -32,14 +32,16 @@ pub mod torchscript;
 pub mod tracing;
 
 pub use cache::KernelCache;
-pub use compiler::{JitCompiler, CompiledKernel, AotCompiledKernel, KernelMetadata};
+pub use compiler::{AotCompiledKernel, CompiledKernel, JitCompiler, KernelMetadata};
 pub use error::{JitError, Result};
 pub use fusion::{FusedKernel, FusionDetector};
 pub use graph::{ComputationGraph, Node, NodeId, Operation};
-pub use hardware::{get_hardware_capabilities, HardwareCapabilities, HardwareCostModel, SimdLevel, Architecture};
+pub use hardware::{
+    get_hardware_capabilities, Architecture, HardwareCapabilities, HardwareCostModel, SimdLevel,
+};
 pub use memory::MemoryArena;
 pub use optimizer::{OptimizationPass, Optimizer};
 pub use shapes::ShapeSpecializer;
-pub use simd::{SimdKernelGenerator, SimdSpecialization, PrefetchOptimizer};
+pub use simd::{PrefetchOptimizer, SimdKernelGenerator, SimdSpecialization};
 pub use torchscript::TorchScript;
 pub use tracing::{TracingContext, TracingGuard};

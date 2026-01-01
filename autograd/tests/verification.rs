@@ -1,42 +1,45 @@
-
 use autograd::tensor_ops;
-use tensor::{Tensor, CpuBackend, DenseStorage};
 use dtype::float::Float32;
+use tensor::{CpuBackend, DenseStorage, Tensor};
 
 #[test]
 fn test_autograd_simple_mul_mean() {
     // a = [2.0, 3.0]
     let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(2.0), Float32::new(3.0)], 
-        &[2]
-    ).unwrap().requires_grad_(true);
-    
+        vec![Float32::new(2.0), Float32::new(3.0)],
+        &[2],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
     // b = [4.0, 5.0]
     let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(4.0), Float32::new(5.0)], 
-        &[2]
-    ).unwrap().requires_grad_(true);
-    
+        vec![Float32::new(4.0), Float32::new(5.0)],
+        &[2],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
     // c = a * b = [8.0, 15.0]
     let c = tensor_ops::mul(&a, &b).unwrap();
-    
+
     // d = mean(c) = (8 + 15) / 2 = 11.5
     let d = tensor_ops::mean(&c, None, false).unwrap();
-    
+
     // backward
     autograd::backward(&d, None, false, false).unwrap();
-    
+
     // Check gradients
     // d(mean)/dc = 0.5
     // dc/da = b
     // d(mean)/da = d(mean)/dc * dc/da = 0.5 * b
     // grad_a = [0.5 * 4, 0.5 * 5] = [2.0, 2.5]
-    
+
     let grad_a = a.grad().unwrap();
     let grad_a_data = grad_a.as_slice();
     assert!((grad_a_data[0].0 - 2.0).abs() < 1e-6);
     assert!((grad_a_data[1].0 - 2.5).abs() < 1e-6);
-    
+
     // grad_b = 0.5 * a = [1.0, 1.5]
     let grad_b = b.grad().unwrap();
     let grad_b_data = grad_b.as_slice();
@@ -48,19 +51,211 @@ fn test_autograd_simple_mul_mean() {
 fn test_autograd_reuse_variable() {
     // x = [2.0]
     let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-        vec![Float32::new(2.0)], 
-        &[1]
-    ).unwrap().requires_grad_(true);
-    
+        vec![Float32::new(2.0)],
+        &[1],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
     // y = x * x + x
     let x2 = tensor_ops::mul(&x, &x).unwrap();
     let y = tensor_ops::add(&x2, &x).unwrap();
-    
+
     // backward
     autograd::backward(&y, None, false, false).unwrap();
-    
+
     // dy/dx = 2x + 1 = 2(2) + 1 = 5
     let grad_x = x.grad().unwrap();
     let grad_x_data = grad_x.as_slice();
     assert!((grad_x_data[0].0 - 5.0).abs() < 1e-6);
+}
+
+#[test]
+fn test_operator_overload_broadcast_add_scalar_vector_grad() {
+    let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(2.0)],
+        &[1],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
+    let y = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+        &[3],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
+    let z = &x + &y;
+    autograd::backward(&z, None, false, false).unwrap();
+
+    let grad_x = x.grad().unwrap();
+    let grad_y = y.grad().unwrap();
+
+    assert!((grad_x.as_slice()[0].0 - 3.0).abs() < 1e-6);
+    for g in grad_y.as_slice() {
+        assert!((g.0 - 1.0).abs() < 1e-6);
+    }
+}
+
+#[test]
+fn test_operator_overload_broadcast_mul_scalar_vector_grad() {
+    let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(2.0)],
+        &[1],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
+    let y = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+        &[3],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
+    let z = &x * &y;
+    autograd::backward(&z, None, false, false).unwrap();
+
+    let grad_x = x.grad().unwrap();
+    let grad_y = y.grad().unwrap();
+
+    assert!((grad_x.as_slice()[0].0 - 6.0).abs() < 1e-6);
+    for g in grad_y.as_slice() {
+        assert!((g.0 - 2.0).abs() < 1e-6);
+    }
+}
+
+#[test]
+fn test_operator_overload_broadcast_add_leading_dims_grad() {
+    let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+            Float32::new(5.0),
+            Float32::new(6.0),
+        ],
+        &[2, 1, 3],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
+    let y = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(10.0), Float32::new(20.0), Float32::new(30.0)],
+        &[3],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
+    let z = &x + &y;
+    autograd::backward(&z, None, false, false).unwrap();
+
+    let grad_x = x.grad().unwrap();
+    let grad_y = y.grad().unwrap();
+
+    for g in grad_x.as_slice() {
+        assert!((g.0 - 1.0).abs() < 1e-6);
+    }
+
+    for g in grad_y.as_slice() {
+        assert!((g.0 - 2.0).abs() < 1e-6);
+    }
+}
+
+#[test]
+fn test_tensor_ops_broadcast_add_matrix_vector_grad() {
+    let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+            Float32::new(5.0),
+            Float32::new(6.0),
+        ],
+        &[2, 3],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
+    let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(10.0), Float32::new(20.0), Float32::new(30.0)],
+        &[3],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
+    let y = tensor_ops::add(&x, &b).unwrap();
+    autograd::backward(&y, None, false, false).unwrap();
+
+    let grad_x = x.grad().unwrap();
+    let grad_b = b.grad().unwrap();
+
+    for g in grad_x.as_slice() {
+        assert!((g.0 - 1.0).abs() < 1e-6);
+    }
+
+    for g in grad_b.as_slice() {
+        assert!((g.0 - 2.0).abs() < 1e-6);
+    }
+}
+
+#[test]
+fn test_tensor_ops_broadcast_mul_matrix_vector_grad() {
+    let x = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+            Float32::new(5.0),
+            Float32::new(6.0),
+        ],
+        &[2, 3],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
+    let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(10.0), Float32::new(20.0), Float32::new(30.0)],
+        &[3],
+    )
+    .unwrap()
+    .requires_grad_(true);
+
+    let y = tensor_ops::mul(&x, &b).unwrap();
+    autograd::backward(&y, None, false, false).unwrap();
+
+    let grad_x = x.grad().unwrap();
+    let grad_b = b.grad().unwrap();
+
+    let expected_grad_x = [10.0, 20.0, 30.0, 10.0, 20.0, 30.0];
+    for (i, (g, expected)) in grad_x
+        .as_slice()
+        .iter()
+        .zip(expected_grad_x.iter())
+        .enumerate()
+    {
+        assert!(
+            (g.0 - expected).abs() < 1e-6,
+            "grad_x[{i}] = {}, expected {expected}",
+            g.0
+        );
+    }
+
+    let expected_grad_b = [5.0, 7.0, 9.0];
+    for (i, (g, expected)) in grad_b
+        .as_slice()
+        .iter()
+        .zip(expected_grad_b.iter())
+        .enumerate()
+    {
+        assert!(
+            (g.0 - expected).abs() < 1e-6,
+            "grad_b[{i}] = {}, expected {expected}",
+            g.0
+        );
+    }
 }

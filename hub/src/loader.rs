@@ -5,7 +5,7 @@ use crate::error::{HubError, Result};
 use crate::registry::{ModelEntry, Task as ModelTask};
 use crate::validator::ModelValidator;
 use backend::Backend;
-use dtype::DataType;
+use dtype::{DataType, FloatExt};
 use nn::Module;
 use reqwest::Client;
 use std::marker::PhantomData;
@@ -65,8 +65,12 @@ impl ModelLoader {
     where
         M: Module<B, S, T>,
         B: Backend<Data = T>,
-        S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
-        T: DataType,
+        S: storage::Storage<T>
+            + Clone
+            + 'static
+            + storage::StorageFromVec<T>
+            + storage::StorageToDense<T>,
+        T: DataType + FloatExt,
     {
         // This is a simplified implementation
         // In a real implementation, this would:
@@ -142,8 +146,12 @@ impl ModelLoader {
     where
         M: Module<B, S, T>,
         B: Backend<Data = T>,
-        S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
-        T: DataType,
+        S: storage::Storage<T>
+            + Clone
+            + 'static
+            + storage::StorageFromVec<T>
+            + storage::StorageToDense<T>,
+        T: DataType + FloatExt,
     {
         // This would deserialize SafeTensors or other model formats
         // For now, return an error indicating this needs implementation
@@ -366,7 +374,7 @@ pub struct HuggingFaceFile {
     pub oid: Option<String>,
 }
 
-impl<M, B: Backend<Data = T>, T: DataType> LoadedModel<M, B, T> {
+impl<M, B: Backend<Data = T>, T: DataType + FloatExt> LoadedModel<M, B, T> {
     /// Create a new loaded model
     pub fn new(model: M, metadata: ModelEntry, config: LoadConfig) -> Self {
         Self {
@@ -388,12 +396,13 @@ impl<M, B: Backend<Data = T>, T: DataType> LoadedModel<M, B, T> {
     }
 
     /// Forward pass through the model
-    pub fn forward<S>(
-        &self,
-        input: &tensor::Tensor<B, S, T>,
-    ) -> Result<tensor::Tensor<B, S, T>>
+    pub fn forward<S>(&self, input: &tensor::Tensor<B, S, T>) -> Result<tensor::Tensor<B, S, T>>
     where
-        S: storage::Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
+        S: storage::Storage<T>
+            + Clone
+            + 'static
+            + storage::StorageFromVec<T>
+            + storage::StorageToDense<T>,
         M: Module<B, S, T>,
     {
         self.model

@@ -12,7 +12,12 @@ use tracing::instrument;
 impl<B, T> crate::Tensor<B, storage::DenseStorage<T>, T>
 where
     B: crate::Backend<Data = T> + Clone + Default,
-    T: crate::DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T>,
+    T: crate::DataType
+        + Clone
+        + Copy
+        + num_traits::Zero
+        + std::ops::Add<Output = T>
+        + std::ops::Mul<Output = T>,
 {
     /// Compute matrix multiplication with another tensor.
     ///
@@ -64,8 +69,10 @@ where
     /// ```
     #[instrument(level = "trace", skip(self, other))]
     pub fn matmul(&self, other: &Self) -> crate::Result<Self> {
-        let lhs_shape = <storage::DenseStorage<T> as storage::Storage<T>>::shape(&self.storage).dims();
-        let rhs_shape = <storage::DenseStorage<T> as storage::Storage<T>>::shape(&other.storage).dims();
+        let lhs_shape =
+            <storage::DenseStorage<T> as storage::Storage<T>>::shape(&self.storage).dims();
+        let rhs_shape =
+            <storage::DenseStorage<T> as storage::Storage<T>>::shape(&other.storage).dims();
 
         // Validate 2D matrices
         if lhs_shape.len() != 2 {
@@ -126,7 +133,12 @@ where
 
         {
             let storage = storage::DenseStorage::from_vec(result_data, &[m, p])?;
-            Ok(<crate::Tensor<B, storage::DenseStorage<T>, T>>::from_storage(storage, self.backend.clone()))
+            Ok(
+                <crate::Tensor<B, storage::DenseStorage<T>, T>>::from_storage(
+                    storage,
+                    self.backend.clone(),
+                ),
+            )
         }
     }
 
@@ -136,5 +148,96 @@ where
         // For now, delegate to CPU implementation
         // Future enhancement: Add GPU support via backend trait extension
         self.matmul_cpu(m, n, p, other)
+    }
+
+    /// Batch matrix multiplication.
+    ///
+    /// # Arguments
+    /// * `other` - The right-hand side batch matrix tensor [B, N, P]
+    ///
+    /// # Returns
+    /// A new tensor [B, M, P]
+    pub fn bmm(&self, other: &Self) -> crate::Result<Self> {
+        let lhs_shape = self.shape().dims();
+        let rhs_shape = other.shape().dims();
+
+        if lhs_shape.len() != 3 || rhs_shape.len() != 3 {
+            return Err(crate::TensorError::ShapeError {
+                expected: 3,
+                actual: lhs_shape.len(),
+                message: format!(
+                    "bmm: both tensors must be 3D, got lhs={lhs_shape:?}, rhs={rhs_shape:?}"
+                ),
+            });
+        }
+
+        if lhs_shape[0] != rhs_shape[0] {
+            return Err(crate::TensorError::ShapeError {
+                expected: lhs_shape[0],
+                actual: rhs_shape[0],
+                message: format!(
+                    "bmm: batch dimensions must match: {} != {}",
+                    lhs_shape[0], rhs_shape[0]
+                ),
+            });
+        }
+
+        let b = lhs_shape[0];
+        let m = lhs_shape[1];
+        let n = lhs_shape[2];
+        let p = rhs_shape[2];
+
+        if n != rhs_shape[1] {
+            return Err(crate::TensorError::ShapeError {
+                expected: n,
+                actual: rhs_shape[1],
+                message: format!(
+                    "bmm: matrix inner dimensions must match: {} != {}",
+                    n, rhs_shape[1]
+                ),
+            });
+        }
+
+        let lhs_data = self.as_slice();
+        let rhs_data = other.as_slice();
+        let mut result_data = Vec::with_capacity(b * m * p);
+
+        for i in 0..b {
+            let lhs_offset = i * m * n;
+            let rhs_offset = i * n * p;
+
+            for row in 0..m {
+                for col in 0..p {
+                    let mut sum = T::zero();
+                    for k in 0..n {
+                        sum = sum
+                            + lhs_data[lhs_offset + row * n + k]
+                                * rhs_data[rhs_offset + k * p + col];
+                    }
+                    result_data.push(sum);
+                }
+            }
+        }
+
+        let storage = storage::DenseStorage::from_vec(result_data, &[b, m, p])?;
+        Ok(Self::from_storage(storage, self.backend.clone()))
+    }
+
+    /// Add matrix multiplication: beta * self + alpha * (mat1 @ mat2)
+    pub fn addmm(&self, mat1: &Self, mat2: &Self, beta: T, alpha: T) -> crate::Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        // Compute matrix multiplication
+        let m_prod = mat1.matmul(mat2)?;
+
+        // Scale product by alpha
+        let scaled_prod = crate::ops::arithmetic::scalar_mul(&m_prod, alpha)?;
+
+        // Scale self by beta
+        let scaled_self = crate::ops::arithmetic::scalar_mul(self, beta)?;
+
+        // Add results
+        crate::ops::arithmetic::add(&scaled_self, &scaled_prod)
     }
 }

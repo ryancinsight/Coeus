@@ -7,10 +7,10 @@ use crate::module::Module;
 use crate::parameter::Parameter;
 use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
-use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
-use tensor::Tensor;
 use std::marker::PhantomData;
 use std::ops::Neg;
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 /// 2D Convolutional layer for spatial feature extraction.
 /// Performs 2D convolution on input tensors of shape [batch_size, in_channels, height, width].

@@ -3,10 +3,14 @@
 //! Comprehensive benchmarks evaluating mixed precision quantization performance,
 //! calibration method accuracy, and memory efficiency across different bitwidths.
 
+#[cfg(feature = "quantized")]
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+#[cfg(feature = "quantized")]
 use rand::prelude::*;
 
+#[cfg(feature = "quantized")]
 use backend::CpuBackend;
+#[cfg(feature = "quantized")]
 use dtype::float::Float32;
 #[cfg(feature = "quantized")]
 use nn::quantization::{
@@ -14,11 +18,13 @@ use nn::quantization::{
     MixedPrecisionQuantizedLinear, QuantizationBitwidth, QuantizationGranularity,
     QuantizationScheme,
 };
-use nn::{Linear, Module};
+#[cfg(feature = "quantized")]
 use storage::DenseStorage;
+#[cfg(feature = "quantized")]
 use tensor::Tensor;
 
 /// Create random tensor with specified shape and distribution
+#[cfg(feature = "quantized")]
 fn random_tensor(
     shape: &[usize],
     mean: f32,
@@ -36,6 +42,7 @@ fn random_tensor(
 }
 
 /// Create tensor with outliers for calibration testing
+#[cfg(feature = "quantized")]
 fn random_tensor_with_outliers(
     shape: &[usize],
     outlier_prob: f64,

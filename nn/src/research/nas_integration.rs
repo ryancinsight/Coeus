@@ -9,13 +9,18 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use crate::error::{NNError, Result};
-use crate::nas::{Architecture, ArchitectureEvaluator, ArchitectureSpace, EvolutionaryNAS, ReinforcementNAS, DartsNAS, AutomatedResearchPipeline};
-use crate::nas::search_space::ArchitectureType;
 use crate::hpo::{HPOptimizer, HyperparameterOptimizer};
-use crate::research::nas_integration::search_integrations::{EvolutionarySearchIntegration, RLSearchIntegration, DartsSearchIntegration};
+use crate::nas::search_space::ArchitectureType;
 use crate::nas::search_space::LayerType;
-use crate::research::tracking::{ExperimentTracker, ExperimentRegistry, ExperimentSummary};
-use crate::research::metrics::{MetricsCollector, MetricEntry};
+use crate::nas::{
+    Architecture, ArchitectureEvaluator, ArchitectureSpace, AutomatedResearchPipeline, DartsNAS,
+    EvolutionaryNAS, ReinforcementNAS,
+};
+use crate::research::metrics::{MetricEntry, MetricsCollector};
+use crate::research::nas_integration::search_integrations::{
+    DartsSearchIntegration, EvolutionarySearchIntegration, RLSearchIntegration,
+};
+use crate::research::tracking::{ExperimentRegistry, ExperimentSummary, ExperimentTracker};
 use crate::research::UnifiedResearchFramework;
 
 /// NAS Experiment Context
@@ -242,9 +247,18 @@ impl IntegratedNASFramework {
         };
 
         // Register default search algorithms
-        framework.register_search_algorithm(SearchAlgorithm::Evolutionary, Box::new(EvolutionarySearchIntegration::new()));
-        framework.register_search_algorithm(SearchAlgorithm::ReinforcementLearning, Box::new(RLSearchIntegration::new()));
-        framework.register_search_algorithm(SearchAlgorithm::Differentiable, Box::new(DartsSearchIntegration::new()));
+        framework.register_search_algorithm(
+            SearchAlgorithm::Evolutionary,
+            Box::new(EvolutionarySearchIntegration::new()),
+        );
+        framework.register_search_algorithm(
+            SearchAlgorithm::ReinforcementLearning,
+            Box::new(RLSearchIntegration::new()),
+        );
+        framework.register_search_algorithm(
+            SearchAlgorithm::Differentiable,
+            Box::new(DartsSearchIntegration::new()),
+        );
 
         framework
     }
@@ -254,8 +268,8 @@ impl IntegratedNASFramework {
         let experiment_id = format!("nas_{}_{}", context.domain, context.task);
         let experiment_name = format!("NAS Search: {} - {}", context.domain, context.task);
         let experiment_description = format!(
-            "Neural Architecture Search for {} task on {} dataset with {} algorithm",
-            context.task, context.dataset.name, format!("{:?}", context.search_config.algorithm)
+            "Neural Architecture Search for {} task on {} dataset with {:?} algorithm",
+            context.task, context.dataset.name, context.search_config.algorithm
         );
 
         // Create experiment in research framework
@@ -271,20 +285,21 @@ impl IntegratedNASFramework {
             "nas_algorithm".to_string(),
             format!("{:?}", context.search_config.algorithm).into(),
             Some("Neural architecture search algorithm used".to_string()),
-        );
+        )?;
         tracker.log_hyperparameter(
             "search_space_size".to_string(),
             context.search_space_config.max_layers.into(),
             Some("Maximum number of layers in search space".to_string()),
-        );
+        )?;
         tracker.log_hyperparameter(
             "population_size".to_string(),
             context.search_config.population_size.into(),
             Some("Population size for evolutionary algorithms".to_string()),
-        );
+        )?;
 
         // Store context
-        self.experiment_contexts.insert(experiment_id.clone(), context);
+        self.experiment_contexts
+            .insert(experiment_id.clone(), context);
 
         Ok(experiment_id)
     }
@@ -296,15 +311,22 @@ impl IntegratedNASFramework {
         evaluator: Arc<dyn ArchitectureEvaluator>,
         space: &ArchitectureSpace,
     ) -> Result<NASSearchResult> {
-        let context = self.experiment_contexts.get(experiment_id)
+        let context = self
+            .experiment_contexts
+            .get(experiment_id)
             .ok_or_else(|| NNError::InvalidConfiguration {
                 message: format!("Experiment context not found for {}", experiment_id),
             })?
             .clone();
 
-        let algorithm = self.search_algorithms.get(&context.search_config.algorithm)
+        let algorithm = self
+            .search_algorithms
+            .get(&context.search_config.algorithm)
             .ok_or_else(|| NNError::InvalidConfiguration {
-                message: format!("Search algorithm {:?} not registered", context.search_config.algorithm),
+                message: format!(
+                    "Search algorithm {:?} not registered",
+                    context.search_config.algorithm
+                ),
             })?;
 
         let mut framework = self.research_framework.write().unwrap();
@@ -319,7 +341,9 @@ impl IntegratedNASFramework {
         pipeline_name: &str,
         base_context: NASExperimentContext,
     ) -> Result<String> {
-        let pipeline = self.automated_pipelines.iter()
+        let pipeline = self
+            .automated_pipelines
+            .iter()
             .find(|p| p.name == pipeline_name)
             .ok_or_else(|| NNError::InvalidConfiguration {
                 message: format!("Automated pipeline {} not found", pipeline_name),
@@ -328,9 +352,9 @@ impl IntegratedNASFramework {
         // Create pipeline experiment
         let pipeline_experiment_id = format!("auto_nas_{}_{}", pipeline_name, base_context.domain);
         let experiment_name = format!("Automated NAS: {}", pipeline_name);
-        let experiment_description = format!(
+        let experiment_description =
             "Automated neural architecture search pipeline with multiple algorithms and strategies"
-        );
+                .to_string();
 
         let mut framework = self.research_framework.write().unwrap();
         let mut tracker = framework.create_experiment(
@@ -381,7 +405,9 @@ impl IntegratedNASFramework {
     /// Get experiment summary with NAS metrics
     pub fn get_experiment_summary(&self, experiment_id: &str) -> Result<NASEperimentSummary> {
         let framework = self.research_framework.read().unwrap();
-        let base_summary = framework.experiment_registry.get_experiment(experiment_id)
+        let base_summary = framework
+            .experiment_registry
+            .get_experiment(experiment_id)
             .ok_or_else(|| NNError::InvalidConfiguration {
                 message: format!("Experiment {} not found in registry", experiment_id),
             })?;
@@ -410,12 +436,24 @@ impl IntegratedNASFramework {
 
         // Summary statistics
         let total_experiments = self.experiment_contexts.len();
-        report.push_str(&format!("## Summary\n"));
+        report.push_str("## Summary\n");
         report.push_str(&format!("- Total NAS Experiments: {}\n", total_experiments));
-        report.push_str(&format!("- Active Experiments: {}\n", framework.health_status().experiments_active));
-        report.push_str(&format!("- Registered Search Algorithms: {}\n", self.search_algorithms.len()));
-        report.push_str(&format!("- Performance Predictors: {}\n", self.performance_predictors.len()));
-        report.push_str(&format!("- Automated Pipelines: {}\n\n", self.automated_pipelines.len()));
+        report.push_str(&format!(
+            "- Active Experiments: {}\n",
+            framework.health_status().experiments_active
+        ));
+        report.push_str(&format!(
+            "- Registered Search Algorithms: {}\n",
+            self.search_algorithms.len()
+        ));
+        report.push_str(&format!(
+            "- Performance Predictors: {}\n",
+            self.performance_predictors.len()
+        ));
+        report.push_str(&format!(
+            "- Automated Pipelines: {}\n\n",
+            self.automated_pipelines.len()
+        ));
 
         // Experiment details
         if !self.experiment_contexts.is_empty() {
@@ -425,9 +463,26 @@ impl IntegratedNASFramework {
                 report.push_str(&format!("- Domain: {}\n", context.domain));
                 report.push_str(&format!("- Task: {}\n", context.task));
                 report.push_str(&format!("- Dataset: {}\n", context.dataset.name));
-                report.push_str(&format!("- Algorithm: {:?}\n", context.search_config.algorithm));
-                report.push_str(&format!("- Performance Prediction: {}\n", if context.performance_prediction { "Enabled" } else { "Disabled" }));
-                report.push_str(&format!("- Joint NAS-HPO: {}\n\n", if context.joint_search { "Enabled" } else { "Disabled" }));
+                report.push_str(&format!(
+                    "- Algorithm: {:?}\n",
+                    context.search_config.algorithm
+                ));
+                report.push_str(&format!(
+                    "- Performance Prediction: {}\n",
+                    if context.performance_prediction {
+                        "Enabled"
+                    } else {
+                        "Disabled"
+                    }
+                ));
+                report.push_str(&format!(
+                    "- Joint NAS-HPO: {}\n\n",
+                    if context.joint_search {
+                        "Enabled"
+                    } else {
+                        "Disabled"
+                    }
+                ));
             }
         }
 
@@ -465,6 +520,12 @@ pub mod predictors {
         trained: bool,
     }
 
+    impl Default for LinearRegressionPredictor {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl LinearRegressionPredictor {
         pub fn new() -> Self {
             Self {
@@ -476,7 +537,11 @@ pub mod predictors {
     }
 
     impl PerformancePredictor for LinearRegressionPredictor {
-        fn predict(&self, architecture: &Architecture, _context: &NASExperimentContext) -> Result<f64> {
+        fn predict(
+            &self,
+            architecture: &Architecture,
+            _context: &NASExperimentContext,
+        ) -> Result<f64> {
             if !self.trained {
                 return Err(NNError::NotInitialized {
                     component: "Performance predictor not trained".to_string(),
@@ -495,7 +560,7 @@ pub mod predictors {
                 prediction += self.coefficients[1] * num_layers;
             }
 
-            Ok(prediction.max(0.0).min(1.0)) // Clamp to [0, 1]
+            Ok(prediction.clamp(0.0, 1.0)) // Clamp to [0, 1]
         }
 
         fn update(&mut self, architecture: &Architecture, actual_performance: f64) -> Result<()> {
@@ -503,34 +568,39 @@ pub mod predictors {
             let num_params = architecture.num_parameters() as f64;
             let num_layers = architecture.layers.len() as f64;
 
-            let prediction = self.predict(architecture, &NASExperimentContext {
-                experiment_id: "".to_string(),
-                domain: "".to_string(),
-                task: "".to_string(),
-                dataset: DatasetInfo {
-                    name: "".to_string(),
-                    size: 0,
-                    input_shape: vec![],
-                    output_classes: 0,
-                    metadata: HashMap::new(),
-                },
-                search_space_config: SearchSpaceConfig {
-                    max_layers: 10,
-                    available_operations: vec![],
-                    parameter_ranges: HashMap::new(),
-                    constraints: vec![],
-                },
-                search_config: SearchConfig {
-                    algorithm: SearchAlgorithm::Random,
-                    population_size: 0,
-                    generations: 0,
-                    mutation_rate: 0.0,
-                    crossover_rate: 0.0,
-                    evaluation_budget: 0,
-                },
-                performance_prediction: false,
-                joint_search: false,
-            }).unwrap_or(0.5);
+            let prediction = self
+                .predict(
+                    architecture,
+                    &NASExperimentContext {
+                        experiment_id: "".to_string(),
+                        domain: "".to_string(),
+                        task: "".to_string(),
+                        dataset: DatasetInfo {
+                            name: "".to_string(),
+                            size: 0,
+                            input_shape: vec![],
+                            output_classes: 0,
+                            metadata: HashMap::new(),
+                        },
+                        search_space_config: SearchSpaceConfig {
+                            max_layers: 10,
+                            available_operations: vec![],
+                            parameter_ranges: HashMap::new(),
+                            constraints: vec![],
+                        },
+                        search_config: SearchConfig {
+                            algorithm: SearchAlgorithm::Random,
+                            population_size: 0,
+                            generations: 0,
+                            mutation_rate: 0.0,
+                            crossover_rate: 0.0,
+                            evaluation_budget: 0,
+                        },
+                        performance_prediction: false,
+                        joint_search: false,
+                    },
+                )
+                .unwrap_or(0.5);
 
             let error = actual_performance - prediction;
 
@@ -567,6 +637,12 @@ pub mod search_integrations {
     #[derive(Debug)]
     pub struct EvolutionarySearchIntegration {
         base_algorithm: EvolutionaryNAS,
+    }
+
+    impl Default for EvolutionarySearchIntegration {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl EvolutionarySearchIntegration {
@@ -620,7 +696,10 @@ pub mod search_integrations {
                         None,
                         HashMap::from([
                             ("generation".to_string(), serde_json::json!(generation)),
-                            ("architecture_id".to_string(), serde_json::json!(format!("arch_{}", evaluated_population.len()))),
+                            (
+                                "architecture_id".to_string(),
+                                serde_json::json!(format!("arch_{}", evaluated_population.len())),
+                            ),
                         ]),
                     );
 
@@ -645,15 +724,19 @@ pub mod search_integrations {
                 }
 
                 // Sort by performance
-                evaluated_population.sort_by(|a, b| b.performance.partial_cmp(&a.performance).unwrap());
+                evaluated_population
+                    .sort_by(|a, b| b.performance.partial_cmp(&a.performance).unwrap());
 
                 // Evolve to next generation
                 let mut next_population = Vec::new();
 
                 // Elitism - keep best performers
                 let elite_count = (context.search_config.population_size as f64 * 0.1) as usize;
-                for i in 0..elite_count.min(evaluated_population.len()) {
-                    next_population.push(evaluated_population[i].architecture.clone());
+                for perf in evaluated_population
+                    .iter()
+                    .take(elite_count.min(evaluated_population.len()))
+                {
+                    next_population.push(perf.architecture.clone());
                 }
 
                 // Generate offspring through crossover and mutation
@@ -664,14 +747,17 @@ pub mod search_integrations {
 
                     // Crossover
                     if rand::random::<f64>() < context.search_config.crossover_rate {
-                        let offspring = self.crossover(&parent1.architecture, &parent2.architecture, space)?;
+                        let offspring =
+                            self.crossover(&parent1.architecture, &parent2.architecture, space)?;
                         next_population.push(offspring);
                     } else {
                         next_population.push(parent1.architecture.clone());
                     }
 
                     // Mutation
-                    if rand::random::<f64>() < context.search_config.mutation_rate && !next_population.is_empty() {
+                    if rand::random::<f64>() < context.search_config.mutation_rate
+                        && !next_population.is_empty()
+                    {
                         let idx = next_population.len() - 1;
                         next_population[idx] = self.mutate(&next_population[idx], space)?;
                     }
@@ -680,7 +766,8 @@ pub mod search_integrations {
                 population = next_population;
 
                 // Log generation metrics
-                let best_fitness = evaluated_population.first()
+                let best_fitness = evaluated_population
+                    .first()
                     .map(|p| p.performance)
                     .unwrap_or(0.0);
 
@@ -694,12 +781,14 @@ pub mod search_integrations {
 
             let total_time = start_time.elapsed();
             let total_evaluations = search_history.len();
-            let best_performance = search_history.iter()
+            let best_performance = search_history
+                .iter()
                 .map(|p| p.performance)
                 .max_by(|a, b| a.partial_cmp(b).unwrap())
                 .unwrap_or(0.0);
 
-            let best_architecture = search_history.iter()
+            let best_architecture = search_history
+                .iter()
                 .max_by(|a, b| a.performance.partial_cmp(&b.performance).unwrap())
                 .map(|p| p.architecture.clone())
                 .unwrap_or_else(|| population[0].clone());
@@ -711,10 +800,10 @@ pub mod search_integrations {
                 total_evaluations,
                 search_time: total_time,
                 convergence_metrics: ConvergenceMetrics {
-                    final_improvement_rate: 0.05, // Placeholder
-                    diversity_score: 0.8, // Placeholder
+                    final_improvement_rate: 0.05,        // Placeholder
+                    diversity_score: 0.8,                // Placeholder
                     exploration_exploitation_ratio: 0.6, // Placeholder
-                    regret_bounds: Some(0.1), // Placeholder
+                    regret_bounds: Some(0.1),            // Placeholder
                 },
                 experiment_summary: tracker.summary(),
             })
@@ -726,7 +815,11 @@ pub mod search_integrations {
     }
 
     impl EvolutionarySearchIntegration {
-        fn tournament_selection<'a>(&self, population: &'a [ArchitecturePerformance], tournament_size: usize) -> &'a ArchitecturePerformance {
+        fn tournament_selection<'a>(
+            &self,
+            population: &'a [ArchitecturePerformance],
+            tournament_size: usize,
+        ) -> &'a ArchitecturePerformance {
             let mut best: Option<&'a ArchitecturePerformance> = None;
             for _ in 0..tournament_size {
                 let idx = rand::random::<usize>() % population.len();
@@ -741,11 +834,17 @@ pub mod search_integrations {
             best.unwrap()
         }
 
-        fn crossover(&self, parent1: &Architecture, parent2: &Architecture, space: &ArchitectureSpace) -> Result<Architecture> {
+        fn crossover(
+            &self,
+            parent1: &Architecture,
+            parent2: &Architecture,
+            space: &ArchitectureSpace,
+        ) -> Result<Architecture> {
             // Simple single-point crossover
             let mut child = parent1.clone();
 
-            let crossover_point = rand::random::<usize>() % parent1.layers.len().min(parent2.layers.len());
+            let crossover_point =
+                rand::random::<usize>() % parent1.layers.len().min(parent2.layers.len());
 
             for i in crossover_point..child.layers.len().min(parent2.layers.len()) {
                 child.layers[i] = parent2.layers[i].clone();
@@ -755,7 +854,11 @@ pub mod search_integrations {
             Ok(child)
         }
 
-        fn mutate(&self, architecture: &Architecture, space: &ArchitectureSpace) -> Result<Architecture> {
+        fn mutate(
+            &self,
+            architecture: &Architecture,
+            space: &ArchitectureSpace,
+        ) -> Result<Architecture> {
             let mut mutated = architecture.clone();
 
             // Random layer mutation
@@ -776,6 +879,12 @@ pub mod search_integrations {
     #[derive(Debug)]
     pub struct RLSearchIntegration {
         base_algorithm: ReinforcementNAS,
+    }
+
+    impl Default for RLSearchIntegration {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl RLSearchIntegration {
@@ -811,6 +920,12 @@ pub mod search_integrations {
     #[derive(Debug)]
     pub struct DartsSearchIntegration {
         base_algorithm: DartsNAS,
+    }
+
+    impl Default for DartsSearchIntegration {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl DartsSearchIntegration {
@@ -935,6 +1050,6 @@ mod tests {
 
         // Should work when trained
         let prediction = predictor.predict(&architecture, &context).unwrap();
-        assert!(prediction >= 0.0 && prediction <= 1.0);
+        assert!((0.0..=1.0).contains(&prediction));
     }
 }

@@ -109,7 +109,10 @@ impl ProductionBenchmarkSuite {
             "vintage red sports car driving fast".to_string(),
             "student studying ancient books in library".to_string(),
             "hikers exploring snowy mountain trails".to_string(),
-        ].into_iter().enumerate() {
+        ]
+        .into_iter()
+        .enumerate()
+        {
             let relevant_doc_ids = vec![
                 format!("relevant_doc_{}_{}", i, 1),
                 format!("relevant_doc_{}_{}", i, 2),
@@ -119,7 +122,8 @@ impl ProductionBenchmarkSuite {
 
             corrected_ground_truth.insert(
                 query_text.clone(),
-                relevant_doc_ids.into_iter()
+                relevant_doc_ids
+                    .into_iter()
                     .zip(vec![0.95, 0.88, 0.60, 0.10])
                     .collect::<Vec<_>>(),
             );
@@ -132,8 +136,10 @@ impl ProductionBenchmarkSuite {
         }
     }
 
-    async fn run_comprehensive_benchmark(&self, search_service: &std::sync::Arc<MockSemanticSearchService>)
-        -> BenchmarkResults {
+    async fn run_comprehensive_benchmark(
+        &self,
+        search_service: &std::sync::Arc<MockSemanticSearchService>,
+    ) -> BenchmarkResults {
         println!("🏃 Running Production CLIP Benchmark Suite...");
 
         let mut results = BenchmarkResults::new();
@@ -186,13 +192,21 @@ impl ProductionBenchmarkSuite {
         results
     }
 
-    fn calculate_query_metrics(&self, query: &str, search_results: &[SearchResult], k: usize) -> QueryMetrics {
-        let ground_truth = self.ground_truth_mappings.get(query)
+    fn calculate_query_metrics(
+        &self,
+        query: &str,
+        search_results: &[SearchResult],
+        k: usize,
+    ) -> QueryMetrics {
+        let ground_truth = self
+            .ground_truth_mappings
+            .get(query)
             .cloned()
             .unwrap_or_default();
 
         // Convert ground truth to set of relevant document IDs (relevance > 0.5)
-        let relevant_docs: std::collections::HashSet<String> = ground_truth.iter()
+        let relevant_docs: std::collections::HashSet<String> = ground_truth
+            .iter()
             .filter(|(_, relevance)| *relevance > 0.5)
             .map(|(doc_id, _)| doc_id.clone())
             .collect();
@@ -213,18 +227,28 @@ impl ProductionBenchmarkSuite {
             }
         }
 
-        let precision_at_k = if k > 0 { true_positives as f32 / k as f32 } else { 0.0 };
-        let recall_at_k = if total_relevant > 0 { true_positives as f32 / total_relevant as f32 } else { 0.0 };
+        let precision_at_k = if k > 0 {
+            true_positives as f32 / k as f32
+        } else {
+            0.0
+        };
+        let recall_at_k = if total_relevant > 0 {
+            true_positives as f32 / total_relevant as f32
+        } else {
+            0.0
+        };
 
         // Calculate IDCG (Ideal DCG) for NDCG
-        let mut relevant_gains: Vec<f32> = ground_truth.iter()
+        let mut relevant_gains: Vec<f32> = ground_truth
+            .iter()
             .filter(|(_, relevance)| *relevance > 0.5)
             .map(|(_, relevance)| *relevance)
             .collect();
         relevant_gains.sort_by(|a, b| b.partial_cmp(a).unwrap());
         relevant_gains.truncate(k);
 
-        let idcg: f32 = relevant_gains.iter()
+        let idcg: f32 = relevant_gains
+            .iter()
             .enumerate()
             .map(|(rank, &gain)| gain / ((rank + 1) as f32).log2())
             .sum();
@@ -238,7 +262,10 @@ impl ProductionBenchmarkSuite {
         }
     }
 
-    fn calculate_overall_results(&self, performance_results: &[PerformanceResult]) -> OverallResults {
+    fn calculate_overall_results(
+        &self,
+        performance_results: &[PerformanceResult],
+    ) -> OverallResults {
         if performance_results.is_empty() {
             return OverallResults::default();
         }
@@ -256,7 +283,8 @@ impl ProductionBenchmarkSuite {
         let overall_qps = total_qps / count;
 
         // Use k=10 results for final metrics
-        let k10_result = performance_results.iter()
+        let k10_result = performance_results
+            .iter()
             .find(|r| r.k == 10)
             .unwrap_or(&performance_results[0]);
 
@@ -266,7 +294,8 @@ impl ProductionBenchmarkSuite {
             average_ndcg_at_10: k10_result.avg_ndcg_at_k,
             overall_avg_latency_ms: avg_latency_ms,
             overall_queries_per_second: overall_qps,
-            peak_queries_per_second: performance_results.iter()
+            peak_queries_per_second: performance_results
+                .iter()
                 .map(|r| r.queries_per_second)
                 .fold(0.0, f32::max),
         }
@@ -291,7 +320,10 @@ impl MockSemanticSearchService {
         let embedding = self.generate_embedding(query);
 
         // Perform similarity search
-        let mut results_with_scores: Vec<(String, f32)> = self.benchmark_suite.test_index.iter()
+        let mut results_with_scores: Vec<(String, f32)> = self
+            .benchmark_suite
+            .test_index
+            .iter()
             .map(|(doc_id, doc_embedding)| {
                 let similarity = cosine_similarity(&embedding, doc_embedding);
                 (doc_id.clone(), similarity)
@@ -301,7 +333,8 @@ impl MockSemanticSearchService {
         results_with_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
         results_with_scores.truncate(k);
 
-        let results = results_with_scores.into_iter()
+        let results = results_with_scores
+            .into_iter()
             .enumerate()
             .map(|(rank, (id, score))| SearchResult {
                 id,
@@ -329,7 +362,11 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
     let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-    if norm_a == 0.0 || norm_b == 0.0 { 0.0 } else { dot / (norm_a * norm_b) }
+    if norm_a == 0.0 || norm_b == 0.0 {
+        0.0
+    } else {
+        dot / (norm_a * norm_b)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -401,33 +438,51 @@ impl BenchmarkResults {
 
         println!("\n📊 PERFORMANCE METRICS BY K-VALUE");
         println!("{}", "-".repeat(95));
-        println!("{:>3} │ {:>10} │ {:>10} │ {:>10} │ {:>12} │ {:>12}",
-                 "K", "Precision@K", "Recall@K", "NDCG@K", "Latency(ms)", "QPS");
+        println!(
+            "{:>3} │ {:>10} │ {:>10} │ {:>10} │ {:>12} │ {:>12}",
+            "K", "Precision@K", "Recall@K", "NDCG@K", "Latency(ms)", "QPS"
+        );
         println!("{}", "-".repeat(95));
 
         for result in &self.performance_results {
-            println!("{:>3} │ {:>10.3} │ {:>10.3} │ {:>10.3} │ {:>12.2} │ {:>12.1}",
-                     result.k,
-                     result.avg_precision_at_k,
-                     result.avg_recall_at_k,
-                     result.avg_ndcg_at_k,
-                     result.avg_latency_ms,
-                     result.queries_per_second);
+            println!(
+                "{:>3} │ {:>10.3} │ {:>10.3} │ {:>10.3} │ {:>12.2} │ {:>12.1}",
+                result.k,
+                result.avg_precision_at_k,
+                result.avg_recall_at_k,
+                result.avg_ndcg_at_k,
+                result.avg_latency_ms,
+                result.queries_per_second
+            );
         }
 
         println!("\n{}", "-".repeat(95));
-        println!("{:>3} │ {:>10} │ {:>10} │ {:>10} │ {:>12} │ {:>12}",
-                 "K", "Precision@K", "Recall@K", "NDCG@K", "Latency(ms)", "QPS");
+        println!(
+            "{:>3} │ {:>10} │ {:>10} │ {:>10} │ {:>12} │ {:>12}",
+            "K", "Precision@K", "Recall@K", "NDCG@K", "Latency(ms)", "QPS"
+        );
 
         println!("\n🎯 OVERALL PRODUCTION METRICS");
         println!("{}", "-".repeat(40));
         let overall = &self.overall_results;
-        println!("Precision@10:          {:.3}", overall.average_precision_at_10);
+        println!(
+            "Precision@10:          {:.3}",
+            overall.average_precision_at_10
+        );
         println!("Recall@10:             {:.3}", overall.average_recall_at_10);
         println!("NDCG@10:               {:.3}", overall.average_ndcg_at_10);
-        println!("Average Latency:       {:.2} ms", overall.overall_avg_latency_ms);
-        println!("Queries/Second:        {:.1} QPS", overall.overall_queries_per_second);
-        println!("Peak Queries/Second:   {:.1} QPS", overall.peak_queries_per_second);
+        println!(
+            "Average Latency:       {:.2} ms",
+            overall.overall_avg_latency_ms
+        );
+        println!(
+            "Queries/Second:        {:.1} QPS",
+            overall.overall_queries_per_second
+        );
+        println!(
+            "Peak Queries/Second:   {:.1} QPS",
+            overall.peak_queries_per_second
+        );
 
         println!("\n🏭 PRODUCTION COMPETITIVENESS ANALYSIS");
         println!("{}", "-".repeat(50));
@@ -439,7 +494,10 @@ impl BenchmarkResults {
         println!("   Qdrant (k=10):       P@10=0.87, R@10=0.75, NDCG=0.84, ~200 QPS");
 
         let competitive_score = self.calculate_competitive_score();
-        println!("\n🎖️  COMPETITIVENESS SCORE: {:.1}% vs Industry Leaders", competitive_score);
+        println!(
+            "\n🎖️  COMPETITIVENESS SCORE: {:.1}% vs Industry Leaders",
+            competitive_score
+        );
 
         println!("\n💡 PRODUCTION OPTIMIZATION RECOMMENDATIONS");
         println!("{}", "-".repeat(50));
@@ -447,10 +505,14 @@ impl BenchmarkResults {
             println!("  ⚠️  Precision enhancement needed - consider fine-tuning CLIP model");
         }
         if overall.overall_queries_per_second < 100.0 {
-            println!("  🚀 QPS optimization recommended - GPU acceleration or indexing improvements");
+            println!(
+                "  🚀 QPS optimization recommended - GPU acceleration or indexing improvements"
+            );
         }
         if overall.overall_avg_latency_ms > 50.0 {
-            println!("  ⏱️  Latency reduction needed - consider vector quantization or HNSW indexing");
+            println!(
+                "  ⏱️  Latency reduction needed - consider vector quantization or HNSW indexing"
+            );
         }
 
         println!("\n✅ PRODUCTION READINESS ASSESSMENT: ENTERPRISE DEPLOYMENT QUALIFIED");
@@ -476,7 +538,7 @@ impl BenchmarkResults {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn::std::error::Error>> {
+async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
     println!("🔬 CLIP Production Benchmarking Suite");
     println!("=====================================");
     println!("📊 Comprehensive evaluation framework for enterprise semantic search");
@@ -492,17 +554,25 @@ async fn main() -> Result<(), Box<dyn::std::error::Error>> {
 
     println!("\n📚 Benchmark Configuration:");
     println!("   Queries: {}", benchmark_suite.queries.len());
-    println!("   Index Size: {} documents", benchmark_suite.test_index.len());
+    println!(
+        "   Index Size: {} documents",
+        benchmark_suite.test_index.len()
+    );
     println!("   Embedding Dimension: 512");
     println!("   K values tested: 1, 5, 10, 20, 50");
 
     // Run comprehensive benchmarks
-    let results = benchmark_suite.run_comprehensive_benchmark(&search_service).await;
+    let results = benchmark_suite
+        .run_comprehensive_benchmark(&search_service)
+        .await;
 
     // Generate detailed report
     results.print_comprehensive_report();
 
-    println!("\n⏱️  Benchmarking completed in: {:.2}s", start_time.elapsed().as_secs_f64());
+    println!(
+        "\n⏱️  Benchmarking completed in: {:.2}s",
+        start_time.elapsed().as_secs_f64()
+    );
     println!("\n🎯 Enterprise Semantic Search - Production Qualified");
     println!("   ✓ Quality metrics validated against industry standards");
     println!("   ✓ Performance benchmarks completed with optimization recommendations");
@@ -519,7 +589,7 @@ mod tests {
     fn test_cosine_similarity() {
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
-let similarity = cosine_similarity(&a, &b);
+        let similarity = cosine_similarity(&a, &b);
         let expected = 32.0 / (14.0_f32.sqrt() * 77.0_f32.sqrt());
 
         assert!((similarity - expected).abs() < 1e-6);
@@ -583,4 +653,3 @@ let similarity = cosine_similarity(&a, &b);
         assert!(competitive_score > 80.0);
     }
 }
-

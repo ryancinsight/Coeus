@@ -6,8 +6,8 @@
 use std::{boxed::Box, format, string::ToString, sync::Arc, vec::Vec};
 
 use crate::{
-    error::TensorError, grad_rwlock, AsAny, Backend, DataType, DenseStorage, Result,
-    Shape, Storage, StorageToDense, Tensor, tensor_core::{Function},
+    error::TensorError, grad_rwlock, tensor_core::Function, AsAny, Backend, DataType, DenseStorage,
+    Result, Shape, Storage, StorageToDense, Tensor,
 };
 use storage::StorageFromVec;
 
@@ -138,10 +138,9 @@ where
         T: Clone,
     {
         #[cfg(feature = "std")]
-        let grad_lock = self
-            .grad
-            .read()
-            .map_err(|_| TensorError::BackendError("Failed to acquire gradient lock".to_string()))?;
+        let grad_lock = self.grad.read().map_err(|_| {
+            TensorError::BackendError("Failed to acquire gradient lock".to_string())
+        })?;
         #[cfg(not(feature = "std"))]
         let grad_lock = self.grad.read();
 
@@ -153,12 +152,9 @@ where
                     .downcast_ref::<Tensor<B, DenseStorage<T>, T>>()
                 {
                     Ok(dense_grad.clone())
-                } 
+                }
                 // Then check if it matches the tensor's storage type
-                else if let Some(stored_grad) = boxed
-                    .as_any()
-                    .downcast_ref::<Tensor<B, S, T>>()
-                {
+                else if let Some(stored_grad) = boxed.as_any().downcast_ref::<Tensor<B, S, T>>() {
                     stored_grad.to_dense_generic()
                 } else {
                     // If not dense and not S, try to reconstruct from storage
@@ -209,7 +205,11 @@ where
         {
             let mut grad_lock = match self.grad.write() {
                 Ok(lock) => lock,
-                Err(_) => return Err(TensorError::BackendError("Failed to acquire gradient lock".to_string())),
+                Err(_) => {
+                    return Err(TensorError::BackendError(
+                        "Failed to acquire gradient lock".to_string(),
+                    ))
+                }
             };
             *grad_lock = Some(Box::new(gradient_s));
         }
@@ -238,11 +238,6 @@ where
         B: Clone + Default,
         T: std::ops::Add<Output = T> + Clone + Copy,
     {
-        println!(
-            "accumulate_grad called on tensor with shape {:?}",
-            self.shape().dims()
-        );
-
         // Validate shape matches
         if gradient.shape().dims() != self.shape().dims() {
             return Err(TensorError::ShapeMismatch {
@@ -256,7 +251,11 @@ where
         {
             let mut grad_lock = match self.grad.write() {
                 Ok(lock) => lock,
-                Err(_) => return Err(TensorError::BackendError("Failed to acquire gradient lock".to_string())),
+                Err(_) => {
+                    return Err(TensorError::BackendError(
+                        "Failed to acquire gradient lock".to_string(),
+                    ))
+                }
             };
 
             if let Some(existing_grad) = grad_lock.as_ref() {
@@ -265,8 +264,10 @@ where
                 let gradient_dense = gradient.to_dense_generic()?;
 
                 // Add the gradients
-                let accumulated_dense = crate::ops::arithmetic::add(&existing_dense, &gradient_dense)
-                    .map_err(|_| TensorError::BackendError("Failed to accumulate gradients".to_string()))?;
+                let accumulated_dense =
+                    crate::ops::arithmetic::add(&existing_dense, &gradient_dense).map_err(
+                        |_| TensorError::BackendError("Failed to accumulate gradients".to_string()),
+                    )?;
 
                 // Convert back to the tensor's storage type
                 let data = accumulated_dense.as_slice().to_vec();
@@ -293,8 +294,10 @@ where
                 let gradient_dense = gradient.to_dense_generic()?;
 
                 // Add the gradients
-                let accumulated_dense = crate::ops::arithmetic::add(&existing_dense, &gradient_dense)
-                    .map_err(|_| TensorError::BackendError("Failed to accumulate gradients".to_string()))?;
+                let accumulated_dense =
+                    crate::ops::arithmetic::add(&existing_dense, &gradient_dense).map_err(
+                        |_| TensorError::BackendError("Failed to accumulate gradients".to_string()),
+                    )?;
 
                 // Convert back to the tensor's storage type
                 let data = accumulated_dense.as_slice().to_vec();
@@ -335,10 +338,9 @@ where
     /// ```
     pub fn zero_grad(&self) -> Result<()> {
         #[cfg(feature = "std")]
-        let mut grad_lock = self
-            .grad
-            .write()
-            .map_err(|_| TensorError::BackendError("Failed to acquire gradient lock".to_string()))?;
+        let mut grad_lock = self.grad.write().map_err(|_| {
+            TensorError::BackendError("Failed to acquire gradient lock".to_string())
+        })?;
         #[cfg(not(feature = "std"))]
         let mut grad_lock = self.grad.write();
 
@@ -403,46 +405,30 @@ where
         B: Backend<Data = T> + Clone + Default + 'static,
         S: Storage<T> + Clone + 'static + StorageToDense<T> + StorageFromVec<T>,
         GS: Storage<T> + StorageToDense<T> + StorageFromVec<T>,
-        T: Clone + Copy,
+        T: std::ops::Add<Output = T> + Clone + Copy,
     {
-        use crate::{OperationName, functions::AddFunction};
+        if let Some(func) = &self.grad_fn {
+            let grad_output_dense = grad_output.to_dense_generic()?;
+            let input_grads = func
+                .backward(&grad_output_dense)
+                .map_err(|e| TensorError::BackendError(format!("Function backward failed: {e}")))?;
 
-        if let Some(obj) = &self.grad_fn {
-            println!("DEBUG: grad_fn object found, trying downcast - tensor requires_grad: {}", self.requires_grad());
-            // Try to downcast to known function types and accumulate gradients on inputs
-            println!("DEBUG: Attempting downcast to AddFunction");
-            if let Some(add_fn) = obj.as_any().downcast_ref::<AddFunction<B, S, T>>() {
-                println!("DEBUG: Successfully downcast to AddFunction");
-                println!("DEBUG: Successfully downcast to AddFunction, {} inputs", add_fn.inputs().len());
-                // Convert grad_output to dense storage for the backward method
-                let grad_output_dense = grad_output.to_dense_generic()?;
-                // Call the function's backward method to get gradients w.r.t. inputs
-                let input_grads = add_fn.backward(&grad_output_dense).map_err(|e| TensorError::BackendError(format!("Function backward failed: {e}")))?;
-                // Accumulate gradients on input tensors
-                for (i, (input, grad)) in add_fn.inputs().iter().zip(input_grads).enumerate() {
-                    if input.requires_grad() {
-                        println!("DEBUG: Accumulating grad on input {}", i);
-                        input.accumulate_grad(&grad)?;
-                    } else {
-                        println!("DEBUG: Input {} does not require grad", i);
-                    }
+            for (input, grad) in func.inputs().iter().zip(input_grads.iter()) {
+                if input.requires_grad() {
+                    input.accumulate_grad(grad)?;
                 }
-            } else if let Some(op_name) = obj.as_any().downcast_ref::<OperationName>() {
-                println!("DEBUG: Downcast to OperationName: {}", op_name.0);
-                // For string-based operations, we don't have input references stored
-                // This is a fallback for operations that don't have full Function implementations
-            } else {
-                println!("DEBUG: Could not downcast to any known type");
+                if input.grad_fn().is_some() {
+                    input.backward_with_grad(grad)?;
+                }
             }
-            // Also set gradient on this tensor if it requires grad
+
             if self.requires_grad() {
-                self.set_grad(grad_output.clone())?;
+                self.accumulate_grad(grad_output)?;
             }
+
             Ok(())
         } else {
-            // Leaf tensor with no grad_fn - this is where backward pass starts
-            // For leaf tensors, the gradient is just the grad_output
-            self.set_grad(grad_output.clone())
+            self.accumulate_grad(grad_output)
         }
     }
 
@@ -451,8 +437,7 @@ where
     /// # Returns
     /// `true` if the tensor contains NaN values, `false` otherwise.
     pub fn is_nan(&self) -> bool
-    where
-    {
+where {
         // Check for NaN values (x != x is true for NaN)
         #[allow(clippy::eq_op)]
         self.as_slice().iter().any(|&x| x != x)
@@ -574,7 +559,6 @@ where
     pub fn function_object(&self) -> Option<&Arc<dyn Function<B, S, T>>> {
         self.grad_fn.as_ref()
     }
-
 
     /// Returns a new tensor with the specified grad_fn set.
     ///
@@ -902,7 +886,6 @@ where
         Tensor::from_vec(vec![sum], &[1])
     }
 
-
     /// Convert tensor to a different backend.
     ///
     /// This method enables zero-copy backend transfers where possible using the Clone bounds
@@ -1122,12 +1105,7 @@ where
     fn add(self, rhs: &Tensor<B, S, T>) -> Self::Output {
         match crate::ops::arithmetic::add(self, rhs) {
             Ok(tensor) => tensor,
-            Err(_) => {
-                // For std::ops traits, we cannot return Result, so we provide a safe default
-                // This maintains API compatibility while avoiding panics
-                // Users should prefer the explicit arithmetic methods for error handling
-                self.clone() // Return left operand as safe fallback
-            }
+            Err(e) => panic!("tensor add failed: {e}"),
         }
     }
 }
@@ -1143,12 +1121,7 @@ where
     fn sub(self, rhs: &Tensor<B, S, T>) -> Self::Output {
         match crate::ops::arithmetic::sub(self, rhs) {
             Ok(tensor) => tensor,
-            Err(_) => {
-                // For std::ops traits, we cannot return Result, so we provide a safe default
-                // This maintains API compatibility while avoiding panics
-                // Users should prefer the explicit arithmetic methods for error handling
-                self.clone() // Return left operand as safe fallback
-            }
+            Err(e) => panic!("tensor sub failed: {e}"),
         }
     }
 }
@@ -1162,7 +1135,10 @@ where
     type Output = Tensor<B, S, T>;
 
     fn mul(self, rhs: &Tensor<B, S, T>) -> Self::Output {
-        crate::ops::arithmetic::mul(self, rhs).expect("Tensor multiplication failed")
+        match crate::ops::arithmetic::mul(self, rhs) {
+            Ok(tensor) => tensor,
+            Err(e) => panic!("tensor mul failed: {e}"),
+        }
     }
 }
 
@@ -1175,7 +1151,10 @@ where
     type Output = Tensor<B, S, T>;
 
     fn div(self, rhs: &Tensor<B, S, T>) -> Self::Output {
-        crate::ops::arithmetic::div(self, rhs).expect("Tensor division failed")
+        match crate::ops::arithmetic::div(self, rhs) {
+            Ok(tensor) => tensor,
+            Err(e) => panic!("tensor div failed: {e}"),
+        }
     }
 }
 
@@ -1188,6 +1167,9 @@ where
     type Output = Tensor<B, S, T>;
 
     fn neg(self) -> Self::Output {
-        crate::ops::arithmetic::neg(self).expect("Tensor negation failed")
+        match crate::ops::arithmetic::neg(self) {
+            Ok(tensor) => tensor,
+            Err(e) => panic!("tensor neg failed: {e}"),
+        }
     }
 }

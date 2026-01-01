@@ -3,9 +3,9 @@
 //! This module implements InfoNCE loss and other contrastive learning objectives
 //! used in CLIP training.
 
-use std::fmt;
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
+use std::fmt;
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
@@ -67,7 +67,12 @@ pub fn info_nce_loss<B, S, T>(
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageToDense<T> + StorageFromVec<T> + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + std::ops::Add<T, Output = T> + std::ops::Div<T, Output = T> + num_traits::Float,
+    T: DataType
+        + FloatExt
+        + std::ops::Neg<Output = T>
+        + std::ops::Add<T, Output = T>
+        + std::ops::Div<T, Output = T>
+        + num_traits::Float,
 {
     let image_shape = image_features.shape().dims();
     let text_shape = text_features.shape().dims();
@@ -108,10 +113,8 @@ where
     let logits_text_to_image = compute_similarity_matrix(&text_norm, &image_norm)?;
 
     // Scale by temperature
-    let temp_tensor = Tensor::<B, DenseStorage<T>, T>::from_vec(
-        vec![T::from(temperature).unwrap()],
-        &[1],
-    )?;
+    let temp_tensor =
+        Tensor::<B, DenseStorage<T>, T>::from_vec(vec![T::from(temperature).unwrap()], &[1])?;
     let scaled_logits_i2t = &logits_image_to_text / &temp_tensor;
     let scaled_logits_t2i = &logits_text_to_image / &temp_tensor;
 
@@ -226,7 +229,7 @@ where
     // Broadcast divide embeddings by norms
     use tensor::ops::arithmetic::{broadcast_to, div};
     let norms_broadcasted = broadcast_to(&norms_tensor, &[batch_size, embed_dim])?;
-    Ok(div(&embeddings, &norms_broadcasted)?)
+    Ok(div(embeddings, &norms_broadcasted)?)
 }
 
 /// Compute similarity matrix between two sets of normalized embeddings
@@ -263,7 +266,9 @@ where
         let row_logits: Vec<T> = logits_data[row_start..row_start + batch_size].to_vec();
 
         // Find max for numerical stability
-        let max_logit = row_logits.iter().fold(T::neg_infinity(), |a, &b| if a > b { a } else { b });
+        let max_logit = row_logits
+            .iter()
+            .fold(T::neg_infinity(), |a, &b| if a > b { a } else { b });
 
         // Compute stable softmax: exp(logit - max_logit)
         let mut exp_logits = Vec::with_capacity(batch_size);
@@ -293,10 +298,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::assert_relative_eq;
     use backend::CpuBackend;
     use dtype::float::Float32;
-    use storage::DenseStorage;
     use num_traits::Float;
+    use storage::DenseStorage;
 
     type TestBackend = CpuBackend<Float32>;
     type TestStorage = DenseStorage<Float32>;
@@ -307,9 +313,17 @@ mod tests {
         let batch_size = 4;
         let embed_dim = 128;
 
-        // Create random embeddings (normalized)
-        let image_features = TestTensor::randn(&[batch_size, embed_dim]).unwrap();
-        let text_features = TestTensor::randn(&[batch_size, embed_dim]).unwrap();
+        let mut image_data = vec![Float32(0.0); batch_size * embed_dim];
+        for i in 0..batch_size {
+            image_data[i * embed_dim + i] = Float32(1.0);
+        }
+        let image_features = TestTensor::from_vec(image_data, &[batch_size, embed_dim]).unwrap();
+
+        let mut text_data = vec![Float32(0.0); batch_size * embed_dim];
+        for i in 0..batch_size {
+            text_data[i * embed_dim + (i + batch_size)] = Float32(1.0);
+        }
+        let text_features = TestTensor::from_vec(text_data, &[batch_size, embed_dim]).unwrap();
 
         let temperature = 0.07;
         let loss = info_nce_loss(&image_features, &text_features, temperature).unwrap();
@@ -317,9 +331,8 @@ mod tests {
         let loss_val = loss.as_slice()[0];
         assert!(loss_val >= Float32(0.0), "Loss should be non-negative");
 
-        // For random features, loss should be around log(batch_size)
         let expected_loss = (batch_size as f32).ln();
-        assert!(loss_val >= Float32(expected_loss * 0.5), "Loss seems too low");
+        assert_relative_eq!(loss_val.get(), expected_loss, epsilon = 1e-6);
     }
 
     #[test]
@@ -336,7 +349,10 @@ mod tests {
         let loss_val = loss.as_slice()[0];
 
         // With identical embeddings, loss should be very close to 0
-        assert!(loss_val < Float32(0.1), "Perfect match should have very low loss");
+        assert!(
+            loss_val < Float32(0.1),
+            "Perfect match should have very low loss"
+        );
     }
 
     #[test]
@@ -419,8 +435,16 @@ mod tests {
             let loss_val = loss.as_slice()[0];
 
             // Loss should be finite and reasonable
-            assert!(loss_val.is_finite(), "Loss must be finite for temperature {}", temp);
-            assert!(loss_val >= Float32(0.0), "Loss must be non-negative for temperature {}", temp);
+            assert!(
+                loss_val.is_finite(),
+                "Loss must be finite for temperature {}",
+                temp
+            );
+            assert!(
+                loss_val >= Float32(0.0),
+                "Loss must be non-negative for temperature {}",
+                temp
+            );
             let upper_bound = (batch_size as f32).ln() + (2.0f32 / temp as f32) + 1e-3f32;
             assert!(
                 loss_val <= Float32(upper_bound),

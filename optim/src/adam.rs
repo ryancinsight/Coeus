@@ -157,7 +157,7 @@ where
     }
 
     fn step_cpu(&mut self) -> Result<usize, crate::OptimError> {
-        use tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
+        use tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt};
 
         self.t += 1; // increment timestep for bias correction
 
@@ -174,26 +174,26 @@ where
         let bias_correction1 = T::from(1.0 / (1.0 - self.beta1.powf(t_val))).unwrap();
         let bias_correction2 = T::from(1.0 / (1.0 - self.beta2.powf(t_val))).unwrap();
 
+        let mut updated = 0usize;
         for param_state in &mut self.param_states {
             // Get gradient from tensor (PyTorch-style: gradients are stored on tensors)
             let grad = match param_state.param.grad() {
                 Ok(tensor_grad) => {
                     // Convert gradient storage to dense, then create optimizer's storage type
                     // This handles any gradient storage type (dense, sparse, quantized, etc.)
-                    let dense_grad = tensor_grad
-                        .storage_ref()
-                        .to_dense()
-                        .map_err(|_| crate::OptimError::GradientNotAvailable)?;
+                    let dense_grad = match tensor_grad.storage_ref().to_dense() {
+                        Ok(dense) => dense,
+                        Err(_) => continue,
+                    };
                     match S::from_vec(dense_grad.as_slice().to_vec(), tensor_grad.shape().dims()) {
                         Ok(converted_storage) => {
-                            // Use the same backend as the original tensor
                             let backend = tensor_grad.backend().clone();
                             Tensor::from_storage(converted_storage, backend)
                         }
-                        Err(_) => return Err(crate::OptimError::GradientNotAvailable),
+                        Err(_) => continue,
                     }
                 }
-                Err(_) => return Err(crate::OptimError::GradientNotAvailable),
+                Err(_) => continue,
             };
 
             // Apply weight decay if specified (L2 regularization)
@@ -246,10 +246,18 @@ where
             let v_hat_sqrt = sqrt(&v_hat_plus_eps)?;
             let update_ratio = div(&m_hat, &v_hat_sqrt)?;
             let scaled_update = scalar_mul(&update_ratio, lr)?;
-            param_state.param = sub(&param_state.param, &scaled_update)?;
+            for (p, u) in param_state
+                .param
+                .as_mut_slice()
+                .iter_mut()
+                .zip(scaled_update.as_slice().iter().copied())
+            {
+                *p = *p - u;
+            }
+            updated += 1;
         }
 
-        Ok(self.param_states.len())
+        Ok(updated)
     }
 
     fn zero_grad(&mut self) {

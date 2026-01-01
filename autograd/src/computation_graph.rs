@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use backend::Backend;
 use dtype::DataType;
-use storage::{Storage, StorageToDense, StorageFromVec};
+use storage::{Storage, StorageFromVec, StorageToDense};
 
 use crate::error::{AutogradError, Result};
 
@@ -66,12 +66,17 @@ impl GradientEngine {
     /// Build computation graph starting from a root tensor
     #[allow(dead_code)]
     fn build_computation_graph<B, S, T>(
-        &self,
         root_tensor: &tensor::Tensor<B, S, T>,
     ) -> Result<ComputationGraph<B, S, T>>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + StorageToDense<T> + StorageFromVec<T>,
+        S: Storage<T>
+            + core::fmt::Debug
+            + Send
+            + Sync
+            + 'static
+            + StorageToDense<T>
+            + StorageFromVec<T>,
         T: DataType,
     {
         let mut graph = ComputationGraph {
@@ -81,7 +86,7 @@ impl GradientEngine {
 
         // Start from root tensor and traverse backward
         if let Some(root_grad_fn) = root_tensor.grad_fn() {
-            self.build_graph_recursive(&mut graph, root_grad_fn)?;
+            Self::build_graph_recursive(&mut graph, root_grad_fn)?;
         }
 
         Ok(graph)
@@ -90,13 +95,18 @@ impl GradientEngine {
     /// Recursively build the computation graph
     #[allow(dead_code)]
     fn build_graph_recursive<B, S, T>(
-        &self,
         graph: &mut ComputationGraph<B, S, T>,
         function: &Arc<dyn tensor::Function<B, S, T>>,
     ) -> Result<usize>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + StorageToDense<T> + StorageFromVec<T>,
+        S: Storage<T>
+            + core::fmt::Debug
+            + Send
+            + Sync
+            + 'static
+            + StorageToDense<T>
+            + StorageFromVec<T>,
         T: DataType,
     {
         let function_ptr = Arc::as_ptr(function);
@@ -123,7 +133,7 @@ impl GradientEngine {
         for input_tensor in inputs {
             if let Some(parent_grad_fn) = input_tensor.grad_fn() {
                 // Recursively process parent function
-                let parent_index = self.build_graph_recursive(graph, parent_grad_fn)?;
+                let parent_index = Self::build_graph_recursive(graph, parent_grad_fn)?;
 
                 // Add edge: parent -> current
                 graph.nodes[parent_index].outgoing.push(node_index);
@@ -138,16 +148,17 @@ impl GradientEngine {
 
     /// Perform topological sort using Kahn's algorithm
     #[allow(dead_code)]
-    fn topological_sort<B, S, T>(
-        &self,
-        graph: &ComputationGraph<B, S, T>,
-    ) -> Result<Vec<usize>>
+    fn topological_sort<B, S, T>(graph: &ComputationGraph<B, S, T>) -> Result<Vec<usize>>
     where
         B: Backend<Data = T> + 'static,
         S: Storage<T> + 'static,
         T: DataType,
     {
-        let mut indegree = graph.nodes.iter().map(|node| node.indegree).collect::<Vec<_>>();
+        let mut indegree = graph
+            .nodes
+            .iter()
+            .map(|node| node.indegree)
+            .collect::<Vec<_>>();
         let mut queue = VecDeque::new();
         let mut result = Vec::new();
 
@@ -199,13 +210,21 @@ impl GradientEngine {
     ) -> Result<()>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + StorageToDense<T> + StorageFromVec<T>,
+        S: Storage<T>
+            + core::fmt::Debug
+            + Send
+            + Sync
+            + 'static
+            + StorageToDense<T>
+            + StorageFromVec<T>,
         T: DataType,
     {
         if let Some(grad_fn) = root_grad_fn {
             // For now, use the simple recursive approach
             // TODO: Implement full topological sorting
-            let grad_output_dense = grad_output.to_dense_generic().map_err(AutogradError::TensorError)?;
+            let grad_output_dense = grad_output
+                .to_dense_generic()
+                .map_err(AutogradError::TensorError)?;
             self.backward_from_function(grad_fn, &grad_output_dense)?;
         }
         Ok(())
@@ -219,7 +238,13 @@ impl GradientEngine {
     ) -> Result<()>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + StorageToDense<T> + StorageFromVec<T>,
+        S: Storage<T>
+            + core::fmt::Debug
+            + Send
+            + Sync
+            + 'static
+            + StorageToDense<T>
+            + StorageFromVec<T>,
         T: DataType,
     {
         // Prevent cycles by tracking visited functions
@@ -264,7 +289,7 @@ impl GradientEngine {
                 input_tensor_ref.shape().dims(),
                 grad_tensor.shape().dims()
             );
-            Self::accumulate_gradient(input_tensor_ref, grad_tensor)?;
+            Self::accumulate_gradient(input_tensor_ref, &grad_tensor)?;
         }
 
         // Recursively process parent functions
@@ -284,11 +309,18 @@ impl GradientEngine {
     #[allow(clippy::used_underscore_binding)]
     fn accumulate_gradient<B, S, T>(
         tensor: &tensor::Tensor<B, S, T>,
-        gradient: tensor::Tensor<B, S, T>,
+        gradient: &tensor::Tensor<B, S, T>,
     ) -> Result<()>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T> + core::fmt::Debug + Send + Sync + Clone + 'static + StorageFromVec<T> + StorageToDense<T>,
+        S: Storage<T>
+            + core::fmt::Debug
+            + Send
+            + Sync
+            + Clone
+            + 'static
+            + StorageFromVec<T>
+            + StorageToDense<T>,
         T: DataType + Clone,
     {
         println!(
@@ -298,7 +330,7 @@ impl GradientEngine {
         println!("gradient shape: {:?}", gradient.shape().dims());
 
         // Accumulate gradients properly
-        let result = tensor.accumulate_grad(&gradient);
+        let result = tensor.accumulate_grad(gradient);
         println!("accumulate_grad result: {result:?}");
         result.map_err(AutogradError::TensorError)
     }
@@ -310,7 +342,14 @@ impl GradientEngine {
     ) -> Result<tensor::Tensor<B, storage::DenseStorage<T>, T>>
     where
         B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T> + core::fmt::Debug + Send + Sync + 'static + Clone + StorageFromVec<T> + StorageToDense<T>,
+        S: Storage<T>
+            + core::fmt::Debug
+            + Send
+            + Sync
+            + 'static
+            + Clone
+            + StorageFromVec<T>
+            + StorageToDense<T>,
         T: DataType,
     {
         tensor.grad().map_err(AutogradError::TensorError)
@@ -324,19 +363,23 @@ impl GradientEngine {
 ///
 /// # Errors
 /// Returns error if backward pass fails
-pub fn backward<B, S, T>(
-    tensor: &tensor::Tensor<B, S, T>,
-) -> Result<()>
+pub fn backward<B, S, T>(tensor: &tensor::Tensor<B, S, T>) -> Result<()>
 where
     B: Backend<Data = T> + core::fmt::Debug + Send + Sync + Clone + 'static,
-    S: Storage<T> + core::fmt::Debug + Send + Sync + Clone + 'static + StorageToDense<T> + storage::StorageFromVec<T>,
+    S: Storage<T>
+        + core::fmt::Debug
+        + Send
+        + Sync
+        + Clone
+        + 'static
+        + StorageToDense<T>
+        + storage::StorageFromVec<T>,
     T: DataType,
 {
     let mut engine = GradientEngine::new();
     if let Some(grad_fn) = tensor.grad_fn() {
-        let one_storage = S::from_vec(vec![T::one()], &[]).map_err(|e| {
-            AutogradError::TensorError(tensor::TensorError::StorageError(e))
-        })?;
+        let one_storage = S::from_vec(vec![T::one()], &[])
+            .map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))?;
         let grad_output = tensor::Tensor::from_storage(one_storage, tensor.backend().clone());
 
         engine.backward(Some(grad_fn), &grad_output)?;

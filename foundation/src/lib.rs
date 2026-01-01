@@ -12,8 +12,8 @@ pub mod error;
 pub use error::{NNError, Result};
 
 // Core training infrastructure
-pub mod training;
 pub mod trainer;
+pub mod training;
 
 // Transformer architectures
 pub mod transformers;

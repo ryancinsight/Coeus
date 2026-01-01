@@ -131,6 +131,11 @@ impl HyperparameterConfig {
     }
 }
 
+impl Default for HyperparameterConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl HyperparameterConfig {
     /// Set a hyperparameter value
@@ -305,8 +310,7 @@ impl HyperparameterConfig {
 }
 
 /// Hyperparameter search space definition
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct HyperparameterSpace {
     /// Hyperparameters in the space
     pub parameters: Vec<Hyperparameter>,
@@ -320,7 +324,6 @@ impl HyperparameterSpace {
         Self::default()
     }
 }
-
 
 impl HyperparameterSpace {
     /// Add a hyperparameter to the space
@@ -538,7 +541,7 @@ mod tests {
         let value = param.sample();
         match value {
             HyperparameterValue::Float(v) => {
-                assert!(v >= 1e-4 && v <= 1e-1);
+                assert!((1e-4..=1e-1).contains(&v));
             }
             _ => panic!("Expected float value"),
         }

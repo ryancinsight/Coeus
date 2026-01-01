@@ -11,6 +11,22 @@ from .._coeus import (
     BatchNorm2d,
     Dropout,
     Embedding,
+    LayerNorm,
+    RNN,
+    LSTM,
+    GRU,
+    ReLU,
+    GELU,
+    SiLU,
+    PReLU,
+    Sigmoid,
+    Tanh,
+    MaxPool1d,
+    MaxPool2d,
+    AvgPool1d,
+    AvgPool2d,
+    AdaptiveAvgPool1d,
+    AdaptiveAvgPool2d,
 )
 
 # Expose PyTorch-compatible API
@@ -20,7 +36,24 @@ __all__ = [
     "Conv2D",
     "BatchNorm2d",
     "Dropout",
+    "Embedding",
+    "LayerNorm",
+    "RNN",
+    "LSTM",
+    "GRU",
+    "ReLU",
+    "GELU",
+    "SiLU",
+    "PReLU",
+    "Sigmoid",
+    "Tanh",
+    "MaxPool1d",
+    "MaxPool2d",
+    "AvgPool1d",
+    "AvgPool2d",
+    "AdaptiveAvgPool1d",
+    "AdaptiveAvgPool2d",
 ]
 
-# Create functional submodule - commented out until functional operations are implemented
-# from . import functional
+# Create functional submodule
+from . import functional

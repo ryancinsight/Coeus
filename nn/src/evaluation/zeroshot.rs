@@ -6,11 +6,11 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
+use super::{BenchmarkDataset, ClipEvaluationConfig, ClipModelEvaluator};
 use crate::error::{NNError, Result};
-use super::{ClipEvaluationConfig, BenchmarkDataset, ClipModelEvaluator};
 use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
 use storage::Storage;
-use dtype::{DataType, traits::FloatExt};
 
 /// Zero-shot classification results
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -91,7 +91,10 @@ impl ZeroShotEvaluator {
         let mut results = Vec::new();
         let start_time = Instant::now();
 
-        println!("🎯 Starting CLIP zero-shot classification evaluation on {} datasets", datasets.len());
+        println!(
+            "🎯 Starting CLIP zero-shot classification evaluation on {} datasets",
+            datasets.len()
+        );
 
         // TODO: Fix trait object evaluation
         // for dataset in datasets {
@@ -120,7 +123,10 @@ impl ZeroShotEvaluator {
     {
         let start_time = Instant::now();
 
-        println!("  Generating prompts for {} classes...", dataset.class_names().len());
+        println!(
+            "  Generating prompts for {} classes...",
+            dataset.class_names().len()
+        );
 
         // Create prompt template and generate text prompts
         let template = PromptTemplate::clip_default(dataset.class_names().clone());
@@ -135,7 +141,8 @@ impl ZeroShotEvaluator {
         let labels = &dataset.labels();
 
         println!("  Computing image-text similarities...");
-        let similarities = self.compute_image_text_similarities(image_embeddings, &text_embeddings)?;
+        let similarities =
+            self.compute_image_text_similarities(image_embeddings, &text_embeddings)?;
 
         println!("  Computing classification predictions...");
         let predictions = self.compute_predictions(&similarities, dataset.class_names().len())?;
@@ -144,9 +151,12 @@ impl ZeroShotEvaluator {
         let top1_accuracy = self.compute_top_k_accuracy(&predictions, labels, 1);
         let top5_accuracy = self.compute_top_k_accuracy(&predictions, labels, 5);
 
-        let per_class_accuracy = self.compute_per_class_accuracy(&predictions, labels, &dataset.class_names())?;
-        let confusion_matrix = self.compute_confusion_matrix(&predictions, labels, dataset.class_names().len())?;
-        let class_confidences = self.extract_class_confidences(&similarities, dataset.class_names().len())?;
+        let per_class_accuracy =
+            self.compute_per_class_accuracy(&predictions, labels, &dataset.class_names())?;
+        let confusion_matrix =
+            self.compute_confusion_matrix(&predictions, labels, dataset.class_names().len())?;
+        let class_confidences =
+            self.extract_class_confidences(&similarities, dataset.class_names().len())?;
 
         let eval_time = start_time.elapsed().as_secs_f64();
         println!("  Zero-shot evaluation completed in {:.2}s", eval_time);
@@ -197,7 +207,11 @@ impl ZeroShotEvaluator {
     }
 
     /// Compute predictions from similarity matrix
-    fn compute_predictions(&self, similarities: &[Vec<f64>], num_classes: usize) -> Result<Vec<Vec<(usize, f64)>>> {
+    fn compute_predictions(
+        &self,
+        similarities: &[Vec<f64>],
+        num_classes: usize,
+    ) -> Result<Vec<Vec<(usize, f64)>>> {
         let mut predictions = Vec::with_capacity(similarities.len());
 
         for similarity_row in similarities {
@@ -219,12 +233,20 @@ impl ZeroShotEvaluator {
     }
 
     /// Compute top-k accuracy
-    fn compute_top_k_accuracy(&self, predictions: &[Vec<(usize, f64)>], labels: &[usize], k: usize) -> f64 {
+    fn compute_top_k_accuracy(
+        &self,
+        predictions: &[Vec<(usize, f64)>],
+        labels: &[usize],
+        k: usize,
+    ) -> f64 {
         let mut correct = 0;
 
         for (pred, &true_class) in predictions.iter().zip(labels.iter()) {
             // Check if true class is in top-k predictions
-            let is_correct = pred.iter().take(k).any(|(pred_class, _)| *pred_class == true_class);
+            let is_correct = pred
+                .iter()
+                .take(k)
+                .any(|(pred_class, _)| *pred_class == true_class);
             if is_correct {
                 correct += 1;
             }
@@ -244,8 +266,14 @@ impl ZeroShotEvaluator {
         let mut class_total = HashMap::new();
 
         for (pred, &true_class) in predictions.iter().zip(labels.iter()) {
-            let class_name = class_names.get(true_class).unwrap_or(&format!("class_{}", true_class)).clone();
-            let is_correct = pred.iter().take(1).any(|(pred_class, _)| *pred_class == true_class);
+            let class_name = class_names
+                .get(true_class)
+                .cloned()
+                .unwrap_or_else(|| format!("class_{}", true_class));
+            let is_correct = pred
+                .iter()
+                .take(1)
+                .any(|(pred_class, _)| *pred_class == true_class);
 
             *class_total.entry(class_name.clone()).or_insert(0) += 1;
             if is_correct {
@@ -291,10 +319,8 @@ impl ZeroShotEvaluator {
         let mut confidences = Vec::with_capacity(similarities.len());
 
         for similarity_row in similarities {
-            let class_similarities: Vec<f64> = similarity_row.iter()
-                .take(num_classes)
-                .map(|&sim| sim)
-                .collect();
+            let class_similarities: Vec<f64> =
+                similarity_row.iter().take(num_classes).copied().collect();
 
             // Convert to softmax probabilities for better interpretation
             let softmax_confidences = self.compute_softmax(&class_similarities)?;
@@ -416,80 +442,6 @@ impl PromptEnsemble {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::evaluation::EvaluationDataset;
-
-    struct TestDataset {
-        name: String,
-        image_embeddings: Vec<Vec<f32>>,
-        text_embeddings: Vec<Vec<f32>>,
-        labels: Vec<usize>,
-        class_names: Vec<String>,
-    }
-
-    impl EvaluationDataset for TestDataset {
-        fn name(&self) -> &str {
-            &self.name
-        }
-
-        fn len(&self) -> usize {
-            self.image_embeddings.len()
-        }
-
-        fn get_sample(&self, _index: usize) -> Option<&dyn std::any::Any> {
-            None
-        }
-
-        fn image_embeddings(&self) -> &[Vec<f32>] {
-            &self.image_embeddings
-        }
-
-        fn text_embeddings(&self) -> &[Vec<f32>] {
-            &self.text_embeddings
-        }
-    }
-
-    impl BenchmarkDataset for TestDataset {
-        fn class_names(&self) -> Vec<String> {
-            self.class_names.clone()
-        }
-
-        fn get_image_label_pairs(&self) -> Vec<(Vec<u8>, usize)> {
-            // Mock image data for testing
-            self.labels.iter().enumerate().map(|(i, &label)| {
-                (vec![i as u8; 10], label)
-            }).collect()
-        }
-
-        fn labels(&self) -> &[usize] {
-            &self.labels
-        }
-    }
-
-    fn create_test_dataset() -> impl BenchmarkDataset {
-        TestDataset {
-            name: "test_dataset".to_string(),
-            image_embeddings: vec![
-                vec![1.0, 0.0, 0.0], // Should match class 0
-                vec![0.0, 1.0, 0.0], // Should match class 1
-                vec![0.0, 0.0, 1.0], // Should match class 2
-            ],
-            text_embeddings: vec![
-                vec![1.0, 0.0, 0.0], // "red" embedding
-                vec![0.0, 1.0, 0.0], // "green" embedding
-                vec![0.0, 0.0, 1.0], // "blue" embedding
-            ],
-            labels: vec![0, 1, 2],
-            class_names: vec!["red".to_string(), "green".to_string(), "blue".to_string()],
-        }
-    }
-
-    fn create_test_text_embeddings() -> Vec<Vec<f32>> {
-        vec![
-            vec![1.0, 0.0, 0.0], // "red" embedding
-            vec![0.0, 1.0, 0.0], // "green" embedding
-            vec![0.0, 0.0, 1.0], // "blue" embedding
-        ]
-    }
 
     #[test]
     fn test_cosine_similarity_perfect_match() {

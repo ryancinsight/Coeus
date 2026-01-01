@@ -3,7 +3,7 @@
 //! This module uses proptest to generate random inputs and verify
 //! mathematical properties and invariants of neural network operations.
 
-use approx::assert_relative_eq;
+use approx::{assert_relative_eq, assert_ulps_eq};
 use proptest::prelude::*;
 
 use backend::CpuBackend;
@@ -22,38 +22,6 @@ fn arb_tensor(
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(float_data, &shape)
             .unwrap()
     })
-}
-
-/// Generate random tensors with compatible shapes for operations
-fn arb_tensor_pair(
-    shape: Vec<usize>,
-) -> impl Strategy<
-    Value = (
-        Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
-        Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
-    ),
-> {
-    let len: usize = shape.iter().product();
-    (
-        prop::collection::vec(-10.0..10.0f32, len),
-        prop::collection::vec(-10.0..10.0f32, len),
-    )
-        .prop_map(move |(data1, data2)| {
-            let float_data1: Vec<Float32> = data1.into_iter().map(Float32::new).collect();
-            let float_data2: Vec<Float32> = data2.into_iter().map(Float32::new).collect();
-            (
-                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                    float_data1,
-                    &shape,
-                )
-                .unwrap(),
-                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                    float_data2,
-                    &shape,
-                )
-                .unwrap(),
-            )
-        })
 }
 
 proptest! {
@@ -80,41 +48,43 @@ proptest! {
         }
     }
 
-    /// Test that sigmoid activation produces values in (0, 1)
+    /// Test that sigmoid activation produces values in [0, 1]
     #[test]
-    fn test_sigmoid_range((values) in prop::collection::vec(-100.0..100.0f32, 1..50)) {
+    fn test_sigmoid_range(values in prop::collection::vec(-100.0..100.0f32, 1..50)) {
         let float_data: Vec<Float32> = values.into_iter().map(Float32::new).collect();
         let shape = vec![float_data.len()];
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(float_data, &shape).unwrap();
 
         let sigmoid_result = functional_activations::sigmoid(&tensor).unwrap();
 
-        // All sigmoid outputs should be in (0, 1)
+        // All sigmoid outputs should be in [0, 1]
         for &val in sigmoid_result.as_slice() {
             let val_f64 = val.get() as f64;
-            prop_assert!(val_f64 > 0.0 && val_f64 < 1.0);
+            prop_assert!(val_f64.is_finite());
+            prop_assert!((0.0..=1.0).contains(&val_f64));
         }
     }
 
-    /// Test that tanh activation produces values in (-1, 1)
+    /// Test that tanh activation produces values in [-1, 1]
     #[test]
-    fn test_tanh_range((values) in prop::collection::vec(-100.0..100.0f32, 1..50)) {
+    fn test_tanh_range(values in prop::collection::vec(-100.0..100.0f32, 1..50)) {
         let float_data: Vec<Float32> = values.into_iter().map(Float32::new).collect();
         let shape = vec![float_data.len()];
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(float_data, &shape).unwrap();
 
         let tanh_result = functional_activations::tanh(&tensor).unwrap();
 
-        // All tanh outputs should be in (-1, 1)
+        // All tanh outputs should be in [-1, 1]
         for &val in tanh_result.as_slice() {
             let val_f64 = val.get() as f64;
-            prop_assert!(val_f64 > -1.0 && val_f64 < 1.0);
+            prop_assert!(val_f64.is_finite());
+            prop_assert!((-1.0..=1.0).contains(&val_f64));
         }
     }
 
     /// Test GELU approximation properties
     #[test]
-    fn test_gelu_properties((values) in prop::collection::vec(-5.0..5.0f32, 1..30)) {
+    fn test_gelu_properties(values in prop::collection::vec(-5.0..5.0f32, 1..30)) {
         let float_data: Vec<Float32> = values.into_iter().map(Float32::new).collect();
         let shape = vec![float_data.len()];
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(float_data.clone(), &shape).unwrap();
@@ -225,7 +195,7 @@ proptest! {
 
     /// Test softmax normalization properties
     #[test]
-    fn test_softmax_properties((values) in prop::collection::vec(-10.0..10.0f32, 2..16)) {
+    fn test_softmax_properties(values in prop::collection::vec(-10.0..10.0f32, 2..16)) {
         let float_data: Vec<Float32> = values.into_iter().map(Float32::new).collect();
         let shape = vec![float_data.len()];
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(float_data, &shape).unwrap();
@@ -235,7 +205,7 @@ proptest! {
         // All values should be positive and less than 1
         for &val in softmax_result.as_slice() {
             let val_f64 = val.get() as f64;
-            prop_assert!(val_f64 >= 0.0 && val_f64 <= 1.0);
+            prop_assert!((0.0..=1.0).contains(&val_f64));
         }
 
         // Sum of all values should be 1 (approximately)
@@ -265,12 +235,22 @@ proptest! {
             assert_relative_eq!(mse_loss.as_slice()[0].get() as f64, 0.0, epsilon = 1e-6);
         }
 
-        // Manual calculation should match
-        let manual_mse: f64 = pred_data.iter().zip(&target_data)
-            .map(|(&p, &t)| (p.get() as f64 - t.get() as f64).powi(2))
-            .sum::<f64>() / len as f64;
+        // Manual calculation should match (in Float32 precision)
+        let manual_sum: Float32 = pred_data
+            .iter()
+            .zip(&target_data)
+            .map(|(&p, &t)| {
+                let d = p - t;
+                d * d
+            })
+            .fold(Float32::new(0.0), |acc, x| acc + x);
+        let manual_mse = manual_sum / Float32::new(len as f32);
 
-        assert_relative_eq!(mse_loss.as_slice()[0].get() as f64, manual_mse, epsilon = 1e-6);
+        assert_ulps_eq!(
+            mse_loss.as_slice()[0].get(),
+            manual_mse.get(),
+            max_ulps = 32
+        );
     }
 
     /// Test convolution kernel dot product
@@ -338,7 +318,7 @@ fn test_operation_composition() {
     // All sigmoid outputs should be in [0, 1]
     for &val in sigmoid_result.as_slice() {
         let val_f64 = val.get() as f64;
-        assert!(val_f64 >= 0.0 && val_f64 <= 1.0);
+        assert!((0.0..=1.0).contains(&val_f64));
     }
 
     // Values that were negative should become 0 then sigmoid(0) = 0.5

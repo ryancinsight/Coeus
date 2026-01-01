@@ -4,13 +4,42 @@
 //! during Sprint MS-37, including dataset utilities and neural network composition.
 
 use pyo3::prelude::*;
-use pyo3::types::PyList;
+use std::path::PathBuf;
+use std::process::Command;
+use std::sync::Once;
+
+static COEUS_EXTENSION_INIT: Once = Once::new();
+
+fn ensure_local_coeus_extension_ready() {
+    COEUS_EXTENSION_INIT.call_once(|| {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let workspace_root = manifest_dir.join("..");
+
+        let status = Command::new("cargo")
+            .args(["build", "-p", "pycoeus"])
+            .current_dir(&workspace_root)
+            .status()
+            .unwrap();
+        assert!(status.success());
+
+        let built_dylib = manifest_dir
+            .join("..")
+            .join("target")
+            .join("debug")
+            .join("pycoeus.dll");
+        let packaged_pyd = manifest_dir.join("python").join("coeus").join("_coeus.pyd");
+
+        std::fs::copy(&built_dylib, &packaged_pyd).unwrap();
+    });
+}
 
 #[test]
 fn test_tensor_dataset_integration() {
     pyo3::Python::initialize();
 
-    pyo3::Python::with_gil(|py| {
+    pyo3::Python::attach(|py| {
+        ensure_local_coeus_extension_ready();
+
         // Test loading the Python module
         let sys = py.import("sys").unwrap();
         let path = sys.getattr("path").unwrap();
@@ -30,8 +59,7 @@ fn test_tensor_dataset_integration() {
         };
 
         // Test TensorDataset creation with new constructor
-        let tensor_module = coeus.getattr("tensor").unwrap();
-        let tensor_zeros = tensor_module.getattr("tensor_zeros").unwrap();
+        let tensor_zeros = coeus.getattr("tensor_zeros").unwrap();
 
         // Create input and target tensors (simplified for testing)
         let input_data = tensor_zeros.call1(([3, 4],)).unwrap();
@@ -70,7 +98,9 @@ fn test_tensor_dataset_integration() {
 fn test_dataset_operations_integration() {
     pyo3::Python::initialize();
 
-    pyo3::Python::with_gil(|py| {
+    pyo3::Python::attach(|py| {
+        ensure_local_coeus_extension_ready();
+
         // Test loading the Python module
         let sys = py.import("sys").unwrap();
         let path = sys.getattr("path").unwrap();
@@ -91,11 +121,7 @@ fn test_dataset_operations_integration() {
         let utils = coeus.getattr("utils").unwrap();
 
         // Create test datasets
-        let tensor_zeros = coeus
-            .getattr("tensor")
-            .unwrap()
-            .getattr("tensor_zeros")
-            .unwrap();
+        let tensor_zeros = coeus.getattr("tensor_zeros").unwrap();
 
         // Dataset 1: 2 samples, 4 features -> 2 targets
         let input1 = tensor_zeros.call1(([2, 4],)).unwrap();
@@ -170,7 +196,9 @@ fn test_dataset_operations_integration() {
 fn test_dataloader_integration() {
     pyo3::Python::initialize();
 
-    pyo3::Python::with_gil(|py| {
+    pyo3::Python::attach(|py| {
+        ensure_local_coeus_extension_ready();
+
         // Test loading the Python module
         let sys = py.import("sys").unwrap();
         let path = sys.getattr("path").unwrap();
@@ -191,11 +219,7 @@ fn test_dataloader_integration() {
         let utils = coeus.getattr("utils").unwrap();
 
         // Create test dataset
-        let tensor_zeros = coeus
-            .getattr("tensor")
-            .unwrap()
-            .getattr("tensor_zeros")
-            .unwrap();
+        let tensor_zeros = coeus.getattr("tensor_zeros").unwrap();
         let inputs = tensor_zeros.call1(([4, 2],)).unwrap();
         let targets = tensor_zeros.call1(([4, 1],)).unwrap();
 
@@ -204,9 +228,9 @@ fn test_dataloader_integration() {
 
         // Test DataLoader creation
         let data_loader_class = utils.getattr("DataLoader").unwrap();
-        let data_loader = data_loader_class
-            .call(("dataset", dataset), Some(&pyo3::types::PyDict::new(py)))
-            .unwrap();
+        let kwargs = pyo3::types::PyDict::new(py);
+        kwargs.set_item("dataset", dataset).unwrap();
+        let data_loader = data_loader_class.call((), Some(&kwargs)).unwrap();
 
         // Test length calculation
         let len: usize = data_loader
@@ -226,7 +250,9 @@ fn test_dataloader_integration() {
 fn test_sequential_nn_integration() {
     pyo3::Python::initialize();
 
-    pyo3::Python::with_gil(|py| {
+    pyo3::Python::attach(|py| {
+        ensure_local_coeus_extension_ready();
+
         // Test loading the Python module
         let sys = py.import("sys").unwrap();
         let path = sys.getattr("path").unwrap();
@@ -253,14 +279,14 @@ fn test_sequential_nn_integration() {
         sequential
             .getattr("add_linear")
             .unwrap()
-            .call((py.None(), 10, 5), Some(&pyo3::types::PyDict::new(py)))
+            .call(("linear1", 10, 5), Some(&pyo3::types::PyDict::new(py)))
             .unwrap();
 
         // Test adding ReLU activation
         sequential
             .getattr("add_relu")
             .unwrap()
-            .call((py.None(),), None)
+            .call(("relu1",), None)
             .unwrap();
 
         // Should have 2 modules now (Linear + ReLU)
@@ -282,7 +308,9 @@ fn test_sequential_nn_integration() {
 fn test_transform_pipeline_integration() {
     pyo3::Python::initialize();
 
-    pyo3::Python::with_gil(|py| {
+    pyo3::Python::attach(|py| {
+        ensure_local_coeus_extension_ready();
+
         // Test loading the Python module
         let sys = py.import("sys").unwrap();
         let path = sys.getattr("path").unwrap();
@@ -307,7 +335,7 @@ fn test_transform_pipeline_integration() {
 
         // Create transforms using factory functions
         let to_tensor_transform = to_tensor_fn.call0().unwrap();
-        let normalize_transform = normalize_fn.call(([0.5], [0.5]), None).unwrap();
+        let _normalize_transform = normalize_fn.call(([0.5], [0.5]), None).unwrap();
 
         // Test ToTensor transform
         let transform_result = to_tensor_transform
@@ -346,7 +374,17 @@ fn test_transform_pipeline_integration() {
 fn test_transforms_basic() {
     pyo3::Python::initialize();
 
-    pyo3::Python::with_gil(|py| {
+    pyo3::Python::attach(|py| {
+        ensure_local_coeus_extension_ready();
+
+        let sys = py.import("sys").unwrap();
+        let path = sys.getattr("path").unwrap();
+        path.call_method1(
+            "insert",
+            (0, env!("CARGO_MANIFEST_DIR").to_string() + "/python"),
+        )
+        .unwrap();
+
         // Skip test if module is not built/installed
         let coeus = match py.import("coeus") {
             Ok(module) => module,
@@ -363,7 +401,7 @@ fn test_transforms_basic() {
 
         // Create transforms using class constructors
         let totensor = to_tensor_class.call0().unwrap();
-        let normalize = normalize_class.call1((vec![2.0f32], vec![1.0f32])).unwrap();
+        let _normalize = normalize_class.call1((vec![2.0f32], vec![1.0f32])).unwrap();
 
         // Test ToTensor transform
         let input_data = vec![1.0, 2.0, 3.0];

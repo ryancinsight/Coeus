@@ -355,7 +355,9 @@ impl<
     }
 }
 
-impl<T: DataType + num_traits::Float + num_traits::FromPrimitive, const BITS: usize> Storage<T> for QuantizedStorage<T, BITS> {
+impl<T: DataType + num_traits::Float + num_traits::FromPrimitive, const BITS: usize> Storage<T>
+    for QuantizedStorage<T, BITS>
+{
     fn as_slice(&self) -> &[T] {
         // For quantized storage, we can't directly return T slice
         // This is a limitation - quantized storage needs special handling

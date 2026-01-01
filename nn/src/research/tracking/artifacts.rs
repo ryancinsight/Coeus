@@ -4,9 +4,9 @@
 //! including data, models, visualizations, and research documents with automatic
 //! versioning, compression, and retention policies.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use serde::{Serialize, Deserialize};
 
 /// Artifact storage and management system
 #[derive(Debug, Clone, serde::Serialize)]
@@ -30,7 +30,12 @@ impl ArtifactStorage {
     }
 
     /// Store artifact with automatic metadata collection
-    pub fn store_artifact(&mut self, name: String, artifact_type: ArtifactType, data: Vec<u8>) -> crate::error::Result<String> {
+    pub fn store_artifact(
+        &mut self,
+        name: String,
+        artifact_type: ArtifactType,
+        data: Vec<u8>,
+    ) -> crate::error::Result<String> {
         let artifact_id = format!("{}_{}", name, chrono::Utc::now().timestamp());
         let size_bytes = data.len() as u64;
 
@@ -67,7 +72,11 @@ impl ArtifactStorage {
         // Update statistics
         self.stats.total_artifacts += 1;
         self.stats.total_size_bytes += artifact.size_bytes;
-        *self.stats.by_type.entry(artifact.artifact_type.clone()).or_insert(0) += 1;
+        *self
+            .stats
+            .by_type
+            .entry(artifact.artifact_type.clone())
+            .or_insert(0) += 1;
 
         // Store artifact
         self.artifacts.insert(artifact_id.clone(), artifact);
@@ -79,7 +88,12 @@ impl ArtifactStorage {
     }
 
     /// Store artifact from file path
-    pub fn store_artifact_from_file(&mut self, name: String, artifact_type: ArtifactType, file_path: &Path) -> crate::error::Result<String> {
+    pub fn store_artifact_from_file(
+        &mut self,
+        name: String,
+        artifact_type: ArtifactType,
+        file_path: &Path,
+    ) -> crate::error::Result<String> {
         match std::fs::read(file_path) {
             Ok(data) => self.store_artifact(name, artifact_type, data),
             Err(e) => Err(crate::error::NNError::IoError { error: e }),
@@ -113,14 +127,16 @@ impl ArtifactStorage {
 
     /// List artifacts by type
     pub fn list_artifacts_by_type(&self, artifact_type: &ArtifactType) -> Vec<&Artifact> {
-        self.artifacts.values()
+        self.artifacts
+            .values()
             .filter(|a| &a.artifact_type == artifact_type)
             .collect()
     }
 
     /// List artifacts by tags
     pub fn list_artifacts_by_tags(&self, tags: &[String]) -> Vec<&Artifact> {
-        self.artifacts.values()
+        self.artifacts
+            .values()
             .filter(|a| tags.iter().any(|tag| a.tags.contains(tag)))
             .collect()
     }
@@ -144,8 +160,12 @@ impl ArtifactStorage {
 
     /// Search artifacts by name pattern
     pub fn search_artifacts(&self, pattern: &str) -> Vec<&Artifact> {
-        self.artifacts.values()
-            .filter(|a| a.name.contains(pattern) || a.description.as_ref().map_or(false, |d| d.contains(pattern)))
+        self.artifacts
+            .values()
+            .filter(|a| {
+                a.name.contains(pattern)
+                    || a.description.as_ref().is_some_and(|d| d.contains(pattern))
+            })
             .collect()
     }
 
@@ -156,7 +176,11 @@ impl ArtifactStorage {
     }
 
     /// Create artifact bundle (zip multiple artifacts)
-    pub fn create_artifact_bundle(&mut self, bundle_name: String, artifact_ids: Vec<String>) -> crate::error::Result<String> {
+    pub fn create_artifact_bundle(
+        &mut self,
+        bundle_name: String,
+        artifact_ids: Vec<String>,
+    ) -> crate::error::Result<String> {
         let mut bundle_data = Vec::new();
 
         // Create a simple tar-like format (could be enhanced with actual compression)
@@ -195,7 +219,12 @@ impl ArtifactStorage {
     }
 
     /// Add metadata to artifact
-    pub fn add_artifact_metadata(&mut self, id: &str, key: String, value: serde_json::Value) -> crate::error::Result<()> {
+    pub fn add_artifact_metadata(
+        &mut self,
+        id: &str,
+        key: String,
+        value: serde_json::Value,
+    ) -> crate::error::Result<()> {
         if let Some(artifact) = self.artifacts.get_mut(id) {
             artifact.metadata.insert(key, value);
             Ok(())
@@ -213,19 +242,22 @@ impl ArtifactStorage {
 
     /// Check if storage limits would be exceeded
     fn check_storage_limits(&self, additional_size: u64) -> bool {
-        self.stats.total_artifacts < self.storage_config.max_artifacts &&
-        self.stats.total_size_bytes + additional_size <= self.storage_config.max_total_size_bytes
+        self.stats.total_artifacts < self.storage_config.max_artifacts
+            && self.stats.total_size_bytes + additional_size
+                <= self.storage_config.max_total_size_bytes
     }
 
     /// Clean up old artifacts based on retention policy
     fn cleanup_old_artifacts(&mut self) -> crate::error::Result<()> {
         // Group artifacts by type for retention policy application
-        let mut by_type: HashMap<ArtifactType, Vec<(chrono::DateTime<chrono::Utc>, String)>> = HashMap::new();
+        let mut by_type: HashMap<ArtifactType, Vec<(chrono::DateTime<chrono::Utc>, String)>> =
+            HashMap::new();
 
         for (id, artifact) in &self.artifacts {
-            by_type.entry(artifact.artifact_type.clone())
-                  .or_insert_with(Vec::new)
-                  .push((artifact.created_at, id.clone()));
+            by_type
+                .entry(artifact.artifact_type.clone())
+                .or_default()
+                .push((artifact.created_at, id.clone()));
         }
 
         // Apply retention policies
@@ -233,14 +265,19 @@ impl ArtifactStorage {
             // Sort by creation time (oldest first)
             artifacts.sort_by(|a, b| a.0.cmp(&b.0));
 
-            let max_keep = self.storage_config.retention_policies
+            let max_keep = self
+                .storage_config
+                .retention_policies
                 .get(&artifact_type)
                 .copied()
                 .unwrap_or(self.storage_config.default_max_per_type);
 
             // Remove oldest artifacts beyond limit
             let total_artifacts = artifacts.len();
-            for (_, id) in artifacts.into_iter().take(total_artifacts.saturating_sub(max_keep)) {
+            for (_, id) in artifacts
+                .into_iter()
+                .take(total_artifacts.saturating_sub(max_keep))
+            {
                 self.delete_artifact(&id)?;
             }
         }
@@ -282,7 +319,14 @@ impl ArtifactStorage {
             ArtifactType::Log => "text/plain",
             ArtifactType::Bundle => "application/octet-stream",
             ArtifactType::Custom(_) => "application/octet-stream",
-        }.to_string()
+        }
+        .to_string()
+    }
+}
+
+impl Default for ArtifactStorage {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -493,8 +537,11 @@ impl ArtifactArchive {
 
     /// Export archive to file
     pub fn export_archive(&self, export_path: &Path) -> crate::error::Result<()> {
-        let archive_data = serde_json::to_vec_pretty(&self.archived)
-            .map_err(|e| crate::error::NNError::SerializationError { message: format!("Failed to serialize archived data: {}", e) })?;
+        let archive_data = serde_json::to_vec_pretty(&self.archived).map_err(|e| {
+            crate::error::NNError::SerializationError {
+                message: format!("Failed to serialize archived data: {}", e),
+            }
+        })?;
         std::fs::write(export_path, archive_data)
             .map_err(|e| crate::error::NNError::IoError { error: e })
     }
@@ -514,7 +561,11 @@ pub struct ArchivedArtifact {
 /// Convenience methods for common artifact operations
 impl ArtifactStorage {
     /// Store model artifact
-    pub fn store_model(&mut self, name: String, model_data: Vec<u8>) -> crate::error::Result<String> {
+    pub fn store_model(
+        &mut self,
+        name: String,
+        model_data: Vec<u8>,
+    ) -> crate::error::Result<String> {
         self.store_artifact(name, ArtifactType::Model, model_data)
     }
 
@@ -524,12 +575,20 @@ impl ArtifactStorage {
     }
 
     /// Store dataset artifact
-    pub fn store_dataset(&mut self, name: String, dataset_data: Vec<u8>) -> crate::error::Result<String> {
+    pub fn store_dataset(
+        &mut self,
+        name: String,
+        dataset_data: Vec<u8>,
+    ) -> crate::error::Result<String> {
         self.store_artifact(name, ArtifactType::Dataset, dataset_data)
     }
 
     /// Store configuration artifact
-    pub fn store_config(&mut self, name: String, config_data: Vec<u8>) -> crate::error::Result<String> {
+    pub fn store_config(
+        &mut self,
+        name: String,
+        config_data: Vec<u8>,
+    ) -> crate::error::Result<String> {
         self.store_artifact(name, ArtifactType::Config, config_data)
     }
 }

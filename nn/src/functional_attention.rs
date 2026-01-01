@@ -5,10 +5,10 @@
 
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
+use num_traits::FromPrimitive;
+use std::ops::Neg;
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
-use std::ops::{Mul, Neg};
-use num_traits::FromPrimitive;
 
 use crate::error::{NNError, Result};
 
@@ -192,7 +192,7 @@ where
             // Apply mask and scale to maintain expected value
             attn_weights
                 .mul(&dropout_mask)?
-                .mul_scalar(T::from_f64(1.0 / (1.0 - dropout_p as f64)).unwrap())?
+                .mul_scalar(T::from_f64(1.0 / (1.0 - dropout_p)).unwrap())?
         } else {
             // During inference, no dropout applied
             attn_weights
@@ -216,7 +216,11 @@ where
 ///
 /// # Returns
 /// Tensor with softmax applied along the last dimension
-pub fn softmax<B: Backend<Data = T> + Default, S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static, T>(
+pub fn softmax<
+    B: Backend<Data = T> + Default,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
+    T,
+>(
     input: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where

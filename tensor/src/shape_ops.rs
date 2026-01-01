@@ -135,6 +135,92 @@ where
         }
     }
 
+    /// Permutes dimensions of the tensor.
+    ///
+    /// # Arguments
+    /// * `dims` - New order of dimensions
+    pub fn permute(&self, dims: &[usize]) -> crate::Result<Self> {
+        let source_dims = self.shape().dims();
+        let ndim = source_dims.len();
+
+        if dims.len() != ndim {
+            return Err(crate::TensorError::ShapeError {
+                expected: ndim,
+                actual: dims.len(),
+                message: format!(
+                    "permute: number of dimensions must match, got {} != {}",
+                    dims.len(),
+                    ndim
+                ),
+            });
+        }
+
+        // Validate permutation
+        let mut seen = vec![false; ndim];
+        for &d in dims {
+            if d >= ndim {
+                return Err(crate::TensorError::ShapeError {
+                    expected: ndim,
+                    actual: d,
+                    message: format!("permute: dimension {d} out of bounds for ndim {ndim}"),
+                });
+            }
+            if seen[d] {
+                return Err(crate::TensorError::ShapeError {
+                    expected: ndim,
+                    actual: d,
+                    message: format!("permute: duplicate dimension {d}"),
+                });
+            }
+            seen[d] = true;
+        }
+
+        let mut target_dims = vec![0; ndim];
+        for i in 0..ndim {
+            target_dims[i] = source_dims[dims[i]];
+        }
+
+        let mut permuted_data = Vec::with_capacity(self.len());
+        let mut coords = vec![0; ndim]; // coordinates in the target tensor
+
+        loop {
+            // map target coordinates back to source coordinates
+            let mut source_coords = vec![0; ndim];
+            for i in 0..ndim {
+                source_coords[dims[i]] = coords[i];
+            }
+
+            // compute linear index in source tensor
+            let mut linear_idx = 0;
+            let mut stride = 1;
+            for i in 0..ndim {
+                linear_idx += source_coords[i] * stride;
+                stride *= source_dims[i];
+            }
+
+            permuted_data.push(self.as_slice()[linear_idx]);
+
+            // increment target coordinates
+            let mut carry = 1;
+            for i in (0..ndim).rev() {
+                coords[i] += carry;
+                if coords[i] < target_dims[i] {
+                    carry = 0;
+                    break;
+                }
+                coords[i] = 0;
+            }
+
+            if carry != 0 {
+                break;
+            }
+        }
+
+        let new_storage = storage::DenseStorage::from_vec(permuted_data, &target_dims)
+            .map_err(crate::TensorError::StorageError)?;
+        Ok(Self::from_storage(new_storage, B::default()))
+    }
+
     /// Helper method to resolve reshape dimensions with -1 inference.
     #[allow(dead_code)]
     fn resolve_reshape_dims(&self, dims: &[isize]) -> crate::Result<Vec<usize>> {

@@ -98,9 +98,17 @@ impl MultimodalTransformer {
         Ok(())
     }
 
-    pub fn forward(&self, inputs: &HashMap<Modality, Vec<f32>>, task_name: &str, _mask: Option<&[bool]>) -> Result<Vec<f32>> {
+    pub fn forward(
+        &self,
+        inputs: &HashMap<Modality, Vec<f32>>,
+        task_name: &str,
+        _mask: Option<&[bool]>,
+    ) -> Result<Vec<f32>> {
         // Get the task
-        let task = self.tasks.get(task_name).ok_or(format!("Task '{}' not found", task_name))?;
+        let task = self
+            .tasks
+            .get(task_name)
+            .ok_or(format!("Task '{}' not found", task_name))?;
 
         // Simulate multimodal processing
         let total_features: usize = inputs.values().map(|v| v.len()).sum();
@@ -116,21 +124,24 @@ impl MultimodalTransformer {
             Task::Classification(classifier) => {
                 // Simulate classification output (logits for each class)
                 Ok((0..classifier.num_classes).map(|_| 0.1).collect())
-            },
+            }
             Task::Generation(generator) => {
                 // Simulate generation output (logits for vocabulary)
                 Ok((0..generator.vocab_size.min(100)).map(|_| 0.05).collect())
-            },
+            }
             Task::Retrieval(retriever) => {
                 // Simulate retrieval output (embedding for similarity)
                 Ok((0..retriever.hidden_dim).map(|_| 0.02).collect())
-            },
+            }
         }
     }
 
     pub fn num_parameters(&self) -> usize {
         // Rough estimate: hidden_dim * hidden_dim * num_layers * modalities
-        self.config.hidden_dim * self.config.hidden_dim * self.config.num_fusion_layers * self.config.modalities.len()
+        self.config.hidden_dim
+            * self.config.hidden_dim
+            * self.config.num_fusion_layers
+            * self.config.modalities.len()
     }
 }
 
@@ -173,7 +184,7 @@ fn demo_unified_multimodal_transformer() -> Result<()> {
         Task::Generation(Generator {
             vocab_size: 50000,
             hidden_dim: 768,
-        })
+        }),
     )?;
 
     // Create realistic multimodal inputs (simplified as Vec<f32>)
@@ -196,9 +207,15 @@ fn demo_unified_multimodal_transformer() -> Result<()> {
     let output = transformer.forward(&inputs, "image_captioning", None)?;
 
     println!("  📝 Generated captions: {} token logits", output.len());
-    println!("  🔍 Cross-modal fusion completed with {} modalities", transformer.config.modalities.len());
+    println!(
+        "  🔍 Cross-modal fusion completed with {} modalities",
+        transformer.config.modalities.len()
+    );
     println!("  🧠 Model parameters: {}", transformer.num_parameters());
-    println!("  🎵 Hierarchical fusion strategy: {:?}", transformer.config.fusion_strategy);
+    println!(
+        "  🎵 Hierarchical fusion strategy: {:?}",
+        transformer.config.fusion_strategy
+    );
 
     Ok(())
 }
@@ -223,12 +240,12 @@ fn demo_multimodal_classification() -> Result<()> {
         Task::Classification(Classifier {
             num_classes: 3, // 3 classes: positive, negative, neutral
             hidden_dim: 512,
-        })
+        }),
     )?;
 
     // Create simulated features
     let image_features = (0..2048).map(|i| (i as f32 * 0.01).sin()).collect(); // Vision features
-    let text_features = (0..768).map(|i| (i as f32 * 0.02).cos()).collect();   // Text features
+    let text_features = (0..768).map(|i| (i as f32 * 0.02).cos()).collect(); // Text features
 
     let inputs = HashMap::from([
         (Modality::Vision, image_features),
@@ -236,13 +253,15 @@ fn demo_multimodal_classification() -> Result<()> {
     ]);
 
     let output = transformer.forward(&inputs, "sentiment_classification", None)?;
-    println!("  📊 Multimodal classification completed: {} class logits", output.len());
+    println!(
+        "  📊 Multimodal classification completed: {} class logits",
+        output.len()
+    );
     println!("  🎯 3-class sentiment classification (positive/negative/neutral)");
     println!("  🔄 Cross-modal attention between vision and language modalities");
 
     Ok(())
 }
-
 
 /// Demonstrate multimodal retrieval task
 fn demo_multimodal_retrieval() -> Result<()> {
@@ -264,12 +283,12 @@ fn demo_multimodal_retrieval() -> Result<()> {
         Task::Retrieval(Retriever {
             hidden_dim: 512,
             similarity_type: SimilarityType::Cosine,
-        })
+        }),
     )?;
 
     // Create simulated features
     let image_features = (0..2048).map(|i| (i as f32 * 0.01).sin()).collect(); // Vision features
-    let text_features = (0..768).map(|i| (i as f32 * 0.02).cos()).collect();   // Text features
+    let text_features = (0..768).map(|i| (i as f32 * 0.02).cos()).collect(); // Text features
 
     let inputs = HashMap::from([
         (Modality::Vision, image_features),
@@ -277,7 +296,10 @@ fn demo_multimodal_retrieval() -> Result<()> {
     ]);
 
     let output = transformer.forward(&inputs, "image_text_retrieval", None)?;
-    println!("  🔍 Multimodal retrieval completed: {} dimensional embedding", output.len());
+    println!(
+        "  🔍 Multimodal retrieval completed: {} dimensional embedding",
+        output.len()
+    );
     println!("  📏 Cosine similarity-based retrieval embeddings");
     println!("  🎨 Attention fusion enables precise cross-modal alignment");
 
@@ -304,13 +326,13 @@ fn demo_multimodal_generation() -> Result<()> {
         Task::Generation(Generator {
             vocab_size: 30000, // 30K vocabulary
             hidden_dim: 768,
-        })
+        }),
     )?;
 
     // Create simulated features
     let image_features = (0..2048).map(|i| (i as f32 * 0.01).sin()).collect(); // Vision features
     let audio_features = (0..1024).map(|i| (i as f32 * 0.03).cos()).collect(); // Audio features
-    let text_features = (0..768).map(|i| (i as f32 * 0.02).sin()).collect();   // Context text
+    let text_features = (0..768).map(|i| (i as f32 * 0.02).sin()).collect(); // Context text
 
     let inputs = HashMap::from([
         (Modality::Vision, image_features),
@@ -319,7 +341,10 @@ fn demo_multimodal_generation() -> Result<()> {
     ]);
 
     let output = transformer.forward(&inputs, "image_audio_to_text", None)?;
-    println!("  🎵 Multimodal generation completed: {} token logits", output.len());
+    println!(
+        "  🎵 Multimodal generation completed: {} token logits",
+        output.len()
+    );
     println!("  📝 Generated text: sequence from vision + audio + language fusion");
     println!("  🎼 Audio-visual understanding enables rich text generation");
 
@@ -342,12 +367,26 @@ fn demo_model_analysis() -> Result<()> {
 
     println!("  📊 Model Architecture Analysis:");
     println!("    - Modal Encoder → Transformer Layers → Cross-Modal Fusion → Task Heads");
-    println!("    - {} modalities: {:?}", transformer.config.modalities.len(),
-             transformer.config.modalities.iter().map(|m| m.as_str()).collect::<Vec<_>>());
+    println!(
+        "    - {} modalities: {:?}",
+        transformer.config.modalities.len(),
+        transformer
+            .config
+            .modalities
+            .iter()
+            .map(|m| m.as_str())
+            .collect::<Vec<_>>()
+    );
     println!("    - {} hidden dimensions", transformer.config.hidden_dim);
-    println!("    - {} fusion layers", transformer.config.num_fusion_layers);
+    println!(
+        "    - {} fusion layers",
+        transformer.config.num_fusion_layers
+    );
     println!("    - Total parameters: {}", transformer.num_parameters());
-    println!("    - Fusion strategy: {:?}", transformer.config.fusion_strategy);
+    println!(
+        "    - Fusion strategy: {:?}",
+        transformer.config.fusion_strategy
+    );
     println!("    - Dropout: {:.1}%", transformer.config.dropout * 100.0);
 
     // Analyze task capabilities
@@ -365,8 +404,6 @@ fn demo_model_analysis() -> Result<()> {
 
     Ok(())
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -417,7 +454,7 @@ mod tests {
             Task::Classification(Classifier {
                 num_classes: 5,
                 hidden_dim: 256,
-            })
+            }),
         )?;
 
         // Test task execution

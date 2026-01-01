@@ -12,9 +12,7 @@
 //! - **Memory-Aware Coordination**: Integrates memory management with backend decisions
 //! - **Communication Optimization**: Minimizes synchronization overhead in heterogeneous environments
 
-use crate::{
-    BackendSelector, BackendType, WorkloadCharacteristics,
-};
+use crate::{BackendSelector, BackendType, WorkloadCharacteristics};
 
 // For now, these imports will need to be conditional based on distributed crate availability
 // use crate::distributed::{DistributedError, ProcessGroup, Rank, WorldSize, CommunicationBackend};
@@ -78,8 +76,7 @@ pub struct DistributedBackendCoordinator {
     fault_tolerance_state: RwLock<FaultToleranceState>,
 }
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CoordinationStats {
     /// Total coordination operations performed
     pub total_coordinations: u64,
@@ -93,8 +90,7 @@ pub struct CoordinationStats {
     pub current_round: u64,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct FaultToleranceState {
     /// Whether the coordinator is in recovery mode
     pub recovering: bool,
@@ -115,7 +111,6 @@ impl Default for CoordinationStats {
         }
     }
 }
-
 
 /// Distributed workload characteristics across multiple GPUs
 #[derive(Debug, Clone)]
@@ -206,7 +201,7 @@ impl DistributedBackendCoordinator {
     /// Coordinate backend selection across distributed processes
     pub async fn coordinate_backend_selection(
         &self,
-        workload: &DistributedWorkloadCharacteristics
+        workload: &DistributedWorkloadCharacteristics,
     ) -> crate::Result<BackendSelectionDecision> {
         let start_time = std::time::Instant::now();
 
@@ -234,10 +229,9 @@ impl DistributedBackendCoordinator {
         }
 
         // Optimize for memory efficiency and communication cost
-        let optimized_decision = self.optimize_distributed_selection(
-            process_backends,
-            workload
-        ).await?;
+        let optimized_decision = self
+            .optimize_distributed_selection(process_backends, workload)
+            .await?;
 
         // Update coordination statistics
         let elapsed = start_time.elapsed();
@@ -245,10 +239,10 @@ impl DistributedBackendCoordinator {
         stats.total_coordinations += 1;
         stats.current_round += 1;
         stats.resolved_conflicts += conflicts;
-        stats.avg_coordination_latency_us = (
-            stats.avg_coordination_latency_us * (stats.total_coordinations - 1) as f64 +
-            elapsed.as_micros() as f64
-        ) / stats.total_coordinations as f64;
+        stats.avg_coordination_latency_us = (stats.avg_coordination_latency_us
+            * (stats.total_coordinations - 1) as f64
+            + elapsed.as_micros() as f64)
+            / stats.total_coordinations as f64;
 
         Ok(optimized_decision)
     }
@@ -257,14 +251,15 @@ impl DistributedBackendCoordinator {
     async fn resolve_conflicting_backend(
         &self,
         rank: Rank,
-        workload: &DistributedWorkloadCharacteristics
+        workload: &DistributedWorkloadCharacteristics,
     ) -> BackendType {
         // Check if rank has specific workload characteristics
         if let Some(process_workload) = workload.process_variations.get(&rank) {
             self.local_selector.select_backend(process_workload)
         } else {
             // Fall back to aggregate workload
-            self.local_selector.select_backend(&workload.aggregate_workload)
+            self.local_selector
+                .select_backend(&workload.aggregate_workload)
         }
     }
 
@@ -272,7 +267,7 @@ impl DistributedBackendCoordinator {
     async fn optimize_distributed_selection(
         &self,
         initial_backends: HashMap<Rank, BackendType>,
-        workload: &DistributedWorkloadCharacteristics
+        workload: &DistributedWorkloadCharacteristics,
     ) -> crate::Result<BackendSelectionDecision> {
         let mut process_backends = initial_backends;
         let mut iterations = 0;
@@ -280,7 +275,8 @@ impl DistributedBackendCoordinator {
 
         // Iteratively optimize for memory and communication efficiency
         while iterations < max_iterations {
-            let current_efficiency = self.calculate_distributed_efficiency(&process_backends, workload);
+            let current_efficiency =
+                self.calculate_distributed_efficiency(&process_backends, workload);
 
             // Try to find better configuration by adjusting one process at a time
             let mut best_alternative = None;
@@ -295,7 +291,8 @@ impl DistributedBackendCoordinator {
                     let mut test_backends = process_backends.clone();
                     test_backends.insert(*rank, *alternative_backend);
 
-                    let test_efficiency = self.calculate_distributed_efficiency(&test_backends, workload);
+                    let test_efficiency =
+                        self.calculate_distributed_efficiency(&test_backends, workload);
                     if test_efficiency > best_efficiency {
                         best_efficiency = test_efficiency;
                         best_alternative = Some((*rank, *alternative_backend));
@@ -313,10 +310,13 @@ impl DistributedBackendCoordinator {
         }
 
         // Calculate final metrics
-        let confidence_score = self.calculate_confidence_score(&process_backends, workload).await;
+        let confidence_score = self
+            .calculate_confidence_score(&process_backends, workload)
+            .await;
         let performance_gain = self.estimate_performance_gain(&process_backends, workload);
         let memory_efficiency = self.calculate_memory_efficiency(&process_backends, workload);
-        let communication_efficiency = self.calculate_communication_efficiency(&process_backends, workload);
+        let communication_efficiency =
+            self.calculate_communication_efficiency(&process_backends, workload);
 
         Ok(BackendSelectionDecision {
             process_backends,
@@ -331,7 +331,7 @@ impl DistributedBackendCoordinator {
     fn calculate_distributed_efficiency(
         &self,
         backends: &HashMap<Rank, BackendType>,
-        workload: &DistributedWorkloadCharacteristics
+        workload: &DistributedWorkloadCharacteristics,
     ) -> f32 {
         let memory_eff = self.calculate_memory_efficiency(backends, workload);
         let comm_eff = self.calculate_communication_efficiency(backends, workload);
@@ -345,7 +345,7 @@ impl DistributedBackendCoordinator {
     fn calculate_memory_efficiency(
         &self,
         backends: &HashMap<Rank, BackendType>,
-        workload: &DistributedWorkloadCharacteristics
+        workload: &DistributedWorkloadCharacteristics,
     ) -> f32 {
         let mut total_memory_efficiency = 0.0f32;
         let mut total_weight = 0.0f32;
@@ -392,7 +392,7 @@ impl DistributedBackendCoordinator {
     fn calculate_communication_efficiency(
         &self,
         backends: &HashMap<Rank, BackendType>,
-        workload: &DistributedWorkloadCharacteristics
+        workload: &DistributedWorkloadCharacteristics,
     ) -> f32 {
         let mut homogeneous_groups = HashMap::new();
 
@@ -420,16 +420,22 @@ impl DistributedBackendCoordinator {
     fn estimate_performance_gain(
         &self,
         backends: &HashMap<Rank, BackendType>,
-        workload: &DistributedWorkloadCharacteristics
+        workload: &DistributedWorkloadCharacteristics,
     ) -> f32 {
         let mut total_gain = 0.0f32;
 
         for (rank, backend) in backends {
-            let process_workload = workload.process_variations.get(rank)
+            let process_workload = workload
+                .process_variations
+                .get(rank)
                 .unwrap_or(&workload.local_workload);
 
-            let backend_score = self.local_selector.score_backend(*backend, process_workload);
-            let baseline_cpu_score = self.local_selector.score_backend(BackendType::Cpu, process_workload);
+            let backend_score = self
+                .local_selector
+                .score_backend(*backend, process_workload);
+            let baseline_cpu_score = self
+                .local_selector
+                .score_backend(BackendType::Cpu, process_workload);
 
             // Performance gain relative to CPU baseline
             let gain = if baseline_cpu_score > 0.0 {
@@ -448,14 +454,16 @@ impl DistributedBackendCoordinator {
     async fn calculate_confidence_score(
         &self,
         backends: &HashMap<Rank, BackendType>,
-        _workload: &DistributedWorkloadCharacteristics
+        _workload: &DistributedWorkloadCharacteristics,
     ) -> f32 {
         let mut total_confidence = 0.0f32;
         let mut process_count = 0;
 
         for (rank, backend) in backends {
             // Check if backend is available for this rank
-            if let Some(available_backends) = self.global_backend_availability.read().await.get(rank) {
+            if let Some(available_backends) =
+                self.global_backend_availability.read().await.get(rank)
+            {
                 let backend_available = available_backends.contains(backend);
                 let confidence = if backend_available { 0.9 } else { 0.1 };
 
@@ -486,12 +494,14 @@ impl DistributedBackendCoordinator {
         &self,
         _failed_rank: Rank,
         failed_backend: BackendType,
-        workload: &DistributedWorkloadCharacteristics
+        workload: &DistributedWorkloadCharacteristics,
     ) -> crate::Result<BackendSelectionDecision> {
         // Mark backend as failed in fault tolerance state
         {
             let mut ft_state = self.fault_tolerance_state.write().await;
-            ft_state.failed_backends.insert(failed_backend, self.get_timestamp());
+            ft_state
+                .failed_backends
+                .insert(failed_backend, self.get_timestamp());
             ft_state.recovering = true;
         }
 
@@ -551,7 +561,7 @@ impl DistributedWorkloadAnalyzer {
         &mut self,
         process_group: &ProcessGroup,
         local_workload: WorkloadCharacteristics,
-        memory_constraints: MemoryConstraints
+        memory_constraints: MemoryConstraints,
     ) -> crate::Result<DistributedWorkloadCharacteristics> {
         // Add local data to patterns
         self.add_memory_pattern(process_group.rank(), memory_constraints.clone());
@@ -583,9 +593,12 @@ impl DistributedWorkloadAnalyzer {
 
             // Simulate memory constraints variation
             let memory_variation = MemoryConstraints {
-                available_memory_bytes: (memory_constraints.available_memory_bytes as f32 * (0.9 + rank.0 as f32 * 0.05)) as u64,
-                fragmentation_ratio: (memory_constraints.fragmentation_ratio + rank.0 as f32 * 0.1).min(1.0),
-                memory_pressure: (memory_constraints.memory_pressure + rank.0 as f32 * 0.05).min(1.0),
+                available_memory_bytes: (memory_constraints.available_memory_bytes as f32
+                    * (0.9 + rank.0 as f32 * 0.05)) as u64,
+                fragmentation_ratio: (memory_constraints.fragmentation_ratio + rank.0 as f32 * 0.1)
+                    .min(1.0),
+                memory_pressure: (memory_constraints.memory_pressure + rank.0 as f32 * 0.05)
+                    .min(1.0),
             };
 
             all_memory_constraints.insert(rank, memory_variation);
@@ -596,11 +609,13 @@ impl DistributedWorkloadAnalyzer {
             aggregate_workload,
             process_variations,
             memory_constraints: all_memory_constraints,
-            communication_overhead: self.estimate_communication_overhead(process_group.world_size().0),
+            communication_overhead: self
+                .estimate_communication_overhead(process_group.world_size().0),
         };
 
         // Store in history
-        self.workload_history.push_back(distributed_workload.clone());
+        self.workload_history
+            .push_back(distributed_workload.clone());
         if self.workload_history.len() > 100 {
             self.workload_history.pop_front();
         }
@@ -610,7 +625,8 @@ impl DistributedWorkloadAnalyzer {
 
     /// Add memory pattern data for a rank
     fn add_memory_pattern(&mut self, rank: Rank, constraints: MemoryConstraints) {
-        self.memory_patterns.entry(rank)
+        self.memory_patterns
+            .entry(rank)
             .or_insert_with(|| VecDeque::with_capacity(50))
             .push_back(constraints);
 
@@ -675,7 +691,9 @@ mod tests {
         let workload = create_test_workload();
         let memory = create_test_memory_constraints();
 
-        let result = analyzer.analyze_distributed_workload(&process_group, workload, memory).await;
+        let result = analyzer
+            .analyze_distributed_workload(&process_group, workload, memory)
+            .await;
         assert!(result.is_ok());
 
         let distributed_workload = result.unwrap();
@@ -693,9 +711,14 @@ mod tests {
         let workload = create_test_workload();
         let memory = create_test_memory_constraints();
 
-        let distributed_workload = analyzer.analyze_distributed_workload(&process_group, workload, memory).await.unwrap();
+        let distributed_workload = analyzer
+            .analyze_distributed_workload(&process_group, workload, memory)
+            .await
+            .unwrap();
 
-        let decision = coordinator.coordinate_backend_selection(&distributed_workload).await;
+        let decision = coordinator
+            .coordinate_backend_selection(&distributed_workload)
+            .await;
         assert!(decision.is_ok());
 
         let decision = decision.unwrap();

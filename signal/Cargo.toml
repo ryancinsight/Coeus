@@ -1,0 +1,22 @@
+[package]
+name = "coeus-signal"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ryan Clanton <ryanclanton@protomail.com>"]
+description = "Signal processing operations for Coeus"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ryancinsight/Coeus"
+readme = "../README.md"
+keywords = ["signal-processing", "tensor", "fft", "machine-learning"]
+categories = ["science", "mathematics"]
+
+[dependencies]
+coeus-error = { path = "../coeus-error", version = "0.2.0" }
+tensor = { path = "../tensor", version = "0.2.0" }
+dtype = { path = "../dtype", version = "0.2.0" }
+backend = { path = "../backend", version = "0.2.0" }
+fft = { path = "../fft", package = "coeus-fft", version = "0.2.0" }
+storage = { path = "../storage", version = "0.2.0" }
+
+num-traits = "0.2"
+num-complex = "0.4"

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 // Use real CLIP service and vector database from the semantic API crate
-use semantic_api::clip_service::{RealCLIPService, InMemoryVectorDB};
+use semantic_api::clip_service::{InMemoryVectorDB, RealCLIPService};
 use semantic_api::state::{CLIPService, VectorDatabase};
 
 // Application state using real CLIP service
@@ -26,7 +26,9 @@ struct SearchRequest {
     top_k: usize,
 }
 
-fn default_top_k() -> usize { 10 }
+fn default_top_k() -> usize {
+    10
+}
 
 #[derive(serde::Serialize)]
 struct SearchResult {
@@ -51,13 +53,7 @@ struct HealthResponse {
 }
 
 // Main server implementation
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::Json,
-    routing::get,
-    Router
-};
+use axum::{extract::State, http::StatusCode, response::Json, routing::get, Router};
 
 async fn health_check(State(_state): State<AppState>) -> Json<HealthResponse> {
     Json(HealthResponse {
@@ -78,14 +74,21 @@ async fn text_search(
         return Err((StatusCode::BAD_REQUEST, "Query cannot be empty".to_string()));
     }
 
-    let embedding = state.clip_service.encode_text(&request.query)
+    let embedding = state
+        .clip_service
+        .encode_text(&request.query)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
     let results = state.vector_db.search(&embedding, request.top_k).await;
 
-    let response_results: Vec<SearchResult> = results.into_iter()
-        .map(|(id, score, metadata)| SearchResult { id, score, metadata })
+    let response_results: Vec<SearchResult> = results
+        .into_iter()
+        .map(|(id, score, metadata)| SearchResult {
+            id,
+            score,
+            metadata,
+        })
         .collect();
 
     Ok(Json(SearchResponse {
@@ -100,7 +103,9 @@ async fn index_content(
     Json(entries): Json<Vec<(String, String, serde_json::Value)>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     for (id, content, metadata) in entries {
-        let embedding = state.clip_service.encode_text(&content)
+        let embedding = state
+            .clip_service
+            .encode_text(&content)
             .await
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
@@ -115,10 +120,26 @@ async fn index_content(
 
 async fn initialize_sample_data(state: &AppState) {
     let sample_data = vec![
-        ("doc1".to_string(), "A beautiful mountain landscape with snow-capped peaks".to_string(), serde_json::json!({"type": "image", "tags": ["nature", "mountains"]})),
-        ("doc2".to_string(), "A sleek sports car speeding down a coastal highway".to_string(), serde_json::json!({"type": "image", "tags": ["car", "speed"]})),
-        ("doc3".to_string(), "People enjoying delicious pizza at an outdoor restaurant".to_string(), serde_json::json!({"type": "image", "tags": ["food", "people"]})),
-        ("doc4".to_string(), "Ancient book collection in a cozy library".to_string(), serde_json::json!({"type": "image", "tags": ["books", "library"]})),
+        (
+            "doc1".to_string(),
+            "A beautiful mountain landscape with snow-capped peaks".to_string(),
+            serde_json::json!({"type": "image", "tags": ["nature", "mountains"]}),
+        ),
+        (
+            "doc2".to_string(),
+            "A sleek sports car speeding down a coastal highway".to_string(),
+            serde_json::json!({"type": "image", "tags": ["car", "speed"]}),
+        ),
+        (
+            "doc3".to_string(),
+            "People enjoying delicious pizza at an outdoor restaurant".to_string(),
+            serde_json::json!({"type": "image", "tags": ["food", "people"]}),
+        ),
+        (
+            "doc4".to_string(),
+            "Ancient book collection in a cozy library".to_string(),
+            serde_json::json!({"type": "image", "tags": ["books", "library"]}),
+        ),
     ];
 
     for (id, content, metadata) in sample_data {
@@ -202,7 +223,8 @@ mod tests {
         let addr_string = format!("http://{}", addr);
 
         // Use CPU-based services for tests
-        let clip_service: Arc<dyn CLIPService + Send + Sync> = Arc::new(RealCLIPService::new_with_cpu().unwrap());
+        let clip_service: Arc<dyn CLIPService + Send + Sync> =
+            Arc::new(RealCLIPService::new_with_cpu().unwrap());
         let vector_db: Arc<dyn VectorDatabase + Send + Sync> = Arc::new(InMemoryVectorDB::new());
 
         let state = AppState {
@@ -280,4 +302,3 @@ mod tests {
         assert!((similarity - expected).abs() < 1e-6);
     }
 }
-

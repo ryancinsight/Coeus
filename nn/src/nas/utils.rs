@@ -37,7 +37,8 @@ impl ArchitectureAnalyzer {
         let max_layers = arch1.layers.len().max(arch2.layers.len());
 
         for i in 0..max_layers {
-            if i < arch1.layers.len() && i < arch2.layers.len()
+            if i < arch1.layers.len()
+                && i < arch2.layers.len()
                 && std::mem::discriminant(&arch1.layers[i])
                     == std::mem::discriminant(&arch2.layers[i])
             {

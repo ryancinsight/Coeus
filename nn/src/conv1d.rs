@@ -7,9 +7,9 @@ use crate::module::Module;
 use crate::parameter::Parameter;
 use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
+use std::marker::PhantomData;
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
-use std::marker::PhantomData;
 
 /// 1D Convolutional layer.
 ///

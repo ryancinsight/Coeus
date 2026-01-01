@@ -59,8 +59,12 @@ impl TorchScript {
     where
         M: nn::Module<B, S, T> + Clone,
         B: backend::Backend<Data = T>,
-        S: storage::Storage<T> + tensor::StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static,
-        T: dtype::DataType,
+        S: storage::Storage<T>
+            + tensor::StorageFromVec<T>
+            + storage::StorageToDense<T>
+            + Clone
+            + 'static,
+        T: dtype::DataType + dtype::FloatExt,
     {
         // Record the execution by running forward pass with tracing
         let traced_graph = self.tracer.trace_execution(model, example_input)?;
@@ -82,7 +86,7 @@ impl TorchScript {
     where
         M: nn::Module<B, storage::DenseStorage<T>, T>,
         B: backend::Backend<Data = T> + Default,
-        T: dtype::DataType,
+        T: dtype::DataType + dtype::FloatExt,
     {
         // Compile the traced graph if not already compiled
         if traced_module.compiled_kernel.is_none() {
@@ -121,8 +125,12 @@ impl Tracer {
     where
         M: nn::Module<B, S, T>,
         B: backend::Backend<Data = T>,
-        S: storage::Storage<T> + tensor::StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static,
-        T: dtype::DataType,
+        S: storage::Storage<T>
+            + tensor::StorageFromVec<T>
+            + storage::StorageToDense<T>
+            + Clone
+            + 'static,
+        T: dtype::DataType + dtype::FloatExt,
     {
         // Reset tracer state
         self.graph = ComputationGraph::new();

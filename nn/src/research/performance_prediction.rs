@@ -8,11 +8,15 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use crate::error::{NNError, Result};
-use crate::nas::{Architecture, ArchitectureSpace};
-use crate::hpo::{HyperparameterConfig, HyperparameterValue, HyperparameterSpace};
-use crate::research::performance_prediction::predictors::{GNNNASPredictor, SurrogateHPOPredictor, BoostedTreesPredictor};
-use crate::research::performance_prediction::builders::{GNNNASBuilder, SurrogateHPOBuilder, BoostedTreesBuilder};
+use crate::hpo::{HyperparameterConfig, HyperparameterSpace, HyperparameterValue};
 use crate::nas::search_space::LayerSpec;
+use crate::nas::{Architecture, ArchitectureSpace};
+use crate::research::performance_prediction::builders::{
+    BoostedTreesBuilder, GNNNASBuilder, SurrogateHPOBuilder,
+};
+use crate::research::performance_prediction::predictors::{
+    BoostedTreesPredictor, GNNNASPredictor, SurrogateHPOPredictor,
+};
 
 /// Performance Predictor Trait
 /// Interface for all performance prediction models
@@ -85,8 +89,8 @@ pub struct DatasetInfo {
 #[derive(Debug, Clone)]
 pub struct TaskInfo {
     pub task_type: String, // "classification", "regression", etc.
-    pub metric: String, // "accuracy", "mse", etc.
-    pub domain: String, // "vision", "nlp", "tabular"
+    pub metric: String,    // "accuracy", "mse", etc.
+    pub domain: String,    // "vision", "nlp", "tabular"
 }
 
 /// Hardware information for prediction
@@ -197,6 +201,12 @@ pub struct TrainingParameters {
     pub early_stopping: bool,
 }
 
+impl Default for PerformancePredictionFramework {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformancePredictionFramework {
     /// Create new performance prediction framework
     pub fn new() -> Self {
@@ -216,18 +226,34 @@ impl PerformancePredictionFramework {
     /// Initialize default predictors
     fn initialize_default_predictors(&mut self) {
         // Register GNN-based NAS predictor
-        self.register_predictor("gnn_nas_predictor".to_string(), Box::new(GNNNASPredictor::new()));
+        self.register_predictor(
+            "gnn_nas_predictor".to_string(),
+            Box::new(GNNNASPredictor::new()),
+        );
 
         // Register surrogate model for HPO
-        self.register_predictor("surrogate_hpo_predictor".to_string(), Box::new(SurrogateHPOPredictor::new()));
+        self.register_predictor(
+            "surrogate_hpo_predictor".to_string(),
+            Box::new(SurrogateHPOPredictor::new()),
+        );
 
         // Register boosted trees predictor
-        self.register_predictor("boosted_trees_predictor".to_string(), Box::new(BoostedTreesPredictor::new()));
+        self.register_predictor(
+            "boosted_trees_predictor".to_string(),
+            Box::new(BoostedTreesPredictor::new()),
+        );
 
         // Set default active predictors
-        self.active_predictors.insert(PredictionType::Accuracy, "gnn_nas_predictor".to_string());
-        self.active_predictors.insert(PredictionType::Latency, "surrogate_hpo_predictor".to_string());
-        self.active_predictors.insert(PredictionType::Memory, "boosted_trees_predictor".to_string());
+        self.active_predictors
+            .insert(PredictionType::Accuracy, "gnn_nas_predictor".to_string());
+        self.active_predictors.insert(
+            PredictionType::Latency,
+            "surrogate_hpo_predictor".to_string(),
+        );
+        self.active_predictors.insert(
+            PredictionType::Memory,
+            "boosted_trees_predictor".to_string(),
+        );
     }
 
     /// Predict performance for given input
@@ -272,9 +298,14 @@ impl PerformancePredictionFramework {
     }
 
     /// Set active predictor for a prediction type
-    pub fn set_active_predictor(&mut self, prediction_type: PredictionType, predictor_name: String) -> Result<()> {
+    pub fn set_active_predictor(
+        &mut self,
+        prediction_type: PredictionType,
+        predictor_name: String,
+    ) -> Result<()> {
         if self.predictors.contains_key(&predictor_name) {
-            self.active_predictors.insert(prediction_type, predictor_name);
+            self.active_predictors
+                .insert(prediction_type, predictor_name);
             Ok(())
         } else {
             Err(NNError::InvalidConfiguration {
@@ -326,7 +357,8 @@ impl PerformancePredictionFramework {
                 self.generate_hyperparameter_features(&hp_input.config)
             }
             PredictionInput::Joint(joint_input) => {
-                let mut arch_features = self.generate_architecture_features(&joint_input.architecture)?;
+                let mut arch_features =
+                    self.generate_architecture_features(&joint_input.architecture)?;
                 let mut hp_features = self.generate_hyperparameter_features(&joint_input.config)?;
                 arch_features.append(&mut hp_features);
                 Ok(arch_features)
@@ -408,13 +440,28 @@ impl PerformancePredictionFramework {
         let mut metadata = HashMap::new();
 
         metadata.insert("total_predictors".to_string(), self.predictors.len().into());
-        metadata.insert("active_predictors".to_string(), self.active_predictors.len().into());
-        metadata.insert("training_examples".to_string(), self.training_data.len().into());
+        metadata.insert(
+            "active_predictors".to_string(),
+            self.active_predictors.len().into(),
+        );
+        metadata.insert(
+            "training_examples".to_string(),
+            self.training_data.len().into(),
+        );
 
         let predictor_names: Vec<String> = self.predictors.keys().cloned().collect();
-        metadata.insert("predictor_names".to_string(), serde_json::to_value(predictor_names).unwrap());
+        metadata.insert(
+            "predictor_names".to_string(),
+            serde_json::to_value(predictor_names).unwrap(),
+        );
 
         metadata
+    }
+}
+
+impl Default for PredictionModelFactory {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -425,9 +472,17 @@ impl PredictionModelFactory {
         };
 
         // Register default builders
-        factory.builders.insert("gnn_nas".to_string(), Box::new(GNNNASBuilder::new()));
-        factory.builders.insert("surrogate_hpo".to_string(), Box::new(SurrogateHPOBuilder::new()));
-        factory.builders.insert("boosted_trees".to_string(), Box::new(BoostedTreesBuilder::new()));
+        factory
+            .builders
+            .insert("gnn_nas".to_string(), Box::new(GNNNASBuilder::new()));
+        factory.builders.insert(
+            "surrogate_hpo".to_string(),
+            Box::new(SurrogateHPOBuilder::new()),
+        );
+        factory.builders.insert(
+            "boosted_trees".to_string(),
+            Box::new(BoostedTreesBuilder::new()),
+        );
 
         factory
     }
@@ -444,11 +499,15 @@ pub mod predictors {
         // In real implementation, would contain GNN model
     }
 
+    impl Default for GNNNASPredictor {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl GNNNASPredictor {
         pub fn new() -> Self {
-            Self {
-                trained: false,
-            }
+            Self { trained: false }
         }
     }
 
@@ -464,8 +523,9 @@ pub mod predictors {
 
                     // Placeholder prediction logic
                     let base_score = 0.7;
-                    let complexity_penalty = arch_input.architecture.num_parameters() as f64 * 0.000001;
-                    let predicted_accuracy = (base_score - complexity_penalty).max(0.0).min(1.0);
+                    let complexity_penalty =
+                        arch_input.architecture.num_parameters() as f64 * 0.000001;
+                    let predicted_accuracy = (base_score - complexity_penalty).clamp(0.0, 1.0);
 
                     Ok(PredictionOutput {
                         predicted_performance: predicted_accuracy,
@@ -476,7 +536,10 @@ pub mod predictors {
                         prediction_type: PredictionType::Accuracy,
                         metadata: HashMap::from([
                             ("model".to_string(), "gnn_nas".to_string()),
-                            ("architecture_complexity".to_string(), arch_input.architecture.num_parameters().to_string()),
+                            (
+                                "architecture_complexity".to_string(),
+                                arch_input.architecture.num_parameters().to_string(),
+                            ),
                         ]),
                     })
                 }
@@ -515,7 +578,11 @@ pub mod predictors {
         }
 
         fn supported_types(&self) -> Vec<PredictionType> {
-            vec![PredictionType::Accuracy, PredictionType::Memory, PredictionType::Latency]
+            vec![
+                PredictionType::Accuracy,
+                PredictionType::Memory,
+                PredictionType::Latency,
+            ]
         }
     }
 
@@ -526,11 +593,15 @@ pub mod predictors {
         // In real implementation, would contain surrogate model (GP, Random Forest, etc.)
     }
 
+    impl Default for SurrogateHPOPredictor {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl SurrogateHPOPredictor {
         pub fn new() -> Self {
-            Self {
-                trained: false,
-            }
+            Self { trained: false }
         }
     }
 
@@ -547,25 +618,30 @@ pub mod predictors {
                     // Simple rule-based prediction for demonstration
                     let mut score: f64 = 0.5;
 
-                    if let Some(HyperparameterValue::Float(lr)) = hp_input.config.get("learning_rate") {
+                    if let Some(HyperparameterValue::Float(lr)) =
+                        hp_input.config.get("learning_rate")
+                    {
                         if *lr > 0.0001 && *lr < 0.1 {
                             score += 0.2;
                         }
                     }
 
-                    if let Some(HyperparameterValue::Float(batch_size)) = hp_input.config.get("batch_size") {
+                    if let Some(HyperparameterValue::Float(batch_size)) =
+                        hp_input.config.get("batch_size")
+                    {
                         if *batch_size >= 16.0 && *batch_size <= 128.0 {
                             score += 0.1;
                         }
                     }
 
                     Ok(PredictionOutput {
-                        predicted_performance: score.min(1.0).max(0.0),
+                        predicted_performance: score.clamp(0.0, 1.0),
                         auxiliary_predictions: HashMap::new(),
                         prediction_type: PredictionType::Accuracy,
-                        metadata: HashMap::from([
-                            ("model".to_string(), "surrogate_hpo".to_string()),
-                        ]),
+                        metadata: HashMap::from([(
+                            "model".to_string(),
+                            "surrogate_hpo".to_string(),
+                        )]),
                     })
                 }
                 _ => Err(NNError::InvalidInput {
@@ -603,11 +679,15 @@ pub mod predictors {
         trained: bool,
     }
 
+    impl Default for BoostedTreesPredictor {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl BoostedTreesPredictor {
         pub fn new() -> Self {
-            Self {
-                trained: false,
-            }
+            Self { trained: false }
         }
     }
 
@@ -621,13 +701,9 @@ pub mod predictors {
 
             Ok(PredictionOutput {
                 predicted_performance: 0.65,
-                auxiliary_predictions: HashMap::from([
-                    ("throughput".to_string(), 1000.0),
-                ]),
+                auxiliary_predictions: HashMap::from([("throughput".to_string(), 1000.0)]),
                 prediction_type: PredictionType::Throughput,
-                metadata: HashMap::from([
-                    ("model".to_string(), "boosted_trees".to_string()),
-                ]),
+                metadata: HashMap::from([("model".to_string(), "boosted_trees".to_string())]),
             })
         }
 
@@ -650,7 +726,11 @@ pub mod predictors {
         }
 
         fn supported_types(&self) -> Vec<PredictionType> {
-            vec![PredictionType::Latency, PredictionType::Throughput, PredictionType::Memory]
+            vec![
+                PredictionType::Latency,
+                PredictionType::Throughput,
+                PredictionType::Memory,
+            ]
         }
     }
 }
@@ -661,8 +741,17 @@ pub mod builders {
 
     #[derive(Debug)]
     pub struct GNNNASBuilder;
+
+    impl Default for GNNNASBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl GNNNASBuilder {
-        pub fn new() -> Self { Self }
+        pub fn new() -> Self {
+            Self
+        }
     }
 
     impl ModelBuilder for GNNNASBuilder {
@@ -671,7 +760,11 @@ pub mod builders {
         }
 
         fn supported_types(&self) -> Vec<PredictionType> {
-            vec![PredictionType::Accuracy, PredictionType::Memory, PredictionType::Latency]
+            vec![
+                PredictionType::Accuracy,
+                PredictionType::Memory,
+                PredictionType::Latency,
+            ]
         }
 
         fn name(&self) -> &str {
@@ -681,8 +774,17 @@ pub mod builders {
 
     #[derive(Debug)]
     pub struct SurrogateHPOBuilder;
+
+    impl Default for SurrogateHPOBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl SurrogateHPOBuilder {
-        pub fn new() -> Self { Self }
+        pub fn new() -> Self {
+            Self
+        }
     }
 
     impl ModelBuilder for SurrogateHPOBuilder {
@@ -701,8 +803,17 @@ pub mod builders {
 
     #[derive(Debug)]
     pub struct BoostedTreesBuilder;
+
+    impl Default for BoostedTreesBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl BoostedTreesBuilder {
-        pub fn new() -> Self { Self }
+        pub fn new() -> Self {
+            Self
+        }
     }
 
     impl ModelBuilder for BoostedTreesBuilder {
@@ -711,7 +822,11 @@ pub mod builders {
         }
 
         fn supported_types(&self) -> Vec<PredictionType> {
-            vec![PredictionType::Latency, PredictionType::Throughput, PredictionType::Memory]
+            vec![
+                PredictionType::Latency,
+                PredictionType::Throughput,
+                PredictionType::Memory,
+            ]
         }
 
         fn name(&self) -> &str {

@@ -4,12 +4,12 @@
 //! specifically optimized for CLIP training with memory constraints (<8GB RAM).
 //! Supports parallel loading, prefetching, and automatic memory management.
 
+use super::{ImageTextPair, VisionLanguageData};
 use crate::error::{NNError, Result};
-use super::{VisionLanguageData, ImageTextPair};
+use futures::stream::{self, StreamExt};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
-use futures::stream::{self, StreamExt};
 
 /// Configuration for batch loading
 #[derive(Debug, Clone)]
@@ -181,8 +181,10 @@ impl<T: VisionLanguageData + Send + Sync + 'static> VisionLanguageBatchLoader<T>
         if let Some(rx) = &mut self.prefetch_receiver {
             match tokio::time::timeout(
                 tokio::time::Duration::from_millis(self.config.timeout_ms),
-                rx.recv()
-            ).await {
+                rx.recv(),
+            )
+            .await
+            {
                 Ok(Some(batch_result)) => {
                     self.current_batch += 1;
                     return Ok(Some(batch_result?));
@@ -271,21 +273,20 @@ impl<T: VisionLanguageData + Send + Sync + 'static> VisionLanguageBatchLoader<T>
     async fn load_single_batch(
         dataset: &T,
         indices: &[usize],
-        config: &BatchConfig
+        config: &BatchConfig,
     ) -> Result<DatasetBatch> {
         let batch_size = indices.len();
 
         // Pre-allocate vectors
-        let mut images = Vec::with_capacity(batch_size * config.image_size.0 * config.image_size.1 * 3);
+        let mut images =
+            Vec::with_capacity(batch_size * config.image_size.0 * config.image_size.1 * 3);
         let mut text_tokens = Vec::with_capacity(batch_size * config.max_seq_length);
         let mut text_masks = Vec::with_capacity(batch_size * config.max_seq_length);
         let mut pair_ids = Vec::with_capacity(batch_size);
 
         // Load pairs concurrently with limit
         let pairs: Vec<ImageTextPair> = stream::iter(indices)
-            .map(|&idx| async move {
-                dataset.get(idx).await
-            })
+            .map(|&idx| async move { dataset.get(idx).await })
             .buffer_unordered(std::cmp::min(config.num_workers, indices.len()))
             .collect::<Vec<Result<ImageTextPair>>>()
             .await
@@ -406,7 +407,8 @@ impl<T: VisionLanguageData + Send + Sync + 'static> VisionLanguageBatchLoader<T>
         let hash = hasher.finish();
 
         // Map to reasonable token range (avoid special tokens)
-        (hash % (max_vocab as u64 - 100)) as u32 + 100
+        let usable_vocab = max_vocab.saturating_sub(100).max(1) as u64;
+        (hash % usable_vocab) as u32 + 100
     }
 
     /// Get loader configuration
@@ -437,13 +439,16 @@ impl MemoryManager {
     }
 
     fn can_allocate(&self, size_mb: usize) -> bool {
-        let current = self.current_usage_mb.load(std::sync::atomic::Ordering::Relaxed);
+        let current = self
+            .current_usage_mb
+            .load(std::sync::atomic::Ordering::Relaxed);
         current + size_mb <= self.memory_limit_mb
     }
 
     fn allocate(&self, size_mb: usize) -> bool {
         if self.can_allocate(size_mb) {
-            self.current_usage_mb.fetch_add(size_mb, std::sync::atomic::Ordering::Relaxed);
+            self.current_usage_mb
+                .fetch_add(size_mb, std::sync::atomic::Ordering::Relaxed);
             true
         } else {
             false
@@ -451,11 +456,13 @@ impl MemoryManager {
     }
 
     fn deallocate(&self, size_mb: usize) {
-        self.current_usage_mb.fetch_sub(size_mb, std::sync::atomic::Ordering::Relaxed);
+        self.current_usage_mb
+            .fetch_sub(size_mb, std::sync::atomic::Ordering::Relaxed);
     }
 
     fn usage_mb(&self) -> usize {
-        self.current_usage_mb.load(std::sync::atomic::Ordering::Relaxed)
+        self.current_usage_mb
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 }
 
@@ -475,12 +482,19 @@ mod tests {
             self.pairs.len()
         }
 
-        fn get(&self, index: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>> {
+        fn get(
+            &self,
+            index: usize,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>>
+        {
             let pairs = self.pairs.clone();
             Box::pin(async move {
-                pairs.get(index).cloned().ok_or_else(|| NNError::InvalidInput {
-                    message: format!("Index {} out of bounds", index)
-                })
+                pairs
+                    .get(index)
+                    .cloned()
+                    .ok_or_else(|| NNError::InvalidInput {
+                        message: format!("Index {} out of bounds", index),
+                    })
             })
         }
 
@@ -488,7 +502,7 @@ mod tests {
             DatasetStatistics {
                 total_pairs: self.pairs.len(),
                 avg_caption_length: 10.0, // Mock value
-                vocab_size: 1000, // Mock value
+                vocab_size: 1000,         // Mock value
                 image_sizes: Some(vec![]),
                 disk_size_mb: Some(1.0), // Mock value
             }
@@ -510,22 +524,21 @@ mod tests {
     #[test]
     fn test_memory_estimate() {
         let config = BatchConfig::default();
-        let memory_gb = VisionLanguageBatchLoader::<MockDataset>::estimate_memory_usage_for_config(1, &config);
+        let memory_gb =
+            VisionLanguageBatchLoader::<MockDataset>::estimate_memory_usage_for_config(1, &config);
         assert!(memory_gb > 0.0 && memory_gb < 8.0); // Should be reasonable
     }
 
     #[tokio::test]
     async fn test_batch_loader_creation() {
-        let mock_pairs = vec![
-            ImageTextPair {
-                image_data: vec![1, 2, 3, 4],
-                image_path: "test.jpg".to_string(),
-                captions: vec!["test caption".to_string()],
-                image_id: "1".to_string(),
-                caption_ids: vec!["1_0".to_string()],
-                metadata: HashMap::new(),
-            }
-        ];
+        let mock_pairs = vec![ImageTextPair {
+            image_data: vec![1, 2, 3, 4],
+            image_path: "test.jpg".to_string(),
+            captions: vec!["test caption".to_string()],
+            image_id: "1".to_string(),
+            caption_ids: vec!["1_0".to_string()],
+            metadata: HashMap::new(),
+        }];
 
         let dataset = MockDataset { pairs: mock_pairs };
         let loader = VisionLanguageBatchLoader::new(dataset, BatchConfig::default()).unwrap();
@@ -552,15 +565,19 @@ mod tests {
                 image_id: "2".to_string(),
                 caption_ids: vec!["2_0".to_string()],
                 metadata: HashMap::new(),
-            }
+            },
         ];
 
         let dataset = MockDataset { pairs: mock_pairs };
-        let mut loader = VisionLanguageBatchLoader::new(dataset, BatchConfig {
-            batch_size: 2,
-            max_seq_length: 10,
-            ..Default::default()
-        }).unwrap();
+        let mut loader = VisionLanguageBatchLoader::new(
+            dataset,
+            BatchConfig {
+                batch_size: 2,
+                max_seq_length: 10,
+                ..Default::default()
+            },
+        )
+        .unwrap();
 
         let batch = loader.next_batch().await.unwrap().unwrap();
 

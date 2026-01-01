@@ -33,7 +33,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let clip_config = create_clip_config();
     println!("Vision Encoder:");
-    println!("  • Image size: {}x{}", clip_config.vision.image_size, clip_config.vision.image_size);
+    println!(
+        "  • Image size: {}x{}",
+        clip_config.vision.image_size, clip_config.vision.image_size
+    );
     println!("  • Patch size: {}", clip_config.vision.patch_size);
     println!("  • Hidden size: {}", clip_config.vision.hidden_size);
     println!("  • Layers: {}", clip_config.vision.num_layers);
@@ -45,7 +48,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  • Hidden size: {}", clip_config.text.hidden_size);
     println!("  • Layers: {}", clip_config.text.num_layers);
     println!("  • Heads: {}", clip_config.text.num_heads);
-    println!("  • Max sequence length: {}", clip_config.text.max_position_embeddings);
+    println!(
+        "  • Max sequence length: {}",
+        clip_config.text.max_position_embeddings
+    );
     println!();
 
     println!("🎯 CLIP Training Objective");
@@ -143,6 +149,10 @@ pub struct TextConfig {
 
 impl fmt::Display for ClipConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CLIP Config: ViT-{}/{}", self.vision.hidden_size, self.vision.num_layers)
+        write!(
+            f,
+            "CLIP Config: ViT-{}/{}",
+            self.vision.hidden_size, self.vision.num_layers
+        )
     }
 }

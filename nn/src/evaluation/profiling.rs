@@ -3,10 +3,10 @@
 //! Comprehensive profiling tools for evaluating training and inference performance,
 //! identifying bottlenecks, and providing optimization recommendations.
 
-use std::collections::HashMap;
-use std::time::Instant;
-use std::fs;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs;
+use std::time::Instant;
 
 use crate::error::Result;
 
@@ -177,14 +177,32 @@ impl PerformanceProfiler {
     pub fn new(output_dir: &std::path::Path) -> Result<Self> {
         fs::create_dir_all(output_dir)?;
 
+        let initial_memory_mb = Self::current_process_memory_mb();
         Ok(Self {
             config: ProfilingConfig::default(),
             start_time: Instant::now(),
-            memory_samples: Vec::new(),
+            memory_samples: vec![initial_memory_mb],
             timing_samples: Vec::new(),
             throughput_samples: Vec::new(),
             bottleneck_samples: Vec::new(),
         })
+    }
+
+    fn current_process_memory_mb() -> f64 {
+        #[cfg(feature = "sysinfo")]
+        {
+            use sysinfo::{Pid, System};
+            let mut sys = System::new_all();
+            sys.refresh_all();
+            let pid = Pid::from(std::process::id() as usize);
+            sys.process(pid)
+                .map(|p| p.memory() as f64 / 1024.0)
+                .unwrap_or(0.0)
+        }
+        #[cfg(not(feature = "sysinfo"))]
+        {
+            0.0
+        }
     }
 
     /// Profile single training step
@@ -199,12 +217,16 @@ impl PerformanceProfiler {
         timing_sample.insert("forward_pass".to_string(), step_metrics.forward_time_ms);
         timing_sample.insert("backward_pass".to_string(), step_metrics.backward_time_ms);
         timing_sample.insert("optimizer_step".to_string(), step_metrics.optimizer_time_ms);
-        timing_sample.insert("data_loading".to_string(), step_metrics.data_loading_time_ms);
+        timing_sample.insert(
+            "data_loading".to_string(),
+            step_metrics.data_loading_time_ms,
+        );
         timing_sample.insert("total_step".to_string(), step_metrics.total_step_time_ms);
         self.timing_samples.push(timing_sample);
 
         // Sample throughput
-        let throughput = step_metrics.batch_size as f64 / (step_metrics.total_step_time_ms / 1000.0);
+        let throughput =
+            step_metrics.batch_size as f64 / (step_metrics.total_step_time_ms / 1000.0);
         self.throughput_samples.push(throughput);
 
         // Sample potential bottlenecks
@@ -213,9 +235,18 @@ impl PerformanceProfiler {
         let memory_time = step_metrics.optimizer_time_ms;
         let io_time = step_metrics.data_loading_time_ms;
 
-        bottleneck_sample.insert("compute_bottleneck".to_string(), compute_time / step_metrics.total_step_time_ms);
-        bottleneck_sample.insert("memory_bottleneck".to_string(), memory_time / step_metrics.total_step_time_ms);
-        bottleneck_sample.insert("io_bottleneck".to_string(), io_time / step_metrics.total_step_time_ms);
+        bottleneck_sample.insert(
+            "compute_bottleneck".to_string(),
+            compute_time / step_metrics.total_step_time_ms,
+        );
+        bottleneck_sample.insert(
+            "memory_bottleneck".to_string(),
+            memory_time / step_metrics.total_step_time_ms,
+        );
+        bottleneck_sample.insert(
+            "io_bottleneck".to_string(),
+            io_time / step_metrics.total_step_time_ms,
+        );
         self.bottleneck_samples.push(bottleneck_sample);
 
         // Periodic detailed profiling and cleanup
@@ -238,7 +269,8 @@ impl PerformanceProfiler {
         let bottleneck_analysis = self.analyze_bottlenecks()?;
 
         // Generate optimization recommendations
-        let optimization_recommendations = self.generate_optimization_recommendations(&bottleneck_analysis)?;
+        let optimization_recommendations =
+            self.generate_optimization_recommendations(&bottleneck_analysis)?;
 
         Ok(PerformanceMetrics {
             memory_stats,
@@ -264,8 +296,12 @@ impl PerformanceProfiler {
             });
         }
 
-        let peak_memory = self.memory_samples.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-        let average_memory = self.memory_samples.iter().sum::<f64>() / self.memory_samples.len() as f64;
+        let peak_memory = self
+            .memory_samples
+            .iter()
+            .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+        let average_memory =
+            self.memory_samples.iter().sum::<f64>() / self.memory_samples.len() as f64;
 
         let memory_efficiency = 1.0 - (peak_memory / 8000.0).min(1.0); // Efficiency decreases as we approach 8GB limit
         let memory_fragmentation = Self::compute_memory_fragmentation(&self.memory_samples);
@@ -290,7 +326,11 @@ impl PerformanceProfiler {
 
         // Compute variance in memory usage as proxy for fragmentation
         let mean = memory_samples.iter().sum::<f64>() / memory_samples.len() as f64;
-        let variance = memory_samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / memory_samples.len() as f64;
+        let variance = memory_samples
+            .iter()
+            .map(|x| (x - mean).powi(2))
+            .sum::<f64>()
+            / memory_samples.len() as f64;
         let std_dev = variance.sqrt();
 
         // Normalize by mean (coefficient of variation)
@@ -309,7 +349,8 @@ impl PerformanceProfiler {
             });
         }
 
-        let training_throughput = self.throughput_samples.iter().sum::<f64>() / self.throughput_samples.len() as f64;
+        let training_throughput =
+            self.throughput_samples.iter().sum::<f64>() / self.throughput_samples.len() as f64;
 
         // Simplified batch size curve (would need batch size variation)
         let batch_size_throughput_curve = vec![(32, training_throughput)];
@@ -351,11 +392,21 @@ impl PerformanceProfiler {
         let mut total_times = Vec::new();
 
         for sample in &self.timing_samples {
-            if let Some(&forward) = sample.get("forward_pass") { forward_times.push(forward); }
-            if let Some(&backward) = sample.get("backward_pass") { backward_times.push(backward); }
-            if let Some(&optimizer) = sample.get("optimizer_step") { optimizer_times.push(optimizer); }
-            if let Some(&data) = sample.get("data_loading") { data_times.push(data); }
-            if let Some(&total) = sample.get("total_step") { total_times.push(total); }
+            if let Some(&forward) = sample.get("forward_pass") {
+                forward_times.push(forward);
+            }
+            if let Some(&backward) = sample.get("backward_pass") {
+                backward_times.push(backward);
+            }
+            if let Some(&optimizer) = sample.get("optimizer_step") {
+                optimizer_times.push(optimizer);
+            }
+            if let Some(&data) = sample.get("data_loading") {
+                data_times.push(data);
+            }
+            if let Some(&total) = sample.get("total_step") {
+                total_times.push(total);
+            }
         }
 
         Ok(TimingMetrics {
@@ -371,10 +422,10 @@ impl PerformanceProfiler {
     /// Compute efficiency metrics
     fn analyze_efficiency(&self) -> Result<EfficiencyMetrics> {
         Ok(EfficiencyMetrics {
-            compute_utilization_pct: 75.0, // Estimate
+            compute_utilization_pct: 75.0,      // Estimate
             memory_bandwidth_utilization: 60.0, // Estimate
-            arithmetic_intensity: 15.0, // FLOPs/byte for transformer-like models
-            flop_efficiency: 80.0, // Estimate percentage
+            arithmetic_intensity: 15.0,         // FLOPs/byte for transformer-like models
+            flop_efficiency: 80.0,              // Estimate percentage
             cache_hit_rates: HashMap::from([
                 ("L1".to_string(), 0.85),
                 ("L2".to_string(), 0.75),
@@ -408,9 +459,15 @@ impl PerformanceProfiler {
         let mut io_ratios = Vec::new();
 
         for sample in &self.bottleneck_samples {
-            if let Some(&compute) = sample.get("compute_bottleneck") { compute_ratios.push(compute); }
-            if let Some(&memory) = sample.get("memory_bottleneck") { memory_ratios.push(memory); }
-            if let Some(&io) = sample.get("io_bottleneck") { io_ratios.push(io); }
+            if let Some(&compute) = sample.get("compute_bottleneck") {
+                compute_ratios.push(compute);
+            }
+            if let Some(&memory) = sample.get("memory_bottleneck") {
+                memory_ratios.push(memory);
+            }
+            if let Some(&io) = sample.get("io_bottleneck") {
+                io_ratios.push(io);
+            }
         }
 
         let avg_compute = Self::mean(&compute_ratios);
@@ -453,22 +510,31 @@ impl PerformanceProfiler {
     }
 
     /// Generate optimization recommendations
-    fn generate_optimization_recommendations(&self, bottleneck_analysis: &BottleneckAnalysis) -> Result<Vec<String>> {
+    fn generate_optimization_recommendations(
+        &self,
+        bottleneck_analysis: &BottleneckAnalysis,
+    ) -> Result<Vec<String>> {
         let mut recommendations = Vec::new();
 
         match bottleneck_analysis.primary_bottleneck {
             BottleneckType::ComputeBound => {
-                recommendations.push("Consider increasing batch size for better compute utilization".to_string());
-                recommendations.push("Optimize attention mechanisms (FlashAttention, etc.)".to_string());
+                recommendations.push(
+                    "Consider increasing batch size for better compute utilization".to_string(),
+                );
+                recommendations
+                    .push("Optimize attention mechanisms (FlashAttention, etc.)".to_string());
                 recommendations.push("Enable mixed precision training (FP16/BF16)".to_string());
             }
             BottleneckType::MemoryBound => {
-                recommendations.push("Implement gradient checkpointing to reduce memory usage".to_string());
-                recommendations.push("Use smaller batch sizes with gradient accumulation".to_string());
+                recommendations
+                    .push("Implement gradient checkpointing to reduce memory usage".to_string());
+                recommendations
+                    .push("Use smaller batch sizes with gradient accumulation".to_string());
                 recommendations.push("Enable memory-efficient attention variants".to_string());
             }
             BottleneckType::DataLoadingBound => {
-                recommendations.push("Increase data loading parallelization (num_workers)".to_string());
+                recommendations
+                    .push("Increase data loading parallelization (num_workers)".to_string());
                 recommendations.push("Pre-cache datasets in memory".to_string());
                 recommendations.push("Use faster storage devices for data loading".to_string());
             }
@@ -478,9 +544,11 @@ impl PerformanceProfiler {
         }
 
         // General recommendations
-        recommendations.push(format!("Address {:.0}% bottleneck by optimizing {} operations",
+        recommendations.push(format!(
+            "Address {:.0}% bottleneck by optimizing {} operations",
             bottleneck_analysis.bottleneck_severity * 100.0,
-            format!("{:?}", bottleneck_analysis.primary_bottleneck).to_lowercase()));
+            format!("{:?}", bottleneck_analysis.primary_bottleneck).to_lowercase()
+        ));
 
         Ok(recommendations)
     }
@@ -505,7 +573,9 @@ impl PerformanceProfiler {
 
     /// Utility: compute mean of vector
     fn mean(values: &[f64]) -> f64 {
-        if values.is_empty() { return 0.0; }
+        if values.is_empty() {
+            return 0.0;
+        }
         values.iter().sum::<f64>() / values.len() as f64
     }
 }
@@ -533,9 +603,9 @@ impl QuickProfiler {
         let memory_efficiency = metrics.memory_stats.memory_efficiency;
         let compute_utilization = metrics.efficiency_stats.compute_utilization_pct;
 
-        let overall_score = (training_throughput / 1000.0).min(1.0) * 0.4 +
-                           memory_efficiency * 0.3 +
-                           (compute_utilization / 100.0) * 0.3;
+        let overall_score = (training_throughput / 1000.0).min(1.0) * 0.4
+            + memory_efficiency * 0.3
+            + (compute_utilization / 100.0) * 0.3;
 
         let assessment = if overall_score > 0.8 {
             "Excellent performance - optimized for production".to_string()
@@ -571,8 +641,10 @@ impl QuickProfiler {
         }
 
         if metrics.bottleneck_analysis.bottleneck_severity > 0.7 {
-            bottlenecks.push(format!("{:?} bottleneck",
-                metrics.bottleneck_analysis.primary_bottleneck));
+            bottlenecks.push(format!(
+                "{:?} bottleneck",
+                metrics.bottleneck_analysis.primary_bottleneck
+            ));
         }
 
         bottlenecks
@@ -583,12 +655,17 @@ impl QuickProfiler {
 
         let pytorch_target = 500.0; // 50% of theoretical PyTorch CLIP throughput
         if metrics.throughput_stats.training_samples_per_sec < pytorch_target {
-            actions.push(format!("Optimize throughput: {:.0} -> {} samples/sec",
-                metrics.throughput_stats.training_samples_per_sec, pytorch_target));
+            actions.push(format!(
+                "Optimize throughput: {:.0} -> {} samples/sec",
+                metrics.throughput_stats.training_samples_per_sec, pytorch_target
+            ));
         }
 
         if metrics.memory_stats.peak_memory_mb > 7000.0 {
-            actions.push(format!("Reduce memory usage: {:.0}MB -> <7000MB", metrics.memory_stats.peak_memory_mb));
+            actions.push(format!(
+                "Reduce memory usage: {:.0}MB -> <7000MB",
+                metrics.memory_stats.peak_memory_mb
+            ));
         }
 
         for recommendation in &metrics.optimization_recommendations {
@@ -612,6 +689,22 @@ pub struct ProfilingAssessment {
     pub immediate_actions: Vec<String>,
 }
 
+fn compute_deallocation_overhead(memory_samples: &[f64]) -> f64 {
+    if memory_samples.len() < 2 {
+        return 0.0;
+    }
+
+    // Simple heuristic: variance in memory usage as proxy for deallocation overhead
+    let mean = memory_samples.iter().sum::<f64>() / memory_samples.len() as f64;
+    let variance = memory_samples
+        .iter()
+        .map(|x| (x - mean).powi(2))
+        .sum::<f64>()
+        / memory_samples.len() as f64;
+
+    (variance.sqrt() / mean).min(1.0) // Normalize to [0, 1]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -626,7 +719,7 @@ mod tests {
     fn test_memory_fragmentation_computation() {
         let samples = vec![100.0, 120.0, 80.0, 110.0, 90.0];
         let fragmentation = PerformanceProfiler::compute_memory_fragmentation(&samples);
-        assert!(fragmentation >= 0.0 && fragmentation <= 1.0);
+        assert!((0.0..=1.0).contains(&fragmentation));
     }
 
     #[test]
@@ -676,9 +769,7 @@ mod tests {
                 },
                 parallelization_opportunities: Vec::new(),
             },
-            optimization_recommendations: vec![
-                "Consider gradient checkpointing".to_string(),
-            ],
+            optimization_recommendations: vec!["Consider gradient checkpointing".to_string()],
             timestamp: std::time::SystemTime::now(),
         };
 
@@ -692,7 +783,8 @@ mod tests {
 
     #[test]
     fn test_training_step_profiling() {
-        let mut profiler = PerformanceProfiler::new(std::path::Path::new("./test_profile")).unwrap();
+        let mut profiler =
+            PerformanceProfiler::new(std::path::Path::new("./test_profile")).unwrap();
 
         let step_metrics = TrainingStepMetrics {
             step: 1,
@@ -707,17 +799,7 @@ mod tests {
 
         // Should not panic
         let _result = profiler.profile_training_step(step_metrics);
-        assert!(profiler.memory_samples.len() > 0);
-        assert!(profiler.timing_samples.len() > 0);
+        assert!(!profiler.memory_samples.is_empty());
+        assert!(!profiler.timing_samples.is_empty());
     }
-}
-
-fn compute_deallocation_overhead(memory_samples: &[f64]) -> f64 {
-    if memory_samples.len() < 2 { return 0.0; }
-
-    // Simple heuristic: variance in memory usage as proxy for deallocation overhead
-    let mean = memory_samples.iter().sum::<f64>() / memory_samples.len() as f64;
-    let variance = memory_samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / memory_samples.len() as f64;
-
-    (variance.sqrt() / mean).min(1.0) // Normalize to [0, 1]
 }

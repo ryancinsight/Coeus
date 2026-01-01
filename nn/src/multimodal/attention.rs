@@ -3,19 +3,19 @@
 //! Implementation of attention mechanisms that enable cross-modal interaction
 //! between different input modalities in multimodal processing.
 
-use std::collections::HashMap;
-use crate::error::{NNError, Result};
+use super::modality::Modality;
 use crate::attention::MultiHeadAttention;
-use crate::linear::Linear;
-use crate::layernorm::LayerNorm;
 use crate::dropout::Dropout;
+use crate::error::{NNError, Result};
 use crate::functional::linear;
+use crate::layernorm::LayerNorm;
+use crate::linear::Linear;
 use crate::module::{Module, ModuleExt};
-use tensor::Tensor;
 use backend::Backend;
-use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
 use dtype::DataType;
-use super::modality::{Modality};
+use std::collections::HashMap;
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 /// Cross-modal attention mechanism with temporal processing
 #[derive(Debug)]
@@ -23,7 +23,12 @@ pub struct CrossModalAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded + std::cmp::PartialOrd,
+    T: DataType
+        + 'static
+        + dtype::FloatExt
+        + num_traits::FromPrimitive
+        + num_traits::Bounded
+        + std::cmp::PartialOrd,
 {
     /// Query modality and layer
     pub query_modality: Modality,
@@ -106,7 +111,7 @@ where
         query: &Tensor<B, S, T>,
         keys: &HashMap<Modality, Tensor<B, S, T>>,
         values: &HashMap<Modality, Tensor<B, S, T>>,
-        mask: Option<&Tensor<B, S, T>>,
+        _mask: Option<&Tensor<B, S, T>>,
     ) -> Result<Tensor<B, S, T>> {
         // Project query if needed
         let query_proj = if let Some(ref proj) = self.query_proj {
@@ -140,7 +145,7 @@ where
 
         if key_list.is_empty() {
             return Err(NNError::InvalidInput {
-                message: "No valid key-value pairs for cross-modal attention".into()
+                message: "No valid key-value pairs for cross-modal attention".into(),
             });
         }
 
@@ -153,16 +158,27 @@ where
             tensor::ops::concatenate_tensors(&value_list, 1)?
         } else {
             return Err(NNError::InvalidInput {
-                message: "No value tensors to concatenate".into()
+                message: "No value tensors to concatenate".into(),
             });
         };
 
         // Apply multi-head attention
-        let attn_output = self.attention.forward_cross_attention(&query_proj, &keys_concat, &values_concat)?;
+        let attn_output =
+            self.attention
+                .forward_cross_attention(&query_proj, &keys_concat, &values_concat)?;
 
         // Apply output projection and dropout
-        let output = linear(&attn_output, &self.out_proj.weight.data, Some(&self.out_proj.bias.data))?;
-        let output = crate::functional::dropout(&output, Some(self.dropout.p), Some(self.dropout.training), Some(false))?;
+        let output = linear(
+            &attn_output,
+            &self.out_proj.weight.data,
+            Some(&self.out_proj.bias.data),
+        )?;
+        let output = crate::functional::dropout(
+            &output,
+            Some(self.dropout.p),
+            Some(self.dropout.training),
+            Some(false),
+        )?;
 
         // Add residual connection and layer norm
         let residual = query + &output;
@@ -173,9 +189,9 @@ where
 
     /// Get number of parameters
     pub fn num_parameters(&self) -> usize {
-        let mut total = self.attention.num_parameters() +
-                         self.out_proj.num_parameters() +
-                         self.norm.num_parameters();
+        let mut total = self.attention.num_parameters()
+            + self.out_proj.num_parameters()
+            + self.norm.num_parameters();
 
         if let Some(ref proj) = self.query_proj {
             total += proj.num_parameters();
@@ -195,14 +211,19 @@ where
 mod tests {
     use super::*;
     use backend::CpuBackend;
-    use storage::DenseStorage;
     use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_cross_modal_attention_creation() {
-        let attention = CrossModalAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            768, 12, Modality::Vision, vec![Modality::Language]
-        ).unwrap();
+        let attention =
+            CrossModalAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                768,
+                12,
+                Modality::Vision,
+                vec![Modality::Language],
+            )
+            .unwrap();
 
         assert_eq!(attention.query_modality, Modality::Vision);
         assert_eq!(attention.kv_modalities, vec![Modality::Language]);

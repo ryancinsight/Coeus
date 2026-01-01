@@ -2,9 +2,9 @@
 
 use backend::CpuBackend;
 use dtype::float::Float32;
-use nn::{Linear, Module, Parameter, SparseLinear};
+use nn::{Module, SparseLinear};
+use storage::DenseStorage;
 use storage::Storage;
-use storage::{CsrStorage, DenseStorage};
 use tensor::Tensor;
 
 // Note: Direct CsrStorage parameter creation has architectural issues
@@ -22,7 +22,6 @@ fn test_sparse_linear_creation() {
 
     // Check that weight is sparse (should have much less than 50 non-zero elements)
     let weight_nnz = sparse_layer.csr_data.as_ref().unwrap().data.len();
-    println!("Weight nnz: {}", weight_nnz);
     assert!(
         weight_nnz < 25,
         "Weight should be sparse, but has {} non-zero elements",
@@ -86,11 +85,6 @@ fn test_sparse_linear_memory_efficiency() {
         false,
     )
     .unwrap();
-    let dense_layer = nn::Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-        out_features,
-        in_features,
-    )
-    .unwrap();
 
     // Check sparse layer has much fewer stored elements
     let sparse_nnz = sparse_layer.csr_data.as_ref().unwrap().data.len();
@@ -124,4 +118,3 @@ fn test_sparse_linear_to_dense() {
     assert!(dense_layer.in_features > 0);
     assert!(dense_layer.out_features > 0);
 }
-

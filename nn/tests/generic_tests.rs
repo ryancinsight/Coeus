@@ -3,7 +3,6 @@
 //! These tests validate that neural network components work correctly
 //! with the generic Backend-Storage-DataType architecture.
 
-use approx::assert_relative_eq;
 use num_traits::Zero;
 use proptest::prelude::*;
 
@@ -13,38 +12,58 @@ use nn::{BatchNorm2d, Linear, Module};
 use storage::DenseStorage;
 use tensor::Tensor;
 
-/// Type alias for our test tensor type
-type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
-
-/// Generate random tensor data
-fn arb_tensor_data() -> impl Strategy<Value = Vec<Float32>> {
-    prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), 1..=1000)
+fn arb_tensor_data_with_len(len: usize) -> impl Strategy<Value = Vec<Float32>> {
+    prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), len..=len)
 }
 
 /// Generate small tensor shapes suitable for neural network operations
-fn arb_nn_shape() -> impl Strategy<Value = Vec<usize>> {
-    prop::collection::vec(1..=100usize, 2..=4).prop_filter("Valid NN shapes", |s| {
-        s.iter().all(|&x| x > 0) && s.len() >= 2 && s.len() <= 4
-    })
+fn arb_linear_input() -> impl Strategy<Value = (usize, usize, usize, Vec<Float32>)> {
+    (1..=50usize, 1..=50usize, 1..=10usize).prop_flat_map(
+        |(in_features, out_features, batch_size)| {
+            let input_size = batch_size * in_features;
+            (
+                Just(in_features),
+                Just(out_features),
+                Just(batch_size),
+                arb_tensor_data_with_len(input_size),
+            )
+        },
+    )
 }
 
-/// Generate compatible input/output shapes for linear layers
-fn arb_linear_shapes() -> impl Strategy<Value = (usize, usize)> {
-    (1..=100usize, 1..=100usize)
+fn arb_linear_consistent_input() -> impl Strategy<Value = (usize, usize, usize, Vec<Float32>)> {
+    (1..=20usize, 1..=20usize, 1..=5usize).prop_flat_map(
+        |(in_features, out_features, batch_size)| {
+            let input_size = batch_size * in_features;
+            (
+                Just(in_features),
+                Just(out_features),
+                Just(batch_size),
+                arb_tensor_data_with_len(input_size),
+            )
+        },
+    )
 }
 
-/// Generate BatchNorm2D compatible shapes [N, C, H, W]
-fn arb_batchnorm2d_shapes() -> impl Strategy<Value = Vec<usize>> {
-    (1..=10usize, 1..=64usize, 1..=32usize, 1..=32usize).prop_map(|(n, c, h, w)| vec![n, c, h, w])
+fn arb_batchnorm2d_input() -> impl Strategy<Value = (usize, usize, usize, usize, Vec<Float32>)> {
+    (1..=32usize, 1..=5usize, 1..=16usize, 1..=16usize).prop_flat_map(
+        |(num_features, batch_size, height, width)| {
+            let input_size = batch_size * num_features * height * width;
+            (
+                Just(num_features),
+                Just(batch_size),
+                Just(height),
+                Just(width),
+                arb_tensor_data_with_len(input_size),
+            )
+        },
+    )
 }
 
 proptest! {
     #[test]
     fn prop_linear_generic_forward(
-        in_features in 1..=50usize,
-        out_features in 1..=50usize,
-        batch_size in 1..=10usize,
-        data in arb_tensor_data()
+        (in_features, out_features, batch_size, data) in arb_linear_input()
     ) {
         // Create a linear layer with the generic B<S<T>> signature
         let linear = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
@@ -52,11 +71,7 @@ proptest! {
             out_features
         ).unwrap();
 
-        // Create input tensor with compatible shape
-        let input_size = batch_size * in_features;
-        prop_assume!(data.len() >= input_size);
-        let input_data = &data[..input_size];
-        let input = Tensor::from_vec(input_data.to_vec(), &[batch_size, in_features]).unwrap();
+        let input = Tensor::from_vec(data, &[batch_size, in_features]).unwrap();
 
         // Forward pass
         let output = linear.forward(&input).unwrap();
@@ -72,11 +87,7 @@ proptest! {
 
     #[test]
     fn prop_batchnorm2d_generic_forward(
-        num_features in 1..=32usize,
-        batch_size in 1..=5usize,
-        height in 1..=16usize,
-        width in 1..=16usize,
-        data in arb_tensor_data()
+        (num_features, batch_size, height, width, data) in arb_batchnorm2d_input()
     ) {
         // Create BatchNorm2d with generic B<S<T>> signature
         let batchnorm = BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
@@ -84,11 +95,8 @@ proptest! {
         ).unwrap();
 
         // Create input tensor [N, C, H, W]
-        let input_size = batch_size * num_features * height * width;
-        prop_assume!(data.len() >= input_size);
-        let input_data = &data[..input_size];
         let input = Tensor::from_vec(
-            input_data.to_vec(),
+            data,
             &[batch_size, num_features, height, width]
         ).unwrap();
 
@@ -282,21 +290,14 @@ proptest! {
 
     #[test]
     fn prop_linear_consistent_output(
-        in_features in 1..=20usize,
-        out_features in 1..=20usize,
-        batch_size in 1..=5usize,
-        data in arb_tensor_data()
+        (in_features, out_features, batch_size, data) in arb_linear_consistent_input()
     ) {
         let linear = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
             in_features,
             out_features
         ).unwrap();
 
-        // Create input
-        let input_size = batch_size * in_features;
-        prop_assume!(data.len() >= input_size);
-        let input_data = &data[..input_size];
-        let input = Tensor::from_vec(input_data.to_vec(), &[batch_size, in_features]).unwrap();
+        let input = Tensor::from_vec(data, &[batch_size, in_features]).unwrap();
 
         // Get output twice - should be identical
         let output1 = linear.forward(&input).unwrap();

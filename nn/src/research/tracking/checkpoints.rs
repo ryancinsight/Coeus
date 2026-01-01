@@ -4,9 +4,9 @@
 //! experiments, including automatic saving, versioning, restoration, and
 //! research-grade checkpoint analysis capabilities.
 
-use std::collections::{HashMap, BTreeMap};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
-use serde::{Serialize, Deserialize};
 
 /// Checkpoint data container
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,13 +95,18 @@ impl CheckpointManager {
     }
 
     /// Create a checkpoint
-    pub fn create_checkpoint(&mut self, name: String, data: CheckpointData) -> crate::error::Result<String> {
+    pub fn create_checkpoint(
+        &mut self,
+        name: String,
+        data: CheckpointData,
+    ) -> crate::error::Result<String> {
         let checkpoint_id = format!("{}_{}", name, chrono::Utc::now().timestamp());
         let mut data = data;
         data.id = checkpoint_id.clone();
 
         // Update temporal index
-        self.checkpoints_by_time.insert(data.metadata.created_at, checkpoint_id.clone());
+        self.checkpoints_by_time
+            .insert(data.metadata.created_at, checkpoint_id.clone());
 
         // Update best checkpoints list
         self.update_best_checkpoints(&data);
@@ -122,7 +127,9 @@ impl CheckpointManager {
 
     /// Get latest checkpoint
     pub fn get_latest_checkpoint(&self) -> Option<&CheckpointData> {
-        self.checkpoints_by_time.values().last()
+        self.checkpoints_by_time
+            .values()
+            .last()
             .and_then(|id| self.checkpoints.get(id))
     }
 
@@ -130,7 +137,8 @@ impl CheckpointManager {
     pub fn get_best_checkpoint(&self, metric: Option<&str>) -> Option<&CheckpointData> {
         if let Some(metric) = metric {
             // Find checkpoint with best value for specific metric
-            self.checkpoints.values()
+            self.checkpoints
+                .values()
                 .filter(|cp| cp.performance_metrics.contains_key(metric))
                 .max_by(|a, b| {
                     let a_val = a.performance_metrics[metric];
@@ -139,7 +147,8 @@ impl CheckpointManager {
                 })
         } else if !self.best_checkpoints.is_empty() {
             // Return checkpoint with best overall performance
-            self.best_checkpoints.first()
+            self.best_checkpoints
+                .first()
                 .and_then(|id| self.checkpoints.get(id))
         } else {
             None
@@ -162,7 +171,8 @@ impl CheckpointManager {
     /// Delete checkpoint
     pub fn delete_checkpoint(&mut self, id: &str) -> crate::error::Result<()> {
         if let Some(checkpoint) = self.checkpoints.remove(id) {
-            self.checkpoints_by_time.remove(&checkpoint.metadata.created_at);
+            self.checkpoints_by_time
+                .remove(&checkpoint.metadata.created_at);
             self.best_checkpoints.retain(|best_id| best_id != id);
         }
         Ok(())
@@ -198,8 +208,8 @@ impl CheckpointManager {
 
         CheckpointComparisonReport {
             checkpoints,
-            metric_improvements: self.calculate_metric_improvements(&checkpoint_ids),
-            training_efficiency: self.calculate_training_efficiency(&checkpoint_ids),
+            metric_improvements: self.calculate_metric_improvements(checkpoint_ids),
+            training_efficiency: self.calculate_training_efficiency(checkpoint_ids),
         }
     }
 
@@ -218,14 +228,29 @@ impl CheckpointManager {
         // Simple strategy: keep top 3 performing checkpoints
         self.best_checkpoints.push(new_checkpoint.id.clone());
         self.best_checkpoints.sort_by(|a, b| {
-            let a_score = self.checkpoints.get(a)
-                .and_then(|cp| cp.performance_metrics.get("validation_accuracy").or_else(|| cp.performance_metrics.get("loss")))
+            let a_score = self
+                .checkpoints
+                .get(a)
+                .and_then(|cp| {
+                    cp.performance_metrics
+                        .get("validation_accuracy")
+                        .or_else(|| cp.performance_metrics.get("loss"))
+                })
                 .unwrap_or(&f64::INFINITY);
-            let b_score = self.checkpoints.get(b)
-                .and_then(|cp| cp.performance_metrics.get("validation_accuracy").or_else(|| cp.performance_metrics.get("loss")))
+            let b_score = self
+                .checkpoints
+                .get(b)
+                .and_then(|cp| {
+                    cp.performance_metrics
+                        .get("validation_accuracy")
+                        .or_else(|| cp.performance_metrics.get("loss"))
+                })
                 .unwrap_or(&f64::INFINITY);
             // For accuracy: higher is better, for loss: lower is better
-            if new_checkpoint.performance_metrics.contains_key("validation_accuracy") {
+            if new_checkpoint
+                .performance_metrics
+                .contains_key("validation_accuracy")
+            {
                 b_score.partial_cmp(a_score).unwrap()
             } else {
                 a_score.partial_cmp(b_score).unwrap()
@@ -241,7 +266,9 @@ impl CheckpointManager {
         }
 
         // Remove oldest checkpoints beyond the limit
-        let to_remove: Vec<String> = self.checkpoints_by_time.values()
+        let to_remove: Vec<String> = self
+            .checkpoints_by_time
+            .values()
             .take(self.checkpoints.len() - self.storage_config.max_checkpoints)
             .cloned()
             .collect();
@@ -254,18 +281,25 @@ impl CheckpointManager {
     }
 
     /// Calculate metric improvements between checkpoints
-    fn calculate_metric_improvements(&self, checkpoint_ids: &[String]) -> HashMap<String, Vec<f64>> {
+    fn calculate_metric_improvements(
+        &self,
+        checkpoint_ids: &[String],
+    ) -> HashMap<String, Vec<f64>> {
         let mut improvements = HashMap::new();
         let mut prev_metrics = HashMap::new();
 
         for id in checkpoint_ids {
             if let Some(cp) = self.checkpoints.get(id) {
                 for (metric_name, current_value) in &cp.performance_metrics {
-                    let prev_value = prev_metrics.get(metric_name).copied().unwrap_or(*current_value);
+                    let prev_value = prev_metrics
+                        .get(metric_name)
+                        .copied()
+                        .unwrap_or(*current_value);
                     let improvement = current_value - prev_value;
-                    improvements.entry(metric_name.clone())
-                              .or_insert_with(Vec::new)
-                              .push(improvement);
+                    improvements
+                        .entry(metric_name.clone())
+                        .or_insert_with(Vec::new)
+                        .push(improvement);
                     prev_metrics.insert(metric_name.clone(), *current_value);
                 }
             }
@@ -275,7 +309,10 @@ impl CheckpointManager {
     }
 
     /// Calculate training efficiency metrics
-    fn calculate_training_efficiency(&self, checkpoint_ids: &[String]) -> TrainingEfficiencyMetrics {
+    fn calculate_training_efficiency(
+        &self,
+        checkpoint_ids: &[String],
+    ) -> TrainingEfficiencyMetrics {
         let mut total_steps = 0u64;
         let mut total_time = std::time::Duration::ZERO;
         let mut first_time = None;
@@ -297,7 +334,9 @@ impl CheckpointManager {
         TrainingEfficiencyMetrics {
             checkpoints_per_second: if total_time.as_secs() > 0 {
                 checkpoint_ids.len() as f64 / total_time.as_secs() as f64
-            } else { 0.0 },
+            } else {
+                0.0
+            },
             steps_per_checkpoint: if checkpoint_ids.is_empty() {
                 0.0
             } else {
@@ -305,8 +344,16 @@ impl CheckpointManager {
             },
             average_checkpoint_interval: if checkpoint_ids.len() > 1 && total_time.as_secs() > 0 {
                 total_time.as_secs() as f64 / (checkpoint_ids.len() - 1) as f64
-            } else { 0.0 },
+            } else {
+                0.0
+            },
         }
+    }
+}
+
+impl Default for CheckpointManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -380,7 +427,8 @@ impl AutoSaveScheduler {
     /// Schedule automatic saves
     pub fn schedule(&mut self, interval_seconds: u64, monitor_metric: Option<String>) {
         self.interval_seconds = Some(interval_seconds);
-        self.higher_is_better = monitor_metric.as_ref()
+        self.higher_is_better = monitor_metric
+            .as_ref()
             .map(|m| !m.contains("loss"))
             .unwrap_or(true);
         self.monitor_metric = monitor_metric;
@@ -391,7 +439,9 @@ impl AutoSaveScheduler {
         // Check time-based saving
         if let Some(interval) = self.interval_seconds {
             if let Some(last_time) = self.last_save_time {
-                let elapsed = chrono::Utc::now().signed_duration_since(last_time).num_seconds();
+                let elapsed = chrono::Utc::now()
+                    .signed_duration_since(last_time)
+                    .num_seconds();
                 if elapsed >= interval as i64 {
                     return true;
                 }
@@ -422,6 +472,12 @@ impl AutoSaveScheduler {
         if let Some(value) = best_value {
             self.current_best = Some(value);
         }
+    }
+}
+
+impl Default for AutoSaveScheduler {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

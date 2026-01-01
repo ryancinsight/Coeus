@@ -7,10 +7,10 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 // Import CLIP model
-use nn::clip::{ClipModel, ClipConfig};
+use nn::clip::{ClipConfig, ClipModel};
 
 // Import tensor types with GPU support
-use backend::{GpuBackend, CpuBackend};
+use backend::{CpuBackend, GpuBackend};
 use dtype::float::Float32;
 use storage::DenseStorage;
 
@@ -43,7 +43,8 @@ impl SemanticVectorDB {
 
     /// Search for similar embeddings using cosine similarity
     fn search(&self, query_embedding: &[f32], top_k: usize) -> Vec<(String, f32)> {
-        let mut results: Vec<(String, f32)> = self.embeddings
+        let mut results: Vec<(String, f32)> = self
+            .embeddings
             .iter()
             .zip(self.metadata.iter())
             .map(|(emb, meta)| {
@@ -61,7 +62,10 @@ impl SemanticVectorDB {
 
     /// Get database statistics
     fn stats(&self) -> (usize, usize) {
-        (self.embeddings.len(), self.embeddings.first().map_or(0, |v| v.len()))
+        (
+            self.embeddings.len(),
+            self.embeddings.first().map_or(0, |v| v.len()),
+        )
     }
 }
 
@@ -90,7 +94,8 @@ impl CLIPSearchService {
 
         println!("💻 Using CPU backend for semantic search");
         let config = ClipConfig::vit_b32();
-        let clip_model = ClipModel::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config)?;
+        let clip_model =
+            ClipModel::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config)?;
 
         println!("✅ CLIP model loaded on CPU");
         println!("   - Vision: {}x{} patches", 224 / 16, 224 / 16);
@@ -103,8 +108,16 @@ impl CLIPSearchService {
     }
 
     /// Index content (text and image) for search
-    fn index_content(&mut self, images: Vec<&[f32]>, texts: Vec<&str>) -> Result<(), Box<dyn std::error::Error>> {
-        println!("📚 Indexing {} images and {} texts...", images.len(), texts.len());
+    fn index_content(
+        &mut self,
+        images: Vec<&[f32]>,
+        texts: Vec<&str>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        println!(
+            "📚 Indexing {} images and {} texts...",
+            images.len(),
+            texts.len()
+        );
 
         for (i, image_data) in images.iter().enumerate() {
             // Encode image
@@ -119,7 +132,8 @@ impl CLIPSearchService {
         for (i, text) in texts.iter().enumerate() {
             // Encode text (simplified - using placeholder text encoding)
             let text_embeddings = self.clip_model.encode_text(&[text])?;
-            let embedding_vec: Vec<f32> = text_embeddings.as_slice().iter().map(|x| x.get()).collect();
+            let embedding_vec: Vec<f32> =
+                text_embeddings.as_slice().iter().map(|x| x.get()).collect();
 
             // Store with metadata
             let metadata = format!("Text: {}", text);
@@ -131,10 +145,18 @@ impl CLIPSearchService {
     }
 
     /// Search using text query
-    fn text_search(&self, query: &str, top_k: usize) -> Result<Vec<(String, f32)>, Box<dyn std::error::Error>> {
+    fn text_search(
+        &self,
+        query: &str,
+        top_k: usize,
+    ) -> Result<Vec<(String, f32)>, Box<dyn std::error::Error>> {
         // Encode text query
         let query_embeddings = self.clip_model.encode_text(&[query])?;
-        let query_vec: Vec<f32> = query_embeddings.as_slice().iter().map(|x| x.get()).collect();
+        let query_vec: Vec<f32> = query_embeddings
+            .as_slice()
+            .iter()
+            .map(|x| x.get())
+            .collect();
 
         // Search vector database
         let results = self.vector_db.search(&query_vec, top_k);
@@ -142,10 +164,18 @@ impl CLIPSearchService {
     }
 
     /// Search using image query
-    fn image_search(&self, image_data: &[f32], top_k: usize) -> Result<Vec<(String, f32)>, Box<dyn std::error::Error>> {
+    fn image_search(
+        &self,
+        image_data: &[f32],
+        top_k: usize,
+    ) -> Result<Vec<(String, f32)>, Box<dyn std::error::Error>> {
         // Encode image query
         let query_embeddings = self.clip_model.encode_image(image_data, 1)?;
-        let query_vec: Vec<f32> = query_embeddings.as_slice().iter().map(|x| x.get()).collect();
+        let query_vec: Vec<f32> = query_embeddings
+            .as_slice()
+            .iter()
+            .map(|x| x.get())
+            .collect();
 
         // Search vector database
         let results = self.vector_db.search(&query_vec, top_k);
@@ -153,7 +183,11 @@ impl CLIPSearchService {
     }
 
     /// Cross-modal search: find images similar to text and vice versa
-    fn find_similar(&self, query: &str, top_k: usize) -> Result<SimilarityResults, Box<dyn std::error::Error>> {
+    fn find_similar(
+        &self,
+        query: &str,
+        top_k: usize,
+    ) -> Result<SimilarityResults, Box<dyn std::error::Error>> {
         // Encode text query
         let text_embeddings = self.clip_model.encode_text(&[query])?;
         let text_vec: Vec<f32> = text_embeddings.as_slice().iter().map(|x| x.get()).collect();
@@ -198,7 +232,10 @@ impl CLIPSearchService {
         }
 
         let avg_latency = latency_samples.iter().sum::<f64>() / latency_samples.len() as f64;
-        let min_latency = latency_samples.iter().cloned().fold(f64::INFINITY, f64::min);
+        let min_latency = latency_samples
+            .iter()
+            .cloned()
+            .fold(f64::INFINITY, f64::min);
         let max_latency = latency_samples.iter().cloned().fold(0.0, f64::max);
 
         println!("📊 Benchmark Results:");
@@ -248,7 +285,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize CLIP search service
     println!("🚀 Initializing CLIP Search Service...");
     let mut search_service = CLIPSearchService::new().await?;
-    println!("✅ Service initialized in {:.2}s", start_time.elapsed().as_secs_f64());
+    println!(
+        "✅ Service initialized in {:.2}s",
+        start_time.elapsed().as_secs_f64()
+    );
 
     // Generate synthetic content for indexing
     println!("📝 Generating synthetic content catalog...");
@@ -320,15 +360,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Show comprehensive results
     println!("\n🎯 Search Performance Summary");
     println!("============================");
-    println!("📊 Database contains {} items with {}D embeddings", benchmark.database_size, benchmark.embedding_dimension);
+    println!(
+        "📊 Database contains {} items with {}D embeddings",
+        benchmark.database_size, benchmark.embedding_dimension
+    );
     println!("⚡ Search Performance:");
     println!("   Processed {} queries", benchmark.num_queries_processed);
-    println!("   Average latency: {:.2} μs per query", benchmark.avg_query_latency_us);
-    println!("   Query throughput: {:.1} QPS", 1_000_000.0 / benchmark.avg_query_latency_us);
-    println!("   Latency range: {:.1} - {:.1} μs", benchmark.min_query_latency_us, benchmark.max_query_latency_us);
+    println!(
+        "   Average latency: {:.2} μs per query",
+        benchmark.avg_query_latency_us
+    );
+    println!(
+        "   Query throughput: {:.1} QPS",
+        1_000_000.0 / benchmark.avg_query_latency_us
+    );
+    println!(
+        "   Latency range: {:.1} - {:.1} μs",
+        benchmark.min_query_latency_us, benchmark.max_query_latency_us
+    );
 
     println!("\n✅ CLIP Semantic Search Demo Complete!");
-    println!("⏱️  Total demonstration time: {:.2}s", start_time.elapsed().as_secs_f64());
+    println!(
+        "⏱️  Total demonstration time: {:.2}s",
+        start_time.elapsed().as_secs_f64()
+    );
 
     println!("\n🚀 Key Capabilities Demonstrated:");
     println!("   - ✅ Multimodal embeddings (text + image)");
@@ -390,4 +445,3 @@ mod tests {
         assert_eq!(db.stats(), (0, 0));
     }
 }
-

@@ -4,8 +4,7 @@
 //! Shows how the system now automatically selects GPU for large operations.
 
 use backend::{
-    BackendSelector, WorkloadCharacteristics,
-    MemoryAccessPattern, OperationDype, DataLocality
+    BackendSelector, DataLocality, MemoryAccessPattern, OperationDype, WorkloadCharacteristics,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,34 +18,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test different workload types
     let workloads = vec![
-        ("Small Element-wise", WorkloadCharacteristics {
-            total_elements: 1000,
-            access_pattern: MemoryAccessPattern::Dense,
-            compute_intensity: 1.0,
-            data_locality: DataLocality::High,
-            operation_type: OperationDype::ElementWise,
-        }),
-        ("Large Element-wise", WorkloadCharacteristics {
-            total_elements: 50000,
-            access_pattern: MemoryAccessPattern::Dense,
-            compute_intensity: 1.0,
-            data_locality: DataLocality::High,
-            operation_type: OperationDype::ElementWise,
-        }),
-        ("Large Matrix Multiplication", WorkloadCharacteristics {
-            total_elements: 2_000_000,
-            access_pattern: MemoryAccessPattern::Dense,
-            compute_intensity: 20.0,
-            data_locality: DataLocality::High,
-            operation_type: OperationDype::MatrixMultiplication,
-        }),
-        ("Convolution", WorkloadCharacteristics {
-            total_elements: 1_000_000,
-            access_pattern: MemoryAccessPattern::Dense,
-            compute_intensity: 15.0,
-            data_locality: DataLocality::Medium,
-            operation_type: OperationDype::Convolution,
-        }),
+        (
+            "Small Element-wise",
+            WorkloadCharacteristics {
+                total_elements: 1000,
+                access_pattern: MemoryAccessPattern::Dense,
+                compute_intensity: 1.0,
+                data_locality: DataLocality::High,
+                operation_type: OperationDype::ElementWise,
+            },
+        ),
+        (
+            "Large Element-wise",
+            WorkloadCharacteristics {
+                total_elements: 50000,
+                access_pattern: MemoryAccessPattern::Dense,
+                compute_intensity: 1.0,
+                data_locality: DataLocality::High,
+                operation_type: OperationDype::ElementWise,
+            },
+        ),
+        (
+            "Large Matrix Multiplication",
+            WorkloadCharacteristics {
+                total_elements: 2_000_000,
+                access_pattern: MemoryAccessPattern::Dense,
+                compute_intensity: 20.0,
+                data_locality: DataLocality::High,
+                operation_type: OperationDype::MatrixMultiplication,
+            },
+        ),
+        (
+            "Convolution",
+            WorkloadCharacteristics {
+                total_elements: 1_000_000,
+                access_pattern: MemoryAccessPattern::Dense,
+                compute_intensity: 15.0,
+                data_locality: DataLocality::Medium,
+                operation_type: OperationDype::Convolution,
+            },
+        ),
     ];
 
     println!("\n🧠 Backend Selection Results:");
@@ -77,4 +88,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-

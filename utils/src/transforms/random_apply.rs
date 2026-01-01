@@ -276,9 +276,9 @@ mod tests {
     use crate::transforms::Normalize;
     use backend::CpuBackend;
     use dtype::float::Float32;
+    use std::sync::Arc;
     use storage::DenseStorage;
     use tensor::Tensor;
-    use std::sync::Arc;
 
     type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 

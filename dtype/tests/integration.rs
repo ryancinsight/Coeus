@@ -101,8 +101,6 @@ fn test_bitwise_operations_across_types() {
 
 #[test]
 fn test_numeric_edge_values() {
-    use traits::FloatExt;
-
     let nan = float::Float32::new(f32::NAN);
     let inf = float::Float32::new(f32::INFINITY);
     let neg_inf = float::Float32::new(f32::NEG_INFINITY);

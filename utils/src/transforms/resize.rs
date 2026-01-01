@@ -11,8 +11,7 @@ use tensor::Tensor;
 use super::{Transform, TransformError};
 
 /// Interpolation mode for resizing
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum InterpolationMode {
     /// Bilinear interpolation (default for images)
     #[default]
@@ -22,7 +21,6 @@ pub enum InterpolationMode {
     /// Bicubic interpolation
     Bicubic,
 }
-
 
 /// Transform that resizes tensor data to specified dimensions
 ///

@@ -7,9 +7,9 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use super::{AblationStudy, ClipExperimentMetadata, ClipResearchConfig, HpoSpace};
+use crate::clip::enhanced_trainer::{EnhancedClipTrainer, EnhancedClipTrainingConfig};
 use crate::error::{NNError, Result};
-use crate::clip::enhanced_trainer::{EnhancedClipTrainingConfig, EnhancedClipTrainer};
-use super::{ClipResearchConfig, HpoSpace, AblationStudy, ClipExperimentMetadata};
 
 /// CLIP experiment builder for systematic research
 #[derive(Debug, Clone)]
@@ -21,18 +21,13 @@ pub struct ClipExperimentBuilder {
     priority: ExperimentPriority,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum ExperimentPriority {
     Low = 0,
+    #[default]
     Normal = 1,
     High = 2,
     Critical = 3,
-}
-
-impl Default for ExperimentPriority {
-    fn default() -> Self {
-        ExperimentPriority::Normal
-    }
 }
 
 impl ClipExperimentBuilder {
@@ -88,14 +83,13 @@ impl ClipExperimentBuilder {
         // Validate configuration
         self.validate_config()?;
 
-        // Create experiment metadata
-        let mut metadata = ClipExperimentMetadata::default();
-        metadata.name = self.experiment_name.clone();
-        metadata.description = format!("CLIP experiment: {}", self.experiment_name);
-        metadata.author = std::env::var("USER").unwrap_or_else(|_| "coeus".to_string());
-
-        // Convert tags HashMap to Vec<String> for tags field
-        metadata.tags = self.tags.keys().cloned().collect();
+        let metadata = ClipExperimentMetadata {
+            name: self.experiment_name.clone(),
+            description: format!("CLIP experiment: {}", self.experiment_name),
+            author: std::env::var("USER").unwrap_or_else(|_| "coeus".to_string()),
+            tags: self.tags.keys().cloned().collect(),
+            ..ClipExperimentMetadata::default()
+        };
 
         // Update config with metadata
         let mut config = self.config;
@@ -130,9 +124,7 @@ impl ClipExperimentBuilder {
 
         // Validate output directory
         if !self.output_dir.exists() {
-            std::fs::create_dir_all(&self.output_dir).map_err(|e| NNError::IoError {
-                error: e,
-            })?;
+            std::fs::create_dir_all(&self.output_dir).map_err(|e| NNError::IoError { error: e })?;
         }
 
         Ok(())
@@ -174,17 +166,24 @@ impl ClipExperimentRunner {
         println!("🚀 Starting CLIP experiment: {}", self.experiment.name);
 
         // Initialize trainer
-        let mut trainer = EnhancedClipTrainer::<backend::CpuBackend<dtype::float::Float32>, storage::DenseStorage<dtype::float::Float32>, dtype::float::Float32>::new(self.experiment.config.base_training_config.clone())
-            .map_err(|e| NNError::TrainingError {
-                message: format!("Failed to initialize trainer: {}", e),
-            })?;
+        let mut trainer = EnhancedClipTrainer::<
+            backend::CpuBackend<dtype::float::Float32>,
+            storage::DenseStorage<dtype::float::Float32>,
+            dtype::float::Float32,
+        >::new(self.experiment.config.base_training_config.clone())
+        .map_err(|e| NNError::TrainingError {
+            message: format!("Failed to initialize trainer: {}", e),
+        })?;
 
         // Run training
         let data_loader: fn() -> Option<crate::clip::enhanced_trainer::ClipBatch> = || None; // Placeholder - no data
-        let training_result = trainer.train(data_loader).await
-            .map_err(|e| NNError::TrainingError {
-                message: format!("Training failed: {}", e),
-            })?;
+        let training_result =
+            trainer
+                .train(data_loader)
+                .await
+                .map_err(|e| NNError::TrainingError {
+                    message: format!("Training failed: {}", e),
+                })?;
 
         println!("✅ CLIP experiment completed: {}", self.experiment.name);
 
@@ -233,8 +232,7 @@ mod tests {
 
     #[test]
     fn test_experiment_builder_with_priority() {
-        let builder = ClipExperimentBuilder::new("test")
-            .with_priority(ExperimentPriority::High);
+        let builder = ClipExperimentBuilder::new("test").with_priority(ExperimentPriority::High);
 
         assert_eq!(builder.priority, ExperimentPriority::High);
     }

@@ -4,16 +4,16 @@
 //! training infrastructure, including data loading, batch processing, and evaluation.
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
-use std::path::Path;
 
 use crate::error::Result;
 use crate::parameter::Parameter;
 use backend::Backend;
-use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
-use tensor::Tensor;
 use dtype::{DataType, FloatExt};
+use storage::{DenseStorage, StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 use super::config::ClipConfig;
 use super::loss::InfoNCELoss;
@@ -22,13 +22,13 @@ use super::preprocessing::{ImageProcessor, TextProcessor};
 use crate::evaluation::zeroshot::ZeroShotResults;
 
 // Enhanced imports for Phase 2 improvements
-use std::fs;
-use std::io::{BufWriter, Write};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::io::{BufWriter, Write};
 
 // Re-export optimizer and scheduler types for easy access
-pub use optim::{Adam, ExponentialLR, CosineAnnealingLR};
+pub use optim::{Adam, CosineAnnealingLR, ExponentialLR};
 
 /// CLIP Training Data Batch
 #[derive(Debug)]
@@ -137,7 +137,13 @@ pub struct ClipTrainingMetrics {
 pub struct ClipTrainer<B, T>
 where
     B: Backend<Data = T> + Send + Sync + 'static,
-    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + Send + Sync + 'static,
+    T: DataType
+        + FloatExt
+        + num_traits::FromPrimitive
+        + num_traits::Bounded
+        + Send
+        + Sync
+        + 'static,
 {
     /// CLIP model
     model: ClipModel<B, DenseStorage<T>, T>,
@@ -156,7 +162,14 @@ where
 impl<B, T> ClipTrainer<B, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
-    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + std::ops::Neg<Output = T> + Send + Sync + 'static,
+    T: DataType
+        + FloatExt
+        + num_traits::FromPrimitive
+        + num_traits::Bounded
+        + std::ops::Neg<Output = T>
+        + Send
+        + Sync
+        + 'static,
 {
     /// Create new CLIP trainer
     pub fn new(config: ClipTrainingConfig) -> Result<Self> {
@@ -176,10 +189,7 @@ where
     }
 
     /// Train CLIP model
-    pub async fn train<F>(
-        &mut self,
-        mut data_loader: F,
-    ) -> Result<ClipTrainingReport>
+    pub async fn train<F>(&mut self, mut data_loader: F) -> Result<ClipTrainingReport>
     where
         F: FnMut() -> Option<ClipBatch>,
     {
@@ -187,8 +197,14 @@ where
         let mut best_loss = f64::INFINITY;
         let mut start_time = Instant::now();
 
-        println!("Starting CLIP training with config: {:?}", self.config.clip_config);
-        println!("Batch size: {}, Total steps: {}", self.config.batch_size, self.config.total_steps);
+        println!(
+            "Starting CLIP training with config: {:?}",
+            self.config.clip_config
+        );
+        println!(
+            "Batch size: {}, Total steps: {}",
+            self.config.batch_size, self.config.total_steps
+        );
 
         for step in 0..self.config.total_steps {
             let step_start = Instant::now();
@@ -203,11 +219,9 @@ where
             let processed_images = self.preprocess_batch(&batch)?;
 
             // Forward pass
-            let loss_tensor = self.model.forward_train(
-                &processed_images,
-                &batch.texts,
-                batch.batch_size,
-            )?;
+            let loss_tensor =
+                self.model
+                    .forward_train(&processed_images, &batch.texts, batch.batch_size)?;
 
             // Compute metrics
             let loss_val = self.extract_loss_value(&loss_tensor);
@@ -256,9 +270,11 @@ where
             total_steps: metrics.len(),
             best_loss,
             final_loss: metrics.last().map(|m| m.loss).unwrap_or(0.0),
-            average_step_time: metrics.iter().map(|m| m.step_time).sum::<f64>() / metrics.len() as f64,
+            average_step_time: metrics.iter().map(|m| m.step_time).sum::<f64>()
+                / metrics.len() as f64,
             total_time,
-            throughput: metrics.iter().map(|m| m.samples_per_sec).sum::<f64>() / metrics.len() as f64,
+            throughput: metrics.iter().map(|m| m.samples_per_sec).sum::<f64>()
+                / metrics.len() as f64,
             convergence_rate: self.calculate_convergence_rate(&metrics),
             metrics,
         })
@@ -319,8 +335,8 @@ where
             self.config.learning_rate * (step as f64 / self.config.warmup_steps as f64)
         } else {
             // Cosine decay
-            let progress = (step - self.config.warmup_steps) as f64 /
-                          (self.config.total_steps - self.config.warmup_steps) as f64;
+            let progress = (step - self.config.warmup_steps) as f64
+                / (self.config.total_steps - self.config.warmup_steps) as f64;
             let cosine_decay = 0.5 * (1.0 + (progress * std::f64::consts::PI).cos());
             self.config.learning_rate * cosine_decay
         }
@@ -435,12 +451,30 @@ impl ClipEvaluationMetrics {
     /// Print evaluation results
     pub fn print_summary(&self) {
         println!("=== CLIP Evaluation Results ===");
-        println!("Image→Text Recall@1: {:.2}%", self.image_to_text_recall_at_1 * 100.0);
-        println!("Image→Text Recall@5: {:.2}%", self.image_to_text_recall_at_5 * 100.0);
-        println!("Image→Text Recall@10: {:.2}%", self.image_to_text_recall_at_10 * 100.0);
-        println!("Text→Image Recall@1: {:.2}%", self.text_to_image_recall_at_1 * 100.0);
-        println!("Text→Image Recall@5: {:.2}%", self.text_to_image_recall_at_5 * 100.0);
-        println!("Text→Image Recall@10: {:.2}%", self.text_to_image_recall_at_10 * 100.0);
+        println!(
+            "Image→Text Recall@1: {:.2}%",
+            self.image_to_text_recall_at_1 * 100.0
+        );
+        println!(
+            "Image→Text Recall@5: {:.2}%",
+            self.image_to_text_recall_at_5 * 100.0
+        );
+        println!(
+            "Image→Text Recall@10: {:.2}%",
+            self.image_to_text_recall_at_10 * 100.0
+        );
+        println!(
+            "Text→Image Recall@1: {:.2}%",
+            self.text_to_image_recall_at_1 * 100.0
+        );
+        println!(
+            "Text→Image Recall@5: {:.2}%",
+            self.text_to_image_recall_at_5 * 100.0
+        );
+        println!(
+            "Text→Image Recall@10: {:.2}%",
+            self.text_to_image_recall_at_10 * 100.0
+        );
     }
 }
 
@@ -466,10 +500,8 @@ mod tests {
     use super::*;
     use backend::CpuBackend;
     use dtype::float::Float32;
-    use storage::DenseStorage;
 
     type TestBackend = CpuBackend<Float32>;
-    type TestStorage = DenseStorage<Float32>;
 
     #[test]
     fn test_clip_trainer_creation() {
@@ -500,7 +532,7 @@ mod tests {
 
         // Test cosine decay (simplified test)
         let lr_at_50 = trainer.get_current_learning_rate(50);
-        assert!(lr_at_50 < 1e-3 && lr_at_50 >= 0.0);
+        assert!((0.0..1e-3).contains(&lr_at_50));
     }
 
     #[test]
@@ -521,4 +553,3 @@ mod tests {
         assert_eq!(report.convergence_rate, 0.25);
     }
 }
-

@@ -11,24 +11,14 @@ use axum::{
 };
 // use serde::{Deserialize, Serialize};
 // use std::collections::HashMap;
+use base64::{engine::general_purpose, Engine as _};
 use std::time::Instant;
-use base64::{Engine as _, engine::general_purpose};
 
-use crate::types::{
-    *,
-    SearchResponse,
-    SearchResult,
-    SearchConfig,
-    SearchMethod,
-    SearchMode,
-    SearchPerformance,
-    ContentType,
-    IndexRequest,
-    IndexResponse,
-    IndexContent,
-    BenchmarkQuery,
-};
 use crate::state::AppState;
+use crate::types::{
+    BenchmarkQuery, ContentType, IndexContent, IndexRequest, IndexResponse, SearchConfig,
+    SearchMethod, SearchMode, SearchPerformance, SearchResponse, SearchResult, *,
+};
 // use crate::errors::SemanticError;
 
 /// Health check endpoint
@@ -39,14 +29,14 @@ pub async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
     // For now, we rely on the background health monitor
 
     let health = state.health.read().await;
-    
+
     // Map internal ServiceStatus to API HealthStatus
     let api_status = match health.status {
         ServiceStatus::Operational => HealthStatus::Healthy,
         ServiceStatus::Degraded => HealthStatus::Degraded,
         ServiceStatus::Maintenance => HealthStatus::Unhealthy,
     };
-    
+
     // Construct detailed service health if components are available
     let services = if !health.components.is_empty() {
         // Helper to get component health or default
@@ -88,7 +78,7 @@ pub async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
         disk_usage: 0.0,
     };
 
-    let processing_time = start_time.elapsed().as_millis() as u64;
+    let processing_time = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
 
     (
         StatusCode::OK,
@@ -108,7 +98,8 @@ pub async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
                 service_status: health.status.clone(),
             },
         )),
-    ).into_response()
+    )
+        .into_response()
 }
 
 /// Semantic text search
@@ -129,7 +120,8 @@ pub async fn text_search(
                 details: None,
                 retry_after: None,
             }),
-        ).into_response();
+        )
+            .into_response();
     }
 
     // Encode query text
@@ -145,7 +137,8 @@ pub async fn text_search(
                     details: None,
                     retry_after: None,
                 }),
-            ).into_response();
+            )
+                .into_response();
         }
     };
 
@@ -162,17 +155,19 @@ pub async fn text_search(
                     details: None,
                     retry_after: None,
                 }),
-            ).into_response();
+            )
+                .into_response();
         }
     };
 
     // Filter by threshold
     let threshold = request.threshold.unwrap_or(0.0);
-    let results: Vec<_> = results.into_iter()
+    let results: Vec<_> = results
+        .into_iter()
         .filter(|r| r.similarity >= threshold)
         .collect();
 
-    let processing_time = start_time.elapsed().as_millis() as u64;
+    let processing_time = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
 
     // Record metrics
     state.record_search(processing_time as f64).await;
@@ -185,18 +180,26 @@ pub async fn text_search(
         Json(ApiResponse::new(
             uuid::Uuid::new_v4().to_string(),
             SearchResponse {
-                results: results.into_iter().map(|r| SearchResult {
-                    id: r.id.clone(),
-                    content: r.metadata.get("content").and_then(|v| v.as_str()).unwrap_or("content unavailable").to_string(),
-                    score: Some(r.similarity),
-                    metadata: r.metadata,
-                    indexed_at: chrono::Utc::now(),
-                    content_type: ContentType::Text,
-                }).collect(),
+                results: results
+                    .into_iter()
+                    .map(|r| SearchResult {
+                        id: r.id.clone(),
+                        content: r
+                            .metadata
+                            .get("content")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("content unavailable")
+                            .to_string(),
+                        score: Some(r.similarity),
+                        metadata: r.metadata,
+                        indexed_at: chrono::Utc::now(),
+                        content_type: ContentType::Text,
+                    })
+                    .collect(),
                 total_results,
                 query: request.query,
                 config: SearchConfig {
-                    top_k: top_k,
+                    top_k,
                     threshold,
                     search_method: request.search_method.unwrap_or(SearchMethod::Cosine),
                     search_mode: SearchMode::Text,
@@ -215,7 +218,8 @@ pub async fn text_search(
                 service_status: health.status.clone(),
             },
         )),
-    ).into_response()
+    )
+        .into_response()
 }
 
 /// Image search (using base64 image)
@@ -236,7 +240,8 @@ pub async fn image_search(
                 details: None,
                 retry_after: None,
             }),
-        ).into_response();
+        )
+            .into_response();
     }
 
     // Decode base64 image
@@ -252,7 +257,8 @@ pub async fn image_search(
                     details: None,
                     retry_after: None,
                 }),
-            ).into_response();
+            )
+                .into_response();
         }
     };
 
@@ -269,7 +275,8 @@ pub async fn image_search(
                     details: None,
                     retry_after: None,
                 }),
-            ).into_response();
+            )
+                .into_response();
         }
     };
 
@@ -286,17 +293,19 @@ pub async fn image_search(
                     details: None,
                     retry_after: None,
                 }),
-            ).into_response();
+            )
+                .into_response();
         }
     };
 
     // Filter by threshold
     let threshold = request.threshold.unwrap_or(0.0);
-    let results: Vec<_> = results.into_iter()
+    let results: Vec<_> = results
+        .into_iter()
         .filter(|r| r.similarity >= threshold)
         .collect();
 
-    let processing_time = start_time.elapsed().as_millis() as u64;
+    let processing_time = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
 
     // Record metrics
     state.record_search(processing_time as f64).await;
@@ -309,18 +318,26 @@ pub async fn image_search(
         Json(ApiResponse::new(
             uuid::Uuid::new_v4().to_string(),
             SearchResponse {
-                results: results.into_iter().map(|r| SearchResult {
-                    id: r.id.clone(),
-                    content: r.metadata.get("content").and_then(|v| v.as_str()).unwrap_or("content unavailable").to_string(),
-                    score: Some(r.similarity),
-                    metadata: r.metadata,
-                    indexed_at: chrono::Utc::now(),
-                    content_type: ContentType::Image,
-                }).collect(),
+                results: results
+                    .into_iter()
+                    .map(|r| SearchResult {
+                        id: r.id.clone(),
+                        content: r
+                            .metadata
+                            .get("content")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("content unavailable")
+                            .to_string(),
+                        score: Some(r.similarity),
+                        metadata: r.metadata,
+                        indexed_at: chrono::Utc::now(),
+                        content_type: ContentType::Image,
+                    })
+                    .collect(),
                 total_results,
                 query: format!("image_embedding_{}", embedding.len()),
                 config: SearchConfig {
-                    top_k: top_k,
+                    top_k,
                     threshold,
                     search_method: SearchMethod::Cosine,
                     search_mode: SearchMode::Image,
@@ -339,7 +356,8 @@ pub async fn image_search(
                 service_status: health.status.clone(),
             },
         )),
-    ).into_response()
+    )
+        .into_response()
 }
 
 /// Cross-modal search (text query, image results or vice versa)
@@ -360,7 +378,8 @@ pub async fn cross_modal_search(
                 details: None,
                 retry_after: None,
             }),
-        ).into_response();
+        )
+            .into_response();
     }
 
     // Generate embedding based on available query data
@@ -376,7 +395,8 @@ pub async fn cross_modal_search(
                     details: None,
                     retry_after: None,
                 }),
-            ).into_response();
+            )
+                .into_response();
         }
         state.clip_service.encode_text(&request.text_query).await
     } else if let Some(image_b64) = &request.image_b64 {
@@ -393,7 +413,8 @@ pub async fn cross_modal_search(
                         details: None,
                         retry_after: None,
                     }),
-                ).into_response();
+                )
+                    .into_response();
             }
         };
         state.clip_service.encode_image(&image_data).await
@@ -407,7 +428,8 @@ pub async fn cross_modal_search(
                 details: None,
                 retry_after: None,
             }),
-        ).into_response();
+        )
+            .into_response();
     };
 
     let embedding = match embedding {
@@ -422,7 +444,8 @@ pub async fn cross_modal_search(
                     details: None,
                     retry_after: None,
                 }),
-            ).into_response();
+            )
+                .into_response();
         }
     };
 
@@ -439,19 +462,22 @@ pub async fn cross_modal_search(
                     details: None,
                     retry_after: None,
                 }),
-            ).into_response();
+            )
+                .into_response();
         }
     };
 
     // Filter by threshold
     let threshold = request.threshold.unwrap_or(0.0);
-    let results: Vec<_> = results.into_iter()
+    let results: Vec<_> = results
+        .into_iter()
         .filter(|r| r.similarity >= threshold)
         .collect();
 
-    let processing_time = start_time.elapsed().as_millis() as u64;
+    let processing_time = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
 
     // Record metrics
+    #[allow(clippy::cast_precision_loss)]
     state.record_search(processing_time as f64).await;
 
     let health = state.health.read().await;
@@ -462,22 +488,30 @@ pub async fn cross_modal_search(
         Json(ApiResponse::new(
             uuid::Uuid::new_v4().to_string(),
             SearchResponse {
-                results: results.into_iter().map(|r| SearchResult {
-                    id: r.id.clone(),
-                    content: r.metadata.get("content").and_then(|v| v.as_str()).unwrap_or("content unavailable").to_string(),
-                    score: Some(r.similarity),
-                    metadata: r.metadata,
-                    indexed_at: chrono::Utc::now(),
-                    content_type: ContentType::Multimodal,
-                }).collect(),
+                results: results
+                    .into_iter()
+                    .map(|r| SearchResult {
+                        id: r.id.clone(),
+                        content: r
+                            .metadata
+                            .get("content")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("content unavailable")
+                            .to_string(),
+                        score: Some(r.similarity),
+                        metadata: r.metadata,
+                        indexed_at: chrono::Utc::now(),
+                        content_type: ContentType::Multimodal,
+                    })
+                    .collect(),
                 total_results,
-                query: if !request.text_query.is_empty() {
-                    request.text_query
-                } else {
+                query: if request.text_query.is_empty() {
                     "cross_modal_image_query".to_string()
+                } else {
+                    request.text_query
                 },
                 config: SearchConfig {
-                    top_k: top_k,
+                    top_k,
                     threshold,
                     search_method: SearchMethod::Cosine,
                     search_mode: SearchMode::CrossModal,
@@ -496,7 +530,8 @@ pub async fn cross_modal_search(
                 service_status: health.status.clone(),
             },
         )),
-    ).into_response()
+    )
+        .into_response()
 }
 
 /// Index new content for search
@@ -517,7 +552,8 @@ pub async fn index_content(
                 details: None,
                 retry_after: None,
             }),
-        ).into_response();
+        )
+            .into_response();
     }
 
     if request.items.len() > state.config.max_batch_size {
@@ -530,7 +566,8 @@ pub async fn index_content(
                 details: None,
                 retry_after: None,
             }),
-        ).into_response();
+        )
+            .into_response();
     }
 
     let mut indexed_count = 0;
@@ -547,9 +584,7 @@ pub async fn index_content(
                 }
                 state.clip_service.encode_text(text).await
             }
-            IndexContent::Image { data } => {
-                state.clip_service.encode_image(data).await
-            }
+            IndexContent::Image { data } => state.clip_service.encode_image(data).await,
         };
 
         let embedding = match embedding {
@@ -561,11 +596,11 @@ pub async fn index_content(
         };
 
         // Add to vector database
-        if let Err(e) = state.vector_db.add(
-            item.id.clone(),
-            embedding,
-            serde_json::json!(item.metadata),
-        ).await {
+        if let Err(e) = state
+            .vector_db
+            .add(item.id.clone(), embedding, serde_json::json!(item.metadata))
+            .await
+        {
             errors.push(format!("Failed to index item {}: {}", item.id, e));
             continue;
         }
@@ -574,7 +609,7 @@ pub async fn index_content(
         state.record_index_operation().await;
     }
 
-    let processing_time = start_time.elapsed().as_millis() as u64;
+    let processing_time = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     let health = state.health.read().await;
 
     (
@@ -595,7 +630,8 @@ pub async fn index_content(
                 service_status: health.status.clone(),
             },
         )),
-    ).into_response()
+    )
+        .into_response()
 }
 
 /// Get search performance benchmarks
@@ -618,12 +654,10 @@ pub async fn benchmark_search(
     for query in test_queries {
         let query_start = Instant::now();
 
-        let embedding_res = state.clip_service.encode_text(&query).await;
-        if embedding_res.is_err() {
+        let Ok(embedding) = state.clip_service.encode_text(&query).await else {
             error_count += 1;
             continue;
-        }
-        let embedding = embedding_res.unwrap();
+        };
 
         let search_res = state.vector_db.search(&embedding, top_k).await;
         if search_res.is_err() {
@@ -635,13 +669,21 @@ pub async fn benchmark_search(
         latencies.push(latency);
     }
 
-    let duration_ms = start_instant.elapsed().as_millis() as u64;
+    let duration_ms = u64::try_from(start_instant.elapsed().as_millis()).unwrap_or(u64::MAX);
     let total_queries = latencies.len() + error_count;
-    
-    let avg_latency = if latencies.is_empty() { 0.0 } else { latencies.iter().sum::<f64>() / latencies.len() as f64 };
+
+    let avg_latency = if latencies.is_empty() {
+        0.0
+    } else {
+        latencies.iter().sum::<f64>() / latencies.len() as f64
+    };
     let p95_latency = percentile(&latencies, 95.0);
     let p99_latency = percentile(&latencies, 99.0);
-    let qps = if duration_ms > 0 { (latencies.len() as f64) / (duration_ms as f64 / 1000.0) } else { 0.0 };
+    let qps = if duration_ms > 0 {
+        (latencies.len() as f64) / (duration_ms as f64 / 1000.0)
+    } else {
+        0.0
+    };
 
     let performance = BenchmarkPerformance {
         queries_per_second: qps,
@@ -657,9 +699,11 @@ pub async fn benchmark_search(
         total_errors: error_count,
         duration_ms,
     };
-    
+
     let system_config = SystemConfig {
-        cpu_cores: std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1),
+        cpu_cores: std::thread::available_parallelism()
+            .map(std::num::NonZeroUsize::get)
+            .unwrap_or(1),
         memory_mb: 0, // Placeholder
         gpu_info: None,
         os: std::env::consts::OS.to_string(),
@@ -672,9 +716,13 @@ pub async fn benchmark_search(
         version: "1.0.0".to_string(),
         system_config,
     };
-    
+
     let result = BenchmarkResult {
-        query_type: params.query_types.first().cloned().unwrap_or(BenchmarkQueryType::Text),
+        query_type: params
+            .query_types
+            .first()
+            .copied()
+            .unwrap_or(BenchmarkQueryType::Text),
         top_k,
         performance,
     };
@@ -684,7 +732,7 @@ pub async fn benchmark_search(
         summary,
         metadata,
     };
-    
+
     let health = state.health.read().await;
 
     (
@@ -699,7 +747,8 @@ pub async fn benchmark_search(
                 service_status: health.status.clone(),
             },
         )),
-    ).into_response()
+    )
+        .into_response()
 }
 
 /// Get service metrics
@@ -707,12 +756,9 @@ pub async fn get_metrics(State(state): State<AppState>) -> impl IntoResponse {
     let start_time = Instant::now();
 
     let metrics = state.get_metrics().await;
-    let db_stats = match state.vector_db.stats().await {
-        Ok(stats) => Some(stats),
-        Err(_) => None,
-    };
+    let db_stats = (state.vector_db.stats().await).ok();
 
-    let processing_time = start_time.elapsed().as_millis() as u64;
+    let processing_time = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     let health = state.health.read().await;
 
     // Create default prometheus metrics string
@@ -740,12 +786,13 @@ pub async fn get_metrics(State(state): State<AppState>) -> impl IntoResponse {
                 service_status: health.status.clone(),
             },
         )),
-    ).into_response()
+    )
+        .into_response()
 }
 
 /// Generate test queries for benchmarking
 fn generate_test_queries(count: usize) -> Vec<String> {
-    let templates = vec![
+    let templates = [
         "a photo of a {}",
         "an image showing {}",
         "picture of {}",
@@ -753,16 +800,36 @@ fn generate_test_queries(count: usize) -> Vec<String> {
         "close-up of {}",
     ];
 
-    let objects = vec![
-        "cat", "dog", "car", "house", "tree", "person", "bicycle", "bird", "flower", "mountain",
-        "ocean", "sunset", "city", "building", "food", "animal", "vehicle", "landscape", "portrait", "nature",
+    let objects = [
+        "cat",
+        "dog",
+        "car",
+        "house",
+        "tree",
+        "person",
+        "bicycle",
+        "bird",
+        "flower",
+        "mountain",
+        "ocean",
+        "sunset",
+        "city",
+        "building",
+        "food",
+        "animal",
+        "vehicle",
+        "landscape",
+        "portrait",
+        "nature",
     ];
 
-    (0..count).map(|i| {
-        let template = &templates[i % templates.len()];
-        let object = &objects[i % objects.len()];
-        template.replace("{}", object)
-    }).collect()
+    (0..count)
+        .map(|i| {
+            let template = &templates[i % templates.len()];
+            let object = &objects[i % objects.len()];
+            template.replace("{}", object)
+        })
+        .collect()
 }
 
 /// Calculate percentile from a sorted vector
@@ -772,22 +839,13 @@ fn percentile(values: &[f64], p: f64) -> f64 {
     }
 
     let mut sorted = values.to_vec();
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    let index = (p / 100.0 * (sorted.len() - 1) as f64) as usize;
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_precision_loss,
+        clippy::cast_sign_loss
+    )]
+    let index = (p.clamp(0.0, 100.0) / 100.0 * (sorted.len() - 1) as f64) as usize;
     sorted[index]
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

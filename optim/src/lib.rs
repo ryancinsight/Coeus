@@ -16,25 +16,32 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust
+//! ```rust,no_run
+//! use backend::CpuBackend;
+//! use dtype::float::Float32;
 //! use optim::{Adam, Optimizer};
+//! use storage::DenseStorage;
 //! use tensor::Tensor;
 //!
-//! // Create some model parameters
-//! let mut param1 = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3]);
-//! let mut param2 = Tensor::from_vec(vec![0.5, -0.5], &[2]);
-//! param1;
-//! param2;
+//! type Param = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 //!
-//! // Create optimizer
+//! let param1 = Param::from_vec(
+//!     vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+//!     &[3],
+//! )
+//! .unwrap()
+//! .requires_grad_(true);
+//! let param2 = Param::from_vec(
+//!     vec![Float32::new(0.5), Float32::new(-0.5)],
+//!     &[2],
+//! )
+//! .unwrap()
+//! .requires_grad_(true);
+//!
 //! let mut optimizer = Adam::new(vec![param1.clone(), param2.clone()], 0.001);
 //!
-//! // Training loop
 //! for _ in 0..100 {
-//!     // Compute loss and gradients...
-//!
-//!     // Update parameters
-//!     optimizer.step();
+//!     optimizer.step().unwrap();
 //!     optimizer.zero_grad();
 //! }
 //! ```

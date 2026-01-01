@@ -44,7 +44,10 @@ impl MultimodalProcessor {
 
     /// Process multimodal inputs using the NN crate functionality
     pub fn process(&self, inputs: &HashMap<Modality, Vec<f32>>) -> Result<Vec<f32>, String> {
-        println!("🎯 Processing multimodal inputs with {} modalities", inputs.len());
+        println!(
+            "🎯 Processing multimodal inputs with {} modalities",
+            inputs.len()
+        );
 
         // Simulate using NN crate components (in a real implementation, this would use
         // the actual MultimodalTransformer, CrossModalAttention, etc. from the nn crate)
@@ -58,7 +61,8 @@ impl MultimodalProcessor {
         }
 
         // Apply simple fusion (in real implementation: use Fusion layers)
-        let fused_output = combined_features.iter()
+        let fused_output = combined_features
+            .iter()
             .enumerate()
             .map(|(i, &x)| x * (i as f32 * 0.01).cos()) // Simulate attention weighting
             .collect::<Vec<f32>>();
@@ -74,8 +78,13 @@ impl MultimodalProcessor {
         stats.insert("modalities".to_string(), self.config.modalities.len());
         stats.insert("hidden_dim".to_string(), self.config.hidden_dim);
         stats.insert("layers".to_string(), self.config.num_layers);
-        stats.insert("total_params".to_string(),
-            self.config.hidden_dim * self.config.hidden_dim * self.config.num_layers * self.config.modalities.len());
+        stats.insert(
+            "total_params".to_string(),
+            self.config.hidden_dim
+                * self.config.hidden_dim
+                * self.config.num_layers
+                * self.config.modalities.len(),
+        );
         stats
     }
 }
@@ -139,10 +148,12 @@ fn demo_multimodal_retrieval() -> Result<()> {
     let candidate_embedding = processor.process(&candidate1)?;
 
     // Compute similarity (cosine similarity simulation)
-    let similarity = query_embedding.iter()
+    let similarity = query_embedding
+        .iter()
         .zip(candidate_embedding.iter())
         .map(|(a, b)| a * b)
-        .sum::<f32>() / (query_embedding.len() as f32).sqrt();
+        .sum::<f32>()
+        / (query_embedding.len() as f32).sqrt();
 
     println!("  📊 Query-Candidate Similarity: {:.3}", similarity);
 

@@ -8,11 +8,11 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
+use super::{ClipEvaluationConfig, ClipModelEvaluator, EvaluationDataset};
 use crate::error::Result;
-use super::{ClipEvaluationConfig, EvaluationDataset, ClipModelEvaluator};
 use backend::Backend;
+use dtype::{traits::FloatExt, DataType};
 use storage::Storage;
-use dtype::{DataType, traits::FloatExt};
 
 /// Single dataset retrieval results
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -75,12 +75,8 @@ impl SimilarityComputer {
     ) -> Result<Vec<Vec<f64>>> {
         let mut similarities = Vec::with_capacity(emb1.len());
 
-        for i in 0..emb1.len() {
-            let mut row = Vec::with_capacity(emb2.len());
-            for j in 0..emb2.len() {
-                let similarity = Self::cosine_similarity(&emb1[i], &emb2[j]);
-                row.push(similarity);
-            }
+        for a in emb1 {
+            let row: Vec<f64> = emb2.iter().map(|b| Self::cosine_similarity(a, b)).collect();
             similarities.push(row);
         }
 
@@ -159,7 +155,10 @@ impl RetrievalEvaluator {
         let mut results = Vec::new();
         let start_time = Instant::now();
 
-        println!("🧪 Starting CLIP retrieval evaluation on {} datasets", datasets.len());
+        println!(
+            "🧪 Starting CLIP retrieval evaluation on {} datasets",
+            datasets.len()
+        );
 
         // TODO: Fix trait object evaluation
         // for dataset in datasets {
@@ -188,17 +187,22 @@ impl RetrievalEvaluator {
     {
         let start_time = Instant::now();
 
-        println!("  Computing embeddings for {} samples...", dataset.image_embeddings().len());
+        println!(
+            "  Computing embeddings for {} samples...",
+            dataset.image_embeddings().len()
+        );
 
         // Use provided embeddings - would normally encode fresh ones
         let image_embeddings = &dataset.image_embeddings();
         let text_embeddings = &dataset.text_embeddings();
 
         println!("  Computing similarity matrices...");
-        let i2t_similarities = self.similarity_computer
+        let i2t_similarities = self
+            .similarity_computer
             .pairwise_cosine_similarity(image_embeddings, text_embeddings)?;
 
-        let t2i_similarities = self.similarity_computer
+        let t2i_similarities = self
+            .similarity_computer
             .pairwise_cosine_similarity(text_embeddings, image_embeddings)?;
 
         println!("  Computing retrieval ranks...");
@@ -288,7 +292,8 @@ impl RetrievalEvaluator {
                 .collect();
 
             // Sort by similarity descending
-            indexed_similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            indexed_similarities
+                .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
             // Find rank of the correct match (i should match i)
             let rank = indexed_similarities
@@ -311,10 +316,7 @@ impl RetrievalEvaluator {
 
     /// Compute mean reciprocal rank
     fn compute_mean_reciprocal_rank(&self, ranks: &[usize]) -> f64 {
-        let reciprocal_ranks: Vec<f64> = ranks
-            .iter()
-            .map(|&rank| 1.0 / (rank as f64))
-            .collect();
+        let reciprocal_ranks: Vec<f64> = ranks.iter().map(|&rank| 1.0 / (rank as f64)).collect();
 
         reciprocal_ranks.iter().sum::<f64>() / reciprocal_ranks.len() as f64
     }
@@ -364,6 +366,25 @@ pub struct RetrievalValidation {
     pub validation_timestamp: std::time::SystemTime,
     /// Dataset name
     pub dataset_name: String,
+}
+
+impl Default for RetrievalMetrics {
+    fn default() -> Self {
+        Self {
+            dataset_name: String::new(),
+            image_to_text_r1: 0.0,
+            image_to_text_r5: 0.0,
+            image_to_text_r10: 0.0,
+            image_to_text_mrr: 0.0,
+            text_to_image_r1: 0.0,
+            text_to_image_r5: 0.0,
+            text_to_image_r10: 0.0,
+            text_to_image_mrr: 0.0,
+            num_samples: 0,
+            median_i2t_rank: 0.0,
+            median_t2i_rank: 0.0,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -458,24 +479,5 @@ mod tests {
         };
         let validation = evaluator.validate_success_criterion(&failure_metrics);
         assert!(!validation.achieved_success_criterion);
-    }
-}
-
-impl Default for RetrievalMetrics {
-    fn default() -> Self {
-        Self {
-            dataset_name: String::new(),
-            image_to_text_r1: 0.0,
-            image_to_text_r5: 0.0,
-            image_to_text_r10: 0.0,
-            image_to_text_mrr: 0.0,
-            text_to_image_r1: 0.0,
-            text_to_image_r5: 0.0,
-            text_to_image_r10: 0.0,
-            text_to_image_mrr: 0.0,
-            num_samples: 0,
-            median_i2t_rank: 0.0,
-            median_t2i_rank: 0.0,
-        }
     }
 }

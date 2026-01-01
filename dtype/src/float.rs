@@ -123,6 +123,7 @@ impl num_traits::ToPrimitive for Float32 {
 ///
 /// ```
 /// use num_traits::FromPrimitive;
+/// use num_traits::Float;
 /// use dtype::float::Float32;
 ///
 /// let from_int = Float32::from_i64(42).unwrap();
@@ -711,6 +712,36 @@ impl core::ops::AddAssign for Float32 {
     }
 }
 
+impl core::ops::SubAssign for Float32 {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
+    }
+}
+
+impl core::ops::MulAssign for Float32 {
+    fn mul_assign(&mut self, rhs: Self) {
+        self.0 *= rhs.0;
+    }
+}
+
+impl core::ops::DivAssign for Float32 {
+    fn div_assign(&mut self, rhs: Self) {
+        self.0 /= rhs.0;
+    }
+}
+
+impl core::iter::Sum for Float32 {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self::zero(), |acc, x| acc + x)
+    }
+}
+
+impl<'a> core::iter::Sum<&'a Self> for Float32 {
+    fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+        iter.fold(Self::zero(), |acc, x| acc + *x)
+    }
+}
+
 // NumOps is implemented through the Add/Sub/Mul/Div/Rem trait implementations above
 
 impl DataType for Float32 {
@@ -836,6 +867,7 @@ impl num_traits::ToPrimitive for Float64 {
 ///
 /// ```
 /// use num_traits::FromPrimitive;
+/// use num_traits::Float;
 /// use dtype::float::Float64;
 ///
 /// let from_int = Float64::from_i64(42).unwrap();
@@ -936,6 +968,36 @@ impl core::ops::Neg for Float64 {
 impl core::ops::AddAssign for Float64 {
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
+    }
+}
+
+impl core::ops::SubAssign for Float64 {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
+    }
+}
+
+impl core::ops::MulAssign for Float64 {
+    fn mul_assign(&mut self, rhs: Self) {
+        self.0 *= rhs.0;
+    }
+}
+
+impl core::ops::DivAssign for Float64 {
+    fn div_assign(&mut self, rhs: Self) {
+        self.0 /= rhs.0;
+    }
+}
+
+impl core::iter::Sum for Float64 {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self::zero(), |acc, x| acc + x)
+    }
+}
+
+impl<'a> core::iter::Sum<&'a Self> for Float64 {
+    fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+        iter.fold(Self::zero(), |acc, x| acc + *x)
     }
 }
 
@@ -1306,10 +1368,18 @@ mod tests {
     fn test_float32_math_functions() {
         let x = Float32(1.0);
 
-        assert_relative_eq!(num_traits::Float::exp(x).get(), core::f32::consts::E, epsilon = 1e-5);
+        assert_relative_eq!(
+            num_traits::Float::exp(x).get(),
+            core::f32::consts::E,
+            epsilon = 1e-5
+        );
         assert_relative_eq!(num_traits::Float::ln(x).get(), 0.0, epsilon = 1e-6);
         assert_relative_eq!(num_traits::Float::sqrt(x).get(), 1.0, epsilon = 1e-6);
-        assert_relative_eq!(num_traits::Float::sin(x).get(), 0.841_470_96, epsilon = 1e-6);
+        assert_relative_eq!(
+            num_traits::Float::sin(x).get(),
+            0.841_470_96,
+            epsilon = 1e-6
+        );
         assert_relative_eq!(num_traits::Float::cos(x).get(), 0.540_302_3, epsilon = 1e-6);
     }
 
@@ -1396,10 +1466,6 @@ mod tests {
         }
     }
 
-
-
-
-
     #[test]
     fn test_half_dtype() {
         #[cfg(feature = "half")]
@@ -1424,33 +1490,59 @@ mod tests {
     #[test]
     fn test_float32_from_i64() {
         use num_traits::FromPrimitive;
+        use num_traits::ToPrimitive;
 
         // Normal values
-        assert_eq!(Float32::from_i64(0).unwrap().get(), 0.0);
-        assert_eq!(Float32::from_i64(42).unwrap().get(), 42.0);
-        assert_eq!(Float32::from_i64(-42).unwrap().get(), -42.0);
-        assert_eq!(Float32::from_i64(i64::MAX).unwrap().get(), i64::MAX as f32);
-        assert_eq!(Float32::from_i64(i64::MIN).unwrap().get(), i64::MIN as f32);
+        assert_eq!(
+            Float32::from_i64(0).unwrap().get().to_bits(),
+            0.0f32.to_bits()
+        );
+        assert_eq!(
+            Float32::from_i64(42).unwrap().get().to_bits(),
+            42.0f32.to_bits()
+        );
+        assert_eq!(
+            Float32::from_i64(-42).unwrap().get().to_bits(),
+            (-42.0f32).to_bits()
+        );
+        assert_eq!(
+            Float32::from_i64(i64::MAX).unwrap().get().to_bits(),
+            i64::MAX.to_f32().unwrap().to_bits()
+        );
+        assert_eq!(
+            Float32::from_i64(i64::MIN).unwrap().get().to_bits(),
+            i64::MIN.to_f32().unwrap().to_bits()
+        );
 
         // Large values (precision loss expected)
         let large = 1_000_000_000_000_i64;
         let converted = Float32::from_i64(large).unwrap();
-        assert!((converted.get() - large as f32).abs() < 1e6); // Allow precision loss
+        assert!((converted.get() - large.to_f32().unwrap()).abs() < 1e6);
     }
 
     #[test]
     fn test_float32_from_u64() {
         use num_traits::FromPrimitive;
+        use num_traits::ToPrimitive;
 
         // Normal values
-        assert_eq!(Float32::from_u64(0).unwrap().get(), 0.0);
-        assert_eq!(Float32::from_u64(42).unwrap().get(), 42.0);
-        assert_eq!(Float32::from_u64(u64::MAX).unwrap().get(), u64::MAX as f32);
+        assert_eq!(
+            Float32::from_u64(0).unwrap().get().to_bits(),
+            0.0f32.to_bits()
+        );
+        assert_eq!(
+            Float32::from_u64(42).unwrap().get().to_bits(),
+            42.0f32.to_bits()
+        );
+        assert_eq!(
+            Float32::from_u64(u64::MAX).unwrap().get().to_bits(),
+            u64::MAX.to_f32().unwrap().to_bits()
+        );
 
         // Large values (precision loss expected)
         let large = 1_000_000_000_000_u64;
         let converted = Float32::from_u64(large).unwrap();
-        assert!((converted.get() - large as f32).abs() < 1e6); // Allow precision loss
+        assert!((converted.get() - large.to_f32().unwrap()).abs() < 1e6);
     }
 
     #[test]
@@ -1458,18 +1550,41 @@ mod tests {
         use num_traits::FromPrimitive;
 
         // Normal values
-        assert_eq!(Float32::from_f32(0.0).unwrap().get(), 0.0);
-        assert_eq!(Float32::from_f32(3.14159).unwrap().get(), 3.14159);
-        assert_eq!(Float32::from_f32(-2.71828).unwrap().get(), -2.71828);
+        let normal_pos = 3.25_f32;
+        let normal_neg = -2.75_f32;
+        assert_eq!(
+            Float32::from_f32(0.0).unwrap().get().to_bits(),
+            0.0f32.to_bits()
+        );
+        assert_eq!(
+            Float32::from_f32(normal_pos).unwrap().get().to_bits(),
+            normal_pos.to_bits()
+        );
+        assert_eq!(
+            Float32::from_f32(normal_neg).unwrap().get().to_bits(),
+            normal_neg.to_bits()
+        );
 
         // Special values
-        assert!(num_traits::Float::is_infinite(Float32::from_f32(f32::INFINITY).unwrap()));
-        assert!(num_traits::Float::is_infinite(Float32::from_f32(f32::NEG_INFINITY).unwrap()));
-        assert!(num_traits::Float::is_nan(Float32::from_f32(f32::NAN).unwrap()));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f32(f32::INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f32(f32::NEG_INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_nan(
+            Float32::from_f32(f32::NAN).unwrap()
+        ));
 
         // Edge cases
-        assert_eq!(Float32::from_f32(f32::MIN).unwrap().get(), f32::MIN);
-        assert_eq!(Float32::from_f32(f32::MAX).unwrap().get(), f32::MAX);
+        assert_eq!(
+            Float32::from_f32(f32::MIN).unwrap().get().to_bits(),
+            f32::MIN.to_bits()
+        );
+        assert_eq!(
+            Float32::from_f32(f32::MAX).unwrap().get().to_bits(),
+            f32::MAX.to_bits()
+        );
     }
 
     #[test]
@@ -1477,56 +1592,101 @@ mod tests {
         use num_traits::FromPrimitive;
 
         // Normal values
-        assert_eq!(Float32::from_f64(0.0).unwrap().get(), 0.0);
-        assert_relative_eq!(Float32::from_f64(3.14159).unwrap().get(), 3.14159, epsilon = 1e-5);
-        assert_relative_eq!(Float32::from_f64(-2.71828).unwrap().get(), -2.71828, epsilon = 1e-5);
+        assert_eq!(
+            Float32::from_f64(0.0).unwrap().get().to_bits(),
+            0.0f32.to_bits()
+        );
+        assert_relative_eq!(Float32::from_f64(3.25).unwrap().get(), 3.25, epsilon = 1e-5);
+        assert_relative_eq!(
+            Float32::from_f64(-2.75).unwrap().get(),
+            -2.75,
+            epsilon = 1e-5
+        );
 
         // Special values
-        assert!(num_traits::Float::is_infinite(Float32::from_f64(f64::INFINITY).unwrap()));
-        assert!(num_traits::Float::is_infinite(Float32::from_f64(f64::NEG_INFINITY).unwrap()));
-        assert!(num_traits::Float::is_nan(Float32::from_f64(f64::NAN).unwrap()));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f64(f64::INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f64(f64::NEG_INFINITY).unwrap()
+        ));
+        assert!(num_traits::Float::is_nan(
+            Float32::from_f64(f64::NAN).unwrap()
+        ));
 
         // Values outside f32 range become infinity
-        assert!(num_traits::Float::is_infinite(Float32::from_f64(f64::MAX).unwrap()));
-        assert!(num_traits::Float::is_infinite(Float32::from_f64(-f64::MAX).unwrap()));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f64(f64::MAX).unwrap()
+        ));
+        assert!(num_traits::Float::is_infinite(
+            Float32::from_f64(-f64::MAX).unwrap()
+        ));
 
         // Precision loss from f64 to f32
-        let precise = 1.234567890123456789_f64;
+        let precise = 1.234_567_890_123_456_7_f64;
         let converted = Float32::from_f64(precise).unwrap();
-        assert_relative_eq!(converted.get(), precise as f32, epsilon = 1e-6);
+        #[allow(clippy::cast_possible_truncation)]
+        let expected = precise as f32;
+        assert_relative_eq!(converted.get(), expected, epsilon = 1e-6);
     }
 
     // FromPrimitive tests for Float64
     #[test]
     fn test_float64_from_i64() {
         use num_traits::FromPrimitive;
+        use num_traits::ToPrimitive;
 
         // Normal values
-        assert_eq!(Float64::from_i64(0).unwrap().get(), 0.0);
-        assert_eq!(Float64::from_i64(42).unwrap().get(), 42.0);
-        assert_eq!(Float64::from_i64(-42).unwrap().get(), -42.0);
-        assert_eq!(Float64::from_i64(i64::MAX).unwrap().get(), i64::MAX as f64);
-        assert_eq!(Float64::from_i64(i64::MIN).unwrap().get(), i64::MIN as f64);
+        assert_eq!(
+            Float64::from_i64(0).unwrap().get().to_bits(),
+            0.0f64.to_bits()
+        );
+        assert_eq!(
+            Float64::from_i64(42).unwrap().get().to_bits(),
+            42.0f64.to_bits()
+        );
+        assert_eq!(
+            Float64::from_i64(-42).unwrap().get().to_bits(),
+            (-42.0f64).to_bits()
+        );
+        assert_eq!(
+            Float64::from_i64(i64::MAX).unwrap().get().to_bits(),
+            i64::MAX.to_f64().unwrap().to_bits()
+        );
+        assert_eq!(
+            Float64::from_i64(i64::MIN).unwrap().get().to_bits(),
+            i64::MIN.to_f64().unwrap().to_bits()
+        );
 
         // Large values (precision loss for values > 2^53)
         let large = 1_000_000_000_000_000_i64;
         let converted = Float64::from_i64(large).unwrap();
-        assert_relative_eq!(converted.get(), large as f64, epsilon = 1.0);
+        assert_relative_eq!(converted.get(), large.to_f64().unwrap(), epsilon = 1.0);
     }
 
     #[test]
     fn test_float64_from_u64() {
         use num_traits::FromPrimitive;
+        use num_traits::ToPrimitive;
 
         // Normal values
-        assert_eq!(Float64::from_u64(0).unwrap().get(), 0.0);
-        assert_eq!(Float64::from_u64(42).unwrap().get(), 42.0);
-        assert_eq!(Float64::from_u64(u64::MAX).unwrap().get(), u64::MAX as f64);
+        assert_eq!(
+            Float64::from_u64(0).unwrap().get().to_bits(),
+            0.0f64.to_bits()
+        );
+        assert_eq!(
+            Float64::from_u64(42).unwrap().get().to_bits(),
+            42.0f64.to_bits()
+        );
+        assert_eq!(
+            Float64::from_u64(u64::MAX).unwrap().get().to_bits(),
+            u64::MAX.to_f64().unwrap().to_bits()
+        );
 
         // Large values (precision loss for values > 2^53)
         let large = 1_000_000_000_000_000_u64;
         let converted = Float64::from_u64(large).unwrap();
-        assert_relative_eq!(converted.get(), large as f64, epsilon = 1.0);
+        assert_relative_eq!(converted.get(), large.to_f64().unwrap(), epsilon = 1.0);
     }
 
     #[test]
@@ -1534,9 +1694,22 @@ mod tests {
         use num_traits::FromPrimitive;
 
         // Normal values (lossless conversion)
-        assert_eq!(Float64::from_f32(0.0).unwrap().get(), 0.0);
-        assert_relative_eq!(Float64::from_f32(3.14159).unwrap().get(), 3.14159_f32 as f64, epsilon = 1e-12);
-        assert_relative_eq!(Float64::from_f32(-2.71828).unwrap().get(), -2.71828_f32 as f64, epsilon = 1e-12);
+        let normal_pos = 3.25_f32;
+        let normal_neg = -2.75_f32;
+        assert_eq!(
+            Float64::from_f32(0.0).unwrap().get().to_bits(),
+            0.0f64.to_bits()
+        );
+        assert_relative_eq!(
+            Float64::from_f32(normal_pos).unwrap().get(),
+            <f64 as core::convert::From<f32>>::from(normal_pos),
+            epsilon = 1e-12
+        );
+        assert_relative_eq!(
+            Float64::from_f32(normal_neg).unwrap().get(),
+            <f64 as core::convert::From<f32>>::from(normal_neg),
+            epsilon = 1e-12
+        );
 
         // Special values
         assert!(Float64::from_f32(f32::INFINITY).unwrap().is_infinite());
@@ -1544,8 +1717,14 @@ mod tests {
         assert!(Float64::from_f32(f32::NAN).unwrap().is_nan());
 
         // Edge cases
-        assert_eq!(Float64::from_f32(f32::MIN).unwrap().get(), f32::MIN as f64);
-        assert_eq!(Float64::from_f32(f32::MAX).unwrap().get(), f32::MAX as f64);
+        assert_eq!(
+            Float64::from_f32(f32::MIN).unwrap().get().to_bits(),
+            <f64 as core::convert::From<f32>>::from(f32::MIN).to_bits()
+        );
+        assert_eq!(
+            Float64::from_f32(f32::MAX).unwrap().get().to_bits(),
+            <f64 as core::convert::From<f32>>::from(f32::MAX).to_bits()
+        );
     }
 
     #[test]
@@ -1553,9 +1732,20 @@ mod tests {
         use num_traits::FromPrimitive;
 
         // Normal values
-        assert_eq!(Float64::from_f64(0.0).unwrap().get(), 0.0);
-        assert_eq!(Float64::from_f64(3.14159).unwrap().get(), 3.14159);
-        assert_eq!(Float64::from_f64(-2.71828).unwrap().get(), -2.71828);
+        let normal_pos = 3.25_f64;
+        let normal_neg = -2.75_f64;
+        assert_eq!(
+            Float64::from_f64(0.0).unwrap().get().to_bits(),
+            0.0f64.to_bits()
+        );
+        assert_eq!(
+            Float64::from_f64(normal_pos).unwrap().get().to_bits(),
+            normal_pos.to_bits()
+        );
+        assert_eq!(
+            Float64::from_f64(normal_neg).unwrap().get().to_bits(),
+            normal_neg.to_bits()
+        );
 
         // Special values
         assert!(Float64::from_f64(f64::INFINITY).unwrap().is_infinite());
@@ -1563,8 +1753,14 @@ mod tests {
         assert!(Float64::from_f64(f64::NAN).unwrap().is_nan());
 
         // Edge cases
-        assert_eq!(Float64::from_f64(f64::MIN).unwrap().get(), f64::MIN);
-        assert_eq!(Float64::from_f64(f64::MAX).unwrap().get(), f64::MAX);
+        assert_eq!(
+            Float64::from_f64(f64::MIN).unwrap().get().to_bits(),
+            f64::MIN.to_bits()
+        );
+        assert_eq!(
+            Float64::from_f64(f64::MAX).unwrap().get().to_bits(),
+            f64::MAX.to_bits()
+        );
     }
 
     #[test]
@@ -1576,7 +1772,7 @@ mod tests {
         let f32_val = Float32::from_f32(1.0).unwrap();
         let f64_val = Float64::from_f64(1.0).unwrap();
 
-        assert_eq!(f32_val.get(), 1.0);
-        assert_eq!(f64_val.get(), 1.0);
+        assert_eq!(f32_val.get().to_bits(), 1.0f32.to_bits());
+        assert_eq!(f64_val.get().to_bits(), 1.0f64.to_bits());
     }
 }

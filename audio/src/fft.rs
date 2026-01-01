@@ -3,16 +3,16 @@
 //! Provides high-performance FFT/IFFT operations integrated with the Coeus tensor system.
 //! Supports both real-to-complex and complex-to-complex transforms with autograd support.
 
-use std::sync::Arc;
-use rustfft::{FftPlanner, num_complex::Complex32};
 use crate::error::{AudioError, AudioResult};
+use rustfft::{num_complex::Complex32, FftPlanner};
+use std::sync::Arc;
 
 #[cfg(feature = "gpu")]
 use {
-    wgpu::{self, Buffer, BindGroup, BindGroupLayout},
-    wgpu::util::DeviceExt,
     bytemuck,
     futures::executor::block_on,
+    wgpu::util::DeviceExt,
+    wgpu::{self, BindGroup, BindGroupLayout, Buffer},
 };
 
 #[cfg(feature = "gpu")]
@@ -99,16 +99,12 @@ impl Fft {
         }
 
         // Convert to complex
-        let mut complex_signal: Vec<Complex32> = input
-            .iter()
-            .map(|&x| Complex32::new(x, 0.0))
-            .collect();
+        let mut complex_signal: Vec<Complex32> =
+            input.iter().map(|&x| Complex32::new(x, 0.0)).collect();
 
         // Perform in-place FFT (input and output have same length for complex transform)
-        self.forward_planner.process_with_scratch(
-            &mut complex_signal,
-            &mut self.scratch,
-        );
+        self.forward_planner
+            .process_with_scratch(&mut complex_signal, &mut self.scratch);
 
         // For real FFT, we return the first size/2 + 1 coefficients
         // (DC component + positive frequencies only due to symmetry)
@@ -150,10 +146,8 @@ impl Fft {
         }
 
         // Perform inverse FFT
-        self.inverse_planner.process_with_scratch(
-            &mut full_spectrum,
-            &mut self.scratch,
-        );
+        self.inverse_planner
+            .process_with_scratch(&mut full_spectrum, &mut self.scratch);
 
         // Extract real part and scale by 1/N
         let output: Vec<f32> = full_spectrum
@@ -222,17 +216,25 @@ impl GpuFft {
         let buffer_size = (data.len() * std::mem::size_of::<[f32; 2]>()) as u64;
 
         // Check for potential GPU memory exhaustion (very rough heuristic)
-        if buffer_size > 1_000_000_000 { // > 1GB
-            return Err(AudioError::GpuError { message: "FFT data too large for GPU memory".to_string() });
+        if buffer_size > 1_000_000_000 {
+            // > 1GB
+            return Err(AudioError::GpuError {
+                message: "FFT data too large for GPU memory".to_string(),
+            });
         }
 
-        match self.backend.wgpu_device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Complex FFT Buffer"),
-            contents: bytemuck::cast_slice(data),
-            usage,
-        }) {
+        match self
+            .backend
+            .wgpu_device()
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Complex FFT Buffer"),
+                contents: bytemuck::cast_slice(data),
+                usage,
+            }) {
             Ok(buffer) => Ok(buffer),
-            Err(_) => Err(AudioError::GpuError { message: "Failed to allocate GPU buffer for FFT data".to_string() }),
+            Err(_) => Err(AudioError::GpuError {
+                message: "Failed to allocate GPU buffer for FFT data".to_string(),
+            }),
         }
     }
 
@@ -247,11 +249,16 @@ impl GpuFft {
     /// # Errors
     /// Returns error if uniform buffer allocation fails
     fn allocate_uniform_buffer(&self, params: &[u32]) -> AudioResult<wgpu::Buffer> {
-        self.backend.wgpu_device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("FFT Uniform Buffer"),
-            contents: bytemuck::cast_slice(params),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        }).map_err(|_| AudioError::GpuError { message: "Failed to allocate uniform buffer for FFT parameters".to_string() })
+        self.backend
+            .wgpu_device()
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("FFT Uniform Buffer"),
+                contents: bytemuck::cast_slice(params),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            })
+            .map_err(|_| AudioError::GpuError {
+                message: "Failed to allocate uniform buffer for FFT parameters".to_string(),
+            })
     }
 
     /// Execute GPU compute pass with comprehensive error handling
@@ -269,9 +276,15 @@ impl GpuFft {
         bind_group: &wgpu::BindGroup,
         workgroups: (u32, u32, u32),
     ) -> AudioResult<()> {
-        match self.backend.execute_compute(pipeline, bind_group, workgroups).await {
+        match self
+            .backend
+            .execute_compute(pipeline, bind_group, workgroups)
+            .await
+        {
             Ok(()) => Ok(()),
-            Err(_) => Err(AudioError::GpuError { message: "FFT compute pass execution failed".to_string() }),
+            Err(_) => Err(AudioError::GpuError {
+                message: "FFT compute pass execution failed".to_string(),
+            }),
         }
     }
 
@@ -337,10 +350,7 @@ impl GpuFft {
         }
 
         // Convert real input to complex format (vec2<f32>)
-        let complex_input: Vec<[f32; 2]> = input
-            .iter()
-            .map(|&x| [x, 0.0])
-            .collect();
+        let complex_input: Vec<[f32; 2]> = input.iter().map(|&x| [x, 0.0]).collect();
 
         self.execute_fft_forward(&complex_input).await
     }
@@ -378,7 +388,9 @@ impl GpuFft {
         // Create GPU buffer for FFT data with error handling
         let data_buffer = self.allocate_complex_buffer(
             input,
-            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
+            wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST,
         )?;
 
         // Execute multiple passes of the Cooley-Tukey algorithm
@@ -391,28 +403,32 @@ impl GpuFft {
             let inverse_flag_buffer = self.allocate_uniform_buffer(&[0u32])?; // 0 = forward
 
             // Create bind group for this pass
-            let bind_group = self.backend.wgpu_device().create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some(&format!("FFT Bind Group Pass {}", pass)),
-                layout: self.backend.fft_bind_group_layout(),
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: data_buffer.as_entire_binding(),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: params_buffer.as_entire_binding(),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: inverse_flag_buffer.as_entire_binding(),
-                    },
-                ],
-            });
+            let bind_group =
+                self.backend
+                    .wgpu_device()
+                    .create_bind_group(&wgpu::BindGroupDescriptor {
+                        label: Some(&format!("FFT Bind Group Pass {}", pass)),
+                        layout: self.backend.fft_bind_group_layout(),
+                        entries: &[
+                            wgpu::BindGroupEntry {
+                                binding: 0,
+                                resource: data_buffer.as_entire_binding(),
+                            },
+                            wgpu::BindGroupEntry {
+                                binding: 1,
+                                resource: params_buffer.as_entire_binding(),
+                            },
+                            wgpu::BindGroupEntry {
+                                binding: 2,
+                                resource: inverse_flag_buffer.as_entire_binding(),
+                            },
+                        ],
+                    });
 
             // Use optimized workgroup configuration
             let workgroups = self.get_workgroup_config(n, pass);
-            self.execute_fft_pass(self.backend.fft_pipeline(), &bind_group, workgroups).await?;
+            self.execute_fft_pass(self.backend.fft_pipeline(), &bind_group, workgroups)
+                .await?;
         }
 
         // Read back results from GPU
@@ -429,7 +445,9 @@ impl GpuFft {
         // Create GPU buffer for FFT data with error handling
         let data_buffer = self.allocate_complex_buffer(
             input,
-            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
+            wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST,
         )?;
 
         // Execute multiple passes of the Cooley-Tukey algorithm (inverse)
@@ -442,28 +460,32 @@ impl GpuFft {
             let inverse_flag_buffer = self.allocate_uniform_buffer(&[1u32])?; // 1 = inverse
 
             // Create bind group for this pass
-            let bind_group = self.backend.wgpu_device().create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some(&format!("IFFT Bind Group Pass {}", pass)),
-                layout: self.backend.fft_bind_group_layout(),
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: data_buffer.as_entire_binding(),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: params_buffer.as_entire_binding(),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: inverse_flag_buffer.as_entire_binding(),
-                    },
-                ],
-            });
+            let bind_group =
+                self.backend
+                    .wgpu_device()
+                    .create_bind_group(&wgpu::BindGroupDescriptor {
+                        label: Some(&format!("IFFT Bind Group Pass {}", pass)),
+                        layout: self.backend.fft_bind_group_layout(),
+                        entries: &[
+                            wgpu::BindGroupEntry {
+                                binding: 0,
+                                resource: data_buffer.as_entire_binding(),
+                            },
+                            wgpu::BindGroupEntry {
+                                binding: 1,
+                                resource: params_buffer.as_entire_binding(),
+                            },
+                            wgpu::BindGroupEntry {
+                                binding: 2,
+                                resource: inverse_flag_buffer.as_entire_binding(),
+                            },
+                        ],
+                    });
 
             // Use optimized workgroup configuration
             let workgroups = self.get_workgroup_config(n, pass);
-            self.execute_fft_pass(self.backend.fft_pipeline(), &bind_group, workgroups).await?;
+            self.execute_fft_pass(self.backend.fft_pipeline(), &bind_group, workgroups)
+                .await?;
         }
 
         // Read back results from GPU
@@ -472,7 +494,11 @@ impl GpuFft {
     }
 
     /// Helper method to read back FFT data from GPU buffer
-    async fn read_back_fft_data(&self, buffer: &wgpu::Buffer, size: usize) -> AudioResult<Vec<[f32; 2]>> {
+    async fn read_back_fft_data(
+        &self,
+        buffer: &wgpu::Buffer,
+        size: usize,
+    ) -> AudioResult<Vec<[f32; 2]>> {
         let buffer_slice = buffer.slice(..);
         let (tx, rx) = tokio::sync::oneshot::channel::<Result<(), wgpu::BufferAsyncError>>();
 
@@ -482,7 +508,9 @@ impl GpuFft {
 
         self.backend.wgpu_queue().submit([]);
         let map_result: Result<(), wgpu::BufferAsyncError> = rx.await.unwrap();
-        map_result.map_err(|_| AudioError::GpuError { message: "Failed to map buffer".to_string() })?;
+        map_result.map_err(|_| AudioError::GpuError {
+            message: "Failed to map buffer".to_string(),
+        })?;
 
         let data = buffer_slice.get_mapped_range();
         let raw_data: &[f32] = bytemuck::cast_slice(&data);
@@ -644,7 +672,7 @@ mod tests {
 
             // Generate complex frequency domain data (simplified test)
             let freq_data: Vec<[f32; 2]> = (0..size)
-                .map(|i| [if i < size/2 { i as f32 } else { 0.0 }, 0.0]) // Only DC and low frequencies
+                .map(|i| [if i < size / 2 { i as f32 } else { 0.0 }, 0.0]) // Only DC and low frequencies
                 .collect();
 
             // CPU reference implementation

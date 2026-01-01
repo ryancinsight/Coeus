@@ -6,25 +6,34 @@
 use axum::{
     extract::Request,
     http::{header, StatusCode},
-    response::{IntoResponse, Response},
     middleware::Next,
+    response::{IntoResponse, Response},
 };
 // use tower::{Layer, Service};
 // use std::task::{Context, Poll};
-use std::time::Instant;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::RwLock;
 
 /// Request ID middleware - assigns unique ID to each request
 pub async fn request_id_middleware(request: Request, next: Next) -> Response {
-    let request_id = uuid::Uuid::new_v4().to_string();
+    let (_request_id, header_value) = loop {
+        let request_id = uuid::Uuid::new_v4().to_string();
+        match header::HeaderValue::from_str(&request_id) {
+            Ok(header_value) => break (request_id, header_value),
+            Err(e) => {
+                tracing::error!(error = %e, request_id = %request_id, "Invalid request id header value");
+                continue;
+            }
+        }
+    };
 
     // Add request ID to response headers
     let mut response = next.run(request).await;
     response.headers_mut().insert(
         header::HeaderName::from_static("x-request-id"),
-        header::HeaderValue::from_str(&request_id).unwrap(),
+        header_value,
     );
 
     response
@@ -53,22 +62,31 @@ pub async fn metrics_middleware(request: Request, next: Next) -> Response {
 pub fn rate_limit_middleware(
     state: Arc<RwLock<HashMap<String, RateLimitInfo>>>,
     requests_per_minute: u32,
-) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>> + Clone + Send {
+) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
+       + Clone
+       + Send {
     move |request: Request, next: Next| {
         let state = state.clone();
         Box::pin(async move {
             let client_ip = extract_client_ip(&request);
-            let current_time = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
+            let current_time =
+                match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+                    Ok(duration) => duration.as_secs(),
+                    Err(e) => {
+                        tracing::error!(error = %e, "System time before UNIX_EPOCH");
+                        return (StatusCode::INTERNAL_SERVER_ERROR, "Invalid system time")
+                            .into_response();
+                    }
+                };
 
             let mut rate_limits = state.write().await;
 
-            let info = rate_limits.entry(client_ip.clone()).or_insert(RateLimitInfo {
-                request_count: 0,
-                window_start: current_time,
-            });
+            let info = rate_limits
+                .entry(client_ip.clone())
+                .or_insert(RateLimitInfo {
+                    request_count: 0,
+                    window_start: current_time,
+                });
 
             // Reset counter if window has passed
             if current_time - info.window_start >= 60 {
@@ -83,7 +101,8 @@ pub fn rate_limit_middleware(
                     StatusCode::TOO_MANY_REQUESTS,
                     [(header::RETRY_AFTER, retry_after.to_string())],
                     "Rate limit exceeded. Please try again later.",
-                ).into_response();
+                )
+                    .into_response();
             }
 
             info.request_count += 1;
@@ -121,7 +140,8 @@ pub async fn auth_middleware(
         StatusCode::UNAUTHORIZED,
         [(header::WWW_AUTHENTICATE, "Bearer")],
         "Invalid or missing authentication token",
-    ).into_response()
+    )
+        .into_response()
 }
 
 /// Request logging middleware
@@ -129,7 +149,8 @@ pub async fn logging_middleware(request: Request, next: Next) -> Response {
     let method = request.method().clone();
     let uri = request.uri().clone();
     let version = request.version();
-    let user_agent = request.headers()
+    let user_agent = request
+        .headers()
         .get(header::USER_AGENT)
         .and_then(|h| h.to_str().ok())
         .unwrap_or("unknown");
@@ -160,13 +181,19 @@ pub async fn logging_middleware(request: Request, next: Next) -> Response {
 }
 
 /// CORS preflight handler
-pub async fn cors_preflight_handler() -> impl IntoResponse {
+pub fn cors_preflight_handler() -> impl IntoResponse {
     (
         StatusCode::OK,
         [
             (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
-            (header::ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS"),
-            (header::ACCESS_CONTROL_ALLOW_HEADERS, "Content-Type, Authorization, X-Requested-With"),
+            (
+                header::ACCESS_CONTROL_ALLOW_METHODS,
+                "GET, POST, PUT, DELETE, OPTIONS",
+            ),
+            (
+                header::ACCESS_CONTROL_ALLOW_HEADERS,
+                "Content-Type, Authorization, X-Requested-With",
+            ),
             (header::ACCESS_CONTROL_MAX_AGE, "86400"),
         ],
     )
@@ -177,11 +204,26 @@ pub async fn security_headers_middleware(request: Request, next: Next) -> Respon
     let mut response = next.run(request).await;
 
     let headers = response.headers_mut();
-    headers.insert(header::X_CONTENT_TYPE_OPTIONS, header::HeaderValue::from_static("nosniff"));
-    headers.insert(header::X_FRAME_OPTIONS, header::HeaderValue::from_static("DENY"));
-    headers.insert(header::X_XSS_PROTECTION, header::HeaderValue::from_static("1; mode=block"));
-    headers.insert(header::REFERRER_POLICY, header::HeaderValue::from_static("strict-origin-when-cross-origin"));
-    headers.insert(header::CONTENT_SECURITY_POLICY, header::HeaderValue::from_static("default-src 'self'"));
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        header::HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        header::X_FRAME_OPTIONS,
+        header::HeaderValue::from_static("DENY"),
+    );
+    headers.insert(
+        header::X_XSS_PROTECTION,
+        header::HeaderValue::from_static("1; mode=block"),
+    );
+    headers.insert(
+        header::REFERRER_POLICY,
+        header::HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        header::HeaderValue::from_static("default-src 'self'"),
+    );
 
     response
 }
@@ -189,17 +231,15 @@ pub async fn security_headers_middleware(request: Request, next: Next) -> Respon
 /// Request timeout middleware
 pub fn timeout_middleware(
     timeout_duration: std::time::Duration,
-) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>> + Clone {
+) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
+       + Clone {
     move |request: Request, next: Next| {
         let timeout_duration = timeout_duration;
         Box::pin(async move {
             let timeout_future = tokio::time::timeout(timeout_duration, next.run(request));
             match timeout_future.await {
                 Ok(response) => response,
-                Err(_) => (
-                    StatusCode::REQUEST_TIMEOUT,
-                    "Request timeout exceeded",
-                ).into_response(),
+                Err(_) => (StatusCode::REQUEST_TIMEOUT, "Request timeout exceeded").into_response(),
             }
         })
     }
@@ -209,27 +249,40 @@ pub fn timeout_middleware(
 pub fn cache_middleware(
     cache_enabled: bool,
     cache_ttl: u64,
-) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>> + Clone {
+) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
+       + Clone {
     move |request: Request, next: Next| {
         let cache_enabled = cache_enabled;
         let cache_ttl = cache_ttl;
         Box::pin(async move {
             let mut response = next.run(request).await;
 
-        if cache_enabled {
-            let cache_control = format!("public, max-age={}", cache_ttl);
-            response.headers_mut().insert(
-                header::CACHE_CONTROL,
-                header::HeaderValue::from_str(&cache_control).unwrap(),
-            );
-        } else {
-            response.headers_mut().insert(
-                header::CACHE_CONTROL,
-                header::HeaderValue::from_static("no-cache, no-store, must-revalidate"),
-            );
-        }
+            if cache_enabled {
+                let cache_control = format!("public, max-age={cache_ttl}");
+                match header::HeaderValue::from_str(&cache_control) {
+                    Ok(value) => {
+                        response.headers_mut().insert(header::CACHE_CONTROL, value);
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            error = %e,
+                            cache_control = %cache_control,
+                            "Invalid cache-control header value"
+                        );
+                        response.headers_mut().insert(
+                            header::CACHE_CONTROL,
+                            header::HeaderValue::from_static("no-cache, no-store, must-revalidate"),
+                        );
+                    }
+                }
+            } else {
+                response.headers_mut().insert(
+                    header::CACHE_CONTROL,
+                    header::HeaderValue::from_static("no-cache, no-store, must-revalidate"),
+                );
+            }
 
-        response
+            response
         })
     }
 }
@@ -247,8 +300,12 @@ pub async fn request_size_limit_middleware(
             if size > max_size_bytes {
                 return (
                     StatusCode::PAYLOAD_TOO_LARGE,
-                    format!("Request size {} bytes exceeds limit of {} bytes", size, max_size_bytes),
-                ).into_response();
+                    format!(
+                        "Request size {} bytes exceeds limit of {} bytes",
+                        size, max_size_bytes
+                    ),
+                )
+                    .into_response();
             }
         }
     }
@@ -282,7 +339,7 @@ fn extract_client_ip(request: &Request) -> String {
 
 /// Rate limit tracking information
 #[derive(Debug, Clone)]
-struct RateLimitInfo {
+pub struct RateLimitInfo {
     request_count: u32,
     window_start: u64,
 }
@@ -292,19 +349,30 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::extract::Request;
-    use http::Method;
+    use axum::http::{Method, StatusCode};
+    use axum::routing::get;
+    use axum::Router;
+    use tower::util::ServiceExt;
 
     #[tokio::test]
     async fn test_request_id_middleware() {
+        let router = Router::new()
+            .route("/health", get(|| async { StatusCode::OK }))
+            .layer(axum::middleware::from_fn(request_id_middleware));
+
         let request = Request::builder()
             .method(Method::GET)
             .uri("/health")
-            .body(Body::empty())
-            .unwrap();
+            .body(Body::empty());
+        let request = match request {
+            Ok(request) => request,
+            Err(e) => panic!("request builder should not fail: {e}"),
+        };
 
-        let next = Next::new(|_| async { "test response".into_response() });
-        let response = request_id_middleware(request, next).await;
-
+        let response = match router.oneshot(request).await {
+            Ok(response) => response,
+            Err(err) => match err {},
+        };
         assert!(response.headers().contains_key("x-request-id"));
     }
 
@@ -314,16 +382,13 @@ mod tests {
             .method(Method::GET)
             .header("x-forwarded-for", "192.168.1.100, 10.0.0.1")
             .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+            .body(Body::empty());
+        let request = match request {
+            Ok(request) => request,
+            Err(e) => panic!("request builder should not fail: {e}"),
+        };
 
         let ip = extract_client_ip(&request);
         assert_eq!(ip, "192.168.1.100");
     }
 }
-
-
-
-
-
-

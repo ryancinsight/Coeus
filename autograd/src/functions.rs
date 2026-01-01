@@ -5,14 +5,14 @@
 
 extern crate alloc;
 
-use alloc::vec::Vec;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use backend::Backend;
-use dtype::DataType;
 use dtype::traits::FloatExt;
+use dtype::DataType;
 use num_traits::FromPrimitive;
-use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
-pub use tensor::{Tensor, DifferentiableFunction, Function};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+pub use tensor::{DifferentiableFunction, Function, Tensor};
 
 /// Type alias for tensor references used in automatic differentiation
 /// Generic over `Backend<B>`, `Storage<S>`, and `DataType<T>`
@@ -21,6 +21,55 @@ pub type TensorRef<B, S, T> = alloc::sync::Arc<tensor::Tensor<B, S, T>>;
 /// Type-erased function reference for tensor `grad_fn` fields
 /// Uses the existing `DifferentiableFunction` trait for compatibility
 pub type FunctionRef<B, S, T> = alloc::sync::Arc<dyn DifferentiableFunction<B, S, T>>;
+
+fn unbroadcast_dense<B, T>(
+    grad_output: &Tensor<B, DenseStorage<T>, T>,
+    input_shape: &[usize],
+) -> anyhow::Result<Tensor<B, DenseStorage<T>, T>>
+where
+    B: Backend<Data = T>,
+    T: DataType,
+{
+    let out_shape = grad_output.shape().dims();
+
+    let out_len = out_shape.len();
+    let in_len = input_shape.len();
+    let mut input_padded = vec![1; out_len.saturating_sub(in_len)];
+    input_padded.extend_from_slice(input_shape);
+
+    let mut reduce_axes = Vec::new();
+    for i in 0..out_len {
+        let in_dim = input_padded[i];
+        let out_dim = out_shape[i];
+        if in_dim == 1 && out_dim != 1 {
+            reduce_axes.push(i);
+        }
+    }
+
+    let mut reduced = if reduce_axes.is_empty() {
+        grad_output.clone()
+    } else {
+        grad_output
+            .sum_dims(Some(&reduce_axes), true)
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?
+    };
+
+    if reduced.shape().dims() != input_shape {
+        let data = reduced.as_slice().to_vec();
+        let expected = input_shape.iter().product::<usize>();
+        if data.len() != expected {
+            return Err(anyhow::anyhow!("unbroadcast numel mismatch"));
+        }
+        reduced = Tensor::<B, DenseStorage<T>, T>::from_vec_with_backend(
+            data,
+            input_shape,
+            grad_output.backend().clone(),
+        )
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    }
+
+    Ok(reduced)
+}
 
 // AsAny implementations for all Function structs
 impl<B, S, T> tensor::AsAny for AddFunction<B, S, T>
@@ -162,7 +211,7 @@ where
     S: Storage<T> + StorageFromVec<T>,
     T: DataType,
 {
-    /// Create a new SubFunction with the given inputs
+    /// Create a new `SubFunction` with the given inputs
     #[must_use]
     pub fn new(lhs: Arc<Tensor<B, S, T>>, rhs: Arc<Tensor<B, S, T>>) -> Self {
         Self {
@@ -181,24 +230,31 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
-        // For subtraction: C = A - B
-        // dC/dA = 1, dC/dB = -1
-        // Gradients: grad_output, -grad_output
-        
-        // Convert grad_output to storage type S
-        let grad_data = grad_output.storage_ref().as_slice().to_vec();
-        let grad_dims = grad_output.shape().dims().to_vec();
-        let grad_lhs = Tensor::from_vec_with_backend(grad_data, &grad_dims, grad_output.backend().clone())?;
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+        let lhs = &*self.inputs[0];
+        let rhs = &*self.inputs[1];
 
-        // Negate for rhs gradient
-        let grad_output_dense = grad_output.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let neg_one: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec(vec![T::from(-1.0).unwrap()], &[]).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let grad_rhs_dense = &grad_output_dense * &neg_one;
-        
-        let grad_rhs_data = grad_rhs_dense.storage_ref().as_slice().to_vec();
-        let grad_rhs_dims = grad_rhs_dense.shape().dims().to_vec();
-        let grad_rhs = Tensor::from_vec_with_backend(grad_rhs_data, &grad_rhs_dims, grad_output.backend().clone())?;
+        let neg_one = T::zero() - T::one();
+        let neg_one_tensor: Tensor<B, DenseStorage<T>, T> =
+            Tensor::from_vec(vec![neg_one], &[]).map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
+        let left_grad_dense = unbroadcast_dense(grad_output, lhs.shape().dims())?;
+        let right_grad_dense =
+            unbroadcast_dense(&(grad_output * &neg_one_tensor), rhs.shape().dims())?;
+
+        let grad_lhs = Tensor::from_vec_with_backend(
+            left_grad_dense.as_slice().to_vec(),
+            left_grad_dense.shape().dims(),
+            lhs.backend().clone(),
+        )?;
+        let grad_rhs = Tensor::from_vec_with_backend(
+            right_grad_dense.as_slice().to_vec(),
+            right_grad_dense.shape().dims(),
+            rhs.backend().clone(),
+        )?;
 
         Ok(vec![grad_lhs, grad_rhs])
     }
@@ -250,36 +306,46 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
-        // d(a/b)/da = 1/b
-        // d(a/b)/db = -a/b^2
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         let lhs = &*self.inputs[0];
         let rhs = &*self.inputs[1];
-        
-        let lhs_dense = lhs.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let rhs_dense = rhs.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        
-        // grad_lhs = grad_output / rhs
-        let grad_lhs_dense = grad_output / &rhs_dense;
-        
-        // grad_rhs = -grad_output * lhs / rhs^2
+
+        let lhs_dense = lhs
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+        let rhs_dense = rhs
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         let rhs_sq = &rhs_dense * &rhs_dense;
-        let neg_one = T::from(-1.0).unwrap_or(T::one());
-        let neg_one_tensor: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec(vec![neg_one], &[]).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        
-        let grad_rhs_dense = grad_output * &lhs_dense;
-        let grad_rhs_dense = &grad_rhs_dense / &rhs_sq;
-        let grad_rhs_dense = &grad_rhs_dense * &neg_one_tensor;
-        
-        // Convert back
-        let grad_lhs_data = grad_lhs_dense.storage_ref().as_slice().to_vec();
-        let grad_lhs_dims = grad_lhs_dense.shape().dims().to_vec();
-        let grad_lhs = Tensor::from_vec_with_backend(grad_lhs_data, &grad_lhs_dims, grad_output.backend().clone())?;
-        
-        let grad_rhs_data = grad_rhs_dense.storage_ref().as_slice().to_vec();
-        let grad_rhs_dims = grad_rhs_dense.shape().dims().to_vec();
-        let grad_rhs = Tensor::from_vec_with_backend(grad_rhs_data, &grad_rhs_dims, grad_output.backend().clone())?;
-        
+        let neg_one = T::zero() - T::one();
+        let neg_one_tensor: Tensor<B, DenseStorage<T>, T> =
+            Tensor::from_vec(vec![neg_one], &[]).map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
+        let grad_over_rhs_dense = grad_output / &rhs_dense;
+        let grad_denominator_dense = {
+            let numer = grad_output * &lhs_dense;
+            let scaled = &numer / &rhs_sq;
+            &scaled * &neg_one_tensor
+        };
+
+        let left_grad_dense = unbroadcast_dense(&grad_over_rhs_dense, lhs.shape().dims())?;
+        let right_grad_dense = unbroadcast_dense(&grad_denominator_dense, rhs.shape().dims())?;
+
+        let grad_lhs = Tensor::from_vec_with_backend(
+            left_grad_dense.as_slice().to_vec(),
+            left_grad_dense.shape().dims(),
+            lhs.backend().clone(),
+        )?;
+        let grad_rhs = Tensor::from_vec_with_backend(
+            right_grad_dense.as_slice().to_vec(),
+            right_grad_dense.shape().dims(),
+            rhs.backend().clone(),
+        )?;
+
         Ok(vec![grad_lhs, grad_rhs])
     }
 }
@@ -341,18 +407,23 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // d(-x)/dx = -1
         let neg_one = T::from(-1.0).unwrap_or(T::one());
-        let neg_one_tensor: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec(vec![neg_one], &[]).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        
+        let neg_one_tensor: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec(vec![neg_one], &[])
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         let grad_input_dense = grad_output * &neg_one_tensor;
-        
+
         let input = &*self.inputs[0];
         let grad_data = grad_input_dense.storage_ref().as_slice().to_vec();
         let grad_dims = grad_input_dense.shape().dims().to_vec();
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())?;
-        
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())?;
+
         Ok(vec![grad_input])
     }
 }
@@ -418,16 +489,22 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // Transpose is its own inverse (if orthogonal, but here it's just swapping dims)
         // d(A^T)/dA -> we need to transpose the gradient back
-        let grad_input_dense = grad_output.transpose(self.dim0, self.dim1).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        
+        let grad_input_dense = grad_output
+            .transpose(self.dim0, self.dim1)
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         let input = &*self.inputs[0];
         let grad_data = grad_input_dense.storage_ref().as_slice().to_vec();
         let grad_dims = grad_input_dense.shape().dims().to_vec();
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())?;
-        
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())?;
+
         Ok(vec![grad_input])
     }
 }
@@ -453,7 +530,6 @@ where
         self
     }
 }
-
 
 /// Add function for element-wise addition
 #[derive(Debug)]
@@ -492,14 +568,28 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
-        // For addition: d/da = 1, d/db = 1, so gradients are just grad_output
-        // Convert grad_output to storage type S
-        let grad_data = grad_output.storage_ref().as_slice().to_vec();
-        let grad_dims = grad_output.shape().dims().to_vec();
-        let grad_tensor = Tensor::from_vec_with_backend(grad_data, &grad_dims, grad_output.backend().clone())?;
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+        let lhs = &*self.inputs[0];
+        let rhs = &*self.inputs[1];
 
-        Ok(vec![grad_tensor.clone(), grad_tensor])
+        let left_grad_dense = unbroadcast_dense(grad_output, lhs.shape().dims())?;
+        let right_grad_dense = unbroadcast_dense(grad_output, rhs.shape().dims())?;
+
+        let grad_lhs = Tensor::from_vec_with_backend(
+            left_grad_dense.as_slice().to_vec(),
+            left_grad_dense.shape().dims(),
+            lhs.backend().clone(),
+        )?;
+        let grad_rhs = Tensor::from_vec_with_backend(
+            right_grad_dense.as_slice().to_vec(),
+            right_grad_dense.shape().dims(),
+            rhs.backend().clone(),
+        )?;
+
+        Ok(vec![grad_lhs, grad_rhs])
     }
 }
 
@@ -514,7 +604,7 @@ where
     }
 }
 
-/// MatMul function for matrix multiplication
+/// `MatMul` function for matrix multiplication
 #[derive(Debug)]
 pub struct MatMulFunction<B, S, T>
 where
@@ -532,7 +622,7 @@ where
     S: Storage<T> + StorageFromVec<T>,
     T: DataType,
 {
-    /// Create a new MatMul function
+    /// Create a new `MatMul` function
     #[must_use]
     pub fn new(lhs: Arc<Tensor<B, S, T>>, rhs: Arc<Tensor<B, S, T>>) -> Self {
         Self {
@@ -551,34 +641,59 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         let lhs = &*self.inputs[0];
         let rhs = &*self.inputs[1];
 
         // Convert to dense for matrix operations
-        let lhs_dense = lhs.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let rhs_dense = rhs.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let grad_output_dense = grad_output.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let lhs_dense = lhs
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+        let rhs_dense = rhs
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+        let grad_output_dense = grad_output
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
 
         // For C = A @ B:
         // dC/dA = grad_output @ B^T
         // dC/dB = A^T @ grad_output
-        let rhs_t = rhs_dense.transpose(0, 1).map_err(|e| anyhow::anyhow!("Transpose error: {:?}", e))?;
-        let lhs_t = lhs_dense.transpose(0, 1).map_err(|e| anyhow::anyhow!("Transpose error: {:?}", e))?;
+        let rhs_t = rhs_dense
+            .transpose(0, 1)
+            .map_err(|e| anyhow::anyhow!("Transpose error: {e:?}"))?;
+        let lhs_t = lhs_dense
+            .transpose(0, 1)
+            .map_err(|e| anyhow::anyhow!("Transpose error: {e:?}"))?;
 
-        let grad_lhs_dense = grad_output_dense.matmul(&rhs_t).map_err(|e| anyhow::anyhow!("Matmul error: {:?}", e))?;
-        let grad_rhs_dense = lhs_t.matmul(&grad_output_dense).map_err(|e| anyhow::anyhow!("Matmul error: {:?}", e))?;
+        let dense_grads = [
+            grad_output_dense
+                .matmul(&rhs_t)
+                .map_err(|e| anyhow::anyhow!("Matmul error: {e:?}"))?,
+            lhs_t
+                .matmul(&grad_output_dense)
+                .map_err(|e| anyhow::anyhow!("Matmul error: {e:?}"))?,
+        ];
 
-        // Convert back to storage type S
-        let grad_lhs_data = grad_lhs_dense.storage_ref().as_slice().to_vec();
-        let grad_lhs_dims = grad_lhs_dense.shape().dims().to_vec();
-        let grad_lhs = Tensor::from_vec_with_backend(grad_lhs_data, &grad_lhs_dims, grad_output.backend().clone())?;
+        let to_storage = |dense: Tensor<B, DenseStorage<T>, T>| -> anyhow::Result<Tensor<B, S, T>> {
+            let data = dense.storage_ref().as_slice().to_vec();
+            let dims = dense.shape().dims().to_vec();
+            Ok(Tensor::from_vec_with_backend(
+                data,
+                &dims,
+                grad_output.backend().clone(),
+            )?)
+        };
 
-        let grad_rhs_data = grad_rhs_dense.storage_ref().as_slice().to_vec();
-        let grad_rhs_dims = grad_rhs_dense.shape().dims().to_vec();
-        let grad_rhs = Tensor::from_vec_with_backend(grad_rhs_data, &grad_rhs_dims, grad_output.backend().clone())?;
+        let grads = dense_grads
+            .into_iter()
+            .map(to_storage)
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
-        Ok(vec![grad_lhs, grad_rhs])
+        Ok(grads)
     }
 }
 
@@ -630,28 +745,37 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         let lhs = &*self.inputs[0];
         let rhs = &*self.inputs[1];
 
         // Convert inputs to dense for gradient computation
-        let lhs_dense = lhs.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let rhs_dense = rhs.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let lhs_dense = lhs
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+        let rhs_dense = rhs
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
 
-        // For C = A * B (element-wise):
-        // dC/dA = B, dC/dB = A
-        // So gradients are: grad_output * B, grad_output * A
-        let grad_lhs_dense = grad_output * &rhs_dense;
-        let grad_rhs_dense = grad_output * &lhs_dense;
+        let left_full_grad_dense = grad_output * &rhs_dense;
+        let right_full_grad_dense = grad_output * &lhs_dense;
 
-        // Convert back to storage type S
-        let grad_lhs_data = grad_lhs_dense.storage_ref().as_slice().to_vec();
-        let grad_lhs_dims = grad_lhs_dense.shape().dims().to_vec();
-        let grad_lhs = Tensor::from_vec_with_backend(grad_lhs_data, &grad_lhs_dims, grad_output.backend().clone())?;
+        let left_grad_dense = unbroadcast_dense(&left_full_grad_dense, lhs.shape().dims())?;
+        let right_grad_dense = unbroadcast_dense(&right_full_grad_dense, rhs.shape().dims())?;
 
-        let grad_rhs_data = grad_rhs_dense.storage_ref().as_slice().to_vec();
-        let grad_rhs_dims = grad_rhs_dense.shape().dims().to_vec();
-        let grad_rhs = Tensor::from_vec_with_backend(grad_rhs_data, &grad_rhs_dims, grad_output.backend().clone())?;
+        let grad_lhs = Tensor::from_vec_with_backend(
+            left_grad_dense.as_slice().to_vec(),
+            left_grad_dense.shape().dims(),
+            lhs.backend().clone(),
+        )?;
+        let grad_rhs = Tensor::from_vec_with_backend(
+            right_grad_dense.as_slice().to_vec(),
+            right_grad_dense.shape().dims(),
+            rhs.backend().clone(),
+        )?;
 
         Ok(vec![grad_lhs, grad_rhs])
     }
@@ -709,20 +833,28 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // For sum operations, gradient w.r.t. input is grad_output broadcasted to input shape
         let input = &*self.inputs[0];
 
         // Convert input to dense for operations
-        let input_dense = input.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let grad_input_dense: Tensor<B, DenseStorage<T>, T> = Tensor::ones(input_dense.shape().dims()).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let input_dense = input
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+        let grad_input_dense: Tensor<B, DenseStorage<T>, T> =
+            Tensor::ones(input_dense.shape().dims())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
         let grad_input_dense = &grad_input_dense * grad_output;
 
         // Convert result back to input storage type S
         let grad_data = grad_input_dense.storage_ref().as_slice().to_vec();
         let grad_dims = grad_input_dense.shape().dims().to_vec();
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
 
         Ok(vec![grad_input])
     }
@@ -738,8 +870,6 @@ where
         "SumBackward"
     }
 }
-
-
 
 /// Mean function for averaging operations
 #[derive(Debug)]
@@ -778,24 +908,34 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // For mean operations, gradient w.r.t. input is grad_output / num_elements, broadcasted to input shape
         let input = &*self.inputs[0];
-        let num_elements = input.len() as f64;
-        let scale_factor = 1.0 / num_elements;
+        let num_elements_t = T::from(input.len())
+            .ok_or_else(|| anyhow::anyhow!("Mean backward: input.len() not representable"))?;
 
         // Convert input to dense for operations
-        let input_dense = input.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let mut grad_input_dense: Tensor<B, DenseStorage<T>, T> = Tensor::ones(input_dense.shape().dims()).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let scale_tensor: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec(vec![T::from(scale_factor).unwrap()], &[]).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let input_dense = input
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+        let mut grad_input_dense: Tensor<B, DenseStorage<T>, T> =
+            Tensor::ones(input_dense.shape().dims())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+        let scale_tensor: Tensor<B, DenseStorage<T>, T> =
+            Tensor::from_vec(vec![T::one() / num_elements_t], &[])
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
         grad_input_dense = &grad_input_dense * &scale_tensor;
         grad_input_dense = &grad_input_dense * grad_output;
 
         // Convert result back to input storage type S
         let grad_data = grad_input_dense.storage_ref().as_slice().to_vec();
         let grad_dims = grad_input_dense.shape().dims().to_vec();
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
 
         Ok(vec![grad_input])
     }
@@ -849,21 +989,27 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // For exp operations: d/dx exp(x) = exp(x)
         // So gradient w.r.t. input is grad_output * exp(input)
         let input = &*self.inputs[0];
         let exp_input = input.exp();
 
         // Convert exp_input to dense for multiplication with grad_output
-        let exp_input_dense = exp_input.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let exp_input_dense = exp_input
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
         let grad_input_dense = grad_output * &exp_input_dense;
 
         // Convert back to storage type S
         let grad_data = grad_input_dense.storage_ref().as_slice().to_vec();
         let grad_dims = grad_input_dense.shape().dims().to_vec();
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
 
         Ok(vec![grad_input])
     }
@@ -917,20 +1063,26 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // For log operations: d/dx log(x) = 1/x
         // So gradient w.r.t. input is grad_output / input
         let input = &*self.inputs[0];
 
         // Convert input to dense for division with grad_output
-        let input_dense = input.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let input_dense = input
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
         let grad_input_dense = grad_output / &input_dense;
 
         // Convert back to storage type S
         let grad_data = grad_input_dense.storage_ref().as_slice().to_vec();
         let grad_dims = grad_input_dense.shape().dims().to_vec();
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
 
         Ok(vec![grad_input])
     }
@@ -984,20 +1136,26 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // For sin operations: d/dx sin(x) = cos(x)
         // So gradient w.r.t. input is grad_output * cos(input)
         let input = &*self.inputs[0];
         let cos_input = input.cos();
 
         // Convert cos_input to dense for multiplication with grad_output
-        let cos_input_dense = cos_input.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let cos_input_dense = cos_input
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
         let grad_input_dense = grad_output * &cos_input_dense;
 
         // Convert back to storage type S
         let grad_data = grad_input_dense.storage_ref().as_slice().to_vec();
         let grad_dims = grad_input_dense.shape().dims().to_vec();
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &grad_dims, grad_output.backend().clone())?;
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &grad_dims, grad_output.backend().clone())?;
 
         Ok(vec![grad_input])
     }
@@ -1051,15 +1209,22 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // For cos operations: d/dx cos(x) = -sin(x)
         // So gradient w.r.t. input is grad_output * (-sin(input))
         let input = &*self.inputs[0];
         let sin_input = input.sin();
 
         // Convert sin_input to dense and negate it
-        let sin_input_dense = sin_input.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let neg_one: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec(vec![T::from(-1.0).unwrap()], &[]).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let sin_input_dense = sin_input
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+        let neg_one: Tensor<B, DenseStorage<T>, T> =
+            Tensor::from_vec(vec![T::from(-1.0).unwrap()], &[])
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
         let neg_sin_dense = &sin_input_dense * &neg_one;
 
         let grad_input_dense = grad_output * &neg_sin_dense;
@@ -1067,8 +1232,9 @@ where
         // Convert back to storage type S
         let grad_data = grad_input_dense.storage_ref().as_slice().to_vec();
         let grad_dims = grad_input_dense.shape().dims().to_vec();
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
 
         Ok(vec![grad_input])
     }
@@ -1085,7 +1251,7 @@ where
     }
 }
 
-/// NLLLoss function for negative log likelihood loss
+/// `NLLLoss` function for negative log likelihood loss
 #[derive(Debug)]
 pub struct NLLLossFunction<B, S, T>
 where
@@ -1093,7 +1259,7 @@ where
     S: Storage<T> + StorageFromVec<T>,
     T: DataType,
 {
-    /// Input tensors: [log_probs, targets]
+    /// Input tensors: [`log_probs`, `targets`]
     pub inputs: Vec<Arc<Tensor<B, S, T>>>,
 }
 
@@ -1103,7 +1269,7 @@ where
     S: Storage<T> + StorageFromVec<T>,
     T: DataType,
 {
-    /// Create a new NLLLoss function
+    /// Create a new `NLLLoss` function
     #[must_use]
     pub fn new(log_probs: Arc<Tensor<B, S, T>>, targets: Arc<Tensor<B, S, T>>) -> Self {
         Self {
@@ -1122,36 +1288,46 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         let log_probs = &*self.inputs[0];
         let targets = &*self.inputs[1];
-        
+
         // NLL Loss backward: -1/N * grad_output at target indices
         let dims = log_probs.shape().dims();
         let batch_size = dims[0];
         let num_classes = dims[1];
-        
+
         // Convert targets to dense to access indices
-        let targets_dense = targets.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let targets_dense = targets
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
         let targets_data = targets_dense.storage_ref().as_slice();
-        
+
         let mut grad_data = Vec::with_capacity(batch_size * num_classes);
-        
-        // Get gradient scale from grad_output (assuming scalar or broadcastable)
+
         let grad_val = if grad_output.numel() == 1 {
             grad_output.storage_ref().as_slice()[0]
         } else {
-            T::one() // Fallback
+            return Err(anyhow::anyhow!(
+                "NLL loss backward: expected scalar grad_output, got numel={}",
+                grad_output.numel()
+            ));
         };
-        
+
         // Scale by 1/batch_size for mean reduction
-        let scale = T::from_usize(batch_size).unwrap_or(T::one());
+        let scale = T::from_usize(batch_size)
+            .ok_or_else(|| anyhow::anyhow!("NLL loss backward: batch_size not representable"))?;
         let neg_one = T::zero() - T::one();
         let grad_factor = (neg_one / scale) * grad_val;
         let zero = T::zero();
 
-        for b in 0..batch_size {
-            let target_idx = targets_data[b].to_usize().unwrap_or(0);
+        for (b, target) in targets_data.iter().enumerate().take(batch_size) {
+            let target_idx = target.to_usize().ok_or_else(|| {
+                anyhow::anyhow!("NLL loss backward: target index at batch {b} not representable")
+            })?;
             for c in 0..num_classes {
                 if c == target_idx {
                     grad_data.push(grad_factor);
@@ -1160,12 +1336,13 @@ where
                 }
             }
         }
-        
-        let grad_log_probs = Tensor::from_vec_with_backend(grad_data, dims, log_probs.backend().clone())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-            
+
+        let grad_log_probs =
+            Tensor::from_vec_with_backend(grad_data, dims, log_probs.backend().clone())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         let grad_targets = Tensor::zeros(targets.shape().dims())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
 
         Ok(vec![grad_log_probs, grad_targets])
     }
@@ -1206,6 +1383,7 @@ where
     T: DataType,
 {
     /// Create a new RNN function
+    #[must_use]
     pub fn new(
         inputs: Vec<Arc<Tensor<B, S, T>>>,
         hidden_states: Vec<Arc<Tensor<B, S, T>>>,
@@ -1240,7 +1418,10 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        _grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // RNN backward pass - simplified implementation
         // In a real implementation, this would compute gradients for all inputs
         // For now, return zero gradients for all inputs
@@ -1304,28 +1485,35 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // d/dx sqrt(x) = 1 / (2 * sqrt(x))
         let input = &*self.inputs[0];
-        
+
         // Convert to dense
-        let input_dense = input.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        let two = T::from_f64(2.0).unwrap_or(T::one()); 
-        let two_tensor: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec(vec![two], &[]).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        
+        let input_dense = input
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+        let two = T::from_f64(2.0).unwrap_or(T::one());
+        let two_tensor: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec(vec![two], &[])
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         // 2 * sqrt(x)
         let sqrt_x = input_dense.sqrt();
         let denom = &sqrt_x * &two_tensor;
-        
+
         // grad_output / denom
         let grad_input_dense = grad_output / &denom;
-        
+
         // Convert back
         let grad_data = grad_input_dense.storage_ref().as_slice().to_vec();
         let grad_dims = grad_input_dense.shape().dims().to_vec();
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-            
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         Ok(vec![grad_input])
     }
 }
@@ -1391,13 +1579,18 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // d/dx x^n = n * x^(n-1)
         let input = &*self.inputs[0];
         let n = self.exponent;
-        
-        let input_dense = input.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        
+
+        let input_dense = input
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         // Calculate x^(n-1)
         let input_data = input_dense.storage_ref().as_slice();
         let mut pow_data = Vec::with_capacity(input_data.len());
@@ -1406,23 +1599,25 @@ where
             let res = val_f64.powf(n - 1.0);
             pow_data.push(T::from_f64(res).unwrap_or(T::zero()));
         }
-        let pow_tensor = Tensor::<B, DenseStorage<T>, T>::from_vec(pow_data, input_dense.shape().dims())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-            
+        let pow_tensor =
+            Tensor::<B, DenseStorage<T>, T>::from_vec(pow_data, input_dense.shape().dims())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         // n * x^(n-1)
         let n_val = T::from_f64(n).unwrap_or(T::one());
         let n_tensor = Tensor::<B, DenseStorage<T>, T>::from_vec(vec![n_val], &[])
-             .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         let deriv = &pow_tensor * &n_tensor;
         let grad_input_dense = grad_output * &deriv;
-        
+
         // Convert back
         let grad_data = grad_input_dense.storage_ref().as_slice().to_vec();
         let grad_dims = grad_input_dense.shape().dims().to_vec();
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-            
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         Ok(vec![grad_input])
     }
 }
@@ -1486,13 +1681,17 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         let grad_data = grad_output.storage_ref().as_slice().to_vec();
         let input = &*self.inputs[0];
-        
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &self.input_shape, input.backend().clone())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-            
+
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &self.input_shape, input.backend().clone())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         Ok(vec![grad_input])
     }
 }
@@ -1540,7 +1739,12 @@ where
     T: DataType,
 {
     #[must_use]
-    pub fn new(input: Arc<Tensor<B, S, T>>, mask: Arc<Tensor<B, S, T>>, dim: usize, keepdim: bool) -> Self {
+    pub fn new(
+        input: Arc<Tensor<B, S, T>>,
+        mask: Arc<Tensor<B, S, T>>,
+        dim: usize,
+        keepdim: bool,
+    ) -> Self {
         Self {
             inputs: vec![input],
             mask,
@@ -1560,27 +1764,37 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         let input = &*self.inputs[0];
-        
-        let mut grad_output_dense = grad_output.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-        
+
+        let mut grad_output_dense = grad_output
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         if !self.keepdim {
-             let mut new_shape = grad_output_dense.shape().dims().to_vec();
-             new_shape.insert(self.dim_val, 1);
-             
-             let data = grad_output_dense.storage_ref().as_slice().to_vec();
-             grad_output_dense = Tensor::from_vec(data, &new_shape).map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+            let mut new_shape = grad_output_dense.shape().dims().to_vec();
+            new_shape.insert(self.dim_val, 1);
+
+            let data = grad_output_dense.storage_ref().as_slice().to_vec();
+            grad_output_dense = Tensor::from_vec(data, &new_shape)
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
         }
-        
-        let mask_dense = self.mask.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+
+        let mask_dense = self
+            .mask
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
         let grad_input_dense = &grad_output_dense * &mask_dense;
-        
+
         let grad_data = grad_input_dense.storage_ref().as_slice().to_vec();
         let grad_dims = grad_input_dense.shape().dims().to_vec();
-        let grad_input = Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
-            .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-            
+        let grad_input =
+            Tensor::from_vec_with_backend(grad_data, &grad_dims, input.backend().clone())
+                .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         Ok(vec![grad_input])
     }
 }

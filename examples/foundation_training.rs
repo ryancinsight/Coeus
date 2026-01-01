@@ -37,7 +37,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Initialize the complete foundation model training infrastructure
-async fn initialize_training_infrastructure() -> Result<FoundationModelTrainer, Box<dyn std::error::Error>> {
+async fn initialize_training_infrastructure(
+) -> Result<FoundationModelTrainer, Box<dyn std::error::Error>> {
     println!("🔧 Initializing Foundation Model Training Infrastructure...");
 
     // 1. Configure model architecture (7B parameter GPT-like model)
@@ -179,8 +180,12 @@ async fn initialize_training_infrastructure() -> Result<FoundationModelTrainer, 
     );
     let padding = PaddingTransform::new(2048, 0);
 
-    data_loader.processing_pipeline.add_transform(Box::new(tokenizer));
-    data_loader.processing_pipeline.add_transform(Box::new(padding));
+    data_loader
+        .processing_pipeline
+        .add_transform(Box::new(tokenizer));
+    data_loader
+        .processing_pipeline
+        .add_transform(Box::new(padding));
 
     // 4. Initialize advanced optimizer (Lion optimizer)
     let lion_optimizer = utils::create_lionel_optimizer(1e-4, 0.01);
@@ -277,41 +282,68 @@ async fn load_vocab() -> Result<HashMap<String, usize>, Box<dyn std::error::Erro
 
 /// Display comprehensive training results
 fn display_training_report(report: TrainingReport) {
-    println!("
+    println!(
+        "
 🎯 Foundation Model Training Report
-=====================================");
+====================================="
+    );
 
     println!("🏁 Training Summary:");
     println!("   📈 Steps Completed: {}", report.total_steps);
-    println!("   🎯 Best Loss: {:.6} (Step {})", report.best_loss, report.best_step);
+    println!(
+        "   🎯 Best Loss: {:.6} (Step {})",
+        report.best_loss, report.best_step
+    );
     println!("   📉 Final Loss: {:.6}", report.final_loss);
-    println!("   📈 Convergence Rate: {:.2}%", report.convergence_rate * 100.0);
+    println!(
+        "   📈 Convergence Rate: {:.2}%",
+        report.convergence_rate * 100.0
+    );
     println!("   🚫 Early Stopped: {}", report.early_stopped);
 
-    println!("
-⚡ Performance Metrics:");
+    println!(
+        "
+⚡ Performance Metrics:"
+    );
     println!("   🚀 Average Throughput: {:.1} tokens/sec", 500.0); // Placeholder
-    println!("   💾 Peak Memory Usage: {} MB", report.peak_memory_usage / (1024 * 1024));
-    println!("   ⏱️  Total Training Time: {:.2} hours",
-             report.total_time.as_secs() as f64 / 3600.0);
+    println!(
+        "   💾 Peak Memory Usage: {} MB",
+        report.peak_memory_usage / (1024 * 1024)
+    );
+    println!(
+        "   ⏱️  Total Training Time: {:.2} hours",
+        report.total_time.as_secs() as f64 / 3600.0
+    );
 
-    println!("
-💡 Performance Score:");
+    println!(
+        "
+💡 Performance Score:"
+    );
     println!("   📊 Overall Score: {:.1}/100", 92.5); // Placeholder performance score
     println!("   📈 Training Efficiency: High");
     println!("   💾 Memory Efficiency: Optimal");
     println!("   ⚡ Hardware Utilization: Excellent");
 
     if let Some(distributed_stats) = report.distributed_stats {
-        println!("
-🌐 Distributed Training:");
+        println!(
+            "
+🌐 Distributed Training:"
+        );
         println!("   👥 Total Ranks: {}", distributed_stats.world_size);
-        println!("   🔄 Communication Overhead: {:.1}%", distributed_stats.communication_overhead * 100.0);
-        println!("   ⚖️  Load Balance Score: {:.1}%", distributed_stats.load_balance_score * 100.0);
+        println!(
+            "   🔄 Communication Overhead: {:.1}%",
+            distributed_stats.communication_overhead * 100.0
+        );
+        println!(
+            "   ⚖️  Load Balance Score: {:.1}%",
+            distributed_stats.load_balance_score * 100.0
+        );
     }
 
-    println!("
-📊 Final Metrics:");
+    println!(
+        "
+📊 Final Metrics:"
+    );
     for (key, value) in &report.final_metrics {
         println!("   {}: {:.4}", key, value);
     }
@@ -420,4 +452,3 @@ fn display_training_report(report: TrainingReport) {
   ✅ Production-ready for massive AI deployment
 
 */
-

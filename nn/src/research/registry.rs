@@ -11,8 +11,7 @@ use crate::error::{NNError, Result};
 use super::{ResearchAgent, ResearchAgentFactory};
 
 /// Thread-safe registry for research agents
-#[derive(Default)]
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct ResearchAgentRegistry {
     /// Registered agent factories
     factories: RwLock<HashMap<String, Box<dyn ResearchAgentFactory>>>,
@@ -29,14 +28,22 @@ impl ResearchAgentRegistry {
     /// Register an agent factory
     pub fn register<F: ResearchAgentFactory + 'static>(&self, name: &str) -> Result<()> {
         let factory = F::create_factory();
-        self.factories.write().unwrap().insert(name.to_string(), factory);
+        self.factories
+            .write()
+            .unwrap()
+            .insert(name.to_string(), factory);
         Ok(())
     }
 
     /// Create an agent instance
-    pub fn create_agent(&self, name: &str, config: serde_json::Value) -> Result<Box<dyn ResearchAgent>> {
+    pub fn create_agent(
+        &self,
+        name: &str,
+        config: serde_json::Value,
+    ) -> Result<Box<dyn ResearchAgent>> {
         let factories = self.factories.read().unwrap();
-        let factory = factories.get(name)
+        let factory = factories
+            .get(name)
             .ok_or_else(|| NNError::InvalidConfiguration {
                 message: format!("Agent '{}' not registered", name),
             })?;

@@ -322,15 +322,15 @@ impl ArchitectureSpace {
                 architecture.add_layer(layer);
             }
         } else {
-             // Fallback if no layer types defined (avoid panic)
-             for _ in 1..actual_layers - 1 {
-                 architecture.add_layer(LayerSpec::Conv2D {
+            // Fallback if no layer types defined (avoid panic)
+            for _ in 1..actual_layers - 1 {
+                architecture.add_layer(LayerSpec::Conv2D {
                     out_channels: 64,
                     kernel_size: 3,
                     stride: 1,
                     padding: 1,
                 });
-             }
+            }
         }
 
         // Add output layer
@@ -358,7 +358,7 @@ impl ArchitectureSpace {
                         message: format!("Missing parameter range for layer type {:?}", layer_type),
                     }
                 })?;
-                
+
                 let out_channels = if range.out_channels.0 > range.out_channels.1 {
                     range.out_channels.0
                 } else {
@@ -403,9 +403,7 @@ impl ArchitectureSpace {
                     rng.gen_range(range.out_features.0..=range.out_features.1)
                 };
 
-                Ok(LayerSpec::Linear {
-                    out_features,
-                })
+                Ok(LayerSpec::Linear { out_features })
             }
             LayerType::Attention => {
                 let range = self.parameter_ranges.get(layer_type).ok_or_else(|| {

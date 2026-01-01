@@ -24,8 +24,14 @@ impl<M, B, S, T> DataParallel<M, B, S, T>
 where
     M: Module<B, S, T> + Send + Sync,
     B: Send + Sync + backend::Backend<Data = T>,
-    S: Send + Sync + storage::Storage<T> + Clone + storage::StorageFromVec<T> + storage::StorageToDense<T> + 'static,
-    T: Send + Sync + dtype::DataType,
+    S: Send
+        + Sync
+        + storage::Storage<T>
+        + Clone
+        + storage::StorageFromVec<T>
+        + storage::StorageToDense<T>
+        + 'static,
+    T: Send + Sync + dtype::DataType + dtype::FloatExt,
 {
     /// Create a new data parallel wrapper
     ///
@@ -142,7 +148,7 @@ where
         // In a real implementation, this would trigger the backward pass
         // and gradient synchronization.
         // For now, we assume gradients are already computed by the autograd engine.
-        
+
         self.synchronize_gradients().await
     }
 

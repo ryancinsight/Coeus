@@ -38,7 +38,7 @@ use core::any::Any;
 use backend::Backend;
 use dtype::DataType;
 
-use storage::{Storage, DenseStorage};
+use storage::{DenseStorage, Storage};
 
 use crate::{error::AutogradError, Result};
 
@@ -63,10 +63,8 @@ pub fn apply_custom_function<B, S, T>(
     inputs: &[&tensor::Tensor<B, S, T>],
     forward_fn: impl FnOnce(
         &[&tensor::Tensor<B, S, T>],
-    ) -> std::result::Result<
-        tensor::Tensor<B, S, T>,
-        Box<dyn std::error::Error>,
-    >,
+    )
+        -> std::result::Result<tensor::Tensor<B, S, T>, Box<dyn std::error::Error>>,
     backward_fn: impl Fn(&tensor::Tensor<B, S, T>) -> anyhow::Result<Vec<tensor::Tensor<B, S, T>>>
         + Send
         + Sync
@@ -75,7 +73,14 @@ pub fn apply_custom_function<B, S, T>(
 ) -> Result<tensor::Tensor<B, S, T>>
 where
     B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static,
-    S: Storage<T> + Clone + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T> + core::fmt::Debug + Send + Sync,
+    S: Storage<T>
+        + Clone
+        + 'static
+        + storage::StorageFromVec<T>
+        + storage::StorageToDense<T>
+        + core::fmt::Debug
+        + Send
+        + Sync,
     T: DataType,
 {
     // Perform forward pass
@@ -158,7 +163,14 @@ where
 impl<B, S, T> tensor::Function<B, S, T> for CustomFunction<B, S, T>
 where
     B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static,
-    S: Storage<T> + Clone + core::fmt::Debug + Send + Sync + 'static + storage::StorageFromVec<T> + storage::StorageToDense<T>,
+    S: Storage<T>
+        + Clone
+        + core::fmt::Debug
+        + Send
+        + Sync
+        + 'static
+        + storage::StorageFromVec<T>
+        + storage::StorageToDense<T>,
     T: DataType,
 {
     fn inputs(&self) -> &[crate::functions::TensorRef<B, S, T>] {
@@ -175,7 +187,7 @@ where
         let grad_output_converted = tensor::Tensor::from_vec_with_backend(
             grad_data,
             &grad_dims,
-            grad_output.backend().clone()
+            grad_output.backend().clone(),
         )?;
 
         (self.backward_fn)(&grad_output_converted)

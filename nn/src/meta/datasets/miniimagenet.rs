@@ -7,8 +7,8 @@
 use crate::error::{NNError, Result};
 use backend::{Backend, DataType, Storage};
 use dtype::traits::FloatExt;
-use storage::StorageFromVec;
 use rand::Rng;
+use storage::StorageFromVec;
 use tensor::Tensor;
 
 use super::common::*;
@@ -83,10 +83,8 @@ where
         }
 
         // Store as [channels, height, width] = [3, 84, 84]
-        Tensor::from_vec(data, &[3, 84, 84]).map_err(|e| {
-            NNError::InvalidInput {
-                message: format!("Failed to create tensor from image data: {}", e),
-            }
+        Tensor::from_vec(data, &[3, 84, 84]).map_err(|e| NNError::InvalidInput {
+            message: format!("Failed to create tensor from image data: {}", e),
         })
     }
 
@@ -110,8 +108,11 @@ where
                 .map(|j| format!("{}/img_{:04}.jpg", class_name, j))
                 .collect::<Vec<_>>();
 
-            self.class_examples.insert(class_name.clone(), examples.clone());
-            self.base.class_info.insert(class_name, (DatasetSplit::Train, examples));
+            self.class_examples
+                .insert(class_name.clone(), examples.clone());
+            self.base
+                .class_info
+                .insert(class_name, (DatasetSplit::Train, examples));
         }
 
         // Create validation classes
@@ -121,8 +122,11 @@ where
                 .map(|j| format!("{}/img_{:04}.jpg", class_name, j))
                 .collect::<Vec<_>>();
 
-            self.class_examples.insert(class_name.clone(), examples.clone());
-            self.base.class_info.insert(class_name, (DatasetSplit::Validation, examples));
+            self.class_examples
+                .insert(class_name.clone(), examples.clone());
+            self.base
+                .class_info
+                .insert(class_name, (DatasetSplit::Validation, examples));
         }
 
         // Create test classes
@@ -132,8 +136,11 @@ where
                 .map(|j| format!("{}/img_{:04}.jpg", class_name, j))
                 .collect::<Vec<_>>();
 
-            self.class_examples.insert(class_name.clone(), examples.clone());
-            self.base.class_info.insert(class_name, (DatasetSplit::Test, examples));
+            self.class_examples
+                .insert(class_name.clone(), examples.clone());
+            self.base
+                .class_info
+                .insert(class_name, (DatasetSplit::Test, examples));
         }
 
         self.base.loaded = true;
@@ -169,7 +176,7 @@ where
             val_classes: 16,
             test_classes: 20,
             total_examples: 100 * 600,
-            image_size: (84, 84, 3), // RGB images
+            image_size: (84, 84, 3),               // RGB images
             image_mean: vec![0.485, 0.456, 0.406], // ImageNet means
             image_std: vec![0.229, 0.224, 0.225],  // ImageNet stds
         }
@@ -238,7 +245,12 @@ where
             query_set,
             num_classes: n_way,
             num_support_per_class: k_shot,
-            episode_id: format!("miniimagenet_{}_way_{}_shot_{}", n_way, k_shot, rng.gen::<u64>()),
+            episode_id: format!(
+                "miniimagenet_{}_way_{}_shot_{}",
+                n_way,
+                k_shot,
+                rng.gen::<u64>()
+            ),
         })
     }
 }
@@ -253,7 +265,8 @@ mod tests {
     #[test]
     fn test_miniimagenet_dataset_creation() {
         let config = DatasetConfig::default();
-        let dataset = MiniImageNetDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
+        let dataset =
+            MiniImageNetDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
 
         assert!(!dataset.is_loaded());
         assert_eq!(dataset.image_size, (84, 84));
@@ -262,7 +275,8 @@ mod tests {
     #[test]
     fn test_miniimagenet_loading() {
         let config = DatasetConfig::default();
-        let mut dataset = MiniImageNetDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
+        let mut dataset =
+            MiniImageNetDataset::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config);
 
         dataset.load("./data").unwrap();
         assert!(dataset.is_loaded());

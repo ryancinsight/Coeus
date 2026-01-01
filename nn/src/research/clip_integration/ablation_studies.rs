@@ -3,8 +3,8 @@
 //! Systematic ablation studies for CLIP components including
 //! architecture variants, training strategies, and data augmentations.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Ablation study configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,7 +22,7 @@ pub struct AblationStudy {
 }
 
 /// Ablation configuration (subset of training config)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AblationConfig {
     /// Vision encoder configuration
     pub vision_config: VisionAblationConfig,
@@ -173,26 +173,37 @@ impl AblationStudy {
                     name: "vision_encoder".to_string(),
                     description: "Remove vision encoder for text-only CLIP".to_string(),
                     ablation_type: AblationType::Remove,
-                    parameters: HashMap::from([
-                        ("vision_config.architecture".to_string(), AblationValue::String("None".to_string())),
-                    ]),
+                    parameters: HashMap::from([(
+                        "vision_config.architecture".to_string(),
+                        AblationValue::String("None".to_string()),
+                    )]),
                 },
                 AblationComponent {
                     name: "text_encoder".to_string(),
                     description: "Remove text encoder for vision-only CLIP".to_string(),
                     ablation_type: AblationType::Remove,
-                    parameters: HashMap::from([
-                        ("text_config.architecture".to_string(), AblationValue::String("None".to_string())),
-                    ]),
+                    parameters: HashMap::from([(
+                        "text_config.architecture".to_string(),
+                        AblationValue::String("None".to_string()),
+                    )]),
                 },
                 AblationComponent {
                     name: "temperature".to_string(),
                     description: "Ablate temperature parameter".to_string(),
                     ablation_type: AblationType::Modify,
                     parameters: HashMap::from([
-                        ("training_config.temperature".to_string(), AblationValue::Float(1.0)),
-                        ("training_config.temperature".to_string(), AblationValue::Float(0.1)),
-                        ("training_config.temperature".to_string(), AblationValue::Float(10.0)),
+                        (
+                            "training_config.temperature".to_string(),
+                            AblationValue::Float(1.0),
+                        ),
+                        (
+                            "training_config.temperature".to_string(),
+                            AblationValue::Float(0.1),
+                        ),
+                        (
+                            "training_config.temperature".to_string(),
+                            AblationValue::Float(10.0),
+                        ),
                     ]),
                 },
                 AblationComponent {
@@ -200,9 +211,18 @@ impl AblationStudy {
                     description: "Compare different learning rate schedules".to_string(),
                     ablation_type: AblationType::Modify,
                     parameters: HashMap::from([
-                        ("training_config.lr_schedule".to_string(), AblationValue::String("Constant".to_string())),
-                        ("training_config.lr_schedule".to_string(), AblationValue::String("Cosine".to_string())),
-                        ("training_config.lr_schedule".to_string(), AblationValue::String("WarmupCosine".to_string())),
+                        (
+                            "training_config.lr_schedule".to_string(),
+                            AblationValue::String("Constant".to_string()),
+                        ),
+                        (
+                            "training_config.lr_schedule".to_string(),
+                            AblationValue::String("Cosine".to_string()),
+                        ),
+                        (
+                            "training_config.lr_schedule".to_string(),
+                            AblationValue::String("WarmupCosine".to_string()),
+                        ),
                     ]),
                 },
             ],
@@ -228,8 +248,14 @@ impl AblationStudy {
                     description: "Different ViT patch sizes".to_string(),
                     ablation_type: AblationType::Modify,
                     parameters: HashMap::from([
-                        ("vision_config.patch_size".to_string(), AblationValue::Int(16)),
-                        ("vision_config.patch_size".to_string(), AblationValue::Int(32)),
+                        (
+                            "vision_config.patch_size".to_string(),
+                            AblationValue::Int(16),
+                        ),
+                        (
+                            "vision_config.patch_size".to_string(),
+                            AblationValue::Int(32),
+                        ),
                     ]),
                 },
                 AblationComponent {
@@ -237,9 +263,18 @@ impl AblationStudy {
                     description: "Different numbers of ViT layers".to_string(),
                     ablation_type: AblationType::Modify,
                     parameters: HashMap::from([
-                        ("vision_config.num_layers".to_string(), AblationValue::Int(6)),
-                        ("vision_config.num_layers".to_string(), AblationValue::Int(12)),
-                        ("vision_config.num_layers".to_string(), AblationValue::Int(24)),
+                        (
+                            "vision_config.num_layers".to_string(),
+                            AblationValue::Int(6),
+                        ),
+                        (
+                            "vision_config.num_layers".to_string(),
+                            AblationValue::Int(12),
+                        ),
+                        (
+                            "vision_config.num_layers".to_string(),
+                            AblationValue::Int(24),
+                        ),
                     ]),
                 },
                 AblationComponent {
@@ -247,9 +282,18 @@ impl AblationStudy {
                     description: "Different text model sizes".to_string(),
                     ablation_type: AblationType::Modify,
                     parameters: HashMap::from([
-                        ("text_config.hidden_dim".to_string(), AblationValue::Int(256)),
-                        ("text_config.hidden_dim".to_string(), AblationValue::Int(512)),
-                        ("text_config.hidden_dim".to_string(), AblationValue::Int(768)),
+                        (
+                            "text_config.hidden_dim".to_string(),
+                            AblationValue::Int(256),
+                        ),
+                        (
+                            "text_config.hidden_dim".to_string(),
+                            AblationValue::Int(512),
+                        ),
+                        (
+                            "text_config.hidden_dim".to_string(),
+                            AblationValue::Int(768),
+                        ),
                     ]),
                 },
             ],
@@ -259,16 +303,6 @@ impl AblationStudy {
                 "training_time".to_string(),
                 "memory_usage".to_string(),
             ],
-        }
-    }
-}
-
-impl Default for AblationConfig {
-    fn default() -> Self {
-        Self {
-            vision_config: VisionAblationConfig::default(),
-            text_config: TextAblationConfig::default(),
-            training_config: TrainingAblationConfig::default(),
         }
     }
 }
@@ -418,23 +452,14 @@ mod tests {
     #[test]
     fn test_ablation_config_defaults() {
         let config = AblationConfig::default();
-        assert!(matches!(config.vision_config.architecture, VisionArchitecture::ViT));
-        assert!(matches!(config.text_config.architecture, TextArchitecture::Transformer));
+        assert!(matches!(
+            config.vision_config.architecture,
+            VisionArchitecture::ViT
+        ));
+        assert!(matches!(
+            config.text_config.architecture,
+            TextArchitecture::Transformer
+        ));
         assert_eq!(config.training_config.temperature, Some(0.07));
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

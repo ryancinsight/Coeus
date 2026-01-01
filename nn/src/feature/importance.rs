@@ -6,11 +6,12 @@
 use crate::error::{NNError, Result};
 use crate::Module;
 use backend::{Backend, DataType, Storage};
-use storage::{StorageFromVec, StorageToDense};
-use tensor::Tensor;
+use dtype::traits::FloatExt;
 use rand::Rng;
 use rand::SeedableRng;
 use std::collections::HashMap;
+use storage::{StorageFromVec, StorageToDense};
+use tensor::Tensor;
 
 /// Feature importance methods
 #[derive(Debug, Clone)]
@@ -77,7 +78,7 @@ where
     M: Module<B, S, T> + Clone,
     B: Backend<Data = T> + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T>,
-    T: DataType + Clone + Copy + Into<f64>,
+    T: DataType + FloatExt + Clone + Copy + Into<f64>,
 {
     /// Calculate permutation importance
     pub fn permutation_importance(

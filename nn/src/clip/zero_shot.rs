@@ -8,16 +8,16 @@
 //! 2. Encoding both images and text prompts to the same embedding space
 //! 3. Classifying images by finding the most similar text prompt
 
+use super::imagenet_labels::IMAGENET_SIMPLE_LABELS;
+use crate::clip::traits::ClipEncoder;
 use crate::error::{NNError, Result};
+use crate::evaluation::ZeroShotResults;
 use backend::Backend;
 use dtype::{DataType, FloatExt};
-use tensor::Tensor;
-use crate::evaluation::ZeroShotResults;
-use storage::{StorageFromVec, DenseStorage};
-use std::collections::{HashMap, HashSet, BTreeMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-use crate::clip::traits::ClipEncoder;
-use super::imagenet_labels::IMAGENET_SIMPLE_LABELS;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 /// Zero-shot classifier using CLIP
 pub struct ZeroShotClassifier<B, T>
@@ -93,7 +93,14 @@ pub struct BatchClassificationResult {
 impl<B, T> ZeroShotClassifier<B, T>
 where
     B: Backend<Data = T> + Clone + Send + Sync + 'static,
-    T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + num_traits::Float + Send + Sync + 'static,
+    T: DataType
+        + FloatExt
+        + num_traits::FromPrimitive
+        + num_traits::Bounded
+        + num_traits::Float
+        + Send
+        + Sync
+        + 'static,
 {
     /// Create a new zero-shot classifier
     pub fn new(
@@ -163,10 +170,7 @@ where
             let probabilities = self.apply_softmax(&similarities, self.temperature);
 
             // Get top-k results
-            let top_k: Vec<(String, f64)> = similarities.iter()
-                .take(5)
-                .cloned()
-                .collect();
+            let top_k: Vec<(String, f64)> = similarities.iter().take(5).cloned().collect();
 
             let predicted_class = similarities[0].0.clone();
             let confidence = probabilities[&predicted_class];
@@ -201,7 +205,10 @@ where
 
     /// Compute class embeddings from text prompts
     fn compute_class_embeddings(&mut self) -> Result<()> {
-        println!("Computing class embeddings for {} classes...", self.class_names.len());
+        println!(
+            "Computing class embeddings for {} classes...",
+            self.class_names.len()
+        );
 
         let mut all_prompts = Vec::new();
         let mut prompt_to_class = Vec::new();
@@ -216,13 +223,13 @@ where
         }
 
         // Encode all prompts in batches
-        let mut class_embeddings: HashMap<String, Vec<Tensor<B, DenseStorage<T>, T>>> = HashMap::new();
+        let mut class_embeddings: HashMap<String, Vec<Tensor<B, DenseStorage<T>, T>>> =
+            HashMap::new();
 
         for (i, text) in all_prompts.iter().enumerate() {
             let embeddings = self.model.encode_text(&[text.as_str()])?;
             let class_name = &prompt_to_class[i];
-            let existing_emb = class_embeddings.entry(class_name.clone())
-                .or_insert_with(Vec::new);
+            let existing_emb = class_embeddings.entry(class_name.clone()).or_default();
 
             // Store individual template embeddings
             existing_emb.push(embeddings);
@@ -233,13 +240,18 @@ where
             if embeddings.len() > 1usize {
                 // Average across templates
                 let avg_embedding = self.average_embeddings(embeddings)?;
-                self.class_embeddings.insert(class_name.clone(), avg_embedding);
+                self.class_embeddings
+                    .insert(class_name.clone(), avg_embedding);
             } else if let Some(emb) = embeddings.first() {
-                self.class_embeddings.insert(class_name.clone(), emb.clone());
+                self.class_embeddings
+                    .insert(class_name.clone(), emb.clone());
             }
         }
 
-        println!("Computed embeddings for {} classes", self.class_embeddings.len());
+        println!(
+            "Computed embeddings for {} classes",
+            self.class_embeddings.len()
+        );
         Ok(())
     }
 
@@ -252,13 +264,22 @@ where
         let emb1_data = emb1.as_slice();
         let emb2_data = emb2.as_slice();
 
-        let dot_product: f64 = emb1_data.iter()
+        let dot_product: f64 = emb1_data
+            .iter()
             .zip(emb2_data.iter())
             .map(|(&a, &b)| a.to_f64().unwrap_or(0.0) * b.to_f64().unwrap_or(0.0))
             .sum::<f64>();
 
-        let norm1: f64 = emb1_data.iter().map(|&x| x.to_f64().unwrap_or(0.0).powi(2)).sum::<f64>().sqrt();
-        let norm2: f64 = emb2_data.iter().map(|&x| x.to_f64().unwrap_or(0.0).powi(2)).sum::<f64>().sqrt();
+        let norm1: f64 = emb1_data
+            .iter()
+            .map(|&x| x.to_f64().unwrap_or(0.0).powi(2))
+            .sum::<f64>()
+            .sqrt();
+        let norm2: f64 = emb2_data
+            .iter()
+            .map(|&x| x.to_f64().unwrap_or(0.0).powi(2))
+            .sum::<f64>()
+            .sqrt();
 
         if norm1 > 0.0 && norm2 > 0.0 {
             Ok(dot_product / (norm1 * norm2))
@@ -268,7 +289,10 @@ where
     }
 
     /// Average multiple embeddings
-    fn average_embeddings(&self, embeddings: &[Tensor<B, DenseStorage<T>, T>]) -> Result<Tensor<B, DenseStorage<T>, T>> {
+    fn average_embeddings(
+        &self,
+        embeddings: &[Tensor<B, DenseStorage<T>, T>],
+    ) -> Result<Tensor<B, DenseStorage<T>, T>> {
         if embeddings.is_empty() {
             return Err(NNError::InvalidInput {
                 message: "Cannot average empty embedding list".to_string(),
@@ -293,7 +317,8 @@ where
         }
 
         // Convert back to tensor T
-        let avg_t: Vec<T> = avg_data.iter()
+        let avg_t: Vec<T> = avg_data
+            .iter()
             .map(|&x| T::from(x).unwrap_or(T::zero()))
             .collect();
 
@@ -301,21 +326,28 @@ where
     }
 
     /// Apply softmax with temperature
-    fn apply_softmax(&self, similarities: &[(String, f64)], temperature: f64) -> HashMap<String, f64> {
+    fn apply_softmax(
+        &self,
+        similarities: &[(String, f64)],
+        temperature: f64,
+    ) -> HashMap<String, f64> {
         let mut probabilities = HashMap::new();
 
         // Apply temperature scaling
-        let scaled_similarities: Vec<f64> = similarities.iter()
+        let scaled_similarities: Vec<f64> = similarities
+            .iter()
             .map(|(_, sim)| sim / temperature)
             .collect();
 
         // Find max for numerical stability
-        let max_sim = scaled_similarities.iter()
+        let max_sim = scaled_similarities
+            .iter()
             .cloned()
             .fold(f64::NEG_INFINITY, f64::max);
 
         // Compute exponentials
-        let exps: Vec<f64> = scaled_similarities.iter()
+        let exps: Vec<f64> = scaled_similarities
+            .iter()
             .map(|&sim| (sim - max_sim).exp())
             .collect();
 
@@ -349,7 +381,14 @@ pub mod imagenet {
     ) -> Result<ZeroShotResults>
     where
         B: Backend<Data = T> + Clone + Send + Sync + 'static,
-        T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + num_traits::Float + Send + Sync + 'static,
+        T: DataType
+            + FloatExt
+            + num_traits::FromPrimitive
+            + num_traits::Bounded
+            + num_traits::Float
+            + Send
+            + Sync
+            + 'static,
     {
         let class_names = ZeroShotClassifier::<B, T>::imagenet_classes();
         let classifier = ZeroShotClassifier::new(model, &class_names, config)?;
@@ -393,11 +432,16 @@ pub mod imagenet {
         let top1_accuracy = correct_top1 as f64 / total_samples as f64;
         let top5_accuracy = correct_top5 as f64 / total_samples as f64;
 
-        let class_accuracies = class_names.iter()
+        let class_accuracies = class_names
+            .iter()
             .map(|class| {
                 let correct = *class_correct.get(&class[..]).unwrap_or(&0);
                 let total = total_samples / class_names.len();
-                let accuracy = if total > 0 { correct as f64 / total as f64 } else { 0.0 };
+                let accuracy = if total > 0 {
+                    correct as f64 / total as f64
+                } else {
+                    0.0
+                };
                 (class.to_string(), accuracy)
             })
             .collect();
@@ -421,14 +465,17 @@ pub mod imagenet {
 mod tests {
     use super::*;
     use backend::CpuBackend;
-    use storage::DenseStorage;
     use dtype::float::Float32;
+    use storage::DenseStorage;
 
     // Mock CLIP model for testing
     struct MockClipModel;
 
     impl ClipEncoder<CpuBackend<Float32>, Float32> for MockClipModel {
-        fn encode_text(&self, texts: &[&str]) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
+        fn encode_text(
+            &self,
+            texts: &[&str],
+        ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
             let batch_size = texts.len();
             let embed_dim = 4;
             let mut data = Vec::with_capacity(batch_size * embed_dim);
@@ -442,7 +489,11 @@ mod tests {
             Ok(Tensor::from_vec(data, &[batch_size, embed_dim])?)
         }
 
-        fn encode_image(&self, _image_data: &[f32], batch_size: usize) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
+        fn encode_image(
+            &self,
+            _image_data: &[f32],
+            batch_size: usize,
+        ) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
             let embed_dim = 4;
             let mut data = Vec::with_capacity(batch_size * embed_dim);
             for _ in 0..batch_size {

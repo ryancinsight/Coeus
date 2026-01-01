@@ -7,8 +7,7 @@
 //! - Automatic dense/sparse format conversion based on sparsity
 
 use crate::error::{AutogradError, Result};
-extern crate alloc;
-use alloc::{sync::Arc, vec::Vec};
+use std::{sync::Arc, vec::Vec};
 use backend::Backend;
 use dtype::DataType;
 use storage::{Storage, StorageFromVec, StorageToDense};
@@ -26,10 +25,7 @@ where
     T: DataType,
 {
     /// Gradients stored by tensor identity, using COO format for sparsity
-    gradients: std::collections::HashMap<
-        *const (),
-        storage::CooStorage<T>
-    >,
+    gradients: std::collections::HashMap<*const (), storage::CooStorage<T>>,
     /// Backend for tensor operations
     backend: std::marker::PhantomData<B>,
     /// Data type marker
@@ -57,6 +53,7 @@ where
     /// - Current gradient sparsity
     /// - Available memory
     /// - Computational benefits of sparsity
+    #[allow(clippy::missing_errors_doc)]
     pub fn accumulate_sparse<S>(
         &mut self,
         tensor: &tensor::Tensor<B, S, T>,
@@ -82,6 +79,7 @@ where
     }
 
     /// Apply accumulated sparse gradients to tensors
+    #[allow(clippy::missing_errors_doc)]
     pub fn apply_sparse_gradients<S>(&mut self) -> Result<()>
     where
         S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
@@ -110,19 +108,33 @@ where
     where
         S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + crate::AsAny,
     {
-        use storage::{CsrStorage, CscStorage, CooStorage};
+        use storage::{CooStorage, CscStorage, CsrStorage};
 
         // Check if tensor is already in sparse format
-        if let Some(csr) = tensor.storage_ref().as_any().downcast_ref::<CsrStorage<T>>() {
+        if let Some(csr) = tensor
+            .storage_ref()
+            .as_any()
+            .downcast_ref::<CsrStorage<T>>()
+        {
             return Ok(csr.to_coo());
-        } else if let Some(csc) = tensor.storage_ref().as_any().downcast_ref::<CscStorage<T>>() {
+        } else if let Some(csc) = tensor
+            .storage_ref()
+            .as_any()
+            .downcast_ref::<CscStorage<T>>()
+        {
             return Ok(csc.to_coo());
-        } else if let Some(coo) = tensor.storage_ref().as_any().downcast_ref::<CooStorage<T>>() {
+        } else if let Some(coo) = tensor
+            .storage_ref()
+            .as_any()
+            .downcast_ref::<CooStorage<T>>()
+        {
             return Ok(coo.clone());
         }
 
         // Convert dense tensor to COO by extracting non-zero elements
-        let dense = tensor.to_dense_generic().map_err(AutogradError::TensorError)?;
+        let dense = tensor
+            .to_dense_generic()
+            .map_err(AutogradError::TensorError)?;
         let data = dense.as_slice();
         let shape = tensor.shape().dims();
 
@@ -167,7 +179,8 @@ where
             let coord = (new_grad.row_indices()[i], new_grad.col_indices()[i]);
             let new_val = new_grad.as_slice()[i];
 
-            coord_map.entry(coord)
+            coord_map
+                .entry(coord)
                 .and_modify(|existing_val| *existing_val += new_val)
                 .or_insert(new_val);
         }
@@ -188,7 +201,8 @@ where
             new_row_indices,
             new_col_indices,
             existing.shape().dims(),
-        ).map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))?;
+        )
+        .map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))?;
 
         Ok(())
     }
@@ -208,25 +222,25 @@ where
         let storage = if sparsity_ratio > 0.5 && shape.len() == 2 {
             // Use CSR format for very sparse matrices
             let csr = coo.to_csr();
-            S::from_vec(csr.as_slice().to_vec(), shape).map_err(|e| {
-                AutogradError::TensorError(tensor::TensorError::StorageError(e))
-            })?
+            S::from_vec(csr.as_slice().to_vec(), shape)
+                .map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))?
         } else if sparsity_ratio > 0.3 && shape.len() == 2 {
             // Use COO for moderately sparse matrices
-            S::from_vec(coo.as_slice().to_vec(), shape).map_err(|e| {
-                AutogradError::TensorError(tensor::TensorError::StorageError(e))
-            })?
+            S::from_vec(coo.as_slice().to_vec(), shape)
+                .map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))?
         } else {
             // Convert to dense for dense matrices
-            let dense = coo.to_dense().map_err(|e| {
-                AutogradError::TensorError(tensor::TensorError::StorageError(e))
-            })?;
-            S::from_vec(dense.as_slice().to_vec(), shape).map_err(|e| {
-                AutogradError::TensorError(tensor::TensorError::StorageError(e))
-            })?
+            let dense = coo
+                .to_dense()
+                .map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))?;
+            S::from_vec(dense.as_slice().to_vec(), shape)
+                .map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))?
         };
 
-        Ok(tensor::Tensor::from_storage(storage, original_tensor.backend().clone()))
+        Ok(tensor::Tensor::from_storage(
+            storage,
+            original_tensor.backend().clone(),
+        ))
     }
 }
 
@@ -243,8 +257,8 @@ where
 /// Sparse matrix multiplication with GPU acceleration support
 ///
 /// Provides specialized implementations for:
-/// - Sparse-Dense matrix multiplication (SpMM)
-/// - Sparse-Sparse matrix multiplication (SpGEMM)
+/// - Sparse-Dense matrix multiplication (`SpMM`)
+/// - Sparse-Sparse matrix multiplication (`SpGEMM`)
 /// - Automatic format selection based on sparsity patterns
 pub struct SparseMatMul<B, T>
 where
@@ -296,6 +310,7 @@ where
     /// - Sparsity pattern of A
     /// - GPU availability
     /// - Memory constraints
+    #[allow(clippy::missing_errors_doc)]
     pub fn spmm(
         &self,
         a_sparse: &storage::CsrStorage<T>,
@@ -309,10 +324,10 @@ where
         let output_size = a_rows * b_cols;
         let mut output = vec![T::zero(); output_size];
 
-        if self.use_gpu && self.has_gpu_support() {
-            self.spmm_gpu(a_sparse, b_dense, b_cols, &mut output)?;
+        if self.use_gpu && Self::has_gpu_support() {
+            Self::spmm_gpu(a_sparse, b_dense, b_cols, &mut output);
         } else {
-            self.spmm_cpu(a_sparse, b_dense, b_cols, &mut output)?;
+            Self::spmm_cpu(a_sparse, b_dense, b_cols, &mut output);
         }
 
         Ok(output)
@@ -320,12 +335,11 @@ where
 
     /// CPU implementation of sparse-dense matrix multiplication
     fn spmm_cpu(
-        &self,
         a_sparse: &storage::CsrStorage<T>,
         b_dense: &[T],
         b_cols: usize,
         output: &mut [T],
-    ) -> Result<()>
+    )
     where
         T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + Copy,
     {
@@ -355,73 +369,22 @@ where
                 }
             }
         }
-
-        Ok(())
     }
 
     /// GPU implementation of sparse-dense matrix multiplication
     fn spmm_gpu(
-        &self,
         a_sparse: &storage::CsrStorage<T>,
         b_dense: &[T],
         b_cols: usize,
         output: &mut [T],
-    ) -> Result<()> {
-        // For Float32, attempt GPU acceleration
-        if let Some(float_val) = T::from(0.0) {
-            if float_val == T::zero() {
-                // Convert T to f32 for GPU operations
-                // This is a simplified implementation - full generic GPU support
-                // would require more sophisticated type handling
-
-                let gpu_backend: Option<()> = None;
-                // #[cfg(feature = "gpu")]
-                // {
-                //     // In a real implementation, this would initialize GPU backend
-                //     // gpu_backend = runtime::get_gpu_sparse_backend();
-                // }
-
-                if let Some(_gpu) = gpu_backend {
-                    // Prepare data for GPU - convert T to f32
-                    let _csr_data_f32: Vec<f32> = a_sparse.as_slice().iter()
-                        .map(|&x| x.to_f64().unwrap_or(0.0) as f32)
-                        .collect();
-                    let _b_dense_f32: Vec<f32> = b_dense.iter()
-                        .map(|&x| x.to_f64().unwrap_or(0.0) as f32)
-                        .collect();
-
-                    let mut _output_f32: Vec<f32> = vec![0.0; output.len()];
-
-                    // Execute on GPU
-                    // gpu.spmm_gpu(
-                    //     &csr_data_f32,
-                    //     &a_sparse.indices().iter().map(|&x| x as u32).collect::<Vec<_>>(),
-                    //     &a_sparse.indptr().iter().map(|&x| x as u32).collect::<Vec<_>>(),
-                    //     &b_dense_f32,
-                    //     &mut output_f32,
-                    //     a_sparse.shape().dims()[0] as u32,
-                    //     b_cols as u32,
-                    // )?;
-
-                    // Convert back to T
-                    for (i, &val) in _output_f32.iter().enumerate() {
-                        output[i] = T::from(val as f64).unwrap_or(T::zero());
-                    }
-
-                    return Ok(());
-                }
-            }
-        }
-
-        // Fall back to CPU implementation
-        self.spmm_cpu(a_sparse, b_dense, b_cols, output)
+    ) {
+        Self::spmm_cpu(a_sparse, b_dense, b_cols, output);
     }
 
     /// Check if GPU support is available for sparse operations
     #[must_use]
-    fn has_gpu_support(&self) -> bool {
-        // TODO: Check for GPU sparse operation support in WGPU/WebGPU
-        false // Disabled for now
+    fn has_gpu_support() -> bool {
+        false
     }
 
     /// Compute sparse-sparse matrix multiplication (SpGEMM): C = A @ B
@@ -429,6 +392,7 @@ where
     /// Uses efficient sparse algorithms to avoid dense intermediates:
     /// - Gustavson algorithm with hash-based accumulation
     /// - Symbolic and numeric phases for optimal performance
+    #[allow(clippy::missing_errors_doc)]
     pub fn spgemm(
         &self,
         a_sparse: &storage::CsrStorage<T>,
@@ -441,7 +405,8 @@ where
             return Err(AutogradError::InvalidInput {
                 message: format!(
                     "Matrix dimension mismatch: A has {} cols, B has {} rows",
-                    a_sparse.shape().dims()[1], b_sparse.shape().dims()[0]
+                    a_sparse.shape().dims()[1],
+                    b_sparse.shape().dims()[0]
                 ),
             });
         }
@@ -449,16 +414,15 @@ where
         let a_rows = a_sparse.shape().dims()[0];
         let b_cols = b_sparse.shape().dims()[1];
 
-        if self.use_gpu && self.has_gpu_support() {
-            self.spgemm_gpu(a_sparse, b_sparse)
+        if self.use_gpu && Self::has_gpu_support() {
+            Self::spgemm_gpu(a_sparse, b_sparse)
         } else {
-            self.spgemm_cpu(a_sparse, b_sparse, a_rows, b_cols)
+            Self::spgemm_cpu(a_sparse, b_sparse, a_rows, b_cols)
         }
     }
 
     /// CPU implementation of sparse-sparse matrix multiplication
     fn spgemm_cpu(
-        &self,
         a_sparse: &storage::CsrStorage<T>,
         b_sparse: &storage::CsrStorage<T>,
         a_rows: usize,
@@ -497,10 +461,11 @@ where
                     let b_col = b_indices[b_idx];
                     let b_val = b_data[b_idx];
                     let product = a_val * b_val;
-                    
+
                     // println!("a_row={}, a_col={}, b_col={}, prod={:?}", a_row, a_col, b_col, product);
 
-                    col_map.entry(b_col)
+                    col_map
+                        .entry(b_col)
                         .and_modify(|val| *val += product)
                         .or_insert(product);
                 }
@@ -513,25 +478,23 @@ where
         }
 
         // Convert to CSR format
-        self.build_csr_from_row_data(row_data, a_rows, b_cols)
+        Self::build_csr_from_row_data(&row_data, a_rows, b_cols)
     }
 
     /// GPU implementation of sparse-sparse matrix multiplication
     fn spgemm_gpu(
-        &self,
         a_sparse: &storage::CsrStorage<T>,
         b_sparse: &storage::CsrStorage<T>,
     ) -> Result<storage::CsrStorage<T>> {
         // GPU kernel implementation would go here
         let a_rows = a_sparse.shape().dims()[0];
         let b_cols = b_sparse.shape().dims()[1];
-        self.spgemm_cpu(a_sparse, b_sparse, a_rows, b_cols)
+        Self::spgemm_cpu(a_sparse, b_sparse, a_rows, b_cols)
     }
 
     /// Build CSR format from row-major (col, value) data
     fn build_csr_from_row_data(
-        &self,
-        row_data: Vec<Vec<(usize, T)>>,
+        row_data: &[Vec<(usize, T)>],
         rows: usize,
         cols: usize,
     ) -> Result<storage::CsrStorage<T>> {
@@ -541,7 +504,8 @@ where
 
         for row in 0..rows {
             for &(col, val) in &row_data[row] {
-                if !val.is_zero() {  // Only store non-zero values
+                if !val.is_zero() {
+                    // Only store non-zero values
                     csr_data.push(val);
                     indices.push(col);
                 }
@@ -556,10 +520,12 @@ where
 
 /// Sparse gradient utilities for efficient memory usage
 pub mod sparse_utils {
-    use super::*;
+    use super::{DataType, Result};
+    use std::vec::Vec;
 
     /// Determine if a gradient should use sparse format
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn should_use_sparse_format(nnz: usize, total_elements: usize) -> bool {
         let sparsity_ratio = 1.0 - (nnz as f64 / total_elements as f64);
         sparsity_ratio > 0.3 // Use sparse if > 30% zero elements
@@ -567,6 +533,7 @@ pub mod sparse_utils {
 
     /// Estimate memory savings with sparse format
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn estimate_memory_savings(nnz: usize, total_elements: usize) -> f64 {
         let dense_bytes = total_elements * std::mem::size_of::<f32>();
         let sparse_bytes = nnz * std::mem::size_of::<f32>() + // values
@@ -582,6 +549,7 @@ pub mod sparse_utils {
     }
 
     /// Convert dense gradient to optimal sparse format
+    #[allow(clippy::missing_errors_doc)]
     pub fn optimize_gradient_storage<T: DataType>(
         dense_grad: &[T],
         shape: &[usize],
@@ -634,11 +602,13 @@ mod tests {
         // 3x3 sparse matrix: [[1, 0, 2], [0, 0, 0], [0, 3, 4]]
         // Non-zeros: (0,0)=1, (0,2)=2, (2,1)=3, (2,2)=4
         let data = vec![
-            Float32::new(1.0), Float32::new(2.0),
-            Float32::new(3.0), Float32::new(4.0)
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
         ];
         let indices = vec![0, 2, 1, 2]; // column indices
-        let indptr = vec![0, 2, 2, 4];  // row pointers
+        let indptr = vec![0, 2, 2, 4]; // row pointers
         CsrStorage::new(data, indices, indptr, &[3, 3]).unwrap()
     }
 
@@ -653,7 +623,7 @@ mod tests {
     #[test]
     fn test_should_use_sparse_format() {
         // Test sparse format decision logic
-        assert!(sparse_utils::should_use_sparse_format(10, 100));  // 90% sparse
+        assert!(sparse_utils::should_use_sparse_format(10, 100)); // 90% sparse
         assert!(!sparse_utils::should_use_sparse_format(80, 100)); // 20% sparse
     }
 

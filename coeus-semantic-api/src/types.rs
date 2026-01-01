@@ -51,8 +51,7 @@ pub struct ResponseMeta {
 }
 
 /// Service operational status
-#[derive(Debug, Serialize, Deserialize)]
-#[derive(Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ServiceStatus {
     /// Service operational
     #[serde(rename = "operational")]
@@ -87,7 +86,7 @@ pub struct ErrorResponse {
 }
 
 /// Standardized error codes
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ErrorCode {
     /// Invalid request input
     #[serde(rename = "invalid_request")]
@@ -692,19 +691,31 @@ pub struct MetricsResponse {
 }
 
 // Validation defaults
-fn default_top_k() -> usize { 10 }
-fn default_include_scores() -> bool { true }
-fn default_overwrite() -> bool { false }
-fn default_batch_size() -> usize { 32 }
-fn default_benchmark_queries() -> usize { 1000 }
-fn default_num_queries() -> usize { 10 }
+fn default_top_k() -> usize {
+    10
+}
+fn default_include_scores() -> bool {
+    true
+}
+fn default_overwrite() -> bool {
+    false
+}
+fn default_batch_size() -> usize {
+    32
+}
+fn default_benchmark_queries() -> usize {
+    1000
+}
+fn default_num_queries() -> usize {
+    10
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_api_response_serialization() {
+    fn test_api_response_serialization() -> Result<(), serde_json::Error> {
         let meta = ResponseMeta {
             processing_time_ms: 150,
             api_version: "1.0".to_string(),
@@ -712,17 +723,15 @@ mod tests {
             service_status: ServiceStatus::Operational,
         };
 
-        let response = ApiResponse::new(
-            "req-123".to_string(),
-            "test data".to_string(),
-            meta,
-        );
+        let response = ApiResponse::new("req-123".to_string(), "test data".to_string(), meta);
 
-        let json = serde_json::to_string(&response).unwrap();
-        let deserialized: ApiResponse<String> = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&response)?;
+        let deserialized: ApiResponse<String> = serde_json::from_str(&json)?;
 
         assert_eq!(deserialized.request_id, "req-123");
         assert_eq!(deserialized.data, "test data");
+
+        Ok(())
     }
 
     #[test]
@@ -737,11 +746,14 @@ mod tests {
 
         assert_eq!(request.query, "test query");
         assert_eq!(request.top_k, 50);
-        assert_eq!(request.threshold.unwrap(), 0.7);
+        assert!(matches!(
+            request.threshold,
+            Some(threshold) if (threshold - 0.7).abs() < 1e-12
+        ));
     }
 
     #[test]
-    fn test_error_response_serialization() {
+    fn test_error_response_serialization() -> Result<(), serde_json::Error> {
         let error = ErrorResponse {
             error_id: "err-456".to_string(),
             code: ErrorCode::InvalidRequest,
@@ -753,11 +765,12 @@ mod tests {
             retry_after: None,
         };
 
-        let json = serde_json::to_string(&error).unwrap();
-        let deserialized: ErrorResponse = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&error)?;
+        let deserialized: ErrorResponse = serde_json::from_str(&json)?;
 
         assert_eq!(deserialized.code, ErrorCode::InvalidRequest);
         assert_eq!(deserialized.message, "Invalid input provided");
+
+        Ok(())
     }
 }
-

@@ -8,11 +8,11 @@
 //! - Zero Redundancy Optimizer (ZeRO) stages
 //! - Fault tolerance and elastic training
 
+use crate::Result;
+use distributed::process_group::{ProcessGroup as RuntimeProcessGroup, Rank, WorldSize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::Result;
-use distributed::process_group::{ProcessGroup as RuntimeProcessGroup, Rank, WorldSize};
 
 /// Global distributed training coordinator
 #[derive(Debug)]
@@ -83,9 +83,9 @@ impl DistributedCoordinator {
     /// Record a synchronization event to update statistics
     pub async fn record_sync(&self, duration_ms: f64) {
         let mut state = self.state.write().await;
-        
+
         state.sync_stats.total_sync_ops += 1;
-        
+
         if state.sync_stats.total_sync_ops == 1 {
             state.sync_stats.min_sync_time_ms = duration_ms;
             state.sync_stats.max_sync_time_ms = duration_ms;
@@ -97,10 +97,10 @@ impl DistributedCoordinator {
             if duration_ms > state.sync_stats.max_sync_time_ms {
                 state.sync_stats.max_sync_time_ms = duration_ms;
             }
-            
+
             // Cumulative moving average
             let n = state.sync_stats.total_sync_ops as f64;
-            state.sync_stats.average_sync_time_ms = 
+            state.sync_stats.average_sync_time_ms =
                 (state.sync_stats.average_sync_time_ms * (n - 1.0) + duration_ms) / n;
         }
     }
@@ -110,16 +110,25 @@ impl DistributedCoordinator {
     /// This averages gradients across all ranks using the configured backend.
     pub async fn all_reduce(&self, gradients: &mut [f32]) -> Result<()> {
         let start = std::time::Instant::now();
-        
+
         // Ensure initialized
-        self.runtime_pg.initialize().await.map_err(|e| crate::error::NNError::Network { message: e.to_string() })?;
-        
+        self.runtime_pg
+            .initialize()
+            .await
+            .map_err(|e| crate::error::NNError::Network {
+                message: e.to_string(),
+            })?;
+
         // Perform all-reduce
-        self.runtime_pg.all_reduce(gradients).await.map_err(|e| crate::error::NNError::Network { message: e.to_string() })?;
-        
+        self.runtime_pg.all_reduce(gradients).await.map_err(|e| {
+            crate::error::NNError::Network {
+                message: e.to_string(),
+            }
+        })?;
+
         let duration = start.elapsed().as_secs_f64() * 1000.0;
         self.record_sync(duration).await;
-        
+
         Ok(())
     }
 }
@@ -311,11 +320,7 @@ pub struct DataParallel {
 
 impl DataParallel {
     /// Create new data parallel training
-    pub fn new(
-        rank: usize,
-        world_size: usize,
-        process_group: Arc<ProcessGroup>,
-    ) -> Self {
+    pub fn new(rank: usize, world_size: usize, process_group: Arc<ProcessGroup>) -> Self {
         Self {
             world_size,
             rank,
@@ -386,7 +391,8 @@ impl DataParallel {
         // This would implement all_reduce or reduce_scatter
 
         // Normalize by world size for averaging
-        let averaged: Vec<f32> = gradients.iter()
+        let averaged: Vec<f32> = gradients
+            .iter()
             .map(|g| g / self.world_size as f32)
             .collect();
 
@@ -409,7 +415,8 @@ impl DataParallel {
 
     fn compute_global_norm(&self, gradients: &[f32]) -> f64 {
         // Compute global L2 norm of gradients
-        gradients.iter()
+        gradients
+            .iter()
             .map(|g| *g as f64 * *g as f64)
             .sum::<f64>()
             .sqrt()
@@ -469,7 +476,11 @@ impl TensorParallel {
     }
 
     /// Split tensor across devices for column parallelism
-    pub async fn column_parallel_forward(&self, input: &[f32], _layer_name: &str) -> Result<Vec<f32>> {
+    pub async fn column_parallel_forward(
+        &self,
+        input: &[f32],
+        _layer_name: &str,
+    ) -> Result<Vec<f32>> {
         // Column parallel: split output dimension across devices
         // Each device processes 1/tensor_parallel_degree of the output features
         let split_size = input.len() / self.tensor_parallel_degree;
@@ -491,7 +502,8 @@ impl TensorParallel {
     /// Reduce scatter gradients for backward pass
     pub async fn reduce_scatter_grads(&self, grads: &[f32]) -> Result<Vec<f32>> {
         // Reduce gradients across devices
-        let reduced_grads = grads.iter()
+        let reduced_grads = grads
+            .iter()
             .map(|g| g / self.tensor_parallel_degree as f32)
             .collect();
 
@@ -592,13 +604,21 @@ impl PipelineParallel {
             .collect()
     }
 
-    async fn execute_pipeline_stage(&self, input: &[f32], _micro_batch_idx: usize) -> Result<Vec<f32>> {
+    async fn execute_pipeline_stage(
+        &self,
+        input: &[f32],
+        _micro_batch_idx: usize,
+    ) -> Result<Vec<f32>> {
         // Execute this pipeline stage
         // Would involve communication with previous/next stages
         Ok(input.to_vec()) // Placeholder
     }
 
-    async fn backward_pipeline_stage(&self, grad_output: &[f32], _micro_batch_idx: usize) -> Result<Vec<f32>> {
+    async fn backward_pipeline_stage(
+        &self,
+        grad_output: &[f32],
+        _micro_batch_idx: usize,
+    ) -> Result<Vec<f32>> {
         // Backward pass for this pipeline stage
         Ok(grad_output.to_vec()) // Placeholder
     }
@@ -776,7 +796,10 @@ impl ZeroOptimizer {
     }
 
     /// Partition optimizer state for ZeRO
-    pub async fn partition_optimizer_state(&mut self, state: &mut HashMap<String, Vec<f32>>) -> Result<()> {
+    pub async fn partition_optimizer_state(
+        &mut self,
+        state: &mut HashMap<String, Vec<f32>>,
+    ) -> Result<()> {
         for (_param_name, param_state) in state.iter_mut() {
             // Partition optimizer state across ranks
             let shard_size = param_state.len() / self.state_sharding.num_partitions;
@@ -879,7 +902,7 @@ mod tests {
     #[tokio::test]
     async fn test_sync_statistics_tracking() {
         let coordinator = DistributedCoordinator::new(0, 4, "127.0.0.1".to_string(), 8000);
-        
+
         // Initial state
         {
             let state = coordinator.state.read().await;
@@ -910,4 +933,3 @@ mod tests {
         }
     }
 }
-

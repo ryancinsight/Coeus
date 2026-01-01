@@ -3,11 +3,11 @@
 //! This example demonstrates how to use MAML for few-shot learning on regression tasks.
 //! MAML learns model parameters that can be quickly adapted to new tasks with just a few examples.
 
-use nn::{MAML, Linear};
 use backend::CpuBackend;
-use storage::DenseStorage;
 use dtype::float::Float32;
+use nn::{Linear, MAML};
 use rand::Rng;
+use storage::DenseStorage;
 
 /// Sine wave regression task generator
 struct SineTaskGenerator {
@@ -78,25 +78,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create base model (simple 2-layer MLP)
     let base_model = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(1, 1)?;
 
-    println!("Base model: {} -> {}", base_model.in_features, base_model.out_features);
+    println!(
+        "Base model: {} -> {}",
+        base_model.in_features, base_model.out_features
+    );
 
     // Create task generator for sine wave regression tasks
     let task_generator = SineTaskGenerator::new((0.1, 5.0), (0.0, std::f64::consts::PI));
 
     // Set up MAML with reasonable hyperparameters
     let mut maml = MAML::new(base_model)
-        .with_inner_lr(0.01)  // Inner loop learning rate
+        .with_inner_lr(0.01) // Inner loop learning rate
         .with_outer_lr(0.001) // Outer loop learning rate
-        .with_inner_steps(5)  // Adaptation steps per task
+        .with_inner_steps(5) // Adaptation steps per task
         .with_first_order(true); // Use first-order approximation
 
     // Configure task distribution
     maml = maml.with_task_distribution(move || {
-        task_generator.generate_task().map_err(|e| {
-            crate::error::NNError::InvalidConfiguration {
+        task_generator
+            .generate_task()
+            .map_err(|e| crate::error::NNError::InvalidConfiguration {
                 message: format!("Task generation failed: {}", e),
-            }
-        })
+            })
     });
 
     println!("\nStarting meta-training...");
@@ -113,26 +116,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Generate a new task for testing
     let test_task = task_generator.generate_task()?;
-    println!("Test task: {} support examples, {} query examples",
-             test_task.support_set.len(), test_task.query_set.len());
+    println!(
+        "Test task: {} support examples, {} query examples",
+        test_task.support_set.len(),
+        test_task.query_set.len()
+    );
 
     // Adapt to the new task
     let adapted_model = maml.adapt_for_inference(
-        &test_task.support_set.iter()
+        &test_task
+            .support_set
+            .iter()
             .map(|(x, y)| {
                 (
-                    tensor::Tensor::from_vec(
-                        vec![Float32::from(*x)],
-                        &[1]
-                    ).unwrap(),
-                    tensor::Tensor::from_vec(
-                        vec![Float32::from(*y)],
-                        &[1]
-                    ).unwrap(),
+                    tensor::Tensor::from_vec(vec![Float32::from(*x)], &[1]).unwrap(),
+                    tensor::Tensor::from_vec(vec![Float32::from(*y)], &[1]).unwrap(),
                 )
             })
             .collect::<Vec<_>>(),
-        Some(10) // 10 adaptation steps
+        Some(10), // 10 adaptation steps
     )?;
 
     // Evaluate on query set
@@ -149,13 +151,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Calculate MSE
-    let mse: f64 = predictions.iter().zip(targets.iter())
+    let mse: f64 = predictions
+        .iter()
+        .zip(targets.iter())
         .map(|(pred, target)| (pred - target).powi(2))
-        .sum::<f64>() / predictions.len() as f64;
+        .sum::<f64>()
+        / predictions.len() as f64;
 
     println!("Few-shot adaptation MSE: {:.6}", mse);
     println!("✅ Meta-learning example completed successfully!");
 
     Ok(())
 }
-

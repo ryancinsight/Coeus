@@ -12,7 +12,9 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use audio::{Fft, GpuFft};
+//! use audio::Fft;
+//! #[cfg(feature = "gpu")]
+//! use audio::GpuFft;
 //!
 //! // CPU FFT processing
 //! let mut fft = Fft::new(1024).unwrap();
@@ -20,11 +22,13 @@
 //! // GPU FFT processing (async)
 //! #[cfg(feature = "gpu")]
 //! {
-//!     let backend = std::sync::Arc::new(backend::gpu::GpuBackend::new().await.unwrap());
+//!     let backend = std::sync::Arc::new(
+//!         futures::executor::block_on(backend::gpu::GpuBackend::new()).unwrap(),
+//!     );
 //!     let gpu_fft = GpuFft::new(backend, 1024).unwrap();
 //!
 //!     let input = vec![0.0; 1024]; // Your audio samples
-//!     let result = gpu_fft.forward_real(&input).await.unwrap();
+//!     let _result = futures::executor::block_on(gpu_fft.forward_real(&input)).unwrap();
 //! }
 //! ```
 

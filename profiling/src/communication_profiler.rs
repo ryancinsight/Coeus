@@ -1,7 +1,8 @@
 //! Communication performance profiling for distributed training
 
-use crate::*;
 use std::collections::HashMap;
+
+use crate::{format, Duration, Instant, String, Vec};
 
 /// Communication profiler for distributed training performance analysis
 #[derive(Debug)]
@@ -100,7 +101,11 @@ impl CommunicationProfiler {
         }
 
         self.stats.total_operations = self.operations.len();
-        self.stats.total_data_bytes = self.operations.iter().map(|op| op.data_size_bytes as u64).sum();
+        self.stats.total_data_bytes = self
+            .operations
+            .iter()
+            .map(|op| op.data_size_bytes as u64)
+            .sum();
         self.stats.total_time = self.operations.iter().map(|op| op.duration).sum();
 
         // Calculate bandwidths
@@ -110,7 +115,8 @@ impl CommunicationProfiler {
             self.stats.avg_bandwidth_gbps = total_data_gb / total_time_sec;
 
             // Peak bandwidth (fastest single operation)
-            self.stats.peak_bandwidth_gbps = self.operations
+            self.stats.peak_bandwidth_gbps = self
+                .operations
                 .iter()
                 .filter_map(|op| {
                     if op.duration > Duration::ZERO {
@@ -125,10 +131,14 @@ impl CommunicationProfiler {
         }
 
         // Average latency
-        let total_latency_us: f64 = self.operations.iter()
-            .map(|op| op.duration.as_micros() as f64)
+        let total_latency_us: f64 = self
+            .operations
+            .iter()
+            .map(|op| op.duration.as_secs_f64() * 1_000_000.0)
             .sum();
-        self.stats.avg_latency_us = total_latency_us / self.operations.len() as f64;
+        #[allow(clippy::cast_precision_loss)]
+        let denom = self.operations.len() as f64;
+        self.stats.avg_latency_us = total_latency_us / denom;
 
         // Efficiency (overall bandwidth)
         self.stats.efficiency_gbps = self.stats.avg_bandwidth_gbps;
@@ -168,11 +178,12 @@ impl CommunicationReport {
 
             // Calculate bandwidth for this operation
             if op.duration > Duration::ZERO {
+                #[allow(clippy::cast_precision_loss)]
                 let data_gb = op.data_size_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
                 let time_sec = op.duration.as_secs_f64();
                 let bandwidth = data_gb / time_sec;
                 let entry = bandwidth_by_type.entry(op.name.clone()).or_insert(0.0);
-                *entry = (*entry + bandwidth) / 2.0; // Running average
+                *entry = (*entry + bandwidth) * 0.5;
             }
 
             // Track bottlenecks (operations taking > 10ms)
@@ -206,7 +217,7 @@ impl CommunicationReport {
         if let Some(count) = operations_by_type.get("all_reduce") {
             if *count > 100 {
                 recommendations.push(
-                    "High frequency all_reduce operations detected. Consider gradient accumulation to reduce communication overhead.".to_string()
+                    String::from("High frequency all_reduce operations detected. Consider gradient accumulation to reduce communication overhead.")
                 );
             }
         }
@@ -221,7 +232,7 @@ impl CommunicationReport {
         // General recommendations
         if operations_by_type.values().sum::<usize>() > 1000 {
             recommendations.push(
-                "High communication frequency detected. Consider model/data parallelism adjustments.".to_string()
+                String::from("High communication frequency detected. Consider model/data parallelism adjustments.")
             );
         }
 
@@ -231,28 +242,33 @@ impl CommunicationReport {
     /// Generate human-readable report
     #[must_use]
     pub fn summary(&self) -> String {
-        let mut summary = "# Communication Performance Report\n\n".to_string();
+        use core::fmt::Write;
+
+        let mut summary = String::from("# Communication Performance Report\n\n");
 
         summary.push_str("## Operations by Type\n");
         for (op_type, count) in &self.operations_by_type {
             if let Some(bandwidth) = self.bandwidth_by_type.get(op_type) {
-                summary.push_str(&format!("- {}: {} operations, {:.2} GB/s avg bandwidth\n", op_type, count, bandwidth));
+                let _ = writeln!(
+                    &mut summary,
+                    "- {op_type}: {count} operations, {bandwidth:.2} GB/s avg bandwidth"
+                );
             } else {
-                summary.push_str(&format!("- {}: {} operations\n", op_type, count));
+                let _ = writeln!(&mut summary, "- {op_type}: {count} operations");
             }
         }
 
         if !self.bottlenecks.is_empty() {
             summary.push_str("\n## Performance Bottlenecks\n");
             for (op_name, duration) in self.bottlenecks.iter().take(5) {
-                summary.push_str(&format!("- {}: {:.2}ms\n", op_name, duration.as_millis()));
+                let _ = writeln!(&mut summary, "- {op_name}: {:.2}ms", duration.as_millis());
             }
         }
 
         if !self.recommendations.is_empty() {
             summary.push_str("\n## Optimization Recommendations\n");
             for recommendation in &self.recommendations {
-                summary.push_str(&format!("- {}\n", recommendation));
+                let _ = writeln!(&mut summary, "- {recommendation}");
             }
         }
 

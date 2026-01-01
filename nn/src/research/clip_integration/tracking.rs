@@ -3,10 +3,10 @@
 //! Specialized tracking for CLIP experiments including
 //! hyperparameters, metrics, artifacts, and reproducibility data.
 
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 /// CLIP experiment tracking data
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -246,7 +246,14 @@ impl ClipExperimentTracker {
     }
 
     /// Log training metrics
-    pub fn log_training_metrics(&mut self, epoch: usize, step: usize, loss: f64, lr: f64, grad_norm: Option<f64>) {
+    pub fn log_training_metrics(
+        &mut self,
+        epoch: usize,
+        step: usize,
+        loss: f64,
+        lr: f64,
+        grad_norm: Option<f64>,
+    ) {
         let entry = TrainingMetricsEntry {
             epoch,
             step,
@@ -275,10 +282,14 @@ impl ClipExperimentTracker {
     }
 
     /// Add artifact
-    pub fn add_artifact(&mut self, name: String, artifact_type: ArtifactType, path: PathBuf, description: String) {
-        let size_bytes = std::fs::metadata(&path)
-            .map(|m| m.len())
-            .unwrap_or(0);
+    pub fn add_artifact(
+        &mut self,
+        name: String,
+        artifact_type: ArtifactType,
+        path: PathBuf,
+        description: String,
+    ) {
+        let size_bytes = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
 
         let artifact = ExperimentArtifact {
             name,
@@ -294,7 +305,9 @@ impl ClipExperimentTracker {
 
     /// Save tracking data to file
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let tracking_file = self.output_dir.join(format!("{}_tracking.json", self.experiment_id));
+        let tracking_file = self
+            .output_dir
+            .join(format!("{}_tracking.json", self.experiment_id));
         let json = serde_json::to_string_pretty(&self.tracking_data)?;
         std::fs::write(tracking_file, json)?;
         Ok(())
@@ -319,7 +332,10 @@ impl ClipExperimentTracker {
             summary.insert("r1_t2i".to_string(), latest.clip_metrics.t2i_retrieval.r1);
             summary.insert("r5_t2i".to_string(), latest.clip_metrics.t2i_retrieval.r5);
             summary.insert("r10_t2i".to_string(), latest.clip_metrics.t2i_retrieval.r10);
-            summary.insert("zero_shot_accuracy".to_string(), latest.clip_metrics.zero_shot_accuracy);
+            summary.insert(
+                "zero_shot_accuracy".to_string(),
+                latest.clip_metrics.zero_shot_accuracy,
+            );
         }
 
         summary
@@ -343,15 +359,19 @@ mod tests {
         );
 
         assert_eq!(tracker.experiment_id, "test_experiment");
-        assert_eq!(tracker.tracking_data.clip_hyperparameters.training_params.temperature, 0.07);
+        assert_eq!(
+            tracker
+                .tracking_data
+                .clip_hyperparameters
+                .training_params
+                .temperature,
+            0.07
+        );
     }
 
     #[test]
     fn test_log_training_metrics() {
-        let mut tracker = ClipExperimentTracker::new(
-            "test".to_string(),
-            PathBuf::from("./test"),
-        );
+        let mut tracker = ClipExperimentTracker::new("test".to_string(), PathBuf::from("./test"));
 
         tracker.log_training_metrics(1, 100, 2.5, 0.001, Some(1.2));
 
@@ -366,10 +386,7 @@ mod tests {
 
     #[test]
     fn test_metrics_summary() {
-        let mut tracker = ClipExperimentTracker::new(
-            "test".to_string(),
-            PathBuf::from("./test"),
-        );
+        let mut tracker = ClipExperimentTracker::new("test".to_string(), PathBuf::from("./test"));
 
         // Add some metrics
         tracker.log_training_metrics(1, 100, 2.5, 0.001, None);
@@ -425,18 +442,3 @@ mod tests {
         assert_eq!(metrics.mean_rank, 3.5);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

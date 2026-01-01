@@ -3,26 +3,25 @@
 //! Main transformer implementation that orchestrates multimodal processing
 //! across different input modalities with configurable fusion strategies.
 
-use std::collections::HashMap;
-use crate::error::{NNError, Result};
-use crate::attention::MultiHeadAttention;
-use crate::linear::Linear;
-use crate::layernorm::LayerNorm;
-use crate::activation::GeLU;
-use crate::functional::linear;
-use crate::module::ModuleExt;
-use tensor::Tensor;
-use backend::Backend;
-use storage::{Storage, StorageFromVec, StorageToDense};
-use autograd::ops::mean;
-use tensor::ops::concatenate_tensors;
-use dtype::DataType;
-use dtype::traits::FloatExt;
-use super::modality::{Modality, ModalityConfig};
 use super::attention::CrossModalAttention;
-use super::fusion::{FusionStrategy, Fusion, FusionBlock, FeedForward};
 use super::encoder::Encoder;
+use super::fusion::{FeedForward, Fusion, FusionBlock, FusionStrategy};
+use super::modality::{Modality, ModalityConfig};
 use super::task::Task;
+use crate::activation::GeLU;
+use crate::attention::MultiHeadAttention;
+use crate::error::{NNError, Result};
+use crate::functional::linear;
+use crate::layernorm::LayerNorm;
+use crate::linear::Linear;
+use crate::module::ModuleExt;
+use autograd::ops::mean;
+use backend::Backend;
+use dtype::DataType;
+use std::collections::HashMap;
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::ops::concatenate_tensors;
+use tensor::Tensor;
 
 /// Multimodal transformer for joint processing of multiple modalities
 ///
@@ -136,7 +135,10 @@ where
         }
 
         // Create fusion layer
-        let fusion = Some(Fusion::new(config.hidden_dim, config.fusion_strategy.clone())?);
+        let fusion = Some(Fusion::new(
+            config.hidden_dim,
+            config.fusion_strategy.clone(),
+        )?);
 
         Ok(Self {
             encoders,
@@ -152,9 +154,9 @@ where
         ModalityConfig {
             modality: modality.clone(),
             input_dim: match modality {
-                Modality::Vision => 2048,    // CLIP vision features
-                Modality::Language => 768,   // BERT embeddings
-                Modality::Audio => 1024,     // Audio features
+                Modality::Vision => 2048,  // CLIP vision features
+                Modality::Language => 768, // BERT embeddings
+                Modality::Audio => 1024,   // Audio features
                 Modality::Custom(_) => config.hidden_dim,
             },
             hidden_dim: config.hidden_dim,
@@ -174,10 +176,10 @@ where
         match config.fusion_strategy {
             FusionStrategy::HierarchicalFusion => {
                 Self::create_hierarchical_attention(config, cross_attention)
-            },
+            }
             FusionStrategy::AttentionFusion | FusionStrategy::CrossModalFusion => {
                 Self::create_all_to_all_attention(config, cross_attention)
-            },
+            }
             _ => Ok(()), // Early/Late fusion handled elsewhere
         }
     }
@@ -213,12 +215,8 @@ where
         for (i, query_mod) in config.modalities.iter().enumerate() {
             let mut kv_mods = config.modalities.clone();
             kv_mods.remove(i); // Remove self
-            let cross_attn = CrossModalAttention::new(
-                config.hidden_dim,
-                12,
-                query_mod.clone(),
-                kv_mods,
-            )?;
+            let cross_attn =
+                CrossModalAttention::new(config.hidden_dim, 12, query_mod.clone(), kv_mods)?;
             cross_attention.push(cross_attn);
         }
         Ok(())
@@ -235,7 +233,7 @@ where
         for modality in &config.modalities {
             intra_attention.insert(
                 modality.clone(),
-                MultiHeadAttention::new(config.hidden_dim, 12)?
+                MultiHeadAttention::new(config.hidden_dim, 12)?,
             );
 
             feed_forward.insert(
@@ -245,7 +243,7 @@ where
                     linear2: Linear::new(config.hidden_dim * 4, config.hidden_dim)?,
                     gelu: GeLU::new(),
                     dropout: config.dropout,
-                }
+                },
             );
         }
 
@@ -256,15 +254,15 @@ where
         for modality in &config.modalities {
             norms.insert(
                 format!("{}_intra", modality.as_str()),
-                LayerNorm::new(vec![config.hidden_dim], 1e-6)
+                LayerNorm::new(vec![config.hidden_dim], 1e-6),
             );
             norms.insert(
                 format!("{}_cross", modality.as_str()),
-                LayerNorm::new(vec![config.hidden_dim], 1e-6)
+                LayerNorm::new(vec![config.hidden_dim], 1e-6),
             );
             norms.insert(
                 format!("{}_ff", modality.as_str()),
-                LayerNorm::new(vec![config.hidden_dim], 1e-6)
+                LayerNorm::new(vec![config.hidden_dim], 1e-6),
             );
         }
 
@@ -300,7 +298,7 @@ where
 
         if modality_embeddings.is_empty() {
             return Err(NNError::InvalidInput {
-                message: "No valid modality inputs provided".into()
+                message: "No valid modality inputs provided".into(),
             });
         }
 
@@ -318,28 +316,42 @@ where
                     let combined_embedding = self.combine_modality_embeddings(&fused_embeddings)?;
                     // Global average pooling across sequence dimension
                     let pooled = mean(&combined_embedding, Some(&[1]), false)?;
-                    linear(&pooled, &head.classifier.weight.data, Some(&head.classifier.bias.data))?
-                },
+                    linear(
+                        &pooled,
+                        &head.classifier.weight.data,
+                        Some(&head.classifier.bias.data),
+                    )?
+                }
                 Task::Regression(head) => {
                     // For regression, combine all modality representations
                     let combined_embedding = self.combine_modality_embeddings(&fused_embeddings)?;
                     let pooled = mean(&combined_embedding, Some(&[1]), false)?;
                     linear(&pooled, &head.weight.data, Some(&head.bias.data))?
-                },
+                }
                 Task::Generation(head) => {
                     // For generation, use the primary modality (language if available, otherwise first)
                     let primary_embedding = self.select_primary_modality(&fused_embeddings)?;
-                    linear(&primary_embedding, &head.lm_head.weight.data, Some(&head.lm_head.bias.data))?
-                },
+                    linear(
+                        &primary_embedding,
+                        &head.lm_head.weight.data,
+                        Some(&head.lm_head.bias.data),
+                    )?
+                }
                 Task::Retrieval(head) => {
                     // For retrieval, combine all modality representations
                     let combined_embedding = self.combine_modality_embeddings(&fused_embeddings)?;
                     let pooled = mean(&combined_embedding, Some(&[1]), false)?;
-                    linear(&pooled, &head.projection.weight.data, Some(&head.projection.bias.data))?
-                },
+                    linear(
+                        &pooled,
+                        &head.projection.weight.data,
+                        Some(&head.projection.bias.data),
+                    )?
+                }
             })
         } else {
-            Err(NNError::InvalidConfiguration { message: format!("Task head '{}' not found", task) })
+            Err(NNError::InvalidConfiguration {
+                message: format!("Task head '{}' not found", task),
+            })
         }
     }
 
@@ -377,10 +389,13 @@ where
     }
 
     /// Combine embeddings from multiple modalities into a single representation
-    fn combine_modality_embeddings(&self, embeddings: &HashMap<Modality, Tensor<B, S, T>>) -> Result<Tensor<B, S, T>> {
+    fn combine_modality_embeddings(
+        &self,
+        embeddings: &HashMap<Modality, Tensor<B, S, T>>,
+    ) -> Result<Tensor<B, S, T>> {
         if embeddings.is_empty() {
             return Err(NNError::InvalidInput {
-                message: "No modality embeddings to combine".into()
+                message: "No modality embeddings to combine".into(),
             });
         }
 
@@ -398,7 +413,7 @@ where
                     embedding_list.push(embedding.clone());
                 }
                 Ok(concatenate_tensors(&embedding_list, 2)?) // Concat along hidden dim
-            },
+            }
             FusionStrategy::LateFusion | FusionStrategy::AttentionFusion => {
                 // Average pooling across modalities
                 let mut combined = embeddings.values().next().unwrap().clone();
@@ -408,25 +423,30 @@ where
                 // Average by dividing by number of modalities
                 let scale = num_traits::cast(1.0 / embeddings.len() as f64).unwrap();
                 Ok(tensor::ops::arithmetic::scalar_mul(&combined, scale)?)
-            },
+            }
             FusionStrategy::CrossModalFusion => {
                 // Use the first embedding as primary representation
                 Ok(embeddings.values().next().unwrap().clone())
-            },
+            }
         }
     }
 
     /// Select the primary modality for generation tasks
-    fn select_primary_modality(&self, embeddings: &HashMap<Modality, Tensor<B, S, T>>) -> Result<Tensor<B, S, T>> {
+    fn select_primary_modality(
+        &self,
+        embeddings: &HashMap<Modality, Tensor<B, S, T>>,
+    ) -> Result<Tensor<B, S, T>> {
         // Prefer language modality for generation, otherwise use first available
         if let Some(language_embedding) = embeddings.get(&Modality::Language) {
             Ok(language_embedding.clone())
         } else {
-            embeddings.values().next()
+            embeddings
+                .values()
+                .next()
                 .ok_or_else(|| NNError::InvalidInput {
-                    message: "No modality embeddings available".into()
+                    message: "No modality embeddings available".into(),
                 })
-                .map(|tensor| tensor.clone())
+                .cloned()
         }
     }
 }
@@ -435,13 +455,16 @@ where
 mod tests {
     use super::*;
     use backend::CpuBackend;
-    use storage::DenseStorage;
     use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_multimodal_config_default() {
         let config = MultimodalConfig::default();
-        assert_eq!(config.modalities, vec![Modality::Vision, Modality::Language]);
+        assert_eq!(
+            config.modalities,
+            vec![Modality::Vision, Modality::Language]
+        );
         assert_eq!(config.hidden_dim, 768);
         assert_eq!(config.num_fusion_layers, 6);
         assert_eq!(config.dropout, 0.1);
@@ -457,7 +480,11 @@ mod tests {
             dropout: 0.1,
         };
 
-        let transformer = MultimodalTransformer::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config).unwrap();
+        let transformer =
+            MultimodalTransformer::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                config,
+            )
+            .unwrap();
         assert_eq!(transformer.config.modalities.len(), 2);
         assert_eq!(transformer.config.hidden_dim, 768);
         assert_eq!(transformer.fusion_layers.len(), 6);
@@ -475,14 +502,21 @@ mod tests {
             dropout: 0.1,
         };
 
-        let transformer = MultimodalTransformer::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config).unwrap();
+        let transformer =
+            MultimodalTransformer::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                config,
+            )
+            .unwrap();
 
         // Create test embeddings
         let mut embeddings = HashMap::new();
-        let vision_tensor = Tensor::from_vec(vec![Float32::new(1.0); 768], &[1, 10, 768]).unwrap();
+        let vision_tensor =
+            Tensor::from_vec(vec![Float32::new(1.0); 10 * 768], &[1, 10, 768]).unwrap();
         embeddings.insert(Modality::Vision, vision_tensor);
 
-        let combined = transformer.combine_modality_embeddings(&embeddings).unwrap();
+        let combined = transformer
+            .combine_modality_embeddings(&embeddings)
+            .unwrap();
         assert_eq!(combined.shape().dims(), &[1, 10, 768]);
     }
 
@@ -496,12 +530,18 @@ mod tests {
             dropout: 0.1,
         };
 
-        let transformer = MultimodalTransformer::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config).unwrap();
+        let transformer =
+            MultimodalTransformer::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                config,
+            )
+            .unwrap();
 
         // Create test embeddings
         let mut embeddings = HashMap::new();
-        let vision_tensor = Tensor::from_vec(vec![Float32::new(1.0); 768], &[1, 10, 768]).unwrap();
-        let language_tensor = Tensor::from_vec(vec![Float32::new(2.0); 768], &[1, 10, 768]).unwrap();
+        let vision_tensor =
+            Tensor::from_vec(vec![Float32::new(1.0); 10 * 768], &[1, 10, 768]).unwrap();
+        let language_tensor =
+            Tensor::from_vec(vec![Float32::new(2.0); 10 * 768], &[1, 10, 768]).unwrap();
         embeddings.insert(Modality::Vision, vision_tensor);
         embeddings.insert(Modality::Language, language_tensor);
 
@@ -523,11 +563,16 @@ mod tests {
             dropout: 0.1,
         };
 
-        let transformer = MultimodalTransformer::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(config).unwrap();
+        let transformer =
+            MultimodalTransformer::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                config,
+            )
+            .unwrap();
 
         // Create test embeddings with only vision
         let mut embeddings = HashMap::new();
-        let vision_tensor = Tensor::from_vec(vec![Float32::new(1.0); 768], &[1, 10, 768]).unwrap();
+        let vision_tensor =
+            Tensor::from_vec(vec![Float32::new(1.0); 10 * 768], &[1, 10, 768]).unwrap();
         embeddings.insert(Modality::Vision, vision_tensor);
 
         let primary = transformer.select_primary_modality(&embeddings).unwrap();

@@ -62,10 +62,13 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use crate::error::{NNError, Result};
-use crate::hpo::{HPOptimizer, HyperparameterOptimizer, HyperparameterSpace, HyperparameterConfig, HyperparameterValue, OptimizationResult};
-use crate::research::hpo_integration::objectives::{StandardAccuracyObjective, F1ScoreObjective};
-use crate::research::tracking::{ExperimentTracker, ExperimentSummary};
-use crate::research::metrics::{MetricsCollector, MetricEntry};
+use crate::hpo::{
+    HPOptimizer, HyperparameterConfig, HyperparameterOptimizer, HyperparameterSpace,
+    HyperparameterValue, OptimizationResult,
+};
+use crate::research::hpo_integration::objectives::{F1ScoreObjective, StandardAccuracyObjective};
+use crate::research::metrics::{MetricEntry, MetricsCollector};
+use crate::research::tracking::{ExperimentSummary, ExperimentTracker};
 use crate::research::UnifiedResearchFramework;
 
 /// HPO Experiment Context
@@ -122,7 +125,7 @@ pub enum HPOAlgorithm {
     GridSearch,
     Hyperband,
     SuccessiveHalving,
-    TPE, // Tree-structured Parzen Estimator
+    TPE,  // Tree-structured Parzen Estimator
     SMAC, // Sequential Model-based Algorithm Configuration
 }
 
@@ -141,8 +144,8 @@ pub struct EvaluationConfig {
 /// Optimization objectives
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum OptimizationObjective {
-    Maximize(String), // metric name
-    Minimize(String), // metric name
+    Maximize(String),              // metric name
+    Minimize(String),              // metric name
     TargetValue(String, f64, f64), // metric name, target value, tolerance
 }
 
@@ -209,7 +212,11 @@ pub struct IntegratedHPOFramework {
 /// Objective function trait
 pub trait ObjectiveFunction: Send + Sync + std::fmt::Debug {
     /// Evaluate hyperparameter configuration
-    fn evaluate(&self, config: &HyperparameterConfig, context: &HPOExperimentContext) -> Result<f64>;
+    fn evaluate(
+        &self,
+        config: &HyperparameterConfig,
+        context: &HPOExperimentContext,
+    ) -> Result<f64>;
 
     /// Get objective function name
     fn name(&self) -> &str;
@@ -231,7 +238,11 @@ pub struct HPOOptimizerFactory {
 /// Optimizer factory trait
 pub trait OptimizerFactory: Send + Sync + std::fmt::Debug {
     /// Create optimizer instance
-    fn create_optimizer(&self, space: &HyperparameterSpace, config: &OptimizerConfig) -> Result<Box<dyn HPOAlgorithmImpl>>;
+    fn create_optimizer(
+        &self,
+        space: &HyperparameterSpace,
+        config: &OptimizerConfig,
+    ) -> Result<Box<dyn HPOAlgorithmImpl>>;
 
     /// Get supported algorithms
     fn supported_algorithms(&self) -> Vec<HPOAlgorithm>;
@@ -240,7 +251,11 @@ pub trait OptimizerFactory: Send + Sync + std::fmt::Debug {
 /// HPO algorithm implementation trait
 pub trait HPOAlgorithmImpl: Send + Sync {
     /// Run optimization
-    fn optimize(&self, objective: Arc<dyn ObjectiveFunction + Send + Sync>, context: &HPOExperimentContext) -> Result<OptimizationResult>;
+    fn optimize(
+        &self,
+        objective: Arc<dyn ObjectiveFunction + Send + Sync>,
+        context: &HPOExperimentContext,
+    ) -> Result<OptimizationResult>;
 
     /// Get algorithm name
     fn name(&self) -> &str;
@@ -261,6 +276,12 @@ pub struct MultiObjectiveUtils {
     // Implementation details will be added as needed
 }
 
+impl Default for MultiObjectiveUtils {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IntegratedHPOFramework {
     /// Create new integrated HPO framework
     pub fn new(research_framework: Arc<RwLock<UnifiedResearchFramework>>) -> Self {
@@ -277,10 +298,8 @@ impl IntegratedHPOFramework {
             "accuracy".to_string(),
             Box::new(StandardAccuracyObjective::new()),
         );
-        framework.register_objective_function(
-            "f1_score".to_string(),
-            Box::new(F1ScoreObjective::new()),
-        );
+        framework
+            .register_objective_function("f1_score".to_string(), Box::new(F1ScoreObjective::new()));
 
         framework
     }
@@ -288,10 +307,13 @@ impl IntegratedHPOFramework {
     /// Start integrated HPO experiment
     pub fn start_hpo_experiment(&mut self, context: HPOExperimentContext) -> Result<String> {
         let experiment_id = format!("hpo_{}_{}", context.model_architecture, context.task);
-        let experiment_name = format!("HPO Search: {} - {}", context.model_architecture, context.task);
+        let experiment_name = format!(
+            "HPO Search: {} - {}",
+            context.model_architecture, context.task
+        );
         let experiment_description = format!(
-            "Hyperparameter optimization for {} model on {} dataset using {}",
-            context.model_architecture, context.dataset.name, format!("{:?}", context.optimizer_config.algorithm)
+            "Hyperparameter optimization for {} model on {} dataset using {:?}",
+            context.model_architecture, context.dataset.name, context.optimizer_config.algorithm
         );
 
         // Create experiment in research framework
@@ -320,14 +342,17 @@ impl IntegratedHPOFramework {
         );
 
         // Store context
-        self.experiment_contexts.insert(experiment_id.clone(), context);
+        self.experiment_contexts
+            .insert(experiment_id.clone(), context);
 
         Ok(experiment_id)
     }
 
     /// Execute integrated HPO search
     pub fn execute_hpo_search(&mut self, experiment_id: &str) -> Result<HPOSearchResult> {
-        let context = self.experiment_contexts.get(experiment_id)
+        let context = self
+            .experiment_contexts
+            .get(experiment_id)
             .ok_or_else(|| NNError::InvalidConfiguration {
                 message: format!("Experiment context not found for {}", experiment_id),
             })?
@@ -337,25 +362,29 @@ impl IntegratedHPOFramework {
         let objective_name = if context.multi_objective {
             "multi_objective"
         } else {
-            context.objectives.first()
-                .and_then(|obj| match obj {
-                    OptimizationObjective::Maximize(metric) | OptimizationObjective::Minimize(metric) => Some(metric.as_str()),
-                    OptimizationObjective::TargetValue(metric, _, _) => Some(metric.as_str()),
+            context
+                .objectives
+                .first()
+                .map(|obj| match obj {
+                    OptimizationObjective::Maximize(metric)
+                    | OptimizationObjective::Minimize(metric) => metric.as_str(),
+                    OptimizationObjective::TargetValue(metric, _, _) => metric.as_str(),
                 })
                 .unwrap_or("accuracy")
         };
 
-        let objective = self.objective_functions.get(objective_name)
+        let objective = self
+            .objective_functions
+            .get(objective_name)
             .ok_or_else(|| NNError::InvalidConfiguration {
                 message: format!("Objective function '{}' not found", objective_name),
             })?;
 
         // Create optimizer
         let optimizer_config = &context.optimizer_config;
-        let optimizer = self.optimizer_factory.create_optimizer(
-            &context.search_space,
-            optimizer_config,
-        )?;
+        let optimizer = self
+            .optimizer_factory
+            .create_optimizer(&context.search_space, optimizer_config)?;
 
         let mut framework = self.research_framework.write().unwrap();
         let tracker = framework.create_experiment(
@@ -389,12 +418,16 @@ impl IntegratedHPOFramework {
             search_time,
             convergence_metrics: ConvergenceMetrics {
                 final_improvement_rate: 0.05, // Placeholder
-                regret: 0.1, // Placeholder
-                exploration_efficiency: 0.8, // Placeholder
-                sampling_efficiency: 0.9, // Placeholder
+                regret: 0.1,                  // Placeholder
+                exploration_efficiency: 0.8,  // Placeholder
+                sampling_efficiency: 0.9,     // Placeholder
                 confidence_interval: Some((result.best_value - 0.05, result.best_value + 0.05)),
             },
-            pareto_front: if context.multi_objective { Some(vec![result.best_config.clone()]) } else { None },
+            pareto_front: if context.multi_objective {
+                Some(vec![result.best_config.clone()])
+            } else {
+                None
+            },
             experiment_summary: tracker.summary(),
         };
 
@@ -408,13 +441,18 @@ impl IntegratedHPOFramework {
         hpo_context: HPOExperimentContext,
         joint_config: JointSearchConfig,
     ) -> Result<String> {
-        let joint_experiment_id = format!("joint_{}_{}_{}",
-            nas_context.domain, nas_context.task, joint_config.joint_algorithm);
+        let joint_experiment_id = format!(
+            "joint_{}_{}_{}",
+            nas_context.domain, nas_context.task, joint_config.joint_algorithm
+        );
 
-        let experiment_name = format!("Joint NAS-HPO: {} - {}", nas_context.domain, nas_context.task);
+        let experiment_name = format!(
+            "Joint NAS-HPO: {} - {}",
+            nas_context.domain, nas_context.task
+        );
         let experiment_description = format!(
-            "Joint neural architecture and hyperparameter optimization using {}",
-            format!("{:?}", joint_config.joint_algorithm)
+            "Joint neural architecture and hyperparameter optimization using {:?}",
+            joint_config.joint_algorithm
         );
 
         let mut framework = self.research_framework.write().unwrap();
@@ -468,7 +506,9 @@ impl IntegratedHPOFramework {
     /// Get experiment summary with HPO metrics
     pub fn get_experiment_summary(&self, experiment_id: &str) -> Result<HPOExperimentSummary> {
         let framework = self.research_framework.read().unwrap();
-        let base_summary = framework.experiment_registry.get_experiment(experiment_id)
+        let base_summary = framework
+            .experiment_registry
+            .get_experiment(experiment_id)
             .ok_or_else(|| NNError::InvalidConfiguration {
                 message: format!("Experiment {} not found in registry", experiment_id),
             })?
@@ -478,7 +518,7 @@ impl IntegratedHPOFramework {
 
         Ok(HPOExperimentSummary {
             base_summary,
-            hpo_context: context.map(|c| c.clone()),
+            hpo_context: context.cloned(),
             hpo_metrics: HPOMetrics {
                 configurations_evaluated: 0,
                 best_configuration_score: None,
@@ -498,25 +538,49 @@ impl IntegratedHPOFramework {
 
         // Summary statistics
         let total_experiments = self.experiment_contexts.len();
-        report.push_str(&format!("## Summary\n"));
+        report.push_str("## Summary\n");
         report.push_str(&format!("- Total HPO Experiments: {}\n", total_experiments));
-        report.push_str(&format!("- Active Experiments: {}\n", framework.health_status().experiments_active));
-        report.push_str(&format!("- Registered Objective Functions: {}\n", self.objective_functions.len()));
-        report.push_str(&format!("- Supported HPO Algorithms: {}\n\n", self.optimizer_factory.optimizers.len()));
+        report.push_str(&format!(
+            "- Active Experiments: {}\n",
+            framework.health_status().experiments_active
+        ));
+        report.push_str(&format!(
+            "- Registered Objective Functions: {}\n",
+            self.objective_functions.len()
+        ));
+        report.push_str(&format!(
+            "- Supported HPO Algorithms: {}\n\n",
+            self.optimizer_factory.optimizers.len()
+        ));
 
         // Experiment details
         if !self.experiment_contexts.is_empty() {
             report.push_str("## HPO Experiments\n\n");
             for (id, context) in &self.experiment_contexts {
                 report.push_str(&format!("### Experiment: {}\n", id));
-                report.push_str(&format!("- Model Architecture: {}\n", context.model_architecture));
+                report.push_str(&format!(
+                    "- Model Architecture: {}\n",
+                    context.model_architecture
+                ));
                 report.push_str(&format!("- Task: {}\n", context.task));
                 report.push_str(&format!("- Dataset: {}\n", context.dataset.name));
-                report.push_str(&format!("- Algorithm: {:?}\n", context.optimizer_config.algorithm));
+                report.push_str(&format!(
+                    "- Algorithm: {:?}\n",
+                    context.optimizer_config.algorithm
+                ));
                 report.push_str(&format!("- Budget: {}\n", context.optimizer_config.budget));
-                report.push_str(&format!("- Multi-objective: {}\n", if context.multi_objective { "Yes" } else { "No" }));
-                report.push_str(&format!("- Objectives: {}\n\n",
-                    context.objectives.iter().map(|obj| format!("{:?}", obj)).collect::<Vec<_>>().join(", ")
+                report.push_str(&format!(
+                    "- Multi-objective: {}\n",
+                    if context.multi_objective { "Yes" } else { "No" }
+                ));
+                report.push_str(&format!(
+                    "- Objectives: {}\n\n",
+                    context
+                        .objectives
+                        .iter()
+                        .map(|obj| format!("{:?}", obj))
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 ));
             }
         }
@@ -558,9 +622,17 @@ impl std::fmt::Display for JointAlgorithm {
 /// Alternation schedule between NAS and HPO
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum AlternationSchedule {
-    FixedRounds { nas_rounds: usize, hpo_rounds: usize },
-    Adaptive { performance_threshold: f64, patience: usize },
-    Dynamic { resource_based: bool },
+    FixedRounds {
+        nas_rounds: usize,
+        hpo_rounds: usize,
+    },
+    Adaptive {
+        performance_threshold: f64,
+        patience: usize,
+    },
+    Dynamic {
+        resource_based: bool,
+    },
 }
 
 /// Resource allocation strategy
@@ -579,34 +651,52 @@ impl HPOOptimizerFactory {
     }
 }
 
+impl Default for HPOOptimizerFactory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OptimizerFactory for HPOOptimizerFactory {
-    fn create_optimizer(&self, space: &HyperparameterSpace, config: &OptimizerConfig) -> Result<Box<dyn HPOAlgorithmImpl>> {
+    fn create_optimizer(
+        &self,
+        space: &HyperparameterSpace,
+        config: &OptimizerConfig,
+    ) -> Result<Box<dyn HPOAlgorithmImpl>> {
         match config.algorithm {
-            HPOAlgorithm::BayesianOptimization => {
-                Ok(Box::new(BayesianOptimizerImpl::new(space.clone(), config.budget)))
-            }
-            HPOAlgorithm::TPE => {
-                Ok(Box::new(TPEOptimizerImpl::new(space.clone(), config.budget)))
-            }
-            HPOAlgorithm::SMAC => {
-                Ok(Box::new(SMACOptimizerImpl::new(space.clone(), config.budget)))
-            }
+            HPOAlgorithm::BayesianOptimization => Ok(Box::new(BayesianOptimizerImpl::new(
+                space.clone(),
+                config.budget,
+            ))),
+            HPOAlgorithm::TPE => Ok(Box::new(TPEOptimizerImpl::new(
+                space.clone(),
+                config.budget,
+            ))),
+            HPOAlgorithm::SMAC => Ok(Box::new(SMACOptimizerImpl::new(
+                space.clone(),
+                config.budget,
+            ))),
             HPOAlgorithm::RandomSearch => {
                 // Fallback to random search for unsupported algorithms
                 Err(NNError::NotImplemented {
-                    operation: format!("Algorithm {:?} not fully implemented", config.algorithm)
+                    operation: format!("Algorithm {:?} not fully implemented", config.algorithm),
                 })
             }
-            _ => {
-                Err(NNError::NotImplemented {
-                    operation: format!("Algorithm {:?} not supported in integrated framework", config.algorithm)
-                })
-            }
+            _ => Err(NNError::NotImplemented {
+                operation: format!(
+                    "Algorithm {:?} not supported in integrated framework",
+                    config.algorithm
+                ),
+            }),
         }
     }
 
     fn supported_algorithms(&self) -> Vec<HPOAlgorithm> {
-        vec![HPOAlgorithm::BayesianOptimization, HPOAlgorithm::TPE, HPOAlgorithm::SMAC]
+        vec![
+            HPOAlgorithm::BayesianOptimization,
+            HPOAlgorithm::TPE,
+            HPOAlgorithm::SMAC,
+        ]
     }
 }
 
@@ -629,7 +719,7 @@ pub struct BayesianOptimizerImpl {
 pub struct TPEOptimizerImpl {
     space: HyperparameterSpace,
     budget: usize,
-    gamma: f64, // Quantile for good/bad split
+    gamma: f64,        // Quantile for good/bad split
     prior_weight: f64, // Weight for prior in density estimation
 }
 
@@ -665,10 +755,10 @@ impl MultiObjectiveUtils {
 
         let mut at_least_one_better = false;
         for (a, b) in point_a.iter().zip(point_b.iter()) {
-            if a < b { // Assuming minimization (for maximization, use >)
+            if a > b {
                 return false;
             }
-            if a > b {
+            if a < b {
                 at_least_one_better = true;
             }
         }
@@ -696,7 +786,8 @@ impl MultiObjectiveUtils {
         }
 
         // Filter points that dominate the reference point
-        let valid_points: Vec<&Vec<f64>> = points.iter()
+        let valid_points: Vec<&Vec<f64>> = points
+            .iter()
             .filter(|point| self.dominates_reference(point, reference_point))
             .collect();
 
@@ -706,14 +797,16 @@ impl MultiObjectiveUtils {
 
         // Convert to maximization (flip objectives if needed)
         // Assuming minimization problems - convert to maximization for hypervolume
-        let mut processed_points: Vec<Vec<f64>> = valid_points.iter()
+        let mut processed_points: Vec<Vec<f64>> = valid_points
+            .iter()
             .map(|point| point.iter().map(|&val| -val).collect())
             .collect::<Vec<_>>();
 
         let mut ref_point: Vec<f64> = reference_point.iter().map(|&val| -val).collect();
 
         // Sort points by first objective (required for WFG algorithm)
-        processed_points.sort_by(|a, b| b[0].partial_cmp(&a[0]).unwrap_or(std::cmp::Ordering::Equal));
+        processed_points
+            .sort_by(|a, b| b[0].partial_cmp(&a[0]).unwrap_or(std::cmp::Ordering::Equal));
 
         self.wfg_hypervolume(&processed_points, &ref_point, 0)
     }
@@ -730,7 +823,8 @@ impl MultiObjectiveUtils {
     fn wfg_hypervolume(&self, points: &[Vec<f64>], reference: &[f64], objective_idx: usize) -> f64 {
         if objective_idx == reference.len() - 1 {
             // Base case: last objective
-            return points.iter()
+            return points
+                .iter()
                 .map(|point| (reference[objective_idx] - point[objective_idx]).max(0.0))
                 .sum::<f64>();
         }
@@ -744,7 +838,11 @@ impl MultiObjectiveUtils {
 
         // Process points in order of decreasing objective value
         let mut sorted_points = points.to_vec();
-        sorted_points.sort_by(|a, b| b[objective_idx].partial_cmp(&a[objective_idx]).unwrap_or(std::cmp::Ordering::Equal));
+        sorted_points.sort_by(|a, b| {
+            b[objective_idx]
+                .partial_cmp(&a[objective_idx])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         for (i, point) in sorted_points.iter().enumerate() {
             if point[objective_idx] < prev_value {
@@ -752,13 +850,15 @@ impl MultiObjectiveUtils {
                 let slice_height = prev_value - point[objective_idx];
 
                 // Get points that contribute to this slice
-                let contributing_points: Vec<Vec<f64>> = sorted_points[i..].iter()
+                let contributing_points: Vec<Vec<f64>> = sorted_points[i..]
+                    .iter()
                     .filter(|p| p[objective_idx] <= point[objective_idx])
                     .cloned()
                     .collect();
 
                 // Recurse to next objective dimension
-                let slice_volume = slice_height * self.wfg_hypervolume(&contributing_points, reference, objective_idx + 1);
+                let slice_volume = slice_height
+                    * self.wfg_hypervolume(&contributing_points, reference, objective_idx + 1);
                 volume += slice_volume;
 
                 prev_value = point[objective_idx];
@@ -795,6 +895,12 @@ pub mod objectives {
     #[derive(Debug)]
     pub struct StandardAccuracyObjective;
 
+    impl Default for StandardAccuracyObjective {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl StandardAccuracyObjective {
         pub fn new() -> Self {
             Self
@@ -802,7 +908,11 @@ pub mod objectives {
     }
 
     impl ObjectiveFunction for StandardAccuracyObjective {
-        fn evaluate(&self, config: &HyperparameterConfig, _context: &HPOExperimentContext) -> Result<f64> {
+        fn evaluate(
+            &self,
+            config: &HyperparameterConfig,
+            _context: &HPOExperimentContext,
+        ) -> Result<f64> {
             // Placeholder: in real implementation, this would train and evaluate the model
             // For now, return a random score based on configuration
             let mut score: f64 = 0.5;
@@ -820,7 +930,7 @@ pub mod objectives {
                 }
             }
 
-            Ok(score.min(1.0).max(0.0))
+            Ok(score.clamp(0.0, 1.0))
         }
 
         fn name(&self) -> &str {
@@ -840,6 +950,12 @@ pub mod objectives {
     #[derive(Debug)]
     pub struct F1ScoreObjective;
 
+    impl Default for F1ScoreObjective {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl F1ScoreObjective {
         pub fn new() -> Self {
             Self
@@ -847,7 +963,11 @@ pub mod objectives {
     }
 
     impl ObjectiveFunction for F1ScoreObjective {
-        fn evaluate(&self, config: &HyperparameterConfig, _context: &HPOExperimentContext) -> Result<f64> {
+        fn evaluate(
+            &self,
+            config: &HyperparameterConfig,
+            _context: &HPOExperimentContext,
+        ) -> Result<f64> {
             // Placeholder similar to accuracy
             let mut score: f64 = 0.5;
 
@@ -857,7 +977,7 @@ pub mod objectives {
                 }
             }
 
-            Ok(score.min(1.0).max(0.0))
+            Ok(score.clamp(0.0, 1.0))
         }
 
         fn name(&self) -> &str {
@@ -865,7 +985,11 @@ pub mod objectives {
         }
 
         fn supported_metrics(&self) -> Vec<String> {
-            vec!["f1_score".to_string(), "precision".to_string(), "recall".to_string()]
+            vec![
+                "f1_score".to_string(),
+                "precision".to_string(),
+                "recall".to_string(),
+            ]
         }
 
         fn supports_multi_objective(&self) -> bool {
@@ -882,6 +1006,12 @@ pub mod optimizer_factories {
     #[derive(Debug)]
     pub struct BayesianOptimizerFactory;
 
+    impl Default for BayesianOptimizerFactory {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl BayesianOptimizerFactory {
         pub fn new() -> Self {
             Self
@@ -889,9 +1019,16 @@ pub mod optimizer_factories {
     }
 
     impl OptimizerFactory for BayesianOptimizerFactory {
-        fn create_optimizer(&self, space: &HyperparameterSpace, config: &OptimizerConfig) -> Result<Box<dyn HPOAlgorithmImpl>> {
+        fn create_optimizer(
+            &self,
+            space: &HyperparameterSpace,
+            config: &OptimizerConfig,
+        ) -> Result<Box<dyn HPOAlgorithmImpl>> {
             // In real implementation, would create Bayesian optimizer
-            Ok(Box::new(BayesianOptimizerImpl::new(space.clone(), config.budget)))
+            Ok(Box::new(BayesianOptimizerImpl::new(
+                space.clone(),
+                config.budget,
+            )))
         }
 
         fn supported_algorithms(&self) -> Vec<HPOAlgorithm> {
@@ -912,7 +1049,13 @@ pub mod optimizer_factories {
 
         /// Run SMAC racing procedure
         /// Returns configurations that survive the race
-        fn run_race(&self, candidates: &[HyperparameterConfig], objective: &Arc<dyn ObjectiveFunction + Send + Sync>, context: &HPOExperimentContext, budget_per_config: usize) -> Result<Vec<(HyperparameterConfig, f64)>> {
+        fn run_race(
+            &self,
+            candidates: &[HyperparameterConfig],
+            objective: &Arc<dyn ObjectiveFunction + Send + Sync>,
+            context: &HPOExperimentContext,
+            budget_per_config: usize,
+        ) -> Result<Vec<(HyperparameterConfig, f64)>> {
             let mut survivors = Vec::new();
 
             for config in candidates {
@@ -928,12 +1071,15 @@ pub mod optimizer_factories {
                     // Early stopping: if clearly worse than current best survivor
                     if !survivors.is_empty() {
                         let avg_score = config_score / evaluations as f64;
-                        let best_survivor_score = survivors.iter()
+                        let best_survivor_score = survivors
+                            .iter()
                             .map(|(_, score)| *score)
                             .fold(f64::INFINITY, |a, b| a.min(b));
 
                         // Statistical test: if significantly worse, stop early
-                        if evaluations >= 3 && avg_score > best_survivor_score + self.estimate_std_dev(&survivors) {
+                        if evaluations >= 3
+                            && avg_score > best_survivor_score + self.estimate_std_dev(&survivors)
+                        {
                             break;
                         }
                     }
@@ -945,7 +1091,8 @@ pub mod optimizer_factories {
 
             // Sort by performance and keep only top performers
             survivors.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
-            let cutoff = (survivors.len() as f64 * self.challenger_fraction).max(self.min_challengers as f64) as usize;
+            let cutoff = (survivors.len() as f64 * self.challenger_fraction)
+                .max(self.min_challengers as f64) as usize;
             survivors.truncate(cutoff.min(survivors.len()));
 
             Ok(survivors)
@@ -957,10 +1104,13 @@ pub mod optimizer_factories {
                 return 1.0; // Default std dev
             }
 
-            let mean: f64 = survivors.iter().map(|(_, score)| *score).sum::<f64>() / survivors.len() as f64;
-            let variance: f64 = survivors.iter()
+            let mean: f64 =
+                survivors.iter().map(|(_, score)| *score).sum::<f64>() / survivors.len() as f64;
+            let variance: f64 = survivors
+                .iter()
                 .map(|(_, score)| (score - mean).powi(2))
-                .sum::<f64>() / (survivors.len() - 1) as f64;
+                .sum::<f64>()
+                / (survivors.len() - 1) as f64;
 
             variance.sqrt().max(0.1) // Minimum std dev to avoid division by zero
         }
@@ -978,7 +1128,12 @@ pub mod optimizer_factories {
 
         /// Evaluate acquisition function for TPE
         /// EI(x) = (γ + (1-γ) * l(x)/g(x)) / (1-γ) where l(x) is good density, g(x) is bad density
-        fn evaluate_acquisition(&self, config: &HyperparameterConfig, good_points: &[&Vec<f64>], bad_points: &[&Vec<f64>]) -> f64 {
+        fn evaluate_acquisition(
+            &self,
+            config: &HyperparameterConfig,
+            good_points: &[&Vec<f64>],
+            bad_points: &[&Vec<f64>],
+        ) -> f64 {
             let x = config.to_vector(&self.space);
 
             // Compute densities using Parzen windows
@@ -1005,7 +1160,7 @@ pub mod optimizer_factories {
 
             // Bandwidth selection using Scott's rule: h = n^(-1/(d+4))
             let d = x.len() as f64;
-            let bandwidth = (n as f64).powf(-1.0 / (d + 4.0));
+            let bandwidth = n.powf(-1.0 / (d + 4.0));
 
             for point in points {
                 let mut kernel_value = 1.0;
@@ -1013,7 +1168,8 @@ pub mod optimizer_factories {
                     let pi = point[i];
                     let diff = (xi - pi) / bandwidth;
                     // Gaussian kernel
-                    kernel_value *= (-0.5 * diff * diff).exp() / (2.0 * std::f64::consts::PI).sqrt();
+                    kernel_value *=
+                        (-0.5 * diff * diff).exp() / (2.0 * std::f64::consts::PI).sqrt();
                 }
                 density += kernel_value;
             }
@@ -1024,7 +1180,10 @@ pub mod optimizer_factories {
         }
 
         /// Split observations into good and bad based on quantile
-        fn split_observations(&self, history: &[(HyperparameterConfig, f64, Duration)]) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
+        fn split_observations(
+            &self,
+            history: &[(HyperparameterConfig, f64, Duration)],
+        ) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
             if history.is_empty() {
                 return (Vec::new(), Vec::new());
             }
@@ -1034,7 +1193,8 @@ pub mod optimizer_factories {
             objectives.sort_by(|a: &f64, b: &f64| a.partial_cmp(b).unwrap());
 
             // Find quantile threshold y*(γ)
-            let quantile_idx = ((self.gamma * (objectives.len() - 1) as f64).floor() as usize).min(objectives.len() - 1);
+            let quantile_idx = ((self.gamma * (objectives.len() - 1) as f64).floor() as usize)
+                .min(objectives.len() - 1);
             let threshold = objectives[quantile_idx];
 
             // Split into good (≤ threshold) and bad (> threshold)
@@ -1065,7 +1225,11 @@ pub mod optimizer_factories {
         /// - Acquisition function variance reduction
         /// - Regret bound stabilization
         /// - Surrogate model confidence intervals
-        fn check_convergence(&self, optimizer: &crate::hpo::BayesianOptimizer, history: &[(HyperparameterConfig, f64, Duration)]) -> bool {
+        fn check_convergence(
+            &self,
+            optimizer: &crate::hpo::BayesianOptimizer,
+            history: &[(HyperparameterConfig, f64, Duration)],
+        ) -> bool {
             if history.len() < 10 {
                 return false;
             }
@@ -1073,13 +1237,18 @@ pub mod optimizer_factories {
             // Criterion 1: Acquisition function variance reduction
             // If recent suggestions show low variance in acquisition values, convergence likely
             let recent_evals = history.len().saturating_sub(5);
-            let recent_values: Vec<f64> = history[recent_evals..].iter().map(|(_, val, _)| *val).collect();
+            let recent_values: Vec<f64> = history[recent_evals..]
+                .iter()
+                .map(|(_, val, _)| *val)
+                .collect();
 
             if recent_values.len() >= 3 {
                 let mean: f64 = recent_values.iter().sum::<f64>() / recent_values.len() as f64;
-                let variance: f64 = recent_values.iter()
+                let variance: f64 = recent_values
+                    .iter()
                     .map(|val| (val - mean).powi(2))
-                    .sum::<f64>() / recent_values.len() as f64;
+                    .sum::<f64>()
+                    / recent_values.len() as f64;
 
                 // Low variance indicates convergence (Bull 2011, Theorem 3.1)
                 if variance < 1e-6 {
@@ -1089,12 +1258,14 @@ pub mod optimizer_factories {
 
             // Criterion 2: Regret stabilization
             // Simple regret: |f(x*) - f(x_n)| where x* is current best
-            let current_best = history.iter()
+            let current_best = history
+                .iter()
                 .min_by(|(_, v1, _), (_, v2, _)| v1.partial_cmp(v2).unwrap())
                 .map(|(_, v, _)| *v)
                 .unwrap_or(f64::INFINITY);
 
-            let recent_regret: f64 = history.last()
+            let recent_regret: f64 = history
+                .last()
                 .map(|(_, last_val, _)| (last_val - current_best).abs())
                 .unwrap_or(f64::INFINITY);
 
@@ -1104,7 +1275,11 @@ pub mod optimizer_factories {
     }
 
     impl HPOAlgorithmImpl for TPEOptimizerImpl {
-        fn optimize(&self, objective: Arc<dyn ObjectiveFunction + Send + Sync>, context: &HPOExperimentContext) -> Result<OptimizationResult> {
+        fn optimize(
+            &self,
+            objective: Arc<dyn ObjectiveFunction + Send + Sync>,
+            context: &HPOExperimentContext,
+        ) -> Result<OptimizationResult> {
             let start_time = Instant::now();
             let mut history = Vec::new();
 
@@ -1132,7 +1307,8 @@ pub mod optimizer_factories {
                 let mut best_config = None;
 
                 // Evaluate acquisition function at multiple candidate points
-                for _ in 0..100 {  // Fixed number of candidates for optimization
+                for _ in 0..100 {
+                    // Fixed number of candidates for optimization
                     let candidate = self.space.sample()?;
                     let acq_value = self.evaluate_acquisition(&candidate, &good_refs, &bad_refs);
 
@@ -1180,7 +1356,11 @@ pub mod optimizer_factories {
     }
 
     impl HPOAlgorithmImpl for SMACOptimizerImpl {
-        fn optimize(&self, objective: Arc<dyn ObjectiveFunction + Send + Sync>, context: &HPOExperimentContext) -> Result<OptimizationResult> {
+        fn optimize(
+            &self,
+            objective: Arc<dyn ObjectiveFunction + Send + Sync>,
+            context: &HPOExperimentContext,
+        ) -> Result<OptimizationResult> {
             let start_time = Instant::now();
             let mut history = Vec::new();
 
@@ -1223,9 +1403,11 @@ pub mod optimizer_factories {
 
                 // Run race with new candidates
                 let remaining_budget = self.budget - total_evaluations;
-                let budget_per_config = (remaining_budget / new_candidates.len()).max(1).min(5);
+                let budget_per_config =
+                    (remaining_budget / new_candidates.len().max(1)).clamp(1, 5);
 
-                let new_challengers = self.run_race(&new_candidates, &objective, context, budget_per_config)?;
+                let new_challengers =
+                    self.run_race(&new_candidates, &objective, context, budget_per_config)?;
 
                 // Update evaluation count
                 total_evaluations += new_challengers.len() * budget_per_config;
@@ -1278,13 +1460,16 @@ pub mod optimizer_factories {
 
             // Check if recent evaluations show low variance (similar to Bayesian optimization)
             let recent_start = history.len().saturating_sub(10);
-            let recent_values: Vec<f64> = history[recent_start..].iter().map(|(_, v, _)| *v).collect();
+            let recent_values: Vec<f64> =
+                history[recent_start..].iter().map(|(_, v, _)| *v).collect();
 
             if recent_values.len() >= 5 {
                 let mean: f64 = recent_values.iter().sum::<f64>() / recent_values.len() as f64;
-                let variance: f64 = recent_values.iter()
+                let variance: f64 = recent_values
+                    .iter()
                     .map(|v| (v - mean).powi(2))
-                    .sum::<f64>() / recent_values.len() as f64;
+                    .sum::<f64>()
+                    / recent_values.len() as f64;
 
                 // Low variance indicates potential convergence
                 variance < 1e-6
@@ -1295,7 +1480,11 @@ pub mod optimizer_factories {
     }
 
     impl HPOAlgorithmImpl for BayesianOptimizerImpl {
-        fn optimize(&self, objective: Arc<dyn ObjectiveFunction + Send + Sync>, context: &HPOExperimentContext) -> Result<OptimizationResult> {
+        fn optimize(
+            &self,
+            objective: Arc<dyn ObjectiveFunction + Send + Sync>,
+            context: &HPOExperimentContext,
+        ) -> Result<OptimizationResult> {
             use crate::hpo::BayesianOptimizer;
 
             let start_time = Instant::now();
@@ -1429,8 +1618,8 @@ mod tests {
         // Test dominance
         let point_a = vec![1.0, 1.0]; // Better on first objective
         let point_b = vec![2.0, 0.5]; // Better on second objective
-        assert!(utils.dominates(&point_a, &point_b) == false); // Neither dominates
-        assert!(utils.dominates(&point_b, &point_a) == false);
+        assert!(!utils.dominates(&point_a, &point_b)); // Neither dominates
+        assert!(!utils.dominates(&point_b, &point_a));
 
         let point_c = vec![0.5, 0.5]; // Better on both
         assert!(utils.dominates(&point_c, &point_a)); // C dominates A
@@ -1479,8 +1668,10 @@ mod tests {
         };
 
         let score = objective.evaluate(&config, &context).unwrap();
-        assert!(score >= 0.0 && score <= 1.0);
+        assert!((0.0..=1.0).contains(&score));
         assert_eq!(objective.name(), "Standard Accuracy");
-        assert!(objective.supported_metrics().contains(&"accuracy".to_string()));
+        assert!(objective
+            .supported_metrics()
+            .contains(&"accuracy".to_string()));
     }
 }

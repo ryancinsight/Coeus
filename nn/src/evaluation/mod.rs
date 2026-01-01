@@ -9,18 +9,18 @@
 //! This module provides production-ready evaluation tools for systematic
 //! CLIP model assessment and benchmarking.
 
+pub mod benchmark;
 pub mod embeddings;
+pub mod profiling;
 pub mod retrieval;
 pub mod zeroshot;
-pub mod profiling;
-pub mod benchmark;
 
 // Re-exports for convenient access
+pub use benchmark::*;
 pub use embeddings::*;
+pub use profiling::*;
 pub use retrieval::*;
 pub use zeroshot::*;
-pub use profiling::*;
-pub use benchmark::*;
 
 /// Common evaluation dataset interface
 pub trait EvaluationDataset {
@@ -126,17 +126,21 @@ impl EvaluationResult {
 
     /// Get all metrics with a given prefix
     pub fn get_metrics_with_prefix(&self, prefix: &str) -> Vec<&EvaluationMetrics> {
-        self.metrics.iter()
+        self.metrics
+            .iter()
             .filter(|m| m.name.starts_with(prefix))
             .collect()
     }
 
     /// Generate human-readable report
     pub fn generate_report(&self) -> String {
-        let mut report = format!("📊 CLIP Evaluation Report\n");
+        let mut report = "📊 CLIP Evaluation Report\n".to_string();
         report.push_str(&format!("Dataset: {}\n", self.dataset_name));
         report.push_str(&format!("Model: {}\n", self.model_name));
-        report.push_str(&format!("Timestamp: {}\n", self.timestamp.format("%Y-%m-%d %H:%M:%S UTC")));
+        report.push_str(&format!(
+            "Timestamp: {}\n",
+            self.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+        ));
         report.push_str("\n📈 Metrics:\n");
 
         for metric in &self.metrics {
@@ -247,7 +251,11 @@ pub trait ClipModelEvaluator {
     fn encode_texts(&self, texts: &[String]) -> crate::error::Result<Vec<Vec<f32>>>;
 
     /// Compute similarity between image and text embeddings
-    fn compute_similarity(&self, image_embeddings: &[Vec<f32>], text_embeddings: &[Vec<f32>]) -> crate::error::Result<Vec<Vec<f32>>>;
+    fn compute_similarity(
+        &self,
+        image_embeddings: &[Vec<f32>],
+        text_embeddings: &[Vec<f32>],
+    ) -> crate::error::Result<Vec<Vec<f32>>>;
 }
 
 #[cfg(test)]

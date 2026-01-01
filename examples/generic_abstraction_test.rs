@@ -61,11 +61,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
         )?;
-    let targets =
-        tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(1.5), Float32::new(2.5)],
-            &[2],
-        )?;
+    let targets = tensor::Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+        vec![Float32::new(1.5), Float32::new(2.5)],
+        &[2],
+    )?;
 
     let loss = mse_loss(&predictions, &targets)?;
     assert_eq!(loss.shape().dims().len(), 0); // Scalar tensor has empty shape
@@ -311,4 +310,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("All comprehensive B<S<T>> tests passed! 🚀");
     Ok(())
 }
-

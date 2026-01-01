@@ -7,9 +7,9 @@
 //! - Memory-efficient data loading
 //! - Asynchronous data preprocessing
 
+use crate::error::{NNError, Result};
 use std::collections::HashMap;
 use std::path::Path;
-use crate::error::{NNError, Result};
 
 /// Data Loading Coordinator
 #[derive(Debug)]
@@ -51,7 +51,10 @@ pub enum DatasetFormat {
     /// WebDataset format (.tar archives with images/text)
     WebDataset,
     /// HuggingFace datasets format
-    HuggingFace { dataset_name: String, subset: Option<String> },
+    HuggingFace {
+        dataset_name: String,
+        subset: Option<String>,
+    },
     /// Parquet format for tabular data
     Parquet,
     /// JSON/JSONL format
@@ -145,15 +148,9 @@ impl DataLoader {
     async fn load_raw_batch(&self) -> Result<RawBatch> {
         // Implementation depends on dataset format
         match &self.dataset_config.format {
-            DatasetFormat::WebDataset => {
-                self.load_webdataset_batch().await
-            },
-            DatasetFormat::HuggingFace { .. } => {
-                self.load_huggingface_batch().await
-            },
-            DatasetFormat::JSONL => {
-                self.load_jsonl_batch().await
-            },
+            DatasetFormat::WebDataset => self.load_webdataset_batch().await,
+            DatasetFormat::HuggingFace { .. } => self.load_huggingface_batch().await,
+            DatasetFormat::JSONL => self.load_jsonl_batch().await,
             _ => Err(NNError::InvalidInput {
                 message: "Unsupported dataset format".to_string(),
             }),
@@ -190,7 +187,10 @@ impl DataLoader {
         Ok(())
     }
 
-    async fn create_training_batch(&self, processed_batch: ProcessedBatch) -> Result<TrainingBatch> {
+    async fn create_training_batch(
+        &self,
+        processed_batch: ProcessedBatch,
+    ) -> Result<TrainingBatch> {
         // Convert processed batch to training batch format
         // Handle padding, tensor conversion, etc.
         Ok(TrainingBatch {
@@ -374,7 +374,11 @@ impl DataMemoryManager {
     }
 
     /// Allocate memory for a batch
-    pub async fn allocate_batch_memory(&mut self, batch_size: usize, sequence_length: usize) -> Result<()> {
+    pub async fn allocate_batch_memory(
+        &mut self,
+        batch_size: usize,
+        sequence_length: usize,
+    ) -> Result<()> {
         let estimated_memory = batch_size * sequence_length * 4 * 4; // Rough per-token estimate
 
         if self.current_memory_bytes + estimated_memory > self.max_memory_bytes {
@@ -389,7 +393,9 @@ impl DataMemoryManager {
     /// Free memory for a batch
     pub async fn free_batch_memory(&mut self, batch_id: &str) -> Result<()> {
         if let Some(cached) = self.data_cache.remove(batch_id) {
-            self.current_memory_bytes = self.current_memory_bytes.saturating_sub(cached.memory_usage);
+            self.current_memory_bytes = self
+                .current_memory_bytes
+                .saturating_sub(cached.memory_usage);
         }
 
         Ok(())
@@ -405,7 +411,9 @@ impl DataMemoryManager {
         let mut evicted_memory = 0;
 
         // LRU eviction strategy
-        let mut cache_entries: Vec<(String, &CachedBatch)> = self.data_cache.iter()
+        let mut cache_entries: Vec<(String, &CachedBatch)> = self
+            .data_cache
+            .iter()
             .map(|(k, v)| (k.clone(), v))
             .collect();
 
@@ -424,7 +432,9 @@ impl DataMemoryManager {
 
         for key in to_remove {
             if let Some(cached) = self.data_cache.remove(&key) {
-                self.current_memory_bytes = self.current_memory_bytes.saturating_sub(cached.memory_usage);
+                self.current_memory_bytes = self
+                    .current_memory_bytes
+                    .saturating_sub(cached.memory_usage);
             }
         }
 
@@ -686,7 +696,9 @@ pub mod profiling {
 
             // Update throughput (samples/second)
             let total_time: std::time::Duration = self.batch_times.iter().sum();
-            let avg_time = total_time.div_f64(self.batch_times.len() as f64).as_secs_f64();
+            let avg_time = total_time
+                .div_f64(self.batch_times.len() as f64)
+                .as_secs_f64();
             if avg_time > 0.0 {
                 self.throughput_history.push(1.0 / avg_time);
             }
@@ -698,7 +710,10 @@ pub mod profiling {
         pub fn generate_report(&self) -> DataLoadingReport {
             let total_batches = self.batch_times.len();
             let avg_batch_time = if total_batches > 0 {
-                self.batch_times.iter().sum::<std::time::Duration>().div_f64(total_batches as f64)
+                self.batch_times
+                    .iter()
+                    .sum::<std::time::Duration>()
+                    .div_f64(total_batches as f64)
             } else {
                 std::time::Duration::from_secs(0)
             };
@@ -732,8 +747,14 @@ pub mod profiling {
         pub fn print_summary(&self) {
             println!("=== Data Loading Performance Report ===");
             println!("Total Batches: {}", self.total_batches);
-            println!("Average Batch Time: {:.2}ms", self.average_batch_time.as_millis());
-            println!("Average Throughput: {:.1} batches/sec", self.average_throughput);
+            println!(
+                "Average Batch Time: {:.2}ms",
+                self.average_batch_time.as_millis()
+            );
+            println!(
+                "Average Throughput: {:.1} batches/sec",
+                self.average_throughput
+            );
             println!("Max Batch Time: {:.2}ms", self.max_batch_time.as_millis());
             println!("Min Batch Time: {:.2}ms", self.min_batch_time.as_millis());
         }
@@ -817,7 +838,10 @@ mod tests {
         let transform = TokenizeTransform::new(vocab, 10);
 
         let sample = DataSample {
-            data: HashMap::from([("text".to_string(), DataValue::Text("hello world".to_string()))]),
+            data: HashMap::from([(
+                "text".to_string(),
+                DataValue::Text("hello world".to_string()),
+            )]),
             metadata: HashMap::new(),
         };
 
@@ -835,12 +859,13 @@ mod tests {
         let mut profiler = DataLoadingProfiler::new();
 
         // Simulate some batch loading operations
-        let result = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(profiler.profile_batch_loading(|| async {
-                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                Ok::<(), NNError>(())
-            }));
+        let result =
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(profiler.profile_batch_loading(|| async {
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                    Ok::<(), NNError>(())
+                }));
 
         assert!(result.is_ok());
         assert_eq!(profiler.batch_times.len(), 1);

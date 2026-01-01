@@ -5,7 +5,7 @@
 use backend::CpuBackend;
 use dtype::{traits::FloatExt, DataType};
 use storage::DenseStorage;
-use tensor::{Tensor, ops::arithmetic::add, ops::arithmetic::sub, ops::arithmetic::mul};
+use tensor::{ops::arithmetic::add, ops::arithmetic::mul, ops::arithmetic::sub, Tensor};
 
 use crate::error::Result;
 use crate::module::Module;
@@ -28,24 +28,9 @@ where
         dims: (usize, usize, usize),
     ) -> Result<CpuTensor<T>> {
         let (seq_len, batch_size, input_size) = dims;
-
-        // Reshape input from (seq_len, batch_size, input_size) to (seq_len * batch_size, input_size)
-        let input_seq_batch =
-            input.reshape(&[(seq_len * batch_size) as isize, input_size as isize])?;
-
-        // Get previous hidden state for this weight index
-        let layer_offset = weight_idx * batch_size * self.hidden_size;
-        let h_prev_flat =
-            h.as_slice()[layer_offset..layer_offset + batch_size * self.hidden_size].to_vec();
-        let h_prev = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
-            h_prev_flat.clone(),
-            &[batch_size, self.hidden_size],
-        )?;
-
         let weight_ih_data = self.weight_ih[weight_idx].data().as_slice().to_vec();
         let weight_hh_data = self.weight_hh[weight_idx].data().as_slice().to_vec();
 
-        // weight_ih/hh have shape (3*hidden_size, input_size/hidden_size) for GRU (r, z, n gates)
         let weight_ih = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
             weight_ih_data,
             &[3 * self.hidden_size, input_size],
@@ -55,176 +40,159 @@ where
             &[3 * self.hidden_size, self.hidden_size],
         )?;
 
-        // Compute gates: (seq_len * batch_size, 3 * hidden_size)
-        let ih_gates = input_seq_batch.matmul(&weight_ih.transpose(1, 0)?)?;
-        let hh_gates = h_prev.matmul(&weight_hh.transpose(1, 0)?)?;
-
-        // Expand hh_gates to match sequence length
-        let hh_gates_expanded_data = hh_gates.as_slice().repeat(seq_len);
-        let hh_gates_expanded = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
-            hh_gates_expanded_data,
-            &[seq_len * batch_size, 3 * self.hidden_size],
+        let mut output_data = Vec::with_capacity(seq_len * batch_size * self.hidden_size);
+        let layer_offset = weight_idx * batch_size * self.hidden_size;
+        let mut current_hidden = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+            h.as_slice()[layer_offset..layer_offset + batch_size * self.hidden_size].to_vec(),
+            &[batch_size, self.hidden_size],
         )?;
 
-        // Add biases if enabled
-        let gates = if self.bias {
-            let bias_ih_data = self.bias_ih[weight_idx].data().as_slice();
-            let bias_hh_data = self.bias_hh[weight_idx].data().as_slice();
-
-            // Create bias tensor with correct shape
-            let bias_ih_tensor = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
-                bias_ih_data.to_vec(),
-                &[3 * self.hidden_size],
-            )?;
-            let bias_hh_tensor = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
-                bias_hh_data.to_vec(),
-                &[3 * self.hidden_size],
+        for t in 0..seq_len {
+            let x_t_start = t * batch_size * input_size;
+            let x_t_end = (t + 1) * batch_size * input_size;
+            let x_t = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+                input.as_slice()[x_t_start..x_t_end].to_vec(),
+                &[batch_size, input_size],
             )?;
 
-            let bias_combined = add(&bias_ih_tensor, &bias_hh_tensor)?;
+            let mut ih_gates = x_t.matmul(&weight_ih.transpose(1, 0)?)?;
+            let mut hh_gates = current_hidden.matmul(&weight_hh.transpose(1, 0)?)?;
 
-            // Expand to match sequence length
-            let bias_expanded_data = bias_combined.as_slice().repeat(seq_len * batch_size);
-            let bias_expanded = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
-                bias_expanded_data,
-                &[seq_len * batch_size, 3 * self.hidden_size],
-            )?;
+            if self.bias {
+                let bias_ih_data = self.bias_ih[weight_idx].data().as_slice();
+                let bias_hh_data = self.bias_hh[weight_idx].data().as_slice();
+                let b_ih = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+                    bias_ih_data.to_vec(),
+                    &[3 * self.hidden_size],
+                )?;
+                let b_hh = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+                    bias_hh_data.to_vec(),
+                    &[3 * self.hidden_size],
+                )?;
+                ih_gates = add(&ih_gates, &b_ih)?;
+                hh_gates = add(&hh_gates, &b_hh)?;
+            }
 
-            add(&add(&ih_gates, &hh_gates_expanded)?, &bias_expanded)?
-        } else {
-            add(&ih_gates, &hh_gates_expanded)?
-        };
+            let h = self.hidden_size as i32;
+            let r_ih = ih_gates.advanced_slice(&[(None, None, 1), (Some(0), Some(h), 1)])?;
+            let z_ih = ih_gates.advanced_slice(&[(None, None, 1), (Some(h), Some(2 * h), 1)])?;
+            let n_ih =
+                ih_gates.advanced_slice(&[(None, None, 1), (Some(2 * h), Some(3 * h), 1)])?;
 
-        // Proper GRU: split gates and apply correct activations
-        let gates_data = gates.as_slice();
-        let total_elements = seq_len * batch_size;
+            let r_hh = hh_gates.advanced_slice(&[(None, None, 1), (Some(0), Some(h), 1)])?;
+            let z_hh = hh_gates.advanced_slice(&[(None, None, 1), (Some(h), Some(2 * h), 1)])?;
+            let n_hh =
+                hh_gates.advanced_slice(&[(None, None, 1), (Some(2 * h), Some(3 * h), 1)])?;
 
-        // Split gates into r, z, n
-        let mut r_gate_data = Vec::with_capacity(total_elements * self.hidden_size);
-        let mut z_gate_data = Vec::with_capacity(total_elements * self.hidden_size);
-        let mut n_gate_data = Vec::with_capacity(total_elements * self.hidden_size);
+            let r = crate::functional::sigmoid(&add(&r_ih, &r_hh)?)?;
+            let z = crate::functional::sigmoid(&add(&z_ih, &z_hh)?)?;
+            let n = crate::functional::tanh(&add(&n_ih, &mul(&r, &n_hh)?)?)?;
 
-        for chunk in gates_data.chunks(3 * self.hidden_size) {
-            r_gate_data.extend_from_slice(&chunk[0..self.hidden_size]);
-            z_gate_data.extend_from_slice(&chunk[self.hidden_size..2 * self.hidden_size]);
-            n_gate_data.extend_from_slice(&chunk[2 * self.hidden_size..3 * self.hidden_size]);
+            let ones =
+                Tensor::<CpuBackend<T>, DenseStorage<T>, T>::ones(current_hidden.shape().dims())?;
+            let one_minus_z = sub(&ones, &z)?;
+            let n_part = mul(&one_minus_z, &n)?;
+            let h_part = mul(&z, &current_hidden)?;
+            current_hidden = add(&n_part, &h_part)?;
+
+            output_data.extend_from_slice(current_hidden.as_slice());
         }
 
-        // Create tensors for each gate
-        let r_gate = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
-            r_gate_data,
-            &[total_elements, self.hidden_size],
+        let layer_output = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+            output_data,
+            &[seq_len, batch_size, self.hidden_size],
         )?;
-        let z_gate = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
-            z_gate_data,
-            &[total_elements, self.hidden_size],
-        )?;
-        let n_gate = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
-            n_gate_data,
-            &[total_elements, self.hidden_size],
-        )?;
-
-        // Apply activations: sigmoid for r, z; tanh for n
-        let _r_activated = crate::functional::sigmoid(&r_gate)?;
-        let z_activated = crate::functional::sigmoid(&z_gate)?;
-        let n_activated = crate::functional::tanh(&n_gate)?;
-
-        // Expand h_prev to match sequence length
-        let h_prev_expanded_data: Vec<T> = h_prev_flat
-            .iter()
-            .copied()
-            .cycle()
-            .take(total_elements * self.hidden_size)
-            .collect();
-        let h_prev_expanded = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
-            h_prev_expanded_data,
-            &[total_elements, self.hidden_size],
-        )?;
-
-        // Compute hidden state: h_t = (1 - z_t) ? h_{t-1} + z_t ? n_t
-        let ones =
-            Tensor::<CpuBackend<T>, DenseStorage<T>, T>::ones(&[total_elements, self.hidden_size])?;
-        let one_minus_z = sub(&ones, &z_activated)?;
-
-        let h_prev_component = mul(&one_minus_z, &h_prev_expanded)?;
-        let n_component = mul(&z_activated, &n_activated)?;
-        let h_new = add(&h_prev_component, &n_component)?;
-
-        // Reshape output back to (seq_len, batch_size, hidden_size)
-        let layer_output = h_new.reshape(&[
-            seq_len as isize,
-            batch_size as isize,
-            self.hidden_size as isize,
-        ])?;
 
         Ok(layer_output)
     }
 }
 
-impl<T> Module<CpuBackend<T>, DenseStorage<T>, T> for GRU<CpuBackend<T>, DenseStorage<T>, T>
+impl<T> GRU<CpuBackend<T>, DenseStorage<T>, T>
 where
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
-    fn forward(
+    /// Forward pass with hidden state management.
+    pub fn forward_with_hidden(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+        input: &CpuTensor<T>,
+        hidden: Option<&CpuTensor<T>>,
+    ) -> Result<(CpuTensor<T>, CpuTensor<T>)> {
         let input_shape = input.shape().dims();
-
-        // Determine actual dimensions based on batch_first
         let (seq_len, batch_size, input_size) = if self.batch_first {
-            // Input is (batch, seq, input) ? need (seq, batch, input)
             (input_shape[1], input_shape[0], input_shape[2])
         } else {
-            // Input is already (seq, batch, input)
             (input_shape[0], input_shape[1], input_shape[2])
         };
 
-        // Initialize hidden state
         let num_directions = if self.bidirectional { 2 } else { 1 };
-        let h = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::zeros(&[
-            self.num_layers * num_directions,
-            batch_size,
-            self.hidden_size,
-        ])?;
+        let h = if let Some(h_init) = hidden {
+            h_init.clone()
+        } else {
+            Tensor::zeros(&[
+                self.num_layers * num_directions,
+                batch_size,
+                self.hidden_size,
+            ])?
+        };
 
-        // Transpose input if batch_first: (batch, seq_len, input_size) ? (seq_len, batch, input_size)
         let input_seq = if self.batch_first {
-            Self::transpose_3d(input, input_shape[0], input_shape[1], input_shape[2])?
+            Self::transpose_3d(input, batch_size, seq_len, input_size)?
         } else {
             input.clone()
         };
 
-        // Process each layer with bidirectional support
         let mut layer_input = input_seq;
+        let mut h_n_parts = Vec::with_capacity(self.num_layers * num_directions);
+
         for layer in 0..self.num_layers {
             if self.bidirectional {
-                // Bidirectional: process forward and backward directions separately
-
-                // Determine input size for this layer
                 let layer_input_size = if layer == 0 {
                     input_size
                 } else {
-                    self.hidden_size * 2 // Previous layer output is concatenated
+                    self.hidden_size * 2
                 };
 
-                // Forward direction (use weights at layer*2)
-                let forward_output = self.forward_layer_unidirectional(
-                    &layer_input,
-                    &h,
-                    layer * 2,
-                    (seq_len, batch_size, layer_input_size),
+                // Forward
+                let forward_output =
+                    <Self as GRUForward<CpuBackend<T>, DenseStorage<T>, T>>::forward_layer_unidirectional(
+                        self,
+                        &layer_input,
+                        &h,
+                        layer * 2,
+                        (seq_len, batch_size, layer_input_size),
+                    )?;
+                let forward_h = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+                    forward_output.as_slice()[(seq_len - 1) * batch_size * self.hidden_size
+                        ..seq_len * batch_size * self.hidden_size]
+                        .to_vec(),
+                    &[batch_size, self.hidden_size],
                 )?;
+                h_n_parts.push(forward_h);
 
-                // Backward direction (use weights at layer*2+1)
+                // Backward
                 let reversed_input =
                     Self::reverse_sequence(&layer_input, seq_len, batch_size, layer_input_size)?;
-                let backward_output_reversed = self.forward_layer_unidirectional(
+                let backward_output_reversed = <Self as GRUForward<
+                    CpuBackend<T>,
+                    DenseStorage<T>,
+                    T,
+                >>::forward_layer_unidirectional(
+                    self,
                     &reversed_input,
                     &h,
                     layer * 2 + 1,
                     (seq_len, batch_size, layer_input_size),
                 )?;
+                let backward_h = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+                    backward_output_reversed.as_slice()[(seq_len - 1)
+                        * batch_size
+                        * self.hidden_size
+                        ..seq_len * batch_size * self.hidden_size]
+                        .to_vec(),
+                    &[batch_size, self.hidden_size],
+                )?;
+                h_n_parts.push(backward_h);
+
                 let backward_output = Self::reverse_sequence(
                     &backward_output_reversed,
                     seq_len,
@@ -232,7 +200,6 @@ where
                     self.hidden_size,
                 )?;
 
-                // Concatenate forward and backward outputs along hidden dimension
                 let forward_data = forward_output.as_slice();
                 let backward_data = backward_output.as_slice();
                 let mut concatenated_data =
@@ -241,14 +208,13 @@ where
                 for t in 0..seq_len {
                     for b in 0..batch_size {
                         let forward_start = (t * batch_size + b) * self.hidden_size;
-                        let forward_end = forward_start + self.hidden_size;
                         let backward_start = (t * batch_size + b) * self.hidden_size;
-                        let backward_end = backward_start + self.hidden_size;
-
-                        concatenated_data
-                            .extend_from_slice(&forward_data[forward_start..forward_end]);
-                        concatenated_data
-                            .extend_from_slice(&backward_data[backward_start..backward_end]);
+                        concatenated_data.extend_from_slice(
+                            &forward_data[forward_start..forward_start + self.hidden_size],
+                        );
+                        concatenated_data.extend_from_slice(
+                            &backward_data[backward_start..backward_start + self.hidden_size],
+                        );
                     }
                 }
 
@@ -257,23 +223,30 @@ where
                     &[seq_len, batch_size, self.hidden_size * 2],
                 )?;
             } else {
-                // Unidirectional: process forward direction only
                 let current_input_size = if layer == 0 {
                     input_size
                 } else {
                     self.hidden_size
                 };
-                let layer_output = self.forward_layer_unidirectional(
-                    &layer_input,
-                    &h,
-                    layer,
-                    (seq_len, batch_size, current_input_size),
+                let l_output =
+                    <Self as GRUForward<CpuBackend<T>, DenseStorage<T>, T>>::forward_layer_unidirectional(
+                        self,
+                        &layer_input,
+                        &h,
+                        layer,
+                        (seq_len, batch_size, current_input_size),
+                    )?;
+                let l_h = Tensor::<CpuBackend<T>, DenseStorage<T>, T>::from_vec(
+                    l_output.as_slice()[(seq_len - 1) * batch_size * self.hidden_size
+                        ..seq_len * batch_size * self.hidden_size]
+                        .to_vec(),
+                    &[batch_size, self.hidden_size],
                 )?;
-                layer_input = layer_output;
+                layer_input = l_output;
+                h_n_parts.push(l_h);
             }
         }
 
-        // Transpose output if batch_first: (seq_len, batch, hidden_size) ? (batch, seq_len, hidden_size)
         let output = if self.batch_first {
             let output_hidden_size = if self.bidirectional {
                 self.hidden_size * 2
@@ -285,6 +258,64 @@ where
             layer_input
         };
 
+        // Combine hidden states: [num_layers * num_directions, batch_size, hidden_size]
+        let mut final_h_data =
+            Vec::with_capacity(self.num_layers * num_directions * batch_size * self.hidden_size);
+        for part in h_n_parts {
+            final_h_data.extend_from_slice(part.as_slice());
+        }
+        let final_h = Tensor::from_vec(
+            final_h_data,
+            &[
+                self.num_layers * num_directions,
+                batch_size,
+                self.hidden_size,
+            ],
+        )?;
+
+        Ok((output, final_h))
+    }
+
+    fn transpose_3d(input: &CpuTensor<T>, d1: usize, d2: usize, d3: usize) -> Result<CpuTensor<T>> {
+        let data = input.as_slice();
+        let mut transposed_data = Vec::with_capacity(data.len());
+        for i in 0..d2 {
+            for j in 0..d1 {
+                let start = (j * d2 + i) * d3;
+                transposed_data.extend_from_slice(&data[start..start + d3]);
+            }
+        }
+        Ok(Tensor::from_vec(transposed_data, &[d2, d1, d3])?)
+    }
+
+    fn reverse_sequence(
+        input: &CpuTensor<T>,
+        seq_len: usize,
+        batch_size: usize,
+        hidden_size: usize,
+    ) -> Result<CpuTensor<T>> {
+        let data = input.as_slice();
+        let mut reversed_data = Vec::with_capacity(data.len());
+        for t in (0..seq_len).rev() {
+            let start = t * batch_size * hidden_size;
+            reversed_data.extend_from_slice(&data[start..start + batch_size * hidden_size]);
+        }
+        Ok(Tensor::from_vec(
+            reversed_data,
+            &[seq_len, batch_size, hidden_size],
+        )?)
+    }
+}
+
+impl<T> Module<CpuBackend<T>, DenseStorage<T>, T> for GRU<CpuBackend<T>, DenseStorage<T>, T>
+where
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+{
+    fn forward(
+        &self,
+        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+        let (output, _) = self.forward_with_hidden(input, None)?;
         Ok(output)
     }
 

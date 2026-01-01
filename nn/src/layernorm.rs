@@ -93,14 +93,12 @@ where
 
         // Initialize weight (γ) to 1
         let weight_data = vec![T::one(); num_features];
-        let weight_tensor =
-            Tensor::<B, S, T>::from_vec(weight_data, &normalized_shape).unwrap();
+        let weight_tensor = Tensor::<B, S, T>::from_vec(weight_data, &normalized_shape).unwrap();
         let weight = Parameter::new(weight_tensor.requires_grad_(true), "weight".to_string());
 
         // Initialize bias (β) to 0
         let bias_data = vec![T::zero(); num_features];
-        let bias_tensor =
-            Tensor::<B, S, T>::from_vec(bias_data, &normalized_shape).unwrap();
+        let bias_tensor = Tensor::<B, S, T>::from_vec(bias_data, &normalized_shape).unwrap();
         let bias = Parameter::new(bias_tensor.requires_grad_(true), "bias".to_string());
 
         Self {
@@ -119,10 +117,7 @@ where
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + 'static,
 {
-    fn forward(
-        &self,
-        input: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>> {
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // Input: [..., *normalized_shape]
         // Output: Same shape as input
 
@@ -198,6 +193,14 @@ where
         "LayerNorm"
     }
 }
+
+// ============================================================================
+// TYPE ALIASES FOR BACKWARD COMPATIBILITY
+// ============================================================================
+
+/// Type alias for LayerNorm layer with CPU backend and dense storage.
+/// This provides backward compatibility with existing code.
+pub type LayerNormCpu<T> = LayerNorm<CpuBackend<T>, DenseStorage<T>, T>;
 
 #[cfg(test)]
 mod tests {
@@ -350,11 +353,3 @@ mod tests {
         assert_eq!(output.shape().dims(), &[2, 3, 4]);
     }
 }
-
-// ============================================================================
-// TYPE ALIASES FOR BACKWARD COMPATIBILITY
-// ============================================================================
-
-/// Type alias for LayerNorm layer with CPU backend and dense storage.
-/// This provides backward compatibility with existing code.
-pub type LayerNormCpu<T> = LayerNorm<CpuBackend<T>, DenseStorage<T>, T>;

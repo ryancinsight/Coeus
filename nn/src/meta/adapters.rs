@@ -4,20 +4,25 @@
 //! meta-learning algorithms (MAML, Prototypical Networks) with the unified
 //! research framework.
 
-use std::collections::HashMap;
 use rand::Rng;
+use std::collections::HashMap;
 
 use crate::error::{NNError, Result};
 use crate::linear::Linear;
 use crate::Module;
 
-use super::{MAML, PrototypicalNetwork};
 use super::maml::Task;
 use super::prototypical::DistanceMetric;
-use crate::FewShotEpisodeGenerator;
-use crate::research::agent::{ResearchAgent, AgentMetadata, AgentType, ResourceRequirements, PerformanceCharacteristics, ResourceProfile, ScalabilityProfile};
-use crate::research::experiment::{ExperimentResult, ExperimentSpec, ExperimentStatus, ResourceUsage, ExperimentStatistics};
+use super::{PrototypicalNetwork, MAML};
+use crate::research::agent::{
+    AgentMetadata, AgentType, PerformanceCharacteristics, ResearchAgent, ResourceProfile,
+    ResourceRequirements, ScalabilityProfile,
+};
+use crate::research::experiment::{
+    ExperimentResult, ExperimentSpec, ExperimentStatistics, ExperimentStatus, ResourceUsage,
+};
 use crate::research::{ResearchDomain, ResearchInsight};
+use crate::FewShotEpisodeGenerator;
 
 use backend::{Backend, DataType, Storage};
 use dtype::traits::FloatExt;
@@ -118,10 +123,30 @@ where
         let base_model = (self.model_factory)();
 
         let mut maml = MAML::new(base_model)
-            .with_inner_lr(self.config.get("inner_lr").and_then(|v| v.as_f64()).unwrap_or(0.01))
-            .with_outer_lr(self.config.get("outer_lr").and_then(|v| v.as_f64()).unwrap_or(0.001))
-            .with_inner_steps(self.config.get("inner_steps").and_then(|v| v.as_u64()).unwrap_or(5) as usize)
-            .with_first_order(self.config.get("first_order").and_then(|v| v.as_bool()).unwrap_or(true));
+            .with_inner_lr(
+                self.config
+                    .get("inner_lr")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.01),
+            )
+            .with_outer_lr(
+                self.config
+                    .get("outer_lr")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.001),
+            )
+            .with_inner_steps(
+                self.config
+                    .get("inner_steps")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(5) as usize,
+            )
+            .with_first_order(
+                self.config
+                    .get("first_order")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true),
+            );
 
         if let Some(task_dist) = self.task_distributor.take() {
             maml = maml.with_task_distribution(task_dist);
@@ -141,8 +166,14 @@ where
 
         // Parse experiment configuration
         let exp_config = &experiment.experiment_config;
-        let tasks_per_step = exp_config.get("tasks_per_step").and_then(|v| v.as_u64()).unwrap_or(4) as usize;
-        let num_iterations = exp_config.get("num_iterations").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
+        let tasks_per_step = exp_config
+            .get("tasks_per_step")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(4) as usize;
+        let num_iterations = exp_config
+            .get("num_iterations")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(10) as usize;
 
         let mut total_loss = 0.0;
         let mut losses = Vec::new();
@@ -200,7 +231,10 @@ where
     }
 
     /// Execute few-shot adaptation experiment
-    fn execute_few_shot_adaptation(&mut self, experiment: &ExperimentSpec) -> Result<ExperimentResult> {
+    fn execute_few_shot_adaptation(
+        &mut self,
+        experiment: &ExperimentSpec,
+    ) -> Result<ExperimentResult> {
         if self.maml.is_none() {
             self.initialize_maml()?;
         }
@@ -218,22 +252,28 @@ where
                     .map(|item| {
                         // Parse (input, target) pairs from JSON
                         // This is a simplified implementation
-                        let input_data: Vec<T> = item.get("input")
+                        let input_data: Vec<T> = item
+                            .get("input")
                             .and_then(|i| i.as_array())
                             .unwrap_or(&vec![])
                             .iter()
                             .map(|x| T::from_f64(x.as_f64().unwrap_or(0.0)).unwrap_or(T::zero()))
                             .collect();
 
-                        let target_data: Vec<T> = item.get("target")
+                        let target_data: Vec<T> = item
+                            .get("target")
                             .and_then(|t| t.as_array())
                             .unwrap_or(&vec![])
                             .iter()
                             .map(|x| T::from_f64(x.as_f64().unwrap_or(0.0)).unwrap_or(T::zero()))
                             .collect();
 
-                        let input = Tensor::<B, S, T>::from_vec(input_data.clone(), &[input_data.len()]).unwrap();
-                        let target = Tensor::<B, S, T>::from_vec(target_data.clone(), &[target_data.len()]).unwrap();
+                        let input =
+                            Tensor::<B, S, T>::from_vec(input_data.clone(), &[input_data.len()])
+                                .unwrap();
+                        let target =
+                            Tensor::<B, S, T>::from_vec(target_data.clone(), &[target_data.len()])
+                                .unwrap();
 
                         (input, target)
                     })
@@ -241,7 +281,10 @@ where
             })
             .unwrap_or_default();
 
-        let num_steps = exp_config.get("adaptation_steps").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
+        let num_steps = exp_config
+            .get("adaptation_steps")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(5) as usize;
 
         // Perform adaptation
         let _adapted_model = maml.adapt_for_inference(&support_set, Some(num_steps))?;
@@ -254,10 +297,19 @@ where
 
         let insights = vec![ResearchInsight {
             id: format!("maml_adaptation_{}", self.experiment_count),
-            description: format!("MAML adaptation completed in {} steps with performance {:.3}", num_steps, performance),
-            evidence: vec![format!("Completed {} adaptation steps", num_steps), format!("Final performance: {:.3}", performance)],
+            description: format!(
+                "MAML adaptation completed in {} steps with performance {:.3}",
+                num_steps, performance
+            ),
+            evidence: vec![
+                format!("Completed {} adaptation steps", num_steps),
+                format!("Final performance: {:.3}", performance),
+            ],
             agent_type: self.id.clone(),
-            domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::GeneralML.to_string()],
+            domains: vec![
+                ResearchDomain::MetaLearning.to_string(),
+                ResearchDomain::GeneralML.to_string(),
+            ],
             performance_impact: performance - 0.5, // Impact relative to baseline
             confidence: 0.8,
             knowledge_data: serde_json::json!({
@@ -295,20 +347,27 @@ where
                 let mut metadata = HashMap::new();
                 metadata.insert("task_type".to_string(), "few_shot_adaptation".to_string());
                 metadata.insert("adaptation_steps".to_string(), num_steps.to_string());
-                metadata.insert("support_examples".to_string(), support_set.len().to_string());
+                metadata.insert(
+                    "support_examples".to_string(),
+                    support_set.len().to_string(),
+                );
                 metadata
             },
         })
     }
 
     /// Generate insights from MAML experiment
-    fn generate_maml_insights(&self, losses: &[f64], final_performance: f64) -> Vec<ResearchInsight> {
+    fn generate_maml_insights(
+        &self,
+        losses: &[f64],
+        final_performance: f64,
+    ) -> Vec<ResearchInsight> {
         let mut insights = Vec::new();
 
         // Convergence insight
         let avg_improvement = if losses.len() > 1 {
-            let first_half = &losses[..losses.len()/2];
-            let second_half = &losses[losses.len()/2..];
+            let first_half = &losses[..losses.len() / 2];
+            let second_half = &losses[losses.len() / 2..];
             let first_avg = first_half.iter().sum::<f64>() / first_half.len() as f64;
             let second_avg = second_half.iter().sum::<f64>() / second_half.len() as f64;
             (second_avg - first_avg) / first_avg
@@ -318,10 +377,19 @@ where
 
         insights.push(ResearchInsight {
             id: format!("maml_convergence_{}", self.experiment_count),
-            description: format!("MAML convergence analysis shows {:.3} average improvement", avg_improvement),
-            evidence: vec![format!("Average improvement: {:.3}", avg_improvement), format!("Experiments analyzed: {}", self.performance_history.len())],
+            description: format!(
+                "MAML convergence analysis shows {:.3} average improvement",
+                avg_improvement
+            ),
+            evidence: vec![
+                format!("Average improvement: {:.3}", avg_improvement),
+                format!("Experiments analyzed: {}", self.performance_history.len()),
+            ],
             agent_type: self.id.clone(),
-            domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::AutoML.to_string()],
+            domains: vec![
+                ResearchDomain::MetaLearning.to_string(),
+                ResearchDomain::AutoML.to_string(),
+            ],
             performance_impact: -avg_improvement.min(0.0), // Negative improvement (convergence) is positive
             confidence: 0.7,
             knowledge_data: serde_json::json!({
@@ -334,10 +402,19 @@ where
         // Learning efficiency insight
         insights.push(ResearchInsight {
             id: format!("maml_efficiency_{}", self.experiment_count),
-            description: format!("MAML learning efficiency analysis with final performance {:.3}", final_performance),
-            evidence: vec![format!("Final performance: {:.3}", final_performance), format!("Training steps: {}", losses.len())],
+            description: format!(
+                "MAML learning efficiency analysis with final performance {:.3}",
+                final_performance
+            ),
+            evidence: vec![
+                format!("Final performance: {:.3}", final_performance),
+                format!("Training steps: {}", losses.len()),
+            ],
             agent_type: self.id.clone(),
-            domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::GeneralML.to_string()],
+            domains: vec![
+                ResearchDomain::MetaLearning.to_string(),
+                ResearchDomain::GeneralML.to_string(),
+            ],
             performance_impact: final_performance - 0.5,
             confidence: 0.6,
             knowledge_data: serde_json::json!({
@@ -415,7 +492,10 @@ where
     }
 
     fn supports_domain(&self, domain: &ResearchDomain) -> bool {
-        matches!(domain, ResearchDomain::MetaLearning | ResearchDomain::GeneralML)
+        matches!(
+            domain,
+            ResearchDomain::MetaLearning | ResearchDomain::GeneralML
+        )
     }
 
     fn initialize(&mut self, config: serde_json::Value) -> Result<()> {
@@ -424,7 +504,9 @@ where
     }
 
     fn run_step(&mut self, experiment: &ExperimentSpec) -> Result<ExperimentResult> {
-        let exp_type = experiment.experiment_config.get("experiment_type")
+        let exp_type = experiment
+            .experiment_config
+            .get("experiment_type")
             .and_then(|v| v.as_str())
             .unwrap_or("meta_training");
 
@@ -467,7 +549,8 @@ where
         for result in results {
             if result.agent_id != self.id {
                 // Learn from other agents' results
-                self.performance_history.push(result.final_performance * 0.1); // Reduced weight
+                self.performance_history
+                    .push(result.final_performance * 0.1); // Reduced weight
             }
         }
         Ok(())
@@ -478,7 +561,11 @@ where
             return None;
         }
 
-        let best_performance = self.performance_history.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let best_performance = self
+            .performance_history
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max);
 
         Some(ExperimentResult {
             experiment_id: "best_maml_result".to_string(),
@@ -509,12 +596,19 @@ where
     }
 
     fn set_state(&mut self, state: serde_json::Value) -> Result<()> {
-        self.experiment_count = state.get("experiment_count").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-        self.performance_history = state.get("performance_history")
+        self.experiment_count = state
+            .get("experiment_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize;
+        self.performance_history = state
+            .get("performance_history")
             .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|x| x.as_f64()).collect())
             .unwrap_or_default();
-        self.config = state.get("config").cloned().unwrap_or(serde_json::json!({}));
+        self.config = state
+            .get("config")
+            .cloned()
+            .unwrap_or(serde_json::json!({}));
         Ok(())
     }
 
@@ -537,25 +631,33 @@ where
             return Vec::new();
         }
 
-        let avg_performance = self.performance_history.iter().sum::<f64>() / self.performance_history.len() as f64;
+        let avg_performance =
+            self.performance_history.iter().sum::<f64>() / self.performance_history.len() as f64;
 
-        vec![
-            ResearchInsight {
-                id: format!("maml_performance_trend_{}", self.id),
-                description: format!("MAML performance trend analysis with average performance {:.3}", avg_performance),
-                evidence: vec![format!("Average performance: {:.3}", avg_performance), format!("Total experiments: {}", self.performance_history.len())],
-                agent_type: self.id.clone(),
-                domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::AutoML.to_string()],
-                performance_impact: avg_performance - 0.5,
-                confidence: 0.75,
-                knowledge_data: serde_json::json!({
-                    "average_performance": avg_performance,
-                    "experiments_conducted": self.experiment_count,
-                    "trend_stability": self.performance_history.iter().map(|p| (p - avg_performance).abs()).sum::<f64>() / self.performance_history.len() as f64
-                }),
-                timestamp: std::time::Instant::now(),
-            }
-        ]
+        vec![ResearchInsight {
+            id: format!("maml_performance_trend_{}", self.id),
+            description: format!(
+                "MAML performance trend analysis with average performance {:.3}",
+                avg_performance
+            ),
+            evidence: vec![
+                format!("Average performance: {:.3}", avg_performance),
+                format!("Total experiments: {}", self.performance_history.len()),
+            ],
+            agent_type: self.id.clone(),
+            domains: vec![
+                ResearchDomain::MetaLearning.to_string(),
+                ResearchDomain::AutoML.to_string(),
+            ],
+            performance_impact: avg_performance - 0.5,
+            confidence: 0.75,
+            knowledge_data: serde_json::json!({
+                "average_performance": avg_performance,
+                "experiments_conducted": self.experiment_count,
+                "trend_stability": self.performance_history.iter().map(|p| (p - avg_performance).abs()).sum::<f64>() / self.performance_history.len() as f64
+            }),
+            timestamp: std::time::Instant::now(),
+        }]
     }
 }
 
@@ -569,7 +671,6 @@ impl MAMLAgentFactory {
         Self
     }
 }
-
 
 /// Prototypical Networks Research Agent Adapter
 pub struct PrototypicalAdapter<B, S, T>
@@ -653,8 +754,18 @@ where
 
         let proto_net = PrototypicalNetwork::new(encoder)
             .with_distance_metric(DistanceMetric::Euclidean)
-            .with_scale(self.config.get("scale").and_then(|v| v.as_f64()).unwrap_or(1.0))
-            .with_temperature(self.config.get("temperature").and_then(|v| v.as_f64()).unwrap_or(1.0));
+            .with_scale(
+                self.config
+                    .get("scale")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(1.0),
+            )
+            .with_temperature(
+                self.config
+                    .get("temperature")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(1.0),
+            );
 
         self.proto_net = Some(proto_net);
         Ok(())
@@ -662,9 +773,21 @@ where
 
     /// Initialize episode generator from configuration
     fn initialize_episode_generator(&mut self) -> Result<()> {
-        let n_way = self.config.get("n_way").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
-        let k_shot = self.config.get("k_shot").and_then(|v| v.as_u64()).unwrap_or(1) as usize;
-        let n_query = self.config.get("n_query").and_then(|v| v.as_u64()).unwrap_or(15) as usize;
+        let n_way = self
+            .config
+            .get("n_way")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(5) as usize;
+        let k_shot = self
+            .config
+            .get("k_shot")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(1) as usize;
+        let n_query = self
+            .config
+            .get("n_query")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(15) as usize;
 
         // Create synthetic class examples (in practice, would load from dataset)
         let mut class_examples = Vec::new();
@@ -689,7 +812,10 @@ where
     }
 
     /// Execute few-shot learning experiment
-    fn execute_few_shot_experiment(&mut self, experiment: &ExperimentSpec) -> Result<ExperimentResult> {
+    fn execute_few_shot_experiment(
+        &mut self,
+        experiment: &ExperimentSpec,
+    ) -> Result<ExperimentResult> {
         if self.proto_net.is_none() {
             self.initialize_proto_net()?;
         }
@@ -702,16 +828,26 @@ where
 
         // Parse experiment configuration
         let exp_config = &experiment.experiment_config;
-        let num_episodes = exp_config.get("num_episodes").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
-        let adaptation_steps = exp_config.get("adaptation_steps").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
-        let adaptation_lr = exp_config.get("adaptation_lr").and_then(|v| v.as_f64()).unwrap_or(0.01);
+        let num_episodes = exp_config
+            .get("num_episodes")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(10) as usize;
+        let adaptation_steps = exp_config
+            .get("adaptation_steps")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(5) as usize;
+        let adaptation_lr = exp_config
+            .get("adaptation_lr")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.01);
 
         let mut total_accuracy = 0.0;
         let mut accuracies = Vec::new();
 
         // Run few-shot learning episodes
         for _ in 0..num_episodes {
-            let episode: super::prototypical::Episode<B, S, T> = episode_generator.generate_episode()?;
+            let episode: super::prototypical::Episode<B, S, T> =
+                episode_generator.generate_episode()?;
 
             // Compute accuracy before adaptation
             let _base_accuracy = proto_net.episode_accuracy(&episode)?;
@@ -762,21 +898,32 @@ where
                 metadata.insert("algorithm".to_string(), "Prototypical Networks".to_string());
                 metadata.insert("num_episodes".to_string(), num_episodes.to_string());
                 metadata.insert("adaptation_steps".to_string(), adaptation_steps.to_string());
-                metadata.insert("n_way".to_string(), self.episode_generator.as_ref().unwrap().n_way.to_string());
-                metadata.insert("k_shot".to_string(), self.episode_generator.as_ref().unwrap().k_shot.to_string());
+                metadata.insert(
+                    "n_way".to_string(),
+                    self.episode_generator.as_ref().unwrap().n_way.to_string(),
+                );
+                metadata.insert(
+                    "k_shot".to_string(),
+                    self.episode_generator.as_ref().unwrap().k_shot.to_string(),
+                );
                 metadata
             },
         })
     }
 
     /// Generate insights from Prototypical Networks experiment
-    fn generate_prototypical_insights(&self, accuracies: &[f64], final_performance: f64) -> Vec<ResearchInsight> {
+    fn generate_prototypical_insights(
+        &self,
+        accuracies: &[f64],
+        final_performance: f64,
+    ) -> Vec<ResearchInsight> {
         let mut insights = Vec::new();
 
         // Learning stability insight
         let (stability, variance) = if accuracies.len() > 1 {
             let mean = accuracies.iter().sum::<f64>() / accuracies.len() as f64;
-            let variance = accuracies.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / accuracies.len() as f64;
+            let variance = accuracies.iter().map(|x| (x - mean).powi(2)).sum::<f64>()
+                / accuracies.len() as f64;
             (1.0 / (1.0 + variance.sqrt()), variance) // Convert variance to stability score
         } else {
             (1.0, 0.0)
@@ -784,10 +931,19 @@ where
 
         insights.push(ResearchInsight {
             id: format!("proto_stability_{}", self.experiment_count),
-            description: format!("Prototypical stability analysis with stability score {:.3}", stability),
-            evidence: vec![format!("Stability score: {:.3}", stability), format!("Performance variance: {:.3}", variance)],
+            description: format!(
+                "Prototypical stability analysis with stability score {:.3}",
+                stability
+            ),
+            evidence: vec![
+                format!("Stability score: {:.3}", stability),
+                format!("Performance variance: {:.3}", variance),
+            ],
             agent_type: self.id.clone(),
-            domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::ComputerVision.to_string()],
+            domains: vec![
+                ResearchDomain::MetaLearning.to_string(),
+                ResearchDomain::ComputerVision.to_string(),
+            ],
             performance_impact: stability - 0.5,
             confidence: 0.75,
             knowledge_data: serde_json::json!({
@@ -801,10 +957,19 @@ where
         // Adaptation efficiency insight
         insights.push(ResearchInsight {
             id: format!("proto_adaptation_{}", self.experiment_count),
-            description: format!("Prototypical adaptation analysis with final performance {:.3}", final_performance),
-            evidence: vec![format!("Final performance: {:.3}", final_performance), format!("Training episodes: {}", accuracies.len())],
+            description: format!(
+                "Prototypical adaptation analysis with final performance {:.3}",
+                final_performance
+            ),
+            evidence: vec![
+                format!("Final performance: {:.3}", final_performance),
+                format!("Training episodes: {}", accuracies.len()),
+            ],
             agent_type: self.id.clone(),
-            domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::GeneralML.to_string()],
+            domains: vec![
+                ResearchDomain::MetaLearning.to_string(),
+                ResearchDomain::GeneralML.to_string(),
+            ],
             performance_impact: final_performance - 0.5,
             confidence: 0.7,
             knowledge_data: serde_json::json!({
@@ -880,7 +1045,10 @@ where
     }
 
     fn supports_domain(&self, domain: &ResearchDomain) -> bool {
-        matches!(domain, ResearchDomain::MetaLearning | ResearchDomain::ComputerVision)
+        matches!(
+            domain,
+            ResearchDomain::MetaLearning | ResearchDomain::ComputerVision
+        )
     }
 
     fn initialize(&mut self, config: serde_json::Value) -> Result<()> {
@@ -890,7 +1058,9 @@ where
     }
 
     fn run_step(&mut self, experiment: &ExperimentSpec) -> Result<ExperimentResult> {
-        let exp_type = experiment.experiment_config.get("experiment_type")
+        let exp_type = experiment
+            .experiment_config
+            .get("experiment_type")
             .and_then(|v| v.as_str())
             .unwrap_or("few_shot_learning");
 
@@ -903,26 +1073,25 @@ where
     }
 
     fn get_available_actions(&self) -> Vec<ExperimentSpec> {
-        vec![
-            ExperimentSpec::new(
-                format!("proto_few_shot_{}", self.experiment_count),
-                "Prototypical Networks Few-Shot Learning".to_string(),
-                ResearchDomain::MetaLearning,
-                "prototypical".to_string(),
-            )
-            .with_config(serde_json::json!({
-                "experiment_type": "few_shot_learning",
-                "num_episodes": 10,
-                "adaptation_steps": 5
-            })),
-        ]
+        vec![ExperimentSpec::new(
+            format!("proto_few_shot_{}", self.experiment_count),
+            "Prototypical Networks Few-Shot Learning".to_string(),
+            ResearchDomain::MetaLearning,
+            "prototypical".to_string(),
+        )
+        .with_config(serde_json::json!({
+            "experiment_type": "few_shot_learning",
+            "num_episodes": 10,
+            "adaptation_steps": 5
+        }))]
     }
 
     fn update_with_results(&mut self, results: &[ExperimentResult]) -> Result<()> {
         for result in results {
             if result.agent_id != self.id {
                 // Learn from other agents' results
-                self.performance_history.push(result.final_performance * 0.05); // Reduced weight
+                self.performance_history
+                    .push(result.final_performance * 0.05); // Reduced weight
             }
         }
         Ok(())
@@ -933,7 +1102,11 @@ where
             return None;
         }
 
-        let best_performance = self.performance_history.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let best_performance = self
+            .performance_history
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max);
 
         Some(ExperimentResult {
             experiment_id: "best_prototypical_result".to_string(),
@@ -964,12 +1137,19 @@ where
     }
 
     fn set_state(&mut self, state: serde_json::Value) -> Result<()> {
-        self.experiment_count = state.get("experiment_count").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-        self.performance_history = state.get("performance_history")
+        self.experiment_count = state
+            .get("experiment_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize;
+        self.performance_history = state
+            .get("performance_history")
             .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|x| x.as_f64()).collect())
             .unwrap_or_default();
-        self.config = state.get("config").cloned().unwrap_or(serde_json::json!({}));
+        self.config = state
+            .get("config")
+            .cloned()
+            .unwrap_or(serde_json::json!({}));
         Ok(())
     }
 
@@ -992,25 +1172,33 @@ where
             return Vec::new();
         }
 
-        let avg_performance = self.performance_history.iter().sum::<f64>() / self.performance_history.len() as f64;
+        let avg_performance =
+            self.performance_history.iter().sum::<f64>() / self.performance_history.len() as f64;
 
-        vec![
-            ResearchInsight {
-                id: format!("proto_performance_trend_{}", self.id),
-                description: format!("Prototypical performance trend analysis with average performance {:.3}", avg_performance),
-                evidence: vec![format!("Average performance: {:.3}", avg_performance), format!("Total experiments: {}", self.performance_history.len())],
-                agent_type: self.id.clone(),
-                domains: vec![ResearchDomain::MetaLearning.to_string(), ResearchDomain::ComputerVision.to_string()],
-                performance_impact: avg_performance - 0.5,
-                confidence: 0.8,
-                knowledge_data: serde_json::json!({
-                    "average_performance": avg_performance,
-                    "experiments_conducted": self.experiment_count,
-                    "few_shot_capability": avg_performance
-                }),
-                timestamp: std::time::Instant::now(),
-            }
-        ]
+        vec![ResearchInsight {
+            id: format!("proto_performance_trend_{}", self.id),
+            description: format!(
+                "Prototypical performance trend analysis with average performance {:.3}",
+                avg_performance
+            ),
+            evidence: vec![
+                format!("Average performance: {:.3}", avg_performance),
+                format!("Total experiments: {}", self.performance_history.len()),
+            ],
+            agent_type: self.id.clone(),
+            domains: vec![
+                ResearchDomain::MetaLearning.to_string(),
+                ResearchDomain::ComputerVision.to_string(),
+            ],
+            performance_impact: avg_performance - 0.5,
+            confidence: 0.8,
+            knowledge_data: serde_json::json!({
+                "average_performance": avg_performance,
+                "experiments_conducted": self.experiment_count,
+                "few_shot_capability": avg_performance
+            }),
+            timestamp: std::time::Instant::now(),
+        }]
     }
 }
 
@@ -1025,7 +1213,6 @@ impl PrototypicalAgentFactory {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1035,9 +1222,8 @@ mod tests {
 
     #[test]
     fn test_maml_adapter_creation() {
-        let model_factory = || {
-            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(5, 1).unwrap()
-        };
+        let model_factory =
+            || Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(5, 1).unwrap();
 
         let adapter = MAMLAdapter::<
             Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
@@ -1053,9 +1239,8 @@ mod tests {
 
     #[test]
     fn test_maml_adapter_metadata() {
-        let model_factory = || {
-            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(5, 1).unwrap()
-        };
+        let model_factory =
+            || Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(5, 1).unwrap();
 
         let adapter = MAMLAdapter::<
             Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
@@ -1066,6 +1251,8 @@ mod tests {
 
         let metadata = adapter.metadata();
         assert_eq!(metadata.version, "1.0.0");
-        assert!(metadata.supported_domains.contains(&ResearchDomain::MetaLearning));
+        assert!(metadata
+            .supported_domains
+            .contains(&ResearchDomain::MetaLearning));
     }
 }

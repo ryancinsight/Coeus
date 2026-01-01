@@ -3,17 +3,17 @@
 //! This module implements advanced attention mechanisms that enable interaction
 //! between different modalities (vision, language, audio) for joint understanding.
 
-use std::collections::HashMap;
-use crate::error::Result;
-use dtype::FloatExt;
-use backend::Backend;
-use storage::{Storage, StorageFromVec, StorageToDense};
-use dtype::DataType;
-use crate::attention::MultiHeadAttention;
-use crate::linear::Linear;
-use crate::layernorm::LayerNorm;
 use crate::activation::GeLU;
+use crate::attention::MultiHeadAttention;
+use crate::error::Result;
+use crate::layernorm::LayerNorm;
+use crate::linear::Linear;
 use crate::multimodal::Modality;
+use backend::Backend;
+use dtype::DataType;
+use dtype::FloatExt;
+use std::collections::HashMap;
+use storage::{Storage, StorageFromVec, StorageToDense};
 
 /// Types of cross-modal attention patterns
 #[derive(Debug, Clone, PartialEq)]
@@ -235,6 +235,7 @@ where
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum FusionMechanism<B, S, T>
 where
     B: Backend<Data = T> + Clone,
@@ -289,9 +290,18 @@ where
 
         // Create layer norms
         let mut layer_norms = HashMap::new();
-        layer_norms.insert("intra_norm".to_string(), LayerNorm::new(vec![hidden_dim], 1e-6));
-        layer_norms.insert("cross_norm".to_string(), LayerNorm::new(vec![hidden_dim], 1e-6));
-        layer_norms.insert("ff_norm".to_string(), LayerNorm::new(vec![hidden_dim], 1e-6));
+        layer_norms.insert(
+            "intra_norm".to_string(),
+            LayerNorm::new(vec![hidden_dim], 1e-6),
+        );
+        layer_norms.insert(
+            "cross_norm".to_string(),
+            LayerNorm::new(vec![hidden_dim], 1e-6),
+        );
+        layer_norms.insert(
+            "ff_norm".to_string(),
+            LayerNorm::new(vec![hidden_dim], 1e-6),
+        );
 
         Ok(Self {
             intra_attention,
@@ -314,7 +324,9 @@ where
 
         match pattern {
             AttentionPattern::VisionToLanguage => {
-                if modalities.contains(&Modality::Vision) && modalities.contains(&Modality::Language) {
+                if modalities.contains(&Modality::Vision)
+                    && modalities.contains(&Modality::Language)
+                {
                     cross_attention.push(CrossModalAttention::new(
                         hidden_dim,
                         num_heads,
@@ -322,9 +334,11 @@ where
                         vec![Modality::Vision],
                     )?);
                 }
-            },
+            }
             AttentionPattern::LanguageToVision => {
-                if modalities.contains(&Modality::Vision) && modalities.contains(&Modality::Language) {
+                if modalities.contains(&Modality::Vision)
+                    && modalities.contains(&Modality::Language)
+                {
                     cross_attention.push(CrossModalAttention::new(
                         hidden_dim,
                         num_heads,
@@ -332,9 +346,11 @@ where
                         vec![Modality::Language],
                     )?);
                 }
-            },
+            }
             AttentionPattern::BidirectionalVL => {
-                if modalities.contains(&Modality::Vision) && modalities.contains(&Modality::Language) {
+                if modalities.contains(&Modality::Vision)
+                    && modalities.contains(&Modality::Language)
+                {
                     // V->L attention
                     cross_attention.push(CrossModalAttention::new(
                         hidden_dim,
@@ -350,7 +366,7 @@ where
                         vec![Modality::Language],
                     )?);
                 }
-            },
+            }
             AttentionPattern::Trimodal => {
                 // Create pairwise cross-attention for all modality combinations
                 let modal_pairs = vec![
@@ -369,7 +385,7 @@ where
                         )?);
                     }
                 }
-            },
+            }
             _ => {
                 // Default: create pairwise cross-attention for adjacent modalities
                 // (This would need to be expanded based on the specific pattern)
@@ -398,8 +414,15 @@ where
 
         // Then, apply cross-modal attention
         for cross_attn in &self.cross_attention {
-            if let Some(query_embedding) = updated_embeddings.get(&cross_attn.query_modality).cloned() {
-                let mut attended = self.apply_cross_attention(cross_attn, &query_embedding, modality_embeddings, batch_size)?;
+            if let Some(query_embedding) =
+                updated_embeddings.get(&cross_attn.query_modality).cloned()
+            {
+                let attended = self.apply_cross_attention(
+                    cross_attn,
+                    &query_embedding,
+                    modality_embeddings,
+                    batch_size,
+                )?;
                 // Update embedding with cross-attention output
                 if let Some(existing) = updated_embeddings.get_mut(&cross_attn.query_modality) {
                     // Residual connection
@@ -424,23 +447,32 @@ where
         Ok(updated_embeddings)
     }
 
-    fn apply_intra_attention(&self, attn: &MultiHeadAttention<B, S, T>, embedding: &[f32], batch_size: usize) -> Result<Vec<f32>> {
+    fn apply_intra_attention(
+        &self,
+        _attn: &MultiHeadAttention<B, S, T>,
+        embedding: &[f32],
+        _batch_size: usize,
+    ) -> Result<Vec<f32>> {
         // Placeholder: in real implementation, this would call attn.forward()
         Ok(embedding.to_vec())
     }
 
     fn apply_cross_attention(
         &self,
-        cross_attn: &CrossModalAttention<B, S, T>,
+        _cross_attn: &CrossModalAttention<B, S, T>,
         query: &[f32],
-        all_embeddings: &HashMap<Modality, Vec<f32>>,
-        batch_size: usize,
+        _all_embeddings: &HashMap<Modality, Vec<f32>>,
+        _batch_size: usize,
     ) -> Result<Vec<f32>> {
         // Placeholder: combine query with key/value from other modalities
         Ok(query.to_vec())
     }
 
-    fn apply_feed_forward(&self, ffn: &FeedForwardNetwork<B, S, T>, input: &[f32]) -> Result<Vec<f32>> {
+    fn apply_feed_forward(
+        &self,
+        _ffn: &FeedForwardNetwork<B, S, T>,
+        input: &[f32],
+    ) -> Result<Vec<f32>> {
         // Placeholder: apply feed-forward network
         Ok(input.to_vec())
     }
@@ -525,7 +557,11 @@ where
     }
 
     /// Apply co-attention to vision and text features
-    pub fn forward(&self, vision_features: &[f32], text_features: &[f32]) -> Result<(Vec<f32>, Vec<f32>)> {
+    pub fn forward(
+        &self,
+        vision_features: &[f32],
+        text_features: &[f32],
+    ) -> Result<(Vec<f32>, Vec<f32>)> {
         // Vision-to-text attention
         // let v2t_out = self.v2t_attention.forward(vision_features, text_features, text_features)?;
 

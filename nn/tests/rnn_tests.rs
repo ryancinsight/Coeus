@@ -73,12 +73,16 @@ fn test_lstm_parameters() {
 
     let params = lstm.parameters();
 
-    // LSTM has 4 gates, each with weight_ih and weight_hh (and biases)
-    // Each weight_ih: [hidden_size, input_size] = [2, 3]
-    // Each weight_hh: [hidden_size, hidden_size] = [2, 2]
-    // Each bias_ih/bias_hh: [hidden_size] = [2]
-    // Total: 4 gates × 4 parameters = 16 parameters
-    assert_eq!(params.len(), 16);
+    // LSTM stores all gates concatenated (PyTorch format):
+    // weight_ih: [4*hidden_size, input_size] = [8, 3]
+    // weight_hh: [4*hidden_size, hidden_size] = [8, 2]
+    // bias_ih: [4*hidden_size] = [8]
+    // bias_hh: [4*hidden_size] = [8]
+    assert_eq!(params.len(), 4);
+    assert_eq!(params[0].data().shape().dims(), &[8, 3]); // weight_ih
+    assert_eq!(params[1].data().shape().dims(), &[8, 2]); // weight_hh
+    assert_eq!(params[2].data().shape().dims(), &[8]); // bias_ih
+    assert_eq!(params[3].data().shape().dims(), &[8]); // bias_hh
 }
 
 #[test]
@@ -107,12 +111,16 @@ fn test_gru_parameters() {
 
     let params = gru.parameters();
 
-    // GRU has 3 gates (reset, update, new), each with weight_ih and weight_hh (and biases)
-    // Each weight_ih: [hidden_size, input_size] = [2, 3]
-    // Each weight_hh: [hidden_size, hidden_size] = [2, 2]
-    // Each bias_ih/bias_hh: [hidden_size] = [2]
-    // Total: 3 gates × 4 parameters = 12 parameters
-    assert_eq!(params.len(), 12);
+    // GRU stores all gates concatenated (PyTorch format):
+    // weight_ih: [3*hidden_size, input_size] = [6, 3]
+    // weight_hh: [3*hidden_size, hidden_size] = [6, 2]
+    // bias_ih: [3*hidden_size] = [6]
+    // bias_hh: [3*hidden_size] = [6]
+    assert_eq!(params.len(), 4);
+    assert_eq!(params[0].data().shape().dims(), &[6, 3]); // weight_ih
+    assert_eq!(params[1].data().shape().dims(), &[6, 2]); // weight_hh
+    assert_eq!(params[2].data().shape().dims(), &[6]); // bias_ih
+    assert_eq!(params[3].data().shape().dims(), &[6]); // bias_hh
 }
 
 #[test]

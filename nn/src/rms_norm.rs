@@ -5,13 +5,12 @@
 //! and is used in modern transformer architectures like GPT-NeoX, PaLM, and LLaMA.
 
 use crate::error::{NNError, Result};
-use backend::Backend;
-use storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
-use dtype::DataType;
-use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::creation::*};
 use crate::parameter::Parameter;
-use tensor::ops::reduction::*;
 use autograd::ops::mean;
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::{ops::arithmetic::*, FloatExt, Tensor};
 
 /// RMSNorm layer
 ///
@@ -21,7 +20,12 @@ pub struct RMSNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync,
-    T: DataType + 'static + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
+    T: DataType
+        + 'static
+        + FloatExt
+        + num_traits::Bounded
+        + std::cmp::PartialOrd
+        + num_traits::FromPrimitive,
 {
     /// Learnable scaling parameter (gamma)
     weight: Parameter<B, S, T>,
@@ -37,7 +41,12 @@ impl<B, S, T> RMSNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync,
-    T: DataType + 'static + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
+    T: DataType
+        + 'static
+        + FloatExt
+        + num_traits::Bounded
+        + std::cmp::PartialOrd
+        + num_traits::FromPrimitive,
 {
     /// Create a new RMSNorm layer
     ///
@@ -123,8 +132,6 @@ where
 
     /// Compute mean along the normalized dimensions
     fn compute_mean_along_dims(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
-        let input_shape = input.shape().dims();
-
         // For simplicity, assume we're normalizing the last dimension (most common case)
         // This is the typical case for transformer layers
         if self.normalized_shape.len() == 1 {
@@ -147,7 +154,11 @@ where
     }
 
     /// Broadcast RMS tensor back to input shape
-    fn broadcast_to_input_shape(&self, rms: &Tensor<B, S, T>, input_shape: &[usize]) -> Result<Tensor<B, S, T>> {
+    fn broadcast_to_input_shape(
+        &self,
+        rms: &Tensor<B, S, T>,
+        input_shape: &[usize],
+    ) -> Result<Tensor<B, S, T>> {
         let rms_shape = rms.shape().dims();
 
         // For last-dimension normalization, we need to broadcast along the last axis
@@ -260,8 +271,8 @@ mod tests {
     use super::*;
     use backend::CpuBackend;
     use dtype::float::Float32;
-    use storage::DenseStorage;
     use num_traits::Float;
+    use storage::DenseStorage;
 
     type TestBackend = CpuBackend<Float32>;
     type TestStorage = DenseStorage<Float32>;
@@ -274,7 +285,8 @@ mod tests {
             config.normalized_shape,
             config.eps,
             config.elementwise_affine,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(rms_norm.normalized_shape(), &[64]);
         assert_eq!(rms_norm.eps(), 1e-5);
@@ -283,7 +295,8 @@ mod tests {
 
     #[test]
     fn test_rms_norm_forward() {
-        let rms_norm = RMSNorm::<TestBackend, TestStorage, TestDataType>::new_default(vec![4]).unwrap();
+        let rms_norm =
+            RMSNorm::<TestBackend, TestStorage, TestDataType>::new_default(vec![4]).unwrap();
 
         // Create test input
         let input_data = vec![
@@ -311,7 +324,8 @@ mod tests {
 
     #[test]
     fn test_rms_norm_preserves_zero_mean() {
-        let rms_norm = RMSNorm::<TestBackend, TestStorage, TestDataType>::new_default(vec![3]).unwrap();
+        let rms_norm =
+            RMSNorm::<TestBackend, TestStorage, TestDataType>::new_default(vec![3]).unwrap();
 
         // Create input with different scales
         let input_data = vec![Float32::new(0.1), Float32::new(0.2), Float32::new(0.3)];
@@ -329,7 +343,8 @@ mod tests {
 
     #[test]
     fn test_rms_norm_shape_validation() {
-        let rms_norm = RMSNorm::<TestBackend, TestStorage, TestDataType>::new_default(vec![64]).unwrap();
+        let rms_norm =
+            RMSNorm::<TestBackend, TestStorage, TestDataType>::new_default(vec![64]).unwrap();
 
         // Wrong shape should fail
         let wrong_input = Tensor::from_vec(vec![Float32::new(1.0); 32], &[32]).unwrap();
@@ -339,9 +354,8 @@ mod tests {
 
     #[test]
     fn test_rms_norm_no_affine() {
-        let rms_norm = RMSNorm::<TestBackend, TestStorage, TestDataType>::new(
-            vec![4], 1e-5, false
-        ).unwrap();
+        let rms_norm =
+            RMSNorm::<TestBackend, TestStorage, TestDataType>::new(vec![4], 1e-5, false).unwrap();
 
         let input_data = vec![
             Float32::new(1.0),
@@ -358,7 +372,10 @@ mod tests {
 
         // Should be same as with affine but weight=1
         let expected_rms = ((1.0_f32 + 4.0 + 9.0 + 16.0) / 4.0).sqrt();
-        assert!((output_data[0] - Float32::new(1.0) / Float32::new(expected_rms)).abs() < Float32::new(1e-5));
+        assert!(
+            (output_data[0] - Float32::new(1.0) / Float32::new(expected_rms)).abs()
+                < Float32::new(1e-5)
+        );
     }
 
     #[test]
@@ -375,5 +392,3 @@ mod tests {
         assert_eq!(custom_eps.eps, 1e-6);
     }
 }
-
-

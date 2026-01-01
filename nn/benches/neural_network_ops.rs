@@ -4,12 +4,12 @@
 //! operations to ensure competitive performance and identify regressions.
 
 use backend::CpuBackend;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use dtype::float::Float32;
 use nn::{Conv2D, Linear, Module, ReLU, Sequential};
+use std::time::Duration;
 use storage::DenseStorage;
 use tensor::Tensor;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use std::time::Duration;
 
 /// Type alias for our benchmark tensor type
 type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
@@ -194,10 +194,10 @@ fn bench_tensor_operations(c: &mut Criterion) {
     // Matrix multiplication (core of linear layers)
     group.bench_function("matmul_small", |b| {
         let a = random_tensor(&[64, 128]);
-        let b = random_tensor(&[128, 64]);
+        let other = random_tensor(&[128, 64]);
 
         b.iter(|| {
-            let result = a.matmul(&b).unwrap();
+            let result = a.matmul(&other).unwrap();
             black_box(result);
         });
     });
@@ -205,10 +205,10 @@ fn bench_tensor_operations(c: &mut Criterion) {
     // Element-wise operations (used in activations)
     group.bench_function("elementwise_add", |b| {
         let a = random_tensor(&[1024, 1024]);
-        let b = random_tensor(&[1024, 1024]);
+        let other = random_tensor(&[1024, 1024]);
 
         b.iter(|| {
-            let result = &a + &b;
+            let result = &a + &other;
             black_box(result);
         });
     });

@@ -19,12 +19,12 @@ use tensor::Tensor;
 
 // NN modules
 use nn::clip::{
-    ClipConfig, ClipModel, ClipValidator, ValidationConfig,
     validation::{EvaluationType, ValidationReport},
     zero_shot::{ZeroShotClassifier, ZeroShotConfig},
+    ClipConfig, ClipModel, ClipValidator, ValidationConfig,
 };
 use nn::datasets::{
-    CocoDataset, Flickr30kDataset, VisionLanguageBatchLoader, BatchConfig, DatasetSplit
+    BatchConfig, CocoDataset, DatasetSplit, Flickr30kDataset, VisionLanguageBatchLoader,
 };
 use nn::error::Result;
 
@@ -78,14 +78,14 @@ async fn run_clip_evaluation() -> Result<()> {
         Ok(dataset) => {
             println!("✅ Loaded COCO dataset with {} pairs", dataset.len());
             Box::new(dataset)
-        },
+        }
         Err(_) => {
             println!("⚠️  COCO dataset not available, using Flickr30K...");
             match Flickr30kDataset::new("datasets/flickr30k").await {
                 Ok(dataset) => {
                     println!("✅ Loaded Flickr30K dataset with {} pairs", dataset.len());
                     Box::new(dataset)
-                },
+                }
                 Err(_) => {
                     println!("⚠️  No real datasets available, evaluation will be limited");
                     println!("💡 To run full evaluation:");
@@ -101,10 +101,7 @@ async fn run_clip_evaluation() -> Result<()> {
     println!("\n🔍 Phase 3: Running Comprehensive Validation");
     println!("---------------------------------------------");
 
-    let validator = ClipValidator::new(
-        std::sync::Arc::new(model),
-        ValidationConfig::default()
-    );
+    let validator = ClipValidator::new(std::sync::Arc::new(model), ValidationConfig::default());
 
     // Run full evaluation suite
     let report = validator.validate(&*dataset, EvaluationType::Full).await?;
@@ -133,7 +130,10 @@ async fn run_clip_evaluation() -> Result<()> {
         zero_shot_config,
     )?;
 
-    println!("✅ Created zero-shot classifier for {} classes", class_names.len());
+    println!(
+        "✅ Created zero-shot classifier for {} classes",
+        class_names.len()
+    );
 
     // Demonstrate classification on a few samples
     println!("\n🖼️  Zero-Shot Classification Examples:");
@@ -144,17 +144,23 @@ async fn run_clip_evaluation() -> Result<()> {
         let pair = dataset.get(i).await?;
         let result = zero_shot_classifier.classify_image(&pair.image_data)?;
 
-        println!("Sample {}: {} (confidence: {:.2}%)",
-                i + 1,
-                result.predicted_class,
-                result.confidence * 100.0);
+        println!(
+            "Sample {}: {} (confidence: {:.2}%)",
+            i + 1,
+            result.predicted_class,
+            result.confidence * 100.0
+        );
 
-        println!("  Top-3: {}",
-                result.top_k.iter()
-                    .take(3)
-                    .map(|(class, conf)| format!("{} ({:.1}%)", class, conf * 100.0))
-                    .collect::<Vec<_>>()
-                    .join(", "));
+        println!(
+            "  Top-3: {}",
+            result
+                .top_k
+                .iter()
+                .take(3)
+                .map(|(class, conf)| format!("{} ({:.1}%)", class, conf * 100.0))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
         println!();
     }
 
@@ -164,8 +170,10 @@ async fn run_clip_evaluation() -> Result<()> {
 
     let total_time = start_time.elapsed();
     println!("Total evaluation time: {:.2}s", total_time.as_secs_f64());
-    println!("Evaluation throughput: {:.1} samples/second",
-            dataset.len() as f64 / total_time.as_secs_f64());
+    println!(
+        "Evaluation throughput: {:.1} samples/second",
+        dataset.len() as f64 / total_time.as_secs_f64()
+    );
 
     // Memory usage estimate
     let memory_mb = estimate_evaluation_memory(dataset.len());
@@ -200,8 +208,14 @@ fn display_validation_report(report: &ValidationReport) {
         println!("  Median Rank: {:.1}", retrieval.image_to_text.median_rank);
 
         println!("\nOverall Metrics:");
-        println!("  Mean Reciprocal Rank: {:.3}", retrieval.mean_reciprocal_rank);
-        println!("  Mean Average Precision: {:.3}", retrieval.mean_average_precision);
+        println!(
+            "  Mean Reciprocal Rank: {:.3}",
+            retrieval.mean_reciprocal_rank
+        );
+        println!(
+            "  Mean Average Precision: {:.3}",
+            retrieval.mean_average_precision
+        );
     }
 
     if let Some(ref zero_shot) = report.zero_shot {
@@ -337,27 +351,30 @@ async fn benchmark_clip_performance(model: &Model, batch_sizes: &[usize]) -> Res
         }
         let similarity_time = similarity_start.elapsed();
 
-        println!("  Image Encoding: {:.2}ms ({:.1} samples/sec)",
-                image_time.as_millis(),
-                batch_size as f64 * 1000.0 / image_time.as_millis() as f64);
+        println!(
+            "  Image Encoding: {:.2}ms ({:.1} samples/sec)",
+            image_time.as_millis(),
+            batch_size as f64 * 1000.0 / image_time.as_millis() as f64
+        );
 
-        println!("  Text Encoding:  {:.2}ms ({:.1} samples/sec)",
-                text_time.as_millis(),
-                batch_size as f64 * 1000.0 / text_time.as_millis() as f64);
+        println!(
+            "  Text Encoding:  {:.2}ms ({:.1} samples/sec)",
+            text_time.as_millis(),
+            batch_size as f64 * 1000.0 / text_time.as_millis() as f64
+        );
 
-        println!("  Similarity:     {:.2}ms ({:.1} pairs/sec)",
-                similarity_time.as_millis(),
-                batch_size as f64 * 1000.0 / similarity_time.as_millis() as f64);
+        println!(
+            "  Similarity:     {:.2}ms ({:.1} pairs/sec)",
+            similarity_time.as_millis(),
+            batch_size as f64 * 1000.0 / similarity_time.as_millis() as f64
+        );
     }
 
     Ok(())
 }
 
 /// Compute cosine similarity (helper function)
-fn compute_cosine_similarity<B, S, T>(
-    emb1: &Tensor<B, S, T>,
-    emb2: &Tensor<B, S, T>,
-) -> Result<f64>
+fn compute_cosine_similarity<B, S, T>(emb1: &Tensor<B, S, T>, emb2: &Tensor<B, S, T>) -> Result<f64>
 where
     B: crate::backend::Backend<Data = T>,
     S: crate::storage::Storage<T>,
@@ -366,7 +383,8 @@ where
     let emb1_data = emb1.as_slice();
     let emb2_data = emb2.as_slice();
 
-    let dot_product: f64 = emb1_data.iter()
+    let dot_product: f64 = emb1_data
+        .iter()
         .zip(emb2_data.iter())
         .map(|(&a, &b)| a as f64 * b as f64)
         .sum();
@@ -420,4 +438,3 @@ async fn main() -> Result<()> {
     println!("\n✅ CLIP Evaluation Example Complete!");
     Ok(())
 }
-

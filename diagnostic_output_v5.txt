@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "d:\coeus\diagnostic_imports.py", line 26, in <module>
-    from coeus import functional
-ImportError: cannot import name 'functional' from 'coeus' (d:\coeus\pycoeus\python\coeus\__init__.py)
-Top-level coeus import successful
-coeus.nn import successful
-coeus.optim import successful
-Import coeus.functional failed: cannot import name 'functional' from 'coeus' (d:\coeus\pycoeus\python\coeus\__init__.py)

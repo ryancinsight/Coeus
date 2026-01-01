@@ -11,16 +11,24 @@ use autograd::ops::backward_with_grad;
 use backend::CpuBackend;
 use dtype::float::Float32;
 use nn::{
-    activation::GELU, attention::SparseAttentionPattern, dropout::Dropout, functional, BatchNorm2d, Conv2D, LayerNorm, Linear, Module,
-    MultiHeadAttention, ReLU, Sequential, SparseAttention,
-    meta::prototypical::{PrototypicalNetwork, FewShotEpisodeGenerator, DistanceMetric},
-    research::{MAMLResearchAgent, MAMLResearchAgentFactory, ExperimentSpec, ResearchDomain, ResearchAgentFactory},
+    activation::GeLU,
+    attention::SparseAttentionPattern,
+    dropout::Dropout,
+    functional,
+    meta::prototypical::{DistanceMetric, FewShotEpisodeGenerator, PrototypicalNetwork},
+    BatchNorm2d, Conv2D, LayerNorm, Linear, Module, MultiHeadAttention, ReLU, Sequential,
+    SparseAttention,
 };
-use storage::{CsrStorage, DenseStorage, SparseFormat};
+#[cfg(feature = "research")]
+use nn::research::{ExperimentSpec, MAMLResearchAgentFactory, ResearchAgentFactory, ResearchDomain};
+use storage::DenseStorage;
 use tensor::Tensor;
 
+type BenchTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
+type SupportExample = (BenchTensor, usize);
+
 /// Create random tensor with specified shape
-fn random_tensor(shape: &[usize]) -> Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> {
+fn random_tensor(shape: &[usize]) -> BenchTensor {
     let mut rng = rand::thread_rng();
     let size: usize = shape.iter().product();
     let data: Vec<Float32> = (0..size)
@@ -31,9 +39,7 @@ fn random_tensor(shape: &[usize]) -> Tensor<CpuBackend<Float32>, DenseStorage<Fl
 }
 
 /// Create random tensor requiring gradients
-fn random_tensor_grad(
-    shape: &[usize],
-) -> Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> {
+fn random_tensor_grad(shape: &[usize]) -> BenchTensor {
     random_tensor(shape).requires_grad_(true)
 }
 
@@ -106,7 +112,8 @@ fn bench_linear_backward(c: &mut Criterion) {
             let grad =
                 Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(loss_shape)
                     .unwrap();
-            black_box(backward_with_grad(&loss, &grad).unwrap());
+            backward_with_grad(&loss, grad).unwrap();
+            black_box(());
         });
     });
 
@@ -127,7 +134,8 @@ fn bench_linear_backward(c: &mut Criterion) {
             let grad =
                 Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(loss_shape)
                     .unwrap();
-            black_box(backward_with_grad(&loss, &grad).unwrap());
+            backward_with_grad(&loss, grad).unwrap();
+            black_box(());
         });
     });
 
@@ -223,17 +231,26 @@ fn bench_sequential_forward(c: &mut Criterion) {
             "fc1".to_string(),
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 512).unwrap(),
         );
-        model.add_module("relu1".to_string(), coeus_nn::ReLU);
+        model.add_module(
+            "relu1".to_string(),
+            ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+        );
         model.add_module(
             "fc2".to_string(),
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(512, 256).unwrap(),
         );
-        model.add_module("relu2".to_string(), coeus_nn::ReLU);
+        model.add_module(
+            "relu2".to_string(),
+            ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+        );
         model.add_module(
             "fc3".to_string(),
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(256, 128).unwrap(),
         );
-        model.add_module("relu3".to_string(), coeus_nn::ReLU);
+        model.add_module(
+            "relu3".to_string(),
+            ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+        );
         model.add_module(
             "fc4".to_string(),
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(128, 10).unwrap(),
@@ -261,7 +278,10 @@ fn bench_sequential_backward(c: &mut Criterion) {
             "fc1".to_string(),
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(784, 256).unwrap(),
         );
-        model.add_module("relu1".to_string(), coeus_nn::ReLU);
+        model.add_module(
+            "relu1".to_string(),
+            ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+        );
         model.add_module(
             "fc2".to_string(),
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(256, 10).unwrap(),
@@ -285,7 +305,8 @@ fn bench_sequential_backward(c: &mut Criterion) {
             let grad =
                 Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(loss_shape)
                     .unwrap();
-            black_box(backward_with_grad(&loss, &grad).unwrap());
+            backward_with_grad(&loss, grad).unwrap();
+            black_box(());
         });
     });
 
@@ -298,7 +319,7 @@ fn bench_batchnorm_forward(c: &mut Criterion) {
 
     // Small: 64 channels, 32x32 features
     group.bench_function("small_64ch_32x32", |b| {
-        let mut batchnorm =
+        let batchnorm =
             BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(64, 1e-5, 0.1)
                 .unwrap();
         let input = random_tensor(&[8, 64, 32, 32]); // batch_size=8
@@ -318,7 +339,7 @@ fn bench_layernorm_forward(c: &mut Criterion) {
 
     // Small: 512 features
     group.bench_function("small_512_features", |b| {
-        let mut layernorm =
+        let layernorm =
             LayerNorm::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(vec![512], 1e-5);
         let input = random_tensor(&[16, 32, 512]); // batch_size=16, seq_len=32
 
@@ -405,7 +426,7 @@ fn bench_activations(c: &mut Criterion) {
 
     // ReLU
     group.bench_function("relu_32x1024", |b| {
-        let relu = coeus_nn::ReLU;
+        let relu = ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         b.iter(|| {
             let output = black_box(relu.forward(&input).unwrap());
             black_box(output);
@@ -414,7 +435,7 @@ fn bench_activations(c: &mut Criterion) {
 
     // GELU
     group.bench_function("gelu_32x1024", |b| {
-        let gelu = GELU;
+        let gelu = GeLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         b.iter(|| {
             let output = black_box(gelu.forward(&input).unwrap());
             black_box(output);
@@ -432,15 +453,15 @@ fn bench_memory_usage(c: &mut Criterion) {
     let sizes = vec![(100, 100), (500, 500), (1000, 1000)];
 
     for (rows, cols) in sizes {
-        group.bench_function(&format!("dense_{}x{}", rows, cols), |b| {
+        group.bench_function(format!("dense_{}x{}", rows, cols), |b| {
             b.iter(|| {
                 let tensor = random_tensor(&[rows, cols]);
-                black_box(tensor.as_slice().len() * std::mem::size_of::<Float32>());
+                black_box(std::mem::size_of_val(tensor.as_slice()));
             });
         });
 
         // Create sparse tensor with 90% sparsity
-        group.bench_function(&format!("sparse_90pct_{}x{}", rows, cols), |b| {
+        group.bench_function(format!("sparse_90pct_{}x{}", rows, cols), |b| {
             b.iter(|| {
                 let dense = random_tensor(&[rows, cols]);
                 // For benchmark, just measure the memory of the dense data
@@ -626,7 +647,9 @@ fn bench_attention_sparse_vs_dense(c: &mut Criterion) {
     group.bench_function("sparse_attention_32seq_75pct", |b| {
         let attention =
             SparseAttention::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                embed_dim, num_heads, SparseAttentionPattern::Local { window_size: 8 },
+                embed_dim,
+                num_heads,
+                SparseAttentionPattern::Local { window_size: 8 },
             )
             .unwrap();
 
@@ -651,7 +674,7 @@ fn bench_sparsity_scalability(c: &mut Criterion) {
     let sparsity_levels = vec![0.5, 0.7, 0.8, 0.9, 0.95];
 
     for sparsity in sparsity_levels {
-        group.bench_function(&format!("relu_sparsity_{:.0}pct", sparsity * 100.0), |b| {
+        group.bench_function(format!("relu_sparsity_{:.0}pct", sparsity * 100.0), |b| {
             let relu = ReLU::new();
 
             // Create sparse input
@@ -692,8 +715,8 @@ fn bench_prototypical_prototype_computation(c: &mut Criterion) {
 
     // Create encoder network
     let encoder = Linear::new(128, 64).unwrap();
-    let proto_net = PrototypicalNetwork::new(encoder)
-        .with_distance_metric(DistanceMetric::Euclidean);
+    let proto_net =
+        PrototypicalNetwork::new(encoder).with_distance_metric(DistanceMetric::Euclidean);
 
     // Create support set for benchmarking (5 classes, 5 examples each)
     let support_set = create_support_set(5, 5, 128);
@@ -713,8 +736,8 @@ fn bench_prototypical_classification(c: &mut Criterion) {
 
     // Create encoder network
     let encoder = Linear::new(128, 64).unwrap();
-    let proto_net = PrototypicalNetwork::new(encoder)
-        .with_distance_metric(DistanceMetric::Euclidean);
+    let proto_net =
+        PrototypicalNetwork::new(encoder).with_distance_metric(DistanceMetric::Euclidean);
 
     // Create support set and compute prototypes
     let support_set = create_support_set(5, 5, 128);
@@ -755,8 +778,8 @@ fn bench_episode_evaluation(c: &mut Criterion) {
 
     // Create encoder network
     let encoder = Linear::new(128, 64).unwrap();
-    let proto_net = PrototypicalNetwork::new(encoder)
-        .with_distance_metric(DistanceMetric::Euclidean);
+    let proto_net =
+        PrototypicalNetwork::new(encoder).with_distance_metric(DistanceMetric::Euclidean);
 
     // Create class examples
     let class_examples = create_class_examples(10, 20, 128);
@@ -787,8 +810,8 @@ fn bench_distance_metrics(c: &mut Criterion) {
     let query = random_tensor(&[1, 128]);
 
     for metric in &[DistanceMetric::Euclidean, DistanceMetric::Cosine] {
-        let proto_net = PrototypicalNetwork::new(encoder.clone())
-            .with_distance_metric(metric.clone());
+        let proto_net =
+            PrototypicalNetwork::new(encoder.clone()).with_distance_metric(metric.clone());
 
         let metric_name = match metric {
             DistanceMetric::Euclidean => "euclidean",
@@ -807,9 +830,11 @@ fn bench_distance_metrics(c: &mut Criterion) {
 }
 
 /// Helper function to create support set for benchmarking
-fn create_support_set(num_classes: usize, examples_per_class: usize, feature_dim: usize)
-    -> Vec<(Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, usize)>
-{
+fn create_support_set(
+    num_classes: usize,
+    examples_per_class: usize,
+    feature_dim: usize,
+) -> Vec<SupportExample> {
     let mut support_set = Vec::new();
 
     for class_id in 0..num_classes {
@@ -823,9 +848,11 @@ fn create_support_set(num_classes: usize, examples_per_class: usize, feature_dim
 }
 
 /// Helper function to create class examples for episode generation
-fn create_class_examples(num_classes: usize, examples_per_class: usize, feature_dim: usize)
-    -> Vec<Vec<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>>
-{
+fn create_class_examples(
+    num_classes: usize,
+    examples_per_class: usize,
+    feature_dim: usize,
+) -> Vec<Vec<BenchTensor>> {
     (0..num_classes)
         .map(|_| {
             (0..examples_per_class)
@@ -836,15 +863,14 @@ fn create_class_examples(num_classes: usize, examples_per_class: usize, feature_
 }
 
 /// Helper function to create prototype tensors
-fn create_prototypes(num_prototypes: usize, feature_dim: usize)
-    -> Vec<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>
-{
+fn create_prototypes(num_prototypes: usize, feature_dim: usize) -> Vec<BenchTensor> {
     (0..num_prototypes)
         .map(|_| random_tensor(&[1, feature_dim]))
         .collect()
 }
 
 /// Benchmark MAML meta-training performance
+#[cfg(feature = "research")]
 fn bench_maml_meta_training(c: &mut Criterion) {
     let mut group = c.benchmark_group("maml_research");
 
@@ -890,6 +916,7 @@ fn bench_maml_meta_training(c: &mut Criterion) {
 }
 
 /// Benchmark MAML few-shot evaluation performance
+#[cfg(feature = "research")]
 fn bench_maml_few_shot_evaluation(c: &mut Criterion) {
     let mut group = c.benchmark_group("maml_research");
 
@@ -958,6 +985,7 @@ fn bench_maml_few_shot_evaluation(c: &mut Criterion) {
 }
 
 /// Benchmark MAML agent insight generation
+#[cfg(feature = "research")]
 fn bench_maml_insight_generation(c: &mut Criterion) {
     let mut group = c.benchmark_group("maml_research");
 
@@ -973,20 +1001,22 @@ fn bench_maml_insight_generation(c: &mut Criterion) {
     // Build up training history for insight generation
     for i in 0..20 {
         let performance = -2.0 + (i as f64 * 0.05); // Improving performance
-        agent.update_with_results(&[coeus_nn::research::ExperimentResult {
-            experiment_id: format!("exp_{}", i),
-            agent_id: "test".to_string(),
-            status: coeus_nn::research::ExperimentStatus::Completed,
-            final_performance: performance,
-            performance_trajectory: vec![performance],
-            resource_usage: Default::default(),
-            start_time: std::time::Instant::now(),
-            end_time: std::time::Instant::now(),
-            statistics: Default::default(),
-            insights: vec![],
-            artifacts: std::collections::HashMap::new(),
-            metadata: std::collections::HashMap::new(),
-        }]);
+        agent
+            .update_with_results(&[nn::research::ExperimentResult {
+                experiment_id: format!("exp_{}", i),
+                agent_id: "test".to_string(),
+                status: nn::research::ExperimentStatus::Completed,
+                final_performance: performance,
+                performance_trajectory: vec![performance],
+                resource_usage: Default::default(),
+                start_time: std::time::Instant::now(),
+                end_time: std::time::Instant::now(),
+                statistics: Default::default(),
+                insights: vec![],
+                artifacts: std::collections::HashMap::new(),
+                metadata: std::collections::HashMap::new(),
+            }])
+            .expect("update_with_results failed");
     }
 
     group.bench_function("insight_generation", |b| {
@@ -998,6 +1028,7 @@ fn bench_maml_insight_generation(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(feature = "research")]
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -1024,6 +1055,32 @@ criterion_group!(
     bench_maml_meta_training,
     bench_maml_few_shot_evaluation,
     bench_maml_insight_generation,
+);
+
+#[cfg(not(feature = "research"))]
+criterion_group!(
+    benches,
+    bench_linear_forward,
+    bench_linear_backward,
+    bench_conv2d_forward,
+    bench_attention_forward,
+    bench_sequential_forward,
+    bench_sequential_backward,
+    bench_batchnorm_forward,
+    bench_layernorm_forward,
+    bench_dropout_forward,
+    bench_mse_loss,
+    bench_activations,
+    bench_memory_usage,
+    bench_computation_time,
+    bench_activation_sparse_vs_dense,
+    bench_attention_sparse_vs_dense,
+    bench_sparsity_scalability,
+    bench_prototypical_prototype_computation,
+    bench_prototypical_classification,
+    bench_episode_generation,
+    bench_episode_evaluation,
+    bench_distance_metrics,
 );
 
 criterion_main!(benches);

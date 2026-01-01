@@ -3,12 +3,12 @@
 //! Native CPU execution with SIMD-readiness hooks for future acceleration.
 
 use crate::{Backend, DataType, Device, DeviceInfo};
-use storage::{Storage};
 #[cfg(not(feature = "std"))]
 use libm;
 #[cfg(feature = "std")]
 use std;
 use std::vec::Vec;
+use storage::Storage;
 
 /// CPU device information
 #[derive(Debug, Clone, PartialEq)]
@@ -63,7 +63,10 @@ impl DeviceInfo for CpuDevice {
 /// assert!(backend.supports("arithmetic"));
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct CpuBackend<T: crate::DataType> where T: PartialOrd {
+pub struct CpuBackend<T: crate::DataType>
+where
+    T: PartialOrd,
+{
     device: CpuDevice,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -94,8 +97,7 @@ impl<T: crate::DataType + std::cmp::PartialOrd> CpuBackend<T> {
     }
 }
 
-impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
-{
+impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T> {
     /// Data type supported by this backend
     type Data = T;
 
@@ -113,7 +115,6 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
     fn device_info(&self) -> Box<dyn crate::DeviceInfo> {
         Box::new(self.device.clone())
     }
-
 
     fn supports(&self, operation: &str) -> bool {
         // CPU supports all basic operations
@@ -262,7 +263,8 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         for i in 0..m {
             for j in 0..n {
                 for l in 0..k {
-                    result_data[i * n + j] = result_data[i * n + j] + lhs_data[i * k + l] * rhs_data[l * n + j];
+                    result_data[i * n + j] =
+                        result_data[i * n + j] + lhs_data[i * k + l] * rhs_data[l * n + j];
                 }
             }
         }
@@ -275,10 +277,7 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         })
     }
 
-    fn exp_dense(
-        &self,
-        input: &storage::DenseStorage<T>,
-    ) -> crate::Result<storage::DenseStorage<T>>
+    fn exp_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -433,10 +432,7 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         Ok(min_idx)
     }
 
-    fn log_dense(
-        &self,
-        input: &storage::DenseStorage<T>,
-    ) -> crate::Result<storage::DenseStorage<T>>
+    fn log_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -458,10 +454,7 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         })
     }
 
-    fn sin_dense(
-        &self,
-        input: &storage::DenseStorage<T>,
-    ) -> crate::Result<storage::DenseStorage<T>>
+    fn sin_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -483,10 +476,7 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         })
     }
 
-    fn cos_dense(
-        &self,
-        input: &storage::DenseStorage<T>,
-    ) -> crate::Result<storage::DenseStorage<T>>
+    fn cos_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -580,9 +570,11 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
                 // Validate axes
                 for &axis in axes {
                     if axis >= input_dims.len() {
-                        return Err(crate::BackendError::InvalidInput(
-                            format!("Axis {} is out of bounds for tensor with {} dimensions", axis, input_dims.len())
-                        ));
+                        return Err(crate::BackendError::InvalidInput(format!(
+                            "Axis {} is out of bounds for tensor with {} dimensions",
+                            axis,
+                            input_dims.len()
+                        )));
                     }
                 }
 
@@ -592,7 +584,7 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
                 sorted_axes.dedup();
                 if sorted_axes.len() != axes.len() {
                     return Err(crate::BackendError::InvalidInput(
-                        "Duplicate axes in mean reduction".to_string()
+                        "Duplicate axes in mean reduction".to_string(),
                     ));
                 }
 
@@ -600,7 +592,8 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
                 let reduce_axes: std::collections::HashSet<usize> = axes.iter().cloned().collect();
 
                 // Compute output dimensions by removing reduced axes
-                let output_dims: Vec<usize> = input_dims.iter()
+                let output_dims: Vec<usize> = input_dims
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| !reduce_axes.contains(i))
                     .map(|(_, &dim)| dim)
@@ -634,31 +627,28 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
                     strides
                 };
 
-                for flat_idx in 0..input_data.len() {
+                for (flat_idx, &input_value) in input_data.iter().enumerate() {
                     // Convert flat index to multi-dimensional indices
                     let mut temp_idx = flat_idx;
-                    for i in 0..input_dims.len() {
-                        input_indices[i] = temp_idx / input_strides[i];
-                        temp_idx %= input_strides[i];
+                    for (index_slot, &stride) in input_indices.iter_mut().zip(input_strides.iter())
+                    {
+                        *index_slot = temp_idx / stride;
+                        temp_idx %= stride;
                     }
 
-                    // Extract coordinates of non-reduced dimensions to form output coordinates
-                    let mut output_coords = Vec::new();
-                    for dim_idx in 0..input_dims.len() {
-                        if !reduce_axes.contains(&dim_idx) {
-                            output_coords.push(input_indices[dim_idx]);
-                        }
-                    }
-
-                    // Convert output coordinates to flat index
+                    // Convert non-reduced coordinates to output flat index
                     let mut output_idx = 0;
-                    for (i, &coord) in output_coords.iter().enumerate() {
-                        output_idx += coord * output_strides[i];
+                    let mut out_axis = 0;
+                    for (dim_idx, &coord) in input_indices.iter().enumerate() {
+                        if !reduce_axes.contains(&dim_idx) {
+                            output_idx += coord * output_strides[out_axis];
+                            out_axis += 1;
+                        }
                     }
 
                     // Accumulate sum and count
                     if output_idx < sums.len() {
-                        sums[output_idx] = sums[output_idx] + input_data[flat_idx];
+                        sums[output_idx] = sums[output_idx] + input_value;
                         counts[output_idx] += 1;
                     }
                 }
@@ -708,7 +698,8 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
                 let val = data[pos];
 
                 // Multiply with corresponding row from dense matrix
-                if let Some(dense_row) = other.as_slice().get(col * num_cols..(col + 1) * num_cols) {
+                if let Some(dense_row) = other.as_slice().get(col * num_cols..(col + 1) * num_cols)
+                {
                     for j in 0..num_cols {
                         result[i * num_cols + j] = result[i * num_cols + j] + val * dense_row[j];
                     }
@@ -730,9 +721,11 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
     ) -> crate::Result<Vec<T>> {
         // Validate input dimensions
         if indptr.len() != num_rows + 1 {
-            return Err(crate::BackendError::InvalidInput(
-                format!("indptr length {} does not match num_rows + 1 = {}", indptr.len(), num_rows + 1),
-            ));
+            return Err(crate::BackendError::InvalidInput(format!(
+                "indptr length {} does not match num_rows + 1 = {}",
+                indptr.len(),
+                num_rows + 1
+            )));
         }
 
         let mut result = vec![T::default(); num_rows];
@@ -802,28 +795,30 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         // Sparse matrix multiplication: C = A × B where A is m×k (COO), B is k×n (COO), C is m×n (COO)
         if lhs_data.len() != lhs_row.len() || lhs_data.len() != lhs_col.len() {
             return Err(crate::BackendError::InvalidInput(
-                "LHS COO arrays must have matching lengths".to_string()
+                "LHS COO arrays must have matching lengths".to_string(),
             ));
         }
         if rhs_data.len() != rhs_row.len() || rhs_data.len() != rhs_col.len() {
             return Err(crate::BackendError::InvalidInput(
-                "RHS COO arrays must have matching lengths".to_string()
+                "RHS COO arrays must have matching lengths".to_string(),
             ));
         }
 
         // Validate matrix dimensions: A is m×k, B is k×n
         for (&row, &col) in lhs_row.iter().zip(lhs_col.iter()) {
             if row >= m || col >= k {
-                return Err(crate::BackendError::InvalidInput(
-                    format!("LHS index ({}, {}) out of bounds for {}x{} matrix", row, col, m, k)
-                ));
+                return Err(crate::BackendError::InvalidInput(format!(
+                    "LHS index ({}, {}) out of bounds for {}x{} matrix",
+                    row, col, m, k
+                )));
             }
         }
         for (&row, &col) in rhs_row.iter().zip(rhs_col.iter()) {
             if row >= k || col >= n {
-                return Err(crate::BackendError::InvalidInput(
-                    format!("RHS index ({}, {}) out of bounds for {}x{} matrix", row, col, k, n)
-                ));
+                return Err(crate::BackendError::InvalidInput(format!(
+                    "RHS index ({}, {}) out of bounds for {}x{} matrix",
+                    row, col, k, n
+                )));
             }
         }
 
@@ -831,7 +826,7 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         use std::collections::HashMap;
         let mut rhs_by_row: HashMap<usize, Vec<(usize, T)>> = HashMap::new(); // row -> [(col, val), ...]
         for ((&val, &row), &col) in rhs_data.iter().zip(rhs_row.iter()).zip(rhs_col.iter()) {
-            rhs_by_row.entry(row).or_insert(Vec::new()).push((col, val));
+            rhs_by_row.entry(row).or_default().push((col, val));
         }
 
         // Accumulate results in a hashmap
@@ -862,11 +857,12 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
             }
         }
 
-        storage::CooStorage::new(result_data, result_row, result_col, &[m, n])
-            .map_err(|_| crate::BackendError::UnsupportedOperation {
+        storage::CooStorage::new(result_data, result_row, result_col, &[m, n]).map_err(|_| {
+            crate::BackendError::UnsupportedOperation {
                 operation: "coo_matmul_sparse".to_string(),
                 backend: "cpu".to_string(),
-            })
+            }
+        })
     }
 
     fn coo_matmul_dense(
@@ -880,25 +876,43 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         n: usize,
     ) -> crate::Result<storage::DenseStorage<Self::Data>> {
         // Create dense result matrix initialized to zero
-        let total_elements = rhs.len();
-        let mut result_data = vec![Self::Data::zero(); total_elements];
+        if rhs.len() != k * n {
+            return Err(crate::BackendError::InvalidInput(format!(
+                "RHS must have shape [{} , {}] (len = {}), got len = {}",
+                k,
+                n,
+                k * n,
+                rhs.len()
+            )));
+        }
+
+        let mut result_data = vec![Self::Data::zero(); m * n];
 
         // For each non-zero element in sparse matrix
         for (&val, (&row, &col)) in lhs_data.iter().zip(lhs_row.iter().zip(lhs_col.iter())) {
+            if row >= m || col >= k {
+                return Err(crate::BackendError::InvalidInput(format!(
+                    "LHS index ({}, {}) out of bounds for {}x{} matrix",
+                    row, col, m, k
+                )));
+            }
             // Add contribution to result[row * n + j] for each j where dense matrix has data
             for j in 0..n {
                 let result_idx = row * n + j;
                 let dense_idx = col * n + j;
                 if result_idx < result_data.len() && dense_idx < rhs.as_slice().len() {
-                    result_data[result_idx] = result_data[result_idx] + val * rhs.as_slice()[dense_idx];
+                    result_data[result_idx] =
+                        result_data[result_idx] + val * rhs.as_slice()[dense_idx];
                 }
             }
         }
 
         // Return the dense result
-        storage::DenseStorage::from_vec(result_data, &[m, n]).map_err(|_| crate::BackendError::UnsupportedOperation {
-            operation: "coo_matmul_dense".to_string(),
-            backend: "cpu".to_string(),
+        storage::DenseStorage::from_vec(result_data, &[m, n]).map_err(|_| {
+            crate::BackendError::UnsupportedOperation {
+                operation: "coo_matmul_dense".to_string(),
+                backend: "cpu".to_string(),
+            }
         })
     }
 
@@ -916,12 +930,12 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         // Validate input dimensions
         if lhs_data.len() != lhs_row.len() || lhs_data.len() != lhs_col.len() {
             return Err(crate::BackendError::InvalidInput(
-                "LHS COO arrays must have matching lengths".to_string()
+                "LHS COO arrays must have matching lengths".to_string(),
             ));
         }
         if rhs_data.len() != rhs_row.len() || rhs_data.len() != rhs_col.len() {
             return Err(crate::BackendError::InvalidInput(
-                "RHS COO arrays must have matching lengths".to_string()
+                "RHS COO arrays must have matching lengths".to_string(),
             ));
         }
 
@@ -932,9 +946,10 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         // Add LHS elements
         for ((&val, &row), &col) in lhs_data.iter().zip(lhs_row.iter()).zip(lhs_col.iter()) {
             if row >= m || col >= n {
-                return Err(crate::BackendError::InvalidInput(
-                    format!("LHS index ({}, {}) out of bounds for {}x{} matrix", row, col, m, n)
-                ));
+                return Err(crate::BackendError::InvalidInput(format!(
+                    "LHS index ({}, {}) out of bounds for {}x{} matrix",
+                    row, col, m, n
+                )));
             }
             let current = result_map.entry((row, col)).or_insert(T::zero());
             *current = *current + val;
@@ -943,9 +958,10 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         // Add RHS elements
         for ((&val, &row), &col) in rhs_data.iter().zip(rhs_row.iter()).zip(rhs_col.iter()) {
             if row >= m || col >= n {
-                return Err(crate::BackendError::InvalidInput(
-                    format!("RHS index ({}, {}) out of bounds for {}x{} matrix", row, col, m, n)
-                ));
+                return Err(crate::BackendError::InvalidInput(format!(
+                    "RHS index ({}, {}) out of bounds for {}x{} matrix",
+                    row, col, m, n
+                )));
             }
             let current = result_map.entry((row, col)).or_insert(T::zero());
             *current = *current + val;
@@ -964,11 +980,12 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
             }
         }
 
-        storage::CooStorage::new(result_data, result_row, result_col, &[m, n])
-            .map_err(|_| crate::BackendError::UnsupportedOperation {
+        storage::CooStorage::new(result_data, result_row, result_col, &[m, n]).map_err(|_| {
+            crate::BackendError::UnsupportedOperation {
                 operation: "coo_add_sparse".to_string(),
                 backend: "cpu".to_string(),
-            })
+            }
+        })
     }
 
     fn coo_mul_sparse(
@@ -985,12 +1002,12 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         // Validate input dimensions
         if lhs_data.len() != lhs_row.len() || lhs_data.len() != lhs_col.len() {
             return Err(crate::BackendError::InvalidInput(
-                "LHS COO arrays must have matching lengths".to_string()
+                "LHS COO arrays must have matching lengths".to_string(),
             ));
         }
         if rhs_data.len() != rhs_row.len() || rhs_data.len() != rhs_col.len() {
             return Err(crate::BackendError::InvalidInput(
-                "RHS COO arrays must have matching lengths".to_string()
+                "RHS COO arrays must have matching lengths".to_string(),
             ));
         }
 
@@ -1002,9 +1019,10 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         // Build LHS map
         for ((&val, &row), &col) in lhs_data.iter().zip(lhs_row.iter()).zip(lhs_col.iter()) {
             if row >= m || col >= n {
-                return Err(crate::BackendError::InvalidInput(
-                    format!("LHS index ({}, {}) out of bounds for {}x{} matrix", row, col, m, n)
-                ));
+                return Err(crate::BackendError::InvalidInput(format!(
+                    "LHS index ({}, {}) out of bounds for {}x{} matrix",
+                    row, col, m, n
+                )));
             }
             lhs_map.insert((row, col), val);
         }
@@ -1012,9 +1030,10 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         // Build RHS map
         for ((&val, &row), &col) in rhs_data.iter().zip(rhs_row.iter()).zip(rhs_col.iter()) {
             if row >= m || col >= n {
-                return Err(crate::BackendError::InvalidInput(
-                    format!("RHS index ({}, {}) out of bounds for {}x{} matrix", row, col, m, n)
-                ));
+                return Err(crate::BackendError::InvalidInput(format!(
+                    "RHS index ({}, {}) out of bounds for {}x{} matrix",
+                    row, col, m, n
+                )));
             }
             rhs_map.insert((row, col), val);
         }
@@ -1037,14 +1056,19 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
             // If position is zero in RHS, result is zero, so skip
         }
 
-        storage::CooStorage::new(result_data, result_row, result_col, &[m, n])
-            .map_err(|_| crate::BackendError::UnsupportedOperation {
+        storage::CooStorage::new(result_data, result_row, result_col, &[m, n]).map_err(|_| {
+            crate::BackendError::UnsupportedOperation {
                 operation: "coo_mul_sparse".to_string(),
                 backend: "cpu".to_string(),
-            })
+            }
+        })
     }
 
-    fn quantize(&self, input: &storage::DenseStorage<Self::Data>, levels: usize) -> crate::Result<storage::DenseStorage<Self::Data>>
+    fn quantize(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+        levels: usize,
+    ) -> crate::Result<storage::DenseStorage<Self::Data>>
     where
         Self::Data: PartialOrd,
     {
@@ -1063,11 +1087,22 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T>
         })
     }
 
-    fn clip_info_nce_loss(&self, image_embeddings: &storage::DenseStorage<Self::Data>, text_embeddings: &storage::DenseStorage<Self::Data>, temperature: f32) -> crate::Result<Self::Data> {
+    fn clip_info_nce_loss(
+        &self,
+        image_embeddings: &storage::DenseStorage<Self::Data>,
+        text_embeddings: &storage::DenseStorage<Self::Data>,
+        temperature: f32,
+    ) -> crate::Result<Self::Data> {
         CpuBackend::clip_info_nce_loss(self, image_embeddings, text_embeddings, temperature)
     }
 
-    fn clip_attention(&self, queries: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>, keys: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>, values: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>, num_heads: usize) -> crate::Result<storage::DenseStorage<<CpuBackend<T> as Backend>::Data>> {
+    fn clip_attention(
+        &self,
+        queries: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>,
+        keys: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>,
+        values: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>,
+        num_heads: usize,
+    ) -> crate::Result<storage::DenseStorage<<CpuBackend<T> as Backend>::Data>> {
         CpuBackend::clip_attention(self, queries, keys, values, num_heads)
     }
 }
@@ -1126,7 +1161,8 @@ where
             let normalized_f64 = normalized.to_f64().unwrap_or(0.0);
 
             // Quantize to discrete levels
-            let quantized_f64 = ((normalized_f64 * (levels - 1) as f64).round()) / (levels - 1) as f64;
+            let quantized_f64 =
+                ((normalized_f64 * (levels - 1) as f64).round()) / (levels - 1) as f64;
 
             // Scale back to original range
             let quantized = if range == T::zero() {
@@ -1174,10 +1210,7 @@ where
         })
     }
 
-    fn sum_dense(
-        &self,
-        input: &storage::DenseStorage<T>,
-    ) -> crate::Result<T>
+    fn sum_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: crate::DataType,
     {
@@ -1189,10 +1222,7 @@ where
         Ok(sum)
     }
 
-    fn max_dense(
-        &self,
-        input: &storage::DenseStorage<T>,
-    ) -> crate::Result<T>
+    fn max_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: PartialOrd,
     {
@@ -1212,10 +1242,7 @@ where
         Ok(max_val)
     }
 
-    fn min_dense(
-        &self,
-        input: &storage::DenseStorage<T>,
-    ) -> crate::Result<T>
+    fn min_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<T>
     where
         T: PartialOrd,
     {
@@ -1283,10 +1310,7 @@ where
         Ok(min_idx)
     }
 
-    fn log_dense(
-        &self,
-        input: &storage::DenseStorage<T>,
-    ) -> crate::Result<storage::DenseStorage<T>>
+    fn log_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -1312,10 +1336,7 @@ where
         })
     }
 
-    fn sin_dense(
-        &self,
-        input: &storage::DenseStorage<T>,
-    ) -> crate::Result<storage::DenseStorage<T>>
+    fn sin_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -1341,10 +1362,7 @@ where
         })
     }
 
-    fn cos_dense(
-        &self,
-        input: &storage::DenseStorage<T>,
-    ) -> crate::Result<storage::DenseStorage<T>>
+    fn cos_dense(&self, input: &storage::DenseStorage<T>) -> crate::Result<storage::DenseStorage<T>>
     where
         T: crate::DataType,
     {
@@ -1430,7 +1448,8 @@ where
 
         if text_shape[0] != batch_size || text_shape[1] != embed_dim {
             return Err(crate::BackendError::InvalidInput(
-                "Image and text embeddings must have same shape [batch_size, embed_dim]".to_string(),
+                "Image and text embeddings must have same shape [batch_size, embed_dim]"
+                    .to_string(),
             ));
         }
 
@@ -1450,8 +1469,11 @@ where
                 let img_f64 = img_val.to_f64().unwrap_or(0.0);
                 let txt_f64 = txt_val.to_f64().unwrap_or(0.0);
 
-                image_norms[i] = T::from(image_norms[i].to_f64().unwrap_or(0.0) + img_f64 * img_f64).unwrap_or(T::zero());
-                text_norms[i] = T::from(text_norms[i].to_f64().unwrap_or(0.0) + txt_f64 * txt_f64).unwrap_or(T::zero());
+                image_norms[i] =
+                    T::from(image_norms[i].to_f64().unwrap_or(0.0) + img_f64 * img_f64)
+                        .unwrap_or(T::zero());
+                text_norms[i] = T::from(text_norms[i].to_f64().unwrap_or(0.0) + txt_f64 * txt_f64)
+                    .unwrap_or(T::zero());
             }
         }
 
@@ -1466,34 +1488,36 @@ where
         // Compute similarity matrix [batch_size, batch_size]
         let mut logits = vec![vec![T::zero(); batch_size]; batch_size];
 
-        for i in 0..batch_size {
-            for j in 0..batch_size {
+        for (i, logits_row) in logits.iter_mut().enumerate() {
+            for (j, logit_cell) in logits_row.iter_mut().enumerate() {
                 let mut similarity = 0.0;
 
                 for k in 0..embed_dim {
-                    let img_i = image_data[i * embed_dim + k].to_f64().unwrap_or(0.0) / image_norms[i].to_f64().unwrap_or(1.0);
-                    let txt_j = text_data[j * embed_dim + k].to_f64().unwrap_or(0.0) / text_norms[j].to_f64().unwrap_or(1.0);
+                    let img_i = image_data[i * embed_dim + k].to_f64().unwrap_or(0.0)
+                        / image_norms[i].to_f64().unwrap_or(1.0);
+                    let txt_j = text_data[j * embed_dim + k].to_f64().unwrap_or(0.0)
+                        / text_norms[j].to_f64().unwrap_or(1.0);
                     similarity += img_i * txt_j;
                 }
 
                 // Apply temperature scaling
                 similarity /= temperature as f64;
-                logits[i][j] = T::from(similarity).unwrap_or(T::zero());
+                *logit_cell = T::from(similarity).unwrap_or(T::zero());
             }
         }
 
         // Compute InfoNCE loss
         let mut total_loss = 0.0;
 
-        for i in 0..batch_size {
+        for (i, logits_row) in logits.iter().enumerate() {
             // Positive pair similarity (diagonal)
-            let pos_sim = logits[i][i].to_f64().unwrap_or(0.0);
+            let pos_sim = logits_row[i].to_f64().unwrap_or(0.0);
 
             // Negative pair similarities (off-diagonal)
             let mut neg_sum = 0.0;
-            for j in 0..batch_size {
+            for (j, &logit) in logits_row.iter().enumerate() {
                 if i != j {
-                    neg_sum += (logits[i][j].to_f64().unwrap_or(0.0)).exp();
+                    neg_sum += (logit.to_f64().unwrap_or(0.0)).exp();
                 }
             }
 
@@ -1572,17 +1596,21 @@ where
         let seq_len_kv = key_shape[1];
         let embed_dim = query_shape[2];
 
-        if key_shape[0] != batch_size || value_shape[0] != batch_size ||
-           key_shape[2] != embed_dim || value_shape[2] != embed_dim {
+        if key_shape[0] != batch_size
+            || value_shape[0] != batch_size
+            || key_shape[2] != embed_dim
+            || value_shape[2] != embed_dim
+        {
             return Err(crate::BackendError::InvalidInput(
                 "Incompatible tensor shapes for attention".to_string(),
             ));
         }
 
         if embed_dim % num_heads != 0 {
-            return Err(crate::BackendError::InvalidInput(
-                format!("embed_dim ({}) must be divisible by num_heads ({})", embed_dim, num_heads),
-            ));
+            return Err(crate::BackendError::InvalidInput(format!(
+                "embed_dim ({}) must be divisible by num_heads ({})",
+                embed_dim, num_heads
+            )));
         }
 
         let head_dim = embed_dim / num_heads;
@@ -1604,13 +1632,15 @@ where
                     let mut max_score = f64::NEG_INFINITY;
 
                     // First pass: compute raw attention scores and find max for numerical stability
-                    for kv_pos in 0..seq_len_kv {
+                    for (kv_pos, score_slot) in attention_scores.iter_mut().enumerate() {
                         let mut dot_product = 0.0;
 
                         for d in 0..head_dim {
                             let head_offset = head_idx * head_dim;
-                            let q_idx = ((batch_idx * seq_len_q + query_pos) * embed_dim) + head_offset + d;
-                            let k_idx = ((batch_idx * seq_len_kv + kv_pos) * embed_dim) + head_offset + d;
+                            let q_idx =
+                                ((batch_idx * seq_len_q + query_pos) * embed_dim) + head_offset + d;
+                            let k_idx =
+                                ((batch_idx * seq_len_kv + kv_pos) * embed_dim) + head_offset + d;
 
                             let q_val = query_data[q_idx].to_f64().unwrap_or(0.0);
                             let k_val = key_data[k_idx].to_f64().unwrap_or(0.0);
@@ -1619,7 +1649,7 @@ where
 
                         // Scale by sqrt(head_dim)
                         let scaled_score = dot_product / (head_dim as f32).sqrt() as f64;
-                        attention_scores[kv_pos] = scaled_score;
+                        *score_slot = scaled_score;
                         max_score = max_score.max(scaled_score);
                     }
 
@@ -1627,22 +1657,24 @@ where
                     let mut weights = vec![0.0; seq_len_kv];
                     let mut weight_sum = 0.0;
 
-                    for kv_pos in 0..seq_len_kv {
-                        let exp_score = (attention_scores[kv_pos] - max_score).exp();
-                        weights[kv_pos] = exp_score;
+                    for (score, weight_slot) in attention_scores.iter().zip(weights.iter_mut()) {
+                        let exp_score = (*score - max_score).exp();
+                        *weight_slot = exp_score;
                         weight_sum += exp_score;
                     }
 
                     // Third pass: apply attention weights to values
                     for d in 0..head_dim {
                         let head_offset = head_idx * head_dim;
-                        let out_idx = ((batch_idx * seq_len_q + query_pos) * embed_dim) + head_offset + d;
+                        let out_idx =
+                            ((batch_idx * seq_len_q + query_pos) * embed_dim) + head_offset + d;
                         let mut result = 0.0;
 
-                        for kv_pos in 0..seq_len_kv {
-                            let v_idx = ((batch_idx * seq_len_kv + kv_pos) * embed_dim) + head_offset + d;
+                        for (kv_pos, &weight_raw) in weights.iter().enumerate() {
+                            let v_idx =
+                                ((batch_idx * seq_len_kv + kv_pos) * embed_dim) + head_offset + d;
                             let v_val = value_data[v_idx].to_f64().unwrap_or(0.0);
-                            let weight = weights[kv_pos] / weight_sum;
+                            let weight = weight_raw / weight_sum;
                             result += weight * v_val;
                         }
 

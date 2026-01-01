@@ -30,11 +30,11 @@
 
 use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
-use storage::{Storage, StorageFromVec, DenseStorage};
-use tensor::Tensor;
 use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
 use rand_distr::StandardNormal;
+use storage::{DenseStorage, Storage, StorageFromVec};
+use tensor::Tensor;
 
 use crate::error::Result;
 
@@ -121,11 +121,7 @@ fn calculate_fan_in_fan_out(shape: &[usize]) -> (usize, usize) {
 /// let mut tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10, 10]).unwrap();
 /// init::uniform_(&mut tensor, -0.1, 0.1).unwrap();
 /// ```
-pub fn uniform_<B, S, T>(
-    tensor: &mut Tensor<B, S, T>,
-    a: f64,
-    b: f64,
-) -> Result<()>
+pub fn uniform_<B, S, T>(tensor: &mut Tensor<B, S, T>, a: f64, b: f64) -> Result<()>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone,
@@ -271,10 +267,7 @@ pub fn ones_<T: DataType + FloatExt>(
 ///
 /// # References
 /// - Glorot & Bengio (2010): "Understanding the difficulty of training deep feedforward neural networks"
-pub fn xavier_uniform_<B, S, T>(
-    tensor: &mut Tensor<B, S, T>,
-    gain: f64,
-) -> Result<()>
+pub fn xavier_uniform_<B, S, T>(tensor: &mut Tensor<B, S, T>, gain: f64) -> Result<()>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + Clone,

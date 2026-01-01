@@ -90,6 +90,8 @@ pub enum Error {
     IO(IOError),
     /// System-level errors (memory, threading, platform)
     System(SystemError),
+    /// Linear Algebra errors
+    Linalg(LinalgError),
 }
 
 /// Backend subsystem errors
@@ -230,6 +232,31 @@ pub enum SystemError {
     ResourceExhaustion(String),
 }
 
+/// Linear Algebra subsystem errors
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub enum LinalgError {
+    /// Matrix is singular
+    SingularMatrix(String),
+    /// Matrix is not square
+    NotSquare(String),
+    /// Dimension mismatch
+    DimensionMismatch(String),
+    /// Operation failed
+    OperationFailed(String),
+}
+
+impl fmt::Display for LinalgError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LinalgError::SingularMatrix(msg) => write!(f, "Singular matrix: {msg}"),
+            LinalgError::NotSquare(msg) => write!(f, "Matrix not square: {msg}"),
+            LinalgError::DimensionMismatch(msg) => write!(f, "Dimension mismatch: {msg}"),
+            LinalgError::OperationFailed(msg) => write!(f, "Operation failed: {msg}"),
+        }
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -242,6 +269,7 @@ impl fmt::Display for Error {
             Error::Distributed(e) => write!(f, "Distributed error: {e}"),
             Error::IO(e) => write!(f, "I/O error: {e}"),
             Error::System(e) => write!(f, "System error: {e}"),
+            Error::Linalg(e) => write!(f, "Linear Algebra error: {e}"),
         }
     }
 }
@@ -381,6 +409,9 @@ impl std::error::Error for IOError {}
 #[cfg(feature = "std")]
 impl std::error::Error for SystemError {}
 
+#[cfg(feature = "std")]
+impl std::error::Error for LinalgError {}
+
 // From implementations for ergonomic error conversion
 impl From<BackendError> for Error {
     fn from(err: BackendError) -> Self {
@@ -433,6 +464,18 @@ impl From<IOError> for Error {
 impl From<SystemError> for Error {
     fn from(err: SystemError) -> Self {
         Error::System(err)
+    }
+}
+
+impl From<LinalgError> for Error {
+    fn from(err: LinalgError) -> Self {
+        Error::Linalg(err)
+    }
+}
+
+impl From<String> for LinalgError {
+    fn from(msg: String) -> Self {
+        LinalgError::OperationFailed(msg)
     }
 }
 

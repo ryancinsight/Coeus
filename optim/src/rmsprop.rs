@@ -11,6 +11,7 @@ use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::gpu_backend::{GpuAcceleratedOptimizer, GpuOptimizerBackend, GpuOptimizerConfig};
+use crate::optimizer::{BaseOptimizer, ParamGroup};
 use crate::optimizer_core::{Optimizer, ParamState};
 use crate::Parameter;
 
@@ -71,6 +72,7 @@ where
 {
     /// Parameter states
     param_states: Vec<ParamState<B, S, T>>,
+    param_groups: Vec<ParamGroup<B, S, T>>,
     /// Learning rate
     lr: f64,
     /// Smoothing constant (α)
@@ -116,6 +118,7 @@ where
     ) -> Self {
         Self {
             param_states: Vec::new(),
+            param_groups: Vec::new(),
             lr,
             alpha,
             eps,
@@ -296,10 +299,102 @@ where
             // Basic RMSprop: param = param - lr * grad / denom
             let grad_scaled = scalar_mul(&effective_grad, lr)?;
             let update = div(&grad_scaled, &denom)?;
-            param_state.param = sub(&param_state.param, &update)?;
+            if param_state.param.as_slice().len() != update.as_slice().len() {
+                return Err(crate::error::OptimError::ShapeMismatch {
+                    param_name: param_state.name.clone(),
+                    expected: param_state.param.shape().dims().to_vec(),
+                    actual: update.shape().dims().to_vec(),
+                });
+            }
+            for (p, u) in param_state
+                .param
+                .as_mut_slice()
+                .iter_mut()
+                .zip(update.as_slice().iter())
+            {
+                *p = *p - *u;
+            }
         }
 
         Ok(self.param_states.len())
+    }
+}
+
+impl<B, S, T> BaseOptimizer<B, S, T> for RMSprop<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
+    T: DataType + FloatExt + dtype::num_traits::Float,
+{
+    fn step(&mut self) -> Result<usize, crate::OptimError> {
+        self.step_cpu()
+    }
+
+    fn step_cpu(&mut self) -> Result<usize, crate::OptimError> {
+        <Self as Optimizer<B, S, T>>::step(self)
+    }
+
+    fn zero_grad(&mut self) {
+        <Self as Optimizer<B, S, T>>::zero_grad(self);
+    }
+
+    fn add_param_group(&mut self, params: Vec<tensor::Tensor<B, S, T>>) {
+        for tensor in params.clone().into_iter() {
+            let mut param_state =
+                ParamState::new(tensor.clone(), format!("param_{}", self.param_states.len()));
+
+            let shape = tensor.shape().dims().to_vec();
+            let square_avg = Tensor::zeros(&shape).unwrap();
+            param_state.init_state("square_avg".to_string(), square_avg);
+
+            if self.centered {
+                let grad_avg = Tensor::zeros(&shape).unwrap();
+                param_state.init_state("grad_avg".to_string(), grad_avg);
+            }
+
+            if self.momentum > 0.0 {
+                let momentum_buffer = Tensor::zeros(&shape).unwrap();
+                param_state.init_state("momentum_buffer".to_string(), momentum_buffer);
+            }
+
+            self.param_states.push(param_state);
+        }
+
+        self.param_groups.push(ParamGroup::new(
+            params,
+            self.lr as f32,
+            self.weight_decay as f32,
+        ));
+    }
+
+    fn get_lr(&self) -> f32 {
+        self.lr as f32
+    }
+
+    fn set_lr(&mut self, lr: f32) {
+        self.lr = lr as f64;
+        for group in &mut self.param_groups {
+            group.lr = lr;
+        }
+    }
+
+    fn state_dict(&self) -> HashMap<String, tensor::Tensor<B, S, T>> {
+        <Self as Optimizer<B, S, T>>::state_dict(self)
+    }
+
+    fn load_state_dict(
+        &mut self,
+        state_dict: HashMap<String, tensor::Tensor<B, S, T>>,
+    ) -> Result<(), crate::OptimError> {
+        <Self as Optimizer<B, S, T>>::load_state_dict(self, state_dict)
+    }
+
+    fn param_groups(&self) -> &[ParamGroup<B, S, T>] {
+        &self.param_groups
+    }
+
+    fn param_groups_mut(&mut self) -> &mut [ParamGroup<B, S, T>] {
+        &mut self.param_groups
     }
 }
 
@@ -427,7 +522,7 @@ where
 
     fn zero_grad(&mut self) {
         for param_state in &mut self.param_states {
-            param_state.param.zero_grad().unwrap();
+            let _ = param_state.param.zero_grad();
         }
     }
 
@@ -521,7 +616,21 @@ where
             // Basic RMSprop: param = param - lr * grad / denom
             let grad_scaled = scalar_mul(&effective_grad, lr)?;
             let update = div(&grad_scaled, &denom)?;
-            param_state.param = sub(&param_state.param, &update)?;
+            if param_state.param.as_slice().len() != update.as_slice().len() {
+                return Err(crate::error::OptimError::ShapeMismatch {
+                    param_name: param_state.name.clone(),
+                    expected: param_state.param.shape().dims().to_vec(),
+                    actual: update.shape().dims().to_vec(),
+                });
+            }
+            for (p, u) in param_state
+                .param
+                .as_mut_slice()
+                .iter_mut()
+                .zip(update.as_slice().iter())
+            {
+                *p = *p - *u;
+            }
         }
 
         Ok(self.param_states.len())
@@ -551,7 +660,17 @@ where
                         actual: param.shape().dims().to_vec(),
                     });
                 }
-                param_state.param = param.clone();
+                if param.as_slice().len() != param_state.param.as_slice().len() {
+                    return Err(crate::error::OptimError::ShapeMismatch {
+                        param_name: param_state.name.clone(),
+                        expected: param_state.param.shape().dims().to_vec(),
+                        actual: param.shape().dims().to_vec(),
+                    });
+                }
+                param_state
+                    .param
+                    .as_mut_slice()
+                    .copy_from_slice(param.as_slice());
             }
 
             // Load RMSprop state

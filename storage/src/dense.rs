@@ -145,7 +145,7 @@ impl<T: DataType> DenseStorage<T> {
     /// # Examples
     ///
     /// ```
-    /// use storage::DenseStorage;
+    /// use storage::{DenseStorage, Storage};
     /// use dtype::float::Float32;
     ///
     /// let storage = DenseStorage::<Float32>::full(&[2, 3], Float32::new(5.0)).unwrap();

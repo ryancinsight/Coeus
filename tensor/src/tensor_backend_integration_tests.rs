@@ -3,13 +3,10 @@
 //! Tests tensor operations that require Clone bounds, memory transfer operations,
 //! and backend-specific optimizations using associated types.
 
-
 /// Tests for tensor.clone() using new Backend clone bounds
 #[cfg(test)]
 mod clone_tests {
-    use super::*;
-    use crate::{Tensor, CpuBackend, DenseStorage};
-    use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
+    use crate::{CpuBackend, DenseStorage, Tensor};
     use dtype::float::Float32;
 
     #[test]
@@ -17,7 +14,8 @@ mod clone_tests {
         let original = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
-        ).unwrap();
+        )
+        .unwrap();
 
         let cloned = original.backend_clone();
 
@@ -31,7 +29,8 @@ mod clone_tests {
         let original = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut cloned = original.backend_clone();
 
@@ -47,9 +46,7 @@ mod clone_tests {
 /// Tests for tensor.to_backend() using Backend trait
 #[cfg(test)]
 mod to_backend_tests {
-    use super::*;
-    use crate::{Tensor, CpuBackend, DenseStorage};
-    use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
+    use crate::{CpuBackend, DenseStorage, Tensor};
     use dtype::float::Float32;
 
     #[test]
@@ -57,7 +54,8 @@ mod to_backend_tests {
         let cpu_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
-        ).unwrap();
+        )
+        .unwrap();
 
         let target_backend = CpuBackend::new();
         let result = cpu_tensor.to_backend(target_backend).unwrap();
@@ -68,10 +66,15 @@ mod to_backend_tests {
 
     #[test]
     fn test_tensor_to_backend_data_integrity() {
-        let data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)];
-        let cpu_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            data, &[2, 2],
-        ).unwrap();
+        let data = vec![
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0),
+            Float32::new(4.0),
+        ];
+        let cpu_tensor =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[2, 2])
+                .unwrap();
 
         let target_backend = CpuBackend::new();
         let transferred = cpu_tensor.to_backend(target_backend).unwrap();
@@ -84,7 +87,8 @@ mod to_backend_tests {
     fn test_tensor_device_info_access() {
         use backend::DeviceInfo;
 
-        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[5]).unwrap();
+        let tensor =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[5]).unwrap();
 
         let device = tensor.device();
         assert_eq!(device.name(), "cpu");
@@ -92,7 +96,8 @@ mod to_backend_tests {
 
     #[test]
     fn test_tensor_backend_support_check() {
-        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[3]).unwrap();
+        let tensor =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[3]).unwrap();
 
         assert!(tensor.backend_supports("arithmetic"));
         // CPU backend should support all basic operations in our implementation
@@ -102,9 +107,8 @@ mod to_backend_tests {
 /// Tests for TensorDispatcher using associated types pattern
 #[cfg(test)]
 mod dispatcher_tests {
-    use super::*;
-    use crate::{Tensor, CpuBackend, DenseStorage};
-    use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
+    use crate::tensor_backend_dispatch::TensorDispatcher;
+    use crate::{CpuBackend, DenseStorage, Tensor};
     use dtype::float::Float32;
 
     #[test]
@@ -112,12 +116,14 @@ mod dispatcher_tests {
         let lhs = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
-        ).unwrap();
+        )
+        .unwrap();
 
         let rhs = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(3.0), Float32::new(4.0)],
             &[2],
-        ).unwrap();
+        )
+        .unwrap();
 
         let result = TensorDispatcher::add(&lhs, &rhs).unwrap();
 
@@ -130,12 +136,14 @@ mod dispatcher_tests {
         let lhs = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(2.0), Float32::new(3.0)],
             &[2],
-        ).unwrap();
+        )
+        .unwrap();
 
         let rhs = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(4.0), Float32::new(5.0)],
             &[2],
-        ).unwrap();
+        )
+        .unwrap();
 
         let result = TensorDispatcher::mul(&lhs, &rhs).unwrap();
 
@@ -148,7 +156,8 @@ mod dispatcher_tests {
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
-        ).unwrap();
+        )
+        .unwrap();
 
         let result = TensorDispatcher::sum(&tensor).unwrap();
 
@@ -161,7 +170,8 @@ mod dispatcher_tests {
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
-        ).unwrap();
+        )
+        .unwrap();
 
         let target_backend = CpuBackend::new();
         let result = TensorDispatcher::to_backend(&tensor, target_backend).unwrap();
@@ -173,9 +183,8 @@ mod dispatcher_tests {
 /// Tests for MemoryTransfer operations using Clone bounds
 #[cfg(test)]
 mod memory_transfer_tests {
-    use super::*;
-    use crate::{Tensor, CpuBackend, DenseStorage};
-    use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
+    use crate::tensor_backend_dispatch::MemoryTransfer;
+    use crate::{CpuBackend, DenseStorage, Tensor};
     use dtype::float::Float32;
 
     #[test]
@@ -183,7 +192,8 @@ mod memory_transfer_tests {
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
-        ).unwrap();
+        )
+        .unwrap();
 
         let target_backend = CpuBackend::new();
         let transferred = MemoryTransfer::transfer(&tensor, target_backend).unwrap();
@@ -198,7 +208,8 @@ mod memory_transfer_tests {
         let target_backend = CpuBackend::<Float32>::new();
 
         // Same backend type should support zero-copy in some cases
-        let can_zero_copy = MemoryTransfer::can_zero_copy_transfer(&source_backend, &target_backend);
+        let can_zero_copy =
+            MemoryTransfer::can_zero_copy_transfer(&source_backend, &target_backend);
         assert!(can_zero_copy); // CPU to CPU should be zero-copy capable
     }
 }
@@ -206,18 +217,22 @@ mod memory_transfer_tests {
 /// Integration tests for distributed tensor sharing using Clone bounds
 #[cfg(test)]
 mod distributed_sharing_tests {
-    use super::*;
-    use crate::{Tensor, CpuBackend, DenseStorage};
-    use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
+    use crate::{CpuBackend, DenseStorage, Tensor};
     use dtype::float::Float32;
 
     #[test]
     fn test_distributed_tensor_clone() {
         // Simulate distributed tensor sharing scenario
         let original = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
+            vec![
+                Float32::new(1.0),
+                Float32::new(2.0),
+                Float32::new(3.0),
+                Float32::new(4.0),
+            ],
             &[2, 2],
-        ).unwrap();
+        )
+        .unwrap();
 
         // Multiple clones representing distributed sharing
         let clone1 = original.backend_clone();
@@ -237,7 +252,9 @@ mod distributed_sharing_tests {
         let original = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(2.0), Float32::new(3.0)],
             &[2],
-        ).unwrap().requires_grad_(true);
+        )
+        .unwrap()
+        .requires_grad_(true);
 
         let shared = original.backend_clone();
 
@@ -249,7 +266,8 @@ mod distributed_sharing_tests {
         let grad = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(0.1), Float32::new(0.2)],
             &[2],
-        ).unwrap();
+        )
+        .unwrap();
         original.set_grad(grad).unwrap();
 
         // Shared tensor shares gradient storage with original for autograd compatibility
@@ -261,16 +279,15 @@ mod distributed_sharing_tests {
 /// Tests for backend-specific optimizations using associated types
 #[cfg(test)]
 mod backend_optimization_tests {
-    use super::*;
-    use crate::{Tensor, CpuBackend, DenseStorage};
-    use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
+    use crate::{CpuBackend, DenseStorage, Tensor};
     use dtype::float::Float32;
 
     #[test]
     fn test_backend_device_capabilities() {
         use backend::DeviceInfo;
 
-        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10]).unwrap();
+        let tensor =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[10]).unwrap();
 
         let device = tensor.device();
         assert_eq!(device.name(), "cpu");
@@ -287,7 +304,8 @@ mod backend_optimization_tests {
     fn test_backend_associated_types() {
         use backend::Backend;
 
-        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[3]).unwrap();
+        let tensor =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[3]).unwrap();
 
         // Test that associated types work correctly
         let backend = tensor.backend();
@@ -304,7 +322,8 @@ mod backend_optimization_tests {
         let cpu_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
-        ).unwrap();
+        )
+        .unwrap();
 
         // Verify backend operations work
         assert!(cpu_tensor.backend_supports("arithmetic"));
@@ -318,18 +337,17 @@ mod backend_optimization_tests {
 /// Performance benchmark tests (compile-time checks for optimizations)
 #[cfg(test)]
 mod performance_tests {
-    use super::*;
-    use crate::{Tensor, CpuBackend, DenseStorage};
-    use crate::tensor_backend_dispatch::{TensorDispatcher, MemoryTransfer};
+    use crate::tensor_backend_dispatch::TensorDispatcher;
+    use crate::{CpuBackend, DenseStorage, Tensor};
     use dtype::float::Float32;
 
     #[test]
     fn test_clone_performance_bounds() {
         // Test that Clone bounds allow efficient tensor cloning
         let data: Vec<Float32> = (0..1000).map(|i| Float32::new(i as f32)).collect();
-        let large_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-            data, &[1000],
-        ).unwrap();
+        let large_tensor =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[1000])
+                .unwrap();
 
         // Clone should work efficiently due to Backend: Clone bounds
         let cloned = large_tensor.backend_clone();
@@ -343,7 +361,8 @@ mod performance_tests {
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0)],
             &[1],
-        ).unwrap();
+        )
+        .unwrap();
 
         // These operations should dispatch at compile time
         let _summed = TensorDispatcher::sum(&tensor).unwrap();

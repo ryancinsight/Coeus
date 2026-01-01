@@ -17,8 +17,15 @@ def test_sequential_state_dict():
     # Coeus doesn't have explicit buffers() method exposed?
     # But state_dict should contain them
     state = model.state_dict()
+    print("State dict keys:", state.keys())
+    try:
+        print("Named buffers:", list(model.named_buffers()))
+    except Exception as e:
+        print("Error calling named_buffers:", e)
+
     assert "fc1.weight" in state
     assert "bn1.running_mean" in state
+
     assert "bn1.running_var" in state
     
     # Test saving/loading

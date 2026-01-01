@@ -8,6 +8,10 @@ repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
+description = "Training orchestration and infrastructure utilities for Coeus"
+readme = "../README.md"
+keywords = ["machine-learning", "training", "deep-learning"]
+categories = ["science", "mathematics"]
 
 [dependencies]
 dtype.workspace = true

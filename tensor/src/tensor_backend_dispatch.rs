@@ -5,7 +5,9 @@
 //!
 //! Uses the Backend trait's Clone bounds established in sprint MS-43.
 
-use crate::{Backend, Tensor, DenseStorage, Result, Storage, StorageToDense, StorageFromVec, DataType};
+use crate::{
+    Backend, DataType, DenseStorage, Result, Storage, StorageFromVec, StorageToDense, Tensor,
+};
 
 /// Backend operations dispatcher using associated types pattern.
 ///
@@ -18,17 +20,29 @@ where
     T: DataType,
 {
     /// Dispatch tensor addition operation
-    fn dispatch_add(&self, lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
+    fn dispatch_add(
+        &self,
+        lhs: &Tensor<B, S, T>,
+        rhs: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         S: StorageToDense<T> + StorageFromVec<T>;
 
     /// Dispatch tensor multiplication operation
-    fn dispatch_mul(&self, lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
+    fn dispatch_mul(
+        &self,
+        lhs: &Tensor<B, S, T>,
+        rhs: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         S: StorageToDense<T> + StorageFromVec<T>;
 
     /// Dispatch matrix multiplication between tensors
-    fn dispatch_matmul(&self, lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
+    fn dispatch_matmul(
+        &self,
+        lhs: &Tensor<B, S, T>,
+        rhs: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         S: StorageToDense<T> + StorageFromVec<T>;
 
@@ -47,7 +61,7 @@ where
     fn dispatch_to_backend<NewB>(
         &self,
         tensor: &Tensor<B, S, T>,
-        target_backend: NewB
+        target_backend: NewB,
     ) -> Result<Tensor<NewB, DenseStorage<T>, T>>
     where
         NewB: Backend<Data = T> + Clone + Send + Sync,
@@ -59,9 +73,18 @@ impl<B, S, T> TensorBackendDispatcher<B, S, T> for B
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
-    T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T>,
+    T: DataType
+        + Clone
+        + Copy
+        + num_traits::Zero
+        + std::ops::Add<Output = T>
+        + std::ops::Mul<Output = T>,
 {
-    fn dispatch_add(&self, lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
+    fn dispatch_add(
+        &self,
+        lhs: &Tensor<B, S, T>,
+        rhs: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         S: StorageToDense<T>,
     {
@@ -75,7 +98,11 @@ where
         Ok(Tensor::from_storage(result_storage, self.clone()))
     }
 
-    fn dispatch_mul(&self, lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
+    fn dispatch_mul(
+        &self,
+        lhs: &Tensor<B, S, T>,
+        rhs: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         S: StorageToDense<T>,
     {
@@ -86,7 +113,11 @@ where
         Ok(Tensor::from_storage(result_storage, self.clone()))
     }
 
-    fn dispatch_matmul(&self, lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
+    fn dispatch_matmul(
+        &self,
+        lhs: &Tensor<B, S, T>,
+        rhs: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         S: StorageToDense<T>,
     {
@@ -116,8 +147,8 @@ where
 
         // Create scalar tensor with sum result
         let scalar_data = vec![sum_value];
-        let scalar_storage = DenseStorage::from_vec(scalar_data, &[1])
-            .map_err(crate::TensorError::StorageError)?;
+        let scalar_storage =
+            DenseStorage::from_vec(scalar_data, &[1]).map_err(crate::TensorError::StorageError)?;
 
         Ok(Tensor::from_storage(scalar_storage, self.clone()))
     }
@@ -125,7 +156,7 @@ where
     fn dispatch_to_backend<NewB>(
         &self,
         tensor: &Tensor<B, S, T>,
-        target_backend: NewB
+        target_backend: NewB,
     ) -> Result<Tensor<NewB, DenseStorage<T>, T>>
     where
         NewB: Backend<Data = T> + Clone + Send + Sync,
@@ -143,7 +174,10 @@ pub struct TensorDispatcher;
 
 impl TensorDispatcher {
     /// Dispatch addition operation between tensors
-    pub fn add<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
+    pub fn add<B, S, T>(
+        lhs: &Tensor<B, S, T>,
+        rhs: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         B: Backend<Data = T> + Clone + Default + TensorBackendDispatcher<B, S, T>,
         S: Storage<T> + StorageFromVec<T> + Clone + StorageToDense<T> + 'static,
@@ -153,7 +187,10 @@ impl TensorDispatcher {
     }
 
     /// Dispatch multiplication operation between tensors
-    pub fn mul<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
+    pub fn mul<B, S, T>(
+        lhs: &Tensor<B, S, T>,
+        rhs: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         B: Backend<Data = T> + Clone + Default + TensorBackendDispatcher<B, S, T>,
         S: Storage<T> + StorageFromVec<T> + Clone + StorageToDense<T> + 'static,
@@ -163,7 +200,10 @@ impl TensorDispatcher {
     }
 
     /// Dispatch matrix multiplication between tensors
-    pub fn matmul<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
+    pub fn matmul<B, S, T>(
+        lhs: &Tensor<B, S, T>,
+        rhs: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         B: Backend<Data = T> + Clone + Default + TensorBackendDispatcher<B, S, T>,
         S: Storage<T> + StorageFromVec<T> + Clone + StorageToDense<T> + 'static,
@@ -177,7 +217,14 @@ impl TensorDispatcher {
     where
         B: Backend<Data = T> + Clone + Default + TensorBackendDispatcher<B, S, T>,
         S: Storage<T> + StorageFromVec<T> + Clone + StorageToDense<T> + 'static,
-        T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T> + PartialOrd + Default,
+        T: DataType
+            + Clone
+            + Copy
+            + num_traits::Zero
+            + std::ops::Add<Output = T>
+            + std::ops::Mul<Output = T>
+            + PartialOrd
+            + Default,
     {
         input.backend().dispatch_relu(input)
     }
@@ -195,7 +242,7 @@ impl TensorDispatcher {
     /// Dispatch cross-backend tensor transfer
     pub fn to_backend<B, S, T, NewB>(
         tensor: &Tensor<B, S, T>,
-        target_backend: NewB
+        target_backend: NewB,
     ) -> Result<Tensor<NewB, DenseStorage<T>, T>>
     where
         NewB: Backend<Data = T> + Clone + Send + Sync,
@@ -216,7 +263,7 @@ impl MemoryTransfer {
     /// Transfer tensor between backends with potential zero-copy operations
     pub fn transfer<B, S, T, NewB>(
         tensor: &Tensor<B, S, T>,
-        target_backend: NewB
+        target_backend: NewB,
     ) -> Result<Tensor<NewB, DenseStorage<T>, T>>
     where
         NewB: Backend<Data = T> + Clone + Send + Sync,
@@ -230,10 +277,7 @@ impl MemoryTransfer {
     }
 
     /// Check if backends support zero-copy transfer between them
-    pub fn can_zero_copy_transfer<B, NewB, T>(
-        source_backend: &B,
-        target_backend: &NewB
-    ) -> bool
+    pub fn can_zero_copy_transfer<B, NewB, T>(source_backend: &B, target_backend: &NewB) -> bool
     where
         B: Backend<Data = T>,
         NewB: Backend<Data = T>,
@@ -249,16 +293,18 @@ impl MemoryTransfer {
 mod tests {
     use super::*;
     use crate::{CpuBackend, DenseStorage, Tensor};
+    use backend::DeviceInfo;
     use dtype::float::Float32;
-    use backend::{cpu::CpuDevice, DeviceInfo};
 
     #[test]
     fn test_dispatcher_add() {
         let lhs_data = vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)];
         let rhs_data = vec![Float32::new(4.0), Float32::new(5.0), Float32::new(6.0)];
 
-        let lhs: Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> = Tensor::from_vec(lhs_data, &[3]).unwrap();
-        let rhs: Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> = Tensor::from_vec(rhs_data, &[3]).unwrap();
+        let lhs: Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> =
+            Tensor::from_vec(lhs_data, &[3]).unwrap();
+        let rhs: Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32> =
+            Tensor::from_vec(rhs_data, &[3]).unwrap();
 
         let result = TensorDispatcher::add(&lhs, &rhs).unwrap();
         assert_eq!(result.len(), 3);
@@ -269,13 +315,15 @@ mod tests {
 
     #[test]
     fn test_backend_supports_operation() {
-        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[5]).unwrap();
+        let tensor =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::zeros(&[5]).unwrap();
         assert!(tensor.backend_supports("arithmetic"));
     }
 
     #[test]
     fn test_device_access() {
-        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[3]).unwrap();
+        let tensor =
+            Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::ones(&[3]).unwrap();
         let device = tensor.device();
         assert_eq!(device.name(), "cpu");
     }

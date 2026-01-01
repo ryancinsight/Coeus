@@ -8,12 +8,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
-use crate::error::{NNError, Result};
-use super::{
-    ExperimentSpec, ExperimentResult, ResearchAgentRegistry, ResearchConfig,
-    ResearchWorkflow
-};
 use super::workflow::WorkflowStep;
+use super::{
+    ExperimentResult, ExperimentSpec, ResearchAgentRegistry, ResearchConfig, ResearchWorkflow,
+};
+use crate::error::{NNError, Result};
 
 /// Advanced research experiment orchestrator with DAG execution
 #[derive(Debug)]
@@ -41,7 +40,11 @@ pub struct WorkflowExecutionEngine {
 
 impl WorkflowExecutionEngine {
     /// Create new execution engine
-    pub fn new(max_concurrent_steps: usize, execution_timeout: Duration, enable_parallel: bool) -> Self {
+    pub fn new(
+        max_concurrent_steps: usize,
+        execution_timeout: Duration,
+        enable_parallel: bool,
+    ) -> Self {
         Self {
             max_concurrent_steps,
             execution_timeout,
@@ -60,19 +63,23 @@ impl WorkflowExecutionEngine {
         let start_time = Instant::now();
         let workflow_id = workflow.id.clone();
 
-        progress_tracker.update_workflow_status(&workflow_id, WorkflowExecutionStatus::Running).await;
+        progress_tracker
+            .update_workflow_status(&workflow_id, WorkflowExecutionStatus::Running)
+            .await;
 
         // Build execution DAG
         let execution_graph = self.build_execution_graph(workflow)?;
 
         // Execute DAG with resource management
-        let result = self.execute_dag_parallel(
-            execution_graph,
-            workflow,
-            registry.clone(),
-            resource_manager.clone(),
-            progress_tracker.clone(),
-        ).await;
+        let result = self
+            .execute_dag_parallel(
+                execution_graph,
+                workflow,
+                registry,
+                resource_manager,
+                progress_tracker,
+            )
+            .await;
 
         let execution_time = start_time.elapsed();
         let status = match result {
@@ -80,7 +87,9 @@ impl WorkflowExecutionEngine {
             Err(_) => WorkflowStatus::Failed,
         };
 
-        progress_tracker.update_workflow_status(&workflow_id, WorkflowExecutionStatus::Completed).await;
+        progress_tracker
+            .update_workflow_status(&workflow_id, WorkflowExecutionStatus::Completed)
+            .await;
 
         Ok(WorkflowResult {
             status,
@@ -145,16 +154,24 @@ impl WorkflowExecutionEngine {
             let resource_allocation = resource_manager.allocate_resources(&step).await?;
 
             // Execute step
-            progress_tracker.update_step_status(&workflow_id, &step.id, ExecutionStatus::Running).await;
+            progress_tracker
+                .update_step_status(&workflow_id, &step.id, ExecutionStatus::Running)
+                .await;
             let start_time = Instant::now();
 
-            let result: Result<ExperimentResult> = Self::execute_workflow_step(&step, registry).await;
+            let result: Result<ExperimentResult> =
+                Self::execute_workflow_step(&step, registry).await;
 
             let execution_time = start_time.elapsed();
-            progress_tracker.record_step_execution_time(&workflow_id, &step.id, execution_time).await;
+            progress_tracker
+                .record_step_execution_time(&workflow_id, &step.id, execution_time)
+                .await;
 
             // Release resources
-            if let Err(e) = resource_manager.release_resources(resource_allocation).await {
+            if let Err(e) = resource_manager
+                .release_resources(resource_allocation)
+                .await
+            {
                 eprintln!("Warning: Failed to release resources: {}", e);
             }
 
@@ -163,7 +180,9 @@ impl WorkflowExecutionEngine {
                 Err(_) => ExecutionStatus::Failed,
             };
 
-            progress_tracker.update_step_status(&workflow_id, &step.id, status).await;
+            progress_tracker
+                .update_step_status(&workflow_id, &step.id, status)
+                .await;
 
             results.push(result);
         }
@@ -173,9 +192,11 @@ impl WorkflowExecutionEngine {
         for result in results {
             match result {
                 Ok(experiment_result) => final_results.push(experiment_result),
-                Err(e) => return Err(NNError::ExecutionError {
-                    message: format!("Workflow step execution failed: {}", e),
-                }),
+                Err(e) => {
+                    return Err(NNError::ExecutionError {
+                        message: format!("Workflow step execution failed: {}", e),
+                    })
+                }
             }
         }
 
@@ -381,29 +402,45 @@ impl ResourceManager {
     /// Allocate resources for workflow step
     async fn allocate_resources(&self, step: &WorkflowStep) -> Result<ResourceAllocation> {
         // Extract resource requirements from step config
-        let gpu_required = step.config.get("gpu_required")
-            .and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-        let cpu_required = step.config.get("cpu_required")
-            .and_then(|v| v.as_u64()).unwrap_or(1) as usize;
-        let memory_required = step.config.get("memory_mb")
-            .and_then(|v| v.as_u64()).unwrap_or(1024) as usize;
+        let gpu_required = step
+            .config
+            .get("gpu_required")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize;
+        let cpu_required = step
+            .config
+            .get("cpu_required")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(1) as usize;
+        let memory_required = step
+            .config
+            .get("memory_mb")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(1024) as usize;
 
-        let mut allocated = self.allocated_resources.lock().map_err(|e| {
-            NNError::ResourceError {
-                message: format!("Failed to acquire resource lock: {}", e),
-            }
-        })?;
+        let mut allocated =
+            self.allocated_resources
+                .lock()
+                .map_err(|e| NNError::ResourceError {
+                    message: format!("Failed to acquire resource lock: {}", e),
+                })?;
 
         // Check resource availability
-        if allocated.gpu_count + gpu_required > self.total_gpus ||
-           allocated.cpu_cores + cpu_required > self.total_cpu_cores ||
-           allocated.memory_mb + memory_required > self.total_memory_mb {
+        if allocated.gpu_count + gpu_required > self.total_gpus
+            || allocated.cpu_cores + cpu_required > self.total_cpu_cores
+            || allocated.memory_mb + memory_required > self.total_memory_mb
+        {
             return Err(NNError::ResourceError {
-                message: format!("Insufficient resources for step {}: GPU {}/{}, CPU {}/{}, Memory {}/{} MB",
+                message: format!(
+                    "Insufficient resources for step {}: GPU {}/{}, CPU {}/{}, Memory {}/{} MB",
                     step.id,
-                    allocated.gpu_count + gpu_required, self.total_gpus,
-                    allocated.cpu_cores + cpu_required, self.total_cpu_cores,
-                    allocated.memory_mb + memory_required, self.total_memory_mb),
+                    allocated.gpu_count + gpu_required,
+                    self.total_gpus,
+                    allocated.cpu_cores + cpu_required,
+                    self.total_cpu_cores,
+                    allocated.memory_mb + memory_required,
+                    self.total_memory_mb
+                ),
             });
         }
 
@@ -421,11 +458,12 @@ impl ResourceManager {
 
     /// Release allocated resources
     async fn release_resources(&self, allocation: ResourceAllocation) -> Result<()> {
-        let mut allocated = self.allocated_resources.lock().map_err(|e| {
-            NNError::ResourceError {
-                message: format!("Failed to acquire resource lock: {}", e),
-            }
-        })?;
+        let mut allocated =
+            self.allocated_resources
+                .lock()
+                .map_err(|e| NNError::ResourceError {
+                    message: format!("Failed to acquire resource lock: {}", e),
+                })?;
 
         allocated.gpu_count = allocated.gpu_count.saturating_sub(allocation.gpu_count);
         allocated.cpu_cores = allocated.cpu_cores.saturating_sub(allocation.cpu_cores);
@@ -494,15 +532,18 @@ impl ProgressTracker {
     /// Update workflow status
     async fn update_workflow_status(&self, workflow_id: &str, status: WorkflowExecutionStatus) {
         let mut progress = self.workflow_progress.write().await;
-        let entry = progress.entry(workflow_id.to_string()).or_insert(WorkflowProgress {
-            status: WorkflowExecutionStatus::Pending,
-            start_time: Instant::now(),
-            end_time: None,
-            progress_percentage: 0.0,
-        });
+        let entry = progress
+            .entry(workflow_id.to_string())
+            .or_insert(WorkflowProgress {
+                status: WorkflowExecutionStatus::Pending,
+                start_time: Instant::now(),
+                end_time: None,
+                progress_percentage: 0.0,
+            });
 
         entry.status = status.clone();
-        if status == WorkflowExecutionStatus::Completed || status == WorkflowExecutionStatus::Failed {
+        if status == WorkflowExecutionStatus::Completed || status == WorkflowExecutionStatus::Failed
+        {
             entry.end_time = Some(Instant::now());
         }
     }
@@ -527,7 +568,12 @@ impl ProgressTracker {
     }
 
     /// Record step execution time
-    async fn record_step_execution_time(&self, workflow_id: &str, step_id: &str, execution_time: Duration) {
+    async fn record_step_execution_time(
+        &self,
+        workflow_id: &str,
+        step_id: &str,
+        execution_time: Duration,
+    ) {
         let mut metrics = self.step_metrics.write().await;
         let key = (workflow_id.to_string(), step_id.to_string());
 
@@ -537,13 +583,19 @@ impl ProgressTracker {
     }
 }
 
+impl Default for ProgressTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ResearchOrchestrator {
     /// Create new orchestrator with advanced capabilities
     pub fn new(config: ResearchConfig) -> Self {
         let execution_engine = WorkflowExecutionEngine::new(
             config.max_concurrent_experiments,
             Duration::from_secs(3600), // Default 1 hour timeout
-            true, // Enable parallel execution
+            true,                      // Enable parallel execution
         );
 
         let resource_manager = Arc::new(ResourceManager::new(
@@ -599,12 +651,15 @@ impl ResearchOrchestrator {
     ) -> Result<WorkflowResult> {
         tracing::info!("Starting workflow execution: {}", workflow.name);
 
-        let result = self.execution_engine.execute_workflow_dag(
-            workflow,
-            registry,
-            &self.resource_manager,
-            &self.progress_tracker,
-        ).await;
+        let result = self
+            .execution_engine
+            .execute_workflow_dag(
+                workflow,
+                registry,
+                &self.resource_manager,
+                &self.progress_tracker,
+            )
+            .await;
 
         match &result {
             Ok(workflow_result) => {
@@ -631,8 +686,13 @@ impl ResearchOrchestrator {
     ) -> Result<ExperimentResult> {
         // For backward compatibility, return a placeholder result
         // Advanced async execution should be used instead
-        tracing::warn!("Synchronous workflow execution is deprecated. Use execute_workflow_async() instead.");
-        Ok(ExperimentResult::new("workflow_execution".to_string(), "orchestrator".to_string()))
+        tracing::warn!(
+            "Synchronous workflow execution is deprecated. Use execute_workflow_async() instead."
+        );
+        Ok(ExperimentResult::new(
+            "workflow_execution".to_string(),
+            "orchestrator".to_string(),
+        ))
     }
 
     /// Execute single experiment
@@ -644,7 +704,8 @@ impl ResearchOrchestrator {
         tracing::info!("Executing experiment: {}", experiment.id);
 
         let result = (|| {
-            let mut agent = registry.create_agent(&experiment.agent_type, experiment.experiment_config.clone())?;
+            let mut agent = registry
+                .create_agent(&experiment.agent_type, experiment.experiment_config.clone())?;
             agent.run_step(experiment)
         })();
 
@@ -665,23 +726,29 @@ impl ResearchOrchestrator {
     /// Get step execution metrics
     pub async fn get_step_metrics(&self, workflow_id: &str, step_id: &str) -> Option<StepMetrics> {
         let metrics = self.progress_tracker.step_metrics.read().await;
-        metrics.get(&(workflow_id.to_string(), step_id.to_string())).cloned()
+        metrics
+            .get(&(workflow_id.to_string(), step_id.to_string()))
+            .cloned()
     }
 
     /// Get resource utilization
     pub fn get_resource_utilization(&self) -> Result<ResourceAllocation> {
-        let allocated = self.resource_manager.allocated_resources.lock().map_err(|e| {
-            NNError::ResourceError {
+        let allocated = self
+            .resource_manager
+            .allocated_resources
+            .lock()
+            .map_err(|e| NNError::ResourceError {
                 message: format!("Failed to acquire resource lock: {}", e),
-            }
-        })?;
+            })?;
 
         Ok(allocated.clone())
     }
 
     /// Cancel workflow execution
     pub async fn cancel_workflow(&self, workflow_id: &str) -> Result<()> {
-        self.progress_tracker.update_workflow_status(workflow_id, WorkflowExecutionStatus::Cancelled).await;
+        self.progress_tracker
+            .update_workflow_status(workflow_id, WorkflowExecutionStatus::Cancelled)
+            .await;
         tracing::info!("Workflow {} cancelled", workflow_id);
         Ok(())
     }
@@ -712,11 +779,15 @@ pub struct OrchestratorHealthStatus {
 
 impl std::fmt::Display for OrchestratorHealthStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let overall_health = self.resource_manager_healthy &&
-                           self.progress_tracker_healthy &&
-                           self.execution_engine_healthy;
+        let overall_health = self.resource_manager_healthy
+            && self.progress_tracker_healthy
+            && self.execution_engine_healthy;
 
-        let status = if overall_health { "🟢 HEALTHY" } else { "🔴 ISSUES DETECTED" };
+        let status = if overall_health {
+            "🟢 HEALTHY"
+        } else {
+            "🔴 ISSUES DETECTED"
+        };
 
         write!(
             f,
@@ -726,9 +797,21 @@ impl std::fmt::Display for OrchestratorHealthStatus {
              ├── Execution Engine: {}\n\
              └── Active Workflows: {}",
             status,
-            if self.resource_manager_healthy { "🟢" } else { "🔴" },
-            if self.progress_tracker_healthy { "🟢" } else { "🔴" },
-            if self.execution_engine_healthy { "🟢" } else { "🔴" },
+            if self.resource_manager_healthy {
+                "🟢"
+            } else {
+                "🔴"
+            },
+            if self.progress_tracker_healthy {
+                "🟢"
+            } else {
+                "🔴"
+            },
+            if self.execution_engine_healthy {
+                "🟢"
+            } else {
+                "🔴"
+            },
             self.active_workflows
         )
     }

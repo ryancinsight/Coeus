@@ -28,12 +28,12 @@
 //! let loader = VisionLanguageBatchLoader::new(coco_dataset, BatchConfig::default())?;
 //! ```
 
+pub mod batch_loader;
 pub mod coco;
 pub mod flickr30k;
-pub mod vision_language;
-pub mod batch_loader;
-pub mod transforms;
 pub mod streaming;
+pub mod transforms;
+pub mod vision_language;
 
 // Common types for vision-language datasets
 #[derive(Debug, Clone)]
@@ -53,18 +53,18 @@ pub struct ImageTextPair {
 }
 
 // Re-exports
+pub use batch_loader::{BatchConfig, DatasetBatch, VisionLanguageBatchLoader};
 pub use coco::CocoDataset;
 pub use flickr30k::Flickr30kDataset;
-pub use vision_language::VisionLanguageDataset;
-pub use batch_loader::{VisionLanguageBatchLoader, BatchConfig, DatasetBatch};
-pub use transforms::Compose;
 pub use streaming::StreamingDataset;
+pub use transforms::Compose;
+pub use vision_language::VisionLanguageDataset;
 
 // Common types for vision-language datasets
 use crate::error::{NNError, Result};
-use std::path::Path;
-use std::collections::HashMap;
 use serde_json;
+use std::collections::HashMap;
+use std::path::Path;
 use tokio::fs;
 
 /// Abstract trait for vision-language datasets
@@ -79,10 +79,17 @@ pub trait VisionLanguageData: Send + Sync {
     }
 
     /// Get image-text pair by index
-    fn get(&self, index: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>>;
+    fn get(
+        &self,
+        index: usize,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ImageTextPair>> + Send + '_>>;
 
     /// Get batch of image-text pairs
-    fn get_batch(&self, indices: &[usize]) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<ImageTextPair>>> + Send + '_>> {
+    fn get_batch(
+        &self,
+        indices: &[usize],
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<ImageTextPair>>> + Send + '_>>
+    {
         let indices = indices.to_vec();
         let get_futures: Vec<_> = indices.iter().map(|&idx| self.get(idx)).collect();
 
@@ -126,20 +133,18 @@ pub struct DatasetStatistics {
     pub disk_size_mb: Option<f64>,
 }
 
-
 /// Dataset factory functions
 pub mod factory {
     use super::*;
 
     /// Create a dataset from a common dataset name
-    pub async fn create_dataset(name: &str, path: impl AsRef<Path>) -> Result<Box<dyn VisionLanguageData>> {
+    pub async fn create_dataset(
+        name: &str,
+        path: impl AsRef<Path>,
+    ) -> Result<Box<dyn VisionLanguageData>> {
         match name.to_lowercase().as_str() {
-            "coco" | "coco2014" | "coco2017" => {
-                Ok(Box::new(CocoDataset::new(&path).await?))
-            },
-            "flickr30k" | "flickr" => {
-                Ok(Box::new(Flickr30kDataset::new(&path).await?))
-            },
+            "coco" | "coco2014" | "coco2017" => Ok(Box::new(CocoDataset::new(&path).await?)),
+            "flickr30k" | "flickr" => Ok(Box::new(Flickr30kDataset::new(&path).await?)),
             _ => {
                 // Try to infer from directory structure
                 infer_dataset_type(path).await
@@ -249,10 +254,12 @@ pub mod utils {
                         stats.missing_captions += 1;
                     } else {
                         for caption in &pair.captions {
-                            stats.sample_caption_lengths.push(caption.split_whitespace().count());
+                            stats
+                                .sample_caption_lengths
+                                .push(caption.split_whitespace().count());
                         }
                     }
-                },
+                }
                 Err(_) => {
                     stats.corrupt_images += 1;
                 }
@@ -275,12 +282,17 @@ pub mod utils {
         pub fn print_report(&self) {
             println!("=== Dataset Verification Report ===");
             println!("Total Pairs: {}", self.total_pairs);
-            println!("Valid Pairs: {} ({:.1}%)", self.valid_pairs, (self.valid_pairs as f64 / self.total_pairs as f64) * 100.0);
+            println!(
+                "Valid Pairs: {} ({:.1}%)",
+                self.valid_pairs,
+                (self.valid_pairs as f64 / self.total_pairs as f64) * 100.0
+            );
             println!("Corrupt Images: {}", self.corrupt_images);
             println!("Missing Captions: {}", self.missing_captions);
 
             if !self.sample_caption_lengths.is_empty() {
-                let avg_len = self.sample_caption_lengths.iter().sum::<usize>() as f64 / self.sample_caption_lengths.len() as f64;
+                let avg_len = self.sample_caption_lengths.iter().sum::<usize>() as f64
+                    / self.sample_caption_lengths.len() as f64;
                 println!("Avg Caption Length: {:.1} words", avg_len);
             }
         }

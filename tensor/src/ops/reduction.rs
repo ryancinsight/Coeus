@@ -397,12 +397,6 @@ where
             input_strides[i - 1] = input_strides[i] * input_shape[i];
         }
 
-        // Calculate strides for output tensor
-        let mut output_strides = vec![1; output_shape.len()];
-        for i in (1..output_shape.len()).rev() {
-            output_strides[i - 1] = output_strides[i] * output_shape[i];
-        }
-
         // Perform reduction
         let mut output_coords = vec![0; output_shape.len()];
         let mut input_coords = vec![0; ndim];
@@ -411,21 +405,29 @@ where
         for (output_idx, output_elem) in output_data.iter_mut().enumerate() {
             // Convert flat output index to coordinates
             let mut temp_idx = output_idx;
-            for (i, coord) in output_coords.iter_mut().enumerate() {
-                *coord = temp_idx % output_shape[i];
+            for i in (0..output_shape.len()).rev() {
+                output_coords[i] = temp_idx % output_shape[i];
                 temp_idx /= output_shape[i];
             }
 
             // Map output coordinates back to input coordinates
-            let mut output_coord_idx = 0;
-            for (i, input_coord) in input_coords.iter_mut().enumerate() {
-                if dims_to_reduce.contains(&i) {
-                    // This dimension is being reduced - iterate over all values
-                    *input_coord = 0; // Will be set in inner loop
-                } else {
-                    // This dimension is preserved - copy coordinate
-                    *input_coord = output_coords[output_coord_idx];
-                    output_coord_idx += 1;
+            if keepdim {
+                for (i, input_coord) in input_coords.iter_mut().enumerate() {
+                    if dims_to_reduce.contains(&i) {
+                        *input_coord = 0;
+                    } else {
+                        *input_coord = output_coords[i];
+                    }
+                }
+            } else {
+                let mut output_coord_idx = 0;
+                for (i, input_coord) in input_coords.iter_mut().enumerate() {
+                    if dims_to_reduce.contains(&i) {
+                        *input_coord = 0;
+                    } else {
+                        *input_coord = output_coords[output_coord_idx];
+                        output_coord_idx += 1;
+                    }
                 }
             }
 
@@ -612,7 +614,7 @@ where
     /// # Returns
     ///
     /// A tensor containing the indices of the maximum values.
-    #[must_use]
+    #[must_use = "argmax_dims returns a new tensor"]
     pub fn argmax_dims(&self, dim: usize, keepdim: bool) -> crate::Result<Self>
     where
         T: PartialOrd + Clone,
@@ -652,25 +654,20 @@ where
             input_strides[i - 1] = input_strides[i] * input_shape[i];
         }
 
-        let mut output_strides = vec![1; output_shape.len()];
-        for i in (1..output_shape.len()).rev() {
-            output_strides[i - 1] = output_strides[i] * output_shape[i];
-        }
-
         let stride_dim = input_strides[dim];
         let size_dim = input_shape[dim];
 
-        for output_idx in 0..output_size {
+        for (output_idx, out) in output_data.iter_mut().enumerate() {
             let mut temp_idx = output_idx;
             let mut input_flat_idx = 0;
             let mut output_dim_idx = 0;
 
-            for i in 0..ndim {
+            for (i, &stride) in input_strides.iter().enumerate().take(ndim) {
                 if i == dim {
                     continue;
                 }
                 let coord = temp_idx % output_shape[output_dim_idx];
-                input_flat_idx += coord * input_strides[i];
+                input_flat_idx += coord * stride;
                 temp_idx /= output_shape[output_dim_idx];
                 output_dim_idx += 1;
             }
@@ -686,7 +683,7 @@ where
                 }
             }
 
-            output_data[output_idx] = T::from(max_idx as f64).unwrap_or_else(T::zero);
+            *out = T::from(max_idx as f64).unwrap_or_else(T::zero);
         }
 
         Self::from_vec(output_data, &output_shape)
@@ -702,7 +699,7 @@ where
     /// # Returns
     ///
     /// A tensor containing the indices of the minimum values.
-    #[must_use]
+    #[must_use = "argmin_dims returns a new tensor"]
     pub fn argmin_dims(&self, dim: usize, keepdim: bool) -> crate::Result<Self>
     where
         T: PartialOrd + Clone,
@@ -745,17 +742,17 @@ where
         let stride_dim = input_strides[dim];
         let size_dim = input_shape[dim];
 
-        for output_idx in 0..output_size {
+        for (output_idx, out) in output_data.iter_mut().enumerate() {
             let mut temp_idx = output_idx;
             let mut input_flat_idx = 0;
             let mut output_dim_idx = 0;
 
-            for i in 0..ndim {
+            for (i, &stride) in input_strides.iter().enumerate().take(ndim) {
                 if i == dim {
                     continue;
                 }
                 let coord = temp_idx % output_shape[output_dim_idx];
-                input_flat_idx += coord * input_strides[i];
+                input_flat_idx += coord * stride;
                 temp_idx /= output_shape[output_dim_idx];
                 output_dim_idx += 1;
             }
@@ -771,14 +768,14 @@ where
                 }
             }
 
-            output_data[output_idx] = T::from(min_idx as f64).unwrap_or_else(T::zero);
+            *out = T::from(min_idx as f64).unwrap_or_else(T::zero);
         }
 
         Self::from_vec(output_data, &output_shape)
     }
 
     /// PyTorch-compatible alias for `argmax_dims`.
-    #[must_use]
+    #[must_use = "argmax returns a new tensor"]
     pub fn argmax(&self, dim: Option<usize>, keepdim: bool) -> crate::Result<Self>
     where
         T: PartialOrd + Clone,
@@ -790,7 +787,7 @@ where
     }
 
     /// PyTorch-compatible alias for `argmin_dims`.
-    #[must_use]
+    #[must_use = "argmin returns a new tensor"]
     pub fn argmin(&self, dim: Option<usize>, keepdim: bool) -> crate::Result<Self>
     where
         T: PartialOrd + Clone,

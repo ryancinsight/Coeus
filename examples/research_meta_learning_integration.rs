@@ -3,16 +3,15 @@
 //! This example demonstrates how to integrate MAML and Prototypical Networks
 //! with the unified research framework for comprehensive meta-learning research.
 
-use nn::error::Result;
-use nn::meta::adapters::{MAMLAdapter, PrototypicalAdapter};
-use nn::research::{
-    ResearchConfig, UnifiedResearchFramework, WorkflowTemplate,
-    ResearchDomain, ExperimentSpec
-};
-use nn::research::agent::ResearchAgent;
-use nn::linear::Linear;
 use backend::CpuBackend;
 use dtype::float::Float32;
+use nn::error::Result;
+use nn::linear::Linear;
+use nn::meta::adapters::{MAMLAdapter, PrototypicalAdapter};
+use nn::research::agent::ResearchAgent;
+use nn::research::{
+    ExperimentSpec, ResearchConfig, ResearchDomain, UnifiedResearchFramework, WorkflowTemplate,
+};
 use storage::DenseStorage;
 
 fn main() -> Result<()> {
@@ -20,8 +19,10 @@ fn main() -> Result<()> {
     println!("==============================================");
 
     // Create model factories for the adapters
-    let maml_model_factory = || Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 1).unwrap();
-    let proto_encoder_factory = || Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
+    let maml_model_factory =
+        || Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 1).unwrap();
+    let proto_encoder_factory =
+        || Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
 
     // Initialize research framework
     let mut config = ResearchConfig::default();
@@ -107,16 +108,18 @@ fn main() -> Result<()> {
 
     println!("\nMAML Insights:");
     for insight in &maml_insights {
-        println!("  • {} (Impact: {:.3})",
-                insight.id,
-                insight.performance_impact);
+        println!(
+            "  • {} (Impact: {:.3})",
+            insight.id, insight.performance_impact
+        );
     }
 
     println!("\nPrototypical Networks Insights:");
     for insight in &proto_insights {
-        println!("  • {} (Impact: {:.3})",
-                insight.id,
-                insight.performance_impact);
+        println!(
+            "  • {} (Impact: {:.3})",
+            insight.id, insight.performance_impact
+        );
     }
 
     // Demonstrate individual agent experiments
@@ -176,4 +179,3 @@ fn main() -> Result<()> {
 
     Ok(())
 }
-

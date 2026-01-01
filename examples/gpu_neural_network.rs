@@ -3,12 +3,15 @@
 //! This example demonstrates how to build neural networks that automatically
 //! leverage GPU acceleration through the Coeus backend system.
 
-use std::sync::Arc;
-use nn::backend::{BackendSelector, BackendType, WorkloadCharacteristics, OperationType, MemoryAccessPattern, DataLocality};
-use nn::tensor::Tensor;
+use nn::backend::{
+    BackendSelector, BackendType, DataLocality, MemoryAccessPattern, OperationType,
+    WorkloadCharacteristics,
+};
 use nn::dtype::float::Float32;
-use nn::storage::DenseStorage;
 use nn::error::Result;
+use nn::storage::DenseStorage;
+use nn::tensor::Tensor;
+use std::sync::Arc;
 
 /// GPU-accelerated Linear layer
 pub struct GpuLinear {
@@ -57,7 +60,10 @@ impl GpuLinear {
     }
 
     /// Forward pass with automatic GPU acceleration
-    pub async fn forward(&self, input: &Tensor<Float32, DenseStorage<Float32>, Float32>) -> Result<Tensor<Float32, DenseStorage<Float32>, Float32>> {
+    pub async fn forward(
+        &self,
+        input: &Tensor<Float32, DenseStorage<Float32>, Float32>,
+    ) -> Result<Tensor<Float32, DenseStorage<Float32>, Float32>> {
         let input_shape = input.shape().dims();
         let batch_size = input_shape[0];
 
@@ -74,7 +80,9 @@ impl GpuLinear {
         // Compute workload characteristics for adaptive backend selection
         let total_elements = batch_size * self.in_features * self.out_features;
         let compute_intensity = (batch_size * self.out_features * self.in_features) as f32
-                              / (batch_size * self.in_features + self.in_features * self.out_features + batch_size * self.out_features) as f32;
+            / (batch_size * self.in_features
+                + self.in_features * self.out_features
+                + batch_size * self.out_features) as f32;
 
         let workload = WorkloadCharacteristics {
             total_elements,
@@ -85,7 +93,10 @@ impl GpuLinear {
         };
 
         // Select optimal backend
-        let selected_backend = self.backend_selector.select_backend_memory_aware(&workload).await;
+        let selected_backend = self
+            .backend_selector
+            .select_backend_memory_aware(&workload)
+            .await;
 
         println!("🔄 Linear layer selected backend: {:?}", selected_backend);
 
@@ -98,7 +109,9 @@ impl GpuLinear {
         // Add bias if present
         if let Some(ref bias) = self.bias {
             // Broadcast bias from [out_features] to [batch_size, out_features]
-            let bias_broadcast = bias.unsqueeze(0)?.expand(&[batch_size, self.out_features])?;
+            let bias_broadcast = bias
+                .unsqueeze(0)?
+                .expand(&[batch_size, self.out_features])?;
             output = output.add(&bias_broadcast)?;
         }
 
@@ -135,7 +148,11 @@ pub struct GpuMLP {
 
 impl GpuMLP {
     /// Create a new GPU-accelerated MLP
-    pub fn new(input_features: usize, hidden_features: usize, output_features: usize) -> Result<Self> {
+    pub fn new(
+        input_features: usize,
+        hidden_features: usize,
+        output_features: usize,
+    ) -> Result<Self> {
         let fc1 = GpuLinear::new(input_features, hidden_features)?;
         let fc2 = GpuLinear::new(hidden_features, output_features)?;
 
@@ -147,7 +164,10 @@ impl GpuMLP {
     }
 
     /// Forward pass through the MLP
-    pub async fn forward(&self, input: &Tensor<Float32, DenseStorage<Float32>, Float32>) -> Result<Tensor<Float32, DenseStorage<Float32>, Float32>> {
+    pub async fn forward(
+        &self,
+        input: &Tensor<Float32, DenseStorage<Float32>, Float32>,
+    ) -> Result<Tensor<Float32, DenseStorage<Float32>, Float32>> {
         // First layer with ReLU activation
         let hidden = self.fc1.forward(input).await?;
         let activated = self.relu(&hidden)?;
@@ -159,7 +179,10 @@ impl GpuMLP {
     }
 
     /// Apply ReLU activation
-    fn relu(&self, input: &Tensor<Float32, DenseStorage<Float32>, Float32>) -> Result<Tensor<Float32, DenseStorage<Float32>, Float32>> {
+    fn relu(
+        &self,
+        input: &Tensor<Float32, DenseStorage<Float32>, Float32>,
+    ) -> Result<Tensor<Float32, DenseStorage<Float32>, Float32>> {
         // For now, use CPU ReLU (could be optimized with GPU ReLU)
         let backend = nn::backend::CpuBackend::<Float32>::new();
         let storage = input.storage();
@@ -226,12 +249,14 @@ async fn main() -> Result<()> {
     println!("Total parameters: {}", network_info.total_parameters);
 
     for (i, layer) in network_info.layers.iter().enumerate() {
-        println!("  Layer {}: {} -> {} ({} params, {})",
-                i + 1,
-                layer.in_features,
-                layer.out_features,
-                layer.num_parameters,
-                layer.backend_type);
+        println!(
+            "  Layer {}: {} -> {} ({} params, {})",
+            i + 1,
+            layer.in_features,
+            layer.out_features,
+            layer.num_parameters,
+            layer.backend_type
+        );
     }
 
     // Create sample input (batch of 32 MNIST-like images)
@@ -248,7 +273,10 @@ async fn main() -> Result<()> {
     let input = Tensor::from_vec(input_data, &input_shape)?;
 
     println!("Input shape: {:?}", input.shape());
-    println!("Input size: {:.2} MB", (input_data.len() * 4) as f32 / (1024.0 * 1024.0));
+    println!(
+        "Input size: {:.2} MB",
+        (input_data.len() * 4) as f32 / (1024.0 * 1024.0)
+    );
 
     // Forward pass
     println!("\n🚀 Running forward pass...");
@@ -258,9 +286,15 @@ async fn main() -> Result<()> {
 
     let elapsed = start_time.elapsed();
 
-    println!("✅ Forward pass completed in {:.4} seconds", elapsed.as_secs_f64());
+    println!(
+        "✅ Forward pass completed in {:.4} seconds",
+        elapsed.as_secs_f64()
+    );
     println!("Output shape: {:?}", output.shape());
-    println!("Performance: {:.2} samples/sec", batch_size as f64 / elapsed.as_secs_f64());
+    println!(
+        "Performance: {:.2} samples/sec",
+        batch_size as f64 / elapsed.as_secs_f64()
+    );
 
     // Analyze output
     println!("\n📈 Output Analysis:");
@@ -273,13 +307,17 @@ async fn main() -> Result<()> {
         let end_idx = start_idx + 10;
 
         let logits = &output_slice[start_idx..end_idx];
-        let predicted_class = logits.iter()
+        let predicted_class = logits
+            .iter()
             .enumerate()
             .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
-        println!("  Sample {}: predicted class {}", sample_idx, predicted_class);
+        println!(
+            "  Sample {}: predicted class {}",
+            sample_idx, predicted_class
+        );
     }
 
     // Performance summary
@@ -288,7 +326,10 @@ async fn main() -> Result<()> {
     println!("  Network: MLP({} -> {} -> {})", input_size, 256, 10);
     println!("  Parameters: {}", network_info.total_parameters);
     println!("  Forward time: {:.4}s", elapsed.as_secs_f64());
-    println!("  Throughput: {:.2} samples/sec", batch_size as f64 / elapsed.as_secs_f64());
+    println!(
+        "  Throughput: {:.2} samples/sec",
+        batch_size as f64 / elapsed.as_secs_f64()
+    );
 
     if has_gpu {
         println!("  Backend: GPU-accelerated with adaptive selection");
@@ -312,13 +353,3 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
-
-
-
-
-
-
-
-
-

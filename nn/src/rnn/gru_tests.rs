@@ -3,7 +3,7 @@
 //! Comprehensive tests for GRU layer functionality.
 
 #[cfg(test)]
-mod gru_tests {
+mod tests {
     use crate::module::Module;
     use crate::rnn::GRU;
     use backend::CpuBackend;

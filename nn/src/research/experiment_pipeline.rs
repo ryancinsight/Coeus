@@ -4,7 +4,7 @@
 //! that combine multiple research techniques like NAS, HPO, and meta-learning.
 
 use crate::error::{NNError, Result};
-use crate::research::tracking::{ExperimentTracker, ExperimentSummary};
+use crate::research::tracking::{ExperimentSummary, ExperimentTracker};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Semaphore;
@@ -82,11 +82,14 @@ impl ExperimentPipeline {
 
         // Launch experiments with controlled parallelism
         for i in 0..self.config.max_experiments {
-            let permit = semaphore.clone().acquire_owned().await.map_err(|e| {
-                NNError::ResourceError {
-                    message: format!("Failed to acquire execution permit: {}", e),
-                }
-            })?;
+            let permit =
+                semaphore
+                    .clone()
+                    .acquire_owned()
+                    .await
+                    .map_err(|e| NNError::ResourceError {
+                        message: format!("Failed to acquire execution permit: {}", e),
+                    })?;
 
             let experiment_fn_clone = experiment_fn.clone();
 
@@ -118,15 +121,32 @@ impl ExperimentPipeline {
                     experiments_completed += 1;
 
                     // Update best experiment
-                    let current_metric = summary.properties.get("accuracy")
+                    let current_metric = summary
+                        .properties
+                        .get("accuracy")
                         .and_then(|v| v.as_f64())
-                        .or_else(|| summary.properties.get("loss").and_then(|v| v.as_f64()).map(|v| -v))
+                        .or_else(|| {
+                            summary
+                                .properties
+                                .get("loss")
+                                .and_then(|v| v.as_f64())
+                                .map(|v| -v)
+                        })
                         .unwrap_or(0.0);
 
-                    let best_metric = best_experiment.as_ref()
-                        .and_then(|b: &ExperimentSummary| b.properties.get("accuracy").and_then(|v| v.as_f64()))
-                        .or_else(|| best_experiment.as_ref()
-                            .and_then(|b: &ExperimentSummary| b.properties.get("loss").and_then(|v| v.as_f64()).map(|v: f64| -v)))
+                    let best_metric = best_experiment
+                        .as_ref()
+                        .and_then(|b: &ExperimentSummary| {
+                            b.properties.get("accuracy").and_then(|v| v.as_f64())
+                        })
+                        .or_else(|| {
+                            best_experiment.as_ref().and_then(|b: &ExperimentSummary| {
+                                b.properties
+                                    .get("loss")
+                                    .and_then(|v| v.as_f64())
+                                    .map(|v: f64| -v)
+                            })
+                        })
                         .unwrap_or(f64::NEG_INFINITY);
 
                     if best_experiment.is_none() || current_metric > best_metric {
@@ -168,7 +188,11 @@ impl ExperimentPipeline {
     }
 
     /// Check if early stopping criteria are met
-    fn should_early_stop(&self, experiments: &[ExperimentSummary], config: &EarlyStoppingConfig) -> bool {
+    fn should_early_stop(
+        &self,
+        experiments: &[ExperimentSummary],
+        config: &EarlyStoppingConfig,
+    ) -> bool {
         if experiments.len() < config.patience {
             return false;
         }
@@ -176,11 +200,20 @@ impl ExperimentPipeline {
         let recent_experiments = &experiments[experiments.len().saturating_sub(config.patience)..];
 
         // Check if any recent experiment shows significant improvement
-        let best_recent = recent_experiments.iter()
-            .map(|e| e.properties.get("accuracy")
-                .and_then(|v| v.as_f64())
-                .or_else(|| e.properties.get("loss").and_then(|v| v.as_f64()).map(|v| -v))
-                .unwrap_or(0.0))
+        let best_recent = recent_experiments
+            .iter()
+            .map(|e| {
+                e.properties
+                    .get("accuracy")
+                    .and_then(|v| v.as_f64())
+                    .or_else(|| {
+                        e.properties
+                            .get("loss")
+                            .and_then(|v| v.as_f64())
+                            .map(|v| -v)
+                    })
+                    .unwrap_or(0.0)
+            })
             .max_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap_or(0.0);
 
@@ -188,11 +221,20 @@ impl ExperimentPipeline {
         let best_older = if older_experiments.is_empty() {
             f64::NEG_INFINITY
         } else {
-            older_experiments.iter()
-                .map(|e| e.properties.get("accuracy")
-                    .and_then(|v| v.as_f64())
-                    .or_else(|| e.properties.get("loss").and_then(|v| v.as_f64()).map(|v| -v))
-                    .unwrap_or(0.0))
+            older_experiments
+                .iter()
+                .map(|e| {
+                    e.properties
+                        .get("accuracy")
+                        .and_then(|v| v.as_f64())
+                        .or_else(|| {
+                            e.properties
+                                .get("loss")
+                                .and_then(|v| v.as_f64())
+                                .map(|v| -v)
+                        })
+                        .unwrap_or(0.0)
+                })
                 .max_by(|a, b| a.partial_cmp(b).unwrap())
                 .unwrap_or(f64::NEG_INFINITY)
         };

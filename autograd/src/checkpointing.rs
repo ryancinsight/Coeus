@@ -200,11 +200,7 @@ mod tests {
         let input = Tensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
         let result = checkpoint(
-            |x: &Tensor<
-                backend::CpuBackend<Float32>,
-                storage::DenseStorage<Float32>,
-                Float32,
-            >| {
+            |x: &Tensor<backend::CpuBackend<Float32>, storage::DenseStorage<Float32>, Float32>| {
                 Ok(x.clone()) // Identity for now
             },
             &input,
@@ -215,26 +211,20 @@ mod tests {
 
     #[test]
     fn test_checkpoint_sequential() {
-        let inputs = vec![
+        let inputs = [
             Tensor::from_vec(vec![Float32::new(1.0)], &[]).unwrap(),
             Tensor::from_vec(vec![Float32::new(2.0)], &[]).unwrap(),
             Tensor::from_vec(vec![Float32::new(3.0)], &[]).unwrap(),
         ];
 
         let input_refs: Vec<
-            &Tensor<
-                backend::CpuBackend<Float32>,
-                storage::DenseStorage<Float32>,
-                Float32,
-            >,
+            &Tensor<backend::CpuBackend<Float32>, storage::DenseStorage<Float32>, Float32>,
         > = inputs.iter().collect();
 
         let result = checkpoint_sequential(
-            |x: &Tensor<
-                backend::CpuBackend<Float32>,
-                storage::DenseStorage<Float32>,
-                Float32,
-            >| { Ok(x.clone()) },
+            |x: &Tensor<backend::CpuBackend<Float32>, storage::DenseStorage<Float32>, Float32>| {
+                Ok(x.clone())
+            },
             &input_refs,
         );
 

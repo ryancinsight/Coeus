@@ -8,10 +8,10 @@
 //! - Anomaly detection and alerting
 //! - Training progress visualization
 
+use crate::Result;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::Result;
 
 /// Central Monitoring and Profiling System
 #[derive(Debug)]
@@ -173,10 +173,25 @@ pub struct AlertRule {
 /// Alert condition
 #[derive(Debug, Clone)]
 pub enum AlertCondition {
-    MetricAbove { metric_name: String, threshold: f64, duration_ms: u64 },
-    MetricBelow { metric_name: String, threshold: f64, duration_ms: u64 },
-    RateOfChange { metric_name: String, threshold: f64, window_ms: u64 },
-    AnomalyDetected { metric_name: String, sensitivity: f64 },
+    MetricAbove {
+        metric_name: String,
+        threshold: f64,
+        duration_ms: u64,
+    },
+    MetricBelow {
+        metric_name: String,
+        threshold: f64,
+        duration_ms: u64,
+    },
+    RateOfChange {
+        metric_name: String,
+        threshold: f64,
+        window_ms: u64,
+    },
+    AnomalyDetected {
+        metric_name: String,
+        sensitivity: f64,
+    },
 }
 
 /// Alert severity levels
@@ -224,11 +239,23 @@ pub struct EscalationPolicy {
 #[derive(Debug, Clone)]
 pub enum EscalationAction {
     Log,
-    Email { recipient: String },
-    Slack { webhook_url: String, channel: String },
-    Webhook { url: String },
-    MetricExport { path: String },
-    Custom { action_type: String, params: HashMap<String, String> },
+    Email {
+        recipient: String,
+    },
+    Slack {
+        webhook_url: String,
+        channel: String,
+    },
+    Webhook {
+        url: String,
+    },
+    MetricExport {
+        path: String,
+    },
+    Custom {
+        action_type: String,
+        params: HashMap<String, String>,
+    },
 }
 
 /// Metric collector trait
@@ -321,7 +348,8 @@ impl TrainingMonitor {
 
     /// Add a metric collector
     pub fn add_collector(&mut self, collector: Box<dyn MetricCollector>) {
-        self.collectors.insert(collector.name().to_string(), collector);
+        self.collectors
+            .insert(collector.name().to_string(), collector);
     }
 
     /// Add a performance profiler
@@ -352,13 +380,23 @@ impl TrainingMonitor {
         // Record core metrics
         self.record_metric_point(&mut state.training_metrics.loss_values, loss, now.clone());
         self.record_metric_point(&mut state.training_metrics.learning_rates, lr, now.clone());
-        self.record_metric_point(&mut state.training_metrics.gradient_norms, grad_norm, now.clone());
-        self.record_metric_point(&mut state.training_metrics.throughput_samples, throughput, now.clone());
+        self.record_metric_point(
+            &mut state.training_metrics.gradient_norms,
+            grad_norm,
+            now.clone(),
+        );
+        self.record_metric_point(
+            &mut state.training_metrics.throughput_samples,
+            throughput,
+            now.clone(),
+        );
 
         // Record custom metrics
         if let Some(custom) = custom_metrics {
             for (name, value) in custom {
-                let queue = state.training_metrics.custom_metrics
+                let queue = state
+                    .training_metrics
+                    .custom_metrics
                     .entry(name)
                     .or_insert_with(VecDeque::new);
 
@@ -383,11 +421,31 @@ impl TrainingMonitor {
         let mut state = self.state.write().await;
         let now = std::time::Instant::now();
 
-        self.record_metric_point(&mut state.system_metrics.gpu_memory_usage, gpu_memory_mb, now.clone());
-        self.record_metric_point(&mut state.system_metrics.cpu_memory_usage, cpu_memory_mb, now.clone());
-        self.record_metric_point(&mut state.system_metrics.gpu_utilization, gpu_util, now.clone());
-        self.record_metric_point(&mut state.system_metrics.cpu_utilization, cpu_util, now.clone());
-        self.record_metric_point(&mut state.system_metrics.network_bandwidth, network_bw, now.clone());
+        self.record_metric_point(
+            &mut state.system_metrics.gpu_memory_usage,
+            gpu_memory_mb,
+            now.clone(),
+        );
+        self.record_metric_point(
+            &mut state.system_metrics.cpu_memory_usage,
+            cpu_memory_mb,
+            now.clone(),
+        );
+        self.record_metric_point(
+            &mut state.system_metrics.gpu_utilization,
+            gpu_util,
+            now.clone(),
+        );
+        self.record_metric_point(
+            &mut state.system_metrics.cpu_utilization,
+            cpu_util,
+            now.clone(),
+        );
+        self.record_metric_point(
+            &mut state.system_metrics.network_bandwidth,
+            network_bw,
+            now.clone(),
+        );
         self.record_metric_point(&mut state.system_metrics.disk_io, disk_io, now.clone());
 
         Ok(())
@@ -425,7 +483,9 @@ impl TrainingMonitor {
 
             // Update profiling data
             for (kernel, time) in result.kernel_times {
-                state.profiling_data.kernel_times
+                state
+                    .profiling_data
+                    .kernel_times
                     .entry(kernel)
                     .or_insert_with(Vec::new)
                     .push(time);
@@ -466,7 +526,9 @@ impl TrainingMonitor {
                 state_mut.alerts.push_back(alert.clone());
 
                 // Add to active alerts
-                self.alerting.active_alerts.insert(alert.alert_id.clone(), alert.clone());
+                self.alerting
+                    .active_alerts
+                    .insert(alert.alert_id.clone(), alert.clone());
                 self.alerting.alert_history.push_back(alert.clone());
 
                 // Apply escalation policies
@@ -477,20 +539,31 @@ impl TrainingMonitor {
         Ok(())
     }
 
-    async fn check_alert_condition(&self, condition: &AlertCondition, state: &MonitoringState) -> bool {
+    async fn check_alert_condition(
+        &self,
+        condition: &AlertCondition,
+        state: &MonitoringState,
+    ) -> bool {
         match condition {
-            AlertCondition::MetricAbove { metric_name, threshold, duration_ms } => {
-                self.check_metric_above_threshold(metric_name, *threshold, *duration_ms, state)
-            },
-            AlertCondition::MetricBelow { metric_name, threshold, duration_ms } => {
-                self.check_metric_below_threshold(metric_name, *threshold, *duration_ms, state)
-            },
-            AlertCondition::RateOfChange { metric_name, threshold, window_ms } => {
-                self.check_rate_of_change(metric_name, *threshold, *window_ms, state)
-            },
-            AlertCondition::AnomalyDetected { metric_name, sensitivity } => {
-                self.detect_metric_anomaly(metric_name, *sensitivity, state)
-            },
+            AlertCondition::MetricAbove {
+                metric_name,
+                threshold,
+                duration_ms,
+            } => self.check_metric_above_threshold(metric_name, *threshold, *duration_ms, state),
+            AlertCondition::MetricBelow {
+                metric_name,
+                threshold,
+                duration_ms,
+            } => self.check_metric_below_threshold(metric_name, *threshold, *duration_ms, state),
+            AlertCondition::RateOfChange {
+                metric_name,
+                threshold,
+                window_ms,
+            } => self.check_rate_of_change(metric_name, *threshold, *window_ms, state),
+            AlertCondition::AnomalyDetected {
+                metric_name,
+                sensitivity,
+            } => self.detect_metric_anomaly(metric_name, *sensitivity, state),
         }
     }
 
@@ -598,7 +671,8 @@ impl TrainingMonitor {
         let window = std::time::Duration::from_millis(window_ms);
 
         // Get values within the window
-        let window_values: Vec<f64> = values.iter()
+        let window_values: Vec<f64> = values
+            .iter()
             .rev()
             .take_while(|v| current_time.duration_since(v.timestamp) <= window)
             .map(|v| v.value)
@@ -639,16 +713,19 @@ impl TrainingMonitor {
         }
 
         // Calculate mean and standard deviation
-        let recent_values: Vec<f64> = values.iter()
+        let recent_values: Vec<f64> = values
+            .iter()
             .rev()
             .take(50) // Last 50 values
             .map(|v| v.value)
             .collect();
 
         let mean = recent_values.iter().sum::<f64>() / recent_values.len() as f64;
-        let variance = recent_values.iter()
+        let variance = recent_values
+            .iter()
             .map(|v| (v - mean).powi(2))
-            .sum::<f64>() / recent_values.len() as f64;
+            .sum::<f64>()
+            / recent_values.len() as f64;
         let std_dev = variance.sqrt();
 
         let threshold = sensitivity * std_dev;
@@ -663,7 +740,10 @@ impl TrainingMonitor {
         template
             .replace("{loss}", &format!("{:.4}", state.get_latest_loss()))
             .replace("{lr}", &format!("{:.6}", state.get_latest_lr()))
-            .replace("{grad_norm}", &format!("{:.4}", state.get_latest_grad_norm()))
+            .replace(
+                "{grad_norm}",
+                &format!("{:.4}", state.get_latest_grad_norm()),
+            )
     }
 
     async fn apply_escalation_policies(&self, alert: &Alert) -> Result<()> {
@@ -678,31 +758,44 @@ impl TrainingMonitor {
         Ok(())
     }
 
-    async fn execute_escalation_action(&self, action: &EscalationAction, alert: &Alert) -> Result<()> {
+    async fn execute_escalation_action(
+        &self,
+        action: &EscalationAction,
+        alert: &Alert,
+    ) -> Result<()> {
         match action {
             EscalationAction::Log => {
                 println!("[ALERT] {}: {}", alert.severity, alert.message);
-            },
+            }
             EscalationAction::Email { recipient } => {
                 // Placeholder for email sending
                 println!("Would send email to {}: {}", recipient, alert.message);
-            },
-            EscalationAction::Slack { webhook_url: _, channel } => {
+            }
+            EscalationAction::Slack {
+                webhook_url: _,
+                channel,
+            } => {
                 // Placeholder for Slack notification
                 println!("Would post to Slack {}: {}", channel, alert.message);
-            },
+            }
             EscalationAction::Webhook { url } => {
                 // Placeholder for webhook call
                 println!("Would call webhook {}: {}", url, alert.message);
-            },
+            }
             EscalationAction::MetricExport { path } => {
                 // Export current metrics for debugging
                 println!("Would export metrics to {} for alert investigation", path);
-            },
-            EscalationAction::Custom { action_type, params } => {
+            }
+            EscalationAction::Custom {
+                action_type,
+                params,
+            } => {
                 // Custom escalation action
-                println!("Custom escalation {}: {} (params: {:?})", action_type, alert.message, params);
-            },
+                println!(
+                    "Custom escalation {}: {} (params: {:?})",
+                    action_type, alert.message, params
+                );
+            }
         }
 
         Ok(())
@@ -724,51 +817,109 @@ impl TrainingMonitor {
 
     fn summarize_training_metrics(&self, state: &MonitoringState) -> TrainingMetricsSummary {
         TrainingMetricsSummary {
-            avg_loss: state.training_metrics.loss_values.iter()
-                .map(|p| p.value).sum::<f64>() / state.training_metrics.loss_values.len() as f64,
+            avg_loss: state
+                .training_metrics
+                .loss_values
+                .iter()
+                .map(|p| p.value)
+                .sum::<f64>()
+                / state.training_metrics.loss_values.len() as f64,
             final_loss: state.get_latest_loss(),
-            best_loss: state.training_metrics.loss_values.iter()
+            best_loss: state
+                .training_metrics
+                .loss_values
+                .iter()
                 .min_by(|a, b| a.value.partial_cmp(&b.value).unwrap())
                 .map(|p| p.value)
                 .unwrap_or(0.0),
-            avg_lr: state.training_metrics.learning_rates.iter()
-                .map(|p| p.value).sum::<f64>() / state.training_metrics.learning_rates.len() as f64,
+            avg_lr: state
+                .training_metrics
+                .learning_rates
+                .iter()
+                .map(|p| p.value)
+                .sum::<f64>()
+                / state.training_metrics.learning_rates.len() as f64,
             final_lr: state.get_latest_lr(),
-            avg_grad_norm: state.training_metrics.gradient_norms.iter()
-                .map(|p| p.value).sum::<f64>() / state.training_metrics.gradient_norms.len() as f64,
-            avg_throughput: state.training_metrics.throughput_samples.iter()
-                .map(|p| p.value).sum::<f64>() / state.training_metrics.throughput_samples.len() as f64,
+            avg_grad_norm: state
+                .training_metrics
+                .gradient_norms
+                .iter()
+                .map(|p| p.value)
+                .sum::<f64>()
+                / state.training_metrics.gradient_norms.len() as f64,
+            avg_throughput: state
+                .training_metrics
+                .throughput_samples
+                .iter()
+                .map(|p| p.value)
+                .sum::<f64>()
+                / state.training_metrics.throughput_samples.len() as f64,
         }
     }
 
     fn summarize_system_metrics(&self, state: &MonitoringState) -> SystemMetricsSummary {
         SystemMetricsSummary {
-            avg_gpu_memory_mb: state.system_metrics.gpu_memory_usage.iter()
-                .map(|p| p.value).sum::<f64>() / state.system_metrics.gpu_memory_usage.len() as f64,
-            peak_gpu_memory_mb: state.system_metrics.gpu_memory_usage.iter()
+            avg_gpu_memory_mb: state
+                .system_metrics
+                .gpu_memory_usage
+                .iter()
+                .map(|p| p.value)
+                .sum::<f64>()
+                / state.system_metrics.gpu_memory_usage.len() as f64,
+            peak_gpu_memory_mb: state
+                .system_metrics
+                .gpu_memory_usage
+                .iter()
                 .max_by(|a, b| a.value.partial_cmp(&b.value).unwrap())
                 .map(|p| p.value)
                 .unwrap_or(0.0),
-            avg_cpu_memory_mb: state.system_metrics.cpu_memory_usage.iter()
-                .map(|p| p.value).sum::<f64>() / state.system_metrics.cpu_memory_usage.len() as f64,
-            avg_gpu_utilization: state.system_metrics.gpu_utilization.iter()
-                .map(|p| p.value).sum::<f64>() / state.system_metrics.gpu_utilization.len() as f64,
-            avg_cpu_utilization: state.system_metrics.cpu_utilization.iter()
-                .map(|p| p.value).sum::<f64>() / state.system_metrics.cpu_utilization.len() as f64,
-            avg_network_bandwidth: state.system_metrics.network_bandwidth.iter()
-                .map(|p| p.value).sum::<f64>() / state.system_metrics.network_bandwidth.len() as f64,
+            avg_cpu_memory_mb: state
+                .system_metrics
+                .cpu_memory_usage
+                .iter()
+                .map(|p| p.value)
+                .sum::<f64>()
+                / state.system_metrics.cpu_memory_usage.len() as f64,
+            avg_gpu_utilization: state
+                .system_metrics
+                .gpu_utilization
+                .iter()
+                .map(|p| p.value)
+                .sum::<f64>()
+                / state.system_metrics.gpu_utilization.len() as f64,
+            avg_cpu_utilization: state
+                .system_metrics
+                .cpu_utilization
+                .iter()
+                .map(|p| p.value)
+                .sum::<f64>()
+                / state.system_metrics.cpu_utilization.len() as f64,
+            avg_network_bandwidth: state
+                .system_metrics
+                .network_bandwidth
+                .iter()
+                .map(|p| p.value)
+                .sum::<f64>()
+                / state.system_metrics.network_bandwidth.len() as f64,
         }
     }
 
     fn calculate_performance_score(&self, state: &MonitoringState) -> PerformanceScore {
         // Calculate overall performance score based on various metrics
-        let loss_efficiency = if state.get_latest_loss() < 1.0 { 1.0 } else { 1.0 / state.get_latest_loss() };
+        let loss_efficiency = if state.get_latest_loss() < 1.0 {
+            1.0
+        } else {
+            1.0 / state.get_latest_loss()
+        };
         let throughput_efficiency = state.get_latest_throughput() / 1000.0; // Normalize to thousands
         let memory_efficiency = 1.0 - (state.get_latest_gpu_memory() / 80000.0); // Lower is better for 80GB GPU
         let hardware_utilization = state.get_latest_gpu_utilization() / 100.0;
 
-        let score = (loss_efficiency * 0.3 + throughput_efficiency * 0.3 +
-                    memory_efficiency * 0.2 + hardware_utilization * 0.2) * 100.0;
+        let score = (loss_efficiency * 0.3
+            + throughput_efficiency * 0.3
+            + memory_efficiency * 0.2
+            + hardware_utilization * 0.2)
+            * 100.0;
 
         PerformanceScore {
             overall_score: score.min(100.0).max(0.0),
@@ -797,11 +948,13 @@ impl TrainingMonitor {
         }
 
         let memory_usage = state.get_latest_gpu_memory();
-        if memory_usage > 70000.0 { // >70GB on 80GB GPU
+        if memory_usage > 70000.0 {
+            // >70GB on 80GB GPU
             recommendations.push(PerformanceRecommendation {
                 category: RecommendationCategory::Memory,
                 severity: RecommendationSeverity::High,
-                message: "High memory usage detected. Consider memory optimization techniques.".to_string(),
+                message: "High memory usage detected. Consider memory optimization techniques."
+                    .to_string(),
                 suggested_actions: vec![
                     "Enable gradient checkpointing".to_string(),
                     "Use activation offloading".to_string(),
@@ -859,37 +1012,49 @@ impl MonitoringState {
     }
 
     fn get_latest_loss(&self) -> f64 {
-        self.training_metrics.loss_values.back()
+        self.training_metrics
+            .loss_values
+            .back()
             .map(|p| p.value)
             .unwrap_or(0.0)
     }
 
     fn get_latest_lr(&self) -> f64 {
-        self.training_metrics.learning_rates.back()
+        self.training_metrics
+            .learning_rates
+            .back()
             .map(|p| p.value)
             .unwrap_or(0.0)
     }
 
     fn get_latest_grad_norm(&self) -> f64 {
-        self.training_metrics.gradient_norms.back()
+        self.training_metrics
+            .gradient_norms
+            .back()
             .map(|p| p.value)
             .unwrap_or(0.0)
     }
 
     fn get_latest_throughput(&self) -> f64 {
-        self.training_metrics.throughput_samples.back()
+        self.training_metrics
+            .throughput_samples
+            .back()
             .map(|p| p.value)
             .unwrap_or(0.0)
     }
 
     fn get_latest_gpu_memory(&self) -> f64 {
-        self.system_metrics.gpu_memory_usage.back()
+        self.system_metrics
+            .gpu_memory_usage
+            .back()
             .map(|p| p.value)
             .unwrap_or(0.0)
     }
 
     fn get_latest_gpu_utilization(&self) -> f64 {
-        self.system_metrics.gpu_utilization.back()
+        self.system_metrics
+            .gpu_utilization
+            .back()
             .map(|p| p.value)
             .unwrap_or(0.0)
     }
@@ -924,19 +1089,17 @@ impl AlertSystem {
             ],
             active_alerts: HashMap::new(),
             alert_history: VecDeque::new(),
-            escalation_policies: vec![
-                EscalationPolicy {
-                    policy_id: "default".to_string(),
-                    severity_threshold: AlertSeverity::Medium,
-                    escalation_actions: vec![
-                        EscalationAction::Log,
-                        EscalationAction::MetricExport {
-                            path: "/tmp/alert_metrics.json".to_string(),
-                        },
-                    ],
-                    cooldown_period_ms: 60000, // 1 minute
-                },
-            ],
+            escalation_policies: vec![EscalationPolicy {
+                policy_id: "default".to_string(),
+                severity_threshold: AlertSeverity::Medium,
+                escalation_actions: vec![
+                    EscalationAction::Log,
+                    EscalationAction::MetricExport {
+                        path: "/tmp/alert_metrics.json".to_string(),
+                    },
+                ],
+                cooldown_period_ms: 60000, // 1 minute
+            }],
         }
     }
 }
@@ -1078,9 +1241,7 @@ mod tests {
     fn test_gradient_clipping() {
         // Test via training monitor
         let _optimizer = crate::optimization::utils::create_lionel_optimizer(1e-3, 0.01);
-        let _gradients = HashMap::from([
-            ("param1".to_string(), vec![1.0, 2.0, 3.0]),
-        ]);
+        let _gradients = HashMap::from([("param1".to_string(), vec![1.0, 2.0, 3.0])]);
 
         // Would test clipping if public
     }

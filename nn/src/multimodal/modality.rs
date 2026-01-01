@@ -106,15 +106,3 @@ mod tests {
         assert_eq!(Modality::Custom("test".to_string()).as_str(), "test");
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-

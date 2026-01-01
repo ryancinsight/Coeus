@@ -7,9 +7,9 @@ use crate::module::Module;
 use crate::parameter::Parameter;
 use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
+use std::marker::PhantomData;
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
-use std::marker::PhantomData;
 
 /// 3D Convolutional layer for volumetric feature extraction.
 /// Performs 3D convolution on input tensors of shape [batch_size, in_channels, depth, height, width].
@@ -488,7 +488,7 @@ mod tests {
             Some(false),
         )
         .unwrap();
-        let input_data = vec![Float32::new(1.0); 1 * 1 * 5 * 5 * 5];
+        let input_data = vec![Float32::new(1.0); 5 * 5 * 5];
         let input = TestTensor::from_vec(input_data, &[1, 1, 5, 5, 5]).unwrap();
         let output = conv3d.forward(&input).unwrap();
         let output_shape = output.shape().dims();

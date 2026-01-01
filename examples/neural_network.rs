@@ -5,10 +5,10 @@
 
 use dtype::float::Float32;
 use nn::{Linear, Module, Sequential};
+use std::io::{self, Write};
 use storage::DenseStorage;
 use tensor::CpuBackend;
 use tensor::Tensor;
-use std::io::{self, Write};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧠 Coeus Neural Network Forward Pass Example");
@@ -81,4 +81,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     io::stdout().flush()?;
     Ok(())
 }
-

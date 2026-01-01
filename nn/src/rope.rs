@@ -6,12 +6,13 @@
 
 use crate::error::{NNError, Result};
 use backend::Backend;
-use storage::{Storage, DenseStorage, StorageFromVec, StorageToDense};
 use dtype::DataType;
-use tensor::{FloatExt, Tensor, ops::arithmetic::*, ops::tensor_ops::concatenate_tensors};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::{ops::tensor_ops::concatenate_tensors, FloatExt, Tensor};
 
 use num_traits::FromPrimitive;
-use std::ops::{Add, Mul, Neg};
+use std::cmp::Ordering;
+use std::ops::Neg;
 
 /// Rotary Position Embedding (RoPE) implementation
 ///
@@ -35,6 +36,8 @@ where
     theta_base: f64,
 }
 
+type QkPair<B, S, T> = (Tensor<B, S, T>, Tensor<B, S, T>);
+
 impl<B, S, T> RoPE<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
@@ -53,8 +56,14 @@ where
                 message: "Head dimension must be even for RoPE".to_string(),
             });
         }
+        if theta_base.partial_cmp(&0.0) != Some(Ordering::Greater) {
+            return Err(NNError::InvalidConfiguration {
+                message: "Theta base must be positive for RoPE".to_string(),
+            });
+        }
 
-        let (cos_cache, sin_cache) = Self::precompute_rope_cache(head_dim, max_seq_len, theta_base)?;
+        let (cos_cache, sin_cache) =
+            Self::precompute_rope_cache(head_dim, max_seq_len, theta_base)?;
 
         Ok(Self {
             cos_cache,
@@ -102,7 +111,7 @@ where
         q: &Tensor<B, S, T>,
         k: &Tensor<B, S, T>,
         positions: Option<&[usize]>,
-    ) -> Result<(Tensor<B, S, T>, Tensor<B, S, T>)> {
+    ) -> Result<QkPair<B, S, T>> {
         let q_out = self.apply_to_query(q, positions)?;
         let k_out = self.apply_to_key(k, positions)?;
         Ok((q_out, k_out))
@@ -117,8 +126,33 @@ where
     ) -> Result<Tensor<B, S, T>> {
         // Default positions if None: 0..seq_len
         let seq_len = x.shape().dims()[1];
+        if seq_len > self.max_seq_len {
+            return Err(NNError::InvalidInput {
+                message: format!(
+                    "Sequence length {seq_len} exceeds RoPE max_seq_len {}",
+                    self.max_seq_len
+                ),
+            });
+        }
+        let head_dim = x.shape().dims()[3];
+        if head_dim != self.head_dim {
+            return Err(NNError::InvalidInput {
+                message: format!(
+                    "Head dimension {head_dim} does not match RoPE head_dim {}",
+                    self.head_dim
+                ),
+            });
+        }
         let default_positions: Vec<usize> = (0..seq_len).collect();
         let pos = positions.unwrap_or(&default_positions);
+        if pos.iter().any(|&p| p >= self.max_seq_len) {
+            return Err(NNError::InvalidInput {
+                message: format!(
+                    "RoPE position index exceeds max_seq_len {}",
+                    self.max_seq_len
+                ),
+            });
+        }
 
         // Check if we need to extend cache (omitted for now as we assume max_seq_len is sufficient or we handle it)
         // In a real implementation, we would resize cache if max(pos) >= max_seq_len
@@ -126,12 +160,17 @@ where
         self.apply_rope_rotation(x, pos, is_query)
     }
 
+    #[must_use]
+    pub fn theta_base(&self) -> f64 {
+        self.theta_base
+    }
+
     /// Pre-compute cos and sin caches
     fn precompute_rope_cache(
         head_dim: usize,
         max_seq_len: usize,
         theta_base: f64,
-    ) -> Result<(Tensor<B, S, T>, Tensor<B, S, T>)> {
+    ) -> Result<QkPair<B, S, T>> {
         let mut cos_data = Vec::with_capacity(max_seq_len * head_dim);
         let mut sin_data = Vec::with_capacity(max_seq_len * head_dim);
 
@@ -141,8 +180,8 @@ where
                 let idx = pos as f64 * theta;
                 let c = T::from_f64(idx.cos()).unwrap();
                 let s = T::from_f64(idx.sin()).unwrap();
-                
-                // RoPE cache interleaving: [c, c] for each pair? 
+
+                // RoPE cache interleaving: [c, c] for each pair?
                 // Standard RoPE usually pairs [i, i+half] or [2i, 2i+1]
                 // The implementation of rotate_half assumes [-x2, x1].
                 // So the cache should match the pairing.
@@ -151,17 +190,17 @@ where
                 // So we store [cos(theta), ..., cos(theta)] for first half and second half?
                 // Actually usually: cos = [cos(theta_0), ..., cos(theta_d/2-1), cos(theta_0), ..., cos(theta_d/2-1)]
                 // and sin same.
-                
+
                 cos_data.push(c);
                 sin_data.push(s);
             }
         }
-        
+
         // We generated head_dim/2 values per pos. We need to duplicate them for the two halves.
-        // Wait, the loop above generates head_dim/2 values. 
+        // Wait, the loop above generates head_dim/2 values.
         // We need to store them such that they align with x1 and x2.
         // If x is [x1, x2], then cos should be [cos_vec, cos_vec].
-        
+
         // Let's redo generation properly:
         let mut full_cos_data = Vec::with_capacity(max_seq_len * head_dim);
         let mut full_sin_data = Vec::with_capacity(max_seq_len * head_dim);
@@ -169,14 +208,14 @@ where
         for pos in 0..max_seq_len {
             let mut row_cos = Vec::with_capacity(head_dim);
             let mut row_sin = Vec::with_capacity(head_dim);
-            
+
             for i in 0..(head_dim / 2) {
                 let theta = 1.0 / theta_base.powf((2 * i) as f64 / head_dim as f64);
                 let val = pos as f64 * theta;
                 row_cos.push(T::from_f64(val.cos()).unwrap());
                 row_sin.push(T::from_f64(val.sin()).unwrap());
             }
-            
+
             // Concatenate [cos, cos] and [sin, sin]
             full_cos_data.extend_from_slice(&row_cos);
             full_cos_data.extend_from_slice(&row_cos);
@@ -205,17 +244,19 @@ where
         let head_dim = x_shape[3];
 
         // Helper to gather rows from cache (converts to dense internally)
-        let gather_rows = |tensor: &Tensor<B, S, T>, indices: &[usize]| -> Result<Tensor<B, DenseStorage<T>, T>> {
-             let dense_cache = tensor.to_dense_generic()?;
-             let dim = tensor.shape().dims()[1]; // head_dim
-             let mut flat_indices = Vec::with_capacity(indices.len() * dim);
-             for &idx in indices {
-                 let start = idx * dim;
-                 for i in 0..dim {
-                     flat_indices.push((start + i) as i32);
-                 }
-             }
-             Ok(dense_cache.fancy_index(&flat_indices)?)
+        let gather_rows = |tensor: &Tensor<B, S, T>,
+                           indices: &[usize]|
+         -> Result<Tensor<B, DenseStorage<T>, T>> {
+            let dense_cache = tensor.to_dense_generic()?;
+            let dim = tensor.shape().dims()[1]; // head_dim
+            let mut flat_indices = Vec::with_capacity(indices.len() * dim);
+            for &idx in indices {
+                let start = idx * dim;
+                for i in 0..dim {
+                    flat_indices.push((start + i) as i32);
+                }
+            }
+            Ok(dense_cache.fancy_index(&flat_indices)?)
         };
 
         let cos = gather_rows(&self.cos_cache, positions)?;
@@ -232,7 +273,7 @@ where
         // Apply formula: x * cos + rotated_x * sin
         let term1 = x_dense.mul(&cos)?;
         let term2 = rotated_x.mul(&sin)?;
-        
+
         let result_dense = term1.add(&term2)?;
 
         // Convert back to original storage type S

@@ -18,10 +18,10 @@
 //!
 //! This prevents overflow when computing softmax probabilities.
 
-use tensor::{Tensor, Backend, Storage, StorageFromVec, DataType, StorageToDense};
-use std::sync::Arc;
 use crate::tensor_ops;
-use crate::tensor_ops::{sub, mul};
+use crate::tensor_ops::{mul, sub};
+use std::sync::Arc;
+use tensor::{Backend, DataType, Storage, StorageFromVec, StorageToDense, Tensor};
 
 use dtype::traits::FloatExt;
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -86,16 +86,17 @@ where
     let sse_loss = tensor_ops::sum(&squared, None, false)?;
 
     // Divide by number of elements to get Mean Squared Error
-    let num_elements = squared.len() as f64;
-    let scale_val = T::from_f64(1.0 / num_elements).ok_or_else(|| {
+    let num_elements = squared.len();
+    let num_elements_t = T::from_usize(num_elements).ok_or_else(|| {
         crate::AutogradError::TensorError(tensor::TensorError::ShapeError {
             expected: 0,
             actual: 0,
-            message: "Failed to convert scale to T".to_string()
+            message: "Failed to convert scale to T".to_string(),
         })
     })?;
+    let scale_val = T::one() / num_elements_t;
     let scale_tensor = Tensor::from_vec(vec![scale_val], &[])?;
-    
+
     // We need to reshape sse_loss to [] if it is [1] to allow multiplication with scalar
     let sse_loss = if sse_loss.shape().ndim() == 1 {
         // Use autograd-aware reshape to preserve computation graph
@@ -103,7 +104,7 @@ where
     } else {
         sse_loss
     };
-    
+
     // Multiply by 1/N
     // Note: We use mul (element-wise multiplication)
     // The result should be scalar if inputs are scalar
@@ -139,47 +140,51 @@ where
 
     if logits_shape.len() != 2 {
         return Err(crate::AutogradError::InvalidInput {
-            message: format!("Logits must be 2D tensor [batch_size, num_classes], got shape {:?}", logits_shape)
+            message: format!(
+                "Logits must be 2D tensor [batch_size, num_classes], got shape {logits_shape:?}"
+            ),
         });
     }
     if targets_shape.len() != 1 {
         return Err(crate::AutogradError::InvalidInput {
-            message: format!("Targets must be 1D tensor [batch_size], got shape {:?}", targets_shape)
+            message: format!("Targets must be 1D tensor [batch_size], got shape {targets_shape:?}"),
         });
     }
-    if logits_shape[0] != targets_shape[0] {
+    let logits_batch = logits_shape[0];
+    let targets_batch = targets_shape[0];
+    if logits_batch != targets_batch {
         return Err(crate::AutogradError::InvalidInput {
-            message: format!("Batch size mismatch: logits has batch_size={}, targets has batch_size={}",
-                   logits_shape[0], targets_shape[0])
+            message: format!("Batch size mismatch: logits has batch_size={logits_batch}, targets has batch_size={targets_batch}"),
         });
     }
 
-    let batch_size = logits_shape[0];
+    let batch_size = logits_batch;
     let num_classes = logits_shape[1];
 
     // Convert to dense for manual indexing
-    let targets_dense = targets.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
-    let log_probs_dense = log_probs.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
-    
+    let targets_dense = targets
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
+    let log_probs_dense = log_probs
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
+
     let targets_slice = targets_dense.storage_ref().as_slice();
     let log_probs_slice = log_probs_dense.storage_ref().as_slice();
-    
+
     let mut nll_loss_vals = Vec::new();
 
-    for batch_idx in 0..batch_size {
-        // Get target class index
-        let target_val = targets_slice[batch_idx];
-        
+    for (batch_idx, &target_val) in targets_slice.iter().enumerate().take(batch_size) {
         // Validate target is integer
         if let Some(val_f64) = target_val.to_f64() {
             if (val_f64 - val_f64.round()).abs() > 1e-5 {
                 return Err(crate::AutogradError::InvalidInput {
-                    message: format!("Target value {} is not an integer", val_f64)
+                    message: format!("Target value {val_f64} is not an integer"),
                 });
             }
             if val_f64 < 0.0 {
-                 return Err(crate::AutogradError::InvalidInput {
-                    message: format!("Target class index {} is out of range", val_f64)
+                return Err(crate::AutogradError::InvalidInput {
+                    message: format!("Target class index {val_f64} is out of range"),
                 });
             }
         }
@@ -188,21 +193,23 @@ where
 
         if target_idx >= num_classes {
             return Err(crate::AutogradError::InvalidInput {
-                message: format!("Target class index {} is out of range for {} classes", target_idx, num_classes)
+                message: format!(
+                    "Target class index {target_idx} is out of range for {num_classes} classes"
+                ),
             });
         }
 
         // Get log_prob value for the target class
         let log_prob_idx = batch_idx * num_classes + target_idx;
         let log_prob = log_probs_slice[log_prob_idx];
-        
+
         // Validate log_prob
         if let Some(lp_f64) = log_prob.to_f64() {
-             if lp_f64.is_nan() {
-                  return Err(crate::AutogradError::InvalidInput {
-                     message: format!("Invalid log probability: encountered NaN at batch {}, class {}", batch_idx, target_idx)
-                 });
-             }
+            if lp_f64.is_nan() {
+                return Err(crate::AutogradError::InvalidInput {
+                    message: format!("Invalid log probability: encountered NaN at batch {batch_idx}, class {target_idx}"),
+                });
+            }
         }
 
         // Negative log likelihood: -log_prob
@@ -215,15 +222,15 @@ where
     for x in &nll_loss_vals {
         total_loss = total_loss + *x;
     }
-    
+
     let batch_size_t = T::from_usize(batch_size).ok_or_else(|| {
         crate::AutogradError::TensorError(tensor::TensorError::ShapeError {
-             expected: 0,
-             actual: 0,
-             message: "Failed to convert batch size to T".to_string()
+            expected: 0,
+            actual: 0,
+            message: "Failed to convert batch size to T".to_string(),
         })
     })?;
-    
+
     let mean_loss = total_loss / batch_size_t;
 
     // Create result tensor
@@ -232,10 +239,12 @@ where
 
     // Attach gradient function if needed
     if log_probs.requires_grad() {
-        Ok(result_tensor.with_grad_fn(Some(Arc::new(crate::functions::NLLLossFunction::new(
-            Arc::new(log_probs.clone()),
-            Arc::new(targets.clone()),
-        )))).requires_grad_(true))
+        Ok(result_tensor
+            .with_grad_fn(Some(Arc::new(crate::functions::NLLLossFunction::new(
+                Arc::new(log_probs.clone()),
+                Arc::new(targets.clone()),
+            ))))
+            .requires_grad_(true))
     } else {
         Ok(result_tensor)
     }
@@ -310,22 +319,25 @@ where
 
     if logits_shape.len() != 2 {
         return Err(crate::AutogradError::InvalidInput {
-            message: format!("Logits must be 2D tensor [batch_size, num_classes], got shape {:?}", logits_shape)
+            message: format!(
+                "Logits must be 2D tensor [batch_size, num_classes], got shape {logits_shape:?}"
+            ),
         });
     }
     if targets_shape.len() != 1 {
         return Err(crate::AutogradError::InvalidInput {
-            message: format!("Targets must be 1D tensor [batch_size], got shape {:?}", targets_shape)
+            message: format!("Targets must be 1D tensor [batch_size], got shape {targets_shape:?}"),
         });
     }
-    if logits_shape[0] != targets_shape[0] {
+    let logits_batch = logits_shape[0];
+    let targets_batch = targets_shape[0];
+    if logits_batch != targets_batch {
         return Err(crate::AutogradError::InvalidInput {
-            message: format!("Batch size mismatch: logits has batch_size={}, targets has batch_size={}",
-                   logits_shape[0], targets_shape[0])
+            message: format!("Batch size mismatch: logits has batch_size={logits_batch}, targets has batch_size={targets_batch}"),
         });
     }
 
-    let batch_size = logits_shape[0];
+    let batch_size = logits_batch;
     let num_classes = logits_shape[1];
 
     // Compute log-softmax using the numerically stable log-sum-exp trick
@@ -333,24 +345,29 @@ where
 
     // Gather negative log probabilities at target indices
     // This is a simplified implementation - in practice would use advanced indexing
-    
+
     // Convert to dense for manual indexing
-    let targets_dense = targets.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
-    let log_softmax_dense = log_softmax.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
-    
+    let targets_dense = targets
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
+    let log_softmax_dense = log_softmax
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
+
     let targets_slice = targets_dense.storage_ref().as_slice();
     let log_softmax_slice = log_softmax_dense.storage_ref().as_slice();
-    
+
     let mut nll_loss = Vec::new();
 
-    for batch_idx in 0..batch_size {
+    for (batch_idx, &target_val) in targets_slice.iter().enumerate().take(batch_size) {
         // Get target class index (assume targets contain integer indices)
-        let target_val = targets_slice[batch_idx];
         let target_idx = target_val.to_usize().unwrap_or(0);
 
         if target_idx >= num_classes {
             return Err(crate::AutogradError::InvalidInput {
-                message: format!("Target class index {} is out of range for {} classes", target_idx, num_classes)
+                message: format!(
+                    "Target class index {target_idx} is out of range for {num_classes} classes"
+                ),
             });
         }
 
@@ -368,15 +385,15 @@ where
     for x in &nll_loss {
         total_loss = total_loss + *x;
     }
-    
+
     let batch_size_t = T::from_usize(batch_size).ok_or_else(|| {
         crate::AutogradError::TensorError(tensor::TensorError::ShapeError {
-             expected: 0,
-             actual: 0,
-             message: "Failed to convert batch size to T".to_string()
+            expected: 0,
+            actual: 0,
+            message: "Failed to convert batch size to T".to_string(),
         })
     })?;
-    
+
     let mean_loss = total_loss / batch_size_t;
 
     // Create result tensor
@@ -385,16 +402,18 @@ where
 
     // Attach gradient function if needed
     if logits.requires_grad() {
-        Ok(result_tensor.with_grad_fn(Some(Arc::new(CrossEntropyFunction::new(
-            Arc::new(logits.clone()),
-            Arc::new(targets.clone()),
-        )))))
+        Ok(
+            result_tensor.with_grad_fn(Some(Arc::new(CrossEntropyFunction::new(
+                Arc::new(logits.clone()),
+                Arc::new(targets.clone()),
+            )))),
+        )
     } else {
         Ok(result_tensor)
     }
 }
 
-/// CrossEntropy function for automatic differentiation
+/// `CrossEntropy` function for automatic differentiation
 #[derive(Debug)]
 pub struct CrossEntropyFunction<B, S, T>
 where
@@ -412,7 +431,7 @@ where
     S: Storage<T> + StorageFromVec<T>,
     T: DataType,
 {
-    /// Create a new CrossEntropy function
+    /// Create a new `CrossEntropy` function
     pub fn new(logits: Arc<Tensor<B, S, T>>, targets: Arc<Tensor<B, S, T>>) -> Self {
         Self {
             inputs: vec![logits, targets],
@@ -452,79 +471,93 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_output: &Tensor<B, tensor::DenseStorage<T>, T>) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, tensor::DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
         // Implementation of CrossEntropy backward pass
         // dL/dlogits = (softmax(logits) - targets_one_hot) / batch_size
         // We need to recompute softmax(logits) here because we don't save it
-        
+
         // 1. Recompute log_softmax (stable)
         let logits = &*self.inputs[0];
         let targets = &*self.inputs[1];
-        
-        let log_softmax = log_softmax_stable(logits).map_err(|e| anyhow::anyhow!("Autograd error: {:?}", e))?;
-        
+
+        let log_softmax =
+            log_softmax_stable(logits).map_err(|e| anyhow::anyhow!("Autograd error: {e:?}"))?;
+
         // 2. Compute softmax = exp(log_softmax)
         let softmax = log_softmax.exp();
-        
+
         // 3. Create one-hot targets
         // This requires converting targets (indices) to one-hot vectors
         // We'll do this manually for now as we lack a one_hot op
         let batch_size = logits.shape().dims()[0];
         let num_classes = logits.shape().dims()[1];
-        
+
         // We need to work with dense data for manipulation
-        let softmax_dense = softmax.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+        let softmax_dense = softmax
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
         let softmax_data = softmax_dense.storage_ref().as_slice();
-        
-        let targets_dense = targets.to_dense_generic().map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
+
+        let targets_dense = targets
+            .to_dense_generic()
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
         let targets_data = targets_dense.storage_ref().as_slice();
-        
+
         let mut grad_data = Vec::with_capacity(batch_size * num_classes);
-        let scale = T::from_f64(1.0 / batch_size as f64).ok_or_else(|| anyhow::anyhow!("Failed to convert scale"))?;
-        
+        let batch_size_t = T::from_usize(batch_size)
+            .ok_or_else(|| anyhow::anyhow!("Failed to convert batch_size"))?;
+        let scale = T::one() / batch_size_t;
+
         // Assuming scalar grad_output for loss (usually 1.0)
         // If grad_output is not 1.0, we multiply by it.
         // grad_output is dense.
         let grad_scale = if grad_output.numel() == 1 {
-             grad_output.storage_ref().as_slice()[0]
+            grad_output.storage_ref().as_slice()[0]
         } else {
-             T::one() // Fallback or error? For loss it's usually scalar.
+            return Err(anyhow::anyhow!(
+                "Expected scalar grad_output for NLL loss backward, got numel={}",
+                grad_output.numel()
+            ));
         };
-        
+
         let final_scale = scale * grad_scale;
 
-        for b in 0..batch_size {
-            let target_idx = targets_data[b].to_usize().unwrap_or(0);
+        for (b, target) in targets_data.iter().enumerate().take(batch_size) {
+            let target_idx = target.to_usize().ok_or_else(|| {
+                anyhow::anyhow!("NLL loss backward: target index at batch {b} not representable")
+            })?;
             for c in 0..num_classes {
                 let idx = b * num_classes + c;
                 let s = softmax_data[idx];
-                
-                let val = if c == target_idx {
-                    s - T::one()
-                } else {
-                    s
-                };
-                
+
+                let val = if c == target_idx { s - T::one() } else { s };
+
                 grad_data.push(val * final_scale);
             }
         }
-        
-        let grad_logits = Tensor::from_vec_with_backend(grad_data, logits.shape().dims(), logits.backend().clone())
-             .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-             
+
+        let grad_logits = Tensor::from_vec_with_backend(
+            grad_data,
+            logits.shape().dims(),
+            logits.backend().clone(),
+        )
+        .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         // Targets don't require gradients
         let grad_targets = Tensor::<B, S, T>::zeros(targets.shape().dims())
-             .map_err(|e| anyhow::anyhow!("Tensor error: {:?}", e))?;
-             
+            .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
+
         Ok(vec![grad_logits, grad_targets])
     }
 }
 ///
 /// This implements: `log_softmax(x)_i = x_i - log(∑ⱼ exp(x_j))`
 /// where `log(∑ⱼ exp(x_j)) = max(x) + log(∑ⱼ exp(x_j - max(x)))`
-pub fn log_softmax_stable<B, S, T>(
-    input: &Tensor<B, S, T>,
-) -> crate::Result<Tensor<B, S, T>>
+#[allow(clippy::missing_errors_doc)]
+pub fn log_softmax_stable<B, S, T>(input: &Tensor<B, S, T>) -> crate::Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
@@ -533,16 +566,18 @@ where
     let shape = input.shape().dims();
     if shape.len() != 2 {
         return Err(crate::AutogradError::InvalidInput {
-            message: format!("log_softmax_stable expects 2D tensor, got shape {:?}", shape)
+            message: format!("log_softmax_stable expects 2D tensor, got shape {shape:?}"),
         });
     }
 
     let batch_size = shape[0];
     let num_classes = shape[1];
-    
-    let input_dense = input.to_dense_generic().map_err(|e| crate::AutogradError::TensorError(e))?;
+
+    let input_dense = input
+        .to_dense_generic()
+        .map_err(crate::AutogradError::TensorError)?;
     let input_slice = input_dense.storage_ref().as_slice();
-    
+
     let mut result_data = Vec::with_capacity(input_slice.len());
 
     // Process each batch element separately
@@ -572,15 +607,15 @@ where
         }
     }
 
-    Tensor::from_vec(result_data, shape).map_err(|e| crate::AutogradError::TensorError(e))
+    Tensor::from_vec(result_data, shape).map_err(crate::AutogradError::TensorError)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use backend::CpuBackend;
-    use storage::DenseStorage;
     use dtype::float::Float32;
+    use storage::DenseStorage;
     use tensor::Tensor;
 
     #[test]
@@ -604,8 +639,7 @@ mod tests {
         let loss_value = loss.as_slice()[0].get();
         assert!(
             (loss_value - 0.25).abs() < 1e-6,
-            "MSE loss mismatch: expected 0.25, got {}",
-            loss_value
+            "MSE loss mismatch: expected 0.25, got {loss_value}",
         );
     }
 
@@ -614,13 +648,16 @@ mod tests {
         // Test MSE loss gradient computation
         let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
-            &[2]
-        ).unwrap().requires_grad_(true);
+            &[2],
+        )
+        .unwrap()
+        .requires_grad_(true);
 
         let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.5), Float32::new(2.5)],
-            &[2]
-        ).unwrap();
+            &[2],
+        )
+        .unwrap();
 
         // Use mse_loss function which properly implements division by N
         let loss = mse_loss(&predictions, &targets).unwrap();
@@ -628,8 +665,9 @@ mod tests {
         // Create a scalar gradient output (shape [])
         let grad_output = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0)],
-            &[]
-        ).unwrap();
+            &[],
+        )
+        .unwrap();
 
         // Backward pass using backward_with_grad
         crate::ops::backward_with_grad(&loss, grad_output).unwrap();
@@ -637,16 +675,12 @@ mod tests {
         // Check gradient: ∂L/∂pred = 2 * (pred - target) / n
         // For pred=[1.0, 2.0], target=[1.5, 2.5]: grad = 2 * [-0.5, -0.5] / 2 = [-0.5, -0.5]
         let pred_grad = predictions.grad().unwrap();
-        let expected_grad = vec![-0.5, -0.5];
-        for i in 0..2 {
+        let expected_grad = [-0.5, -0.5];
+        for (i, expected) in expected_grad.iter().copied().enumerate() {
             let actual = pred_grad.as_slice()[i].get();
-            let expected = expected_grad[i];
             assert!(
                 (actual - expected).abs() < 1e-2,
-                "Gradient mismatch at index {}: expected {}, got {}",
-                i,
-                expected,
-                actual
+                "Gradient mismatch at index {i}: expected {expected}, got {actual}",
             );
         }
     }
@@ -721,8 +755,7 @@ mod tests {
         let loss_value = loss.as_slice()[0].get();
         assert!(
             loss_value.is_finite(),
-            "Cross-entropy loss should be finite, got {}",
-            loss_value
+            "Cross-entropy loss should be finite, got {loss_value}",
         );
     }
 
@@ -733,13 +766,16 @@ mod tests {
         // Simplified test: just test subtraction and mean
         let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
-            &[2]
-        ).unwrap().requires_grad_(true);
+            &[2],
+        )
+        .unwrap()
+        .requires_grad_(true);
 
         let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.5), Float32::new(2.5)],
-            &[2]
-        ).unwrap();
+            &[2],
+        )
+        .unwrap();
 
         // Compute diff = a - b
         let diff = sub(&a, &b).unwrap();

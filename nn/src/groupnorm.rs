@@ -404,6 +404,18 @@ where
     }
 }
 
+// ============================================================================
+// TYPE ALIASES FOR BACKWARD COMPATIBILITY
+// ============================================================================
+
+/// Type alias for GroupNorm layer with CPU backend.
+/// This provides backward compatibility with existing code.
+pub type GroupNormCpu<T> = GroupNorm<CpuBackend<T>, DenseStorage<T>, T>;
+
+/// Type alias for InstanceNorm layer with CPU backend.
+/// This provides backward compatibility with existing code.
+pub type InstanceNormCpu<T> = InstanceNorm<CpuBackend<T>, DenseStorage<T>, T>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -631,15 +643,3 @@ mod tests {
         assert_eq!(params.len(), 0); // no parameters
     }
 }
-
-// ============================================================================
-// TYPE ALIASES FOR BACKWARD COMPATIBILITY
-// ============================================================================
-
-/// Type alias for GroupNorm layer with CPU backend.
-/// This provides backward compatibility with existing code.
-pub type GroupNormCpu<T> = GroupNorm<CpuBackend<T>, DenseStorage<T>, T>;
-
-/// Type alias for InstanceNorm layer with CPU backend.
-/// This provides backward compatibility with existing code.
-pub type InstanceNormCpu<T> = InstanceNorm<CpuBackend<T>, DenseStorage<T>, T>;

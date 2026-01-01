@@ -8,13 +8,13 @@
 //! - Dense updates: 2-5x speedup
 //! - Numerical accuracy: <1e-6 difference between CPU and GPU implementations
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, Bencher, BenchmarkId, Criterion};
 use std::time::Duration;
 
 // Import our optimizers and dependencies
 use backend::CpuBackend;
 use dtype::float::Float32;
-use optim::{Adam, BaseOptimizer, ParamGroup};
+use optim::{Adam, BaseOptimizer, Optimizer, ParamGroup};
 use storage::DenseStorage;
 use tensor::Tensor;
 
@@ -43,13 +43,14 @@ fn bench_adam_optimizer(c: &mut Criterion) {
     group.sample_size(10); // Reduce samples for faster benchmarking
 
     for &param_size in config.param_sizes {
-            group.bench_with_input(
-                BenchmarkId::new("cpu", param_size),
-                &param_size,
-                |b, &size| {
-                    b.iter(|| {
-                        // Create parameter tensors using ParamGroup API
-                        let params = vec![Tensor::<
+        group.bench_with_input(
+            BenchmarkId::new("cpu", param_size),
+            &param_size,
+            |b: &mut Bencher, &size| {
+                b.iter(|| {
+                    // Create parameter tensors using ParamGroup API
+                    let params =
+                        vec![Tensor::<
                             CpuBackend<Float32>,
                             DenseStorage<Float32>,
                             Float32,
@@ -58,16 +59,16 @@ fn bench_adam_optimizer(c: &mut Criterion) {
                         )
                         .unwrap()];
 
-                        let mut adam = Adam::new(params, 0.001);
+                    let mut adam = Adam::new(params, 0.001);
 
-                        // Benchmark CPU steps with simple gradient setting
-                        for _ in 0..config.num_steps {
-                            adam.step();
-                            BaseOptimizer::zero_grad(&mut adam);
-                        }
-                    })
-                },
-            );
+                    // Benchmark CPU steps with simple gradient setting
+                    for _ in 0..config.num_steps {
+                        Optimizer::step(&mut adam);
+                        BaseOptimizer::zero_grad(&mut adam);
+                    }
+                })
+            },
+        );
     }
 
     group.finish();
@@ -82,23 +83,22 @@ fn bench_numerical_accuracy(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("accuracy_test", param_size),
             &param_size,
-            |b, &size| {
+            |b: &mut Bencher, &size| {
                 b.iter(|| {
                     // Test basic Adam optimizer functionality
-                    let params = vec![Tensor::<
-                        CpuBackend<Float32>,
-                        DenseStorage<Float32>,
-                        Float32,
-                    >::from_vec(
-                        vec![Float32::new(0.1); size], &[size]
-                    )
-                    .unwrap()];
+                    let params =
+                        vec![Tensor::<
+                            CpuBackend<Float32>,
+                            DenseStorage<Float32>,
+                            Float32,
+                        >::from_vec(vec![Float32::new(0.1); size], &[size])
+                        .unwrap()];
 
                     let mut adam = Adam::new(params, 0.001);
 
                     // Take a few steps to ensure no crashes
                     for _ in 0..3 {
-                        adam.step();
+                        Optimizer::step(&mut adam);
                         BaseOptimizer::zero_grad(&mut adam);
                     }
 

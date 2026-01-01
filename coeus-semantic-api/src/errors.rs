@@ -59,15 +59,33 @@ impl SemanticError {
     /// Convert error to appropriate HTTP status code and error code
     pub fn to_status_code_and_error_code(&self) -> (StatusCode, crate::types::ErrorCode) {
         match self {
-            SemanticError::InvalidInput(_) => (StatusCode::BAD_REQUEST, crate::types::ErrorCode::InvalidRequest),
-            SemanticError::RateLimitExceeded => (StatusCode::TOO_MANY_REQUESTS, crate::types::ErrorCode::RateLimited),
-            SemanticError::AuthenticationError(_) => (StatusCode::UNAUTHORIZED, crate::types::ErrorCode::Unauthorized),
-            SemanticError::AuthorizationError(_) => (StatusCode::FORBIDDEN, crate::types::ErrorCode::Forbidden),
-            SemanticError::ServiceUnavailable(_) => (StatusCode::SERVICE_UNAVAILABLE, crate::types::ErrorCode::ServiceUnavailable),
-            SemanticError::ClipEncodingError(_) | SemanticError::DatabaseError(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, crate::types::ErrorCode::InternalError)
+            SemanticError::InvalidInput(_) => (
+                StatusCode::BAD_REQUEST,
+                crate::types::ErrorCode::InvalidRequest,
+            ),
+            SemanticError::RateLimitExceeded => (
+                StatusCode::TOO_MANY_REQUESTS,
+                crate::types::ErrorCode::RateLimited,
+            ),
+            SemanticError::AuthenticationError(_) => (
+                StatusCode::UNAUTHORIZED,
+                crate::types::ErrorCode::Unauthorized,
+            ),
+            SemanticError::AuthorizationError(_) => {
+                (StatusCode::FORBIDDEN, crate::types::ErrorCode::Forbidden)
             }
-            _ => (StatusCode::INTERNAL_SERVER_ERROR, crate::types::ErrorCode::InternalError),
+            SemanticError::ServiceUnavailable(_) => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                crate::types::ErrorCode::ServiceUnavailable,
+            ),
+            SemanticError::ClipEncodingError(_) | SemanticError::DatabaseError(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                crate::types::ErrorCode::InternalError,
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                crate::types::ErrorCode::InternalError,
+            ),
         }
     }
 
@@ -120,11 +138,9 @@ pub type SemanticResult<T> = Result<T, SemanticError>;
 pub struct ErrorHandler;
 
 impl ErrorHandler {
-    /// Handle and log errors with appropriate severity
-    pub fn handle_error<E: std::error::Error + Send + Sync + 'static>(error: E, context: &str) -> SemanticError {
-        let error_msg = format!("{}: {}", context, error);
+    fn handle_error_message(error_msg: String, context: &str) -> SemanticError {
+        let error_msg = format!("{}: {}", context, error_msg);
 
-        // Log based on error type
         if error_msg.contains("rate limit") {
             tracing::warn!("Rate limit triggered: {}", error_msg);
             SemanticError::RateLimitExceeded
@@ -137,9 +153,34 @@ impl ErrorHandler {
         }
     }
 
+    /// Handle and log errors with appropriate severity
+    pub fn handle_error<E: std::error::Error + Send + Sync + 'static>(
+        error: E,
+        context: &str,
+    ) -> SemanticError {
+        Self::handle_error_message(error.to_string(), context)
+    }
+
     /// Convert any error to SemanticError
     pub fn convert_error<E: std::error::Error + Send + Sync + 'static>(error: E) -> SemanticError {
-        Self::handle_error(error, "operation")
+        let boxed: Box<dyn std::error::Error + Send + Sync> = Box::new(error);
+
+        let boxed = match boxed.downcast::<std::io::Error>() {
+            Ok(io_err) => return SemanticError::IoError(*io_err),
+            Err(boxed) => boxed,
+        };
+
+        let boxed = match boxed.downcast::<serde_json::Error>() {
+            Ok(json_err) => return SemanticError::JsonError(*json_err),
+            Err(boxed) => boxed,
+        };
+
+        let boxed = match boxed.downcast::<reqwest::Error>() {
+            Ok(http_err) => return SemanticError::HttpError(*http_err),
+            Err(boxed) => boxed,
+        };
+
+        Self::handle_error_message(boxed.to_string(), "operation")
     }
 
     /// Create a service unavailable error with context
@@ -158,7 +199,11 @@ impl ErrorHandler {
 
     /// Log successful operations for monitoring
     pub fn log_success(operation: &str, duration_ms: u64) {
-        tracing::info!("Operation '{}' completed successfully in {}ms", operation, duration_ms);
+        tracing::info!(
+            "Operation '{}' completed successfully in {}ms",
+            operation,
+            duration_ms
+        );
         metrics::histogram!("operation_duration_ms", "operation" => operation.to_string())
             .record(duration_ms as f64);
     }
@@ -178,7 +223,8 @@ impl ErrorHandler {
 /// Panic handler for graceful shutdown
 pub fn set_panic_hook() {
     std::panic::set_hook(Box::new(|panic_info| {
-        let location = panic_info.location()
+        let location = panic_info
+            .location()
             .map(|loc| format!("{}:{}", loc.file(), loc.line()))
             .unwrap_or_else(|| "unknown location".to_string());
 
@@ -206,32 +252,28 @@ pub fn set_panic_hook() {
 }
 
 /// Graceful shutdown handler
-pub async fn shutdown_signal() {
+pub async fn shutdown_signal() -> std::io::Result<()> {
     use tokio::signal;
 
-    let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
+    let ctrl_c = async { signal::ctrl_c().await };
 
     #[cfg(unix)]
     let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
+        let mut sig = signal::unix::signal(signal::unix::SignalKind::terminate())?;
+        sig.recv().await;
+        Ok(())
     };
 
     #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
+    let terminate = std::future::pending::<std::io::Result<()>>();
 
     tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
+        res = ctrl_c => { res?; }
+        res = terminate => { res?; }
     }
 
     tracing::info!("Shutdown signal received, starting graceful shutdown");
+    Ok(())
 }
 
 #[cfg(test)]
@@ -279,10 +321,3 @@ mod tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 }
-
-
-
-
-
-
-

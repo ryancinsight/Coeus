@@ -415,7 +415,8 @@ impl MemoryAllocationRLAgent {
     /// Check if episode should terminate based on critical thresholds
     fn should_terminate_episode(&self, state: &MemoryAllocationState) -> bool {
         // Episode terminates if critical system conditions are met
-        let avg_pressure = state.numa_pressures.iter().sum::<f32>() / state.numa_pressures.len().max(1) as f32;
+        let avg_pressure =
+            state.numa_pressures.iter().sum::<f32>() / state.numa_pressures.len().max(1) as f32;
 
         // Calculate average utilization across backends
         let avg_utilization = if state.backend_utilization.is_empty() {
@@ -428,14 +429,15 @@ impl MemoryAllocationRLAgent {
         let avg_fragmentation = if state.fragmentation_levels.is_empty() {
             0.0
         } else {
-            state.fragmentation_levels.values().sum::<f32>() / state.fragmentation_levels.len() as f32
+            state.fragmentation_levels.values().sum::<f32>()
+                / state.fragmentation_levels.len() as f32
         };
 
         // Critical episode termination conditions (using reasonable hardcoded thresholds)
         // These could be made configurable in the future
         avg_pressure > 0.95 ||  // Critical NUMA pressure
         avg_utilization > 0.95 ||  // Critical utilization
-        avg_fragmentation > 0.9  // Critical fragmentation
+        avg_fragmentation > 0.9 // Critical fragmentation
     }
 
     /// Calculate reward for state transition
@@ -1575,7 +1577,8 @@ impl ProductionMemoryMonitor {
         // Check for learning system anomalies using available metrics
         // For now, use transfer failures as a proxy for learning system issues
         let failure_rate = if metrics.active_transfers > 0 {
-            metrics.transfer_failures as f32 / (metrics.active_transfers as f32 + metrics.transfer_failures as f32)
+            metrics.transfer_failures as f32
+                / (metrics.active_transfers as f32 + metrics.transfer_failures as f32)
         } else {
             0.0
         };
@@ -1608,7 +1611,12 @@ impl ProductionMemoryMonitor {
         }
 
         // Check for excessive NUMA violations as learning system indicator
-        if metrics.numa_violations > self.alert_rules.pressure_alerts.numa_violation_rate_threshold as u64 {
+        if metrics.numa_violations
+            > self
+                .alert_rules
+                .pressure_alerts
+                .numa_violation_rate_threshold as u64
+        {
             let alert = MemoryAlert {
                 id: format!("learning_numa_violations_{}", metrics.timestamp),
                 level: AlertLevel::Warning,
@@ -1910,7 +1918,11 @@ impl UtilizationDashboard {
     }
 
     /// Update backend efficiency rating
-    pub fn update_backend_efficiency(&mut self, backend: BackendType, efficiency: EfficiencyRating) {
+    pub fn update_backend_efficiency(
+        &mut self,
+        backend: BackendType,
+        efficiency: EfficiencyRating,
+    ) {
         self.backend_efficiency.insert(backend, efficiency);
     }
 

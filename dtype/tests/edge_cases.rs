@@ -10,7 +10,7 @@
 use approx::assert_relative_eq;
 use dtype::float::*;
 use dtype::int::*;
-use dtype::traits::{FloatExt, IntExt};
+use dtype::traits::IntExt;
 use num_traits::{Float, NumCast, One, Signed, Zero};
 
 // ============================================================================

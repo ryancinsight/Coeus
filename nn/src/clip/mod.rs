@@ -25,29 +25,28 @@
 //! ```
 
 pub mod config;
-pub mod model;
-pub mod loss;
-pub mod preprocessing;
-pub mod trainer;
 pub mod enhanced_trainer;
 mod imagenet_labels;
-pub mod zero_shot;
-pub mod validation;
+pub mod loss;
+pub mod model;
+pub mod preprocessing;
+pub mod trainer;
 pub mod traits;
+pub mod validation;
+pub mod zero_shot;
 
 // Re-exports
-pub use config::{ClipConfig, VisionConfig, TextConfig};
-pub use model::ClipModel;
+pub use config::{ClipConfig, TextConfig, VisionConfig};
+pub use enhanced_trainer::{EnhancedClipTrainer, EnhancedClipTrainingConfig};
 pub use loss::InfoNCELoss;
+pub use model::ClipModel;
 pub use preprocessing::{ImageProcessor, TextProcessor};
 pub use trainer::ClipTrainer;
-pub use enhanced_trainer::{EnhancedClipTrainer, EnhancedClipTrainingConfig};
-pub use zero_shot::{
-    ZeroShotClassifier, ZeroShotConfig, ClassificationResult, BatchClassificationResult
-};
-pub use validation::ZeroShotResults;
 pub use traits::ClipEncoder;
+pub use validation::ZeroShotResults;
+pub use zero_shot::{
+    BatchClassificationResult, ClassificationResult, ZeroShotClassifier, ZeroShotConfig,
+};
 
 #[cfg(test)]
 mod tests;
-

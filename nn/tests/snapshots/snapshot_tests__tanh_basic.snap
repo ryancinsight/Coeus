@@ -1,0 +1,15 @@
+---
+source: nn/tests/snapshot_tests.rs
+assertion_line: 89
+expression: "serde_json::to_string_pretty(&snapshot).unwrap()"
+---
+{
+  "shape": [
+    3
+  ],
+  "data": [
+    -0.7615941762924194,
+    0.0,
+    0.7615941762924194
+  ]
+}

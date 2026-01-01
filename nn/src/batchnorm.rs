@@ -118,10 +118,8 @@ where
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let requires_grad = input.requires_grad();
-        // For now, BatchNorm2d only works with dense tensors
-        // Convert to dense, compute, then convert back if needed
         let input_dense = input.to_dense_generic()?;
-        // Inline batch normalization computation
+
         let input_shape = input_dense.shape().dims();
         if input_shape.len() != 4usize {
             return Err(NNError::InvalidInput {
@@ -146,81 +144,125 @@ where
         let weight_data = self.weight.data().as_slice();
         let bias_data = self.bias.data().as_slice();
 
-        let eps = T::from(self.eps).unwrap();
+        let eps = T::from(self.eps).ok_or_else(|| NNError::NumericalError {
+            message: format!(
+                "eps ({}) not representable in dtype {}",
+                self.eps,
+                T::name()
+            ),
+        })?;
 
-        let result_dense = if self.training {
-            // Training mode: Use batch statistics
-            let n_elements = (batch_size * height * width) as f64;
-            let n_elements_t = T::from(n_elements).unwrap();
+        let result_dense: Tensor<B, DenseStorage<T>, T> = if self.training {
+            let n_elements = batch_size * height * width;
+            if n_elements == 0 {
+                return Err(NNError::InvalidInput {
+                    message: "Input must have non-zero spatial dimensions".to_string(),
+                });
+            }
+            let inv_n_elements = 1.0 / (n_elements as f64);
 
-            // Compute batch mean and variance for each channel
-            let mut batch_mean = vec![T::zero(); channels];
-            let mut batch_var = vec![T::zero(); channels];
+            let mut batch_mean_f64 = vec![0.0f64; channels];
+            let mut batch_var_f64 = vec![0.0f64; channels];
 
-            // Compute mean: Σ(x) / (N * H * W)
             #[allow(clippy::needless_range_loop)]
             for c in 0..channels {
-                let mut sum = T::zero();
+                let mut sum = 0.0f64;
                 for n in 0..batch_size {
                     for h in 0..height {
                         for w in 0..width {
                             let idx = ((n * channels + c) * height + h) * width + w;
-                            sum = sum + input_data[idx];
+                            let x = input_data[idx].to_f64().ok_or_else(|| {
+                                NNError::NumericalError {
+                                    message: format!(
+                                        "failed converting input value at index {} to f64",
+                                        idx
+                                    ),
+                                }
+                            })?;
+                            sum += x;
                         }
                     }
                 }
-                batch_mean[c] = sum / n_elements_t;
+                batch_mean_f64[c] = sum * inv_n_elements;
             }
 
-            // Compute variance: Σ((x - mean)²) / (N * H * W)
             #[allow(clippy::needless_range_loop)]
             for c in 0..channels {
-                let mean = batch_mean[c];
-                let mut var_sum = T::zero();
+                let mean = batch_mean_f64[c];
+                let mut var_sum = 0.0f64;
                 for n in 0..batch_size {
                     for h in 0..height {
                         for w in 0..width {
                             let idx = ((n * channels + c) * height + h) * width + w;
-                            let diff = input_data[idx] - mean;
-                            var_sum = var_sum + diff * diff;
+                            let x = input_data[idx].to_f64().ok_or_else(|| {
+                                NNError::NumericalError {
+                                    message: format!(
+                                        "failed converting input value at index {} to f64",
+                                        idx
+                                    ),
+                                }
+                            })?;
+                            let diff = x - mean;
+                            var_sum += diff * diff;
                         }
                     }
                 }
-                batch_var[c] = var_sum / n_elements_t;
+                batch_var_f64[c] = var_sum * inv_n_elements;
             }
 
-            // Update running statistics automatically
-            self.update_running_stats(&batch_mean, &batch_var);
+            let mut batch_mean = Vec::with_capacity(channels);
+            for &mean in &batch_mean_f64 {
+                batch_mean.push(T::from(mean).ok_or_else(|| NNError::NumericalError {
+                    message: format!(
+                        "batch mean ({}) not representable in dtype {}",
+                        mean,
+                        T::name()
+                    ),
+                })?);
+            }
 
-            // Normalize and apply affine transformation
-            let mut output_data = Vec::with_capacity(batch_size * channels * height * width);
+            let mut batch_var = Vec::with_capacity(channels);
+            for &var in &batch_var_f64 {
+                batch_var.push(T::from(var).ok_or_else(|| NNError::NumericalError {
+                    message: format!(
+                        "batch variance ({}) not representable in dtype {}",
+                        var,
+                        T::name()
+                    ),
+                })?);
+            }
+
+            self.update_running_stats(&batch_mean, &batch_var)?;
+
+            let mut output_data = Vec::with_capacity(input_data.len());
             for n in 0..batch_size {
                 for c in 0..channels {
                     let mean = batch_mean[c];
                     let std = (batch_var[c] + eps).sqrt();
                     let gamma = weight_data[c];
                     let beta = bias_data[c];
-
                     for h in 0..height {
                         for w in 0..width {
                             let idx = ((n * channels + c) * height + h) * width + w;
                             let normalized = (input_data[idx] - mean) / std;
-                            let output_val = gamma * normalized + beta;
-                            output_data.push(output_val);
+                            output_data.push(gamma * normalized + beta);
                         }
                     }
                 }
             }
 
-            Tensor::from_vec(output_data, &[batch_size, channels, height, width])?
+            Tensor::<B, DenseStorage<T>, T>::from_vec_with_backend(
+                output_data,
+                &[batch_size, channels, height, width],
+                input.backend().clone(),
+            )?
         } else {
-            // Evaluation mode: Use running statistics
             let running_mean_data = self.running_mean.borrow();
             let running_var_data = self.running_var.borrow();
             let running_mean_slice = running_mean_data.as_slice();
             let running_var_slice = running_var_data.as_slice();
 
-            let mut output_data = Vec::with_capacity(batch_size * channels * height * width);
+            let mut output_data = Vec::with_capacity(input_data.len());
             for n in 0..batch_size {
                 for c in 0..channels {
                     let mean = running_mean_slice[c];
@@ -228,22 +270,30 @@ where
                     let std = (var + eps).sqrt();
                     let gamma = weight_data[c];
                     let beta = bias_data[c];
-
                     for h in 0..height {
                         for w in 0..width {
                             let idx = ((n * channels + c) * height + h) * width + w;
                             let normalized = (input_data[idx] - mean) / std;
-                            let output_val = gamma * normalized + beta;
-                            output_data.push(output_val);
+                            output_data.push(gamma * normalized + beta);
                         }
                     }
                 }
             }
 
-            Tensor::from_vec(output_data, &[batch_size, channels, height, width])?
+            Tensor::<B, DenseStorage<T>, T>::from_vec_with_backend(
+                output_data,
+                &[batch_size, channels, height, width],
+                input.backend().clone(),
+            )?
         };
-        // For now, just return dense result - full storage polymorphism later
-        Ok(result_dense.requires_grad_(requires_grad))
+
+        let result_data = result_dense.as_slice().to_vec();
+        let result_shape = result_dense.shape().dims();
+        let result_storage = S::from_vec(result_data, result_shape)?;
+        Ok(
+            Tensor::from_storage(result_storage, input.backend().clone())
+                .requires_grad_(requires_grad),
+        )
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
@@ -365,13 +415,26 @@ where
     ///
     /// This method is called automatically during training forward passes.
     /// Uses interior mutability (RefCell) to update running statistics without requiring &mut self.
-    fn update_running_stats(&self, batch_mean: &[T], batch_var: &[T]) {
+    fn update_running_stats(&self, batch_mean: &[T], batch_var: &[T]) -> Result<()> {
         if !self.track_running_stats {
-            return;
+            return Ok(());
         }
 
-        let momentum_t = T::from(self.momentum).unwrap();
-        let one_minus_momentum = T::from(1.0 - self.momentum).unwrap();
+        let momentum_t = T::from(self.momentum).ok_or_else(|| NNError::NumericalError {
+            message: format!(
+                "momentum ({}) not representable in dtype {}",
+                self.momentum,
+                T::name()
+            ),
+        })?;
+        let one_minus_momentum =
+            T::from(1.0 - self.momentum).ok_or_else(|| NNError::NumericalError {
+                message: format!(
+                    "1.0 - momentum ({}) not representable in dtype {}",
+                    1.0 - self.momentum,
+                    T::name()
+                ),
+            })?;
 
         // Update running mean using interior mutability
         let new_running_mean = {
@@ -383,8 +446,7 @@ where
                 })
                 .collect::<Vec<T>>()
         };
-        *self.running_mean.borrow_mut() =
-            Tensor::from_vec(new_running_mean, &[self.num_features]).unwrap();
+        *self.running_mean.borrow_mut() = Tensor::from_vec(new_running_mean, &[self.num_features])?;
 
         // Update running var using interior mutability
         let new_running_var = {
@@ -395,8 +457,8 @@ where
                 })
                 .collect::<Vec<T>>()
         };
-        *self.running_var.borrow_mut() =
-            Tensor::from_vec(new_running_var, &[self.num_features]).unwrap();
+        *self.running_var.borrow_mut() = Tensor::from_vec(new_running_var, &[self.num_features])?;
+        Ok(())
     }
 
     /// Get current running mean (for inspection/testing).
@@ -810,47 +872,96 @@ where
         let weight_data = self.weight.data().as_slice();
         let bias_data = self.bias.data().as_slice();
 
-        let eps = T::from(self.eps).unwrap();
+        let eps = T::from(self.eps).ok_or_else(|| NNError::NumericalError {
+            message: format!(
+                "eps ({}) not representable in dtype {}",
+                self.eps,
+                T::name()
+            ),
+        })?;
 
         if self.training {
             // Training mode: Use batch statistics
-            let n_elements = (batch_size * height * width) as f64;
-            let n_elements_t = T::from(n_elements).unwrap();
+            let n_elements = batch_size * height * width;
+            if n_elements == 0 {
+                return Err(NNError::InvalidInput {
+                    message: "Input must have non-zero spatial dimensions".to_string(),
+                });
+            }
+            let inv_n_elements = 1.0 / (n_elements as f64);
 
             // Compute batch mean and variance for each channel
-            let mut batch_mean = vec![T::zero(); channels];
-            let mut batch_var = vec![T::zero(); channels];
+            let mut batch_mean_f64 = vec![0.0f64; channels];
+            let mut batch_var_f64 = vec![0.0f64; channels];
 
             // Compute mean: Σ(x) / (N * H * W)
             #[allow(clippy::needless_range_loop)]
             for c in 0..channels {
-                let mut sum = T::zero();
+                let mut sum = 0.0f64;
                 for n in 0..batch_size {
                     for h in 0..height {
                         for w in 0..width {
                             let idx = ((n * channels + c) * height + h) * width + w;
-                            sum = sum + input_data[idx];
+                            let x = input_data[idx].to_f64().ok_or_else(|| {
+                                NNError::NumericalError {
+                                    message: format!(
+                                        "failed converting input value at index {} to f64",
+                                        idx
+                                    ),
+                                }
+                            })?;
+                            sum += x;
                         }
                     }
                 }
-                batch_mean[c] = sum / n_elements_t;
+                batch_mean_f64[c] = sum * inv_n_elements;
             }
 
             // Compute variance: Σ((x - mean)²) / (N * H * W)
             #[allow(clippy::needless_range_loop)]
             for c in 0..channels {
-                let mean = batch_mean[c];
-                let mut var_sum = T::zero();
+                let mean = batch_mean_f64[c];
+                let mut var_sum = 0.0f64;
                 for n in 0..batch_size {
                     for h in 0..height {
                         for w in 0..width {
                             let idx = ((n * channels + c) * height + h) * width + w;
-                            let diff = input_data[idx] - mean;
-                            var_sum = var_sum + diff * diff;
+                            let x = input_data[idx].to_f64().ok_or_else(|| {
+                                NNError::NumericalError {
+                                    message: format!(
+                                        "failed converting input value at index {} to f64",
+                                        idx
+                                    ),
+                                }
+                            })?;
+                            let diff = x - mean;
+                            var_sum += diff * diff;
                         }
                     }
                 }
-                batch_var[c] = var_sum / n_elements_t;
+                batch_var_f64[c] = var_sum * inv_n_elements;
+            }
+
+            let mut batch_mean = Vec::with_capacity(channels);
+            for &mean in &batch_mean_f64 {
+                batch_mean.push(T::from(mean).ok_or_else(|| NNError::NumericalError {
+                    message: format!(
+                        "batch mean ({}) not representable in dtype {}",
+                        mean,
+                        T::name()
+                    ),
+                })?);
+            }
+
+            let mut batch_var = Vec::with_capacity(channels);
+            for &var in &batch_var_f64 {
+                batch_var.push(T::from(var).ok_or_else(|| NNError::NumericalError {
+                    message: format!(
+                        "batch variance ({}) not representable in dtype {}",
+                        var,
+                        T::name()
+                    ),
+                })?);
             }
 
             // Update running statistics automatically
@@ -1356,7 +1467,10 @@ where
         let result_data = result_dense.as_slice().to_vec();
         let result_shape = result_dense.shape().dims();
         let result_storage = S::from_vec(result_data, result_shape)?;
-        Ok(Tensor::from_storage(result_storage, CpuBackend::<T>::default()))
+        Ok(Tensor::from_storage(
+            result_storage,
+            CpuBackend::<T>::default(),
+        ))
     }
 
     fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, S, T>> {
@@ -1382,10 +1496,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use storage::DenseStorage;
     use super::*;
     use dtype::float::Float32;
     use num_traits::ToPrimitive;
+    use storage::DenseStorage;
 
     #[test]
     fn test_batchnorm2d_constructor() {

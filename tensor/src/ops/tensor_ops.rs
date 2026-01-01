@@ -28,7 +28,7 @@ pub fn concatenate_tensors<B, S, T>(
 where
     B: crate::Backend<Data = T> + Clone,
     S: crate::Storage<T> + Clone + crate::StorageFromVec<T>,
-    T: crate::DataType + Clone,
+    T: crate::DataType,
 {
     if tensors.is_empty() {
         return Err(crate::TensorError::ShapeError {
@@ -44,7 +44,11 @@ where
         return Err(crate::TensorError::ShapeError {
             expected: 0,
             actual: dim,
-            message: format!("Dimension {} out of bounds for tensor with {} dimensions", dim, first_shape.len()),
+            message: format!(
+                "Dimension {} out of bounds for tensor with {} dimensions",
+                dim,
+                first_shape.len()
+            ),
         });
     }
 
@@ -55,7 +59,12 @@ where
             return Err(crate::TensorError::ShapeError {
                 expected: first_shape.len(),
                 actual: shape.len(),
-                message: format!("Tensor {} has {} dimensions, expected {}", i, shape.len(), first_shape.len()),
+                message: format!(
+                    "Tensor {} has {} dimensions, expected {}",
+                    i,
+                    shape.len(),
+                    first_shape.len()
+                ),
             });
         }
 
@@ -64,7 +73,10 @@ where
                 return Err(crate::TensorError::ShapeError {
                     expected,
                     actual,
-                    message: format!("Tensor {} dimension {} has size {}, expected {}", i, j, actual, expected),
+                    message: format!(
+                        "Tensor {} dimension {} has size {}, expected {}",
+                        i, j, actual, expected
+                    ),
                 });
             }
         }
@@ -79,7 +91,7 @@ where
     let total_elements: usize = output_shape.iter().product();
 
     // Concatenate the data
-    let mut concatenated_data = Vec::with_capacity(total_elements);
+    let mut concatenated_data = vec![T::default(); total_elements];
 
     // For now, implement basic concatenation by copying data in the correct order
     // This is a simplified implementation - in practice, we'd want more efficient methods
@@ -103,7 +115,6 @@ where
             // Apply offset for concatenation dimension
             coords[dim] += offsets[dim];
 
-            // Convert back to linear index in output tensor
             let mut output_linear_idx = 0;
             let mut multiplier = 1;
             for (i, &coord) in coords.iter().enumerate().rev() {
@@ -111,8 +122,7 @@ where
                 multiplier *= output_shape[i];
             }
 
-            // Copy the element
-            concatenated_data.push(tensor.as_slice()[linear_idx].clone());
+            concatenated_data[output_linear_idx] = tensor.as_slice()[linear_idx];
         }
 
         // Update offset for next tensor

@@ -2,11 +2,11 @@ use backend::CpuBackend;
 use dtype::float::Float32;
 use optim::{
     Adagrad as RustAdagrad, Adam as RustAdam, AdamW as RustAdamW, BaseOptimizer, Optimizer,
-    SGD as RustSGD, RMSprop as RustRMSprop,
+    RMSprop as RustRMSprop, SGD as RustSGD,
 };
-use storage::DenseStorage;
 use pyo3::prelude::*;
 use pyo3::pyclass;
+use storage::DenseStorage;
 
 // Forward declaration for PyTensor
 use super::tensor::PyTensor;
@@ -49,6 +49,32 @@ impl Adam {
         let rust_params: Vec<_> = params.into_iter().map(|p| p.inner).collect();
         BaseOptimizer::add_param_group(&mut self.inner, rust_params);
     }
+
+    fn state_dict(&self) -> PyResult<std::collections::HashMap<String, PyTensor>> {
+        let state = BaseOptimizer::state_dict(&self.inner);
+        let mut py_state = std::collections::HashMap::new();
+        for (k, v) in state {
+            py_state.insert(k, PyTensor { inner: v });
+        }
+        Ok(py_state)
+    }
+
+    fn load_state_dict(
+        &mut self,
+        state_dict: std::collections::HashMap<String, PyTensor>,
+    ) -> PyResult<()> {
+        let mut rust_state = std::collections::HashMap::new();
+        for (k, v) in state_dict {
+            rust_state.insert(k, v.inner);
+        }
+        BaseOptimizer::load_state_dict(&mut self.inner, rust_state).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to load state dict: {:?}",
+                e
+            ))
+        })?;
+        Ok(())
+    }
 }
 
 /// SGD optimizer
@@ -88,19 +114,45 @@ impl Sgd {
     }
 
     fn step(&mut self) -> PyResult<()> {
-        self.inner.step().map_err(|e| {
+        Optimizer::step(&mut self.inner).map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Step failed: {:?}", e))
         })?;
         Ok(())
     }
 
     fn zero_grad(&mut self) {
-        self.inner.zero_grad();
+        Optimizer::zero_grad(&mut self.inner);
     }
 
-    fn add_param_group(&mut self, _params: Vec<PyTensor>) {
-        // SGD doesn't support parameter groups in the same way as Adam/Adagrad
-        // This is a placeholder implementation
+    fn add_param_group(&mut self, params: Vec<PyTensor>) {
+        let rust_params: Vec<_> = params.into_iter().map(|p| p.inner).collect();
+        BaseOptimizer::add_param_group(&mut self.inner, rust_params);
+    }
+
+    fn state_dict(&self) -> PyResult<std::collections::HashMap<String, PyTensor>> {
+        let state = BaseOptimizer::state_dict(&self.inner);
+        let mut py_state = std::collections::HashMap::new();
+        for (k, v) in state {
+            py_state.insert(k, PyTensor { inner: v });
+        }
+        Ok(py_state)
+    }
+
+    fn load_state_dict(
+        &mut self,
+        state_dict: std::collections::HashMap<String, PyTensor>,
+    ) -> PyResult<()> {
+        let mut rust_state = std::collections::HashMap::new();
+        for (k, v) in state_dict {
+            rust_state.insert(k, v.inner);
+        }
+        BaseOptimizer::load_state_dict(&mut self.inner, rust_state).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to load state dict: {:?}",
+                e
+            ))
+        })?;
+        Ok(())
     }
 }
 
@@ -123,7 +175,8 @@ impl AdamW {
         weight_decay: f64,
     ) -> PyResult<Self> {
         let rust_params: Vec<_> = params.into_iter().map(|p| p.inner).collect();
-        let adamw = RustAdamW::with_hyperparams(rust_params, lr, beta1, beta2, epsilon, weight_decay);
+        let adamw =
+            RustAdamW::with_hyperparams(rust_params, lr, beta1, beta2, epsilon, weight_decay);
         Ok(AdamW { inner: adamw })
     }
 
@@ -141,6 +194,32 @@ impl AdamW {
     fn add_param_group(&mut self, params: Vec<PyTensor>) {
         let rust_params: Vec<_> = params.into_iter().map(|p| p.inner).collect();
         BaseOptimizer::add_param_group(&mut self.inner, rust_params);
+    }
+
+    fn state_dict(&self) -> PyResult<std::collections::HashMap<String, PyTensor>> {
+        let state = BaseOptimizer::state_dict(&self.inner);
+        let mut py_state = std::collections::HashMap::new();
+        for (k, v) in state {
+            py_state.insert(k, PyTensor { inner: v });
+        }
+        Ok(py_state)
+    }
+
+    fn load_state_dict(
+        &mut self,
+        state_dict: std::collections::HashMap<String, PyTensor>,
+    ) -> PyResult<()> {
+        let mut rust_state = std::collections::HashMap::new();
+        for (k, v) in state_dict {
+            rust_state.insert(k, v.inner);
+        }
+        BaseOptimizer::load_state_dict(&mut self.inner, rust_state).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to load state dict: {:?}",
+                e
+            ))
+        })?;
+        Ok(())
     }
 }
 
@@ -192,6 +271,32 @@ impl Adagrad {
         let rust_params: Vec<_> = params.into_iter().map(|p| p.inner).collect();
         BaseOptimizer::add_param_group(&mut self.inner, rust_params);
     }
+
+    fn state_dict(&self) -> PyResult<std::collections::HashMap<String, PyTensor>> {
+        let state = BaseOptimizer::state_dict(&self.inner);
+        let mut py_state = std::collections::HashMap::new();
+        for (k, v) in state {
+            py_state.insert(k, PyTensor { inner: v });
+        }
+        Ok(py_state)
+    }
+
+    fn load_state_dict(
+        &mut self,
+        state_dict: std::collections::HashMap<String, PyTensor>,
+    ) -> PyResult<()> {
+        let mut rust_state = std::collections::HashMap::new();
+        for (k, v) in state_dict {
+            rust_state.insert(k, v.inner);
+        }
+        BaseOptimizer::load_state_dict(&mut self.inner, rust_state).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to load state dict: {:?}",
+                e
+            ))
+        })?;
+        Ok(())
+    }
 }
 
 /// RMSprop optimizer
@@ -233,12 +338,41 @@ impl RMSprop {
 
     fn step(&mut self) -> PyResult<()> {
         Optimizer::step(&mut self.inner).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("RMSprop step failed: {:?}", e))
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "RMSprop step failed: {:?}",
+                e
+            ))
         })?;
         Ok(())
     }
 
     fn zero_grad(&mut self) {
         Optimizer::zero_grad(&mut self.inner);
+    }
+
+    fn state_dict(&self) -> PyResult<std::collections::HashMap<String, PyTensor>> {
+        let state = BaseOptimizer::state_dict(&self.inner);
+        let mut py_state = std::collections::HashMap::new();
+        for (k, v) in state {
+            py_state.insert(k, PyTensor { inner: v });
+        }
+        Ok(py_state)
+    }
+
+    fn load_state_dict(
+        &mut self,
+        state_dict: std::collections::HashMap<String, PyTensor>,
+    ) -> PyResult<()> {
+        let mut rust_state = std::collections::HashMap::new();
+        for (k, v) in state_dict {
+            rust_state.insert(k, v.inner);
+        }
+        BaseOptimizer::load_state_dict(&mut self.inner, rust_state).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to load state dict: {:?}",
+                e
+            ))
+        })?;
+        Ok(())
     }
 }

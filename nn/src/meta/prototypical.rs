@@ -706,34 +706,47 @@ where
 #[cfg(test)]
 mod concurrency_tests {
     use super::*;
-    use std::sync::Arc;
-    use std::thread;
     use crate::linear::Linear;
     use backend::CpuBackend;
     use dtype::float::Float32;
+    use std::sync::Arc;
+    use std::thread;
     use storage::DenseStorage;
     use tensor::Tensor;
 
     #[test]
     fn test_prototypical_network_thread_safety() {
         // Create encoder network
-        let encoder = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
+        let encoder =
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
         let proto_net = Arc::new(PrototypicalNetwork::new(encoder));
 
         // Create support set (10 features to match encoder input)
         let support_set = vec![
-            (Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                vec![Float32::new(1.0); 10],
-                &[1, 10],
-            ).unwrap(), 0),
-            (Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                vec![Float32::new(1.1); 10],
-                &[1, 10],
-            ).unwrap(), 0),
-            (Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-                vec![Float32::new(3.0); 10],
-                &[1, 10],
-            ).unwrap(), 1),
+            (
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(1.0); 10],
+                    &[1, 10],
+                )
+                .unwrap(),
+                0,
+            ),
+            (
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(1.1); 10],
+                    &[1, 10],
+                )
+                .unwrap(),
+                0,
+            ),
+            (
+                Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+                    vec![Float32::new(3.0); 10],
+                    &[1, 10],
+                )
+                .unwrap(),
+                1,
+            ),
         ];
 
         // Test concurrent prototype computation
@@ -744,7 +757,9 @@ mod concurrency_tests {
             let support_set_clone = support_set.clone();
 
             let handle = thread::spawn(move || {
-                let prototypes = proto_net_clone.compute_prototypes(&support_set_clone, 2).unwrap();
+                let prototypes = proto_net_clone
+                    .compute_prototypes(&support_set_clone, 2)
+                    .unwrap();
                 assert_eq!(prototypes.len(), 2);
             });
 
@@ -765,29 +780,35 @@ mod concurrency_tests {
                 Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                     vec![Float32::new(1.0); 10],
                     &[10],
-                ).unwrap(),
+                )
+                .unwrap(),
                 Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                     vec![Float32::new(1.1); 10],
                     &[10],
-                ).unwrap(),
+                )
+                .unwrap(),
                 Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                     vec![Float32::new(0.9); 10],
                     &[10],
-                ).unwrap(),
+                )
+                .unwrap(),
             ],
             vec![
                 Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                     vec![Float32::new(3.0); 10],
                     &[10],
-                ).unwrap(),
+                )
+                .unwrap(),
                 Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                     vec![Float32::new(3.1); 10],
                     &[10],
-                ).unwrap(),
+                )
+                .unwrap(),
                 Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
                     vec![Float32::new(2.9); 10],
                     &[10],
-                ).unwrap(),
+                )
+                .unwrap(),
             ],
         ];
 
@@ -807,7 +828,7 @@ mod concurrency_tests {
                 let episode = generator_clone.generate_episode().unwrap();
                 assert_eq!(episode.num_classes, 2);
                 assert_eq!(episode.support_set.len(), 4); // 2 classes × 2 shots
-                assert_eq!(episode.query_set.len(), 2);   // 2 classes × 1 query
+                assert_eq!(episode.query_set.len(), 2); // 2 classes × 1 query
             });
 
             handles.push(handle);
@@ -829,16 +850,15 @@ mod tests {
     use storage::DenseStorage;
     use tensor::Tensor;
 
+    type Encoder = Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
+    type ProtoNet =
+        PrototypicalNetwork<Encoder, CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
+
     #[test]
     fn test_prototypical_network_creation() {
         let encoder =
             Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(10, 5).unwrap();
-        let proto_net: PrototypicalNetwork<
-            Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
-            CpuBackend<Float32>,
-            DenseStorage<Float32>,
-            Float32,
-        > = PrototypicalNetwork::new(encoder);
+        let proto_net: ProtoNet = PrototypicalNetwork::new(encoder);
 
         assert_eq!(proto_net.scale, 1.0);
         assert_eq!(proto_net.temperature, 1.0);
@@ -994,12 +1014,7 @@ mod tests {
             "bias".to_string(),
         );
 
-        let proto_net: PrototypicalNetwork<
-            Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
-            CpuBackend<Float32>,
-            DenseStorage<Float32>,
-            Float32,
-        > = PrototypicalNetwork::new(encoder);
+        let proto_net: ProtoNet = PrototypicalNetwork::new(encoder);
 
         // Create simple prototypes (manually set for testing)
         let prototypes =

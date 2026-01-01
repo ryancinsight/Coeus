@@ -9,7 +9,7 @@
 use std::any::Any;
 
 use backend::Backend;
-use dtype::DataType;
+use dtype::{traits::FloatExt, DataType};
 use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
@@ -47,7 +47,7 @@ pub struct Sequential<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType,
+    T: DataType + FloatExt,
 {
     /// Vector of modules in sequential order
     modules: Vec<Box<dyn Module<B, S, T>>>,
@@ -61,7 +61,7 @@ impl<B, S, T> Sequential<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType,
+    T: DataType + FloatExt,
 {
     /// Create a new empty Sequential container.
     ///
@@ -226,7 +226,7 @@ impl<B, S, T> Default for Sequential<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType,
+    T: DataType + FloatExt,
 {
     fn default() -> Self {
         Self::new()
@@ -238,10 +238,7 @@ where
 impl<B, S> Sequential<B, S, dtype::float::Float32>
 where
     B: Backend<Data = dtype::float::Float32> + Clone + Default,
-    S: Storage<dtype::float::Float32>
-        + StorageFromVec<dtype::float::Float32>
-        + Clone
-        + 'static,
+    S: Storage<dtype::float::Float32> + StorageFromVec<dtype::float::Float32> + Clone + 'static,
 {
     /// Save the sequential model to a SafeTensors file (Float32 only).
     ///
@@ -300,7 +297,7 @@ impl<B, S, T> Module<B, S, T> for Sequential<B, S, T>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType,
+    T: DataType + FloatExt,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let mut output = input.clone();
@@ -372,14 +369,23 @@ where
     }
 
     fn named_buffers(&self) -> Vec<(String, Tensor<B, S, T>)> {
+        println!(
+            "DEBUG: Sequential::named_buffers called. Modules count: {}",
+            self.modules.len()
+        );
         let mut buffers = Vec::new();
         for (i, module) in self.modules.iter().enumerate() {
+            println!(
+                "DEBUG: Visiting module index {}, name from trait: {}",
+                i,
+                module.name()
+            );
             let prefix = self
                 .names
                 .get(i)
                 .unwrap_or(&format!("module_{}", i))
                 .clone();
-            
+
             for (name, buf) in module.named_buffers() {
                 buffers.push((format!("{}.{}", prefix, name), buf));
             }
@@ -392,7 +398,7 @@ where
             for (i, mod_name) in self.names.iter().enumerate() {
                 if mod_name == prefix {
                     if let Some(module) = self.modules.get(i) {
-                         return module.load_buffer(suffix, value);
+                        return module.load_buffer(suffix, value);
                     }
                 }
             }
@@ -470,7 +476,10 @@ mod tests {
     fn test_sequential_extend() {
         let mut seq1 = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         seq1.add_module("fc1", Linear::new(10, 8).unwrap());
-        seq1.add_module("relu", ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new());
+        seq1.add_module(
+            "relu",
+            ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+        );
 
         let mut seq2 = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         seq2.add_module("fc2", Linear::new(8, 4).unwrap());
@@ -493,7 +502,10 @@ mod tests {
     fn test_sequential_forward() {
         let mut seq = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         seq.add_module("fc1", Linear::new(4, 3).unwrap());
-          seq.add_module("relu", ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new());
+        seq.add_module(
+            "relu",
+            ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+        );
 
         let input = Tensor::from_vec(
             vec![
@@ -541,13 +553,16 @@ mod tests {
     fn test_sequential_train_mode() {
         let mut seq = Sequential::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
         seq.add_module("fc", Linear::new(5, 3).unwrap());
-          seq.add_module("relu", ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new());
+        seq.add_module(
+            "relu",
+            ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+        );
 
         // Default should be training mode
-        assert_eq!(seq.training, true);
+        assert!(seq.training);
 
         seq.train(false);
-        assert_eq!(seq.training, false);
+        assert!(!seq.training);
 
         // Test that child modules also get the mode set
         let _modules: Vec<_> = seq.modules();

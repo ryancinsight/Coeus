@@ -4,10 +4,10 @@
 
 use backend::CpuBackend;
 use dtype::float::Float32;
-use storage::DenseStorage;
-use tensor::Tensor;
 use std::sync::Arc;
 use std::thread;
+use storage::DenseStorage;
+use tensor::Tensor;
 
 type CpuTensorF32 = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 

@@ -10,7 +10,6 @@ use rand::prelude::*;
 use rand::{Rng, SeedableRng};
 use rand_pcg::Pcg64;
 
-
 /// Hyperparameter search space definition
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
@@ -35,14 +34,22 @@ impl HpoSpace {
                 HpoDimension {
                     name: "learning_rate".to_string(),
                     param_type: ParameterType::Continuous,
-                    range: ParameterRange::Continuous { min: 1e-5, max: 1e-3, log_scale: true },
+                    range: ParameterRange::Continuous {
+                        min: 1e-5,
+                        max: 1e-3,
+                        log_scale: true,
+                    },
                     default: ParameterValue::Float(5e-4),
                     description: "Adam learning rate".to_string(),
                 },
                 HpoDimension {
                     name: "weight_decay".to_string(),
                     param_type: ParameterType::Continuous,
-                    range: ParameterRange::Continuous { min: 1e-4, max: 1e-1, log_scale: true },
+                    range: ParameterRange::Continuous {
+                        min: 1e-4,
+                        max: 1e-1,
+                        log_scale: true,
+                    },
                     default: ParameterValue::Float(0.2),
                     description: "Weight decay for regularization".to_string(),
                 },
@@ -50,14 +57,18 @@ impl HpoSpace {
                 HpoDimension {
                     name: "batch_size".to_string(),
                     param_type: ParameterType::Discrete,
-                    range: ParameterRange::Discrete { values: vec![16.0, 32.0, 64.0, 128.0] },
+                    range: ParameterRange::Discrete {
+                        values: vec![16.0, 32.0, 64.0, 128.0],
+                    },
                     default: ParameterValue::Int(32),
                     description: "Training batch size".to_string(),
                 },
                 HpoDimension {
                     name: "gradient_accumulation_steps".to_string(),
                     param_type: ParameterType::Discrete,
-                    range: ParameterRange::Discrete { values: vec![1.0, 2.0, 4.0, 8.0] },
+                    range: ParameterRange::Discrete {
+                        values: vec![1.0, 2.0, 4.0, 8.0],
+                    },
                     default: ParameterValue::Int(1),
                     description: "Gradient accumulation steps".to_string(),
                 },
@@ -65,7 +76,11 @@ impl HpoSpace {
                 HpoDimension {
                     name: "temperature".to_string(),
                     param_type: ParameterType::Continuous,
-                    range: ParameterRange::Continuous { min: 0.01, max: 1.0, log_scale: false },
+                    range: ParameterRange::Continuous {
+                        min: 0.01,
+                        max: 1.0,
+                        log_scale: false,
+                    },
                     default: ParameterValue::Float(0.07),
                     description: "InfoNCE temperature".to_string(),
                 },
@@ -73,14 +88,20 @@ impl HpoSpace {
                 HpoDimension {
                     name: "warmup_steps".to_string(),
                     param_type: ParameterType::Discrete,
-                    range: ParameterRange::Discrete { values: vec![500.0, 1000.0, 2000.0, 5000.0] },
+                    range: ParameterRange::Discrete {
+                        values: vec![500.0, 1000.0, 2000.0, 5000.0],
+                    },
                     default: ParameterValue::Int(2000),
                     description: "Learning rate warmup steps".to_string(),
                 },
                 HpoDimension {
                     name: "gradient_clip_norm".to_string(),
                     param_type: ParameterType::Continuous,
-                    range: ParameterRange::Continuous { min: 0.1, max: 5.0, log_scale: false },
+                    range: ParameterRange::Continuous {
+                        min: 0.1,
+                        max: 5.0,
+                        log_scale: false,
+                    },
                     default: ParameterValue::Float(1.0),
                     description: "Gradient clipping norm".to_string(),
                 },
@@ -90,13 +111,11 @@ impl HpoSpace {
                 min_samples_before_split: 20,
                 candidate_pool_size: 100,
             },
-            constraints: vec![
-                HpoConstraint {
-                    name: "lr_batch_balance".to_string(),
-                    expression: "learning_rate * batch_size > 1e-3".to_string(),
-                    description: "Balance learning rate with batch size".to_string(),
-                },
-            ],
+            constraints: vec![HpoConstraint {
+                name: "lr_batch_balance".to_string(),
+                expression: "learning_rate * batch_size > 1e-3".to_string(),
+                description: "Balance learning rate with batch size".to_string(),
+            }],
         }
     }
 
@@ -105,29 +124,33 @@ impl HpoSpace {
         match component {
             "learning_rate" => Self {
                 name: "LR_Ablation_HPO".to_string(),
-                dimensions: vec![
-                    HpoDimension {
-                        name: "learning_rate".to_string(),
-                        param_type: ParameterType::Continuous,
-                        range: ParameterRange::Continuous { min: 1e-5, max: 5e-3, log_scale: true },
-                        default: ParameterValue::Float(5e-4),
-                        description: "Adam learning rate for ablation study".to_string(),
+                dimensions: vec![HpoDimension {
+                    name: "learning_rate".to_string(),
+                    param_type: ParameterType::Continuous,
+                    range: ParameterRange::Continuous {
+                        min: 1e-5,
+                        max: 5e-3,
+                        log_scale: true,
                     },
-                ],
+                    default: ParameterValue::Float(5e-4),
+                    description: "Adam learning rate for ablation study".to_string(),
+                }],
                 sampling: SamplingStrategy::Grid,
                 constraints: Vec::new(),
             },
             "temperature" => Self {
                 name: "Temperature_Ablation_HPO".to_string(),
-                dimensions: vec![
-                    HpoDimension {
-                        name: "temperature".to_string(),
-                        param_type: ParameterType::Continuous,
-                        range: ParameterRange::Continuous { min: 0.01, max: 0.5, log_scale: false },
-                        default: ParameterValue::Float(0.07),
-                        description: "InfoNCE temperature for ablation study".to_string(),
+                dimensions: vec![HpoDimension {
+                    name: "temperature".to_string(),
+                    param_type: ParameterType::Continuous,
+                    range: ParameterRange::Continuous {
+                        min: 0.01,
+                        max: 0.5,
+                        log_scale: false,
                     },
-                ],
+                    default: ParameterValue::Float(0.07),
+                    description: "InfoNCE temperature for ablation study".to_string(),
+                }],
                 sampling: SamplingStrategy::Grid,
                 constraints: Vec::new(),
             },
@@ -162,20 +185,28 @@ impl HpoSpace {
     }
 
     /// Apply constraints to parameter configuration
-    fn apply_constraints(&self, samples: &mut HashMap<String, ParameterValue>) -> Result<(), crate::error::NNError> {
+    fn apply_constraints(
+        &self,
+        samples: &mut HashMap<String, ParameterValue>,
+    ) -> Result<(), crate::error::NNError> {
         // Simple constraint checking (would implement full expression evaluation)
         for constraint in &self.constraints {
-            match constraint.name.as_str() {
-                "lr_batch_balance" => {
-                    let lr = samples.get("learning_rate").and_then(|v| v.as_float()).unwrap_or(5e-4);
-                    let batch_size = samples.get("batch_size").and_then(|v| v.as_int()).unwrap_or(32) as f64;
-                    if lr * batch_size <= 1e-3 {
-                        // Constraint violation - fix it
-                        let new_batch_size = (1e-3 / lr).ceil() as usize;
-                        samples.insert("batch_size".to_string(), ParameterValue::Int(new_batch_size));
-                    }
+            if constraint.name.as_str() == "lr_batch_balance" {
+                let lr = samples
+                    .get("learning_rate")
+                    .and_then(|v| v.as_float())
+                    .unwrap_or(5e-4);
+                let batch_size = samples
+                    .get("batch_size")
+                    .and_then(|v| v.as_int())
+                    .unwrap_or(32) as f64;
+                if lr * batch_size <= 1e-3 {
+                    let new_batch_size = (1e-3 / lr).ceil() as usize;
+                    samples.insert(
+                        "batch_size".to_string(),
+                        ParameterValue::Int(new_batch_size),
+                    );
                 }
-                _ => {} // Unknown constraint, skip
             }
         }
         Ok(())
@@ -197,7 +228,11 @@ impl HpoDimension {
     /// Sample random value from dimension
     fn sample_random(&self, rng: &mut impl Rng) -> ParameterValue {
         match &self.range {
-            ParameterRange::Continuous { min, max, log_scale } => {
+            ParameterRange::Continuous {
+                min,
+                max,
+                log_scale,
+            } => {
                 let val = if *log_scale {
                     let log_min = min.ln();
                     let log_max = max.ln();
@@ -225,7 +260,11 @@ impl HpoDimension {
     fn sample_grid(&self, rng: &mut impl Rng) -> ParameterValue {
         let grid_points = 10; // Simple grid sampling
         match &self.range {
-            ParameterRange::Continuous { min, max, log_scale } => {
+            ParameterRange::Continuous {
+                min,
+                max,
+                log_scale,
+            } => {
                 let grid_idx_float = rng.gen_range(0.0..grid_points as f64);
                 let grid_idx = grid_idx_float as usize;
                 let val = if *log_scale {
@@ -354,7 +393,11 @@ impl HpoConfiguration {
         let mut config = ClipTrainingConfiguration::default();
 
         // Apply sampled parameters with validation
-        if let Some(lr) = self.parameters.get("learning_rate").and_then(|v| v.as_float()) {
+        if let Some(lr) = self
+            .parameters
+            .get("learning_rate")
+            .and_then(|v| v.as_float())
+        {
             if lr <= 0.0 {
                 return Err(crate::error::NNError::InvalidInput {
                     message: "Learning rate must be positive".to_string(),
@@ -372,7 +415,11 @@ impl HpoConfiguration {
             config.batch_size = bs;
         }
 
-        if let Some(temp) = self.parameters.get("temperature").and_then(|v| v.as_float()) {
+        if let Some(temp) = self
+            .parameters
+            .get("temperature")
+            .and_then(|v| v.as_float())
+        {
             if temp <= 0.0 {
                 return Err(crate::error::NNError::InvalidInput {
                     message: "Temperature must be positive".to_string(),
@@ -382,7 +429,11 @@ impl HpoConfiguration {
         }
 
         // Optional parameters
-        if let Some(wd) = self.parameters.get("weight_decay").and_then(|v| v.as_float()) {
+        if let Some(wd) = self
+            .parameters
+            .get("weight_decay")
+            .and_then(|v| v.as_float())
+        {
             if wd < 0.0 {
                 return Err(crate::error::NNError::InvalidInput {
                     message: "Weight decay must be non-negative".to_string(),
@@ -391,7 +442,11 @@ impl HpoConfiguration {
             config.weight_decay = Some(wd);
         }
 
-        if let Some(clip) = self.parameters.get("gradient_clip_norm").and_then(|v| v.as_float()) {
+        if let Some(clip) = self
+            .parameters
+            .get("gradient_clip_norm")
+            .and_then(|v| v.as_float())
+        {
             if clip <= 0.0 {
                 return Err(crate::error::NNError::InvalidInput {
                     message: "Gradient clip norm must be positive".to_string(),
@@ -500,7 +555,11 @@ impl HpoSampler<StdRng> {
     }
 
     /// Sample multi-point configurations for batch evaluation
-    pub fn sample_batch(&mut self, space: &HpoSpace, batch_size: usize) -> Result<Vec<HpoConfiguration>, crate::error::NNError> {
+    pub fn sample_batch(
+        &mut self,
+        space: &HpoSpace,
+        batch_size: usize,
+    ) -> Result<Vec<HpoConfiguration>, crate::error::NNError> {
         let mut batch = Vec::with_capacity(batch_size);
         for _ in 0..batch_size {
             batch.push(space.sample(&mut self.rng)?);
@@ -509,14 +568,22 @@ impl HpoSampler<StdRng> {
     }
 
     /// Optimize with expected improvement (simplified EI)
-    pub fn optimize_ei(&mut self, space: &HpoSpace, history: &[HpoTrial], num_candidates: usize) -> Result<HpoConfiguration, crate::error::NNError> {
+    pub fn optimize_ei(
+        &mut self,
+        space: &HpoSpace,
+        history: &[HpoTrial],
+        num_candidates: usize,
+    ) -> Result<HpoConfiguration, crate::error::NNError> {
         // Simplified EI optimization - would implement full Gaussian process optimization
         if history.is_empty() {
             return space.sample(&mut self.rng);
         }
 
         // Find best performing regions
-        let best_score = history.iter().map(|t| t.score).fold(f64::NEG_INFINITY, f64::max);
+        let best_score = history
+            .iter()
+            .map(|t| t.score)
+            .fold(f64::NEG_INFINITY, f64::max);
 
         // Sample from promising regions (simplified)
         let mut candidates = Vec::new();
@@ -526,9 +593,12 @@ impl HpoSampler<StdRng> {
         }
 
         // Would evaluate EI for each candidate and pick best
-        candidates.into_iter().next().ok_or_else(|| crate::error::NNError::InvalidInput {
-            message: "No candidates generated".to_string(),
-        })
+        candidates
+            .into_iter()
+            .next()
+            .ok_or_else(|| crate::error::NNError::InvalidInput {
+                message: "No candidates generated".to_string(),
+            })
     }
 }
 
@@ -562,14 +632,18 @@ mod tests {
         let dimension = HpoDimension {
             name: "test_lr".to_string(),
             param_type: ParameterType::Continuous,
-            range: ParameterRange::Continuous { min: 1e-4, max: 1e-3, log_scale: true },
+            range: ParameterRange::Continuous {
+                min: 1e-4,
+                max: 1e-3,
+                log_scale: true,
+            },
             default: ParameterValue::Float(5e-4),
             description: "Test learning rate".to_string(),
         };
 
         let sample = dimension.sample_random(&mut rng);
         if let ParameterValue::Float(val) = sample {
-            assert!(val >= 1e-4 && val <= 1e-3);
+            assert!((1e-4..=1e-3).contains(&val));
         } else {
             panic!("Expected float parameter");
         }

@@ -16,10 +16,10 @@ use nn::{
     amp::{GradientScaler, MixedPrecision},
     MSELoss, Module, Sequential,
 };
+use std::time::Instant;
 use storage::{DenseStorage, Storage};
 use tensor::CpuBackend;
 use tensor::Tensor;
-use std::time::Instant;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -140,4 +140,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-

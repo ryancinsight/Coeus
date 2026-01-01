@@ -1,0 +1,21 @@
+[package]
+name = "coeus-special"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ryan Clanton <ryanclanton@protomail.com>"]
+description = "Special mathematical functions for Coeus"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ryancinsight/Coeus"
+readme = "../README.md"
+keywords = ["special-functions", "math", "tensor", "machine-learning"]
+categories = ["science", "mathematics"]
+
+[dependencies]
+coeus-error = { path = "../coeus-error", version = "0.2.0" }
+tensor = { path = "../tensor", version = "0.2.0" }
+dtype = { path = "../dtype", version = "0.2.0" }
+backend = { path = "../backend", version = "0.2.0" }
+storage = { path = "../storage", version = "0.2.0" }
+
+num-traits = "0.2"
+statrs = "0.4"

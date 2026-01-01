@@ -1,10 +1,10 @@
 //! Element-wise comparison operations
-//! 
+//!
 //! This module provides element-wise comparison operations for tensors:
 //! - eq, ne: Equal, Not Equal
 //! - gt, ge: Greater Than, Greater Expected
 //! - lt, le: Less Than, Less Expected
-//! 
+//!
 //! These operations return a tensor of the same shape with binary 0/1 values
 //! (represented as the input data type T, typically 0.0/1.0 for floats).
 
@@ -12,7 +12,6 @@ use crate::{Result, Tensor, TensorError};
 use backend::Backend;
 use dtype::DataType;
 use storage::{Storage, StorageFromVec};
-use num_traits::{Num, FromPrimitive};
 
 /// Element-wise equality comparison
 pub fn eq<
@@ -102,9 +101,9 @@ fn compare<
     // Broadcasting can be added later following arithmetic.rs pattern
     if a.shape() != b.shape() {
         return Err(TensorError::ShapeMismatch {
-             expected: a.shape().dims().to_vec(),
-             actual: b.shape().dims().to_vec(),
-             operation: "comparison",
+            expected: a.shape().dims().to_vec(),
+            actual: b.shape().dims().to_vec(),
+            operation: "comparison",
         });
     }
 
@@ -116,7 +115,7 @@ fn compare<
         .collect();
 
     let result = Tensor::from_vec(data, a.shape().dims())?;
-    
+
     // Comparison results don't require gradients
     Ok(result)
 }

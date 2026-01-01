@@ -2,8 +2,8 @@
 
 use crate::error::{NNError, Result};
 use backend::{Backend, DataType, Storage};
-use tensor::Tensor;
 use rand::Rng;
+use tensor::Tensor;
 
 /// Dataset split for few-shot learning
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

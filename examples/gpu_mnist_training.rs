@@ -18,21 +18,15 @@
 //! cargo run --example gpu_mnist_training
 //! ```
 
+use backend::num_traits::ToPrimitive;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
-use backend::num_traits::ToPrimitive;
 
 // Coeus imports
 use backend::CpuBackend;
 use dtype::float::Float32;
-use nn::{
-    CrossEntropyLoss,
-    Linear, Module,
-    ReLU,
-    Sequential,
-    functional,
-};
+use nn::{functional, CrossEntropyLoss, Linear, Module, ReLU, Sequential};
 use optim::{Adam, BaseOptimizer};
 // Dropout not used in this example
 // use nn::dropout::Dropout;
@@ -106,7 +100,10 @@ impl MNISTDataset {
     }
 
     /// Decompress gzip file
-    fn decompress_gzip(input_path: &str, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    fn decompress_gzip(
+        input_path: &str,
+        output_path: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         use flate2::read::GzDecoder;
         use std::io::copy;
 
@@ -205,7 +202,12 @@ impl MNISTDataset {
 }
 
 /// Create MNIST classifier model
-fn create_model(config: &TrainingConfig) -> Result<Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, Box<dyn std::error::Error>> {
+fn create_model(
+    config: &TrainingConfig,
+) -> Result<
+    Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    Box<dyn std::error::Error>,
+> {
     let mut model = Sequential::new();
 
     // Simple model: just one linear layer for testing
@@ -228,12 +230,16 @@ struct TrainingMetrics {
 fn differentiable_cross_entropy_loss(
     logits: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
     targets: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
-) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, Box<dyn std::error::Error>> {
-    use autograd::ops::{add, mul, mean};
+) -> Result<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, Box<dyn std::error::Error>>
+{
+    use autograd::ops::{add, mean, mul};
 
     // Debug: Check input gradients
-    println!("Logits requires_grad: {}, targets requires_grad: {}",
-             logits.requires_grad(), targets.requires_grad());
+    println!(
+        "Logits requires_grad: {}, targets requires_grad: {}",
+        logits.requires_grad(),
+        targets.requires_grad()
+    );
 
     // Simple MSE loss: mean((logits - targets)^2)
     // This creates autograd operations for testing gradient flow
@@ -245,14 +251,19 @@ fn differentiable_cross_entropy_loss(
     let squared = mul(&diff, &diff)?;
     let loss = mean(&squared, None, false)?;
 
-    println!("Loss after operations requires_grad: {}, has_grad_fn: {}",
-             loss.requires_grad(), loss.grad_fn().is_some());
+    println!(
+        "Loss after operations requires_grad: {}, has_grad_fn: {}",
+        loss.requires_grad(),
+        loss.grad_fn().is_some()
+    );
 
     Ok(loss)
 }
 
 /// Simple argmax implementation for accuracy calculation
-fn argmax(tensor: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>) -> Result<Vec<usize>, Box<dyn std::error::Error>> {
+fn argmax(
+    tensor: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+) -> Result<Vec<usize>, Box<dyn std::error::Error>> {
     let data = tensor.as_slice();
     let batch_size = tensor.shape().dims()[0];
     let num_classes = tensor.shape().dims()[1];
@@ -284,7 +295,11 @@ fn train_model(
     println!("🚀 Starting GPU training...");
 
     // Create optimizer with model parameters (extract tensor data from Parameter wrappers)
-    let params: Vec<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> = model.parameters().into_iter().map(|p| p.data().clone()).collect();
+    let params: Vec<Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> = model
+        .parameters()
+        .into_iter()
+        .map(|p| p.data().clone())
+        .collect();
     let mut optimizer = Adam::new(params, config.learning_rate as f64);
     let loss_fn = CrossEntropyLoss::new();
     let mut metrics = Vec::new();
@@ -302,18 +317,23 @@ fn train_model(
         let mut epoch_train_total = 0;
 
         for batch_idx in 0..num_train_batches {
-            let (batch_images, batch_labels) = train_dataset.get_batch(
-                batch_idx * config.batch_size,
-                config.batch_size
-            );
+            let (batch_images, batch_labels) =
+                train_dataset.get_batch(batch_idx * config.batch_size, config.batch_size);
 
             // Convert to tensors
-            let mut input_tensor = Tensor::from_vec(batch_images.into_iter().map(Float32::from).collect(), &[config.batch_size, 784])?;
+            let mut input_tensor = Tensor::from_vec(
+                batch_images.into_iter().map(Float32::from).collect(),
+                &[config.batch_size, 784],
+            )?;
             input_tensor = input_tensor.requires_grad_(true);
 
             let target_tensor = Tensor::from_vec(
-                batch_labels.clone().into_iter().map(|x| Float32::from(x as f32)).collect(),
-                &[config.batch_size]
+                batch_labels
+                    .clone()
+                    .into_iter()
+                    .map(|x| Float32::from(x as f32))
+                    .collect(),
+                &[config.batch_size],
             )?;
 
             // Forward pass
@@ -325,11 +345,18 @@ fn train_model(
             let loss = loss.requires_grad_(true);
 
             // Debug: Check if loss has grad_fn
-            println!("Loss requires_grad: {}, has_grad_fn: {}", loss.requires_grad(), loss.grad_fn().is_some());
+            println!(
+                "Loss requires_grad: {}, has_grad_fn: {}",
+                loss.requires_grad(),
+                loss.grad_fn().is_some()
+            );
 
             // Try backward pass
             if let Err(e) = loss.backward() {
-                println!("Warning: Backward pass failed: {}. Skipping gradient update.", e);
+                println!(
+                    "Warning: Backward pass failed: {}. Skipping gradient update.",
+                    e
+                );
             }
 
             // Update parameters
@@ -349,7 +376,12 @@ fn train_model(
             epoch_train_loss += loss.as_slice()[0].get();
 
             if batch_idx % 100 == 0 {
-                println!("  Batch {}/{} - Loss: {:.4}", batch_idx + 1, num_train_batches, loss.as_slice()[0].get());
+                println!(
+                    "  Batch {}/{} - Loss: {:.4}",
+                    batch_idx + 1,
+                    num_train_batches,
+                    loss.as_slice()[0].get()
+                );
             }
         }
 
@@ -362,17 +394,22 @@ fn train_model(
         let mut epoch_val_total = 0;
 
         for batch_idx in 0..num_val_batches {
-            let (batch_images, batch_labels) = val_dataset.get_batch(
-                batch_idx * config.batch_size,
-                config.batch_size
-            );
+            let (batch_images, batch_labels) =
+                val_dataset.get_batch(batch_idx * config.batch_size, config.batch_size);
 
-            let mut input_tensor = Tensor::from_vec(batch_images.into_iter().map(Float32::from).collect(), &[config.batch_size, 784])?;
-        input_tensor = input_tensor.requires_grad_(true);
+            let mut input_tensor = Tensor::from_vec(
+                batch_images.into_iter().map(Float32::from).collect(),
+                &[config.batch_size, 784],
+            )?;
+            input_tensor = input_tensor.requires_grad_(true);
 
             let target_tensor = Tensor::from_vec(
-                batch_labels.clone().into_iter().map(|x| Float32::from(x as f32)).collect(),
-                &[config.batch_size]
+                batch_labels
+                    .clone()
+                    .into_iter()
+                    .map(|x| Float32::from(x as f32))
+                    .collect(),
+                &[config.batch_size],
             )?;
 
             let output = model.forward(&input_tensor)?;
@@ -430,17 +467,22 @@ fn evaluate_model(
     let num_batches = test_dataset.len() / batch_size;
 
     for batch_idx in 0..num_batches {
-        let (batch_images, batch_labels) = test_dataset.get_batch(
-            batch_idx * batch_size,
-            batch_size
-        );
+        let (batch_images, batch_labels) =
+            test_dataset.get_batch(batch_idx * batch_size, batch_size);
 
-        let mut input_tensor = Tensor::from_vec(batch_images.into_iter().map(Float32::from).collect(), &[batch_size, 784])?;
+        let mut input_tensor = Tensor::from_vec(
+            batch_images.into_iter().map(Float32::from).collect(),
+            &[batch_size, 784],
+        )?;
         input_tensor = input_tensor.requires_grad_(true);
 
         let target_tensor = Tensor::from_vec(
-            batch_labels.clone().into_iter().map(|x| Float32::from(x as f32)).collect(),
-            &[batch_size]
+            batch_labels
+                .clone()
+                .into_iter()
+                .map(|x| Float32::from(x as f32))
+                .collect(),
+            &[batch_size],
         )?;
 
         let output = model.forward(&input_tensor)?;
@@ -591,7 +633,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match MNISTDataset::download().await {
         Ok(_) => println!("✅ Dataset downloaded successfully"),
         Err(e) => {
-            println!("⚠️  Dataset download failed: {}. Trying to load existing data...", e);
+            println!(
+                "⚠️  Dataset download failed: {}. Trying to load existing data...",
+                e
+            );
         }
     }
 
@@ -633,13 +678,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Test Accuracy: {:.2}%", test_accuracy * 100.0);
 
     // Performance summary
-    let best_epoch = metrics.iter().max_by(|a, b| a.val_accuracy.partial_cmp(&b.val_accuracy).unwrap()).unwrap();
+    let best_epoch = metrics
+        .iter()
+        .max_by(|a, b| a.val_accuracy.partial_cmp(&b.val_accuracy).unwrap())
+        .unwrap();
     println!("\n📊 Performance Summary:");
-    println!("  Best validation accuracy: {:.2}% (epoch {})", best_epoch.val_accuracy * 100.0, best_epoch.epoch + 1);
-    println!("  Best validation loss: {:.4} (epoch {})", best_epoch.val_loss, best_epoch.epoch + 1);
-    println!("  Best training loss: {:.4} (epoch {})", best_epoch.train_loss, best_epoch.epoch + 1);
-    println!("  Best training accuracy: {:.2}% (epoch {})", best_epoch.train_accuracy * 100.0, best_epoch.epoch + 1);
-    println!("  Average epoch time: {:.1}ms", metrics.iter().map(|m| m.epoch_time_ms).sum::<f32>() / metrics.len() as f32);
+    println!(
+        "  Best validation accuracy: {:.2}% (epoch {})",
+        best_epoch.val_accuracy * 100.0,
+        best_epoch.epoch + 1
+    );
+    println!(
+        "  Best validation loss: {:.4} (epoch {})",
+        best_epoch.val_loss,
+        best_epoch.epoch + 1
+    );
+    println!(
+        "  Best training loss: {:.4} (epoch {})",
+        best_epoch.train_loss,
+        best_epoch.epoch + 1
+    );
+    println!(
+        "  Best training accuracy: {:.2}% (epoch {})",
+        best_epoch.train_accuracy * 100.0,
+        best_epoch.epoch + 1
+    );
+    println!(
+        "  Average epoch time: {:.1}ms",
+        metrics.iter().map(|m| m.epoch_time_ms).sum::<f32>() / metrics.len() as f32
+    );
 
     println!("\n✅ GPU MNIST training completed!");
     println!("\n🔬 Next steps:");
@@ -658,4 +725,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-

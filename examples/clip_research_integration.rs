@@ -17,14 +17,13 @@ use tensor::Tensor;
 
 // NN modules
 use nn::clip::{
-    ClipConfig, research::{
-        ClipResearchFramework, ResearchConfig, OptimizationObjective,
-        HPOReport, NASReport, JointOptimizationReport
-    }
+    research::{
+        ClipResearchFramework, HPOReport, JointOptimizationReport, NASReport,
+        OptimizationObjective, ResearchConfig,
+    },
+    ClipConfig,
 };
-use nn::datasets::{
-    CocoDataset, Flickr30kDataset, DatasetSplit
-};
+use nn::datasets::{CocoDataset, DatasetSplit, Flickr30kDataset};
 use nn::error::Result;
 
 // Type aliases for clarity
@@ -45,8 +44,8 @@ async fn run_clip_research() -> Result<()> {
     // Configure research objectives
     let research_config = ResearchConfig {
         experiment_prefix: "clip_demo_research".to_string(),
-        num_parallel: 2, // Reduced for demo
-        max_experiments: 10, // Reduced for demo
+        num_parallel: 2,                 // Reduced for demo
+        max_experiments: 10,             // Reduced for demo
         time_budget_per_experiment: 300, // 5 minutes
         objectives: vec![
             OptimizationObjective::RetrievalR1,
@@ -82,15 +81,21 @@ async fn run_clip_research() -> Result<()> {
     let validation_dataset: Arc<dyn nn::datasets::VisionLanguageData> = {
         match CocoDataset::new("datasets/coco").await {
             Ok(dataset) => {
-                println!("✅ Loaded COCO validation dataset with {} pairs", dataset.len());
+                println!(
+                    "✅ Loaded COCO validation dataset with {} pairs",
+                    dataset.len()
+                );
                 Arc::new(dataset)
-            },
+            }
             Err(_) => {
                 match Flickr30kDataset::new("datasets/flickr30k").await {
                     Ok(dataset) => {
-                        println!("✅ Loaded Flickr30K validation dataset with {} pairs", dataset.len());
+                        println!(
+                            "✅ Loaded Flickr30K validation dataset with {} pairs",
+                            dataset.len()
+                        );
                         Arc::new(dataset)
-                    },
+                    }
                     Err(_) => {
                         println!("⚠️  No datasets available - research demo will use synthetic validation");
                         // Create a synthetic dataset for demonstration
@@ -102,15 +107,18 @@ async fn run_clip_research() -> Result<()> {
     };
 
     // Initialize research framework
-    let mut research_framework = ClipResearchFramework::new(
-        base_config,
-        research_config,
-        validation_dataset,
-    );
+    let mut research_framework =
+        ClipResearchFramework::new(base_config, research_config, validation_dataset);
 
     println!("✅ Research framework initialized");
-    println!("   - Objectives: {:?}", research_framework.research_config.objectives);
-    println!("   - Max experiments: {}", research_framework.research_config.max_experiments);
+    println!(
+        "   - Objectives: {:?}",
+        research_framework.research_config.objectives
+    );
+    println!(
+        "   - Max experiments: {}",
+        research_framework.research_config.max_experiments
+    );
 
     // Phase 2: Hyperparameter Optimization
     println!("\n🎯 Phase 2: Hyperparameter Optimization (HPO)");
@@ -126,9 +134,15 @@ async fn run_clip_research() -> Result<()> {
 
     if let Some(ref best_config) = hpo_report.best_config {
         println!("   - Best configuration ID: {}", best_config.id);
-        println!("   - Learning rate: {:.6}", best_config.hpo_params.learning_rate);
+        println!(
+            "   - Learning rate: {:.6}",
+            best_config.hpo_params.learning_rate
+        );
         println!("   - Batch size: {}", best_config.hpo_params.batch_size);
-        println!("   - Temperature: {:.3}", best_config.hpo_params.temperature);
+        println!(
+            "   - Temperature: {:.3}",
+            best_config.hpo_params.temperature
+        );
     }
 
     // Phase 3: Neural Architecture Search
@@ -141,14 +155,23 @@ async fn run_clip_research() -> Result<()> {
     let nas_time = nas_start.elapsed();
     println!("⏱️  NAS completed in {:.2}s", nas_time.as_secs_f64());
     println!("📊 NAS Results:");
-    println!("   - Architectures evaluated: {}", nas_report.architectures.len());
+    println!(
+        "   - Architectures evaluated: {}",
+        nas_report.architectures.len()
+    );
     println!("   - Pareto front size: {}", nas_report.pareto_front.len());
 
     if let Some(ref best_arch) = nas_report.best_architecture {
         if let Some(ref nas_params) = best_arch.nas_params {
             println!("   - Best architecture:");
-            println!("     Vision: {}L x {}H x {}D", nas_params.vision_layers, nas_params.vision_heads, nas_params.vision_hidden_size);
-            println!("     Text: {}L x {}H x {}D", nas_params.text_layers, nas_params.text_heads, nas_params.text_hidden_size);
+            println!(
+                "     Vision: {}L x {}H x {}D",
+                nas_params.vision_layers, nas_params.vision_heads, nas_params.vision_hidden_size
+            );
+            println!(
+                "     Text: {}L x {}H x {}D",
+                nas_params.text_layers, nas_params.text_heads, nas_params.text_hidden_size
+            );
             println!("     Projection: {}D", nas_params.projection_dim);
         }
     }
@@ -161,21 +184,34 @@ async fn run_clip_research() -> Result<()> {
     let joint_report = research_framework.run_joint_optimization().await?;
 
     let joint_time = joint_start.elapsed();
-    println!("⏱️  Joint optimization completed in {:.2}s", joint_time.as_secs_f64());
+    println!(
+        "⏱️  Joint optimization completed in {:.2}s",
+        joint_time.as_secs_f64()
+    );
     println!("📊 Joint Optimization Results:");
-    println!("   - Configurations evaluated: {}", joint_report.experiments.len());
-    println!("   - Efficiency frontier size: {}", joint_report.efficiency_frontier.len());
+    println!(
+        "   - Configurations evaluated: {}",
+        joint_report.experiments.len()
+    );
+    println!(
+        "   - Efficiency frontier size: {}",
+        joint_report.efficiency_frontier.len()
+    );
 
     if let Some(ref best_joint) = joint_report.best_configuration {
         println!("   - Best joint configuration: {}", best_joint.id);
-        println!("     HPO: LR={:.6}, BS={}, Temp={:.3}",
-                best_joint.hpo_params.learning_rate,
-                best_joint.hpo_params.batch_size,
-                best_joint.hpo_params.temperature);
+        println!(
+            "     HPO: LR={:.6}, BS={}, Temp={:.3}",
+            best_joint.hpo_params.learning_rate,
+            best_joint.hpo_params.batch_size,
+            best_joint.hpo_params.temperature
+        );
 
         if let Some(ref nas) = best_joint.nas_params {
-            println!("     NAS: Vision {}L, Text {}L, Proj {}D",
-                    nas.vision_layers, nas.text_layers, nas.projection_dim);
+            println!(
+                "     NAS: Vision {}L, Text {}L, Proj {}D",
+                nas.vision_layers, nas.text_layers, nas.projection_dim
+            );
         }
     }
 
@@ -204,10 +240,12 @@ async fn run_clip_research() -> Result<()> {
     println!("\n🎉 CLIP Research Integration Complete!");
     println!("=====================================");
     println!("⏱️  Total research time: {:.2}s", total_time.as_secs_f64());
-    println!("📊 Experiments conducted: {}",
-            hpo_report.experiments.len() +
-            nas_report.architectures.len() +
-            joint_report.experiments.len());
+    println!(
+        "📊 Experiments conducted: {}",
+        hpo_report.experiments.len()
+            + nas_report.architectures.len()
+            + joint_report.experiments.len()
+    );
 
     Ok(())
 }
@@ -223,9 +261,16 @@ fn generate_research_report(
 
     println!("\n🔍 HPO Analysis:");
     println!("   - Experiments: {}", hpo_report.experiments.len());
-    println!("   - Success rate: {:.1}%",
-            (hpo_report.experiments.iter().filter(|e| matches!(e.status, nn::clip::research::ExperimentStatus::Completed)).count() as f64 /
-             hpo_report.experiments.len() as f64) * 100.0);
+    println!(
+        "   - Success rate: {:.1}%",
+        (hpo_report
+            .experiments
+            .iter()
+            .filter(|e| matches!(e.status, nn::clip::research::ExperimentStatus::Completed))
+            .count() as f64
+            / hpo_report.experiments.len() as f64)
+            * 100.0
+    );
 
     println!("\n🏗️  NAS Analysis:");
     println!("   - Architectures: {}", nas_report.architectures.len());
@@ -233,7 +278,10 @@ fn generate_research_report(
 
     println!("\n🚀 Joint Optimization:");
     println!("   - Configurations: {}", joint_report.experiments.len());
-    println!("   - Efficiency frontier: {}", joint_report.efficiency_frontier.len());
+    println!(
+        "   - Efficiency frontier: {}",
+        joint_report.efficiency_frontier.len()
+    );
 
     // Trade-off analysis
     println!("\n⚖️  Trade-off Analysis:");
@@ -251,20 +299,29 @@ fn analyze_tradeoffs(
     joint_report: &JointOptimizationReport,
 ) {
     // Compare HPO vs NAS vs Joint performance
-    let hpo_avg_score = hpo_report.experiments.iter()
+    let hpo_avg_score = hpo_report
+        .experiments
+        .iter()
         .filter(|e| matches!(e.status, nn::clip::research::ExperimentStatus::Completed))
         .map(|e| e.results.objectives.values().sum::<f64>() / e.results.objectives.len() as f64)
-        .sum::<f64>() / hpo_report.experiments.len() as f64;
+        .sum::<f64>()
+        / hpo_report.experiments.len() as f64;
 
-    let nas_avg_score = nas_report.architectures.iter()
+    let nas_avg_score = nas_report
+        .architectures
+        .iter()
         .filter(|e| matches!(e.status, nn::clip::research::ExperimentStatus::Completed))
         .map(|e| e.results.objectives.values().sum::<f64>() / e.results.objectives.len() as f64)
-        .sum::<f64>() / nas_report.architectures.len() as f64;
+        .sum::<f64>()
+        / nas_report.architectures.len() as f64;
 
-    let joint_avg_score = joint_report.experiments.iter()
+    let joint_avg_score = joint_report
+        .experiments
+        .iter()
         .filter(|e| matches!(e.status, nn::clip::research::ExperimentStatus::Completed))
         .map(|e| e.results.objectives.values().sum::<f64>() / e.results.objectives.len() as f64)
-        .sum::<f64>() / joint_report.experiments.len() as f64;
+        .sum::<f64>()
+        / joint_report.experiments.len() as f64;
 
     println!("   Average HPO score: {:.4}", hpo_avg_score);
     println!("   Average NAS score: {:.4}", nas_avg_score);
@@ -292,7 +349,10 @@ fn generate_recommendations(
     let mut param_importance = std::collections::HashMap::new();
 
     for experiment in &hpo_report.experiments {
-        if matches!(experiment.status, nn::clip::research::ExperimentStatus::Completed) {
+        if matches!(
+            experiment.status,
+            nn::clip::research::ExperimentStatus::Completed
+        ) {
             param_importance.insert("learning_rate", experiment.config.hpo_params.learning_rate);
             param_importance.insert("batch_size", experiment.config.hpo_params.batch_size as f64);
             param_importance.insert("temperature", experiment.config.hpo_params.temperature);
@@ -314,22 +374,37 @@ fn find_overall_best_config(
     let mut all_configs = Vec::new();
 
     // Collect all successful experiments
-    all_configs.extend(hpo_report.experiments.iter()
-        .filter(|e| matches!(e.status, nn::clip::research::ExperimentStatus::Completed))
-        .cloned());
-    all_configs.extend(nas_report.architectures.iter()
-        .filter(|e| matches!(e.status, nn::clip::research::ExperimentStatus::Completed))
-        .cloned());
-    all_configs.extend(joint_report.experiments.iter()
-        .filter(|e| matches!(e.status, nn::clip::research::ExperimentStatus::Completed))
-        .cloned());
+    all_configs.extend(
+        hpo_report
+            .experiments
+            .iter()
+            .filter(|e| matches!(e.status, nn::clip::research::ExperimentStatus::Completed))
+            .cloned(),
+    );
+    all_configs.extend(
+        nas_report
+            .architectures
+            .iter()
+            .filter(|e| matches!(e.status, nn::clip::research::ExperimentStatus::Completed))
+            .cloned(),
+    );
+    all_configs.extend(
+        joint_report
+            .experiments
+            .iter()
+            .filter(|e| matches!(e.status, nn::clip::research::ExperimentStatus::Completed))
+            .cloned(),
+    );
 
     // Find the one with highest composite score
-    all_configs.into_iter()
+    all_configs
+        .into_iter()
         .max_by(|a, b| {
             let score_a = a.results.objectives.values().sum::<f64>();
             let score_b = b.results.objectives.values().sum::<f64>();
-            score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
+            score_a
+                .partial_cmp(&score_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
         })
         .map(|record| record.config)
 }
@@ -344,17 +419,29 @@ fn export_best_config(config: &nn::clip::research::ExperimentConfig) -> Result<(
     println!("   Configuration exported:");
     println!("   ID: {}", config.id);
     println!("   HPO Parameters:");
-    println!("     - Learning Rate: {:.6}", config.hpo_params.learning_rate);
+    println!(
+        "     - Learning Rate: {:.6}",
+        config.hpo_params.learning_rate
+    );
     println!("     - Batch Size: {}", config.hpo_params.batch_size);
     println!("     - Temperature: {:.3}", config.hpo_params.temperature);
     println!("     - Weight Decay: {:.6}", config.hpo_params.weight_decay);
     println!("     - Warmup Steps: {}", config.hpo_params.warmup_steps);
-    println!("     - Max Grad Norm: {:.2}", config.hpo_params.max_grad_norm);
+    println!(
+        "     - Max Grad Norm: {:.2}",
+        config.hpo_params.max_grad_norm
+    );
 
     if let Some(ref nas) = config.nas_params {
         println!("   NAS Parameters:");
-        println!("     - Vision: {}L {}H {}D", nas.vision_layers, nas.vision_heads, nas.vision_hidden_size);
-        println!("     - Text: {}L {}H {}D", nas.text_layers, nas.text_heads, nas.text_hidden_size);
+        println!(
+            "     - Vision: {}L {}H {}D",
+            nas.vision_layers, nas.vision_heads, nas.vision_hidden_size
+        );
+        println!(
+            "     - Text: {}L {}H {}D",
+            nas.text_layers, nas.text_heads, nas.text_hidden_size
+        );
         println!("     - Projection: {}D", nas.projection_dim);
     }
 
@@ -398,11 +485,12 @@ impl nn::datasets::VisionLanguageData for SyntheticDataset {
     }
 
     fn get(&self, index: usize) -> Result<nn::datasets::ImageTextPair> {
-        self.pairs.get(index).cloned().ok_or_else(|| {
-            nn::error::NNError::InvalidInput {
+        self.pairs
+            .get(index)
+            .cloned()
+            .ok_or_else(|| nn::error::NNError::InvalidInput {
                 message: format!("Index {} out of bounds", index),
-            }
-        })
+            })
     }
 
     fn split(&self) -> DatasetSplit {
@@ -412,8 +500,8 @@ impl nn::datasets::VisionLanguageData for SyntheticDataset {
     fn statistics(&self) -> nn::datasets::DatasetStatistics {
         nn::datasets::DatasetStatistics {
             total_pairs: self.size,
-            avg_caption_length: 8.0, // Approximate
-            vocab_size: 1000, // Approximate
+            avg_caption_length: 8.0,                 // Approximate
+            vocab_size: 1000,                        // Approximate
             image_sizes: Some(vec![(224, 224); 10]), // Sample image sizes
             disk_size_mb: Some((self.size * 150 / 1024 / 1024) as f64), // Rough estimate
         }
@@ -443,19 +531,3 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

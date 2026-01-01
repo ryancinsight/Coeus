@@ -8,8 +8,8 @@
 //! - Optimization state compression and offloading
 //! - Hyperparameter-free optimization methods
 
-use std::collections::HashMap;
 use crate::error::{NNError, Result};
+use std::collections::HashMap;
 
 /// Advanced Optimizer Coordinator
 #[derive(Debug)]
@@ -184,21 +184,16 @@ impl AdvancedOptimizer {
         let optimizer_type = self.optimizer_type.clone();
 
         match optimizer_type {
-            OptimizerType::Lionel(config) => {
-                self.lionel_step(&processed_grads, &config).await
-            },
-            OptimizerType::Sophia(config) => {
-                self.sophia_step(&processed_grads, &config).await
-            },
+            OptimizerType::Lionel(config) => self.lionel_step(&processed_grads, &config).await,
+            OptimizerType::Sophia(config) => self.sophia_step(&processed_grads, &config).await,
             OptimizerType::MemoryAdam(config) => {
                 self.memory_adam_step(&processed_grads, &config).await
-            },
+            }
             OptimizerType::PreconditionedAdam(config) => {
-                self.preconditioned_adam_step(&processed_grads, &config).await
-            },
-            OptimizerType::Custom(_) => {
-                self.custom_optimizer_step(&processed_grads).await
-            },
+                self.preconditioned_adam_step(&processed_grads, &config)
+                    .await
+            }
+            OptimizerType::Custom(_) => self.custom_optimizer_step(&processed_grads).await,
         }
     }
 
@@ -210,7 +205,11 @@ impl AdvancedOptimizer {
     }
 
     /// Apply gradient clipping
-    fn clip_gradients(&self, gradients: &HashMap<String, Vec<f32>>, max_norm: f64) -> Result<HashMap<String, Vec<f32>>> {
+    fn clip_gradients(
+        &self,
+        gradients: &HashMap<String, Vec<f32>>,
+        max_norm: f64,
+    ) -> Result<HashMap<String, Vec<f32>>> {
         // Calculate global gradient norm
         let mut global_norm_sq = 0.0;
         for grad in gradients.values() {
@@ -223,9 +222,7 @@ impl AdvancedOptimizer {
             let mut clipped = HashMap::new();
 
             for (name, grad) in gradients {
-                let clipped_grad: Vec<f32> = grad.iter()
-                    .map(|x| *x * clip_factor as f32)
-                    .collect();
+                let clipped_grad: Vec<f32> = grad.iter().map(|x| *x * clip_factor as f32).collect();
                 clipped.insert(name.clone(), clipped_grad);
             }
 
@@ -236,14 +233,22 @@ impl AdvancedOptimizer {
     }
 
     /// Apply lookahead optimization
-    async fn apply_lookahead(&mut self, _gradients: &HashMap<String, Vec<f32>>, _steps: usize) -> Result<()> {
+    async fn apply_lookahead(
+        &mut self,
+        _gradients: &HashMap<String, Vec<f32>>,
+        _steps: usize,
+    ) -> Result<()> {
         // Lookahead implementation
         // Store current parameters, apply updates for K steps, then interpolate
         Ok(())
     }
 
     /// Lionel optimizer step implementation
-    async fn lionel_step(&mut self, gradients: &HashMap<String, Vec<f32>>, _config: &LionelConfig) -> Result<()> {
+    async fn lionel_step(
+        &mut self,
+        gradients: &HashMap<String, Vec<f32>>,
+        _config: &LionelConfig,
+    ) -> Result<()> {
         // Lionel: Exponential Moving Average of Sign of Gradients
         for (param_name, _grad) in gradients {
             let _group = self.get_param_group_for_param(param_name)?;
@@ -258,7 +263,11 @@ impl AdvancedOptimizer {
     }
 
     /// Sophia optimizer step implementation
-    async fn sophia_step(&mut self, gradients: &HashMap<String, Vec<f32>>, _config: &SophiaConfig) -> Result<()> {
+    async fn sophia_step(
+        &mut self,
+        gradients: &HashMap<String, Vec<f32>>,
+        _config: &SophiaConfig,
+    ) -> Result<()> {
         // Sophia: Second-order optimization with clipping
         for (param_name, _grad) in gradients {
             let _group = self.get_param_group_for_param(param_name)?;
@@ -275,7 +284,11 @@ impl AdvancedOptimizer {
     }
 
     /// Memory-efficient Adam step implementation
-    async fn memory_adam_step(&mut self, gradients: &HashMap<String, Vec<f32>>, config: &MemoryAdamConfig) -> Result<()> {
+    async fn memory_adam_step(
+        &mut self,
+        gradients: &HashMap<String, Vec<f32>>,
+        config: &MemoryAdamConfig,
+    ) -> Result<()> {
         for (param_name, grad) in gradients {
             let _group = self.get_param_group_for_param(param_name)?;
 
@@ -291,7 +304,11 @@ impl AdvancedOptimizer {
     }
 
     /// Preconditioned Adam step implementation
-    async fn preconditioned_adam_step(&mut self, gradients: &HashMap<String, Vec<f32>>, config: &PreconditionedConfig) -> Result<()> {
+    async fn preconditioned_adam_step(
+        &mut self,
+        gradients: &HashMap<String, Vec<f32>>,
+        config: &PreconditionedConfig,
+    ) -> Result<()> {
         // Preconditioned Adam with L-BFGS style preconditioning
         for (param_name, grad) in gradients {
             let _group = self.get_param_group_for_param(param_name)?;
@@ -307,7 +324,10 @@ impl AdvancedOptimizer {
     }
 
     /// Custom optimizer step implementation
-    async fn custom_optimizer_step(&mut self, _gradients: &HashMap<String, Vec<f32>>) -> Result<()> {
+    async fn custom_optimizer_step(
+        &mut self,
+        _gradients: &HashMap<String, Vec<f32>>,
+    ) -> Result<()> {
         // Placeholder for custom optimizer logic
         Ok(())
     }
@@ -325,13 +345,23 @@ impl AdvancedOptimizer {
         })
     }
 
-    fn eight_bit_adam_update(&self, _param_name: &str, _grad: &[f32], _config: &MemoryAdamConfig) -> Result<()> {
+    fn eight_bit_adam_update(
+        &self,
+        _param_name: &str,
+        _grad: &[f32],
+        _config: &MemoryAdamConfig,
+    ) -> Result<()> {
         // 8-bit Adam implementation with block-wise quantization
         // Compress gradients and optimizer states to 8 bits
         Ok(())
     }
 
-    fn standard_adam_update(&self, _param_name: &str, _grad: &[f32], _config: &MemoryAdamConfig) -> Result<()> {
+    fn standard_adam_update(
+        &self,
+        _param_name: &str,
+        _grad: &[f32],
+        _config: &MemoryAdamConfig,
+    ) -> Result<()> {
         // Standard Adam implementation
         // m = β₁*m + (1-β₁)*g
         // v = β₂*v + (1-β₂)*g²
@@ -339,17 +369,22 @@ impl AdvancedOptimizer {
         Ok(())
     }
 
-    fn apply_preconditioner(&self, grad: &[f32], param_name: &str, config: &PreconditionedConfig) -> Result<Vec<f32>> {
+    fn apply_preconditioner(
+        &self,
+        grad: &[f32],
+        param_name: &str,
+        config: &PreconditionedConfig,
+    ) -> Result<Vec<f32>> {
         // Apply preconditioning transformation to gradients
         match config.preconditioner_type {
             PreconditionerType::Diagonal => {
                 // Simple diagonal preconditioning
                 Ok(grad.to_vec())
-            },
+            }
             PreconditionerType::LBFGS => {
                 // L-BFGS preconditioning
                 Ok(self.lbfgs_preconditioner(grad, param_name))
-            },
+            }
             _ => Ok(grad.to_vec()),
         }
     }
@@ -421,7 +456,8 @@ impl LRSchedulerTrait for CosineAnnealingScheduler {
             self.base_lr * (step as f64 / self.warmup_steps as f64)
         } else if step < self.total_steps {
             // Cosine annealing
-            let progress = (step - self.warmup_steps) as f64 / (self.total_steps - self.warmup_steps) as f64;
+            let progress =
+                (step - self.warmup_steps) as f64 / (self.total_steps - self.warmup_steps) as f64;
             let cosine_decay = 0.5 * (1.0 + (progress * std::f64::consts::PI).cos());
             self.min_lr + (self.base_lr - self.min_lr) * cosine_decay
         } else {
@@ -438,7 +474,8 @@ impl LRSchedulerTrait for CosineAnnealingScheduler {
         if step < self.warmup_steps {
             self.base_lr * (step as f64 / self.warmup_steps as f64)
         } else if step < self.total_steps {
-            let progress = (step - self.warmup_steps) as f64 / (self.total_steps - self.warmup_steps) as f64;
+            let progress =
+                (step - self.warmup_steps) as f64 / (self.total_steps - self.warmup_steps) as f64;
             let cosine_decay = 0.5 * (1.0 + (progress * std::f64::consts::PI).cos());
             self.min_lr + (self.base_lr - self.min_lr) * cosine_decay
         } else {
@@ -482,7 +519,8 @@ impl LRSchedulerTrait for OneCycleScheduler {
             self.min_lr + (self.max_lr - self.min_lr) * progress
         } else {
             // Decreasing phase
-            let progress = (step - pct_start_steps) as f64 / (self.total_steps - pct_start_steps) as f64;
+            let progress =
+                (step - pct_start_steps) as f64 / (self.total_steps - pct_start_steps) as f64;
             self.max_lr - (self.max_lr - self.min_lr) * progress
         };
 
@@ -498,7 +536,8 @@ impl LRSchedulerTrait for OneCycleScheduler {
             let progress = step as f64 / pct_start_steps as f64;
             self.min_lr + (self.max_lr - self.min_lr) * progress
         } else {
-            let progress = (step - pct_start_steps) as f64 / (self.total_steps - pct_start_steps) as f64;
+            let progress =
+                (step - pct_start_steps) as f64 / (self.total_steps - pct_start_steps) as f64;
             self.max_lr - (self.max_lr - self.min_lr) * progress
         }
     }
@@ -552,12 +591,26 @@ pub mod utils {
     }
 
     /// Create cosine annealing scheduler
-    pub fn create_cosine_scheduler(base_lr: f64, min_lr: f64, warmup_steps: usize, total_steps: usize) -> Box<dyn LRSchedulerTrait> {
-        Box::new(CosineAnnealingScheduler::new(base_lr, min_lr, warmup_steps, total_steps))
+    pub fn create_cosine_scheduler(
+        base_lr: f64,
+        min_lr: f64,
+        warmup_steps: usize,
+        total_steps: usize,
+    ) -> Box<dyn LRSchedulerTrait> {
+        Box::new(CosineAnnealingScheduler::new(
+            base_lr,
+            min_lr,
+            warmup_steps,
+            total_steps,
+        ))
     }
 
     /// Create OneCycle scheduler
-    pub fn create_one_cycle_scheduler(max_lr: f64, min_lr: f64, total_steps: usize) -> Box<dyn LRSchedulerTrait> {
+    pub fn create_one_cycle_scheduler(
+        max_lr: f64,
+        min_lr: f64,
+        total_steps: usize,
+    ) -> Box<dyn LRSchedulerTrait> {
         Box::new(OneCycleScheduler::new(max_lr, min_lr, total_steps))
     }
 }
@@ -713,11 +766,17 @@ mod tests {
         let clipped = optimizer.clip_gradients(&gradients, 1.0).unwrap();
 
         // Verify clipping was applied (gradients should be scaled down)
-        let original_norm = (1.0_f32.powi(2) + 2.0_f32.powi(2) + 3.0_f32.powi(2) + 0.5_f32.powi(2) + 1.5_f32.powi(2)).sqrt() as f64;
+        let original_norm = (1.0_f32.powi(2)
+            + 2.0_f32.powi(2)
+            + 3.0_f32.powi(2)
+            + 0.5_f32.powi(2)
+            + 1.5_f32.powi(2))
+        .sqrt() as f64;
         assert!(original_norm > 1.0);
 
         // Clipped gradients should have smaller total norm
-        let clipped_sum_sq: f64 = clipped.values()
+        let clipped_sum_sq: f64 = clipped
+            .values()
             .flat_map(|x| x.iter().map(|v| (*v as f64).powi(2)))
             .sum();
         let clipped_norm = clipped_sum_sq.sqrt();

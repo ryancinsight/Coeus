@@ -30,7 +30,7 @@ fn test_basic_addition_grad() {
     let z = add::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>(&x, &y).unwrap();
 
     // Check forward pass
-    assert_eq!(z.as_slice()[0].get(), 5.0);
+    assert_relative_eq!(z.as_slice()[0].get(), 5.0, epsilon = 1e-6);
     println!("z.requires_grad(): {}", z.requires_grad());
 
     // Backward pass with gradient
@@ -43,8 +43,8 @@ fn test_basic_addition_grad() {
     let x_grad = x.grad().unwrap();
     let y_grad = y.grad().unwrap();
 
-    assert_eq!(x_grad.as_slice()[0].get(), 1.0);
-    assert_eq!(y_grad.as_slice()[0].get(), 1.0);
+    assert_relative_eq!(x_grad.as_slice()[0].get(), 1.0, epsilon = 1e-6);
+    assert_relative_eq!(y_grad.as_slice()[0].get(), 1.0, epsilon = 1e-6);
 }
 
 #[test]
@@ -63,8 +63,8 @@ fn test_tensor_gradient_methods() {
 
     // Test clamp
     let clamped = x.clamp(Float32::new(-0.5), Float32::new(1.5)).unwrap();
-    assert_eq!(clamped.as_slice()[0].get(), 1.5); // 2.0 clamped to 1.5
-    assert_eq!(clamped.as_slice()[1].get(), -0.5); // -1.0 clamped to -0.5
+    assert_relative_eq!(clamped.as_slice()[0].get(), 1.5, epsilon = 1e-6); // 2.0 clamped to 1.5
+    assert_relative_eq!(clamped.as_slice()[1].get(), -0.5, epsilon = 1e-6); // -1.0 clamped to -0.5
 }
 
 #[test]
@@ -101,8 +101,8 @@ fn test_gradient_accumulation() {
     let x_grad = x.grad().unwrap();
     let y_grad = y.grad().unwrap();
 
-    assert_eq!(x_grad.as_slice()[0].get(), 2.0); // 1.0 + 1.0
-    assert_eq!(y_grad.as_slice()[0].get(), 2.0); // 1.0 + 1.0
+    assert_relative_eq!(x_grad.as_slice()[0].get(), 2.0, epsilon = 1e-6); // 1.0 + 1.0
+    assert_relative_eq!(y_grad.as_slice()[0].get(), 2.0, epsilon = 1e-6); // 1.0 + 1.0
 }
 
 #[test]
@@ -167,18 +167,18 @@ fn test_matmul_backward() {
     // For C = A @ B, ∂C/∂A = grad_output @ B^T
     // B^T = [[5, 7], [6, 8]]
     // grad_output @ B^T = [[1, 0], [0, 1]] @ [[5, 7], [6, 8]] = [[5, 7], [6, 8]]
-    assert_eq!(a_grad.as_slice()[0].get(), 5.0); // ∂C/∂A[0,0]
-    assert_eq!(a_grad.as_slice()[1].get(), 7.0); // ∂C/∂A[0,1]
-    assert_eq!(a_grad.as_slice()[2].get(), 6.0); // ∂C/∂A[1,0]
-    assert_eq!(a_grad.as_slice()[3].get(), 8.0); // ∂C/∂A[1,1]
+    assert_relative_eq!(a_grad.as_slice()[0].get(), 5.0, epsilon = 1e-6); // ∂C/∂A[0,0]
+    assert_relative_eq!(a_grad.as_slice()[1].get(), 7.0, epsilon = 1e-6); // ∂C/∂A[0,1]
+    assert_relative_eq!(a_grad.as_slice()[2].get(), 6.0, epsilon = 1e-6); // ∂C/∂A[1,0]
+    assert_relative_eq!(a_grad.as_slice()[3].get(), 8.0, epsilon = 1e-6); // ∂C/∂A[1,1]
 
     // For C = A @ B, ∂C/∂B = A^T @ grad_output
     // A^T = [[1, 3], [2, 4]]
     // A^T @ grad_output = [[1, 3], [2, 4]] @ [[1, 0], [0, 1]] = [[1, 3], [2, 4]]
-    assert_eq!(b_grad.as_slice()[0].get(), 1.0); // ∂C/∂B[0,0]
-    assert_eq!(b_grad.as_slice()[1].get(), 3.0); // ∂C/∂B[0,1]
-    assert_eq!(b_grad.as_slice()[2].get(), 2.0); // ∂C/∂B[1,0]
-    assert_eq!(b_grad.as_slice()[3].get(), 4.0); // ∂C/∂B[1,1]
+    assert_relative_eq!(b_grad.as_slice()[0].get(), 1.0, epsilon = 1e-6); // ∂C/∂B[0,0]
+    assert_relative_eq!(b_grad.as_slice()[1].get(), 3.0, epsilon = 1e-6); // ∂C/∂B[0,1]
+    assert_relative_eq!(b_grad.as_slice()[2].get(), 2.0, epsilon = 1e-6); // ∂C/∂B[1,0]
+    assert_relative_eq!(b_grad.as_slice()[3].get(), 4.0, epsilon = 1e-6); // ∂C/∂B[1,1]
 }
 
 #[test]
@@ -401,8 +401,9 @@ fn test_nll_loss_backward() {
 
     // Check gradients: derivative of NLL w.r.t. log_probs should be -1 at target position
     let log_probs_grad = log_probs.grad().unwrap();
-    assert_eq!(log_probs_grad.as_slice()[0].get(), -1.0); // Target position gets -1
-    assert_eq!(log_probs_grad.as_slice()[1].get(), 0.0); // Non-target positions get 0
+    assert_relative_eq!(log_probs_grad.as_slice()[0].get(), -1.0, epsilon = 1e-6); // Target position gets -1
+    assert_relative_eq!(log_probs_grad.as_slice()[1].get(), 0.0, epsilon = 1e-6);
+    // Non-target positions get 0
 }
 
 #[test]
@@ -419,7 +420,7 @@ fn test_checkpoint_basic() {
     )
     .unwrap();
 
-    assert_eq!(result.as_slice()[0].get(), 2.0);
+    assert_relative_eq!(result.as_slice()[0].get(), 2.0, epsilon = 1e-6);
 }
 
 #[test]
@@ -444,13 +445,25 @@ fn test_sparse_matmul_backward() {
     let result = matmul(&lhs, &rhs).unwrap();
 
     // Verify forward result
-        let result_dense = result.to_dense_generic().unwrap();
-        let result_data = result_dense.as_slice();
+    let result_dense = result.to_dense_generic().unwrap();
+    let result_data = result_dense.as_slice();
 
-        assert_eq!(result_data[0].get(), 1.0, "Element (0,0) mismatch");
-        assert_eq!(result_data[1].get(), 0.0, "Element (0,1) mismatch");
-        assert_eq!(result_data[2].get(), 0.0, "Element (1,0) mismatch");
-        assert_eq!(result_data[3].get(), 1.0, "Element (1,1) mismatch");
+    assert!(
+        (result_data[0].get() - 1.0).abs() < 1e-6,
+        "Element (0,0) mismatch"
+    );
+    assert!(
+        (result_data[1].get() - 0.0).abs() < 1e-6,
+        "Element (0,1) mismatch"
+    );
+    assert!(
+        (result_data[2].get() - 0.0).abs() < 1e-6,
+        "Element (1,0) mismatch"
+    );
+    assert!(
+        (result_data[3].get() - 1.0).abs() < 1e-6,
+        "Element (1,1) mismatch"
+    );
 
     // Backward pass
     // Create sparse gradient of ones (dense representation in CSR)
@@ -461,21 +474,21 @@ fn test_sparse_matmul_backward() {
     let grad_shape = vec![2, 2];
     let grad_storage = CsrStorage::new(grad_data, grad_indices, grad_indptr, &grad_shape).unwrap();
     let grad_output = SparseTestTensor::from_storage(grad_storage, backend.clone());
-    
+
     backward_with_grad(&result, grad_output).unwrap();
 
     // Verify gradients
     // For C = A * B, if A=I, B=I, dL/dC=Ones
     // dL/dA = Ones * I^T = Ones
     // dL/dB = I^T * Ones = Ones
-    
+
     let lhs_grad = lhs.grad().unwrap();
     // lhs_grad is SparseTestTensor (CsrStorage)
-    
+
     let lhs_grad_dense = lhs_grad.to_dense_generic().unwrap();
     let grad_data = lhs_grad_dense.as_slice();
-    for i in 0..4 {
-        assert_eq!(grad_data[i].get(), 1.0);
+    for v in grad_data.iter().take(4) {
+        assert_relative_eq!(v.get(), 1.0, epsilon = 1e-6);
     }
 }
 
@@ -483,7 +496,6 @@ fn test_sparse_matmul_backward() {
 #[cfg(test)]
 mod proptest_tests {
     use super::*;
-    use proptest::prelude::*;
     use num_traits::ToPrimitive;
 
     /// Generate random tensor data with reasonable values for autograd
@@ -502,7 +514,12 @@ mod proptest_tests {
             let logprobs_data =
                 prop::collection::vec((-10.0..0.0f32).prop_map(Float32::new), logprobs_size);
             let targets_data = prop::collection::vec(
-                (0..num_classes).prop_map(|i| Float32::new(i as f32)),
+                (0..num_classes).prop_map(|i| {
+                    let Some(i_f32) = i.to_f32() else {
+                        panic!("target class index {i} cannot be represented as f32");
+                    };
+                    Float32::new(i_f32)
+                }),
                 batch_size,
             );
 
@@ -638,35 +655,44 @@ mod proptest_tests {
         #[test]
         fn test_nll_loss_gradient_correctness((ref log_probs, ref targets) in arb_nll_loss_pair()) {
             let log_probs_grad = log_probs.clone().requires_grad_(true);
-            
+
             // Extract dimensions from tensors
             let batch_size = log_probs.shape().dims()[0];
             let n_classes = log_probs.shape().dims()[1];
-            
+
             // Forward pass
             let loss = nll_loss(&log_probs_grad, targets).unwrap();
-            
+
             // Backward pass
             let grad_output = Tensor::ones(loss.shape().dims()).unwrap();
             backward_with_grad(&loss, grad_output).unwrap();
-            
+
             let grad = log_probs_grad.grad().unwrap();
             let grad_slice = grad.as_slice();
             let targets_slice = targets.as_slice();
-            
+
             // Verify gradients: -1/N at target index, 0 elsewhere
-            let scale = -1.0 / (batch_size as f32);
-            
-            for i in 0..batch_size {
-                let target_idx = targets_slice[i].to_usize().unwrap_or(0);
+            let Some(batch_size_f32) = batch_size.to_f32() else {
+                panic!("batch_size {batch_size} cannot be represented as f32");
+            };
+            let scale = -1.0 / batch_size_f32;
+
+            for (i, target) in targets_slice.iter().enumerate() {
+                let Some(target_idx) = target.to_usize() else {
+                    panic!("target value {} cannot be converted to usize", target.get());
+                };
                 for c in 0..n_classes {
                     let flat_idx = i * n_classes + c;
                     let expected = if c == target_idx { scale } else { 0.0 };
                     // Use a slightly larger epsilon for accumulated errors or float precision
-                    if (grad_slice[flat_idx].get() - expected).abs() >= 1e-4 {
-                         panic!("Gradient mismatch at batch {} class {}: expected {}, got {}", 
-                        i, c, expected, grad_slice[flat_idx].get());
-                    }
+                    assert!(
+                        (grad_slice[flat_idx].get() - expected).abs() < 1e-4,
+                        "Gradient mismatch at batch {} class {}: expected {}, got {}",
+                        i,
+                        c,
+                        expected,
+                        grad_slice[flat_idx].get()
+                    );
                 }
             }
         }
@@ -714,8 +740,8 @@ mod proptest_tests {
             let a_grad = a.clone().requires_grad_(true);
 
             // Create multiple loss terms that depend on 'a'
-            let loss1 = add(&a_grad, &b).unwrap();
-            let loss2 = add(&a_grad, &b).unwrap();
+            let loss1 = add(&a_grad, b).unwrap();
+            let loss2 = add(&a_grad, b).unwrap();
 
             // Backward both losses
             let grad_out = Tensor::from_vec(vec![Float32::new(1.0); a.len()], &[a.len()]).unwrap();
@@ -733,7 +759,7 @@ mod proptest_tests {
         #[test]
         fn test_non_differentiable_operations_robustness((ref a, ref b) in arb_tensor_pair_same_shape()) {
             // Test operations that don't require gradients
-            let result = add(&a, &b).unwrap();
+            let result = add(a, b).unwrap();
             prop_assert!(!result.requires_grad());
 
             // Even without gradients, operations should not panic

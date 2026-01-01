@@ -13,8 +13,10 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use nn::error::Result;
-use nn::hpo::{HpoRunner, RandomSearchOptimizer, Objective, clip_spaces};
-use nn::experiment_tracking::{ExperimentTracker, ExperimentSpec, ExperimentStorage, InMemoryStorage, create_experiment_spec};
+use nn::experiment_tracking::{
+    create_experiment_spec, ExperimentSpec, ExperimentStorage, ExperimentTracker, InMemoryStorage,
+};
+use nn::hpo::{clip_spaces, HpoRunner, Objective, RandomSearchOptimizer};
 
 // Mock CLIP trainer for integration testing (would use real CLIP in production)
 #[derive(Clone)]
@@ -144,11 +146,20 @@ impl CoeusIntegrationTest {
         println!("🏆 Best Loss: {:.4}", results.best_loss.unwrap_or(0.0));
         println!("📊 Total Experiments: {}", results.total_experiments);
         println!("🔍 API Tests Passed: {}", results.api_tests_passed);
-        println!("⚡ Benchmark Score: {:.3}", results.benchmark_score.unwrap_or(0.0));
-        println!("💾 Memory Usage: {:.1} MB", results.memory_usage_mb.unwrap_or(0.0));
+        println!(
+            "⚡ Benchmark Score: {:.3}",
+            results.benchmark_score.unwrap_or(0.0)
+        );
+        println!(
+            "💾 Memory Usage: {:.1} MB",
+            results.memory_usage_mb.unwrap_or(0.0)
+        );
         println!("⏱️  Total Time: {:.2}s", total_time.as_secs_f64());
 
-        if results.hpo_completed && results.api_tests_passed >= 3 && results.benchmark_score.unwrap_or(0.0) > 0.7 {
+        if results.hpo_completed
+            && results.api_tests_passed >= 3
+            && results.benchmark_score.unwrap_or(0.0) > 0.7
+        {
             println!("\n🎯 INTEGRATION TEST PASSED!");
             println!("   ✅ All components working together");
             println!("   ✅ Performance meets expectations");
@@ -187,7 +198,8 @@ impl CoeusIntegrationTest {
                 }
 
                 // Create experiment tracker
-                let exp_config = config.iter()
+                let exp_config = config
+                    .iter()
                     .map(|(k, v)| (k.clone(), serde_json::Value::from(*v)))
                     .collect();
 
@@ -250,9 +262,11 @@ impl CoeusIntegrationTest {
             results.best_config = Some(best_config);
         }
 
-        println!("   ✅ HPO completed: {} trials, best loss: {:.4}",
-                results.total_experiments,
-                results.best_loss.unwrap_or(0.0));
+        println!(
+            "   ✅ HPO completed: {} trials, best loss: {:.4}",
+            results.total_experiments,
+            results.best_loss.unwrap_or(0.0)
+        );
 
         Ok(())
     }
@@ -262,17 +276,33 @@ impl CoeusIntegrationTest {
 
         // Load all experiments from storage
         let experiments = self.storage.list_experiments(None).await?;
-        let completed_experiments = experiments.iter()
-            .filter(|exp| matches!(exp.status, nn::experiment_tracking::ExperimentStatus::Completed))
+        let completed_experiments = experiments
+            .iter()
+            .filter(|exp| {
+                matches!(
+                    exp.status,
+                    nn::experiment_tracking::ExperimentStatus::Completed
+                )
+            })
             .count();
 
-        println!("   📊 Found {} total experiments, {} completed", experiments.len(), completed_experiments);
+        println!(
+            "   📊 Found {} total experiments, {} completed",
+            experiments.len(),
+            completed_experiments
+        );
 
         // Verify experiment data integrity
         for exp in &experiments {
             assert!(!exp.spec.id.is_empty(), "Experiment ID should not be empty");
-            assert!(!exp.spec.name.is_empty(), "Experiment name should not be empty");
-            assert!(exp.spec.config.contains_key("learning_rate"), "Should have learning_rate config");
+            assert!(
+                !exp.spec.name.is_empty(),
+                "Experiment name should not be empty"
+            );
+            assert!(
+                exp.spec.config.contains_key("learning_rate"),
+                "Should have learning_rate config"
+            );
         }
 
         println!("   ✅ Experiment tracking validation passed");
@@ -343,8 +373,13 @@ impl CoeusIntegrationTest {
             let mem_usage = 512.0 + (config["batch_size"] / 32.0) * 128.0;
             memory_usage.push(mem_usage);
 
-            println!("      Trial {}: Score {:.3}, Memory {:.0} MB, Time {:.0}ms",
-                    i + 1, score, mem_usage, elapsed.as_millis());
+            println!(
+                "      Trial {}: Score {:.3}, Memory {:.0} MB, Time {:.0}ms",
+                i + 1,
+                score,
+                mem_usage,
+                elapsed.as_millis()
+            );
         }
 
         let avg_score = scores.iter().sum::<f64>() / scores.len() as f64;
@@ -372,9 +407,14 @@ impl CoeusIntegrationTest {
 
         // Test that experiment results contain expected metrics
         let has_loss_metric = experiments.iter().any(|exp| {
-            exp.metrics.iter().any(|(name, _)| name == "validation_loss")
+            exp.metrics
+                .iter()
+                .any(|(name, _)| name == "validation_loss")
         });
-        assert!(has_loss_metric, "Experiments should have validation_loss metrics");
+        assert!(
+            has_loss_metric,
+            "Experiments should have validation_loss metrics"
+        );
 
         // Test configuration consistency
         for exp in &experiments {
@@ -403,7 +443,10 @@ async fn main() -> Result<()> {
     let results = integration_test.get_results().await;
 
     // Exit with appropriate code based on test results
-    if results.hpo_completed && results.api_tests_passed >= 3 && results.benchmark_score.unwrap_or(0.0) > 0.7 {
+    if results.hpo_completed
+        && results.api_tests_passed >= 3
+        && results.benchmark_score.unwrap_or(0.0) > 0.7
+    {
         std::process::exit(0); // Success
     } else {
         std::process::exit(1); // Failure
@@ -435,4 +478,3 @@ mod tests {
         assert!(loss > 0.0 && loss < 5.0);
     }
 }
-

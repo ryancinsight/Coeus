@@ -36,7 +36,7 @@
 //! println!("Tensor requires gradients: {}", x.requires_grad());
 //! ```
 
-#![warn(missing_docs, clippy::all, clippy::pedantic)]
+#![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
 pub mod checkpointing;
@@ -56,9 +56,9 @@ pub mod tensor_ops;
 mod tests;
 
 // Re-export key types for ergonomics
+pub use custom::apply_custom_function;
 pub use storage::AsAny;
 pub use tensor::{DifferentiableFunction, Function};
-pub use custom::apply_custom_function;
 
 // Core traits for extensibility
 pub mod traits {

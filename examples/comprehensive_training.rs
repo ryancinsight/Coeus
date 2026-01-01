@@ -23,14 +23,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 // Import Coeus components
-use tensor::CpuBackend;
 use dtype::float::Float32;
 use nn::{
-    Linear, Sequential, MSELoss, CrossEntropyLoss, Module,
-    SGD, Adam, TrainingMonitor, TrainingMetrics,
+    Adam, CrossEntropyLoss, Linear, MSELoss, Module, Sequential, TrainingMetrics, TrainingMonitor,
+    SGD,
 };
-use profiling::{Timer, Profiler};
+use profiling::{Profiler, Timer};
 use storage::DenseStorage;
+use tensor::CpuBackend;
 use tensor::{Shape, Tensor};
 
 /// Synthetic dataset for demonstration
@@ -52,7 +52,8 @@ impl SyntheticDataset {
 
             // Generate target based on simple rule (for demonstration)
             let target_value = if input.data()[0].0 > 0.0 { 1.0 } else { 0.0 };
-            let target = Tensor::from_vec(vec![Float32(target_value)], Shape::from(vec![1])).unwrap();
+            let target =
+                Tensor::from_vec(vec![Float32(target_value)], Shape::from(vec![1])).unwrap();
             targets.push(target);
         }
 
@@ -60,15 +61,24 @@ impl SyntheticDataset {
     }
 
     /// Get batch from dataset
-    fn get_batch(&self, start_idx: usize, batch_size: usize) -> (Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>) {
+    fn get_batch(
+        &self,
+        start_idx: usize,
+        batch_size: usize,
+    ) -> (
+        Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+        Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    ) {
         let end_idx = (start_idx + batch_size).min(self.inputs.len());
 
         // Stack inputs into batch
-        let batch_inputs: Vec<_> = self.inputs[start_idx..end_idx].iter()
+        let batch_inputs: Vec<_> = self.inputs[start_idx..end_idx]
+            .iter()
             .map(|t| t.unsqueeze(0).unwrap())
             .collect();
 
-        let batch_targets: Vec<_> = self.targets[start_idx..end_idx].iter()
+        let batch_targets: Vec<_> = self.targets[start_idx..end_idx]
+            .iter()
             .map(|t| t.unsqueeze(0).unwrap())
             .collect();
 
@@ -85,14 +95,31 @@ impl SyntheticDataset {
 }
 
 /// Neural network model for binary classification
-fn create_model(input_dim: usize, hidden_dim: usize) -> Sequential<Box<dyn Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>> {
+fn create_model(
+    input_dim: usize,
+    hidden_dim: usize,
+) -> Sequential<Box<dyn Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>>> {
     Sequential::new(vec![
         // Input layer
-        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(input_dim, hidden_dim).unwrap()),
+        Box::new(
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                input_dim, hidden_dim,
+            )
+            .unwrap(),
+        ),
         // Hidden layer
-        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(hidden_dim, hidden_dim / 2).unwrap()),
+        Box::new(
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                hidden_dim,
+                hidden_dim / 2,
+            )
+            .unwrap(),
+        ),
         // Output layer (binary classification)
-        Box::new(Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(hidden_dim / 2, 1).unwrap()),
+        Box::new(
+            Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(hidden_dim / 2, 1)
+                .unwrap(),
+        ),
     ])
 }
 
@@ -162,16 +189,34 @@ impl MetricsCollector {
 
     fn print_summary(&self) {
         println!("\n📊 Training Summary");
-        println!("Best validation loss: {:.4} (epoch {})", self.best_val_loss, self.best_epoch);
-        println!("Final training loss: {:.4}", self.train_losses.last().unwrap_or(&0.0));
-        println!("Final validation loss: {:.4}", self.val_losses.last().unwrap_or(&0.0));
-        println!("Final training accuracy: {:.2}%", self.train_accuracies.last().unwrap_or(&0.0) * 100.0);
-        println!("Final validation accuracy: {:.2}%", self.val_accuracies.last().unwrap_or(&0.0) * 100.0);
+        println!(
+            "Best validation loss: {:.4} (epoch {})",
+            self.best_val_loss, self.best_epoch
+        );
+        println!(
+            "Final training loss: {:.4}",
+            self.train_losses.last().unwrap_or(&0.0)
+        );
+        println!(
+            "Final validation loss: {:.4}",
+            self.val_losses.last().unwrap_or(&0.0)
+        );
+        println!(
+            "Final training accuracy: {:.2}%",
+            self.train_accuracies.last().unwrap_or(&0.0) * 100.0
+        );
+        println!(
+            "Final validation accuracy: {:.2}%",
+            self.val_accuracies.last().unwrap_or(&0.0) * 100.0
+        );
     }
 }
 
 /// Calculate binary classification accuracy
-fn calculate_accuracy(predictions: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, targets: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>) -> f32 {
+fn calculate_accuracy(
+    predictions: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    targets: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+) -> f32 {
     let pred_data = predictions.data();
     let target_data = targets.data();
 
@@ -228,12 +273,11 @@ async fn train_model(
         let num_train_batches = train_dataset.len() / config.batch_size;
 
         for batch_idx in 0..num_train_batches {
-            let (inputs, targets) = train_dataset.get_batch(batch_idx * config.batch_size, config.batch_size);
+            let (inputs, targets) =
+                train_dataset.get_batch(batch_idx * config.batch_size, config.batch_size);
 
             // Profile forward pass
-            let forward_profile = profiler.profile(|| {
-                model.forward(&inputs).unwrap()
-            });
+            let forward_profile = profiler.profile(|| model.forward(&inputs).unwrap());
 
             let outputs = model.forward(&inputs).unwrap();
             let loss = loss_fn.forward(&outputs, &targets).unwrap();
@@ -274,7 +318,8 @@ async fn train_model(
         let num_val_batches = val_dataset.len() / config.batch_size;
 
         for batch_idx in 0..num_val_batches {
-            let (inputs, targets) = val_dataset.get_batch(batch_idx * config.batch_size, config.batch_size);
+            let (inputs, targets) =
+                val_dataset.get_batch(batch_idx * config.batch_size, config.batch_size);
 
             let outputs = model.forward(&inputs).unwrap();
             let loss = loss_fn.forward(&outputs, &targets).unwrap();
@@ -291,12 +336,20 @@ async fn train_model(
         // Update metrics
         metrics.update(avg_train_loss, avg_val_loss, train_accuracy, val_accuracy);
 
-        println!("  Train Loss: {:.4}, Train Acc: {:.2}%, Val Loss: {:.4}, Val Acc: {:.2}%",
-                avg_train_loss, train_accuracy * 100.0, avg_val_loss, val_accuracy * 100.0);
+        println!(
+            "  Train Loss: {:.4}, Train Acc: {:.2}%, Val Loss: {:.4}, Val Acc: {:.2}%",
+            avg_train_loss,
+            train_accuracy * 100.0,
+            avg_val_loss,
+            val_accuracy * 100.0
+        );
 
         // Early stopping check
         if metrics.should_early_stop(config.patience) {
-            println!("⏹️  Early stopping triggered after {} epochs without improvement", config.patience);
+            println!(
+                "⏹️  Early stopping triggered after {} epochs without improvement",
+                config.patience
+            );
             break;
         }
     }
@@ -425,7 +478,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let metrics = train_model(&mut model, &train_dataset, &val_dataset, &config).await?;
 
     // Save checkpoint
-    if let (Some(final_loss), Some(final_acc)) = (metrics.val_losses.last(), metrics.val_accuracies.last()) {
+    if let (Some(final_loss), Some(final_acc)) =
+        (metrics.val_losses.last(), metrics.val_accuracies.last())
+    {
         save_checkpoint(&model, metrics.best_epoch, *final_loss, *final_acc)?;
     }
 
@@ -484,12 +539,12 @@ mod tests {
 
     #[test]
     fn test_accuracy_calculation() {
-        let predictions = Tensor::from_vec(vec![Float32(0.6), Float32(-0.3)], Shape::from(vec![2, 1])).unwrap();
-        let targets = Tensor::from_vec(vec![Float32(1.0), Float32(0.0)], Shape::from(vec![2, 1])).unwrap();
+        let predictions =
+            Tensor::from_vec(vec![Float32(0.6), Float32(-0.3)], Shape::from(vec![2, 1])).unwrap();
+        let targets =
+            Tensor::from_vec(vec![Float32(1.0), Float32(0.0)], Shape::from(vec![2, 1])).unwrap();
 
         let accuracy = calculate_accuracy(&predictions, &targets);
         assert!((accuracy - 0.5).abs() < 0.1); // Approximately 0.5 (1/2 correct)
     }
 }
-
-

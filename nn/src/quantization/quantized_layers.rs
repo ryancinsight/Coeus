@@ -57,7 +57,12 @@ impl<B, S, T, const BITS: usize> QuantizedLinear<B, S, T, BITS>
 where
     B: Backend<Data = T> + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
-    T: DataType + Clone + PartialOrd,
+    T: DataType
+        + num_traits::Float
+        + num_traits::FromPrimitive
+        + num_traits::ToPrimitive
+        + Clone
+        + PartialOrd,
 {
     /// Create a quantized linear layer from a trained FakeQuantize linear layer
     ///
@@ -224,7 +229,12 @@ impl<B, S, T, const BITS: usize> Module<B, S, T> for QuantizedLinear<B, S, T, BI
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
-    T: DataType + Clone + PartialOrd,
+    T: DataType
+        + num_traits::Float
+        + num_traits::FromPrimitive
+        + num_traits::ToPrimitive
+        + Clone
+        + PartialOrd,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.forward(input)

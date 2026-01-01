@@ -202,4 +202,3 @@ fn main() {
     println!("\n✨ Example completed! GPU RMSprop provides significant");
     println!("   performance improvements for deep learning optimization.");
 }
-

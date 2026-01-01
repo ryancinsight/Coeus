@@ -2,9 +2,8 @@
 //!
 //! Provides basic error conversion from Rust errors to Python exceptions.
 
-use pyo3::prelude::*;
-use pyo3::{PyResult, PyErr};
 use pyo3::exceptions::PyRuntimeError;
+use pyo3::PyErr;
 
 /// Convert a Rust error to a Python exception
 pub fn to_py_error<E: std::fmt::Display>(error: E, context: &str) -> PyErr {

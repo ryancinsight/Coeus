@@ -8,17 +8,22 @@ use std::collections::HashMap;
 
 use crate::error::{NNError, Result};
 use crate::linear::Linear;
-use crate::meta::prototypical::{PrototypicalNetwork, DistanceMetric};
+use crate::meta::prototypical::{DistanceMetric, PrototypicalNetwork};
 use backend::CpuBackend;
 use dtype::float::Float32;
 use storage::DenseStorage;
 use tensor::Tensor;
 
 /// Type alias for the complex PrototypicalNetwork type
-type ProtoNet = PrototypicalNetwork<Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>, CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
+type ProtoNet = PrototypicalNetwork<
+    Linear<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    CpuBackend<Float32>,
+    DenseStorage<Float32>,
+    Float32,
+>;
 
 use super::{
-    agent::{AgentType, AgentMetadata, ResourceProfile, PerformanceCharacteristics},
+    agent::{AgentMetadata, AgentType, PerformanceCharacteristics, ResourceProfile},
     experiment::ResourceRequirements,
     ExperimentResult, ExperimentSpec, ExperimentStatus, ResearchAgent, ResearchAgentFactory,
     ResearchDomain, ResearchInsight,
@@ -80,20 +85,26 @@ impl ResearchAgent for PrototypicalResearchAgent {
     }
 
     fn supports_domain(&self, domain: &ResearchDomain) -> bool {
-        matches!(domain, ResearchDomain::MetaLearning | ResearchDomain::ComputerVision)
+        matches!(
+            domain,
+            ResearchDomain::MetaLearning | ResearchDomain::ComputerVision
+        )
     }
 
     fn initialize(&mut self, config: serde_json::Value) -> Result<()> {
         // Extract configuration parameters
-        let input_size = config.get("input_size")
+        let input_size = config
+            .get("input_size")
             .and_then(|v| v.as_u64())
             .unwrap_or(784) as usize;
 
-        let hidden_size = config.get("hidden_size")
+        let hidden_size = config
+            .get("hidden_size")
             .and_then(|v| v.as_u64())
             .unwrap_or(64) as usize;
 
-        let distance_metric = config.get("distance_metric")
+        let distance_metric = config
+            .get("distance_metric")
             .and_then(|v| v.as_str())
             .unwrap_or("euclidean");
 
@@ -104,21 +115,22 @@ impl ResearchAgent for PrototypicalResearchAgent {
             _ => DistanceMetric::Euclidean,
         };
 
-        let scale = config.get("scale")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(1.0);
+        let scale = config.get("scale").and_then(|v| v.as_f64()).unwrap_or(1.0);
 
-        let temperature = config.get("temperature")
+        let temperature = config
+            .get("temperature")
             .and_then(|v| v.as_f64())
             .unwrap_or(1.0);
 
         // Create encoder network
         let encoder = Linear::new(input_size, hidden_size).unwrap();
 
-        self.proto_net = Some(PrototypicalNetwork::new(encoder)
-            .with_distance_metric(metric)
-            .with_scale(scale)
-            .with_temperature(temperature));
+        self.proto_net = Some(
+            PrototypicalNetwork::new(encoder)
+                .with_distance_metric(metric)
+                .with_scale(scale)
+                .with_temperature(temperature),
+        );
 
         Ok(())
     }
@@ -126,17 +138,18 @@ impl ResearchAgent for PrototypicalResearchAgent {
     fn run_step(&mut self, experiment: &ExperimentSpec) -> Result<ExperimentResult> {
         let start_time = std::time::Instant::now();
 
-        match experiment.experiment_config.get("experiment_type")
+        match experiment
+            .experiment_config
+            .get("experiment_type")
             .and_then(|v| v.as_str())
             .unwrap_or("evaluation")
         {
-            "evaluation" => {
-                self.run_evaluation(experiment)
-            },
+            "evaluation" => self.run_evaluation(experiment),
             _ => Err(NNError::InvalidConfiguration {
                 message: "Unsupported experiment type".to_string(),
             }),
-        }.map(|mut result| {
+        }
+        .map(|mut result| {
             result.start_time = start_time;
             result.end_time = std::time::Instant::now();
             result.experiment_id = experiment.id.clone();
@@ -156,26 +169,24 @@ impl ResearchAgent for PrototypicalResearchAgent {
     }
 
     fn get_available_actions(&self) -> Vec<ExperimentSpec> {
-        vec![
-            ExperimentSpec {
-                id: "proto_eval".to_string(),
-                name: "Prototypical Networks Evaluation".to_string(),
-                domain: ResearchDomain::MetaLearning,
-                agent_type: "prototypical".to_string(),
-                experiment_config: serde_json::json!({
-                    "experiment_type": "evaluation",
-                    "n_way": 5,
-                    "k_shot": 5,
-                    "n_query": 15
-                }),
-                resource_requirements: Default::default(),
-                dependencies: vec![],
-                priority: 1,
-                timeout_secs: Some(300),
-                quality_constraints: Default::default(),
-                metadata: HashMap::new(),
-            },
-        ]
+        vec![ExperimentSpec {
+            id: "proto_eval".to_string(),
+            name: "Prototypical Networks Evaluation".to_string(),
+            domain: ResearchDomain::MetaLearning,
+            agent_type: "prototypical".to_string(),
+            experiment_config: serde_json::json!({
+                "experiment_type": "evaluation",
+                "n_way": 5,
+                "k_shot": 5,
+                "n_query": 15
+            }),
+            resource_requirements: Default::default(),
+            dependencies: vec![],
+            priority: 1,
+            timeout_secs: Some(300),
+            quality_constraints: Default::default(),
+            metadata: HashMap::new(),
+        }]
     }
 
     fn update_with_results(&mut self, results: &[ExperimentResult]) -> Result<()> {
@@ -220,10 +231,13 @@ impl ResearchAgent for PrototypicalResearchAgent {
 
             vec![ResearchInsight {
                 id: format!("proto_meta_insight_{}", self.id),
-                description: format!("Prototypical performance insight after {} experiments", self.training_history.len()),
+                description: format!(
+                    "Prototypical performance insight after {} experiments",
+                    self.training_history.len()
+                ),
                 evidence: vec![
                     format!("Average performance: {:.3}", recent_avg),
-                    format!("Total experiments: {}", self.training_history.len())
+                    format!("Total experiments: {}", self.training_history.len()),
                 ],
                 confidence: 0.7,
                 agent_type: self.id.clone(),
@@ -241,15 +255,21 @@ impl ResearchAgent for PrototypicalResearchAgent {
 impl PrototypicalResearchAgent {
     /// Run evaluation with synthetic data
     fn run_evaluation(&mut self, experiment: &ExperimentSpec) -> Result<ExperimentResult> {
-        let n_way = experiment.experiment_config.get("n_way")
+        let n_way = experiment
+            .experiment_config
+            .get("n_way")
             .and_then(|v| v.as_u64())
             .unwrap_or(5) as usize;
 
-        let k_shot = experiment.experiment_config.get("k_shot")
+        let k_shot = experiment
+            .experiment_config
+            .get("k_shot")
             .and_then(|v| v.as_u64())
             .unwrap_or(1) as usize;
 
-        let _n_query = experiment.experiment_config.get("n_query")
+        let _n_query = experiment
+            .experiment_config
+            .get("n_query")
             .and_then(|v| v.as_u64())
             .unwrap_or(15) as usize;
 
@@ -258,17 +278,17 @@ impl PrototypicalResearchAgent {
         for class_id in 0..n_way {
             for _ in 0..k_shot {
                 // Create random feature vectors
-                let features = Tensor::from_vec(
-                    vec![Float32::new(0.1); 64],
-                    &[64],
-                ).unwrap();
+                let features = Tensor::from_vec(vec![Float32::new(0.1); 64], &[64]).unwrap();
                 support_set.push((features, class_id));
             }
         }
 
-        let proto_net = self.proto_net.as_ref().ok_or_else(|| NNError::InvalidConfiguration {
-            message: "Prototypical network not initialized".to_string(),
-        })?;
+        let proto_net = self
+            .proto_net
+            .as_ref()
+            .ok_or_else(|| NNError::InvalidConfiguration {
+                message: "Prototypical network not initialized".to_string(),
+            })?;
 
         // Compute prototypes
         let _prototypes = proto_net.compute_prototypes(&support_set, n_way)?;
@@ -278,7 +298,7 @@ impl PrototypicalResearchAgent {
 
         Ok(ExperimentResult {
             experiment_id: String::new(), // Will be set by caller
-            agent_id: String::new(), // Will be set by caller
+            agent_id: String::new(),      // Will be set by caller
             status: ExperimentStatus::Completed,
             final_performance: accuracy,
             performance_trajectory: vec![accuracy],
@@ -303,12 +323,14 @@ impl ResearchAgentFactory for PrototypicalResearchAgentFactory {
     }
 
     fn create(&self, config: serde_json::Value) -> Result<Box<dyn ResearchAgent>> {
-        let id = config.get("id")
+        let id = config
+            .get("id")
             .and_then(|v| v.as_str())
             .unwrap_or("proto_agent")
             .to_string();
 
-        let name = config.get("name")
+        let name = config
+            .get("name")
             .and_then(|v| v.as_str())
             .unwrap_or("Prototypical Networks Research Agent")
             .to_string();
@@ -389,19 +411,23 @@ impl ResearchAgent for MAMLResearchAgent {
     }
 
     fn initialize(&mut self, config: serde_json::Value) -> Result<()> {
-        self.meta_lr = config.get("meta_learning_rate")
+        self.meta_lr = config
+            .get("meta_learning_rate")
             .and_then(|v| v.as_f64())
             .unwrap_or(0.001);
 
-        self.inner_lr = config.get("inner_learning_rate")
+        self.inner_lr = config
+            .get("inner_learning_rate")
             .and_then(|v| v.as_f64())
             .unwrap_or(0.01);
 
-        self.num_inner_steps = config.get("num_inner_steps")
+        self.num_inner_steps = config
+            .get("num_inner_steps")
             .and_then(|v| v.as_u64())
             .unwrap_or(5) as usize;
 
-        self.tasks_per_batch = config.get("tasks_per_batch")
+        self.tasks_per_batch = config
+            .get("tasks_per_batch")
             .and_then(|v| v.as_u64())
             .unwrap_or(4) as usize;
 
@@ -411,20 +437,19 @@ impl ResearchAgent for MAMLResearchAgent {
     fn run_step(&mut self, experiment: &ExperimentSpec) -> Result<ExperimentResult> {
         let start_time = std::time::Instant::now();
 
-        match experiment.experiment_config.get("experiment_type")
+        match experiment
+            .experiment_config
+            .get("experiment_type")
             .and_then(|v| v.as_str())
             .unwrap_or("meta_training")
         {
-            "meta_training" => {
-                self.run_meta_training(experiment)
-            },
-            "few_shot_evaluation" => {
-                self.run_few_shot_evaluation(experiment)
-            },
+            "meta_training" => self.run_meta_training(experiment),
+            "few_shot_evaluation" => self.run_few_shot_evaluation(experiment),
             _ => Err(NNError::InvalidConfiguration {
                 message: "Unsupported experiment type".to_string(),
             }),
-        }.map(|mut result| {
+        }
+        .map(|mut result| {
             result.start_time = start_time;
             result.end_time = std::time::Instant::now();
             result.experiment_id = experiment.id.clone();
@@ -536,17 +561,20 @@ impl ResearchAgent for MAMLResearchAgent {
 
             vec![ResearchInsight {
                 id: format!("maml_insight_{}", self.id),
-                description: format!("MAML performance insight after {} experiments", self.training_history.len()),
+                description: format!(
+                    "MAML performance insight after {} experiments",
+                    self.training_history.len()
+                ),
                 evidence: vec![
                     format!("Average performance: {:.3}", recent_avg),
                     format!("Total experiments: {}", self.training_history.len()),
                     format!("Meta learning rate: {:.6}", self.meta_lr),
-                    format!("Inner learning rate: {:.6}", self.inner_lr)
+                    format!("Inner learning rate: {:.6}", self.inner_lr),
                 ],
                 confidence: 0.8,
-                agent_type: self.id.clone(),
+                agent_type: "maml".to_string(),
                 performance_impact: recent_avg - 0.5,
-                domains: vec!["MetaLearning".to_string()],
+                domains: vec![ResearchDomain::MetaLearning.to_string()],
                 knowledge_data: serde_json::json!({
                     "recent_avg": recent_avg,
                     "meta_lr": self.meta_lr,
@@ -563,11 +591,15 @@ impl ResearchAgent for MAMLResearchAgent {
 impl MAMLResearchAgent {
     /// Run meta-training simulation
     fn run_meta_training(&mut self, experiment: &ExperimentSpec) -> Result<ExperimentResult> {
-        let tasks_per_batch = experiment.experiment_config.get("tasks_per_batch")
+        let tasks_per_batch = experiment
+            .experiment_config
+            .get("tasks_per_batch")
             .and_then(|v| v.as_u64())
             .unwrap_or(self.tasks_per_batch as u64) as usize;
 
-        let num_inner_steps = experiment.experiment_config.get("num_inner_steps")
+        let num_inner_steps = experiment
+            .experiment_config
+            .get("num_inner_steps")
             .and_then(|v| v.as_u64())
             .unwrap_or(self.num_inner_steps as u64) as usize;
 
@@ -598,8 +630,14 @@ impl MAMLResearchAgent {
             artifacts: {
                 let mut map = HashMap::new();
                 map.insert("meta_loss".to_string(), serde_json::json!(final_loss));
-                map.insert("tasks_processed".to_string(), serde_json::json!(tasks_per_batch));
-                map.insert("inner_steps".to_string(), serde_json::json!(num_inner_steps));
+                map.insert(
+                    "tasks_processed".to_string(),
+                    serde_json::json!(tasks_per_batch),
+                );
+                map.insert(
+                    "inner_steps".to_string(),
+                    serde_json::json!(num_inner_steps),
+                );
                 map.insert("meta_lr".to_string(), serde_json::json!(self.meta_lr));
                 map.insert("inner_lr".to_string(), serde_json::json!(self.inner_lr));
                 map
@@ -610,15 +648,21 @@ impl MAMLResearchAgent {
 
     /// Run few-shot evaluation simulation
     fn run_few_shot_evaluation(&mut self, experiment: &ExperimentSpec) -> Result<ExperimentResult> {
-        let n_way = experiment.experiment_config.get("n_way")
+        let n_way = experiment
+            .experiment_config
+            .get("n_way")
             .and_then(|v| v.as_u64())
             .unwrap_or(5) as usize;
 
-        let k_shot = experiment.experiment_config.get("k_shot")
+        let k_shot = experiment
+            .experiment_config
+            .get("k_shot")
             .and_then(|v| v.as_u64())
             .unwrap_or(1) as usize;
 
-        let n_query = experiment.experiment_config.get("n_query")
+        let n_query = experiment
+            .experiment_config
+            .get("n_query")
             .and_then(|v| v.as_u64())
             .unwrap_or(15) as usize;
 
@@ -657,7 +701,10 @@ impl MAMLResearchAgent {
                 map.insert("k_shot".to_string(), serde_json::json!(k_shot));
                 map.insert("n_query".to_string(), serde_json::json!(n_query));
                 map.insert("accuracy".to_string(), serde_json::json!(final_accuracy));
-                map.insert("training_experiments".to_string(), serde_json::json!(self.training_history.len()));
+                map.insert(
+                    "training_experiments".to_string(),
+                    serde_json::json!(self.training_history.len()),
+                );
                 map
             },
             metadata: HashMap::new(),
@@ -675,12 +722,14 @@ impl ResearchAgentFactory for MAMLResearchAgentFactory {
     }
 
     fn create(&self, config: serde_json::Value) -> Result<Box<dyn ResearchAgent>> {
-        let id = config.get("id")
+        let id = config
+            .get("id")
             .and_then(|v| v.as_str())
             .unwrap_or("maml_agent")
             .to_string();
 
-        let name = config.get("name")
+        let name = config
+            .get("name")
             .and_then(|v| v.as_str())
             .unwrap_or("MAML Research Agent")
             .to_string();
@@ -729,9 +778,15 @@ mod tests {
         let agent = factory.create(config).unwrap();
 
         let metadata = agent.metadata();
-        assert!(metadata.capabilities.contains(&"Few-shot classification".to_string()));
-        assert!(metadata.supported_domains.contains(&ResearchDomain::MetaLearning));
-        assert!(metadata.supported_domains.contains(&ResearchDomain::ComputerVision));
+        assert!(metadata
+            .capabilities
+            .contains(&"Few-shot classification".to_string()));
+        assert!(metadata
+            .supported_domains
+            .contains(&ResearchDomain::MetaLearning));
+        assert!(metadata
+            .supported_domains
+            .contains(&ResearchDomain::ComputerVision));
     }
 
     #[test]
@@ -751,7 +806,8 @@ mod tests {
 
     #[test]
     fn test_agent_initialization() {
-        let mut agent = PrototypicalResearchAgent::new("test".to_string(), "Test Agent".to_string());
+        let mut agent =
+            PrototypicalResearchAgent::new("test".to_string(), "Test Agent".to_string());
 
         let config = serde_json::json!({
             "input_size": 10,
@@ -794,7 +850,9 @@ mod tests {
 
         let metadata = agent.metadata();
         assert!(metadata.capabilities.contains(&"Meta-training".to_string()));
-        assert!(metadata.supported_domains.contains(&ResearchDomain::MetaLearning));
+        assert!(metadata
+            .supported_domains
+            .contains(&ResearchDomain::MetaLearning));
     }
 
     #[test]
@@ -958,14 +1016,20 @@ mod tests {
 
         // Verify initial state (should be empty)
         let initial_state = new_agent.get_state().unwrap();
-        assert_eq!(initial_state["training_history"].as_array().unwrap().len(), 0);
+        assert_eq!(
+            initial_state["training_history"].as_array().unwrap().len(),
+            0
+        );
 
         // Now set the state
         new_agent.set_state(state).unwrap();
 
         // Verify state was restored
         let restored_state = new_agent.get_state().unwrap();
-        assert_eq!(restored_state["training_history"].as_array().unwrap().len(), 3);
+        assert_eq!(
+            restored_state["training_history"].as_array().unwrap().len(),
+            3
+        );
         assert_eq!(restored_state["meta_lr"], 0.002);
         assert_eq!(restored_state["inner_lr"], 0.005);
     }
@@ -1008,7 +1072,9 @@ mod tests {
         assert!(!insights.is_empty());
         let insight = &insights[0];
         assert_eq!(insight.agent_type, "maml");
-        assert!(insight.domains.contains(&ResearchDomain::MetaLearning.to_string()));
+        assert!(insight
+            .domains
+            .contains(&ResearchDomain::MetaLearning.to_string()));
         assert!(insight.confidence > 0.0);
         assert!(insight.confidence <= 1.0);
     }
@@ -1019,7 +1085,9 @@ mod tests {
 
         // Create registry and register MAML factory
         let registry = ResearchAgentRegistry::new();
-        registry.register::<MAMLResearchAgentFactory>("maml").unwrap();
+        registry
+            .register::<MAMLResearchAgentFactory>("maml")
+            .unwrap();
 
         // Verify registration
         let agents = registry.list_agents();
@@ -1067,8 +1135,12 @@ mod tests {
 
         // Create registry and register both MAML and Prototypical agents
         let registry = ResearchAgentRegistry::new();
-        registry.register::<MAMLResearchAgentFactory>("maml").unwrap();
-        registry.register::<PrototypicalResearchAgentFactory>("proto").unwrap();
+        registry
+            .register::<MAMLResearchAgentFactory>("maml")
+            .unwrap();
+        registry
+            .register::<PrototypicalResearchAgentFactory>("proto")
+            .unwrap();
 
         // Verify both agents are registered
         let agents = registry.list_agents();
@@ -1143,9 +1215,17 @@ mod tests {
         let maml_metadata = maml_agent.metadata();
         let proto_metadata = proto_agent.metadata();
 
-        assert!(maml_metadata.capabilities.contains(&"Meta-training".to_string()));
-        assert!(maml_metadata.supported_domains.contains(&ResearchDomain::MetaLearning));
-        assert!(proto_metadata.capabilities.contains(&"Few-shot classification".to_string()));
-        assert!(proto_metadata.supported_domains.contains(&ResearchDomain::MetaLearning));
+        assert!(maml_metadata
+            .capabilities
+            .contains(&"Meta-training".to_string()));
+        assert!(maml_metadata
+            .supported_domains
+            .contains(&ResearchDomain::MetaLearning));
+        assert!(proto_metadata
+            .capabilities
+            .contains(&"Few-shot classification".to_string()));
+        assert!(proto_metadata
+            .supported_domains
+            .contains(&ResearchDomain::MetaLearning));
     }
 }

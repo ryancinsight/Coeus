@@ -12,9 +12,9 @@ use crate::Sequential;
 use autograd::backward;
 use backend::Backend;
 use dtype::DataType;
+use std::collections::HashMap;
 use storage::DenseStorage;
 use tensor::Tensor;
-use std::collections::HashMap;
 
 /// Simplified distributed training simulator
 ///

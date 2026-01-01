@@ -4,12 +4,13 @@
 //! including standard few-shot learning datasets, evaluation metrics, and statistical analysis.
 //! This supports the unified research framework for systematic algorithm comparison.
 
-
 use crate::error::{NNError, Result};
 use rand::Rng;
 
-// Re-export for backward compatibility
-pub use super::adapters::{MAMLAdapter, PrototypicalAdapter, MAMLAgentFactory, PrototypicalAgentFactory};
+#[cfg(feature = "research")]
+pub use super::adapters::{
+    MAMLAdapter, MAMLAgentFactory, PrototypicalAdapter, PrototypicalAgentFactory,
+};
 
 /// Few-shot learning dataset
 #[derive(Debug)]

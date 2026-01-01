@@ -20,12 +20,15 @@ Features:
     - Ecosystem: Seamless NumPy and Python integration
 """
 
+import numpy as np
 # Selective imports - only import what's actually implemented
 from ._coeus import (
     # Core tensor operations
     tensor_zeros, tensor_ones,
     # Classes
     Tensor, Device,
+    grad_enabled as _grad_enabled,
+    set_grad_enabled as _set_grad_enabled,
     # Functional
     relu, sigmoid, tanh, gelu, silu, leaky_relu, elu,
     mse_loss, cross_entropy, softmax, max_pool2d, avg_pool2d,
@@ -36,6 +39,10 @@ from ._coeus import (
     TensorDataset, ConcatDataset, Subset,
     # Transform factory functions
     to_tensor, normalize, resize, random_apply, compose,
+    # FFT
+    FFT, IFFT,
+    # Sparse
+    # SparseCsrTensor, CooTensor,
 )
 
 __version__ = "0.1.0"
@@ -44,25 +51,26 @@ __email__ = "ryan@coeus.dev"
 
 # Import submodules
 from . import nn
+from . import fft
 from . import transforms
 from . import utils
 from . import tensor
 from . import optim
+# from . import sparse
+from . import linalg
 
 # Factor functions for PyTorch compatibility
 def tensor(data, dtype=None, device=None, requires_grad=False):
     """Create a tensor from data."""
-    if isinstance(data, list):
-        # Infer shape from nested list
-        import numpy as np
-        arr = np.array(data)
+    if isinstance(data, (list, np.ndarray)):
+        arr = np.array(data, dtype=np.float32)
         shape = list(arr.shape)
         flat_data = arr.flatten().tolist()
         t = Tensor(flat_data, shape)
         if requires_grad:
             t.requires_grad_(True)
         return t
-    raise ValueError("Only list data is currently supported for torch.tensor()")
+    raise ValueError(f"Unsupported data type for coeus.tensor(): {type(data)}")
 
 def zeros(*size, **kwargs):
     return Tensor.zeros(list(size))
@@ -78,6 +86,9 @@ def full(size, fill_value, **kwargs):
 
 def arange(start, end=None, step=1.0, **kwargs):
     return Tensor.arange(start, end, step)
+
+def linspace(start, end, steps=100, **kwargs):
+    return Tensor.linspace(start, end, steps)
 
 def linspace(start, end, steps=100, **kwargs):
     return Tensor.linspace(start, end, steps)
@@ -100,10 +111,12 @@ def argmin(input, dim=None, keepdim=False):
 class no_grad:
     """Context manager that disables gradient calculation."""
     def __enter__(self):
-        # Currently a placeholder as backward already works without explicit tracking
-        pass
+        self._prev = _grad_enabled()
+        _set_grad_enabled(False)
+        return self
     def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
+        _set_grad_enabled(self._prev)
+        return False
 
 # Expose key classes and functions for PyTorch compatibility
 __all__ = [
@@ -113,6 +126,7 @@ __all__ = [
 
     # Neural network modules
     "nn",
+    "fft",
 
     # Data transformations
     "transforms",
@@ -141,4 +155,10 @@ __all__ = [
 
     # Version info
     "__version__",
+
+    # FFT
+    "FFT", "IFFT",
+
+    # Sparse
+    # "sparse",
 ]

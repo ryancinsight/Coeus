@@ -48,7 +48,7 @@ impl<B, S, T, const BITS: usize> FakeQuantize<B, S, T, BITS>
 where
     B: Backend<Data = T> + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
-    T: DataType,
+    T: DataType + num_traits::Float + num_traits::ToPrimitive + num_traits::FromPrimitive,
 {
     /// Create a new fake quantization module
     ///
@@ -138,12 +138,9 @@ where
     /// # Returns
     /// Fake quantized output (still floating-point for gradient flow)
     pub fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
-        // Get quantization parameters
-        let scale = self.scale.data().as_slice()[0].clone();
-        let zero_point = self.zero_point.data().as_slice()[0].clone();
-
-        // Apply fake quantization
-        self.fake_quantize(input, scale, zero_point)
+        let scales = self.scale.data().as_slice();
+        let zero_points = self.zero_point.data().as_slice();
+        self.fake_quantize(input, scales, zero_points)
     }
 
     /// Apply fake quantization to a tensor
@@ -185,9 +182,9 @@ where
                 let zero_point = &zero_points[0];
 
                 for val in x_data {
-                    let quantized = self.quantize_value(val, scale, zero_point, qmin, qmax);
+                    let quantized = self.quantize_value(val, scale, zero_point, qmin, qmax)?;
                     let dequantized =
-                        self.dequantize_value(&quantized, scale, zero_point, qmin, qmax);
+                        self.dequantize_value(&quantized, scale, zero_point, qmin, qmax)?;
                     quantized_data.push(dequantized);
                 }
             }
@@ -215,9 +212,9 @@ where
                         let scale = &scales[channel];
                         let zero_point = &zero_points[channel];
 
-                        let quantized = self.quantize_value(val, scale, zero_point, qmin, qmax);
+                        let quantized = self.quantize_value(val, scale, zero_point, qmin, qmax)?;
                         let dequantized =
-                            self.dequantize_value(&quantized, scale, zero_point, qmin, qmax);
+                            self.dequantize_value(&quantized, scale, zero_point, qmin, qmax)?;
                         quantized_data.push(dequantized);
 
                         data_idx += 1;
@@ -232,20 +229,25 @@ where
     }
 
     /// Quantize a single value
-    fn quantize_value(&self, val: &T, scale: &T, zero_point: &T, qmin: i32, qmax: i32) -> i32
+    fn quantize_value(
+        &self,
+        val: &T,
+        scale: &T,
+        zero_point: &T,
+        qmin: i32,
+        qmax: i32,
+    ) -> Result<i32>
     where
         T: Clone + PartialOrd,
     {
-        // Use common quantization operation, then clamp to range
-        <T as QuantizationOps<T>>::quantize_value(
+        let quantized = <T as QuantizationOps<T>>::quantize_value(
             val,
             scale,
             zero_point,
             self.scheme,
             BITS as usize,
-        )
-        .max(qmin)
-        .min(qmax)
+        )?;
+        Ok(quantized.max(qmin).min(qmax))
     }
 
     /// Dequantize a single quantized value
@@ -256,11 +258,10 @@ where
         zero_point: &T,
         _qmin: i32,
         _qmax: i32,
-    ) -> T
+    ) -> Result<T>
     where
         T: Clone,
     {
-        // Use common dequantization operation
         <T as QuantizationOps<T>>::dequantize_value(quantized, scale, zero_point, self.scheme)
     }
 
@@ -333,7 +334,7 @@ where
 
         // Calculate scale and zero_point
         let (scale_val, zero_point_val) =
-            self.compute_scale_zero_point(&min_val, &max_val, qmin, qmax);
+            self.compute_scale_zero_point(&min_val, &max_val, qmin, qmax)?;
 
         // Update parameters efficiently
         self.scale.data_mut().clear();
@@ -400,7 +401,7 @@ where
 
             // Calculate scale and zero_point for this channel
             let (scale_val, zero_point_val) =
-                self.compute_scale_zero_point(&min_val, &max_val, qmin, qmax);
+                self.compute_scale_zero_point(&min_val, &max_val, qmin, qmax)?;
             scale_data.push(scale_val);
             zero_point_data.push(zero_point_val);
         }
@@ -413,31 +414,52 @@ where
     }
 
     /// Compute scale and zero_point from min/max values
-    fn compute_scale_zero_point(&self, min_val: &T, max_val: &T, qmin: i32, qmax: i32) -> (T, T)
+    fn compute_scale_zero_point(
+        &self,
+        min_val: &T,
+        max_val: &T,
+        qmin: i32,
+        qmax: i32,
+    ) -> Result<(T, T)>
     where
         T: Clone + PartialOrd,
     {
-        // Calculate scale: scale = (max - min) / (qmax - qmin)
-        let scale_val = if *max_val == *min_val {
-            T::one() // Avoid division by zero
+        let min_f = <T as QuantizationOps<T>>::to_f64_checked(min_val)?;
+        let max_f = <T as QuantizationOps<T>>::to_f64_checked(max_val)?;
+
+        let qmin_f = f64::from(qmin);
+        let qmax_f = f64::from(qmax);
+        let qrange_f = qmax_f - qmin_f;
+
+        if !qrange_f.is_finite() || qrange_f == 0.0 {
+            return Err(NNError::NumericalError {
+                message: "Invalid quantization range".to_string(),
+            });
+        }
+
+        let scale_f = if max_f == min_f {
+            1.0
         } else {
-            // scale = (max - min) / (qmax - qmin)
-            let range = *max_val - *min_val;
-            let qrange = T::from(qmax - qmin).unwrap();
-            range / qrange
+            (max_f - min_f) / qrange_f
         };
 
-        // Calculate zero_point based on scheme
+        if !scale_f.is_finite() || scale_f == 0.0 {
+            return Err(NNError::NumericalError {
+                message: "Invalid quantization scale".to_string(),
+            });
+        }
+
+        let scale_val = <T as QuantizationOps<T>>::from_f64_checked(scale_f)?;
+
         let zero_point_val = match self.scheme {
             QuantizationScheme::Affine => {
-                // zero_point = round(qmin - min / scale)
-                let zp = T::from(qmin).unwrap() - *min_val / scale_val.clone();
-                zp.round_to_int()
+                let zp_f = (qmin_f - min_f / scale_f).round().max(qmin_f).min(qmax_f);
+                <T as QuantizationOps<T>>::from_f64_checked(zp_f)?
             }
             QuantizationScheme::Symmetric => T::zero(),
         };
 
-        (scale_val, zero_point_val)
+        Ok((scale_val, zero_point_val))
     }
 }
 
@@ -445,7 +467,12 @@ impl<B, S, T, const BITS: usize> Module<B, S, T> for FakeQuantize<B, S, T, BITS>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T> + Clone + 'static,
-    T: DataType + Clone + PartialOrd,
+    T: DataType
+        + num_traits::Float
+        + num_traits::ToPrimitive
+        + num_traits::FromPrimitive
+        + Clone
+        + PartialOrd,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
     where

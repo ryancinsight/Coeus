@@ -375,9 +375,16 @@ where
 
         // Compute softmax only for non-zero elements
         // First, find the max for numerical stability
-        let max_val = non_zero_values
-            .iter()
-            .fold(<T as num_traits::Bounded>::min_value(), |a, &b| if a > b { a } else { b });
+        let max_val =
+            non_zero_values
+                .iter()
+                .fold(<T as num_traits::Bounded>::min_value(), |a, &b| {
+                    if a > b {
+                        a
+                    } else {
+                        b
+                    }
+                });
 
         // Compute exp(x - max) for non-zero elements
         let exp_values: Vec<T> = non_zero_values
@@ -1005,7 +1012,7 @@ mod multihead_tests {
             .unwrap();
 
         // Create test input: [batch=1, seq=8, embed=64]
-        let input_data = vec![Float32::new(1.0); 1 * 8 * 64];
+        let input_data = vec![Float32::new(1.0); 8 * 64];
         let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             input_data,
             &[1, 8, 64],

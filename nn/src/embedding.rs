@@ -204,6 +204,14 @@ where
     }
 }
 
+// ============================================================================
+// TYPE ALIASES FOR BACKWARD COMPATIBILITY
+// ============================================================================
+
+/// Type alias for Embedding layer with CPU backend and dense storage.
+/// This provides backward compatibility with existing code.
+pub type EmbeddingCpu<T> = Embedding<CpuBackend<T>, DenseStorage<T>, T>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -326,11 +334,3 @@ mod tests {
         let _ = embedding.forward(&input);
     }
 }
-
-// ============================================================================
-// TYPE ALIASES FOR BACKWARD COMPATIBILITY
-// ============================================================================
-
-/// Type alias for Embedding layer with CPU backend and dense storage.
-/// This provides backward compatibility with existing code.
-pub type EmbeddingCpu<T> = Embedding<CpuBackend<T>, DenseStorage<T>, T>;

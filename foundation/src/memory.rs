@@ -8,8 +8,8 @@
 //! - Memory-efficient optimizers (8-bit Adam, Lion)
 //! - Dynamic memory management and offloading strategies
 
-use std::collections::{HashMap, VecDeque};
 use crate::error::{NNError, Result};
+use std::collections::{HashMap, VecDeque};
 
 /// Memory Optimization Orchestrator
 #[derive(Debug)]
@@ -65,8 +65,13 @@ impl MemoryOptimizer {
     }
 
     /// Enable gradient checkpointing for specified layers
-    pub fn enable_gradient_checkpointing(mut self, layers: Vec<String>, checkpoint_ratio: f64) -> Self {
-        self.gradient_manager.enable_checkpointing(layers, checkpoint_ratio);
+    pub fn enable_gradient_checkpointing(
+        mut self,
+        layers: Vec<String>,
+        checkpoint_ratio: f64,
+    ) -> Self {
+        self.gradient_manager
+            .enable_checkpointing(layers, checkpoint_ratio);
         self
     }
 
@@ -83,7 +88,11 @@ impl MemoryOptimizer {
     }
 
     /// Optimize memory usage for a forward pass
-    pub async fn optimize_forward(&mut self, layer_name: &str, input_size: usize) -> Result<MemoryPlan> {
+    pub async fn optimize_forward(
+        &mut self,
+        layer_name: &str,
+        input_size: usize,
+    ) -> Result<MemoryPlan> {
         // Estimate memory requirements for this layer
         let estimated_usage = self.estimate_layer_memory(layer_name, input_size);
 
@@ -105,7 +114,10 @@ impl MemoryOptimizer {
     /// Optimize memory usage for a backward pass
     pub async fn optimize_backward(&mut self, layer_name: &str) -> Result<MemoryPlan> {
         // Apply backward-specific optimizations (primarily gradient checkpointing)
-        let plan = self.gradient_manager.optimize_backward_pass(layer_name).await?;
+        let plan = self
+            .gradient_manager
+            .optimize_backward_pass(layer_name)
+            .await?;
         self.memory_stats.update_stats(&plan);
 
         Ok(plan)
@@ -119,26 +131,26 @@ impl MemoryOptimizer {
         base_memory * 2.5 // Account for activations, gradients, etc.
     }
 
-    fn apply_memory_optimizations(&self, _layer_name: &str, estimated_usage: f64) -> Result<MemoryPlan> {
+    fn apply_memory_optimizations(
+        &self,
+        _layer_name: &str,
+        estimated_usage: f64,
+    ) -> Result<MemoryPlan> {
         match &self.strategy {
-            MemoryStrategy::Aggressive => {
-                Ok(MemoryPlan {
-                    checkpoint_activations: true,
-                    offload_to_cpu: true,
-                    use_mixed_precision: true,
-                    recomputation_strategy: RecomputationStrategy::Full,
-                    estimated_memory_mb: estimated_usage * 0.3,
-                })
-            },
-            MemoryStrategy::Conservative => {
-                Ok(MemoryPlan {
-                    checkpoint_activations: false,
-                    offload_to_cpu: false,
-                    use_mixed_precision: true,
-                    recomputation_strategy: RecomputationStrategy::Selective,
-                    estimated_memory_mb: estimated_usage * 0.8,
-                })
-            },
+            MemoryStrategy::Aggressive => Ok(MemoryPlan {
+                checkpoint_activations: true,
+                offload_to_cpu: true,
+                use_mixed_precision: true,
+                recomputation_strategy: RecomputationStrategy::Full,
+                estimated_memory_mb: estimated_usage * 0.3,
+            }),
+            MemoryStrategy::Conservative => Ok(MemoryPlan {
+                checkpoint_activations: false,
+                offload_to_cpu: false,
+                use_mixed_precision: true,
+                recomputation_strategy: RecomputationStrategy::Selective,
+                estimated_memory_mb: estimated_usage * 0.8,
+            }),
             MemoryStrategy::Adaptive => {
                 // Adaptive strategy based on current memory pressure
                 let memory_pressure = self.memory_stats.current_usage_gb / self.memory_budget_gb;
@@ -168,14 +180,14 @@ impl MemoryOptimizer {
                         estimated_memory_mb: estimated_usage,
                     })
                 }
-            },
+            }
             _ => Ok(MemoryPlan {
                 checkpoint_activations: false,
                 offload_to_cpu: false,
                 use_mixed_precision: self.mixed_precision.enabled,
                 recomputation_strategy: RecomputationStrategy::None,
                 estimated_memory_mb: estimated_usage,
-            })
+            }),
         }
     }
 
@@ -254,7 +266,12 @@ impl ActivationManager {
     }
 
     /// Store activation with memory management
-    pub async fn store_activation(&mut self, key: String, activation: Vec<f32>, layer_name: String) -> Result<()> {
+    pub async fn store_activation(
+        &mut self,
+        key: String,
+        activation: Vec<f32>,
+        layer_name: String,
+    ) -> Result<()> {
         // Check if we need to evict activations
         if self.activation_store.len() >= self.max_activations {
             self.evict_activations().await?;
@@ -293,11 +310,11 @@ impl ActivationManager {
                 OffloadingStrategy::CPU => {
                     // Load from CPU memory
                     self.load_from_cpu(key).await
-                },
+                }
                 OffloadingStrategy::NVMe => {
                     // Load from NVMe storage
                     self.load_from_nvme(key).await
-                },
+                }
                 _ => Ok(None),
             }
         } else {
@@ -308,7 +325,9 @@ impl ActivationManager {
     async fn evict_activations(&mut self) -> Result<()> {
         // LRU eviction strategy
         // Avoid holding references to metadata to satisfy borrow checker during removal
-        let mut candidates: Vec<(String, std::time::Instant)> = self.metadata.iter()
+        let mut candidates: Vec<(String, std::time::Instant)> = self
+            .metadata
+            .iter()
             .map(|(k, v)| (k.clone(), v.last_access))
             .collect();
 
@@ -322,11 +341,11 @@ impl ActivationManager {
             match self.offloading_strategy {
                 OffloadingStrategy::CPU => {
                     self.offload_to_cpu(key).await?;
-                },
+                }
                 OffloadingStrategy::NVMe => {
                     self.offload_to_nvme(key).await?;
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
 
@@ -401,8 +420,8 @@ impl GradientManager {
 
     /// Optimize backward pass with gradient checkpointing
     pub async fn optimize_backward_pass(&self, layer_name: &str) -> Result<MemoryPlan> {
-        let should_checkpoint = self.checkpointed_layers.contains(&layer_name.to_string()) ||
-            rand::random::<f64>() < self.checkpoint_ratio;
+        let should_checkpoint = self.checkpointed_layers.contains(&layer_name.to_string())
+            || rand::random::<f64>() < self.checkpoint_ratio;
 
         Ok(MemoryPlan {
             checkpoint_activations: should_checkpoint,
@@ -520,7 +539,8 @@ impl MixedPrecisionManager {
 
         if has_overflow {
             self.loss_scaling.initial_scale = (self.loss_scaling.initial_scale
-                / self.loss_scaling.scale_factor).max(self.loss_scaling.min_scale);
+                / self.loss_scaling.scale_factor)
+                .max(self.loss_scaling.min_scale);
             self.precision_stats.overflow_events += 1;
 
             // Clear gradients with overflow
@@ -598,7 +618,7 @@ impl OffloadingManager {
         &mut self,
         param_name: String,
         parameter: Vec<f32>,
-        location: ParameterLocation
+        location: ParameterLocation,
     ) -> Result<()> {
         let size_bytes = parameter.len() * 4;
         let size_mb = size_bytes as f64 / (1024.0 * 1024.0);
@@ -616,14 +636,16 @@ impl OffloadingManager {
             (OffloadingStrategy::CPU, ParameterLocation::CPU) => {
                 // Offload to CPU memory
                 self.offload_stats.total_offloaded_mb += size_mb;
-            },
+            }
             (OffloadingStrategy::NVMe, ParameterLocation::NVMe(_)) => {
                 // Offload to NVMe storage
                 self.offload_stats.total_offloaded_mb += size_mb;
-            },
-            _ => return Err(NNError::InvalidInput {
-                message: "Offloading strategy and location mismatch".to_string(),
-            }),
+            }
+            _ => {
+                return Err(NNError::InvalidInput {
+                    message: "Offloading strategy and location mismatch".to_string(),
+                })
+            }
         }
 
         self.offloaded_params.insert(param_name, metadata);
@@ -642,15 +664,15 @@ impl OffloadingManager {
                 ParameterLocation::CPU => {
                     // Load from CPU memory
                     Ok(Some(vec![0.0; metadata.size_bytes / 4])) // Placeholder
-                },
+                }
                 ParameterLocation::NVMe(_) => {
                     // Load from NVMe storage
                     Ok(Some(vec![0.0; metadata.size_bytes / 4])) // Placeholder
-                },
+                }
                 ParameterLocation::GPU => {
                     // Already on GPU, no loading needed
                     Ok(None)
-                },
+                }
             }
         } else {
             Ok(None)
@@ -706,8 +728,11 @@ impl MemoryStatistics {
     }
 
     fn total_memory_usage_gb(&self) -> f64 {
-        (self.activation_memory_mb + self.parameter_memory_mb +
-         self.gradient_memory_mb + self.optimizer_memory_mb) / 1024.0
+        (self.activation_memory_mb
+            + self.parameter_memory_mb
+            + self.gradient_memory_mb
+            + self.optimizer_memory_mb)
+            / 1024.0
     }
 
     /// Generate detailed memory usage report
@@ -730,15 +755,20 @@ impl MemoryStatistics {
         let mut recommendations = Vec::new();
 
         if self.activation_memory_mb > self.parameter_memory_mb * 2.0 {
-            recommendations.push("Consider gradient checkpointing to reduce activation memory".to_string());
+            recommendations
+                .push("Consider gradient checkpointing to reduce activation memory".to_string());
         }
 
         if self.fragmentation_ratio > 0.3 {
-            recommendations.push("High memory fragmentation detected, consider defragmentation".to_string());
+            recommendations
+                .push("High memory fragmentation detected, consider defragmentation".to_string());
         }
 
         if self.peak_usage_gb > 0.9 {
-            recommendations.push("Memory usage is close to capacity, consider offloading or model parallelism".to_string());
+            recommendations.push(
+                "Memory usage is close to capacity, consider offloading or model parallelism"
+                    .to_string(),
+            );
         }
 
         recommendations
@@ -818,11 +848,13 @@ mod tests {
 
     #[test]
     fn test_memory_optimizer_with_mixed_precision() {
-        let optimizer = MemoryOptimizer::new(80.0)
-            .with_mixed_precision(MixedPrecisionLevel::BF16);
+        let optimizer = MemoryOptimizer::new(80.0).with_mixed_precision(MixedPrecisionLevel::BF16);
 
         assert!(optimizer.mixed_precision.enabled);
-        assert!(matches!(optimizer.mixed_precision.precision_level, MixedPrecisionLevel::BF16));
+        assert!(matches!(
+            optimizer.mixed_precision.precision_level,
+            MixedPrecisionLevel::BF16
+        ));
     }
 
     #[test]
@@ -831,7 +863,10 @@ mod tests {
             .enable_gradient_checkpointing(vec!["transformer_block_1".to_string()], 0.5);
 
         assert_eq!(optimizer.gradient_manager.checkpoint_ratio, 0.5);
-        assert!(optimizer.gradient_manager.checkpointed_layers.contains(&"transformer_block_1".to_string()));
+        assert!(optimizer
+            .gradient_manager
+            .checkpointed_layers
+            .contains(&"transformer_block_1".to_string()));
     }
 
     #[test]
@@ -846,7 +881,7 @@ mod tests {
             .block_on(manager.store_activation(
                 "layer1".to_string(),
                 activation,
-                "transformer".to_string()
+                "transformer".to_string(),
             ));
 
         assert!(result.is_ok());
