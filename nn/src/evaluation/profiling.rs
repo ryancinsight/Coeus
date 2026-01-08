@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::time::Instant;
 
-use crate::error::Result;
+use crate::core::error::Result;
 
 /// Performance profiling configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

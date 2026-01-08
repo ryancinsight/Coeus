@@ -63,21 +63,18 @@ impl DeviceInfo for CpuDevice {
 /// assert!(backend.supports("arithmetic"));
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct CpuBackend<T: crate::DataType>
-where
-    T: PartialOrd,
-{
+pub struct CpuBackend<T: crate::DataType> {
     device: CpuDevice,
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: crate::DataType + std::cmp::PartialOrd> Default for CpuBackend<T> {
+impl<T: crate::DataType> Default for CpuBackend<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: crate::DataType + std::cmp::PartialOrd> CpuBackend<T> {
+impl<T: crate::DataType> CpuBackend<T> {
     /// Creates a new CPU backend instance.
     ///
     /// # Examples
@@ -97,7 +94,7 @@ impl<T: crate::DataType + std::cmp::PartialOrd> CpuBackend<T> {
     }
 }
 
-impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T> {
+impl<T: DataType> Backend for CpuBackend<T> {
     /// Data type supported by this backend
     type Data = T;
 
@@ -1093,7 +1090,92 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T> {
         text_embeddings: &storage::DenseStorage<Self::Data>,
         temperature: f32,
     ) -> crate::Result<Self::Data> {
-        CpuBackend::clip_info_nce_loss(self, image_embeddings, text_embeddings, temperature)
+        if !core::any::TypeId::of::<T>().eq(&core::any::TypeId::of::<dtype::float::Float32>()) {
+            return Err(crate::BackendError::UnsupportedOperation {
+                operation: "clip_info_nce_loss (Float32 only)".to_string(),
+                backend: "cpu".to_string(),
+            });
+        }
+
+        let image_data: &[f32] =
+            unsafe { &*(image_embeddings.as_slice() as *const [T] as *const [f32]) };
+        let text_data: &[f32] =
+            unsafe { &*(text_embeddings.as_slice() as *const [T] as *const [f32]) };
+
+        let image_shape = image_embeddings.shape().dims();
+        let text_shape = text_embeddings.shape().dims();
+
+        if image_shape.len() != 2 || text_shape.len() != 2 {
+            return Err(crate::BackendError::InvalidInput(
+                "Embeddings must be 2D tensors [batch_size, embed_dim]".to_string(),
+            ));
+        }
+
+        let batch_size = image_shape[0];
+        let embed_dim = image_shape[1];
+
+        if text_shape[0] != batch_size || text_shape[1] != embed_dim {
+            return Err(crate::BackendError::InvalidInput(
+                "Image and text embeddings must have same shape [batch_size, embed_dim]"
+                    .to_string(),
+            ));
+        }
+
+        if temperature <= 0.0 {
+            return Err(crate::BackendError::InvalidInput(
+                "Temperature must be positive".to_string(),
+            ));
+        }
+
+        let mut norms_img = vec![0.0f32; batch_size];
+        let mut norms_txt = vec![0.0f32; batch_size];
+        for i in 0..batch_size {
+            let mut sum_img = 0.0f32;
+            let mut sum_txt = 0.0f32;
+            let base = i * embed_dim;
+            for d in 0..embed_dim {
+                let iv = image_data[base + d];
+                let tv = text_data[base + d];
+                sum_img += iv * iv;
+                sum_txt += tv * tv;
+            }
+            norms_img[i] = sum_img.sqrt().max(1e-10);
+            norms_txt[i] = sum_txt.sqrt().max(1e-10);
+        }
+
+        let mut loss_sum = 0.0f32;
+        for i in 0..batch_size {
+            let mut sims = vec![0.0f32; batch_size];
+            for j in 0..batch_size {
+                let mut dot = 0.0f32;
+                let base_i = i * embed_dim;
+                let base_j = j * embed_dim;
+                for d in 0..embed_dim {
+                    dot += image_data[base_i + d] * text_data[base_j + d];
+                }
+                let cos = dot / (norms_img[i] * norms_txt[j]);
+                sims[j] = cos / temperature;
+            }
+
+            let max_sim = sims
+                .iter()
+                .copied()
+                .fold(f32::NEG_INFINITY, |a, b| a.max(b));
+            let mut denom = 0.0f32;
+            for &s in &sims {
+                denom += (s - max_sim).exp();
+            }
+            let numer = (sims[i] - max_sim).exp();
+            let prob = numer / denom.max(1e-20);
+            loss_sum += -prob.ln();
+        }
+
+        let loss = loss_sum / (batch_size as f32).max(1.0);
+        let loss_t: T = dtype::num_traits::cast::<f32, T>(loss).ok_or_else(|| {
+            crate::BackendError::InvalidInput("Failed to convert loss to backend dtype".to_string())
+        })?;
+
+        Ok(loss_t)
     }
 
     fn clip_attention(
@@ -1103,7 +1185,109 @@ impl<T: DataType + std::cmp::PartialOrd> Backend for CpuBackend<T> {
         values: &storage::DenseStorage<<CpuBackend<T> as Backend>::Data>,
         num_heads: usize,
     ) -> crate::Result<storage::DenseStorage<<CpuBackend<T> as Backend>::Data>> {
-        CpuBackend::clip_attention(self, queries, keys, values, num_heads)
+        if !core::any::TypeId::of::<T>().eq(&core::any::TypeId::of::<dtype::float::Float32>()) {
+            return Err(crate::BackendError::UnsupportedOperation {
+                operation: "clip_attention (Float32 only)".to_string(),
+                backend: "cpu".to_string(),
+            });
+        }
+
+        let q: &[f32] = unsafe { &*(queries.as_slice() as *const [T] as *const [f32]) };
+        let k: &[f32] = unsafe { &*(keys.as_slice() as *const [T] as *const [f32]) };
+        let v: &[f32] = unsafe { &*(values.as_slice() as *const [T] as *const [f32]) };
+
+        let query_shape = queries.shape().dims();
+        let key_shape = keys.shape().dims();
+        let value_shape = values.shape().dims();
+
+        if query_shape.len() != 3 || key_shape.len() != 3 || value_shape.len() != 3 {
+            return Err(crate::BackendError::InvalidInput(
+                "All inputs must be 3D tensors [batch_size, seq_len, embed_dim]".to_string(),
+            ));
+        }
+
+        let batch_size = query_shape[0];
+        let seq_len_q = query_shape[1];
+        let seq_len_kv = key_shape[1];
+        let embed_dim = query_shape[2];
+
+        if key_shape[0] != batch_size
+            || value_shape[0] != batch_size
+            || key_shape[2] != embed_dim
+            || value_shape[2] != embed_dim
+        {
+            return Err(crate::BackendError::InvalidInput(
+                "Q, K, V must share batch_size and embed_dim".to_string(),
+            ));
+        }
+
+        if num_heads == 0 || embed_dim % num_heads != 0 {
+            return Err(crate::BackendError::InvalidInput(
+                "num_heads must divide embed_dim".to_string(),
+            ));
+        }
+
+        let head_dim = embed_dim / num_heads;
+        let scale = 1.0f32 / (head_dim as f32).sqrt();
+
+        let mut out = vec![0.0f32; batch_size * seq_len_q * embed_dim];
+
+        for b in 0..batch_size {
+            for h in 0..num_heads {
+                let head_off = h * head_dim;
+                for iq in 0..seq_len_q {
+                    let mut scores = vec![0.0f32; seq_len_kv];
+                    for (ik, score) in scores.iter_mut().enumerate() {
+                        let mut dot = 0.0f32;
+                        let q_base = b * seq_len_q * embed_dim + iq * embed_dim + head_off;
+                        let k_base = b * seq_len_kv * embed_dim + ik * embed_dim + head_off;
+                        for d in 0..head_dim {
+                            dot += q[q_base + d] * k[k_base + d];
+                        }
+                        *score = dot * scale;
+                    }
+
+                    let max_s = scores
+                        .iter()
+                        .copied()
+                        .fold(f32::NEG_INFINITY, |a, b| a.max(b));
+                    let mut denom = 0.0f32;
+                    for &s in &scores {
+                        denom += (s - max_s).exp();
+                    }
+                    denom = denom.max(1e-20);
+
+                    for d in 0..head_dim {
+                        let mut acc = 0.0f32;
+                        for (ik, &s) in scores.iter().enumerate() {
+                            let w = (s - max_s).exp() / denom;
+                            let v_base = b * seq_len_kv * embed_dim + ik * embed_dim + head_off;
+                            acc += w * v[v_base + d];
+                        }
+                        let out_base = b * seq_len_q * embed_dim + iq * embed_dim + head_off;
+                        out[out_base + d] = acc;
+                    }
+                }
+            }
+        }
+
+        let out_t: Vec<T> = out
+            .into_iter()
+            .map(|x| {
+                dtype::num_traits::cast::<f32, T>(x).ok_or_else(|| {
+                    crate::BackendError::InvalidInput(
+                        "Failed to convert attention output to backend dtype".to_string(),
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        storage::DenseStorage::from_vec(out_t, &[batch_size, seq_len_q, embed_dim]).map_err(|_| {
+            crate::BackendError::UnsupportedOperation {
+                operation: "clip_attention".to_string(),
+                backend: "cpu".to_string(),
+            }
+        })
     }
 }
 

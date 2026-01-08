@@ -1,6 +1,6 @@
 //! CLIP encoder traits.
 
-use crate::error::Result;
+use crate::core::error::Result;
 use backend::Backend;
 use dtype::DataType;
 use storage::DenseStorage;

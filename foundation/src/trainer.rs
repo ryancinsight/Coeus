@@ -382,7 +382,7 @@ pub struct GradientStats {
 }
 
 /// Memory statistics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MemoryStats {
     pub gpu_memory_used: u64,
     pub gpu_memory_total: u64,
@@ -773,18 +773,6 @@ impl Default for GradientStats {
             grad_max: 0.0,
             grad_min: 0.0,
             clipped: false,
-        }
-    }
-}
-
-impl Default for MemoryStats {
-    fn default() -> Self {
-        Self {
-            gpu_memory_used: 0,
-            gpu_memory_total: 0,
-            cpu_memory_used: 0,
-            activation_memory: 0,
-            parameter_memory: 0,
         }
     }
 }

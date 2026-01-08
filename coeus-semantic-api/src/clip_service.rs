@@ -4,7 +4,6 @@
 //! CLIP models from Sprint MS-50, providing semantic search capabilities.
 
 use async_trait::async_trait;
-use base64::{engine::general_purpose, Engine as _};
 use std::sync::Arc;
 
 use crate::errors::{ErrorHandler, SemanticError};
@@ -57,12 +56,13 @@ where
     }
 
     /// Create a new CLIP service with GPU backend
+    #[allow(clippy::missing_errors_doc)]
     pub async fn new_with_gpu() -> Result<Self, SemanticError> {
         println!("🎯 Initializing GPU-accelerated CLIP service");
 
         // Initialize GPU backend
         let _gpu_backend = GpuBackend::<Float32>::new().await.map_err(|e| {
-            SemanticError::ServiceUnavailable(format!("Failed to initialize GPU backend: {}", e))
+            SemanticError::ServiceUnavailable(format!("Failed to initialize GPU backend: {e}"))
         })?;
 
         println!("✅ GPU backend initialized");
@@ -70,7 +70,7 @@ where
         // Create CLIP model with GPU acceleration
         let clip_config = nn::clip::ClipConfig::vit_b32();
         let clip_model = ClipModel::new(clip_config).map_err(|e| {
-            SemanticError::ServiceUnavailable(format!("Failed to initialize CLIP model: {:?}", e))
+            SemanticError::ServiceUnavailable(format!("Failed to initialize CLIP model: {e:?}"))
         })?;
 
         println!("✅ CLIP model loaded on GPU");
@@ -82,6 +82,7 @@ where
     }
 
     /// Create a new CLIP service with CPU backend
+    #[allow(clippy::missing_errors_doc)]
     pub fn new_with_cpu() -> Result<Self, SemanticError> {
         println!("💻 Initializing CPU-based CLIP service");
 
@@ -91,7 +92,7 @@ where
         // Create CLIP model with CPU
         let clip_config = nn::clip::ClipConfig::vit_b32();
         let clip_model = ClipModel::new(clip_config).map_err(|e| {
-            SemanticError::ServiceUnavailable(format!("Failed to initialize CLIP model: {:?}", e))
+            SemanticError::ServiceUnavailable(format!("Failed to initialize CLIP model: {e:?}"))
         })?;
 
         println!("✅ CLIP model loaded on CPU");
@@ -100,7 +101,7 @@ where
     }
 
     /// Preprocess text for CLIP model
-    fn preprocess_text(&self, text: &str) -> Result<String, SemanticError> {
+    fn preprocess_text(text: &str) -> Result<String, SemanticError> {
         // Basic text preprocessing
         let processed = text
             .to_lowercase()
@@ -121,15 +122,8 @@ where
         Ok(processed)
     }
 
-    /// Decode base64 image data
-    fn decode_image_data(&self, base64_data: &str) -> Result<Vec<u8>, SemanticError> {
-        general_purpose::STANDARD
-            .decode(base64_data)
-            .map_err(|e| SemanticError::InvalidInput(format!("Invalid base64 image data: {}", e)))
-    }
-
     /// Preprocess image data (basic validation)
-    fn preprocess_image(&self, image_data: &[u8]) -> Result<Vec<u8>, SemanticError> {
+    fn preprocess_image(image_data: &[u8]) -> Result<Vec<u8>, SemanticError> {
         // Basic image validation - check for common image headers
         if image_data.len() < 8 {
             return Err(SemanticError::InvalidInput(
@@ -175,22 +169,25 @@ where
         let start_time = std::time::Instant::now();
 
         // Preprocess text
-        let processed_text = self.preprocess_text(text)?;
+        let processed_text = Self::preprocess_text(text)?;
         tracing::debug!(
             "Processing text: {} chars -> {} chars",
             text.len(),
             processed_text.len()
         );
 
+        let embedding_dim = self.clip_model.config().embed_dim;
+
         // For now, we'll create a mock embedding based on text hash
         // In production, this would use the actual CLIP text encoder
-        let hash: u32 = processed_text.chars().map(|c| c as u32).sum();
-        let embedding = mock_generate_embedding(hash);
+        let hash: u32 = processed_text.chars().map(u32::from).sum();
+        let embedding = mock_generate_embedding(hash, embedding_dim);
 
         let duration = start_time.elapsed();
         tracing::debug!("Text encoding completed in {:.2}ms", duration.as_millis());
 
-        ErrorHandler::log_success("encode_text", duration.as_millis() as u64);
+        let duration_ms = u64::try_from(duration.as_millis()).unwrap_or(u64::MAX);
+        ErrorHandler::log_success("encode_text", duration_ms);
         Ok(embedding)
     }
 
@@ -198,23 +195,26 @@ where
         let start_time = std::time::Instant::now();
 
         // Preprocess and validate image
-        let processed_image = self.preprocess_image(image_data)?;
+        let processed_image = Self::preprocess_image(image_data)?;
         tracing::debug!("Processing image: {} bytes", processed_image.len());
+
+        let embedding_dim = self.clip_model.config().embed_dim;
 
         // For now, we'll create a mock embedding based on image data hash
         // In production, this would use the actual CLIP vision encoder
-        let hash: u32 = processed_image.iter().map(|&b| b as u32).sum();
-        let embedding = mock_generate_embedding(hash);
+        let hash: u32 = processed_image.iter().map(|&b| u32::from(b)).sum();
+        let embedding = mock_generate_embedding(hash, embedding_dim);
 
         let duration = start_time.elapsed();
         tracing::debug!("Image encoding completed in {:.2}ms", duration.as_millis());
 
-        ErrorHandler::log_success("encode_image", duration.as_millis() as u64);
+        let duration_ms = u64::try_from(duration.as_millis()).unwrap_or(u64::MAX);
+        ErrorHandler::log_success("encode_image", duration_ms);
         Ok(embedding)
     }
 
     fn embedding_dim(&self) -> usize {
-        512 // CLIP embedding dimension
+        self.clip_model.config().embed_dim
     }
 
     async fn health_check(&self) -> Result<(), SemanticError> {
@@ -230,10 +230,17 @@ pub struct InMemoryVectorDB {
 }
 
 impl InMemoryVectorDB {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             entries: std::sync::RwLock::new(std::collections::HashMap::new()),
         }
+    }
+}
+
+impl Default for InMemoryVectorDB {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -302,8 +309,7 @@ impl crate::state::VectorDatabase for InMemoryVectorDB {
             embedding_dim: entries
                 .values()
                 .next()
-                .map(|(emb, _): &(Vec<f32>, serde_json::Value)| emb.len())
-                .unwrap_or(512),
+                .map_or(512, |(emb, _): &(Vec<f32>, serde_json::Value)| emb.len()),
             index_size_bytes: entries.len() * 512 * 4, // Rough estimate: 512 floats * 4 bytes each
             last_updated: chrono::Utc::now(),
         })
@@ -320,11 +326,15 @@ impl crate::state::VectorDatabase for InMemoryVectorDB {
 }
 
 // Helper functions for mock embedding generation to avoid type inference issues in async_trait
-fn mock_generate_embedding(input_hash: u32) -> Vec<f32> {
-    let mut embedding: Vec<f32> = Vec::with_capacity(512);
-    for i in 0..512 {
-        let val_u32 = (input_hash.wrapping_add(i as u32)) % 10000;
-        let value: f32 = (val_u32 as f32) / 5000.0 - 1.0;
+fn mock_generate_embedding(input_hash: u32, embedding_dim: usize) -> Vec<f32> {
+    let mut embedding: Vec<f32> = Vec::with_capacity(embedding_dim);
+    for i in 0..embedding_dim {
+        let i_u32 = u32::try_from(i).unwrap_or(u32::MAX);
+        let val_u32 = input_hash.wrapping_add(i_u32) % 10000;
+        let Ok(val_u16) = u16::try_from(val_u32) else {
+            unreachable!();
+        };
+        let value: f32 = f32::from(val_u16) / 5000.0 - 1.0;
         embedding.push(value);
     }
     embedding
@@ -340,7 +350,7 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
     let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
 
-    if norm_a == 0.0 || norm_b == 0.0 {
+    if norm_a <= f32::EPSILON || norm_b <= f32::EPSILON {
         0.0
     } else {
         dot_product / (norm_a * norm_b)
@@ -374,7 +384,7 @@ mod tests {
         let results = db.search(&[1.0f32, 0.0, 0.0], 5).await?;
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].id, "test1");
-        assert_eq!(results[0].similarity, 1.0);
+        assert!((results[0].similarity - 1.0).abs() < 1e-6);
 
         // Stats
         let stats = db.stats().await?;
@@ -388,10 +398,10 @@ mod tests {
     fn test_cosine_similarity() {
         let a = vec![1.0f32, 0.0, 0.0];
         let b = vec![1.0f32, 0.0, 0.0];
-        assert_eq!(cosine_similarity(&a, &b), 1.0);
+        assert!((cosine_similarity(&a, &b) - 1.0).abs() < 1e-6);
 
         let c = vec![0.0f32, 1.0, 0.0];
-        assert_eq!(cosine_similarity(&a, &c), 0.0);
+        assert!(cosine_similarity(&a, &c).abs() < 1e-6);
     }
 
     #[tokio::test]
@@ -420,7 +430,7 @@ mod tests {
 
         // Check that embeddings are in reasonable range [-1, 1]
         for &val in &embedding {
-            assert!(val >= -1.0 && val <= 1.0);
+            assert!((-1.0..=1.0).contains(&val));
         }
 
         Ok(())

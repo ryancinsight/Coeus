@@ -304,7 +304,7 @@ mod tests {
         }
         // After 10 steps, should be close to eta_min (0.0)
         let final_lr = optimizer.get_lr();
-        assert!(final_lr >= 0.0 && final_lr < 0.001); // Very small but not exactly 0
+        assert!((0.0..0.001).contains(&final_lr)); // Very small but not exactly 0
     }
 
     #[test]

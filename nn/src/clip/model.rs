@@ -9,14 +9,14 @@ use std::fmt;
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
-use crate::activation::GeLU;
-use crate::attention::MultiHeadAttention;
-use crate::conv2d::Conv2D;
-use crate::error::{NNError, Result};
-use crate::layernorm::LayerNorm;
-use crate::linear::Linear;
-use crate::module::Module;
-use crate::parameter::Parameter; // For patch extraction in vision transformer
+use crate::core::error::{NNError, Result};
+use crate::core::module::Module;
+use crate::core::parameter::Parameter;
+use crate::modules::activation::GeLU;
+use crate::modules::attention::MultiHeadAttention;
+use crate::modules::convolution::Conv2D;
+use crate::modules::linear::Linear;
+use crate::modules::normalization::LayerNorm; // For patch extraction in vision transformer
 
 use super::config::{ClipConfig, TextConfig, VisionConfig};
 use super::loss::InfoNCELoss;

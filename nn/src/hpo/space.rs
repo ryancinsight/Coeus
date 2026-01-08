@@ -6,7 +6,7 @@
 use rand::Rng;
 use std::collections::HashMap;
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Hyperparameter configuration value
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

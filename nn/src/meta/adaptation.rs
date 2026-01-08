@@ -3,7 +3,7 @@
 //! This module implements adaptation strategies for meta-learning,
 //! including online adaptation, continual learning, and domain transfer.
 
-use crate::error::Result;
+use crate::core::error::Result;
 
 /// Meta-learner that can adapt to new tasks
 #[derive(Debug)]

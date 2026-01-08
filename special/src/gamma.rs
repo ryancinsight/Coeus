@@ -125,8 +125,7 @@ where
                     "beta requires lossless f64 conversion".to_string(),
                 ))
             })?;
-            let v = statrs::function::gamma::ln_gamma(x_f)
-                + statrs::function::gamma::ln_gamma(y_f)
+            let v = statrs::function::gamma::ln_gamma(x_f) + statrs::function::gamma::ln_gamma(y_f)
                 - statrs::function::gamma::ln_gamma(x_f + y_f);
             let b = v.exp();
             let out = T::from_f64(b).ok_or_else(|| {
@@ -180,11 +179,7 @@ fn digamma_f64(x: f64) -> Result<f64> {
     let inv4 = inv2 * inv2;
     let inv6 = inv4 * inv2;
     let inv8 = inv4 * inv4;
-    y += z.ln()
-        - 0.5 * inv
-        - (1.0 / 12.0) * inv2
-        + (1.0 / 120.0) * inv4
-        - (1.0 / 252.0) * inv6
+    y += z.ln() - 0.5 * inv - (1.0 / 12.0) * inv2 + (1.0 / 120.0) * inv4 - (1.0 / 252.0) * inv6
         + (1.0 / 240.0) * inv8;
     Ok(y)
 }
@@ -204,7 +199,7 @@ fn polygamma_f64(n: usize, x: f64) -> Result<f64> {
 
     let mut sum = 0.0f64;
     let mut k = 0usize;
-    let pref = factorial_f64(n) * if (n + 1) % 2 == 0 { 1.0 } else { -1.0 };
+    let pref = factorial_f64(n) * if (n + 1).is_multiple_of(2) { 1.0 } else { -1.0 };
     let p = (n + 1) as i32;
     let eps = 1e-14f64;
 

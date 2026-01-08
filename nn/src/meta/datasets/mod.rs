@@ -26,7 +26,7 @@ where
     fn is_loaded(&self) -> bool;
 
     /// Load dataset from disk
-    fn load(&mut self, path: &str) -> crate::error::Result<()>;
+    fn load(&mut self, path: &str) -> crate::core::error::Result<()>;
 
     /// Get dataset statistics
     fn statistics(&self) -> DatasetStats;
@@ -38,7 +38,7 @@ where
         k_shot: usize,
         n_query: usize,
         split: DatasetSplit,
-    ) -> crate::error::Result<FewShotEpisode<B, S, T>>;
+    ) -> crate::core::error::Result<FewShotEpisode<B, S, T>>;
 }
 
 /// Dataset statistics

@@ -9,8 +9,12 @@ use std::collections::HashMap;
 
 // Cranelift JIT compilation
 use cranelift::prelude::*;
+use cranelift_codegen::ir::{types, MemFlags};
+use cranelift_frontend::Variable;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{Linkage, Module};
+
+type ElementwiseKernelFn = unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize);
 
 // Target ISA configuration
 
@@ -634,7 +638,7 @@ impl JitCompiler {
 
         // Get function pointer
         let func_ptr = module.get_finalized_function(func_id);
-        Ok(unsafe { std::mem::transmute(func_ptr) })
+        Ok(unsafe { std::mem::transmute::<*const u8, ElementwiseKernelFn>(func_ptr) })
     }
 
     /// JIT compile element-wise multiplication: output[i] = input1[i] * input2[i]
@@ -745,7 +749,7 @@ impl JitCompiler {
         module.finalize_definitions().unwrap();
 
         let func_ptr = module.get_finalized_function(func_id);
-        Ok(unsafe { std::mem::transmute(func_ptr) })
+        Ok(unsafe { std::mem::transmute::<*const u8, ElementwiseKernelFn>(func_ptr) })
     }
 
     /// JIT compile element-wise ReLU: output[i] = max(0, input[i])
@@ -849,7 +853,7 @@ impl JitCompiler {
         module.finalize_definitions().unwrap();
 
         let func_ptr = module.get_finalized_function(func_id);
-        Ok(unsafe { std::mem::transmute(func_ptr) })
+        Ok(unsafe { std::mem::transmute::<*const u8, ElementwiseKernelFn>(func_ptr) })
     }
 
     /// JIT compile element-wise matrix multiplication (simplified placeholder)
@@ -969,7 +973,7 @@ impl JitCompiler {
         module.finalize_definitions().unwrap();
 
         let func_ptr = module.get_finalized_function(func_id);
-        Ok(unsafe { std::mem::transmute(func_ptr) })
+        Ok(unsafe { std::mem::transmute::<*const u8, ElementwiseKernelFn>(func_ptr) })
     }
 
     /// Generate platform-specific AOT binary from JIT-compiled kernel

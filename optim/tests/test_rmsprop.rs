@@ -59,7 +59,7 @@ fn test_rmsprop_basic() {
 #[test]
 fn test_rmsprop_multiple_steps() {
     // Test RMSprop over multiple steps with running averages
-    let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
+    let param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
 
     let mut optimizer = RMSprop::default(0.01);
     optimizer
@@ -94,7 +94,7 @@ fn test_rmsprop_multiple_steps() {
 #[test]
 fn test_rmsprop_custom_alpha() {
     // Test RMSprop with custom alpha (smoothing constant)
-    let mut param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
     param
         .set_grad(TestTensor::from_vec(vec![Float32::new(0.1)], &[1]).unwrap())
         .unwrap();
@@ -115,7 +115,7 @@ fn test_rmsprop_custom_alpha() {
 #[test]
 fn test_rmsprop_centered() {
     // Test centered RMSprop variant
-    let mut param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
     param
         .set_grad(TestTensor::from_vec(vec![Float32::new(0.1)], &[1]).unwrap())
         .unwrap();
@@ -137,7 +137,7 @@ fn test_rmsprop_centered() {
 #[test]
 fn test_rmsprop_weight_decay() {
     // Test that weight decay works correctly
-    let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
+    let param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
 
     let mut optimizer = RMSprop::new(0.01, 0.99, 1e-8, 0.01, 0.0, false); // weight_decay = 0.01
     optimizer
@@ -173,7 +173,7 @@ fn test_rmsprop_alpha_momentum() {
 #[test]
 fn test_rmsprop_zero_grad() {
     // Test that zero_grad clears gradients
-    let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
+    let param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
     param
         .set_grad(TestTensor::from_vec(vec![Float32::new(0.5), Float32::new(0.5)], &[2]).unwrap())
         .unwrap();
@@ -204,7 +204,7 @@ fn test_rmsprop_learning_rate() {
 fn test_rmsprop_convergence() {
     // Test that RMSprop converges to minimum for simple quadratic
     // f(x) = x^2, gradient = 2x, minimum at x=0
-    let mut param = tensor_with_grad(vec![Float32::new(5.0)], &[1]);
+    let param = tensor_with_grad(vec![Float32::new(5.0)], &[1]);
 
     let mut optimizer = RMSprop::default(0.1); // Higher learning rate
     optimizer
@@ -234,7 +234,7 @@ fn test_rmsprop_convergence() {
 #[test]
 fn test_rmsprop_gpu_acceleration_framework() {
     // Test GPU acceleration framework setup and CPU fallback
-    let mut param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
     param
         .set_grad(TestTensor::from_vec(vec![Float32::new(0.1)], &[1]).unwrap())
         .unwrap();
@@ -264,7 +264,7 @@ fn test_rmsprop_gpu_acceleration_framework() {
 #[test]
 fn test_rmsprop_gpu_step_fallback() {
     // Test that GPU step method falls back to CPU
-    let mut param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
     let original_val = param.as_slice()[0].get();
 
     let mut optimizer = RMSprop::default(0.01);
@@ -290,7 +290,7 @@ fn test_rmsprop_gpu_step_fallback() {
 #[test]
 fn test_rmsprop_step_cpu_method() {
     // Test the explicit CPU step method
-    let mut param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
     let original_val = param.as_slice()[0].get();
 
     let mut optimizer = RMSprop::default(0.01);
@@ -315,8 +315,8 @@ fn test_rmsprop_step_cpu_method() {
 #[test]
 fn test_rmsprop_state_persistence() {
     // Test state_dict and load_state_dict functionality
-    let mut param1 = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
-    let mut param2 = tensor_with_grad(vec![Float32::new(2.0)], &[1]);
+    let param1 = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param2 = tensor_with_grad(vec![Float32::new(2.0)], &[1]);
 
     let mut optimizer = RMSprop::default(0.01);
     optimizer
@@ -343,8 +343,8 @@ fn test_rmsprop_state_persistence() {
     let param2_after = params[1].as_slice()[0].get();
 
     // Create new optimizer and load state
-    let mut param1_new = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
-    let mut param2_new = tensor_with_grad(vec![Float32::new(2.0)], &[1]);
+    let param1_new = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param2_new = tensor_with_grad(vec![Float32::new(2.0)], &[1]);
 
     let mut optimizer_new = RMSprop::default(0.01);
     optimizer_new
@@ -365,7 +365,7 @@ fn test_rmsprop_state_persistence() {
 #[test]
 fn test_rmsprop_numerical_stability() {
     // Test that epsilon prevents division by zero
-    let mut param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
 
     let mut optimizer = RMSprop::new(0.01, 0.99, 1e-10, 0.0, 0.0, false); // Very small epsilon
     optimizer

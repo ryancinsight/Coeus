@@ -1,7 +1,6 @@
 //! Test that FromPrimitive trait works correctly for optimizer use cases
 
 use dtype::float::{Float32, Float64};
-use dtype::traits::FloatExt;
 use num_traits::{Float, FromPrimitive};
 
 #[test]

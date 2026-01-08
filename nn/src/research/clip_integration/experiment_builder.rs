@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use super::{AblationStudy, ClipExperimentMetadata, ClipResearchConfig, HpoSpace};
 use crate::clip::enhanced_trainer::{EnhancedClipTrainer, EnhancedClipTrainingConfig};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// CLIP experiment builder for systematic research
 #[derive(Debug, Clone)]

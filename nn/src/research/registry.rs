@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 use super::{ResearchAgent, ResearchAgentFactory};
 

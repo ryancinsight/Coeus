@@ -12,7 +12,7 @@ use super::workflow::WorkflowStep;
 use super::{
     ExperimentResult, ExperimentSpec, ResearchAgentRegistry, ResearchConfig, ResearchWorkflow,
 };
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Advanced research experiment orchestrator with DAG execution
 #[derive(Debug)]

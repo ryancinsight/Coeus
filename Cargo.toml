@@ -11,6 +11,7 @@ members = [
     "nn",
     "optim",
     "distributed",
+    "distributions",
     "foundation",
     "audio",
     "jit",
@@ -25,13 +26,14 @@ members = [
     "sparse",
     "signal",
     "special",
+    "vision",
 ]
 
 [workspace.package]
 version = "0.2.0"
 edition = "2021"
 rust-version = "1.70"
-authors = ["Ryan Clanton <ryanclanton@protomail.com>"]
+authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
 repository = "https://github.com/ryancinsight/Coeus"
 homepage = "https://github.com/ryancinsight/Coeus"
 documentation = "https://docs.rs/coeus/latest"
@@ -45,7 +47,7 @@ half = { version = "2.1", features = ["num-traits", "serde"] }
 num-complex = "0.4"
 
 # Statistical computing
-statrs = "0.4"
+statrs = "0.16"
 
 # Error handling
 thiserror = "1.0"
@@ -53,7 +55,7 @@ anyhow = "1.0"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
 serde_bytes = "0.11"
 
 # Async runtime
@@ -144,6 +146,8 @@ coeus-sparse = { path = "sparse", version = "0.2.0" }
 coeus-linalg = { path = "linalg", version = "0.1.0" }
 coeus-signal = { path = "signal", version = "0.1.0" }
 coeus-special = { path = "special", version = "0.1.0" }
+coeus-vision = { path = "vision", version = "0.1.0" }
+coeus-distributions = { path = "distributions", version = "0.1.0" }
 pycoeus = { path = "pycoeus", version = "0.2.0" }
 
 # Core crates
@@ -202,3 +206,11 @@ rand.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false

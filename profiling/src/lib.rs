@@ -180,9 +180,9 @@ impl ProfileStats {
             .iter()
             .map(|&d| {
                 let diff = if d > mean_time {
-                    (d - mean_time).as_nanos() as f64
+                    d.saturating_sub(mean_time).as_nanos() as f64
                 } else {
-                    (mean_time - d).as_nanos() as f64
+                    mean_time.saturating_sub(d).as_nanos() as f64
                 };
                 diff * diff
             })

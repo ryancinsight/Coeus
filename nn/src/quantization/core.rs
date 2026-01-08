@@ -1,6 +1,6 @@
 //! Core quantization types and enums
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 use backend::Backend;
 use dtype::DataType;

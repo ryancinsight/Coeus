@@ -3,6 +3,12 @@ import coeus
 import numpy as np
 import pytest
 
+def test_tensor_constructor_from_numpy_infers_shape():
+    input_np = np.random.randn(2, 3, 8, 8).astype(np.float32)
+    t = coeus.Tensor(input_np)
+    assert tuple(t.shape) == input_np.shape
+    np.testing.assert_allclose(t.numpy(), input_np, atol=0.0)
+
 def test_maxpool2d_parity():
     input_np = np.random.randn(2, 3, 8, 8).astype(np.float32)
     input_t = torch.from_numpy(input_np)

@@ -4,11 +4,18 @@ use optim::schedulers::{
     ReduceLROnPlateau as RustReduceLROnPlateau, StepLR as RustStepLR,
 };
 use pyo3::prelude::*;
+use pyo3::PyErr;
+use std::cmp::Ordering;
+
+use optim::Optimizer as OptimizerTrait;
+
+use crate::optim::{Adagrad, Adam, AdamW, RMSprop, Sgd};
 
 /// StepLR scheduler
 #[pyclass(name = "StepLR", module = "_coeus")]
 pub struct StepLR {
     inner: RustStepLR,
+    optimizer: Py<PyAny>,
 }
 
 #[pymethods]
@@ -16,23 +23,33 @@ impl StepLR {
     #[new]
     #[pyo3(signature = (optimizer, step_size, gamma=0.1, last_epoch=-1))]
     fn new(optimizer: Py<PyAny>, step_size: usize, gamma: f64, last_epoch: i64) -> PyResult<Self> {
-        let _ = optimizer;
-        // Note: optimizer arg is ignored in this low-level binding,
-        // the Python wrapper class will handle attaching to optimizer.
-        // Or we just return the scheduler and Python side calls step().
-        // PyTorch schedulers modify optimizer LR.
-        // Rust schedulers are standalone logic engines currently.
-        // We will expose them as logic engines.
+        if step_size == 0 {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "step_size must be > 0",
+            ));
+        }
+        if gamma.partial_cmp(&0.0) != Some(Ordering::Greater) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "gamma must be > 0",
+            ));
+        }
 
-        let mut scheduler = RustStepLR::new(0.1, step_size, gamma); // Base LR is placeholder
+        let base_lr = Python::attach(|py| optimizer_get_lr(py, &optimizer))?;
+        let mut scheduler = RustStepLR::new(base_lr, step_size, gamma);
         if last_epoch != -1 {
             scheduler.set_last_epoch(last_epoch as usize);
         }
-        Ok(StepLR { inner: scheduler })
+        Ok(StepLR {
+            inner: scheduler,
+            optimizer,
+        })
     }
 
-    fn step(&mut self) {
+    fn step(&mut self) -> PyResult<()> {
         self.inner.step();
+        let lr = self.inner.learning_rate();
+        Python::attach(|py| optimizer_set_lr(py, &self.optimizer, lr))?;
+        Ok(())
     }
 
     fn get_lr(&self) -> f64 {
@@ -49,6 +66,7 @@ impl StepLR {
 #[pyclass(name = "ExponentialLR", module = "_coeus")]
 pub struct ExponentialLR {
     inner: RustExponentialLR,
+    optimizer: Py<PyAny>,
 }
 
 #[pymethods]
@@ -56,16 +74,28 @@ impl ExponentialLR {
     #[new]
     #[pyo3(signature = (optimizer, gamma, last_epoch=-1))]
     fn new(optimizer: Py<PyAny>, gamma: f64, last_epoch: i64) -> PyResult<Self> {
-        let _ = optimizer;
-        let mut scheduler = RustExponentialLR::new(0.1, gamma); // Base LR placeholder
+        if gamma.partial_cmp(&0.0) != Some(Ordering::Greater) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "gamma must be > 0",
+            ));
+        }
+
+        let base_lr = Python::attach(|py| optimizer_get_lr(py, &optimizer))?;
+        let mut scheduler = RustExponentialLR::new(base_lr, gamma);
         if last_epoch != -1 {
             scheduler.set_last_epoch(last_epoch as usize);
         }
-        Ok(ExponentialLR { inner: scheduler })
+        Ok(ExponentialLR {
+            inner: scheduler,
+            optimizer,
+        })
     }
 
-    fn step(&mut self) {
+    fn step(&mut self) -> PyResult<()> {
         self.inner.step();
+        let lr = self.inner.learning_rate();
+        Python::attach(|py| optimizer_set_lr(py, &self.optimizer, lr))?;
+        Ok(())
     }
 
     fn get_lr(&self) -> f64 {
@@ -77,6 +107,7 @@ impl ExponentialLR {
 #[pyclass(name = "CosineAnnealingLR", module = "_coeus")]
 pub struct CosineAnnealingLR {
     inner: RustCosineAnnealingLR,
+    optimizer: Py<PyAny>,
 }
 
 #[pymethods]
@@ -85,16 +116,39 @@ impl CosineAnnealingLR {
     #[pyo3(signature = (optimizer, T_max, eta_min=0.0, last_epoch=-1))]
     #[allow(non_snake_case)]
     fn new(optimizer: Py<PyAny>, T_max: usize, eta_min: f64, last_epoch: i64) -> PyResult<Self> {
-        let _ = optimizer;
-        let mut scheduler = RustCosineAnnealingLR::new(0.1, eta_min, T_max);
+        if T_max == 0 {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "T_max must be > 0",
+            ));
+        }
+        if eta_min < 0.0 {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "eta_min must be >= 0",
+            ));
+        }
+
+        let base_lr = Python::attach(|py| optimizer_get_lr(py, &optimizer))?;
+        if base_lr.partial_cmp(&eta_min) != Some(Ordering::Greater) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "eta_min must be < optimizer learning rate",
+            ));
+        }
+
+        let mut scheduler = RustCosineAnnealingLR::new(base_lr, eta_min, T_max);
         if last_epoch != -1 {
             scheduler.set_last_epoch(last_epoch as usize);
         }
-        Ok(CosineAnnealingLR { inner: scheduler })
+        Ok(CosineAnnealingLR {
+            inner: scheduler,
+            optimizer,
+        })
     }
 
-    fn step(&mut self) {
+    fn step(&mut self) -> PyResult<()> {
         self.inner.step();
+        let lr = self.inner.learning_rate();
+        Python::attach(|py| optimizer_set_lr(py, &self.optimizer, lr))?;
+        Ok(())
     }
 
     fn get_lr(&self) -> f64 {
@@ -106,6 +160,7 @@ impl CosineAnnealingLR {
 #[pyclass(name = "MultiStepLR", module = "_coeus")]
 pub struct MultiStepLR {
     inner: RustMultiStepLR,
+    optimizer: Py<PyAny>,
 }
 
 #[pymethods]
@@ -118,16 +173,33 @@ impl MultiStepLR {
         gamma: f64,
         last_epoch: i64,
     ) -> PyResult<Self> {
-        let _ = optimizer;
-        let mut scheduler = RustMultiStepLR::new(0.1, milestones, gamma);
+        if milestones.is_empty() {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "milestones must be non-empty",
+            ));
+        }
+        if gamma.partial_cmp(&0.0) != Some(Ordering::Greater) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "gamma must be > 0",
+            ));
+        }
+
+        let base_lr = Python::attach(|py| optimizer_get_lr(py, &optimizer))?;
+        let mut scheduler = RustMultiStepLR::new(base_lr, milestones, gamma);
         if last_epoch != -1 {
             scheduler.set_last_epoch(last_epoch as usize);
         }
-        Ok(Self { inner: scheduler })
+        Ok(Self {
+            inner: scheduler,
+            optimizer,
+        })
     }
 
-    fn step(&mut self) {
+    fn step(&mut self) -> PyResult<()> {
         self.inner.step();
+        let lr = self.inner.learning_rate();
+        Python::attach(|py| optimizer_set_lr(py, &self.optimizer, lr))?;
+        Ok(())
     }
 
     fn get_lr(&self) -> f64 {
@@ -139,6 +211,7 @@ impl MultiStepLR {
 #[pyclass(name = "ReduceLROnPlateau", module = "_coeus")]
 pub struct ReduceLROnPlateau {
     inner: RustReduceLROnPlateau,
+    optimizer: Py<PyAny>,
 }
 
 #[pymethods]
@@ -157,7 +230,6 @@ impl ReduceLROnPlateau {
         min_lr: f64,
         eps: f64,
     ) -> PyResult<Self> {
-        let _ = optimizer;
         let _ = threshold_mode;
         let _ = eps;
         let reduce_mode = match mode {
@@ -170,8 +242,36 @@ impl ReduceLROnPlateau {
             }
         };
 
+        if !(factor > 0.0 && factor < 1.0) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "factor must be in (0, 1)",
+            ));
+        }
+        if min_lr < 0.0 {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "min_lr must be >= 0",
+            ));
+        }
+        if threshold < 0.0 {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "threshold must be >= 0",
+            ));
+        }
+
+        let initial_lr = Python::attach(|py| optimizer_get_lr(py, &optimizer))?;
+        if initial_lr.partial_cmp(&0.0) != Some(Ordering::Greater) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "optimizer learning rate must be > 0",
+            ));
+        }
+        if min_lr.partial_cmp(&initial_lr) != Some(Ordering::Less) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "min_lr must be < optimizer learning rate",
+            ));
+        }
+
         let scheduler = RustReduceLROnPlateau::new(
-            0.1, // Initial LR placeholder
+            initial_lr,
             reduce_mode,
             factor,
             patience,
@@ -179,11 +279,17 @@ impl ReduceLROnPlateau {
             cooldown,
             min_lr,
         );
-        Ok(ReduceLROnPlateau { inner: scheduler })
+        Ok(ReduceLROnPlateau {
+            inner: scheduler,
+            optimizer,
+        })
     }
 
-    fn step(&mut self, metrics: f64) {
+    fn step(&mut self, metrics: f64) -> PyResult<()> {
         self.inner.step(metrics);
+        let lr = self.inner.learning_rate();
+        Python::attach(|py| optimizer_set_lr(py, &self.optimizer, lr))?;
+        Ok(())
     }
 
     fn get_lr(&self) -> f64 {
@@ -195,6 +301,7 @@ impl ReduceLROnPlateau {
 #[pyclass(name = "OneCycleLR", module = "_coeus")]
 pub struct OneCycleLR {
     inner: RustOneCycleLR,
+    optimizer: Py<PyAny>,
 }
 
 #[pymethods]
@@ -219,7 +326,6 @@ impl OneCycleLR {
         last_epoch: i64,
         verbose: bool,
     ) -> PyResult<Self> {
-        let _ = optimizer;
         let _ = (anneal_strategy, cycle_momentum, base_momentum, max_momentum);
         let _ = (final_div_factor, three_phase, verbose);
         // Calculate total steps
@@ -235,6 +341,17 @@ impl OneCycleLR {
             },
         };
 
+        if max_lr.partial_cmp(&0.0) != Some(Ordering::Greater) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "max_lr must be > 0",
+            ));
+        }
+        if div_factor.partial_cmp(&0.0) != Some(Ordering::Greater) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "div_factor must be > 0",
+            ));
+        }
+
         let initial_lr = max_lr / div_factor;
         let mut scheduler = RustOneCycleLR::new(max_lr, steps, pct_start, initial_lr);
 
@@ -242,14 +359,97 @@ impl OneCycleLR {
             scheduler.set_last_epoch(last_epoch as usize);
         }
 
-        Ok(OneCycleLR { inner: scheduler })
+        let scheduler_lr = scheduler.learning_rate();
+        Python::attach(|py| optimizer_set_lr(py, &optimizer, scheduler_lr))?;
+
+        Ok(OneCycleLR {
+            inner: scheduler,
+            optimizer,
+        })
     }
 
-    fn step(&mut self) {
+    fn step(&mut self) -> PyResult<()> {
         self.inner.step();
+        let lr = self.inner.learning_rate();
+        Python::attach(|py| optimizer_set_lr(py, &self.optimizer, lr))?;
+        Ok(())
     }
 
     fn get_lr(&self) -> f64 {
         self.inner.learning_rate()
     }
+}
+
+fn optimizer_get_lr(py: Python<'_>, optimizer: &Py<PyAny>) -> PyResult<f64> {
+    let opt = optimizer.bind(py);
+
+    if let Ok(opt) = opt.extract::<PyRef<'_, Adam>>() {
+        return Ok(OptimizerTrait::lr(&opt.inner));
+    }
+    if let Ok(opt) = opt.extract::<PyRef<'_, AdamW>>() {
+        return Ok(OptimizerTrait::lr(&opt.inner));
+    }
+    if let Ok(opt) = opt.extract::<PyRef<'_, Adagrad>>() {
+        return Ok(OptimizerTrait::lr(&opt.inner));
+    }
+    if let Ok(opt) = opt.extract::<PyRef<'_, RMSprop>>() {
+        return Ok(OptimizerTrait::lr(&opt.inner));
+    }
+    if let Ok(opt) = opt.extract::<PyRef<'_, Sgd>>() {
+        return Ok(OptimizerTrait::lr(&opt.inner));
+    }
+
+    Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+        "Unsupported optimizer type for scheduler",
+    ))
+}
+
+fn optimizer_set_lr(py: Python<'_>, optimizer: &Py<PyAny>, lr: f64) -> PyResult<()> {
+    if lr.partial_cmp(&0.0) != Some(Ordering::Greater) {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "learning rate must be > 0",
+        ));
+    }
+
+    let opt = optimizer.bind(py);
+
+    if let Ok(mut opt) = opt.extract::<PyRefMut<'_, Adam>>() {
+        return OptimizerTrait::set_lr(&mut opt.inner, lr).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "failed to set optimizer learning rate: {e:?}"
+            ))
+        });
+    }
+    if let Ok(mut opt) = opt.extract::<PyRefMut<'_, AdamW>>() {
+        return OptimizerTrait::set_lr(&mut opt.inner, lr).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "failed to set optimizer learning rate: {e:?}"
+            ))
+        });
+    }
+    if let Ok(mut opt) = opt.extract::<PyRefMut<'_, Adagrad>>() {
+        return OptimizerTrait::set_lr(&mut opt.inner, lr).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "failed to set optimizer learning rate: {e:?}"
+            ))
+        });
+    }
+    if let Ok(mut opt) = opt.extract::<PyRefMut<'_, RMSprop>>() {
+        return OptimizerTrait::set_lr(&mut opt.inner, lr).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "failed to set optimizer learning rate: {e:?}"
+            ))
+        });
+    }
+    if let Ok(mut opt) = opt.extract::<PyRefMut<'_, Sgd>>() {
+        return OptimizerTrait::set_lr(&mut opt.inner, lr).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "failed to set optimizer learning rate: {e:?}"
+            ))
+        });
+    }
+
+    Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+        "Unsupported optimizer type for scheduler",
+    ))
 }

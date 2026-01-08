@@ -18,18 +18,34 @@ mod loom_tests {
     use storage::DenseStorage;
     use tensor::Tensor;
 
-    type TestTensor = Tensor<CpuBackend<Data = T>, DenseStorage<Float32>, Float32>;
+    type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
     /// Test that simultaneous gradient computation on independent graphs is safe
     #[test]
     fn test_concurrent_independent_graphs() {
         loom::model(|| {
             // Create two independent computation graphs
-            let x1 = Arc::new(TestTensor::from_vec(vec![Float32::new(2.0)], &[1]).unwrap().requires_grad_(true));
-            let y1 = Arc::new(TestTensor::from_vec(vec![Float32::new(3.0)], &[1]).unwrap().requires_grad_(true));
+            let x1 = Arc::new(
+                TestTensor::from_vec(vec![Float32::new(2.0)], &[1])
+                    .expect("Failed to create x1")
+                    .requires_grad_(true),
+            );
+            let y1 = Arc::new(
+                TestTensor::from_vec(vec![Float32::new(3.0)], &[1])
+                    .expect("Failed to create y1")
+                    .requires_grad_(true),
+            );
 
-            let x2 = Arc::new(TestTensor::from_vec(vec![Float32::new(4.0)], &[1]).unwrap().requires_grad_(true));
-            let y2 = Arc::new(TestTensor::from_vec(vec![Float32::new(5.0)], &[1]).unwrap().requires_grad_(true));
+            let x2 = Arc::new(
+                TestTensor::from_vec(vec![Float32::new(4.0)], &[1])
+                    .expect("Failed to create x2")
+                    .requires_grad_(true),
+            );
+            let y2 = Arc::new(
+                TestTensor::from_vec(vec![Float32::new(5.0)], &[1])
+                    .expect("Failed to create y2")
+                    .requires_grad_(true),
+            );
 
             let mut handles = vec![];
 
@@ -37,9 +53,16 @@ mod loom_tests {
             let x1_clone = Arc::clone(&x1);
             let y1_clone = Arc::clone(&y1);
             handles.push(thread::spawn(move || {
-                let z1 = add(&x1_clone, &y1_clone).unwrap();
-                let grad1 = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
-                backward_with_grad(&z1, &grad1).unwrap();
+                let z1 = match add(&x1_clone, &y1_clone) {
+                    Ok(v) => v,
+                    Err(e) => panic!("add failed: {e}"),
+                };
+                let grad1 =
+                    TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).expect("Failed to create grad1");
+                match backward_with_grad(&z1, &grad1) {
+                    Ok(()) => {}
+                    Err(e) => panic!("backward_with_grad failed: {e}"),
+                }
                 let grad_x1 = x1_clone.grad();
                 let grad_y1 = y1_clone.grad();
                 assert!(grad_x1.is_some());
@@ -50,9 +73,16 @@ mod loom_tests {
             let x2_clone = Arc::clone(&x2);
             let y2_clone = Arc::clone(&y2);
             handles.push(thread::spawn(move || {
-                let z2 = mul(&x2_clone, &y2_clone).unwrap();
-                let grad2 = TestTensor::from_vec(vec![Float32::new(2.0)], &[1]).unwrap();
-                backward_with_grad(&z2, &grad2).unwrap();
+                let z2 = match mul(&x2_clone, &y2_clone) {
+                    Ok(v) => v,
+                    Err(e) => panic!("mul failed: {e}"),
+                };
+                let grad2 =
+                    TestTensor::from_vec(vec![Float32::new(2.0)], &[1]).expect("Failed to create grad2");
+                match backward_with_grad(&z2, &grad2) {
+                    Ok(()) => {}
+                    Err(e) => panic!("backward_with_grad failed: {e}"),
+                }
                 let grad_x2 = x2_clone.grad();
                 let grad_y2 = y2_clone.grad();
                 assert!(grad_x2.is_some());
@@ -61,7 +91,10 @@ mod loom_tests {
 
             // Wait for both threads
             for handle in handles {
-                handle.join().unwrap();
+                match handle.join() {
+                    Ok(()) => {}
+                    Err(_) => panic!("thread panicked"),
+                }
             }
         });
     }
@@ -71,16 +104,27 @@ mod loom_tests {
     fn test_concurrent_shared_tensor_usage() {
         loom::model(|| {
             // Create shared tensor with multiple references
-            let shared_tensor = Arc::new(TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap().requires_grad_(true));
+            let shared_tensor = Arc::new(
+                TestTensor::from_vec(vec![Float32::new(1.0)], &[1])
+                    .expect("Failed to create shared tensor")
+                    .requires_grad_(true),
+            );
 
             let mut handles = vec![];
 
             // Thread 1: Add operation
             let tensor1 = Arc::clone(&shared_tensor);
             handles.push(thread::spawn(move || {
-                let result1 = add(&tensor1, &tensor1).unwrap(); // result = 1 + 1 = 2
-                let grad1 = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
-                backward_with_grad(&result1, &grad1).unwrap();
+                let result1 = match add(&tensor1, &tensor1) {
+                    Ok(v) => v,
+                    Err(e) => panic!("add failed: {e}"),
+                };
+                let grad1 =
+                    TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).expect("Failed to create grad1");
+                match backward_with_grad(&result1, &grad1) {
+                    Ok(()) => {}
+                    Err(e) => panic!("backward_with_grad failed: {e}"),
+                }
                 // Check that tensor has gradient
                 assert!(tensor1.grad().is_some());
             }));
@@ -88,16 +132,26 @@ mod loom_tests {
             // Thread 2: Multiply operation with same tensor
             let tensor2 = Arc::clone(&shared_tensor);
             handles.push(thread::spawn(move || {
-                let result2 = mul(&tensor2, &tensor2).unwrap(); // result = 1 * 1 = 1
-                let grad2 = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
-                backward_with_grad(&result2, &grad2).unwrap();
+                let result2 = match mul(&tensor2, &tensor2) {
+                    Ok(v) => v,
+                    Err(e) => panic!("mul failed: {e}"),
+                };
+                let grad2 =
+                    TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).expect("Failed to create grad2");
+                match backward_with_grad(&result2, &grad2) {
+                    Ok(()) => {}
+                    Err(e) => panic!("backward_with_grad failed: {e}"),
+                }
                 // Check that tensor has gradient
                 assert!(tensor2.grad().is_some());
             }));
 
             // Wait for completion
             for handle in handles {
-                handle.join().unwrap();
+                match handle.join() {
+                    Ok(()) => {}
+                    Err(_) => panic!("thread panicked"),
+                }
             }
         });
     }
@@ -106,11 +160,21 @@ mod loom_tests {
     #[test]
     fn test_concurrent_grad_access() {
         loom::model(|| {
-            let tensor = Arc::new(TestTensor::from_vec(vec![Float32::new(2.0)], &[1]).unwrap().requires_grad_(true));
+            let tensor = Arc::new(
+                TestTensor::from_vec(vec![Float32::new(2.0)], &[1])
+                    .expect("Failed to create tensor")
+                    .requires_grad_(true),
+            );
 
-            let result = add(&tensor, &tensor).unwrap();
-            let grad = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
-            backward_with_grad(&result, &grad).unwrap();
+            let result = match add(&tensor, &tensor) {
+                Ok(v) => v,
+                Err(e) => panic!("add failed: {e}"),
+            };
+            let grad = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).expect("Failed to create grad");
+            match backward_with_grad(&result, &grad) {
+                Ok(()) => {}
+                Err(e) => panic!("backward_with_grad failed: {e}"),
+            }
 
             let mut handles = vec![];
 
@@ -119,15 +183,20 @@ mod loom_tests {
                 let tensor_clone = Arc::clone(&tensor);
                 handles.push(thread::spawn(move || {
                     let grad_value = tensor_clone.grad();
-                    assert!(grad_value.is_some());
-                    let grad_slice = grad_value.unwrap().as_slice();
+                    let Some(grad_value) = grad_value else {
+                        panic!("missing gradient");
+                    };
+                    let grad_slice = grad_value.as_slice();
                     assert_eq!(grad_slice.len(), 1);
                     // Just access the gradient - loom ensures no races
                 }));
             }
 
             for handle in handles {
-                handle.join().unwrap();
+                match handle.join() {
+                    Ok(()) => {}
+                    Err(_) => panic!("thread panicked"),
+                }
             }
         });
     }
@@ -136,35 +205,69 @@ mod loom_tests {
     #[test]
     fn test_concurrent_zero_grad() {
         loom::model(|| {
-            let tensor1 = Arc::new(TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap().requires_grad_(true));
-            let tensor2 = Arc::new(TestTensor::from_vec(vec![Float32::new(2.0)], &[1]).unwrap().requires_grad_(true));
+            let tensor1 = Arc::new(
+                TestTensor::from_vec(vec![Float32::new(1.0)], &[1])
+                    .expect("Failed to create tensor1")
+                    .requires_grad_(true),
+            );
+            let tensor2 = Arc::new(
+                TestTensor::from_vec(vec![Float32::new(2.0)], &[1])
+                    .expect("Failed to create tensor2")
+                    .requires_grad_(true),
+            );
 
             let mut handles = vec![];
 
             // Thread 1: Modify tensor1, then zero its gradient
             let t1 = Arc::clone(&tensor1);
             handles.push(thread::spawn(move || {
-                let result = add(&t1, &t1).unwrap();
-                let grad = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
-                backward_with_grad(&result, &grad).unwrap();
-                t1.zero_grad().unwrap();
+                let result = match add(&t1, &t1) {
+                    Ok(v) => v,
+                    Err(e) => panic!("add failed: {e}"),
+                };
+                let grad =
+                    TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).expect("Failed to create grad");
+                match backward_with_grad(&result, &grad) {
+                    Ok(()) => {}
+                    Err(e) => panic!("backward_with_grad failed: {e}"),
+                }
+                match t1.zero_grad() {
+                    Ok(()) => {}
+                    Err(e) => panic!("zero_grad failed: {e}"),
+                }
 
                 // After zero_grad, gradient should be reset
-                let grad_after = t1.grad().unwrap_or(TestTensor::zeros(&[1]).unwrap());
+                let _grad_after = match t1.grad() {
+                    Some(g) => g,
+                    None => TestTensor::zeros(&[1]).expect("Failed to create zeros gradient"),
+                };
                 // We can't directly check values due to Arc issues, but loom ensures no races
             }));
 
             // Thread 2: Do the same for tensor2
             let t2 = Arc::clone(&tensor2);
             handles.push(thread::spawn(move || {
-                let result = mul(&t2, &t2).unwrap();
-                let grad = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
-                backward_with_grad(&result, &grad).unwrap();
-                t2.zero_grad().unwrap();
+                let result = match mul(&t2, &t2) {
+                    Ok(v) => v,
+                    Err(e) => panic!("mul failed: {e}"),
+                };
+                let grad =
+                    TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).expect("Failed to create grad");
+                match backward_with_grad(&result, &grad) {
+                    Ok(()) => {}
+                    Err(e) => panic!("backward_with_grad failed: {e}"),
+                }
+                match t2.zero_grad() {
+                    Ok(()) => {}
+                    Err(e) => panic!("zero_grad failed: {e}"),
+                }
             }));
 
             for handle in handles {
-                handle.join().unwrap();
+                match handle.join() {
+                    Ok(()) => {}
+                    Err(_) => panic!("thread panicked"),
+                }
             }
         });
     }
@@ -174,11 +277,25 @@ mod loom_tests {
     fn test_non_interfering_backward_passes() {
         loom::model(|| {
             // Create two separate computation graphs
-            let x1 = Arc::new(TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap().requires_grad_(true));
-            let x2 = Arc::new(TestTensor::from_vec(vec![Float32::new(2.0)], &[1]).unwrap().requires_grad_(true));
+            let x1 = Arc::new(
+                TestTensor::from_vec(vec![Float32::new(1.0)], &[1])
+                    .expect("Failed to create x1")
+                    .requires_grad_(true),
+            );
+            let x2 = Arc::new(
+                TestTensor::from_vec(vec![Float32::new(2.0)], &[1])
+                    .expect("Failed to create x2")
+                    .requires_grad_(true),
+            );
 
-            let graph1 = Arc::new(add(&x1, &x1).unwrap()); // 1 + 1 = 2
-            let graph2 = Arc::new(mul(&x2, &x2).unwrap()); // 2 * 2 = 4
+            let graph1 = Arc::new(match add(&x1, &x1) {
+                Ok(v) => v,
+                Err(e) => panic!("add failed: {e}"),
+            });
+            let graph2 = Arc::new(match mul(&x2, &x2) {
+                Ok(v) => v,
+                Err(e) => panic!("mul failed: {e}"),
+            });
 
             let mut handles = vec![];
 
@@ -186,8 +303,12 @@ mod loom_tests {
             let graph1_clone = Arc::clone(&graph1);
             let x1_clone = Arc::clone(&x1);
             handles.push(thread::spawn(move || {
-                let grad = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
-                backward_with_grad(&graph1_clone, &grad).unwrap();
+                let grad =
+                    TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).expect("Failed to create grad");
+                match backward_with_grad(&graph1_clone, &grad) {
+                    Ok(()) => {}
+                    Err(e) => panic!("backward_with_grad failed: {e}"),
+                }
                 // x1 should have grad = 2 (d/dx(x+x) = 2)
                 assert!(x1_clone.grad().is_some());
             }));
@@ -196,14 +317,21 @@ mod loom_tests {
             let graph2_clone = Arc::clone(&graph2);
             let x2_clone = Arc::clone(&x2);
             handles.push(thread::spawn(move || {
-                let grad = TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
-                backward_with_grad(&graph2_clone, &grad).unwrap();
+                let grad =
+                    TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).expect("Failed to create grad");
+                match backward_with_grad(&graph2_clone, &grad) {
+                    Ok(()) => {}
+                    Err(e) => panic!("backward_with_grad failed: {e}"),
+                }
                 // x2 should have grad = 4 (d/dx(x*x) = 2*x = 4 when x=2)
                 assert!(x2_clone.grad().is_some());
             }));
 
             for handle in handles {
-                handle.join().unwrap();
+                match handle.join() {
+                    Ok(()) => {}
+                    Err(_) => panic!("thread panicked"),
+                }
             }
         });
     }
@@ -212,7 +340,9 @@ mod loom_tests {
     #[test]
     fn test_concurrent_requires_grad_access() {
         loom::model(|| {
-            let tensor = Arc::new(TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).unwrap());
+            let tensor = Arc::new(
+                TestTensor::from_vec(vec![Float32::new(1.0)], &[1]).expect("Failed to create tensor"),
+            );
 
             let mut handles = vec![];
 
@@ -227,7 +357,10 @@ mod loom_tests {
             }
 
             for handle in handles {
-                handle.join().unwrap();
+                match handle.join() {
+                    Ok(()) => {}
+                    Err(_) => panic!("thread panicked"),
+                }
             }
         });
     }
@@ -236,7 +369,13 @@ mod loom_tests {
     #[test]
     fn test_concurrent_tensor_metadata_access() {
         loom::model(|| {
-            let tensor = Arc::new(TestTensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)], &[3]).unwrap());
+            let tensor = Arc::new(
+                TestTensor::from_vec(
+                    vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
+                    &[3],
+                )
+                .expect("Failed to create tensor"),
+            );
 
             let mut handles = vec![];
 
@@ -260,7 +399,10 @@ mod loom_tests {
             }));
 
             for handle in handles {
-                handle.join().unwrap();
+                match handle.join() {
+                    Ok(()) => {}
+                    Err(_) => panic!("thread panicked"),
+                }
             }
         });
     }
@@ -275,4 +417,3 @@ mod loom_tests {
         // To run loom tests: RUSTFLAGS="--cfg loom" cargo test --test loom
     }
 }</content>
-

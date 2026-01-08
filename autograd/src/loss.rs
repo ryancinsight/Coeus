@@ -124,17 +124,15 @@ where
 ///
 /// # Returns
 /// A scalar tensor containing the NLL loss value with gradient computation support.
-#[allow(clippy::missing_errors_doc)]
-pub fn nll_loss<B, S, T>(
+fn validate_nll_shapes<B, S, T>(
     log_probs: &Tensor<B, S, T>,
     targets: &Tensor<B, S, T>,
-) -> crate::Result<Tensor<B, S, T>>
+) -> crate::Result<(usize, usize)>
 where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
-    T: DataType + FloatExt + FromPrimitive + ToPrimitive + Copy + Send + Sync + 'static,
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
 {
-    // Validate input dimensions
     let logits_shape = log_probs.shape().dims();
     let targets_shape = targets.shape().dims();
 
@@ -150,76 +148,69 @@ where
             message: format!("Targets must be 1D tensor [batch_size], got shape {targets_shape:?}"),
         });
     }
-    let logits_batch = logits_shape[0];
+
+    let batch_size = logits_shape[0];
     let targets_batch = targets_shape[0];
-    if logits_batch != targets_batch {
+    if batch_size != targets_batch {
         return Err(crate::AutogradError::InvalidInput {
-            message: format!("Batch size mismatch: logits has batch_size={logits_batch}, targets has batch_size={targets_batch}"),
+            message: format!(
+                "Batch size mismatch: logits has batch_size={batch_size}, targets has batch_size={targets_batch}"
+            ),
         });
     }
 
-    let batch_size = logits_batch;
-    let num_classes = logits_shape[1];
+    Ok((batch_size, logits_shape[1]))
+}
 
-    // Convert to dense for manual indexing
-    let targets_dense = targets
-        .to_dense_generic()
-        .map_err(crate::AutogradError::TensorError)?;
-    let log_probs_dense = log_probs
-        .to_dense_generic()
-        .map_err(crate::AutogradError::TensorError)?;
+fn validate_target_index<T>(target_val: T, num_classes: usize) -> crate::Result<(usize, f64)>
+where
+    T: DataType + FloatExt + FromPrimitive + ToPrimitive + Copy,
+{
+    let val_f64 = target_val
+        .to_f64()
+        .ok_or_else(|| crate::AutogradError::InvalidInput {
+            message: "Target value is not convertible to f64".to_string(),
+        })?;
 
-    let targets_slice = targets_dense.storage_ref().as_slice();
-    let log_probs_slice = log_probs_dense.storage_ref().as_slice();
-
-    let mut nll_loss_vals = Vec::new();
-
-    for (batch_idx, &target_val) in targets_slice.iter().enumerate().take(batch_size) {
-        // Validate target is integer
-        if let Some(val_f64) = target_val.to_f64() {
-            if (val_f64 - val_f64.round()).abs() > 1e-5 {
-                return Err(crate::AutogradError::InvalidInput {
-                    message: format!("Target value {val_f64} is not an integer"),
-                });
-            }
-            if val_f64 < 0.0 {
-                return Err(crate::AutogradError::InvalidInput {
-                    message: format!("Target class index {val_f64} is out of range"),
-                });
-            }
-        }
-
-        let target_idx = target_val.to_usize().unwrap_or(0);
-
-        if target_idx >= num_classes {
-            return Err(crate::AutogradError::InvalidInput {
-                message: format!(
-                    "Target class index {target_idx} is out of range for {num_classes} classes"
-                ),
-            });
-        }
-
-        // Get log_prob value for the target class
-        let log_prob_idx = batch_idx * num_classes + target_idx;
-        let log_prob = log_probs_slice[log_prob_idx];
-
-        // Validate log_prob
-        if let Some(lp_f64) = log_prob.to_f64() {
-            if lp_f64.is_nan() {
-                return Err(crate::AutogradError::InvalidInput {
-                    message: format!("Invalid log probability: encountered NaN at batch {batch_idx}, class {target_idx}"),
-                });
-            }
-        }
-
-        // Negative log likelihood: -log_prob
-        let neg_log_prob = T::zero() - log_prob;
-        nll_loss_vals.push(neg_log_prob);
+    if !val_f64.is_finite() {
+        return Err(crate::AutogradError::InvalidInput {
+            message: format!("Target value {val_f64} is not finite"),
+        });
+    }
+    if (val_f64 - val_f64.round()).abs() > 1e-5 {
+        return Err(crate::AutogradError::InvalidInput {
+            message: format!("Target value {val_f64} is not an integer"),
+        });
+    }
+    if val_f64 < 0.0 {
+        return Err(crate::AutogradError::InvalidInput {
+            message: format!("Target class index {val_f64} is out of range"),
+        });
     }
 
-    // Compute mean loss across batch
+    let target_idx = target_val
+        .to_usize()
+        .ok_or_else(|| crate::AutogradError::InvalidInput {
+            message: format!("Target value {val_f64} is not representable as usize"),
+        })?;
+
+    if target_idx >= num_classes {
+        return Err(crate::AutogradError::InvalidInput {
+            message: format!(
+                "Target class index {target_idx} is out of range for {num_classes} classes"
+            ),
+        });
+    }
+
+    Ok((target_idx, val_f64))
+}
+
+fn compute_mean_nll_loss<T>(nll_loss_vals: &[T], batch_size: usize) -> crate::Result<T>
+where
+    T: DataType + FloatExt + FromPrimitive + Copy,
+{
     let mut total_loss = T::zero();
-    for x in &nll_loss_vals {
+    for x in nll_loss_vals {
         total_loss = total_loss + *x;
     }
 
@@ -231,9 +222,53 @@ where
         })
     })?;
 
-    let mean_loss = total_loss / batch_size_t;
+    Ok(total_loss / batch_size_t)
+}
 
-    // Create result tensor
+#[allow(clippy::missing_errors_doc)]
+pub fn nll_loss<B, S, T>(
+    log_probs: &Tensor<B, S, T>,
+    targets: &Tensor<B, S, T>,
+) -> crate::Result<Tensor<B, S, T>>
+where
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    T: DataType + FloatExt + FromPrimitive + ToPrimitive + Copy + Send + Sync + 'static,
+{
+    let (batch_size, num_classes) = validate_nll_shapes(log_probs, targets)?;
+
+    let targets_dense = targets
+        .to_dense_preserving_identity()
+        .map_err(crate::AutogradError::TensorError)?;
+    let log_probs_dense = log_probs
+        .to_dense_preserving_identity()
+        .map_err(crate::AutogradError::TensorError)?;
+
+    let targets_slice = targets_dense.storage_ref().as_slice();
+    let log_probs_slice = log_probs_dense.storage_ref().as_slice();
+
+    let mut nll_loss_vals = Vec::new();
+
+    for (batch_idx, &target_val) in targets_slice.iter().enumerate().take(batch_size) {
+        let (target_idx, _) = validate_target_index(target_val, num_classes)?;
+
+        // Get log_prob value for the target class
+        let log_prob_idx = batch_idx * num_classes + target_idx;
+        let log_prob = log_probs_slice[log_prob_idx];
+
+        if let Some(lp_f64) = log_prob.to_f64() {
+            if lp_f64.is_nan() {
+                return Err(crate::AutogradError::InvalidInput {
+                    message: format!("Invalid log probability: encountered NaN at batch {batch_idx}, class {target_idx}"),
+                });
+            }
+        }
+
+        let neg_log_prob = T::zero() - log_prob;
+        nll_loss_vals.push(neg_log_prob);
+    }
+
+    let mean_loss = compute_mean_nll_loss(&nll_loss_vals, batch_size)?;
     let result_data = vec![mean_loss];
     let result_tensor = Tensor::from_vec(result_data, &[1])?;
 
@@ -360,8 +395,33 @@ where
     let mut nll_loss = Vec::new();
 
     for (batch_idx, &target_val) in targets_slice.iter().enumerate().take(batch_size) {
-        // Get target class index (assume targets contain integer indices)
-        let target_idx = target_val.to_usize().unwrap_or(0);
+        let val_f64 = target_val
+            .to_f64()
+            .ok_or_else(|| crate::AutogradError::InvalidInput {
+                message: "Target value is not convertible to f64".to_string(),
+            })?;
+        if !val_f64.is_finite() {
+            return Err(crate::AutogradError::InvalidInput {
+                message: format!("Target value {val_f64} is not finite"),
+            });
+        }
+        if (val_f64 - val_f64.round()).abs() > 1e-5 {
+            return Err(crate::AutogradError::InvalidInput {
+                message: format!("Target value {val_f64} is not an integer"),
+            });
+        }
+        if val_f64 < 0.0 {
+            return Err(crate::AutogradError::InvalidInput {
+                message: format!("Target class index {val_f64} is out of range"),
+            });
+        }
+
+        let target_idx =
+            target_val
+                .to_usize()
+                .ok_or_else(|| crate::AutogradError::InvalidInput {
+                    message: format!("Target value {val_f64} is not representable as usize"),
+                })?;
 
         if target_idx >= num_classes {
             return Err(crate::AutogradError::InvalidInput {
@@ -619,21 +679,19 @@ mod tests {
     use tensor::Tensor;
 
     #[test]
-    fn test_mse_loss_forward() {
+    fn test_mse_loss_forward() -> anyhow::Result<()> {
         // Test MSE loss computation
         let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
-        )
-        .unwrap();
+        )?;
 
         let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.5), Float32::new(2.5), Float32::new(3.5)],
             &[3],
-        )
-        .unwrap();
+        )?;
 
-        let loss = mse_loss(&predictions, &targets).unwrap();
+        let loss = mse_loss(&predictions, &targets)?;
 
         // Expected: mean((0.5)² + (0.5)² + (0.5)²) = mean(0.25 + 0.25 + 0.25) = 0.25
         let loss_value = loss.as_slice()[0].get();
@@ -641,40 +699,39 @@ mod tests {
             (loss_value - 0.25).abs() < 1e-6,
             "MSE loss mismatch: expected 0.25, got {loss_value}",
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_mse_loss_gradient() {
+    fn test_mse_loss_gradient() -> anyhow::Result<()> {
         // Test MSE loss gradient computation
         let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
-        )
-        .unwrap()
+        )?
         .requires_grad_(true);
 
         let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.5), Float32::new(2.5)],
             &[2],
-        )
-        .unwrap();
+        )?;
 
         // Use mse_loss function which properly implements division by N
-        let loss = mse_loss(&predictions, &targets).unwrap();
+        let loss = mse_loss(&predictions, &targets)?;
 
         // Create a scalar gradient output (shape [])
         let grad_output = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0)],
             &[],
-        )
-        .unwrap();
+        )?;
 
         // Backward pass using backward_with_grad
-        crate::ops::backward_with_grad(&loss, grad_output).unwrap();
+        crate::ops::backward_with_grad(&loss, grad_output)?;
 
         // Check gradient: ∂L/∂pred = 2 * (pred - target) / n
         // For pred=[1.0, 2.0], target=[1.5, 2.5]: grad = 2 * [-0.5, -0.5] / 2 = [-0.5, -0.5]
-        let pred_grad = predictions.grad().unwrap();
+        let pred_grad = predictions.grad()?;
         let expected_grad = [-0.5, -0.5];
         for (i, expected) in expected_grad.iter().copied().enumerate() {
             let actual = pred_grad.as_slice()[i].get();
@@ -683,73 +740,26 @@ mod tests {
                 "Gradient mismatch at index {i}: expected {expected}, got {actual}",
             );
         }
+
+        Ok(())
     }
 
-    // TODO: Re-enable when numerical gradient validation is implemented
-    // #[test]
-    // fn test_mse_loss_numerical_gradient() {
-    //     use crate::backward;
-    //     use crate::numerical::numerical_gradient;
-    //
-    //     // Test MSE loss with numerical gradient validation
-    //     let predictions = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-    //         vec![Float32::new(1.0), Float32::new(2.0)],
-    //         &[2]
-    //     ).unwrap().requires_grad_(true);
-    //
-    //     let targets_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
-    //         vec![Float32::new(1.5), Float32::new(2.5)],
-    //         &[2]
-    //     ).unwrap();
-    //
-    //     // Compute numerical gradient
-    //     let f = |pred: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>| {
-    //         mse_loss(pred, &targets_data).unwrap()
-    //     };
-    //
-    //     let numerical_grad = numerical_gradient(f, &predictions, Float32::new(1e-5)).unwrap();
-    //
-    //     // Compute analytical gradient
-    //     let loss = mse_loss(&predictions, &targets_data).unwrap();
-    //
-    //     // Backward pass using the backward() function
-    //     backward(&loss).unwrap();
-    //
-    //     let analytical_grad = predictions.grad().unwrap();
-    //
-    //     // Compare gradients
-    //     for i in 0..2 {
-    //         let num_val = numerical_grad.as_slice()[i].get();
-    //         let ana_val = analytical_grad.as_slice()[i].get();
-    //         let diff = (num_val - ana_val).abs();
-    //         assert!(
-    //             diff < 1e-2,
-    //             "Gradient mismatch at index {}: numerical={}, analytical={}",
-    //             i,
-    //             num_val,
-    //             ana_val
-    //         );
-    //     }
-    // }
-
     #[test]
-    fn test_cross_entropy_loss_forward() {
+    fn test_cross_entropy_loss_forward() -> anyhow::Result<()> {
         // Test cross-entropy loss computation (simplified version)
         // Logits must be 2D [batch_size=1, num_classes=3]
         let logits = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[1, 3],
-        )
-        .unwrap();
+        )?;
 
         // Targets must be 1D [batch_size=1]
         let targets = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(0.0)], // class 0
             &[1],
-        )
-        .unwrap();
+        )?;
 
-        let loss = cross_entropy_loss(&logits, &targets).unwrap();
+        let loss = cross_entropy_loss(&logits, &targets)?;
 
         // Just verify it computes without error (simplified implementation)
         let loss_value = loss.as_slice()[0].get();
@@ -757,44 +767,46 @@ mod tests {
             loss_value.is_finite(),
             "Cross-entropy loss should be finite, got {loss_value}",
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_simple_subtraction_backward() {
+    fn test_simple_subtraction_backward() -> anyhow::Result<()> {
         use crate::backward;
 
         // Simplified test: just test subtraction and mean
         let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
-        )
-        .unwrap()
+        )?
         .requires_grad_(true);
 
         let b = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.5), Float32::new(2.5)],
             &[2],
-        )
-        .unwrap();
+        )?;
 
         // Compute diff = a - b
-        let diff = sub(&a, &b).unwrap();
+        let diff = sub(&a, &b)?;
 
         // Compute mean using autograd mean operation
         // Note: mean reduction usually results in a scalar if keepdim is false
-        let result = crate::ops::mean(&diff, None, false).unwrap();
+        let result = crate::ops::mean(&diff, None, false)?;
 
         // Reshape to scalar if needed for backward()
         let result = if result.shape().ndim() == 1 && result.shape().dims()[0] == 1 {
-            crate::ops::reshape(&result, &[]).unwrap()
+            crate::ops::reshape(&result, &[])?
         } else {
             result
         };
 
         // Backward pass
-        backward(&result, None, false, false).unwrap();
+        backward(&result, None, false, false)?;
 
         // Check gradient
         assert!(a.grad().is_ok(), "a should have a gradient after backward");
+
+        Ok(())
     }
 }

@@ -4,7 +4,7 @@
 //! commonly used for few-shot learning research. Each class has
 //! 600 examples (84x84 RGB images).
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use backend::{Backend, DataType, Storage};
 use dtype::traits::FloatExt;
 use rand::Rng;

@@ -2,5 +2,5 @@
 //!
 //! Provides window functions, spectral analysis (STFT), and filtering.
 
-pub mod windows;
 pub mod stft;
+pub mod windows;

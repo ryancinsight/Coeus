@@ -4,7 +4,7 @@
 //! organized in a hierarchical structure. It provides 779,165 images organized
 //! into 34 high-level categories.
 
-use crate::error::Result;
+use crate::core::error::Result;
 use backend::{Backend, DataType, Storage};
 use dtype::traits::FloatExt;
 
@@ -83,7 +83,7 @@ where
         _split: super::DatasetSplit,
     ) -> Result<super::FewShotEpisode<B, S, T>> {
         // TODO: Implement episode sampling
-        Err(crate::error::NNError::NotImplemented {
+        Err(crate::core::error::NNError::NotImplemented {
             operation: "TieredImageNet dataset".to_string(),
         })
     }

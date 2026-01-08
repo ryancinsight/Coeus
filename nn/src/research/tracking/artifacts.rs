@@ -35,13 +35,13 @@ impl ArtifactStorage {
         name: String,
         artifact_type: ArtifactType,
         data: Vec<u8>,
-    ) -> crate::error::Result<String> {
+    ) -> crate::core::error::Result<String> {
         let artifact_id = format!("{}_{}", name, chrono::Utc::now().timestamp());
         let size_bytes = data.len() as u64;
 
         // Check storage limits
         if !self.check_storage_limits(size_bytes) {
-            return Err(crate::error::NNError::InvalidConfiguration {
+            return Err(crate::core::error::NNError::InvalidConfiguration {
                 message: "Storage limit exceeded for artifacts".to_string(),
             });
         }
@@ -93,10 +93,10 @@ impl ArtifactStorage {
         name: String,
         artifact_type: ArtifactType,
         file_path: &Path,
-    ) -> crate::error::Result<String> {
+    ) -> crate::core::error::Result<String> {
         match std::fs::read(file_path) {
             Ok(data) => self.store_artifact(name, artifact_type, data),
-            Err(e) => Err(crate::error::NNError::IoError { error: e }),
+            Err(e) => Err(crate::core::error::NNError::IoError { error: e }),
         }
     }
 
@@ -106,7 +106,7 @@ impl ArtifactStorage {
     }
 
     /// Get artifact data (decompressing if necessary)
-    pub fn get_artifact_data(&self, id: &str) -> crate::error::Result<Vec<u8>> {
+    pub fn get_artifact_data(&self, id: &str) -> crate::core::error::Result<Vec<u8>> {
         if let Some(artifact) = self.artifacts.get(id) {
             if artifact.compressed {
                 self.decompress_data(&artifact.data)
@@ -114,7 +114,7 @@ impl ArtifactStorage {
                 Ok(artifact.data.clone())
             }
         } else {
-            Err(crate::error::NNError::NotFound {
+            Err(crate::core::error::NNError::NotFound {
                 resource: id.to_string(),
             })
         }
@@ -142,7 +142,7 @@ impl ArtifactStorage {
     }
 
     /// Delete artifact
-    pub fn delete_artifact(&mut self, id: &str) -> crate::error::Result<()> {
+    pub fn delete_artifact(&mut self, id: &str) -> crate::core::error::Result<()> {
         if let Some(artifact) = self.artifacts.remove(id) {
             // Update statistics
             self.stats.total_artifacts -= 1;
@@ -152,7 +152,7 @@ impl ArtifactStorage {
             }
             Ok(())
         } else {
-            Err(crate::error::NNError::NotFound {
+            Err(crate::core::error::NNError::NotFound {
                 resource: id.to_string(),
             })
         }
@@ -170,9 +170,10 @@ impl ArtifactStorage {
     }
 
     /// Export artifact to file
-    pub fn export_artifact(&self, id: &str, file_path: &Path) -> crate::error::Result<()> {
+    pub fn export_artifact(&self, id: &str, file_path: &Path) -> crate::core::error::Result<()> {
         let data = self.get_artifact_data(id)?;
-        std::fs::write(file_path, data).map_err(|e| crate::error::NNError::IoError { error: e })
+        std::fs::write(file_path, data)
+            .map_err(|e| crate::core::error::NNError::IoError { error: e })
     }
 
     /// Create artifact bundle (zip multiple artifacts)
@@ -180,7 +181,7 @@ impl ArtifactStorage {
         &mut self,
         bundle_name: String,
         artifact_ids: Vec<String>,
-    ) -> crate::error::Result<String> {
+    ) -> crate::core::error::Result<String> {
         let mut bundle_data = Vec::new();
 
         // Create a simple tar-like format (could be enhanced with actual compression)
@@ -205,14 +206,14 @@ impl ArtifactStorage {
     }
 
     /// Tag artifact
-    pub fn tag_artifact(&mut self, id: &str, tag: String) -> crate::error::Result<()> {
+    pub fn tag_artifact(&mut self, id: &str, tag: String) -> crate::core::error::Result<()> {
         if let Some(artifact) = self.artifacts.get_mut(id) {
             if !artifact.tags.contains(&tag) {
                 artifact.tags.push(tag);
             }
             Ok(())
         } else {
-            Err(crate::error::NNError::NotFound {
+            Err(crate::core::error::NNError::NotFound {
                 resource: id.to_string(),
             })
         }
@@ -224,12 +225,12 @@ impl ArtifactStorage {
         id: &str,
         key: String,
         value: serde_json::Value,
-    ) -> crate::error::Result<()> {
+    ) -> crate::core::error::Result<()> {
         if let Some(artifact) = self.artifacts.get_mut(id) {
             artifact.metadata.insert(key, value);
             Ok(())
         } else {
-            Err(crate::error::NNError::NotFound {
+            Err(crate::core::error::NNError::NotFound {
                 resource: id.to_string(),
             })
         }
@@ -248,7 +249,7 @@ impl ArtifactStorage {
     }
 
     /// Clean up old artifacts based on retention policy
-    fn cleanup_old_artifacts(&mut self) -> crate::error::Result<()> {
+    fn cleanup_old_artifacts(&mut self) -> crate::core::error::Result<()> {
         // Group artifacts by type for retention policy application
         let mut by_type: HashMap<ArtifactType, Vec<(chrono::DateTime<chrono::Utc>, String)>> =
             HashMap::new();
@@ -296,14 +297,14 @@ impl ArtifactStorage {
     }
 
     /// Compress data (placeholder - would use actual compression like gzip)
-    fn compress_data(&self, data: Vec<u8>) -> crate::error::Result<Vec<u8>> {
+    fn compress_data(&self, data: Vec<u8>) -> crate::core::error::Result<Vec<u8>> {
         // Placeholder implementation - would use a compression library like flate2
         // For now, just return the data unchanged
         Ok(data)
     }
 
     /// Decompress data (placeholder)
-    fn decompress_data(&self, data: &[u8]) -> crate::error::Result<Vec<u8>> {
+    fn decompress_data(&self, data: &[u8]) -> crate::core::error::Result<Vec<u8>> {
         // Placeholder implementation - would use a compression library like flate2
         Ok(data.to_vec())
     }
@@ -512,7 +513,7 @@ impl ArtifactArchive {
     }
 
     /// Archive artifact
-    pub fn archive_artifact(&mut self, artifact: Artifact) -> crate::error::Result<String> {
+    pub fn archive_artifact(&mut self, artifact: Artifact) -> crate::core::error::Result<String> {
         let artifact_id = artifact.id.clone();
         // Create archive entry
         let archived = ArchivedArtifact {
@@ -536,14 +537,14 @@ impl ArtifactArchive {
     }
 
     /// Export archive to file
-    pub fn export_archive(&self, export_path: &Path) -> crate::error::Result<()> {
+    pub fn export_archive(&self, export_path: &Path) -> crate::core::error::Result<()> {
         let archive_data = serde_json::to_vec_pretty(&self.archived).map_err(|e| {
-            crate::error::NNError::SerializationError {
+            crate::core::error::NNError::SerializationError {
                 message: format!("Failed to serialize archived data: {}", e),
             }
         })?;
         std::fs::write(export_path, archive_data)
-            .map_err(|e| crate::error::NNError::IoError { error: e })
+            .map_err(|e| crate::core::error::NNError::IoError { error: e })
     }
 }
 
@@ -565,12 +566,16 @@ impl ArtifactStorage {
         &mut self,
         name: String,
         model_data: Vec<u8>,
-    ) -> crate::error::Result<String> {
+    ) -> crate::core::error::Result<String> {
         self.store_artifact(name, ArtifactType::Model, model_data)
     }
 
     /// Store plot artifact
-    pub fn store_plot(&mut self, name: String, plot_data: Vec<u8>) -> crate::error::Result<String> {
+    pub fn store_plot(
+        &mut self,
+        name: String,
+        plot_data: Vec<u8>,
+    ) -> crate::core::error::Result<String> {
         self.store_artifact(name, ArtifactType::Plot, plot_data)
     }
 
@@ -579,7 +584,7 @@ impl ArtifactStorage {
         &mut self,
         name: String,
         dataset_data: Vec<u8>,
-    ) -> crate::error::Result<String> {
+    ) -> crate::core::error::Result<String> {
         self.store_artifact(name, ArtifactType::Dataset, dataset_data)
     }
 
@@ -588,7 +593,7 @@ impl ArtifactStorage {
         &mut self,
         name: String,
         config_data: Vec<u8>,
-    ) -> crate::error::Result<String> {
+    ) -> crate::core::error::Result<String> {
         self.store_artifact(name, ArtifactType::Config, config_data)
     }
 }

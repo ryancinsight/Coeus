@@ -197,7 +197,8 @@ mod tests {
 
     #[test]
     fn test_checkpoint_basic() {
-        let input = Tensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
+        let input = Tensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2])
+            .expect("Failed to create input tensor");
 
         let result = checkpoint(
             |x: &Tensor<backend::CpuBackend<Float32>, storage::DenseStorage<Float32>, Float32>| {
@@ -206,15 +207,23 @@ mod tests {
             &input,
         );
 
-        assert!(result.is_ok());
+        let output = result.expect("checkpoint should succeed");
+        assert_eq!(
+            output.as_slice(),
+            input.as_slice(),
+            "checkpoint should behave as identity in current implementation"
+        );
     }
 
     #[test]
     fn test_checkpoint_sequential() {
         let inputs = [
-            Tensor::from_vec(vec![Float32::new(1.0)], &[]).unwrap(),
-            Tensor::from_vec(vec![Float32::new(2.0)], &[]).unwrap(),
-            Tensor::from_vec(vec![Float32::new(3.0)], &[]).unwrap(),
+            Tensor::from_vec(vec![Float32::new(1.0)], &[])
+                .expect("Failed to create input tensor 1"),
+            Tensor::from_vec(vec![Float32::new(2.0)], &[])
+                .expect("Failed to create input tensor 2"),
+            Tensor::from_vec(vec![Float32::new(3.0)], &[])
+                .expect("Failed to create input tensor 3"),
         ];
 
         let input_refs: Vec<
@@ -228,8 +237,15 @@ mod tests {
             &input_refs,
         );
 
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 3);
+        let outputs = result.expect("checkpoint_sequential should succeed");
+        assert_eq!(outputs.len(), inputs.len());
+        for (output, input) in outputs.iter().zip(inputs.iter()) {
+            assert_eq!(
+                output.as_slice(),
+                input.as_slice(),
+                "checkpoint_sequential should behave as elementwise identity in current implementation"
+            );
+        }
     }
 
     #[test]

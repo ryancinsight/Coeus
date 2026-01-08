@@ -9,7 +9,7 @@ use std::fmt;
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// InfoNCE Contrastive Loss - Complete Convergence Theorem
 /// Theorem: InfoNCE Loss Convergence and Gradient Flow

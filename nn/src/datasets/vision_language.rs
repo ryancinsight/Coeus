@@ -4,7 +4,7 @@
 //! and processing pipelines. It defines common interfaces and utilities used by
 //! specific dataset implementations like COCO and Flickr30K.
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -88,7 +88,7 @@ impl<'a, T: VisionLanguageData> Iterator for DatasetIterator<'a, T> {
             // In practice, you might want to use streams/futures
             // For now, return an error indicating async iteration is needed
             self.current_index += 1;
-            Some(Err(crate::error::NNError::NotImplemented {
+            Some(Err(crate::core::error::NNError::NotImplemented {
                 operation: "Async iteration required".to_string(),
             }))
         }

@@ -56,7 +56,7 @@ use std::time::Instant;
 
 use super::optimizer::OptimizationResult;
 use super::space::{Hyperparameter, HyperparameterConfig, HyperparameterSpace};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Population-based optimization algorithms with validated configurations
 #[derive(Debug, Clone)]

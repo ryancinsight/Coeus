@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use super::evaluator::{ArchitectureEvaluator, EvaluationResult};
 use super::search_space::{Architecture, ArchitectureSpace};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Research hypothesis with testable claims
 #[derive(Debug, Clone)]

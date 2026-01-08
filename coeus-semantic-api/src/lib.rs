@@ -19,7 +19,10 @@ use tower_http::{
 // Re-export for convenience
 pub use crate::custom_middleware::*;
 pub use crate::errors::*;
-pub use crate::handlers::*;
+pub use crate::handlers::{
+    benchmark_search, cross_modal_search, get_metrics, health_check, image_search, index_content,
+    text_search,
+};
 pub use crate::state::{AppConfig, AppState, CLIPService, VectorDatabase};
 pub use crate::types::*;
 

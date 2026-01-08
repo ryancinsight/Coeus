@@ -16,6 +16,7 @@ tensor = { path = "../tensor", version = "0.2.0" }
 dtype = { path = "../dtype", version = "0.2.0" }
 backend = { path = "../backend", version = "0.2.0" }
 storage = { path = "../storage", version = "0.2.0" }
+libm.workspace = true
 
 num-traits = "0.2"
-statrs = "0.4"
+statrs.workspace = true

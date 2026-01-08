@@ -162,12 +162,7 @@ mod tests {
             Err(e) => panic!("{e}"),
         };
         let got: Vec<f32> = w.as_slice().iter().map(|v| v.get()).collect();
-        let expected = [
-            0.0f32,
-            0.75f32,
-            0.75f32,
-            0.0f32,
-        ];
+        let expected = [0.0f32, 0.75f32, 0.75f32, 0.0f32];
         for (a, b) in got.iter().zip(expected.iter()) {
             assert!((a - b).abs() < 1e-6);
         }

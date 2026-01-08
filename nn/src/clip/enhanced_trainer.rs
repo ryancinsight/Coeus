@@ -18,7 +18,7 @@ use std::time::Instant;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use backend::Backend;
 use dtype::{DataType, FloatExt};
 use optim::{Adam, CosineAnnealingLR, LRScheduler};

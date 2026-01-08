@@ -44,7 +44,7 @@ impl HyperparameterTracker {
         key: String,
         value: serde_json::Value,
         description: Option<String>,
-    ) -> crate::error::Result<()> {
+    ) -> crate::core::error::Result<()> {
         let entry = HyperparameterEntry {
             key: key.clone(),
             value: value.clone(),
@@ -79,7 +79,7 @@ impl HyperparameterTracker {
         key: String,
         value: serde_json::Value,
         category: ParameterCategory,
-    ) -> crate::error::Result<()> {
+    ) -> crate::core::error::Result<()> {
         let entry = HyperparameterEntry {
             key: key.clone(),
             value,

@@ -44,9 +44,9 @@ use num_traits::cast;
 use rand::Rng;
 use std::collections::HashMap;
 
-use crate::error::{NNError, Result};
-use crate::module::Module;
-use crate::parameter::Parameter;
+use crate::core::error::{NNError, Result};
+use crate::core::module::Module;
+use crate::core::parameter::Parameter;
 use backend::{Backend, DataType, Storage};
 use dtype::traits::FloatExt;
 use storage::{StorageFromVec, StorageToDense};
@@ -341,8 +341,10 @@ where
             }
 
             let gradient_tensor = Tensor::<B, S, T>::from_vec(gradient_data, param_shape)?;
-            let gradient_param =
-                crate::parameter::Parameter::new(gradient_tensor, format!("grad_{}", param_name));
+            let gradient_param = crate::core::parameter::Parameter::new(
+                gradient_tensor,
+                format!("grad_{}", param_name),
+            );
 
             gradients.insert(param_name, gradient_param);
         }
@@ -355,7 +357,7 @@ where
         &self,
         adapted_model: &M,
         task: &Task<B, S, T>,
-    ) -> Result<HashMap<String, crate::parameter::Parameter<B, S, T>>> {
+    ) -> Result<HashMap<String, crate::core::parameter::Parameter<B, S, T>>> {
         if self.first_order {
             // First-order approximation: use gradients from adapted model
             self.compute_gradients(adapted_model, &task.query_set)
@@ -724,7 +726,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::linear::Linear;
+    use crate::modules::linear::Linear;
     use backend::CpuBackend;
     use dtype::float::Float32;
     use storage::DenseStorage;

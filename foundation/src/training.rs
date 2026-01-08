@@ -138,13 +138,13 @@ impl TrainingOrchestrator {
         // Handle checkpoints
         if step % self.config.save_steps == 0 {
             self.checkpoint_manager
-                .save_checkpoint(step, loss, &metrics)
+                .save_checkpoint(step, loss, metrics)
                 .await?;
         }
 
         // Log progress
         if step % self.config.log_steps == 0 {
-            self.log_progress(step, loss, lr, &metrics);
+            self.log_progress(step, loss, lr, metrics);
         }
 
         Ok(TrainingAction::Continue)
@@ -400,6 +400,12 @@ impl LearningRateScheduler {
     }
 }
 
+impl Default for LearningRateScheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Curriculum Learning Manager
 #[derive(Debug)]
 pub struct CurriculumLearningManager {
@@ -472,6 +478,12 @@ impl CurriculumLearningManager {
     }
 }
 
+impl Default for CurriculumLearningManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug)]
 pub struct CurriculumConfig {
     pub sequence_length: usize,
@@ -522,6 +534,12 @@ impl EarlyStopping {
             }
         }
         false
+    }
+}
+
+impl Default for EarlyStopping {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -632,6 +650,12 @@ impl CheckpointManager {
             // }
         }
         Ok(())
+    }
+}
+
+impl Default for CheckpointManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

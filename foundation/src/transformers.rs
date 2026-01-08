@@ -1027,14 +1027,14 @@ mod tests {
     fn test_flash_attention_creation() {
         let attention = FlashAttention::new(8, 64, 1024);
         assert_eq!(attention.num_heads, 8);
-        assert_eq!(attention.causal, false);
+        assert!(!attention.causal);
     }
 
     #[test]
     fn test_transformer_block_creation() {
         let block = TransformerBlock::new(8, 512, 2048, false, AttentionType::Flash);
         assert_eq!(block.self_attention.num_heads, 8);
-        assert_eq!(block.is_decoder, false);
+        assert!(!block.is_decoder);
         assert!(block.cross_attention.is_none());
     }
 

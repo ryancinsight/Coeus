@@ -1,8 +1,8 @@
 //! Layer fusion operations for quantization optimization
 
-use crate::error::Result;
-use crate::module::Module;
-use crate::parameter::Parameter;
+use crate::core::error::Result;
+use crate::core::module::Module;
+use crate::core::parameter::Parameter;
 
 use crate::quantization::core::{QuantizationBitwidth, QuantizationScheme};
 

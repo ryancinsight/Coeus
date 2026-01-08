@@ -52,9 +52,9 @@ pub enum AggregationOperation {
 }
 
 impl AggregationRule {
-    pub fn apply(&self, values: &[f64]) -> crate::error::Result<f64> {
+    pub fn apply(&self, values: &[f64]) -> crate::core::error::Result<f64> {
         if values.is_empty() {
-            return Err(crate::error::NNError::InvalidInput {
+            return Err(crate::core::error::NNError::InvalidInput {
                 message: "Cannot aggregate empty values".to_string(),
             });
         }
@@ -275,7 +275,7 @@ impl MetricsCollector {
     }
 
     /// Collect metrics from registered collectors
-    pub fn collect_metrics(&mut self) -> crate::error::Result<()> {
+    pub fn collect_metrics(&mut self) -> crate::core::error::Result<()> {
         let mut all_metrics = Vec::new();
 
         // Collect all metrics first
@@ -451,7 +451,7 @@ impl MetricsCollector {
         self.stats.total_metrics += 1;
     }
 
-    fn update_aggregations(&mut self) -> crate::error::Result<()> {
+    fn update_aggregations(&mut self) -> crate::core::error::Result<()> {
         let mut aggregations_to_record = Vec::new();
 
         // Collect aggregations first (immutable borrow)
@@ -697,7 +697,7 @@ pub struct MetricsCollectionStats {
 /// Trait for custom metric collectors
 pub trait MetricCollector: std::fmt::Debug + Send + Sync {
     /// Collect metrics from this collector
-    fn collect_metrics(&mut self) -> crate::error::Result<Vec<MetricEntry>>;
+    fn collect_metrics(&mut self) -> crate::core::error::Result<Vec<MetricEntry>>;
 
     /// Get collector name
     fn name(&self) -> &str;

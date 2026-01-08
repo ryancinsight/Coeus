@@ -102,7 +102,7 @@ pub struct OptimizerMemoryConfig {
     pub prefetch_param_groups: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct AdaptiveConfig {
     pub adaptive_learning_rate: bool,
     pub gradient_clipping: Option<f64>,
@@ -250,7 +250,7 @@ impl AdvancedOptimizer {
         _config: &LionelConfig,
     ) -> Result<()> {
         // Lionel: Exponential Moving Average of Sign of Gradients
-        for (param_name, _grad) in gradients {
+        for param_name in gradients.keys() {
             let _group = self.get_param_group_for_param(param_name)?;
 
             // Update logic: c = β₁*c + (1-β₁)*g, m = β₂*m + (1-β₂)*sign(g)
@@ -269,7 +269,7 @@ impl AdvancedOptimizer {
         _config: &SophiaConfig,
     ) -> Result<()> {
         // Sophia: Second-order optimization with clipping
-        for (param_name, _grad) in gradients {
+        for param_name in gradients.keys() {
             let _group = self.get_param_group_for_param(param_name)?;
 
             // Second-order update with Hessian estimation
@@ -451,7 +451,7 @@ impl LRSchedulerTrait for CosineAnnealingScheduler {
         let step = step as usize;
         self.current_step = step;
 
-        let lr = if step < self.warmup_steps {
+        if step < self.warmup_steps {
             // Linear warmup
             self.base_lr * (step as f64 / self.warmup_steps as f64)
         } else if step < self.total_steps {
@@ -462,9 +462,7 @@ impl LRSchedulerTrait for CosineAnnealingScheduler {
             self.min_lr + (self.base_lr - self.min_lr) * cosine_decay
         } else {
             self.min_lr
-        };
-
-        lr
+        }
     }
 
     fn get_lr(&self) -> f64 {
@@ -513,7 +511,7 @@ impl LRSchedulerTrait for OneCycleScheduler {
 
         let pct_start_steps = (self.total_steps as f64 * self.pct_start) as usize;
 
-        let lr = if step < pct_start_steps {
+        if step < pct_start_steps {
             // Increasing phase
             let progress = step as f64 / pct_start_steps as f64;
             self.min_lr + (self.max_lr - self.min_lr) * progress
@@ -522,9 +520,7 @@ impl LRSchedulerTrait for OneCycleScheduler {
             let progress =
                 (step - pct_start_steps) as f64 / (self.total_steps - pct_start_steps) as f64;
             self.max_lr - (self.max_lr - self.min_lr) * progress
-        };
-
-        lr
+        }
     }
 
     fn get_lr(&self) -> f64 {
@@ -628,17 +624,6 @@ impl Default for OptimizerMemoryConfig {
     }
 }
 
-impl Default for AdaptiveConfig {
-    fn default() -> Self {
-        Self {
-            adaptive_learning_rate: false,
-            gradient_clipping: None,
-            lookahead_steps: None,
-            adaptive_momentum: false,
-        }
-    }
-}
-
 impl OptimizerState {
     fn new() -> Self {
         Self {
@@ -700,7 +685,7 @@ mod tests {
 
         if let OptimizerType::MemoryAdam(config) = &optimizer.optimizer_type {
             assert_eq!(config.learning_rate, 1e-3);
-            assert_eq!(config.use_8bit, true);
+            assert!(config.use_8bit);
             assert_eq!(config.compression_ratio, 0.25);
         } else {
             panic!("Expected MemoryAdam optimizer");

@@ -12,7 +12,7 @@
 //! - Multi-objective optimization (performance vs efficiency)
 //! - Research pipeline orchestration
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::clip::{ClipConfig, ClipModel};
 use crate::datasets::VisionLanguageData;
 use std::collections::{HashMap, HashSet, BTreeMap};

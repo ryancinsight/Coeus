@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::hpo::{HPOptimizer, HyperparameterOptimizer};
 use crate::nas::search_space::ArchitectureType;
 use crate::nas::search_space::LayerType;
@@ -357,16 +357,16 @@ impl IntegratedNASFramework {
                 .to_string();
 
         let mut framework = self.research_framework.write().unwrap();
-        let mut tracker = framework.create_experiment(
+        let mut _tracker = framework.create_experiment(
             pipeline_experiment_id.clone(),
             experiment_name,
             experiment_description,
         );
 
         // Execute pipeline algorithms
-        let mut results: Vec<NASSearchResult> = Vec::new();
+        let _results: Vec<NASSearchResult> = Vec::new();
         for algorithm in &pipeline.search_algorithms {
-            if let Some(search_alg) = self.search_algorithms.get(algorithm) {
+            if let Some(_search_alg) = self.search_algorithms.get(algorithm) {
                 let mut context = base_context.clone();
                 context.search_config.algorithm = algorithm.clone();
                 context.experiment_id = format!("{}_{:?}", pipeline_experiment_id, algorithm);

@@ -8,8 +8,8 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::error::Result;
-use crate::parameter::Parameter;
+use crate::core::error::Result;
+use crate::core::parameter::Parameter;
 use backend::Backend;
 use dtype::{DataType, FloatExt};
 use storage::{DenseStorage, StorageFromVec, StorageToDense};

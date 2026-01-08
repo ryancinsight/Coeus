@@ -27,14 +27,17 @@ autograd = { path = "../autograd" }
 nn = { path = "../nn", features = ["autograd", "dropout"] }
 optim = { path = "../optim" }
 utils = { path = "../utils" }
+coeus-linalg = { path = "../linalg" }
+coeus-signal = { path = "../signal" }
+coeus-special = { path = "../special" }
 tokenizer = { path = "../tokenizer", features = ["all-tokenizers"] }
 coeus-fft = { path = "../fft" }
 coeus-sparse = { workspace = true, features = ["gpu"] }
-coeus-linalg = { workspace = true }
+vision = { package = "coeus-vision", path = "../vision" }
 num-traits = { workspace = true }
 thiserror = { workspace = true }
 rand = "0.8"
 rand_distr = "0.4"
 
 # FFT support
-audio = "0.2"
+# audio = { path = "../audio" }

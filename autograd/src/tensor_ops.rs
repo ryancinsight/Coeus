@@ -10,7 +10,7 @@ use crate::{
     functions::{
         AddFunction, CosFunction, DivFunction, ExpFunction, LogFunction, MatMulFunction,
         MaxFunction, MeanFunction, MulFunction, NegFunction, PowFunction, ReshapeFunction,
-        SinFunction, SubFunction, SumFunction, SqrtFunction, TransposeFunction,
+        SinFunction, SqrtFunction, SubFunction, SumFunction, TransposeFunction,
     },
     Result,
 };
@@ -67,13 +67,17 @@ where
     ))
 }
 
-fn create_mean_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
+fn create_mean_function<B, S, T>(
+    input: &Tensor<B, S, T>,
+    dim: Option<Vec<usize>>,
+    keepdim: bool,
+) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + 'static,
 {
-    Arc::new(MeanFunction::new(Arc::new(input.clone())))
+    Arc::new(MeanFunction::new(Arc::new(input.clone()), dim, keepdim))
 }
 
 fn create_sum_function<B, S, T>(
@@ -195,7 +199,7 @@ where
         .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
-    if input.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
         Ok(result
             .with_grad_fn(Some(create_sqrt_function(input)))
             .requires_grad_(true))
@@ -244,7 +248,7 @@ where
     // Perform the addition operation using the arithmetic module directly to avoid trait ambiguity
     let result =
         tensor::ops::arithmetic::add(lhs, rhs).map_err(crate::AutogradError::TensorError)?;
-    if lhs.requires_grad() || rhs.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && (lhs.requires_grad() || rhs.requires_grad()) {
         Ok(result
             .with_grad_fn(Some(create_add_function(lhs, rhs)))
             .requires_grad_(true))
@@ -282,7 +286,7 @@ where
         .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
-    if input.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
         Ok(result
             .with_grad_fn(Some(create_transpose_function(input, dim0, dim1)))
             .requires_grad_(true))
@@ -312,7 +316,7 @@ where
     // Perform the multiplication operation using the arithmetic module directly
     let result =
         tensor::ops::arithmetic::mul(lhs, rhs).map_err(crate::AutogradError::TensorError)?;
-    if lhs.requires_grad() || rhs.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && (lhs.requires_grad() || rhs.requires_grad()) {
         Ok(result
             .with_grad_fn(Some(create_mul_function(lhs, rhs)))
             .requires_grad_(true))
@@ -332,7 +336,7 @@ where
     // Perform the subtraction operation using the arithmetic module directly
     let result =
         tensor::ops::arithmetic::sub(lhs, rhs).map_err(crate::AutogradError::TensorError)?;
-    if lhs.requires_grad() || rhs.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && (lhs.requires_grad() || rhs.requires_grad()) {
         Ok(result
             .with_grad_fn(Some(create_sub_function(lhs, rhs)))
             .requires_grad_(true))
@@ -381,11 +385,11 @@ where
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims)
-        .map_err(crate::AutogradError::TensorError)?;
+    let result =
+        Tensor::<B, S, T>::from_vec(data, dims).map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
-    if lhs.requires_grad() || rhs.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && (lhs.requires_grad() || rhs.requires_grad()) {
         Ok(result
             .with_grad_fn(Some(create_matmul_function(lhs, rhs)))
             .requires_grad_(true))
@@ -438,15 +442,14 @@ where
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims)
-        .map_err(crate::AutogradError::TensorError)?;
+    let result =
+        Tensor::<B, S, T>::from_vec(data, dims).map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
-    if input.requires_grad() {
-        // Note: Current MeanFunction implementation assumes global mean
-        // TODO: Update MeanFunction to support dim/keepdim for correct gradients
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
+        let dim_vec = dim.map(<[usize]>::to_vec);
         Ok(result
-            .with_grad_fn(Some(create_mean_function(input)))
+            .with_grad_fn(Some(create_mean_function(input, dim_vec, keepdim)))
             .requires_grad_(true))
     } else {
         Ok(result)
@@ -489,11 +492,11 @@ where
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims)
-        .map_err(crate::AutogradError::TensorError)?;
+    let result =
+        Tensor::<B, S, T>::from_vec(data, dims).map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
-    if input.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
         let dim_vec = dim.map(<[usize]>::to_vec);
         Ok(result
             .with_grad_fn(Some(create_sum_function(input, dim_vec, keepdim)))
@@ -514,7 +517,7 @@ where
     // Perform the division operation using the arithmetic module directly
     let result =
         tensor::ops::arithmetic::div(lhs, rhs).map_err(crate::AutogradError::TensorError)?;
-    if lhs.requires_grad() || rhs.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && (lhs.requires_grad() || rhs.requires_grad()) {
         Ok(result
             .with_grad_fn(Some(create_div_function(lhs, rhs)))
             .requires_grad_(true))
@@ -531,9 +534,8 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
     T: DataType + std::ops::Neg<Output = T> + Copy + 'static + dtype::traits::FloatExt,
 {
-    let result =
-        tensor::ops::arithmetic::neg(input).map_err(crate::AutogradError::TensorError)?;
-    if input.requires_grad() {
+    let result = tensor::ops::arithmetic::neg(input).map_err(crate::AutogradError::TensorError)?;
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
         Ok(result
             .with_grad_fn(Some(create_neg_function(input)))
             .requires_grad_(true))
@@ -558,9 +560,11 @@ where
     let mut res_data = Vec::with_capacity(data.len());
 
     for &val in data {
-        let val_f64 = val.to_f64().ok_or_else(|| crate::AutogradError::NumericalError {
-            details: "pow: failed to convert input element to f64".to_string(),
-        })?;
+        let val_f64 = val
+            .to_f64()
+            .ok_or_else(|| crate::AutogradError::NumericalError {
+                details: "pow: failed to convert input element to f64".to_string(),
+            })?;
         let res = val_f64.powf(exponent);
         let res_t = T::from_f64(res).ok_or_else(|| crate::AutogradError::NumericalError {
             details: "pow: failed to convert pow result from f64".to_string(),
@@ -572,7 +576,7 @@ where
         .map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
-    if input.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
         Ok(result
             .with_grad_fn(Some(create_pow_function(input, exponent)))
             .requires_grad_(true))
@@ -616,11 +620,11 @@ where
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims)
-        .map_err(crate::AutogradError::TensorError)?;
+    let result =
+        Tensor::<B, S, T>::from_vec(data, dims).map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
-    if input.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
         Ok(result
             .with_grad_fn(Some(create_exp_function(input)))
             .requires_grad_(true))
@@ -646,11 +650,11 @@ where
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims)
-        .map_err(crate::AutogradError::TensorError)?;
+    let result =
+        Tensor::<B, S, T>::from_vec(data, dims).map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
-    if input.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
         Ok(result
             .with_grad_fn(Some(create_log_function(input)))
             .requires_grad_(true))
@@ -694,11 +698,11 @@ where
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims)
-        .map_err(crate::AutogradError::TensorError)?;
+    let result =
+        Tensor::<B, S, T>::from_vec(data, dims).map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
-    if input.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
         Ok(result
             .with_grad_fn(Some(create_sin_function(input)))
             .requires_grad_(true))
@@ -724,11 +728,11 @@ where
     // Convert back to original storage type
     let data = result_dense.as_slice().to_vec();
     let dims = result_dense.shape().dims();
-    let result = Tensor::<B, S, T>::from_vec(data, dims)
-        .map_err(crate::AutogradError::TensorError)?;
+    let result =
+        Tensor::<B, S, T>::from_vec(data, dims).map_err(crate::AutogradError::TensorError)?;
 
     // Create computation graph if gradients are required
-    if input.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
         Ok(result
             .with_grad_fn(Some(create_cos_function(input)))
             .requires_grad_(true))
@@ -840,7 +844,7 @@ where
         .map_err(crate::AutogradError::TensorError)?;
 
     // If gradients required, create mask
-    if input.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
         let mut mask_data = Vec::with_capacity(input_data_slice.len());
         for (i, &val) in input_data_slice.iter().enumerate() {
             let mut coords = vec![0; ndim];
@@ -903,7 +907,9 @@ where
 
     if current_size != new_size {
         return Err(crate::AutogradError::InvalidInput {
-            message: format!("Shape mismatch: cannot reshape from {input_shape_vec:?} to {shape:?}"),
+            message: format!(
+                "Shape mismatch: cannot reshape from {input_shape_vec:?} to {shape:?}"
+            ),
         });
     }
 
@@ -911,7 +917,7 @@ where
     let result = Tensor::<B, S, T>::from_vec_with_backend(data, shape, input.backend().clone())
         .map_err(crate::AutogradError::TensorError)?;
 
-    if input.requires_grad() {
+    if tensor::tensor_core::grad_enabled() && input.requires_grad() {
         Ok(result
             .with_grad_fn(Some(create_reshape_function(input, input_shape_vec)))
             .requires_grad_(true))

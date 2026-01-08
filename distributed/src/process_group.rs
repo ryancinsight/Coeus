@@ -341,7 +341,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_all_reduce_simulation() {
-        let mut pg = ProcessGroup::new(Rank(0), WorldSize(2)).unwrap();
+        let pg = ProcessGroup::new(Rank(0), WorldSize(2)).unwrap();
 
         // Test with sample data
         let mut data = vec![1.0, 2.0, 3.0];
@@ -355,7 +355,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_barrier_synchronization() {
-        let mut pg = ProcessGroup::new(Rank(1), WorldSize(3)).unwrap();
+        let pg = ProcessGroup::new(Rank(1), WorldSize(3)).unwrap();
 
         // Barrier should complete without error
         let result = pg.barrier().await;

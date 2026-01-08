@@ -289,7 +289,7 @@ pub struct VisualizationServer {
 #[derive(Debug)]
 pub struct WebServerHandle;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DashboardData {
     pub charts: HashMap<String, ChartData>,
     pub alerts: Vec<Alert>,
@@ -378,17 +378,13 @@ impl TrainingMonitor {
         let now = std::time::Instant::now();
 
         // Record core metrics
-        self.record_metric_point(&mut state.training_metrics.loss_values, loss, now.clone());
-        self.record_metric_point(&mut state.training_metrics.learning_rates, lr, now.clone());
-        self.record_metric_point(
-            &mut state.training_metrics.gradient_norms,
-            grad_norm,
-            now.clone(),
-        );
+        self.record_metric_point(&mut state.training_metrics.loss_values, loss, now);
+        self.record_metric_point(&mut state.training_metrics.learning_rates, lr, now);
+        self.record_metric_point(&mut state.training_metrics.gradient_norms, grad_norm, now);
         self.record_metric_point(
             &mut state.training_metrics.throughput_samples,
             throughput,
-            now.clone(),
+            now,
         );
 
         // Record custom metrics
@@ -400,7 +396,7 @@ impl TrainingMonitor {
                     .entry(name)
                     .or_insert_with(VecDeque::new);
 
-                self.record_metric_point(queue, value, now.clone());
+                self.record_metric_point(queue, value, now);
             }
         }
 
@@ -424,29 +420,17 @@ impl TrainingMonitor {
         self.record_metric_point(
             &mut state.system_metrics.gpu_memory_usage,
             gpu_memory_mb,
-            now.clone(),
+            now,
         );
         self.record_metric_point(
             &mut state.system_metrics.cpu_memory_usage,
             cpu_memory_mb,
-            now.clone(),
+            now,
         );
-        self.record_metric_point(
-            &mut state.system_metrics.gpu_utilization,
-            gpu_util,
-            now.clone(),
-        );
-        self.record_metric_point(
-            &mut state.system_metrics.cpu_utilization,
-            cpu_util,
-            now.clone(),
-        );
-        self.record_metric_point(
-            &mut state.system_metrics.network_bandwidth,
-            network_bw,
-            now.clone(),
-        );
-        self.record_metric_point(&mut state.system_metrics.disk_io, disk_io, now.clone());
+        self.record_metric_point(&mut state.system_metrics.gpu_utilization, gpu_util, now);
+        self.record_metric_point(&mut state.system_metrics.cpu_utilization, cpu_util, now);
+        self.record_metric_point(&mut state.system_metrics.network_bandwidth, network_bw, now);
+        self.record_metric_point(&mut state.system_metrics.disk_io, disk_io, now);
 
         Ok(())
     }
@@ -922,7 +906,7 @@ impl TrainingMonitor {
             * 100.0;
 
         PerformanceScore {
-            overall_score: score.min(100.0).max(0.0),
+            overall_score: score.clamp(0.0, 100.0),
             loss_score: loss_efficiency * 100.0,
             throughput_score: throughput_efficiency * 100.0,
             memory_score: memory_efficiency * 100.0,
@@ -978,6 +962,12 @@ impl TrainingMonitor {
         }
 
         recommendations
+    }
+}
+
+impl Default for TrainingMonitor {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1111,16 +1101,6 @@ impl VisualizationServer {
             web_server: None, // Would start actual web server
             dashboard_data: Arc::new(RwLock::new(DashboardData::default())),
         })
-    }
-}
-
-impl Default for DashboardData {
-    fn default() -> Self {
-        Self {
-            charts: HashMap::new(),
-            alerts: Vec::new(),
-            system_info: SystemInfo::default(),
-        }
     }
 }
 

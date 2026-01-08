@@ -3,7 +3,7 @@
 //! This module provides comprehensive reproducibility guarantees for machine learning experiments,
 //! including artifact versioning, environment capture, and deterministic execution.
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::research::{ExperimentMetadata, ExperimentTracker};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

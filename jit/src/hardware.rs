@@ -273,6 +273,12 @@ pub struct HardwareCostModel {
     pub capabilities: &'static HardwareCapabilities,
 }
 
+impl Default for HardwareCostModel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HardwareCostModel {
     /// Create a new cost model for the current hardware
     pub fn new() -> Self {

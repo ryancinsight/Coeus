@@ -255,7 +255,7 @@ impl GpuShaders {
         let fft = Self::create_pipeline(
             device,
             include_str!("shaders/fft.wgsl"),
-            "fft_forward",
+            "fft_main",
             &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,

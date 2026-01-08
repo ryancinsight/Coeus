@@ -1,8 +1,8 @@
 //! Fake quantization for quantization-aware training
 
-use crate::error::{NNError, Result};
-use crate::module::Module;
-use crate::parameter::Parameter;
+use crate::core::error::{NNError, Result};
+use crate::core::module::Module;
+use crate::core::parameter::Parameter;
 
 use crate::quantization::core::{QuantizationGranularity, QuantizationScheme};
 use crate::quantization::quantization_ops::QuantizationOps;

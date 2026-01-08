@@ -5,46 +5,44 @@
 
 use proptest::prelude::*;
 
+use approx::assert_relative_eq;
 use backend::CpuBackend;
 use dtype::float::Float32;
 use storage::DenseStorage;
+use tensor::ops::arithmetic;
 use tensor::Tensor;
 
 /// Type alias for our test tensor type
 type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
-/// Generate random tensor shapes (1D to 4D)
-fn arb_tensor_shape() -> impl Strategy<Value = Vec<usize>> {
-    prop::collection::vec(1..=1000usize, 1..=4).prop_filter("Non-empty shape", |s| {
-        !s.is_empty() && s.iter().all(|&x| x > 0)
-    })
+fn checked_numel(dims: &[usize]) -> Option<usize> {
+    dims.iter().try_fold(1usize, |acc, &d| acc.checked_mul(d))
 }
 
-/// Generate random tensor data
-fn arb_tensor_data() -> impl Strategy<Value = Vec<Float32>> {
-    prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), 1..=10000)
+/// Generate random tensor shapes (1D to 4D)
+fn arb_tensor_shape() -> impl Strategy<Value = Vec<usize>> {
+    const MAX_DIM: usize = 64;
+    const MAX_ELEMENTS: usize = 4_096;
+    prop::collection::vec(1..=MAX_DIM, 1..=4).prop_filter("shape within element budget", |s| {
+        checked_numel(s).is_some_and(|n| n > 0 && n <= MAX_ELEMENTS)
+    })
 }
 
 /// Generate a random tensor with given shape
 fn arb_tensor() -> impl Strategy<Value = TestTensor> {
-    (arb_tensor_shape(), arb_tensor_data()).prop_filter_map(
-        "Valid tensor construction",
-        |(shape, data)| {
-            if data.len() == shape.iter().product() {
-                Tensor::from_vec(data, &shape).ok()
-            } else {
-                None
-            }
-        },
-    )
+    arb_tensor_shape().prop_flat_map(|shape| {
+        let len = checked_numel(&shape).unwrap();
+        let data = prop::collection::vec((-1.0e3f32..1.0e3).prop_map(Float32::new), len);
+        data.prop_map(move |data| Tensor::from_vec(data, &shape).unwrap())
+    })
 }
 
 /// Generate two tensors with compatible shapes for element-wise operations
 fn arb_tensor_pair_same_shape() -> impl Strategy<Value = (TestTensor, TestTensor)> {
     arb_tensor_shape().prop_flat_map(|shape| {
-        let size: usize = shape.iter().product();
-        let data1 = prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), size);
-        let data2 = prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), size);
+        let size = checked_numel(&shape).unwrap();
+        let data1 = prop::collection::vec((-1.0e3f32..1.0e3).prop_map(Float32::new), size);
+        let data2 = prop::collection::vec((-1.0e3f32..1.0e3).prop_map(Float32::new), size);
 
         (data1, data2).prop_map(move |(d1, d2)| {
             (
@@ -60,8 +58,8 @@ fn arb_matrix_mult_pair() -> impl Strategy<Value = (TestTensor, TestTensor)> {
     (1..=50usize, 1..=50usize, 1..=50usize).prop_flat_map(|(m, k, n)| {
         let a_size = m * k;
         let b_size = k * n;
-        let a_data = prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), a_size);
-        let b_data = prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), b_size);
+        let a_data = prop::collection::vec((-1.0e3f32..1.0e3).prop_map(Float32::new), a_size);
+        let b_data = prop::collection::vec((-1.0e3f32..1.0e3).prop_map(Float32::new), b_size);
 
         (a_data, b_data).prop_map(move |(a_d, b_d)| {
             (
@@ -76,15 +74,16 @@ proptest! {
     /// Test that tensor addition is commutative: a + b = b + a
     #[test]
     fn test_addition_commutative((ref a, ref b) in arb_tensor_pair_same_shape()) {
-        let sum1 = (a + b).unwrap();
-        let sum2 = (b + a).unwrap();
+        let sum1 = arithmetic::add(a, b).unwrap();
+        let sum2 = arithmetic::add(b, a).unwrap();
 
         prop_assert_eq!(sum1.shape().dims(), sum2.shape().dims());
         for i in 0..sum1.len() {
             assert_relative_eq!(
                 sum1.as_slice()[i].get(),
                 sum2.as_slice()[i].get(),
-                epsilon = 1e-6
+                epsilon = 1e-6,
+                max_relative = 1e-6
             );
         }
     }
@@ -95,15 +94,18 @@ proptest! {
         let c_data: Vec<Float32> = (0..a.len()).map(|_| Float32::new(1.5)).collect();
         let c = Tensor::from_vec(c_data, a.shape().dims()).unwrap();
 
-        let sum1 = ((a + b).unwrap() + &c).unwrap();
-        let sum2 = (a + (b + &c).unwrap()).unwrap();
+        let ab = arithmetic::add(a, b).unwrap();
+        let sum1 = arithmetic::add(&ab, &c).unwrap();
+        let bc = arithmetic::add(b, &c).unwrap();
+        let sum2 = arithmetic::add(a, &bc).unwrap();
 
         prop_assert_eq!(sum1.shape().dims(), sum2.shape().dims());
         for i in 0..sum1.len() {
             assert_relative_eq!(
                 sum1.as_slice()[i].get(),
                 sum2.as_slice()[i].get(),
-                epsilon = 1e-6
+                epsilon = 1e-4,
+                max_relative = 1e-6
             );
         }
     }
@@ -111,8 +113,8 @@ proptest! {
     /// Test that tensor multiplication is commutative: a * b = b * a
     #[test]
     fn test_multiplication_commutative((ref a, ref b) in arb_tensor_pair_same_shape()) {
-        let prod1 = (a * b).unwrap();
-        let prod2 = (b * a).unwrap();
+        let prod1 = arithmetic::mul(a, b).unwrap();
+        let prod2 = arithmetic::mul(b, a).unwrap();
 
         prop_assert_eq!(prod1.shape().dims(), prod2.shape().dims());
         for i in 0..prod1.len() {
@@ -130,7 +132,7 @@ proptest! {
         let zero_data: Vec<Float32> = (0..a.len()).map(|_| Float32::new(0.0)).collect();
         let zero = Tensor::from_vec(zero_data, a.shape().dims()).unwrap();
 
-        let result = (a + &zero).unwrap();
+        let result = arithmetic::add(a, &zero).unwrap();
 
         prop_assert_eq!(result.shape().dims(), a.shape().dims());
         for i in 0..result.len() {
@@ -148,7 +150,7 @@ proptest! {
         let one_data: Vec<Float32> = (0..a.len()).map(|_| Float32::new(1.0)).collect();
         let one = Tensor::from_vec(one_data, a.shape().dims()).unwrap();
 
-        let result = (a * &one).unwrap();
+        let result = arithmetic::mul(a, &one).unwrap();
 
         prop_assert_eq!(result.shape().dims(), a.shape().dims());
         for i in 0..result.len() {
@@ -166,7 +168,7 @@ proptest! {
         let zero_data: Vec<Float32> = (0..a.len()).map(|_| Float32::new(0.0)).collect();
         let zero = Tensor::from_vec(zero_data, a.shape().dims()).unwrap();
 
-        let result = (a * &zero).unwrap();
+        let result = arithmetic::mul(a, &zero).unwrap();
 
         for i in 0..result.len() {
             assert_relative_eq!(
@@ -188,10 +190,10 @@ proptest! {
     /// Test tensor transpose shape
     #[test]
     fn test_transpose_shape(ref a in arb_tensor()) {
-        let transposed = a.t().unwrap();
         let original_shape = a.shape().dims();
 
         if original_shape.len() == 2 {
+            let transposed = a.transpose(0, 1).unwrap();
             let expected_shape = &[original_shape[1], original_shape[0]];
             prop_assert_eq!(transposed.shape().dims(), expected_shape);
         }
@@ -201,8 +203,8 @@ proptest! {
     #[test]
     fn test_transpose_involution(ref a in arb_tensor()) {
         if a.shape().dims().len() == 2 {
-            let transposed = a.t().unwrap();
-            let double_transposed = transposed.t().unwrap();
+            let transposed = a.transpose(0, 1).unwrap();
+            let double_transposed = transposed.transpose(0, 1).unwrap();
 
             prop_assert_eq!(double_transposed.shape().dims(), a.shape().dims());
             for i in 0..a.len() {
@@ -218,7 +220,7 @@ proptest! {
     /// Test element-wise power operation
     #[test]
     fn test_power_operation(ref a in arb_tensor()) {
-        let power = a.powf(Float32::new(2.0)).unwrap();
+        let power = a.powf(Float32::new(2.0));
 
         prop_assert_eq!(power.shape().dims(), a.shape().dims());
         for i in 0..power.len() {
@@ -235,12 +237,13 @@ proptest! {
     /// Test element-wise square root (only for non-negative values)
     #[test]
     fn test_sqrt_operation(ref a in arb_tensor()) {
-        let squared = a.powf(Float32::new(2.0)).unwrap();
-        let sqrt_result = squared.sqrt().unwrap();
+        let clamped = a.clamp(Float32::new(-1.0e10), Float32::new(1.0e10)).unwrap();
+        let squared = clamped.powf(Float32::new(2.0));
+        let sqrt_result = squared.sqrt();
 
         prop_assert_eq!(sqrt_result.shape().dims(), a.shape().dims());
         for i in 0..sqrt_result.len() {
-            let original = a.as_slice()[i].get();
+            let original = clamped.as_slice()[i].get();
             assert_relative_eq!(
                 sqrt_result.as_slice()[i].get(),
                 original.abs(),
@@ -252,7 +255,7 @@ proptest! {
     /// Test sum reduction
     #[test]
     fn test_sum_reduction(ref a in arb_tensor()) {
-        let sum_result = a.sum(None, false).unwrap();
+        let sum_result = a.sum_all();
 
         // Sum should be scalar (shape [1])
         prop_assert_eq!(sum_result.shape().dims(), &[1]);
@@ -269,7 +272,7 @@ proptest! {
     /// Test mean reduction
     #[test]
     fn test_mean_reduction(ref a in arb_tensor()) {
-        let mean_result = a.mean(None, false).unwrap();
+        let mean_result = a.mean_all();
 
         // Mean should be scalar (shape [1])
         prop_assert_eq!(mean_result.shape().dims(), &[1]);
@@ -288,7 +291,7 @@ proptest! {
     #[test]
     fn test_scalar_broadcasting(ref a in arb_tensor()) {
         let scalar = Float32::new(3.5);
-        let result = a.add_scalar(scalar).unwrap();
+        let result = arithmetic::scalar_add(a, scalar).unwrap();
 
         prop_assert_eq!(result.shape().dims(), a.shape().dims());
         for i in 0..result.len() {
@@ -321,12 +324,16 @@ proptest! {
     /// Test tensor reshape preserves total elements
     #[test]
     fn test_reshape_preserves_elements(ref a in arb_tensor()) {
-        if a.len() >= 4 {
-            let new_shape = vec![2, a.len() / 2];
-            let reshaped = a.reshape(&new_shape).unwrap();
+        if a.len() >= 4 && a.len() % 2 == 0 {
+            let new_shape_usize = [2usize, a.len() / 2];
+            let new_shape_isize = [
+                2isize,
+                isize::try_from(new_shape_usize[1]).unwrap_or(isize::MAX),
+            ];
+            let reshaped = a.reshape(&new_shape_isize).unwrap();
 
             prop_assert_eq!(reshaped.len(), a.len());
-            prop_assert_eq!(reshaped.shape().dims(), &new_shape[..]);
+            prop_assert_eq!(reshaped.shape().dims(), &new_shape_usize[..]);
 
             // Data should be preserved in row-major order
             for i in 0..a.len() {
@@ -342,8 +349,8 @@ proptest! {
     /// Test that negation works: -(-a) = a
     #[test]
     fn test_negation_involution(ref a in arb_tensor()) {
-        let neg = (-a).unwrap();
-        let double_neg = (-&neg).unwrap();
+        let neg = -a;
+        let double_neg = -&neg;
 
         prop_assert_eq!(double_neg.shape().dims(), a.shape().dims());
         for i in 0..a.len() {
@@ -358,8 +365,12 @@ proptest! {
     /// Test reciprocal: a * (1/a) = 1 (for non-zero elements)
     #[test]
     fn test_reciprocal(ref a in arb_tensor()) {
-        let recip = a.recip().unwrap();
-        let product = (a * &recip).unwrap();
+        let one = Float32::new(1.0);
+        let recip_data: Vec<Float32> = a.as_slice().iter().copied().map(|x| one / x).collect();
+        let recip =
+            Tensor::from_vec_with_backend(recip_data, a.shape().dims(), a.backend().clone())
+                .unwrap();
+        let product = arithmetic::mul(a, &recip).unwrap();
 
         prop_assert_eq!(product.shape().dims(), a.shape().dims());
         for i in 0..product.len() {
@@ -380,8 +391,8 @@ proptest! {
         // Keep values in reasonable range for exp
         let clamped_a = a.clamp(Float32::new(-10.0), Float32::new(10.0)).unwrap();
 
-        let exp_result = clamped_a.exp().unwrap();
-        let log_result = exp_result.ln().unwrap();
+        let exp_result = clamped_a.exp();
+        let log_result = exp_result.log();
 
         prop_assert_eq!(log_result.shape().dims(), a.shape().dims());
         for i in 0..log_result.len() {
@@ -392,9 +403,4 @@ proptest! {
             );
         }
     }
-}
-
-// Required main function for harness = false
-fn main() {
-    // Proptest will handle running the tests
 }

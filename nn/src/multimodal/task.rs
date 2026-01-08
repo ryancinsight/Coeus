@@ -3,8 +3,8 @@
 //! Implementation of specialized output heads for different downstream tasks
 //! in multimodal processing (classification, regression, generation, retrieval).
 
-use crate::linear::Linear;
-use crate::module::ModuleExt;
+use crate::core::module::ModuleExt;
+use crate::modules::linear::Linear;
 use backend::Backend;
 use dtype::{DataType, FloatExt};
 use storage::{Storage, StorageFromVec, StorageToDense};

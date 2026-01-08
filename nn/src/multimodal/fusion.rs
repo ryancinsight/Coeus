@@ -5,13 +5,13 @@
 
 use super::attention::CrossModalAttention;
 use super::modality::Modality;
-use crate::activation::GeLU;
-use crate::attention::MultiHeadAttention;
-use crate::error::Result;
-use crate::functional::linear;
-use crate::layernorm::LayerNorm;
-use crate::linear::Linear;
-use crate::module::{Module, ModuleExt};
+use crate::core::error::Result;
+use crate::core::module::{Module, ModuleExt};
+use crate::functional_api::linear;
+use crate::modules::activation::GeLU;
+use crate::modules::attention::MultiHeadAttention;
+use crate::modules::linear::Linear;
+use crate::modules::normalization::LayerNorm;
 use backend::Backend;
 use dtype::DataType;
 use std::collections::HashMap;

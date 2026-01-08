@@ -6,7 +6,7 @@
 use rand::Rng;
 
 use super::search_space::{Architecture, ArchitectureSpace, ArchitectureType, LayerSpec};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Architecture parameter for DARTS (continuous relaxation)
 #[derive(Debug, Clone)]

@@ -59,7 +59,7 @@ fn test_adam_basic() {
 #[test]
 fn test_adam_bias_correction() {
     // Test that bias correction works correctly on first few steps
-    let mut param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
 
     let mut optimizer = Adam::default(0.01);
     optimizer.add_param_group(vec![param.clone()]);
@@ -100,7 +100,7 @@ fn test_adam_bias_correction() {
 #[test]
 fn test_adam_multiple_steps() {
     // Test Adam over multiple steps with moment accumulation
-    let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
+    let param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
 
     let mut optimizer = Adam::default(0.01);
     optimizer.add_param_group(vec![param.clone()]);
@@ -133,7 +133,7 @@ fn test_adam_multiple_steps() {
 #[test]
 fn test_adam_custom_hyperparams() {
     // Test Adam with custom hyperparameters
-    let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
+    let param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
     let grad = TestTensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2)], &[2]).unwrap();
     param.set_grad(grad).unwrap();
 
@@ -153,7 +153,7 @@ fn test_adam_custom_hyperparams() {
 #[test]
 fn test_adam_zero_grad() {
     // Test that zero_grad clears gradients
-    let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
+    let param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
     param
         .set_grad(TestTensor::from_vec(vec![Float32::new(0.5), Float32::new(0.5)], &[2]).unwrap())
         .unwrap();
@@ -170,7 +170,7 @@ fn test_adam_zero_grad() {
 #[test]
 fn test_adam_no_grad() {
     // Test that parameters without gradients are skipped
-    let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
+    let param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
     // Don't set gradient
 
     let mut optimizer = Adam::default(0.001);
@@ -200,8 +200,8 @@ fn test_adam_learning_rate() {
 #[test]
 fn test_adam_multiple_params() {
     // Test optimizer with multiple parameters
-    let mut param1 = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
-    let mut param2 = tensor_with_grad(vec![Float32::new(3.0), Float32::new(4.0)], &[2]);
+    let param1 = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
+    let param2 = tensor_with_grad(vec![Float32::new(3.0), Float32::new(4.0)], &[2]);
 
     param1
         .set_grad(TestTensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2)], &[2]).unwrap())
@@ -231,7 +231,7 @@ fn test_adam_multiple_params() {
 fn test_adam_convergence() {
     // Test that Adam converges to minimum for simple quadratic
     // f(x) = x^2, gradient = 2x, minimum at x=0
-    let mut param = tensor_with_grad(vec![Float32::new(10.0)], &[1]);
+    let param = tensor_with_grad(vec![Float32::new(10.0)], &[1]);
 
     // Use higher learning rate for faster convergence
     let mut optimizer = Adam::default(0.5);
@@ -261,7 +261,7 @@ fn test_adam_convergence() {
 #[test]
 fn test_adam_numerical_stability() {
     // Test that epsilon prevents division by zero
-    let mut param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
 
     // Use very small epsilon to test numerical stability
     let mut optimizer = Adam::with_hyperparams(vec![], 0.001, 0.9, 0.999, 1e-10, 0.0);
@@ -284,7 +284,7 @@ fn test_adam_numerical_stability() {
 #[test]
 fn test_adam_zero_gradients() {
     // Test that zero gradients don't change parameters
-    let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
+    let param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
     let original_data = param.as_slice().to_vec();
 
     let mut optimizer = Adam::default(0.01);
@@ -306,7 +306,7 @@ fn test_adam_zero_gradients() {
 #[test]
 fn test_adam_large_gradients() {
     // Test numerical stability with large gradients
-    let mut param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
 
     let mut optimizer = Adam::default(0.01);
     optimizer.add_param_group(vec![param.clone()]);
@@ -334,7 +334,7 @@ fn test_adam_large_gradients() {
 #[test]
 fn test_adam_weight_decay() {
     // Test that weight decay works correctly
-    let mut param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
+    let param = tensor_with_grad(vec![Float32::new(1.0), Float32::new(2.0)], &[2]);
 
     let mut optimizer = Adam::with_hyperparams(vec![], 0.01, 0.9, 0.999, 1e-8, 0.01); // weight_decay = 0.01
     optimizer.add_param_group(vec![param.clone()]);
@@ -357,8 +357,8 @@ fn test_adam_weight_decay() {
 #[test]
 fn test_adam_state_persistence() {
     // Test state_dict and load_state_dict functionality
-    let mut param1 = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
-    let mut param2 = tensor_with_grad(vec![Float32::new(2.0)], &[1]);
+    let param1 = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param2 = tensor_with_grad(vec![Float32::new(2.0)], &[1]);
 
     let mut optimizer = Adam::default(0.01);
     optimizer.add_param_group(vec![param1.clone(), param2.clone()]);
@@ -380,8 +380,8 @@ fn test_adam_state_persistence() {
     let param2_after = params[1].as_slice()[0].get();
 
     // Create new optimizer and load state
-    let mut param1_new = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
-    let mut param2_new = tensor_with_grad(vec![Float32::new(2.0)], &[1]);
+    let param1_new = tensor_with_grad(vec![Float32::new(1.0)], &[1]);
+    let param2_new = tensor_with_grad(vec![Float32::new(2.0)], &[1]);
 
     let mut optimizer_new = Adam::default(0.01);
     optimizer_new.add_param_group(vec![param1_new.clone(), param2_new.clone()]);

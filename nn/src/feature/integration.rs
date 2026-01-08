@@ -9,7 +9,7 @@ use super::selection::{FeatureSelectionResult, FeatureSelector, SelectionMethod}
 use super::transformation::{
     FeatureTransformationResult, FeatureTransformer, TransformationMethod,
 };
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use std::collections::HashMap;
 
 /// Automated feature engineering result

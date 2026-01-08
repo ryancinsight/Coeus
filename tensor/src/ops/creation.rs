@@ -255,6 +255,14 @@ where
         Ok(Self::from_storage(storage, B::default()))
     }
 
+    pub fn ones_with_backend(dims: &[usize], backend: B) -> crate::Result<Self>
+    where
+        T: num_traits::One,
+    {
+        let storage = S::ones(dims).map_err(crate::TensorError::StorageError)?;
+        Ok(Self::from_storage(storage, backend))
+    }
+
     /// Creates a tensor filled with zeros with the same shape as the input tensor.
     ///
     /// # Arguments
@@ -278,7 +286,6 @@ where
     /// ```
     pub fn zeros_like(tensor: &Self) -> crate::Result<Self>
     where
-        B: Clone + Default,
         S: Clone,
         T: num_traits::Zero,
     {
@@ -309,7 +316,6 @@ where
     /// ```
     pub fn ones_like(tensor: &Self) -> crate::Result<Self>
     where
-        B: Clone + Default,
         S: Clone,
         T: num_traits::One,
     {
@@ -604,6 +610,14 @@ where
     {
         let storage = S::zeros(dims).map_err(crate::TensorError::StorageError)?;
         Ok(Self::from_storage(storage, B::default()))
+    }
+
+    pub fn zeros_generic_with_backend(dims: &[usize], backend: B) -> crate::Result<Self>
+    where
+        T: num_traits::Zero,
+    {
+        let storage = S::zeros(dims).map_err(crate::TensorError::StorageError)?;
+        Ok(Self::from_storage(storage, backend))
     }
 
     /// Creates a tensor filled with ones using any StorageFromVec implementation.

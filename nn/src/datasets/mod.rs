@@ -61,7 +61,7 @@ pub use transforms::Compose;
 pub use vision_language::VisionLanguageDataset;
 
 // Common types for vision-language datasets
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use serde_json;
 use std::collections::HashMap;
 use std::path::Path;

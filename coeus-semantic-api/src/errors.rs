@@ -57,6 +57,7 @@ pub enum SemanticError {
 
 impl SemanticError {
     /// Convert error to appropriate HTTP status code and error code
+    #[must_use]
     pub fn to_status_code_and_error_code(&self) -> (StatusCode, crate::types::ErrorCode) {
         match self {
             SemanticError::InvalidInput(_) => (
@@ -78,10 +79,6 @@ impl SemanticError {
                 StatusCode::SERVICE_UNAVAILABLE,
                 crate::types::ErrorCode::ServiceUnavailable,
             ),
-            SemanticError::ClipEncodingError(_) | SemanticError::DatabaseError(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                crate::types::ErrorCode::InternalError,
-            ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 crate::types::ErrorCode::InternalError,
@@ -90,11 +87,13 @@ impl SemanticError {
     }
 
     /// Check if this error should be logged as a warning rather than error
+    #[must_use]
     pub fn is_warning(&self) -> bool {
         matches!(self, SemanticError::RateLimitExceeded)
     }
 
     /// Get retry recommendation for this error
+    #[must_use]
     pub fn retry_after_seconds(&self) -> Option<u32> {
         match self {
             SemanticError::RateLimitExceeded => Some(60),
@@ -104,7 +103,7 @@ impl SemanticError {
     }
 }
 
-/// Convert SemanticError to Axum response
+/// Convert `SemanticError` to Axum response
 impl IntoResponse for SemanticError {
     fn into_response(self) -> Response {
         let (status_code, error_code) = self.to_status_code_and_error_code();
@@ -117,7 +116,7 @@ impl IntoResponse for SemanticError {
         }
 
         // Record error metrics
-        metrics::counter!("errors_total", "code" => format!("{:?}", error_code)).increment(1);
+        metrics::counter!("errors_total", "code" => format!("{error_code:?}")).increment(1);
 
         let error_response = crate::types::ErrorResponse {
             error_id: uuid::Uuid::new_v4().to_string(),
@@ -138,8 +137,8 @@ pub type SemanticResult<T> = Result<T, SemanticError>;
 pub struct ErrorHandler;
 
 impl ErrorHandler {
-    fn handle_error_message(error_msg: String, context: &str) -> SemanticError {
-        let error_msg = format!("{}: {}", context, error_msg);
+    fn handle_error_message(error_msg: &str, context: &str) -> SemanticError {
+        let error_msg = format!("{context}: {error_msg}");
 
         if error_msg.contains("rate limit") {
             tracing::warn!("Rate limit triggered: {}", error_msg);
@@ -158,10 +157,11 @@ impl ErrorHandler {
         error: E,
         context: &str,
     ) -> SemanticError {
-        Self::handle_error_message(error.to_string(), context)
+        let msg = error.to_string();
+        Self::handle_error_message(&msg, context)
     }
 
-    /// Convert any error to SemanticError
+    /// Convert any error to `SemanticError`
     pub fn convert_error<E: std::error::Error + Send + Sync + 'static>(error: E) -> SemanticError {
         let boxed: Box<dyn std::error::Error + Send + Sync> = Box::new(error);
 
@@ -180,19 +180,20 @@ impl ErrorHandler {
             Err(boxed) => boxed,
         };
 
-        Self::handle_error_message(boxed.to_string(), "operation")
+        let msg = boxed.to_string();
+        Self::handle_error_message(&msg, "operation")
     }
 
     /// Create a service unavailable error with context
     pub fn service_unavailable(context: &str) -> SemanticError {
-        let msg = format!("Service temporarily unavailable: {}", context);
+        let msg = format!("Service temporarily unavailable: {context}");
         tracing::warn!("{}", msg);
         SemanticError::ServiceUnavailable(msg)
     }
 
     /// Create an invalid input error
     pub fn invalid_input(field: &str, reason: &str) -> SemanticError {
-        let msg = format!("Invalid {}: {}", field, reason);
+        let msg = format!("Invalid {field}: {reason}");
         tracing::debug!("Validation error: {}", msg);
         SemanticError::InvalidInput(msg)
     }
@@ -205,7 +206,7 @@ impl ErrorHandler {
             duration_ms
         );
         metrics::histogram!("operation_duration_ms", "operation" => operation.to_string())
-            .record(duration_ms as f64);
+            .record(f64::from(u32::try_from(duration_ms).unwrap_or(u32::MAX)));
     }
 
     /// Log operation failures
@@ -216,17 +217,17 @@ impl ErrorHandler {
             duration_ms,
             error
         );
-        metrics::counter!("operation_failures_total", "operation" => operation.to_string(), "error_type" => format!("{:?}", error)).increment(1);
+        metrics::counter!("operation_failures_total", "operation" => operation.to_string(), "error_type" => format!("{error:?}")).increment(1);
     }
 }
 
 /// Panic handler for graceful shutdown
 pub fn set_panic_hook() {
     std::panic::set_hook(Box::new(|panic_info| {
-        let location = panic_info
-            .location()
-            .map(|loc| format!("{}:{}", loc.file(), loc.line()))
-            .unwrap_or_else(|| "unknown location".to_string());
+        let location = panic_info.location().map_or_else(
+            || "unknown location".to_string(),
+            |loc| format!("{}:{}", loc.file(), loc.line()),
+        );
 
         let payload = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
             (*s).to_string()
@@ -252,6 +253,7 @@ pub fn set_panic_hook() {
 }
 
 /// Graceful shutdown handler
+#[allow(clippy::missing_errors_doc)]
 pub async fn shutdown_signal() -> std::io::Result<()> {
     use tokio::signal;
 

@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::research::nas_integration::NASSearchResult;
 use crate::research::{
     hpo_integration::JointAlgorithm,

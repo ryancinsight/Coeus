@@ -3,7 +3,7 @@
 //! This module provides a high-level interface for running experimental pipelines
 //! that combine multiple research techniques like NAS, HPO, and meta-learning.
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::research::tracking::{ExperimentSummary, ExperimentTracker};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

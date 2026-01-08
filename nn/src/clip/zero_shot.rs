@@ -10,7 +10,7 @@
 
 use super::imagenet_labels::IMAGENET_SIMPLE_LABELS;
 use crate::clip::traits::ClipEncoder;
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::evaluation::ZeroShotResults;
 use backend::Backend;
 use dtype::{DataType, FloatExt};

@@ -321,7 +321,7 @@ mod tests {
 
     fn create_temp_cache() -> (ModelCache, TempDir) {
         let temp_dir = TempDir::new().unwrap();
-        let cache = ModelCache::with_directory_and_capacity(&temp_dir.path(), 1024 * 1024); // 1MB
+        let cache = ModelCache::with_directory_and_capacity(temp_dir.path(), 1024 * 1024); // 1MB
         (cache, temp_dir)
     }
 

@@ -273,7 +273,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transforms::Normalize;
     use backend::CpuBackend;
     use dtype::float::Float32;
     use std::sync::Arc;
@@ -282,10 +281,34 @@ mod tests {
 
     type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
 
+    /// Simple scale transform for testing - applies: (x - offset) / scale
+    struct SimpleScaleTransform {
+        offset: f32,
+        scale: f32,
+    }
+
+    impl SimpleScaleTransform {
+        fn new(offset: f32, scale: f32) -> Self {
+            Self { offset, scale }
+        }
+    }
+
+    impl Transform<TestTensor, TestTensor> for SimpleScaleTransform {
+        fn apply(&self, input: TestTensor) -> Result<TestTensor, TransformError> {
+            let data: Vec<Float32> = input
+                .as_slice()
+                .iter()
+                .map(|v| Float32::new((v.get() - self.offset) / self.scale))
+                .collect();
+            Tensor::from_vec(data, input.shape().dims())
+                .map_err(|e| TransformError::TensorError(e))
+        }
+    }
+
     #[test]
     fn test_random_apply_creation() {
         let transforms: Vec<Arc<dyn Transform<TestTensor>>> =
-            vec![Arc::new(Normalize::single_channel(0.0, 1.0))];
+            vec![Arc::new(SimpleScaleTransform::new(0.0, 1.0))];
         let random_apply = RandomApply::new(transforms, 0.5);
 
         assert_eq!(random_apply.probability(), 0.5);
@@ -297,7 +320,7 @@ mod tests {
     #[test]
     fn test_random_apply_with_seed() {
         let transforms: Vec<Arc<dyn Transform<TestTensor>>> =
-            vec![Arc::new(Normalize::single_channel(0.0, 1.0))];
+            vec![Arc::new(SimpleScaleTransform::new(0.0, 1.0))];
         let random_apply = RandomApply::with_seed(transforms, 0.8, 42);
 
         assert_eq!(random_apply.probability(), 0.8);
@@ -337,7 +360,7 @@ mod tests {
     #[test]
     fn test_random_apply_zero_probability() {
         let transforms: Vec<Arc<dyn Transform<TestTensor>>> =
-            vec![Arc::new(Normalize::single_channel(2.0, 1.0))];
+            vec![Arc::new(SimpleScaleTransform::new(2.0, 1.0))];
         let random_apply = RandomApply::new(transforms, 0.0);
 
         let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
@@ -359,7 +382,7 @@ mod tests {
     #[test]
     fn test_random_apply_probability_one() {
         let transforms: Vec<Arc<dyn Transform<TestTensor>>> =
-            vec![Arc::new(Normalize::single_channel(2.0, 1.0))];
+            vec![Arc::new(SimpleScaleTransform::new(2.0, 1.0))];
         let random_apply = RandomApply::new(transforms, 1.0);
 
         let input = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
@@ -381,8 +404,8 @@ mod tests {
     #[test]
     fn test_random_apply_multiple_transforms() {
         let transforms: Vec<Arc<dyn Transform<TestTensor>>> = vec![
-            Arc::new(Normalize::single_channel(2.0, 1.0)),
-            Arc::new(Normalize::single_channel(0.0, 2.0)), // Apply again with different params
+            Arc::new(SimpleScaleTransform::new(2.0, 1.0)),
+            Arc::new(SimpleScaleTransform::new(0.0, 2.0)), // Apply again with different params
         ];
         let random_apply = RandomApply::new(transforms, 1.0);
 
@@ -404,7 +427,7 @@ mod tests {
     #[test]
     fn test_random_apply_as_composable() {
         let transforms: Vec<Arc<dyn Transform<TestTensor>>> =
-            vec![Arc::new(Normalize::single_channel(0.0, 1.0))];
+            vec![Arc::new(SimpleScaleTransform::new(0.0, 1.0))];
         let random_apply = RandomApply::new(transforms, 1.0);
 
         let input_tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
@@ -433,7 +456,7 @@ mod tests {
         };
 
         let transforms: Vec<Arc<dyn Transform<TestTensor>>> =
-            vec![Arc::new(Normalize::single_channel(0.0, 1.0))];
+            vec![Arc::new(SimpleScaleTransform::new(0.0, 1.0))];
 
         let conditional = ConditionalTransform::new(transforms, condition);
 

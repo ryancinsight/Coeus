@@ -7,8 +7,8 @@
 use rand::Rng;
 use std::collections::HashMap;
 
-use crate::error::{NNError, Result};
-use crate::linear::Linear;
+use crate::core::error::{NNError, Result};
+use crate::modules::linear::Linear;
 use crate::Module;
 
 use super::maml::Task;

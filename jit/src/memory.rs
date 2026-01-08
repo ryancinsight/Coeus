@@ -145,6 +145,7 @@ impl LifetimeTracker {
 
 impl<T> TensorPtr<T> {
     /// Create a new tensor pointer from arena memory
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn new(data: *mut u8, len: usize) -> Self {
         Self {
             data: data as *mut T,
@@ -154,11 +155,13 @@ impl<T> TensorPtr<T> {
     }
 
     /// Get a slice view of the tensor data
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn as_slice(&self) -> &[T] {
         std::slice::from_raw_parts(self.data, self.len)
     }
 
     /// Get a mutable slice view of the tensor data
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn as_slice_mut(&mut self) -> &mut [T] {
         std::slice::from_raw_parts_mut(self.data, self.len)
     }

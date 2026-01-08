@@ -5,7 +5,7 @@
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Real-time audio processor for streaming audio
 #[derive(Debug)]

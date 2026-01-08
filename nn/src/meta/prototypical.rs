@@ -67,7 +67,7 @@
 
 use rand::Rng;
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::Module;
 use backend::{Backend, DataType, Storage};
 use dtype::traits::FloatExt;
@@ -706,7 +706,7 @@ where
 #[cfg(test)]
 mod concurrency_tests {
     use super::*;
-    use crate::linear::Linear;
+    use crate::modules::linear::Linear;
     use backend::CpuBackend;
     use dtype::float::Float32;
     use std::sync::Arc;
@@ -844,7 +844,7 @@ mod concurrency_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::linear::Linear;
+    use crate::modules::linear::Linear;
     use backend::CpuBackend;
     use dtype::float::Float32;
     use storage::DenseStorage;

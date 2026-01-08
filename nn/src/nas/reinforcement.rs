@@ -4,7 +4,7 @@
 //! that generate architecture sequences and learn from evaluation feedback.
 
 use super::search_space::{Architecture, ArchitectureSpace, LayerSpec};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use rand::Rng;
 
 /// RNN-based architecture controller for RL-NAS

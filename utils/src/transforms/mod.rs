@@ -40,16 +40,11 @@ use dtype::DataType;
 use storage::Storage;
 
 pub mod compose;
-pub mod normalize;
+
 pub mod random_apply;
-pub mod resize;
-pub mod totensor;
 
 pub use compose::Compose;
-pub use normalize::Normalize;
 pub use random_apply::{ConditionalTransform, RandomApply};
-pub use resize::Resize;
-pub use totensor::ToTensor;
 
 /// Core trait for data transformations that work with generic tensor types
 ///

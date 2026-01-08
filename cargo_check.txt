@@ -1,0 +1,1636 @@
+    Checking nn v0.2.0 (D:\coeus\nn)
+warning: unused import: `NNError`
+ --> nn\src\modules\activation\gelu.rs:1:26
+  |
+1 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ActivationType`
+  --> nn\src\modules\activation\gelu.rs:10:25
+   |
+10 | use super::{Activation, ActivationType};
+   |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\prelu.rs:9:25
+  |
+9 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\activation\relu.rs:1:26
+  |
+1 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\relu.rs:8:25
+  |
+8 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\activation\silu.rs:1:26
+  |
+1 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `ops::arithmetic::*`
+ --> nn\src\modules\activation\silu.rs:6:14
+  |
+6 | use tensor::{ops::arithmetic::*, FloatExt, Tensor};
+  |              ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\silu.rs:9:25
+  |
+9 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\swiglu.rs:8:25
+  |
+8 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\max2d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\max3d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\avg2d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\avg3d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `StateDict`
+ --> nn\src\training\checkpointing\mod.rs:7:35
+  |
+7 | use crate::core::module::{Module, StateDict};
+  |                                   ^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> nn\src\training\checkpointing\mod.rs:20:5
+   |
+20 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+   --> nn\src\training\checkpointing\mod.rs:197:9
+    |
+197 |     use super::*;
+    |         ^^^^^^^^
+
+warning: unexpected `cfg` condition value: `gpu`
+   --> nn\src\training\distributed\mod.rs:178:7
+    |
+178 | #[cfg(feature = "gpu")]
+    |       ^^^^^^^^^^-----
+    |                 |
+    |                 help: there is a expected value with a similar name: `"cpu"`
+    |
+    = note: expected values for `feature` are: `attention`, `autograd`, `clip`, `cpu`, `cuda`, `default`, `distributed`, `dropout`, `embedding`, `functional`, `model_surgery`, `normalization`, `onnx`, `quantized`, `research`, `safetensors`, `serde`, `std`, and `sysinfo`
+    = help: consider adding `gpu` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `StateDict`
+ --> nn\src\training\distributed\mod.rs:9:35
+  |
+9 | use crate::core::module::{Module, StateDict};
+  |                                   ^^^^^^^^^
+
+warning: unused import: `crate::Sequential`
+  --> nn\src\training\distributed\mod.rs:10:5
+   |
+10 | use crate::Sequential;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> nn\src\training\distributed\mod.rs:15:5
+   |
+15 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CpuBackend`
+ --> nn\src\functional\convolution\conv1d.rs:4:24
+  |
+4 | use backend::{Backend, CpuBackend};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> nn\src\functional\convolution\conv1d.rs:6:15
+  |
+6 | use storage::{DenseStorage, Storage, StorageFromVec};
+  |               ^^^^^^^^^^^^
+
+warning: unused import: `CpuBackend`
+ --> nn\src\functional\convolution\conv3d.rs:4:24
+  |
+4 | use backend::{Backend, CpuBackend};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> nn\src\functional\convolution\conv3d.rs:6:15
+  |
+6 | use storage::{DenseStorage, Storage, StorageFromVec};
+  |               ^^^^^^^^^^^^
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:10:9
+   |
+10 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `softmax` in the value namespace is first re-exported here
+11 | pub use attention::*;
+   |         ------------ but the name `softmax` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused import: `std::collections::HashMap`
+   --> nn\src\research\mod.rs:216:5
+    |
+216 | use std::collections::HashMap;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Instant`
+ --> nn\src\research\tracking\metadata.rs:9:5
+  |
+9 | use std::time::Instant;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\research\automated_research.rs:11:26
+   |
+11 | use crate::core::error::{NNError, Result};
+   |                          ^^^^^^^
+
+warning: unused import: `crate::research::nas_integration::NASSearchResult`
+  --> nn\src\research\automated_research.rs:12:5
+   |
+12 | use crate::research::nas_integration::NASSearchResult;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `JointSearchStrategy` and `hpo_integration::JointAlgorithm`
+  --> nn\src\research\automated_research.rs:14:5
+   |
+14 |     hpo_integration::JointAlgorithm,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+15 |     hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
+16 |     joint_search::{JointSearchContext, JointSearchFramework, JointSearchStrategy},
+   |                                                              ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `BTreeMap`
+ --> nn\src\research\benchmarking.rs:7:24
+  |
+7 | use std::collections::{BTreeMap, HashMap};
+  |                        ^^^^^^^^
+
+warning: unused imports: `HPOExperimentContext` and `JointSearchContext`
+  --> nn\src\research\benchmarking.rs:13:23
+   |
+13 |     hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
+   |                       ^^^^^^^^^^^^^^^^^^^^
+14 |     joint_search::{JointSearchContext, JointSearchFramework},
+   |                    ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `HPOptimizer` and `HyperparameterOptimizer`
+  --> nn\src\research\hpo_integration.rs:66:5
+   |
+66 |     HPOptimizer, HyperparameterConfig, HyperparameterOptimizer, HyperparameterSpace,
+   |     ^^^^^^^^^^^                        ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `MetricEntry` and `MetricsCollector`
+  --> nn\src\research\hpo_integration.rs:70:32
+   |
+70 | use crate::research::metrics::{MetricEntry, MetricsCollector};
+   |                                ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused import: `ExperimentTracker`
+  --> nn\src\research\hpo_integration.rs:71:52
+   |
+71 | use crate::research::tracking::{ExperimentSummary, ExperimentTracker};
+   |                                                    ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `HashSet`
+ --> nn\src\research\joint_search.rs:7:33
+  |
+7 | use std::collections::{HashMap, HashSet};
+  |                                 ^^^^^^^
+
+warning: unused import: `RwLock`
+ --> nn\src\research\joint_search.rs:8:22
+  |
+8 | use std::sync::{Arc, RwLock};
+  |                      ^^^^^^
+
+warning: unused import: `crate::nas::search_space::LayerSpec`
+  --> nn\src\research\joint_search.rs:13:5
+   |
+13 | use crate::nas::search_space::LayerSpec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `HPOptimizer` and `HyperparameterOptimizer`
+  --> nn\src\research\nas_integration.rs:12:18
+   |
+12 | use crate::hpo::{HPOptimizer, HyperparameterOptimizer};
+   |                  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `AutomatedResearchPipeline`
+  --> nn\src\research\nas_integration.rs:16:61
+   |
+16 |     Architecture, ArchitectureEvaluator, ArchitectureSpace, AutomatedResearchPipeline, DartsNAS,
+   |                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `MetricEntry` and `MetricsCollector`
+  --> nn\src\research\nas_integration.rs:19:32
+   |
+19 | use crate::research::metrics::{MetricEntry, MetricsCollector};
+   |                                ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ExperimentRegistry` and `ExperimentTracker`
+  --> nn\src\research\nas_integration.rs:23:33
+   |
+23 | use crate::research::tracking::{ExperimentRegistry, ExperimentSummary, ExperimentTracker};
+   |                                 ^^^^^^^^^^^^^^^^^^                     ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Arc` and `RwLock`
+ --> nn\src\research\performance_prediction.rs:8:17
+  |
+8 | use std::sync::{Arc, RwLock};
+  |                 ^^^  ^^^^^^
+
+warning: unused import: `HyperparameterSpace`
+  --> nn\src\research\performance_prediction.rs:11:40
+   |
+11 | use crate::hpo::{HyperparameterConfig, HyperparameterSpace, HyperparameterValue};
+   |                                        ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ArchitectureSpace`
+  --> nn\src\research\performance_prediction.rs:13:32
+   |
+13 | use crate::nas::{Architecture, ArchitectureSpace};
+   |                                ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\research\experiment_pipeline.rs:8:5
+  |
+8 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Mutex`
+ --> nn\src\research\experiment_pipeline.rs:9:22
+  |
+9 | use std::sync::{Arc, Mutex};
+  |                      ^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\research\meta_learning_integration.rs:7:26
+  |
+7 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:208:12
+    |
+208 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:72:19
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+211 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:234:12
+    |
+234 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:72:19
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+237 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:300:12
+    |
+300 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:72:19
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+303 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:358:12
+    |
+358 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:72:19
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+361 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:442:12
+    |
+442 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:72:19
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+445 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:534:12
+    |
+534 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:72:19
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+537 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:587:12
+    |
+587 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:72:19
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+590 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:629:12
+    |
+629 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:72:19
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+632 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:672:12
+    |
+672 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:72:19
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+675 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `S: StorageToDense<T>` is not satisfied
+   --> nn\src\io\onnx.rs:800:12
+    |
+800 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `S`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:71:41
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 71 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `S` with trait `StorageToDense`
+    |
+802 |         S: Storage<T> + StorageFromVec<T> + Clone + 'static + storage::StorageToDense<T>,
+    |                                                             ++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:800:12
+    |
+800 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:72:19
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+803 |         T: DataType + serde::de::DeserializeOwned + dtype::FloatExt,
+    |                                                   +++++++++++++++++
+
+error[E0277]: the trait bound `S: StorageToDense<T>` is not satisfied
+   --> nn\src\io\onnx.rs:823:12
+    |
+823 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `S`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:71:41
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 71 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `S` with trait `StorageToDense`
+    |
+825 |         S: Storage<T> + StorageFromVec<T> + Clone + 'static + storage::StorageToDense<T>,
+    |                                                             ++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:823:12
+    |
+823 |         M: Module<B, S, T>,
+    |            ^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:72:19
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+826 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+warning: variable does not need to be mutable
+   --> nn\src\research\automated_research.rs:328:21
+    |
+328 |                 let mut research_framework = self.research_framework.write().unwrap();
+    |                     ----^^^^^^^^^^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> nn\src\research\meta_learning_integration.rs:154:13
+    |
+154 |         let mut tracker = self.framework.create_experiment(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+error[E0308]: mismatched types
+   --> nn\src\modules\convolution\conv2d\mod.rs:445:18
+    |
+445 |             Some((self.stride_h, self.stride_w)),
+    |             ---- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&Tensor<CpuBackend<T>, ..., ...>`, found `(usize, usize)`
+    |             |
+    |             arguments to this enum variant are incorrect
+    |
+    = note: expected reference `&tensor::Tensor<CpuBackend<T>, DenseStorage<T>, T>`
+                   found tuple `(usize, usize)`
+help: the type constructed contains `(usize, usize)` due to the type of the argument passed
+   --> nn\src\modules\convolution\conv2d\mod.rs:445:13
+    |
+445 |             Some((self.stride_h, self.stride_w)),
+    |             ^^^^^------------------------------^
+    |                  |
+    |                  this argument influences the type of `Some`
+note: tuple variant defined here
+   --> C:\Users\RyanClanton\.rustup\toolchains\nightly-x86_64-pc-windows-gnu\lib/rustlib/src/rust\library\core\src\option.rs:607:5
+    |
+607 |     Some(#[stable(feature = "rust1", since = "1.0.0")] T),
+    |     ^^^^
+
+error[E0061]: this function takes 6 arguments but 5 arguments were supplied
+   --> nn\src\modules\convolution\conv2d\mod.rs:442:30
+    |
+442 |           let input_grad_cpu = crate::functional_api::conv_transpose_2d(
+    |  ______________________________^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+443 | |             &grad_output_cpu,
+444 | |             &weight_cpu,
+445 | |             Some((self.stride_h, self.stride_w)),
+446 | |             Some((self.padding_h, self.padding_w)),
+447 | |             Some((0, 0)), // output_padding not supported yet
+448 | |         )?;
+    | |_________- argument #6 of type `std::option::Option<(usize, usize)>` is missing
+    |
+note: function defined here
+   --> nn\src\functional\convolution\conv2d.rs:144:8
+    |
+144 | pub fn conv2d_transpose<T>(
+    |        ^^^^^^^^^^^^^^^^
+...
+150 |     output_padding: Option<(usize, usize)>,
+    |     --------------------------------------
+help: provide the argument
+    |
+442 ~         let input_grad_cpu = crate::functional_api::conv_transpose_2d(
+443 +             &grad_output_cpu,
+444 +             &weight_cpu,
+445 +             Some((self.stride_h, self.stride_w)),
+446 +             Some((self.padding_h, self.padding_w)),
+447 +             Some((0, 0)),
+448 +             /* std::option::Option<(usize, usize)> */,
+449 ~         )?;
+    |
+
+error[E0277]: the trait bound `T: FromPrimitive` is not satisfied
+   --> nn\src\modules\loss\cross_entropy.rs:102:5
+    |
+102 |     crate::functional_api::cross_entropy(logits, targets)
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `FromPrimitive` is not implemented for `T`
+    |
+note: required by a bound in `functional::loss::cross_entropy::cross_entropy_loss`
+   --> nn\src\functional\loss\cross_entropy.rs:100:71
+    |
+ 95 | pub fn cross_entropy_loss<T>(
+    |        ------------------ required by a bound in this function
+...
+100 |     T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + num_traits::FromPrimitive,
+    |                                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `cross_entropy_loss`
+help: consider further restricting type parameter `T` with trait `FromPrimitive`
+    |
+100 |     T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + num_traits::FromPrimitive,
+    |                                                                     +++++++++++++++++++++++++++
+
+error[E0061]: this function takes 4 arguments but 1 argument was supplied
+   --> nn\src\training\checkpointing\mod.rs:125:9
+    |
+125 |         backward(loss).map_err(|e| NNError::TrainingError { message: format!("Backward pass failed: {}", e) })
+    |         ^^^^^^^^------ three arguments of type `std::option::Option<tensor::Tensor<B, DenseStorage<T>, T>>`, `bool`, and `bool` are missing
+    |
+note: function defined here
+   --> D:\coeus\autograd\src\ops.rs:25:8
+    |
+ 25 | pub fn backward<B, S, T>(
+    |        ^^^^^^^^
+help: provide the arguments
+    |
+125 |         backward(loss, /* std::option::Option<tensor::Tensor<B, DenseStorage<T>, T>> */, /* bool */, /* bool */).map_err(|e| NNError::TrainingError { message: format!("Backward pass failed: {}", e) })
+    |                      ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0061]: this function takes 4 arguments but 1 argument was supplied
+  --> nn\src\training\distributed\mod.rs:94:9
+   |
+94 |         backward(loss).map_err(|e| NNError::TrainingError {
+   |         ^^^^^^^^------ three arguments of type `std::option::Option<tensor::Tensor<B, DenseStorage<T>, T>>`, `bool`, and `bool` are missing
+   |
+note: function defined here
+  --> D:\coeus\autograd\src\ops.rs:25:8
+   |
+25 | pub fn backward<B, S, T>(
+   |        ^^^^^^^^
+help: provide the arguments
+   |
+94 |         backward(loss, /* std::option::Option<tensor::Tensor<B, DenseStorage<T>, T>> */, /* bool */, /* bool */).map_err(|e| NNError::TrainingError {
+   |                      ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:305:22
+    |
+305 |         match module.name() {
+    |                      ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+303 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:340:76
+    |
+340 |                     message: format!("Unsupported module type: {}", module.name()),
+    |                                                                            ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+303 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:364:29
+    |
+364 |         let params = module.parameters();
+    |                             ^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::parameters`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::parameters`
+...
+112 |     fn parameters(&self) -> Vec<Parameter<B, S, T>>;
+    |        ---------- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+361 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:374:55
+    |
+374 |         let weight_name = format!("{}_weight", module.name().to_lowercase());
+    |                                                       ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+361 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:412:55
+    |
+412 |             let bias_name = format!("{}_bias", module.name().to_lowercase());
+    |                                                       ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+361 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:426:31
+    |
+426 |             name: Some(module.name().to_string()),
+    |                               ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+361 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:448:29
+    |
+448 |         let params = module.parameters();
+    |                             ^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::parameters`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::parameters`
+...
+112 |     fn parameters(&self) -> Vec<Parameter<B, S, T>>;
+    |        ---------- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+445 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:459:53
+    |
+459 |         let scale_name = format!("{}_scale", module.name().to_lowercase());
+    |                                                     ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+445 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:460:51
+    |
+460 |         let bias_name = format!("{}_bias", module.name().to_lowercase());
+    |                                                   ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+445 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:470:59
+    |
+470 |         let mean_name = format!("{}_running_mean", module.name().to_lowercase());
+    |                                                           ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+445 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:471:57
+    |
+471 |         let var_name = format!("{}_running_var", module.name().to_lowercase());
+    |                                                         ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+445 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:519:31
+    |
+519 |             name: Some(module.name().to_string()),
+    |                               ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+445 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:540:36
+    |
+540 |         let op_type = match module.name() {
+    |                                    ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+537 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:559:80
+    |
+559 |                     message: format!("Unsupported activation type: {}", module.name()),
+    |                                                                                ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+537 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:572:31
+    |
+572 |             name: Some(module.name().to_string()),
+    |                               ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+537 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:614:31
+    |
+614 |             name: Some(module.name().to_string()),
+    |                               ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+590 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:656:31
+    |
+656 |             name: Some(module.name().to_string()),
+    |                               ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+632 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:678:29
+    |
+678 |         let params = module.parameters();
+    |                             ^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::parameters`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::parameters`
+...
+112 |     fn parameters(&self) -> Vec<Parameter<B, S, T>>;
+    |        ---------- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+675 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:688:55
+    |
+688 |         let weight_name = format!("{}_weight", module.name().to_lowercase());
+    |                                                       ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+675 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:693:57
+    |
+693 |         let matmul_output = format!("{}_matmul", module.name().to_lowercase());
+    |                                                         ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+675 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:699:52
+    |
+699 |             name: Some(format!("{}_matmul", module.name())),
+    |                                                    ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+675 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:705:55
+    |
+705 |             let bias_name = format!("{}_bias", module.name().to_lowercase());
+    |                                                       ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+675 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+   --> nn\src\io\onnx.rs:715:58
+    |
+715 |                 name: Some(format!("{}_bias_add", module.name())),
+    |                                                          ^^^^ the trait `FloatExt` is not implemented for `T`
+    |
+note: required by a bound in `Module::name`
+   --> nn\src\core\module.rs:72:19
+    |
+ 72 |     T: DataType + FloatExt,
+    |                   ^^^^^^^^ required by this bound in `Module::name`
+...
+177 |     fn name(&self) -> &str;
+    |        ---- required by a bound in this associated function
+help: consider further restricting type parameter `T` with trait `FloatExt`
+    |
+675 |         T: DataType + dtype::FloatExt,
+    |                     +++++++++++++++++
+
+error[E0599]: the method `to_dense_generic` exists for reference `&tensor::Tensor<B, S, T>`, but its trait bounds were not satisfied
+   --> nn\src\io\onnx.rs:741:35
+    |
+741 |         let dense_tensor = tensor.to_dense_generic()?;
+    |                                   ^^^^^^^^^^^^^^^^ method cannot be called on `&tensor::Tensor<B, S, T>` due to unsatisfied trait bounds
+    |
+    = note: the following trait bounds were not satisfied:
+            `S: storage::StorageFromVec<T>`
+
+error[E0599]: the method `shape` exists for reference `&tensor::Tensor<B, S, T>`, but its trait bounds were not satisfied
+   --> nn\src\io\onnx.rs:753:37
+    |
+753 |         let dims: Vec<i64> = tensor.shape().dims().iter().map(|&d| d as i64).collect();
+    |                                     ^^^^^ method cannot be called on `&tensor::Tensor<B, S, T>` due to unsatisfied trait bounds
+    |
+    = note: the following trait bounds were not satisfied:
+            `S: storage::StorageFromVec<T>`
+
+error[E0308]: `if` and `else` have incompatible types
+   --> nn\src\multimodal\attention.rs:120:13
+    |
+ 57 |   impl<B, S, T> CrossModalAttention<B, S, T>
+    |           - found this type parameter
+...
+117 |           let query_proj = if let Some(ref proj) = self.query_proj {
+    |  __________________________-
+118 | |             linear(query, &proj.weight.data, Some(&proj.bias.data))?
+    | |             -------------------------------------------------------- expected because of this
+119 | |         } else {
+120 | |             query.clone()
+    | |             ^^^^^^^^^^^^^ expected `Tensor<B, DenseStorage<T>, T>`, found `Tensor<B, S, T>`
+121 | |         };
+    | |_________- `if` and `else` have incompatible types
+    |
+    = note: expected struct `tensor::Tensor<_, DenseStorage<T>, _>`
+               found struct `tensor::Tensor<_, S, _>`
+
+error[E0308]: `if` and `else` have incompatible types
+   --> nn\src\multimodal\attention.rs:132:21
+    |
+ 57 |   impl<B, S, T> CrossModalAttention<B, S, T>
+    |           - found this type parameter
+...
+129 |                   let key_proj = if let Some(ref proj) = self.key_proj {
+    |  ________________________________-
+130 | |                     linear(key, &proj.weight.data, Some(&proj.bias.data))?
+    | |                     ------------------------------------------------------ expected because of this
+131 | |                 } else {
+132 | |                     key.clone()
+    | |                     ^^^^^^^^^^^ expected `Tensor<B, DenseStorage<T>, T>`, found `Tensor<B, S, T>`
+133 | |                 };
+    | |_________________- `if` and `else` have incompatible types
+    |
+    = note: expected struct `tensor::Tensor<_, DenseStorage<T>, _>`
+               found struct `tensor::Tensor<_, S, _>`
+
+error[E0308]: `if` and `else` have incompatible types
+   --> nn\src\multimodal\attention.rs:138:21
+    |
+ 57 |   impl<B, S, T> CrossModalAttention<B, S, T>
+    |           - found this type parameter
+...
+135 |                   let value_proj = if let Some(ref proj) = self.value_proj {
+    |  __________________________________-
+136 | |                     linear(value, &proj.weight.data, Some(&proj.bias.data))?
+    | |                     -------------------------------------------------------- expected because of this
+137 | |                 } else {
+138 | |                     value.clone()
+    | |                     ^^^^^^^^^^^^^ expected `Tensor<B, DenseStorage<T>, T>`, found `Tensor<B, S, T>`
+139 | |                 };
+    | |_________________- `if` and `else` have incompatible types
+    |
+    = note: expected struct `tensor::Tensor<_, DenseStorage<T>, _>`
+               found struct `tensor::Tensor<_, S, _>`
+
+error[E0308]: mismatched types
+   --> nn\src\multimodal\attention.rs:183:32
+    |
+ 57 | impl<B, S, T> CrossModalAttention<B, S, T>
+    |         - expected this type parameter
+...
+183 |         let residual = query + &output;
+    |                                ^^^^^^^ expected `&Tensor<B, S, T>`, found `&Tensor<B, DenseStorage<T>, T>`
+    |
+    = note: expected reference `&tensor::Tensor<_, S, _>`
+               found reference `&tensor::Tensor<_, DenseStorage<T>, _>`
+
+error[E0308]: mismatched types
+   --> nn\src\multimodal\encoder.rs:90:36
+    |
+ 37 | impl<B, S, T> Encoder<B, S, T>
+    |         - expected this type parameter
+...
+ 90 |             hidden = layer.forward(&hidden, mask)?;
+    |                            ------- ^^^^^^^ expected `&Tensor<B, S, T>`, found `&Tensor<B, DenseStorage<T>, T>`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&tensor::Tensor<_, S, _>`
+               found reference `&tensor::Tensor<_, DenseStorage<T>, _>`
+note: method defined here
+   --> nn\src\multimodal\encoder.rs:160:12
+    |
+160 |     pub fn forward(
+    |            ^^^^^^^
+161 |         &self,
+162 |         input: &Tensor<B, S, T>,
+    |         -----------------------
+
+error[E0308]: `?` operator has incompatible types
+  --> nn\src\multimodal\encoder.rs:90:22
+   |
+37 | impl<B, S, T> Encoder<B, S, T>
+   |         - found this type parameter
+...
+90 |             hidden = layer.forward(&hidden, mask)?;
+   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Tensor<B, DenseStorage<T>, T>`, found `Tensor<B, S, T>`
+   |
+   = note: `?` operator cannot convert from `tensor::Tensor<_, S, _>` to `tensor::Tensor<_, DenseStorage<T>, _>`
+   = note: expected struct `tensor::Tensor<_, DenseStorage<T>, _>`
+              found struct `tensor::Tensor<_, S, _>`
+
+error[E0308]: mismatched types
+  --> nn\src\multimodal\encoder.rs:94:27
+   |
+37 | impl<B, S, T> Encoder<B, S, T>
+   |         - expected this type parameter
+...
+94 |         self.norm.forward(&hidden)
+   |                   ------- ^^^^^^^ expected `&Tensor<B, S, T>`, found `&Tensor<B, DenseStorage<T>, T>`
+   |                   |
+   |                   arguments to this method are incorrect
+   |
+   = note: expected reference `&tensor::Tensor<_, S, _>`
+              found reference `&tensor::Tensor<_, DenseStorage<T>, _>`
+note: method defined here
+  --> nn\src\core\module.rs:81:8
+   |
+81 |     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>;
+   |        ^^^^^^^        -----
+
+error[E0308]: mismatched types
+   --> nn\src\multimodal\fusion.rs:263:43
+    |
+233 | impl<B, S, T> FeedForward<B, S, T>
+    |         - expected this type parameter
+...
+263 |         let activated = self.gelu.forward(&hidden)?;
+    |                                   ------- ^^^^^^^ expected `&Tensor<B, S, T>`, found `&Tensor<B, DenseStorage<T>, T>`
+    |                                   |
+    |                                   arguments to this method are incorrect
+    |
+    = note: expected reference `&tensor::Tensor<_, S, _>`
+               found reference `&tensor::Tensor<_, DenseStorage<T>, _>`
+note: method defined here
+   --> nn\src\modules\activation\gelu.rs:42:12
+    |
+ 42 |     pub fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+    |            ^^^^^^^        -------------------
+
+error[E0308]: mismatched types
+   --> nn\src\multimodal\fusion.rs:270:9
+    |
+233 |   impl<B, S, T> FeedForward<B, S, T>
+    |           - expected this type parameter
+...
+254 |       pub fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+    |                                                         ----------------------- expected `std::result::Result<tensor::Tensor<B, S, T>, core::error::NNError>` because of return type
+...
+270 | /         linear(
+271 | |             &dropped,
+272 | |             &self.linear2.weight.data,
+273 | |             Some(&self.linear2.bias.data),
+274 | |         )
+    | |_________^ expected `Result<Tensor<B, S, T>, NNError>`, found `Result<Tensor<B, ..., ...>, ...>`
+    |
+    = note: expected enum `std::result::Result<tensor::Tensor<_, S, _>, _>`
+               found enum `std::result::Result<tensor::Tensor<_, DenseStorage<T>, _>, _>`
+
+error[E0308]: `?` operator has incompatible types
+   --> nn\src\multimodal\transformer.rs:319:21
+    |
+113 |   impl<B, S, T> MultimodalTransformer<B, S, T>
+    |           - expected this type parameter
+...
+319 | /                     linear(
+320 | |                         &pooled,
+321 | |                         &head.classifier.weight.data,
+322 | |                         Some(&head.classifier.bias.data),
+323 | |                     )?
+    | |______________________^ expected `Tensor<B, S, T>`, found `Tensor<B, DenseStorage<T>, T>`
+    |
+    = note: `?` operator cannot convert from `tensor::Tensor<_, DenseStorage<T>, _>` to `tensor::Tensor<_, S, _>`
+    = note: expected struct `tensor::Tensor<_, S, _>`
+               found struct `tensor::Tensor<_, DenseStorage<T>, _>`
+
+error[E0308]: `?` operator has incompatible types
+   --> nn\src\multimodal\transformer.rs:329:21
+    |
+113 | impl<B, S, T> MultimodalTransformer<B, S, T>
+    |         - expected this type parameter
+...
+329 |                     linear(&pooled, &head.weight.data, Some(&head.bias.data))?
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Tensor<B, S, T>`, found `Tensor<B, DenseStorage<T>, T>`
+    |
+    = note: `?` operator cannot convert from `tensor::Tensor<_, DenseStorage<T>, _>` to `tensor::Tensor<_, S, _>`
+    = note: expected struct `tensor::Tensor<_, S, _>`
+               found struct `tensor::Tensor<_, DenseStorage<T>, _>`
+
+error[E0308]: `?` operator has incompatible types
+   --> nn\src\multimodal\transformer.rs:334:21
+    |
+113 |   impl<B, S, T> MultimodalTransformer<B, S, T>
+    |           - expected this type parameter
+...
+334 | /                     linear(
+335 | |                         &primary_embedding,
+336 | |                         &head.lm_head.weight.data,
+337 | |                         Some(&head.lm_head.bias.data),
+338 | |                     )?
+    | |______________________^ expected `Tensor<B, S, T>`, found `Tensor<B, DenseStorage<T>, T>`
+    |
+    = note: `?` operator cannot convert from `tensor::Tensor<_, DenseStorage<T>, _>` to `tensor::Tensor<_, S, _>`
+    = note: expected struct `tensor::Tensor<_, S, _>`
+               found struct `tensor::Tensor<_, DenseStorage<T>, _>`
+
+error[E0308]: `?` operator has incompatible types
+   --> nn\src\multimodal\transformer.rs:344:21
+    |
+113 |   impl<B, S, T> MultimodalTransformer<B, S, T>
+    |           - expected this type parameter
+...
+344 | /                     linear(
+345 | |                         &pooled,
+346 | |                         &head.projection.weight.data,
+347 | |                         Some(&head.projection.bias.data),
+348 | |                     )?
+    | |______________________^ expected `Tensor<B, S, T>`, found `Tensor<B, DenseStorage<T>, T>`
+    |
+    = note: `?` operator cannot convert from `tensor::Tensor<_, DenseStorage<T>, _>` to `tensor::Tensor<_, S, _>`
+    = note: expected struct `tensor::Tensor<_, S, _>`
+               found struct `tensor::Tensor<_, DenseStorage<T>, _>`
+
+warning: unused import: `crate::core::module::Module`
+ --> nn\src\modules\activation\swiglu.rs:2:5
+  |
+2 | use crate::core::module::Module;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function cannot return without recursing
+   --> nn\src\functional\loss\cross_entropy.rs:95:1
+    |
+ 95 | / pub fn cross_entropy_loss<T>(
+ 96 | |     logits: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+ 97 | |     targets: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+ 98 | | ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>>
+ 99 | | where
+100 | |     T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + num_traits::FromPrimitive,
+    | |________________________________________________________________________________________________^ cannot return without recursing
+101 |   {
+102 |       crate::functional_api::cross_entropy(logits, targets)
+    |       ----------------------------------------------------- recursive call site
+    |
+    = help: a `loop` may express intention better if this is on purpose
+    = note: `#[warn(unconditional_recursion)]` on by default
+
+warning: unused variable: `name`
+   --> nn\src\research\metrics\mod.rs:282:14
+    |
+282 |         for (name, collector) in &mut self.collectors {
+    |              ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `i`
+   --> nn\src\research\metrics\mod.rs:623:20
+    |
+623 |             .map(|(i, (name, entries))| {
+    |                    ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: variable does not need to be mutable
+  --> nn\src\research\tracking\artifacts.rs:51:13
+   |
+51 |         let mut artifact = Artifact {
+   |             ----^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: unused variable: `path`
+   --> nn\src\research\tracking\checkpoints.rs:182:39
+    |
+182 |     pub fn load_checkpoint(&mut self, path: &Path) -> crate::core::error::Result<String> {
+    |                                       ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\tracking\hyperparameters.rs:179:13
+    |
+179 |         let mut value_distributions: HashMap<String, Vec<HyperparameterValue>> = HashMap::new();
+    |             ----^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `value_distributions`
+   --> nn\src\research\tracking\hyperparameters.rs:179:13
+    |
+179 |         let mut value_distributions: HashMap<String, Vec<HyperparameterValue>> = HashMap::new();
+    |             ^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_value_distributions`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\tracking\metadata.rs:283:17
+    |
+283 |             let mut sys = System::new();
+    |                 ----^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unused variable: `sys`
+   --> nn\src\research\tracking\metadata.rs:283:17
+    |
+283 |             let mut sys = System::new();
+    |                 ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sys`
+
+warning: unused variable: `research_framework`
+   --> nn\src\research\automated_research.rs:328:21
+    |
+328 |                 let mut research_framework = self.research_framework.write().unwrap();
+    |                     ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_research_framework`
+
+warning: unused variable: `metrics`
+   --> nn\src\research\automated_research.rs:438:9
+    |
+438 |         metrics: &[String],
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metrics`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\hpo_integration.rs:397:13
+    |
+397 |         let mut search_history = Vec::new();
+    |             ----^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\hpo_integration.rs:398:13
+    |
+398 |         let mut evaluations = 0;
+    |             ----^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `objective`
+   --> nn\src\research\hpo_integration.rs:376:13
+    |
+376 |         let objective = self
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_objective`
+
+warning: unused variable: `optimizer`
+   --> nn\src\research\hpo_integration.rs:385:13
+    |
+385 |         let optimizer = self
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_optimizer`
+
+warning: unused variable: `evaluations`
+   --> nn\src\research\hpo_integration.rs:398:13
+    |
+398 |         let mut evaluations = 0;
+    |             ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_evaluations`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\hpo_integration.rs:805:13
+    |
+805 |         let mut ref_point: Vec<f64> = reference_point.iter().map(|&val| -val).collect();
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `optimizer`
+    --> nn\src\research\hpo_integration.rs:1230:13
+     |
+1230 |             optimizer: &crate::hpo::BayesianOptimizer,
+     |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_optimizer`
+
+warning: variable does not need to be mutable
+    --> nn\src\research\hpo_integration.rs:1390:29
+     |
+1390 |                         let mut new_config = config.clone();
+     |                             ----^^^^^^^^^^
+     |                             |
+     |                             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\joint_search.rs:354:17
+    |
+354 |             let mut tracker = framework.create_experiment(
+    |                 ----^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unused variable: `tracker`
+   --> nn\src\research\joint_search.rs:354:17
+    |
+354 |             let mut tracker = framework.create_experiment(
+    |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
+
+warning: unused variable: `search_time`
+   --> nn\src\research\joint_search.rs:362:17
+    |
+362 |             let search_time = start_time.elapsed();
+    |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_search_time`
+
+warning: unused variable: `sync_freq`
+   --> nn\src\research\joint_search.rs:657:13
+    |
+657 |             sync_freq: usize,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sync_freq`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\nas_integration.rs:360:13
+    |
+360 |         let mut tracker = framework.create_experiment(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\nas_integration.rs:367:13
+    |
+367 |         let mut results: Vec<NASSearchResult> = Vec::new();
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `tracker`
+   --> nn\src\research\nas_integration.rs:360:13
+    |
+360 |         let mut tracker = framework.create_experiment(
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
+
+warning: unused variable: `results`
+   --> nn\src\research\nas_integration.rs:367:13
+    |
+367 |         let mut results: Vec<NASSearchResult> = Vec::new();
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_results`
+
+warning: unused variable: `search_alg`
+   --> nn\src\research\nas_integration.rs:369:25
+    |
+369 |             if let Some(search_alg) = self.search_algorithms.get(algorithm) {
+    |                         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_search_alg`
+
+warning: unused variable: `space`
+   --> nn\src\research\nas_integration.rs:841:13
+    |
+841 |             space: &ArchitectureSpace,
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_space`
+
+warning: unused variable: `context`
+   --> nn\src\research\nas_integration.rs:902:13
+    |
+902 |             context: &NASExperimentContext,
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+
+warning: unused variable: `framework`
+   --> nn\src\research\nas_integration.rs:903:13
+    |
+903 |             framework: &mut UnifiedResearchFramework,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_framework`
+
+warning: unused variable: `evaluator`
+   --> nn\src\research\nas_integration.rs:904:13
+    |
+904 |             evaluator: Arc<dyn ArchitectureEvaluator>,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_evaluator`
+
+warning: unused variable: `space`
+   --> nn\src\research\nas_integration.rs:905:13
+    |
+905 |             space: &ArchitectureSpace,
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_space`
+
+warning: unused variable: `context`
+   --> nn\src\research\nas_integration.rs:943:13
+    |
+943 |             context: &NASExperimentContext,
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+
+warning: unused variable: `framework`
+   --> nn\src\research\nas_integration.rs:944:13
+    |
+944 |             framework: &mut UnifiedResearchFramework,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_framework`
+
+warning: unused variable: `evaluator`
+   --> nn\src\research\nas_integration.rs:945:13
+    |
+945 |             evaluator: Arc<dyn ArchitectureEvaluator>,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_evaluator`
+
+warning: unused variable: `space`
+   --> nn\src\research\nas_integration.rs:946:13
+    |
+946 |             space: &ArchitectureSpace,
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_space`
+
+warning: unused variable: `tracker`
+   --> nn\src\research\meta_learning_integration.rs:299:33
+    |
+299 |     fn log_configuration(&self, tracker: &ExperimentTracker) -> Result<()> {
+    |                                 ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
+
+warning: unused variable: `config`
+   --> nn\src\research\meta_learning_integration.rs:500:12
+    |
+500 |     fn new(config: &MetaLearningConfig) -> Self {
+    |            ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+
+Some errors have detailed explanations: E0061, E0277, E0308, E0599.
+For more information about an error, try `rustc --explain E0061`.
+warning: `nn` (lib) generated 90 warnings
+error: could not compile `nn` (lib) due to 56 previous errors; 90 warnings emitted

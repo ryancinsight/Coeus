@@ -5,7 +5,7 @@
 //! Supports parallel loading, prefetching, and automatic memory management.
 
 use super::{ImageTextPair, VisionLanguageData};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use futures::stream::{self, StreamExt};
 use std::collections::HashMap;
 use std::sync::Arc;

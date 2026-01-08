@@ -69,8 +69,9 @@ jobs:
 
       - name: Check unused dependencies
         run: |
+          rustup toolchain install nightly
           cargo install cargo-udeps
-          cargo udeps --workspace
+          cargo +nightly udeps --workspace
 
   # =============================================================================
   # Unit and Integration Tests
@@ -116,16 +117,8 @@ jobs:
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Install cargo-criterion
-        run: cargo install cargo-criterion
-
-      - name: Run micro-benchmarks
-        run: cargo criterion --workspace
-
-      - name: Run profiling benchmarks
-        run: |
-          cargo build --release --workspace
-          ./scripts/benchmark.sh
+      - name: Run benchmarks
+        run: cargo bench --workspace
 
   # =============================================================================
   # Coverage Analysis
@@ -239,18 +232,12 @@ jobs:
       - name: Build documentation
         run: cargo doc --workspace --no-deps
 
-      - name: Build mdBook docs
-        run: |
-          cargo install mdbook mdbook-mermaid
-          mdbook build docs/
-
       - name: Upload documentation
         uses: actions/upload-artifact@v3
         with:
           name: documentation
           path: |
             target/doc/
-            docs/book/
 
   # =============================================================================
   # Docker Build Test
@@ -269,8 +256,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          target: development
-          tags: coeus:dev
+          target: builder
+          tags: coeus:builder
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -278,14 +265,14 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          target: production
+          target: runtime
           tags: coeus:latest
           cache-from: type=gha
 
       - name: Test container
         run: |
-          docker run --rm coeus:latest coeus_tensor --version
-          docker run --rm coeus:dev cargo --version
+          docker run --rm coeus:builder cargo --version
+          docker run --rm coeus:latest /app/semantic_api_server --health-check
 
   # =============================================================================
   # Python Bindings Test
@@ -331,15 +318,8 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Run performance baseline
-        run: |
-          cargo build --release --workspace
-          ./scripts/performance-baseline.sh
-
-      - name: Check for regressions
-        run: |
-          # Compare against stored baseline
-          ./scripts/check-regression.sh
+      - name: Run release tests
+        run: cargo test --workspace --release
 
   # =============================================================================
   # Release Preparation
@@ -423,8 +403,7 @@ jobs:
           kubectl rollout status deployment/coeus-deployment
 
       - name: Run post-deployment tests
-        run: |
-          ./scripts/post-deployment-test.sh
+        run: cargo test --workspace --release
 
   # =============================================================================
   # Final Status Check

@@ -311,7 +311,7 @@ impl PyTensorBatch {
 /// ToTensor transform
 #[pyclass(name = "ToTensor", module = "_coeus")]
 pub struct PyToTensor {
-    inner: utils::transforms::ToTensor,
+    inner: vision::transforms::ToTensor,
 }
 
 #[pymethods]
@@ -319,7 +319,7 @@ impl PyToTensor {
     #[new]
     fn new() -> PyResult<Self> {
         Ok(PyToTensor {
-            inner: utils::transforms::ToTensor::new(),
+            inner: vision::transforms::ToTensor::new(),
         })
     }
 
@@ -338,7 +338,7 @@ impl PyToTensor {
 /// Normalize transform
 #[pyclass(name = "Normalize", module = "_coeus")]
 pub struct PyNormalize {
-    inner: utils::transforms::Normalize,
+    inner: vision::transforms::Normalize,
 }
 
 #[pymethods]
@@ -347,9 +347,9 @@ impl PyNormalize {
     #[pyo3(signature = (mean, std, _inplace=true))]
     fn new(mean: Vec<f32>, std: Vec<f32>, _inplace: bool) -> PyResult<Self> {
         let normalize = if mean.len() == 1 && std.len() == 1 {
-            utils::transforms::Normalize::single_channel(mean[0], std[0])
+            vision::transforms::Normalize::single_channel(mean[0], std[0])
         } else {
-            utils::transforms::Normalize::new(mean, std)
+            vision::transforms::Normalize::new(mean, std)
         };
         Ok(PyNormalize { inner: normalize })
     }

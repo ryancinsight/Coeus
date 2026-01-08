@@ -1,0 +1,49 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-9.0.2, pluggy-1.6.0 -- D:\coeus\pycoeus\venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\coeus\pycoeus
+configfile: pyproject.toml
+collecting ... collected 40 items
+
+tests/test_comprehensive_parity.py::TestTensorCreation::test_from_numpy_1d PASSED [  2%]
+tests/test_comprehensive_parity.py::TestTensorCreation::test_from_numpy_2d PASSED [  5%]
+tests/test_comprehensive_parity.py::TestTensorCreation::test_from_numpy_3d PASSED [  7%]
+tests/test_comprehensive_parity.py::TestTensorCreation::test_from_numpy_4d PASSED [ 10%]
+tests/test_comprehensive_parity.py::TestTensorCreation::test_zeros PASSED [ 12%]
+tests/test_comprehensive_parity.py::TestTensorCreation::test_ones PASSED [ 15%]
+tests/test_comprehensive_parity.py::TestTensorOperations::test_add PASSED [ 17%]
+tests/test_comprehensive_parity.py::TestTensorOperations::test_sub PASSED [ 20%]
+tests/test_comprehensive_parity.py::TestTensorOperations::test_mul PASSED [ 22%]
+tests/test_comprehensive_parity.py::TestTensorOperations::test_div PASSED [ 25%]
+tests/test_comprehensive_parity.py::TestTensorOperations::test_matmul PASSED [ 27%]
+tests/test_comprehensive_parity.py::TestTensorOperations::test_reshape PASSED [ 30%]
+tests/test_comprehensive_parity.py::TestTensorOperations::test_transpose PASSED [ 32%]
+tests/test_comprehensive_parity.py::TestReductions::test_sum_all SKIPPED [ 35%]
+tests/test_comprehensive_parity.py::TestReductions::test_sum_dim SKIPPED [ 37%]
+tests/test_comprehensive_parity.py::TestReductions::test_mean_all SKIPPED [ 40%]
+tests/test_comprehensive_parity.py::TestLinearLayer::test_linear_shape PASSED [ 42%]
+tests/test_comprehensive_parity.py::TestLinearLayer::test_linear_no_bias SKIPPED [ 45%]
+tests/test_comprehensive_parity.py::TestConvLayers::test_conv2d_shape PASSED [ 47%]
+tests/test_comprehensive_parity.py::TestConvLayers::test_conv2d_stride PASSED [ 50%]
+tests/test_comprehensive_parity.py::TestPoolingLayers::test_maxpool2d_basic PASSED [ 52%]
+tests/test_comprehensive_parity.py::TestPoolingLayers::test_avgpool2d_basic PASSED [ 55%]
+tests/test_comprehensive_parity.py::TestPoolingLayers::test_adaptive_avgpool2d PASSED [ 57%]
+tests/test_comprehensive_parity.py::TestPoolingLayers::test_maxpool1d PASSED [ 60%]
+tests/test_comprehensive_parity.py::TestNormalizationLayers::test_batchnorm2d_shape PASSED [ 62%]
+tests/test_comprehensive_parity.py::TestNormalizationLayers::test_layernorm_shape PASSED [ 65%]
+tests/test_comprehensive_parity.py::TestActivations::test_relu PASSED    [ 67%]
+tests/test_comprehensive_parity.py::TestActivations::test_gelu PASSED    [ 70%]
+tests/test_comprehensive_parity.py::TestActivations::test_silu PASSED    [ 72%]
+tests/test_comprehensive_parity.py::TestActivations::test_sigmoid PASSED [ 75%]
+tests/test_comprehensive_parity.py::TestActivations::test_tanh PASSED    [ 77%]
+tests/test_comprehensive_parity.py::TestRecurrentLayers::test_rnn_output_shape PASSED [ 80%]
+tests/test_comprehensive_parity.py::TestRecurrentLayers::test_lstm_output_shape PASSED [ 82%]
+tests/test_comprehensive_parity.py::TestRecurrentLayers::test_gru_output_shape PASSED [ 85%]
+tests/test_comprehensive_parity.py::TestRecurrentLayers::test_rnn_multilayer PASSED [ 87%]
+tests/test_comprehensive_parity.py::TestDropout::test_dropout_eval_mode PASSED [ 90%]
+tests/test_comprehensive_parity.py::TestEmbedding::test_embedding_shape PASSED [ 92%]
+tests/test_comprehensive_parity.py::TestSequential::test_sequential_creation PASSED [ 95%]
+tests/test_comprehensive_parity.py::TestFFT::test_fft_forward PASSED     [ 97%]
+tests/test_comprehensive_parity.py::TestFFT::test_fft_inverse PASSED     [100%]
+
+======================== 36 passed, 4 skipped in 1.77s ========================

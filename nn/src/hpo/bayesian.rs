@@ -4,7 +4,7 @@
 //! as surrogate models and acquisition functions for efficient exploration.
 
 use super::space::{HyperparameterConfig, HyperparameterSpace};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Gaussian Process surrogate model
 #[derive(Debug, Clone)]

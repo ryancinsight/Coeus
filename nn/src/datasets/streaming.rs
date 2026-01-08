@@ -4,7 +4,7 @@
 //! that don't fit entirely in memory. Supports distributed processing and prefetching.
 
 use super::{ImageTextPair, VisionLanguageData};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use async_stream;
 use futures::stream::{Stream, StreamExt};
 use std::collections::HashMap;
@@ -478,7 +478,7 @@ mod tests {
         ) -> std::pin::Pin<
             Box<
                 dyn std::future::Future<
-                        Output = crate::error::Result<crate::datasets::ImageTextPair>,
+                        Output = crate::core::error::Result<crate::datasets::ImageTextPair>,
                     > + Send
                     + '_,
             >,

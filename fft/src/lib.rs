@@ -8,3 +8,5 @@ pub mod cpu;
 pub mod gpu;
 
 pub use cpu::CpuFft;
+#[cfg(feature = "gpu")]
+pub use gpu::GpuFft;

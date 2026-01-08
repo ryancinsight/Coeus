@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use super::search_space::Architecture;
-use crate::error::Result;
+use crate::core::error::Result;
 
 /// Architecture evaluation result
 #[derive(Debug, Clone)]

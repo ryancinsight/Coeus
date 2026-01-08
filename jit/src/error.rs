@@ -45,5 +45,11 @@ pub enum JitError {
     TracingError { message: String },
 
     #[error("Cranelift module error: {0}")]
-    ModuleError(#[from] cranelift_module::ModuleError),
+    ModuleError(#[from] Box<cranelift_module::ModuleError>),
+}
+
+impl From<cranelift_module::ModuleError> for JitError {
+    fn from(value: cranelift_module::ModuleError) -> Self {
+        Self::ModuleError(Box::new(value))
+    }
 }

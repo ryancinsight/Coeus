@@ -1,0 +1,23 @@
+[package]
+name = "coeus-distributions"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ryan Clanton <ryanclanton@protomail.com>"]
+description = "Probability distributions and sampling utilities for Coeus"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ryancinsight/Coeus"
+readme = "../README.md"
+keywords = ["probability", "distributions", "sampling"]
+categories = ["science", "mathematics"]
+
+[dependencies]
+thiserror = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+rand_pcg = { workspace = true }
+

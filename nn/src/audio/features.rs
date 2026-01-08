@@ -7,7 +7,7 @@
 use std::f32::consts::PI;
 use std::fmt;
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Fundamental audio properties
 #[derive(Debug, Clone)]

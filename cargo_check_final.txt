@@ -1,0 +1,1020 @@
+warning: unused import: `CpuBackend`
+ --> nn\src\functional\convolution\conv1d.rs:4:24
+  |
+4 | use backend::{Backend, CpuBackend};
+  |                        ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `DenseStorage`
+ --> nn\src\functional\convolution\conv1d.rs:6:15
+  |
+6 | use storage::{DenseStorage, Storage, StorageFromVec};
+  |               ^^^^^^^^^^^^
+
+warning: unused import: `CpuBackend`
+ --> nn\src\functional\convolution\conv3d.rs:4:24
+  |
+4 | use backend::{Backend, CpuBackend};
+  |                        ^^^^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> nn\src\functional\convolution\conv3d.rs:6:15
+  |
+6 | use storage::{DenseStorage, Storage, StorageFromVec};
+  |               ^^^^^^^^^^^^
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:10:9
+   |
+10 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `softmax` in the value namespace is first re-exported here
+11 | pub use attention::*;
+   |         ------------ but the name `softmax` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused import: `NNError`
+ --> nn\src\modules\activation\gelu.rs:1:26
+  |
+1 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `ActivationType`
+  --> nn\src\modules\activation\gelu.rs:10:25
+   |
+10 | use super::{Activation, ActivationType};
+   |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\prelu.rs:9:25
+  |
+9 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\activation\relu.rs:1:26
+  |
+1 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\relu.rs:8:25
+  |
+8 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\activation\silu.rs:1:26
+  |
+1 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `ops::arithmetic::*`
+ --> nn\src\modules\activation\silu.rs:6:14
+  |
+6 | use tensor::{ops::arithmetic::*, FloatExt, Tensor};
+  |              ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\silu.rs:9:25
+  |
+9 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\swiglu.rs:8:25
+  |
+8 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\avg2d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\avg3d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\max2d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\max3d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+   --> nn\src\research\mod.rs:216:5
+    |
+216 | use std::collections::HashMap;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Instant`
+ --> nn\src\research\tracking\metadata.rs:9:5
+  |
+9 | use std::time::Instant;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\research\automated_research.rs:11:26
+   |
+11 | use crate::core::error::{NNError, Result};
+   |                          ^^^^^^^
+
+warning: unused import: `crate::research::nas_integration::NASSearchResult`
+  --> nn\src\research\automated_research.rs:12:5
+   |
+12 | use crate::research::nas_integration::NASSearchResult;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `JointSearchStrategy` and `hpo_integration::JointAlgorithm`
+  --> nn\src\research\automated_research.rs:14:5
+   |
+14 |     hpo_integration::JointAlgorithm,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+15 |     hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
+16 |     joint_search::{JointSearchContext, JointSearchFramework, JointSearchStrategy},
+   |                                                              ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `BTreeMap`
+ --> nn\src\research\benchmarking.rs:7:24
+  |
+7 | use std::collections::{BTreeMap, HashMap};
+  |                        ^^^^^^^^
+
+warning: unused imports: `HPOExperimentContext` and `JointSearchContext`
+  --> nn\src\research\benchmarking.rs:13:23
+   |
+13 |     hpo_integration::{HPOExperimentContext, IntegratedHPOFrame...
+   |                       ^^^^^^^^^^^^^^^^^^^^
+14 |     joint_search::{JointSearchContext, JointSearchFramework},
+   |                    ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `HPOptimizer` and `HyperparameterOptimizer`
+  --> nn\src\research\hpo_integration.rs:66:5
+   |
+66 |     HPOptimizer, HyperparameterConfig, HyperparameterOptimizer, H...
+   |     ^^^^^^^^^^^                        ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `MetricEntry` and `MetricsCollector`
+  --> nn\src\research\hpo_integration.rs:70:32
+   |
+70 | use crate::research::metrics::{MetricEntry, MetricsCollector};
+   |                                ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused import: `ExperimentTracker`
+  --> nn\src\research\hpo_integration.rs:71:52
+   |
+71 | ...:{ExperimentSummary, ExperimentTracker};
+   |                         ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `HashSet`
+ --> nn\src\research\joint_search.rs:7:33
+  |
+7 | use std::collections::{HashMap, HashSet};
+  |                                 ^^^^^^^
+
+warning: unused import: `RwLock`
+ --> nn\src\research\joint_search.rs:8:22
+  |
+8 | use std::sync::{Arc, RwLock};
+  |                      ^^^^^^
+
+warning: unused import: `crate::nas::search_space::LayerSpec`
+  --> nn\src\research\joint_search.rs:13:5
+   |
+13 | use crate::nas::search_space::LayerSpec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `HPOptimizer` and `HyperparameterOptimizer`
+  --> nn\src\research\nas_integration.rs:12:18
+   |
+12 | use crate::hpo::{HPOptimizer, HyperparameterOptimizer};
+   |                  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `AutomatedResearchPipeline`
+  --> nn\src\research\nas_integration.rs:16:61
+   |
+16 | ...chitectureSpace, AutomatedResearchPipeline, DartsNAS,
+   |                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `MetricEntry` and `MetricsCollector`
+  --> nn\src\research\nas_integration.rs:19:32
+   |
+19 | use crate::research::metrics::{MetricEntry, MetricsCollector};
+   |                                ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ExperimentRegistry` and `ExperimentTracker`
+  --> nn\src\research\nas_integration.rs:23:33
+   |
+23 | ...::{ExperimentRegistry, ExperimentSummary, ExperimentTracker};
+   |       ^^^^^^^^^^^^^^^^^^                     ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Arc` and `RwLock`
+ --> nn\src\research\performance_prediction.rs:8:17
+  |
+8 | use std::sync::{Arc, RwLock};
+  |                 ^^^  ^^^^^^
+
+warning: unused import: `HyperparameterSpace`
+  --> nn\src\research\performance_prediction.rs:11:40
+   |
+11 | use crate::hpo::{HyperparameterConfig, HyperparameterSpace, Hy...
+   |                                        ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ArchitectureSpace`
+  --> nn\src\research\performance_prediction.rs:13:32
+   |
+13 | use crate::nas::{Architecture, ArchitectureSpace};
+   |                                ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\research\experiment_pipeline.rs:8:5
+  |
+8 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Mutex`
+ --> nn\src\research\experiment_pipeline.rs:9:22
+  |
+9 | use std::sync::{Arc, Mutex};
+  |                      ^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\research\meta_learning_integration.rs:7:26
+  |
+7 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `StateDict`
+ --> nn\src\training\checkpointing\mod.rs:9:35
+  |
+9 | use crate::core::module::{Module, StateDict};
+  |                                   ^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> nn\src\training\checkpointing\mod.rs:18:5
+   |
+18 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+   --> nn\src\training\checkpointing\mod.rs:205:9
+    |
+205 |     use super::*;
+    |         ^^^^^^^^
+
+warning: unexpected `cfg` condition value: `gpu`
+   --> nn\src\training\distributed\mod.rs:178:7
+    |
+178 | #[cfg(feature = "gpu")]
+    |       ^^^^^^^^^^-----
+    |                 |
+    |                 help: there is a expected value with a similar name: `"cpu"`
+    |
+    = note: expected values for `feature` are: `attention`, `autograd`, `clip`, `cpu`, `cuda`, `default`, `distributed`, `dropout`, `embedding`, `functional`, `model_surgery`, `multimodal`, `normalization`, `onnx`, `quantized`, `research`, `safetensors`, `serde`, `std`, and `sysinfo`
+    = help: consider adding `gpu` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `StateDict`
+ --> nn\src\training\distributed\mod.rs:9:35
+  |
+9 | use crate::core::module::{Module, StateDict};
+  |                                   ^^^^^^^^^
+
+warning: unused import: `crate::Sequential`
+  --> nn\src\training\distributed\mod.rs:10:5
+   |
+10 | use crate::Sequential;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> nn\src\training\distributed\mod.rs:15:5
+   |
+15 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> nn\src\research\automated_research.rs:328:21
+    |
+328 | ...   let mut research_framework = self.research_framework.wr...
+    |           ----^^^^^^^^^^^^^^^^^^
+    |           |
+    |           help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> nn\src\research\meta_learning_integration.rs:154:13
+    |
+154 |         let mut tracker = self.framework.create_experiment(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused import: `crate::core::module::Module`
+ --> nn\src\modules\activation\swiglu.rs:2:5
+  |
+2 | use crate::core::module::Module;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function cannot return without recursing
+   --> nn\src\functional\loss\cross_entropy.rs:95:1
+    |
+ 95 | / pub fn cross_entropy_loss<T>(
+ 96 | |     logits: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+ 97 | |     targets: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+ 98 | | ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>>
+ 99 | | where
+100 | |     T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + num_traits::FromPrimitive,
+    | |________________________________________________________________________________________________^ cannot return without recursing
+101 |   {
+102 |       crate::functional_api::cross_entropy(logits, targets)
+    |       ----------------------------------------------------- recursive call site
+    |
+    = help: a `loop` may express intention better if this is on purpose
+    = note: `#[warn(unconditional_recursion)]` on by default
+
+warning: unused variable: `name`
+   --> nn\src\research\metrics\mod.rs:282:14
+    |
+282 |         for (name, collector) in &mut self.collectors {
+    |              ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `i`
+   --> nn\src\research\metrics\mod.rs:623:20
+    |
+623 |             .map(|(i, (name, entries))| {
+    |                    ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: variable does not need to be mutable
+  --> nn\src\research\tracking\artifacts.rs:51:13
+   |
+51 |         let mut artifact = Artifact {
+   |             ----^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: unused variable: `path`
+   --> nn\src\research\tracking\checkpoints.rs:182:39
+    |
+182 | ...heckpoint(&mut self, path: &Path) -> crate::core::error::R...
+    |                         ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\tracking\hyperparameters.rs:179:13
+    |
+179 | ...   let mut value_distributions: HashMap<String, Vec<Hyperp...
+    |           ----^^^^^^^^^^^^^^^^^^^
+    |           |
+    |           help: remove this `mut`
+
+warning: unused variable: `value_distributions`
+   --> nn\src\research\tracking\hyperparameters.rs:179:13
+    |
+179 |         let mut value_distributions: HashMap<String, Vec<Hype...
+    |             ^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_value_distributions`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\tracking\metadata.rs:283:17
+    |
+283 |             let mut sys = System::new();
+    |                 ----^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unused variable: `sys`
+   --> nn\src\research\tracking\metadata.rs:283:17
+    |
+283 |             let mut sys = System::new();
+    |                 ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sys`
+
+warning: unused variable: `research_framework`
+   --> nn\src\research\automated_research.rs:328:21
+    |
+328 | ...           let mut research_framework = self.research_fram...
+    |                   ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_research_framework`
+
+warning: unused variable: `metrics`
+   --> nn\src\research\automated_research.rs:438:9
+    |
+438 |         metrics: &[String],
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metrics`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\hpo_integration.rs:397:13
+    |
+397 |         let mut search_history = Vec::new();
+    |             ----^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\hpo_integration.rs:398:13
+    |
+398 |         let mut evaluations = 0;
+    |             ----^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `objective`
+   --> nn\src\research\hpo_integration.rs:376:13
+    |
+376 |         let objective = self
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_objective`
+
+warning: unused variable: `optimizer`
+   --> nn\src\research\hpo_integration.rs:385:13
+    |
+385 |         let optimizer = self
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_optimizer`
+
+warning: unused variable: `evaluations`
+   --> nn\src\research\hpo_integration.rs:398:13
+    |
+398 |         let mut evaluations = 0;
+    |             ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_evaluations`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\hpo_integration.rs:805:13
+    |
+805 | ...   let mut ref_point: Vec<f64> = reference_point.iter().ma...
+    |           ----^^^^^^^^^
+    |           |
+    |           help: remove this `mut`
+
+warning: unused variable: `optimizer`
+    --> nn\src\research\hpo_integration.rs:1230:13
+     |
+1230 |             optimizer: &crate::hpo::BayesianOptimizer,
+     |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_optimizer`
+
+warning: variable does not need to be mutable
+    --> nn\src\research\hpo_integration.rs:1390:29
+     |
+1390 |                         let mut new_config = config.clone();
+     |                             ----^^^^^^^^^^
+     |                             |
+     |                             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\joint_search.rs:354:17
+    |
+354 |             let mut tracker = framework.create_experiment(
+    |                 ----^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unused variable: `tracker`
+   --> nn\src\research\joint_search.rs:354:17
+    |
+354 |             let mut tracker = framework.create_experiment(
+    |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
+
+warning: unused variable: `search_time`
+   --> nn\src\research\joint_search.rs:362:17
+    |
+362 |             let search_time = start_time.elapsed();
+    |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_search_time`
+
+warning: unused variable: `sync_freq`
+   --> nn\src\research\joint_search.rs:657:13
+    |
+657 |             sync_freq: usize,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sync_freq`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\nas_integration.rs:360:13
+    |
+360 |         let mut tracker = framework.create_experiment(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> nn\src\research\nas_integration.rs:367:13
+    |
+367 |         let mut results: Vec<NASSearchResult> = Vec::new();
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `tracker`
+   --> nn\src\research\nas_integration.rs:360:13
+    |
+360 |         let mut tracker = framework.create_experiment(
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
+
+warning: unused variable: `results`
+   --> nn\src\research\nas_integration.rs:367:13
+    |
+367 |         let mut results: Vec<NASSearchResult> = Vec::new();
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_results`
+
+warning: unused variable: `search_alg`
+   --> nn\src\research\nas_integration.rs:369:25
+    |
+369 | ...       if let Some(search_alg) = self.search_algorithms.ge...
+    |                       ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_search_alg`
+
+warning: unused variable: `space`
+   --> nn\src\research\nas_integration.rs:841:13
+    |
+841 |             space: &ArchitectureSpace,
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_space`
+
+warning: unused variable: `context`
+   --> nn\src\research\nas_integration.rs:902:13
+    |
+902 |             context: &NASExperimentContext,
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+
+warning: unused variable: `framework`
+   --> nn\src\research\nas_integration.rs:903:13
+    |
+903 |             framework: &mut UnifiedResearchFramework,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_framework`
+
+warning: unused variable: `evaluator`
+   --> nn\src\research\nas_integration.rs:904:13
+    |
+904 |             evaluator: Arc<dyn ArchitectureEvaluator>,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_evaluator`
+
+warning: unused variable: `space`
+   --> nn\src\research\nas_integration.rs:905:13
+    |
+905 |             space: &ArchitectureSpace,
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_space`
+
+warning: unused variable: `context`
+   --> nn\src\research\nas_integration.rs:943:13
+    |
+943 |             context: &NASExperimentContext,
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+
+warning: unused variable: `framework`
+   --> nn\src\research\nas_integration.rs:944:13
+    |
+944 |             framework: &mut UnifiedResearchFramework,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_framework`
+
+warning: unused variable: `evaluator`
+   --> nn\src\research\nas_integration.rs:945:13
+    |
+945 |             evaluator: Arc<dyn ArchitectureEvaluator>,
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_evaluator`
+
+warning: unused variable: `space`
+   --> nn\src\research\nas_integration.rs:946:13
+    |
+946 |             space: &ArchitectureSpace,
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_space`
+
+warning: unused variable: `tracker`
+   --> nn\src\research\meta_learning_integration.rs:299:33
+    |
+299 | ...configuration(&self, tracker: &ExperimentTracker) -> Resul...
+    |                         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracker`
+
+warning: unused variable: `config`
+   --> nn\src\research\meta_learning_integration.rs:500:12
+    |
+500 |     fn new(config: &MetaLearningConfig) -> Self {
+    |            ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+
+warning: type `orchestrator::ResourceAllocation` is more private than the item `ResearchOrchestrator::get_resource_utilization`
+   --> nn\src\research\orchestrator.rs:735:5
+    |
+735 |     pub fn get_resource_utilization(&self) -> Result<ResourceAllocation> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `ResearchOrchestrator::get_resource_utilization` is reachable at visibility `pub`
+    |
+note: but type `orchestrator::ResourceAllocation` is only usable at visibility `pub(self)`
+   --> nn\src\research\orchestrator.rs:365:1
+    |
+365 | struct ResourceAllocation {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: field `config` is never read
+  --> nn\src\research\orchestrator.rs:21:5
+   |
+19 | pub struct ResearchOrchestrator {
+   |            -------------------- field in this struct
+20 |     /// Orchestrator configuration
+21 |     config: ResearchConfig,
+   |     ^^^^^^
+   |
+   = note: `ResearchOrchestrator` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `max_concurrent_steps`, `execution_timeout`, and `enable_parallel` are never read
+  --> nn\src\research\orchestrator.rs:34:5
+   |
+32 | pub struct WorkflowExecutionEngine {
+   |            ----------------------- fields in this struct
+33 |     /// Maximum concurrent workflow steps
+34 |     max_concurrent_steps: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^
+35 |     /// Execution timeout
+36 |     execution_timeout: Duration,
+   |     ^^^^^^^^^^^^^^^^^
+37 |     /// Enable parallel execution
+38 |     enable_parallel: bool,
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `WorkflowExecutionEngine` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `completed` is never read
+   --> nn\src\research\orchestrator.rs:264:5
+    |
+258 | struct ExecutionGraph {
+    |        -------------- field in this struct
+...
+264 |     completed: HashSet<usize>,
+    |     ^^^^^^^^^
+    |
+    = note: `ExecutionGraph` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `step_id`, `dependencies`, `status`, and `priority` are never read
+   --> nn\src\research\orchestrator.rs:271:5
+    |
+269 | struct ExecutionNode {
+    |        ------------- fields in this struct
+270 |     /// Step identifier
+271 |     step_id: String,
+    |     ^^^^^^^
+...
+275 |     dependencies: Vec<String>,
+    |     ^^^^^^^^^^^^
+276 |     /// Current execution status
+277 |     status: ExecutionStatus,
+    |     ^^^^^^
+278 |     /// Execution priority
+279 |     priority: u32,
+    |     ^^^^^^^^
+    |
+    = note: `ExecutionNode` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variant `Skipped` is never constructed
+   --> nn\src\research\orchestrator.rs:294:5
+    |
+284 | enum ExecutionStatus {
+    |      --------------- variant in this enum
+...
+294 |     Skipped,
+    |     ^^^^^^^
+    |
+    = note: `ExecutionStatus` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: methods `mark_completed`, `get_ready_nodes`, and `is_complete` are never used
+   --> nn\src\research\orchestrator.rs:321:8
+    |
+297 | impl ExecutionGraph {
+    | ------------------- methods in this implementation
+...
+321 |     fn mark_completed(&mut self, node_idx: usize) {
+    |        ^^^^^^^^^^^^^^
+...
+327 |     fn get_ready_nodes(&self) -> Vec<usize> {
+    |        ^^^^^^^^^^^^^^^
+...
+358 |     fn is_complete(&self) -> bool {
+    |        ^^^^^^^^^^^
+
+warning: fields `start_time` and `progress_percentage` are never read
+   --> nn\src\research\orchestrator.rs:490:5
+    |
+486 | pub struct WorkflowProgress {
+    |            ---------------- fields in this struct
+...
+490 |     start_time: Instant,
+    |     ^^^^^^^^^^
+...
+494 |     progress_percentage: f64,
+    |     ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `WorkflowProgress` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `resource_usage` is never read
+   --> nn\src\research\orchestrator.rs:506:5
+    |
+498 | pub struct StepMetrics {
+    |            ----------- field in this struct
+...
+506 |     resource_usage: Option<ResourceAllocation>,
+    |     ^^^^^^^^^^^^^^
+    |
+    = note: `StepMetrics` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `archive_path` is never read
+   --> nn\src\research\tracking\artifacts.rs:503:5
+    |
+499 | pub struct ArtifactArchive {
+    |            --------------- field in this struct
+...
+503 |     archive_path: PathBuf,
+    |     ^^^^^^^^^^^^
+
+warning: fields `hpo_framework`, `joint_framework`, `prediction_framework`, `research_framework`, and `resource_monitor` are never read
+   --> nn\src\research\benchmarking.rs:179:5
+    |
+176 | pub struct BenchmarkExecutionEngine {
+    |            ------------------------ fields in this struct
+...
+179 |     hpo_framework: Arc<RwLock<IntegratedHPOFramework>>,
+    |     ^^^^^^^^^^^^^
+180 |     joint_framework: Arc<RwLock<JointSearchFramework>>,
+    |     ^^^^^^^^^^^^^^^
+181 |     prediction_framework: Arc<PerformancePredictionFramework>,
+    |     ^^^^^^^^^^^^^^^^^^^^
+182 |     research_framework: Arc<RwLock<UnifiedResearchFramework>>,
+    |     ^^^^^^^^^^^^^^^^^^
+...
+186 |     resource_monitor: ResourceMonitor,
+    |     ^^^^^^^^^^^^^^^^
+    |
+    = note: `BenchmarkExecutionEngine` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `pending_runs` is never read
+   --> nn\src\research\benchmarking.rs:193:5
+    |
+191 | pub struct BenchmarkScheduler {
+    |            ------------------ field in this struct
+192 |     /// Pending benchmark runs
+193 |     pending_runs: Vec<BenchmarkRun>,
+    |     ^^^^^^^^^^^^
+    |
+    = note: `BenchmarkScheduler` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `metadata` is never read
+   --> nn\src\research\benchmarking.rs:363:5
+    |
+359 | pub struct ResultsDatabase {
+    |            --------------- field in this struct
+...
+363 |     metadata: HashMap<String, BenchmarkMetadata>,
+    |     ^^^^^^^^
+    |
+    = note: `ResultsDatabase` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `statistical_tests` and `comparative_analyzers` are never read
+   --> nn\src\research\benchmarking.rs:379:5
+    |
+377 | pub struct StatisticalAnalyzer {
+    |            ------------------- fields in this struct
+378 |     /// Statistical test implementations
+379 |     statistical_tests: HashMap<String, Box<dyn StatisticalTes...
+    |     ^^^^^^^^^^^^^^^^^
+380 |     /// Comparative analysis methods
+381 |     comparative_analyzers: HashMap<String, Box<dyn Comparativ...
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `StatisticalAnalyzer` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `templates` and `formatters` are never read
+   --> nn\src\research\benchmarking.rs:426:5
+    |
+424 | pub struct ReportGenerator {
+    |            --------------- fields in this struct
+425 |     /// Available report templates
+426 |     templates: HashMap<String, ReportTemplate>,
+    |     ^^^^^^^^^
+427 |     /// Report formatters
+428 |     formatters: HashMap<String, Box<dyn ReportFormatter>>,
+    |     ^^^^^^^^^^
+    |
+    = note: `ReportGenerator` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `monitoring_interval` and `thresholds` are never read
+   --> nn\src\research\benchmarking.rs:472:5
+    |
+470 | struct ResourceMonitor {
+    |        --------------- fields in this struct
+471 |     /// Monitoring frequency
+472 |     monitoring_interval: std::time::Duration,
+    |     ^^^^^^^^^^^^^^^^^^^
+473 |     /// Resource thresholds
+474 |     thresholds: ResourceThresholds,
+    |     ^^^^^^^^^^
+    |
+    = note: `ResourceMonitor` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `cpu_threshold_percent` is never read
+   --> nn\src\research\benchmarking.rs:480:5
+    |
+479 | struct ResourceThresholds {
+    |        ------------------ field in this struct
+480 |     cpu_threshold_percent: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `ResourceThresholds` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `multi_objective_utils` is never read
+   --> nn\src\research\hpo_integration.rs:209:5
+    |
+199 | pub struct IntegratedHPOFramework {
+    |            ---------------------- field in this struct
+...
+209 |     multi_objective_utils: MultiObjectiveUtils,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `IntegratedHPOFramework` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `multi_objective_utils` is never read
+   --> nn\src\research\joint_search.rs:186:5
+    |
+177 | pub struct JointSearchFramework {
+    |            -------------------- field in this struct
+...
+186 |     multi_objective_utils: MultiObjectiveUtils,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `JointSearchFramework` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `resource_arbitration` is never read
+   --> nn\src\research\joint_search.rs:199:5
+    |
+193 | struct CoordinationMechanisms {
+    |        ---------------------- field in this struct
+...
+199 |     resource_arbitration: ResourceArbitrationCoordinator,
+    |     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `CoordinationMechanisms` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `allocations`, `constraints`, and `fairness_policies` are never read
+   --> nn\src\research\joint_search.rs:224:5
+    |
+222 | struct ResourceArbitrationCoordinator {
+    |        ------------------------------ fields in this struct
+223 |     /// Current resource allocations
+224 |     allocations: HashMap<String, ResourceAllocation>,
+    |     ^^^^^^^^^^^
+225 |     /// Resource constraints
+226 |     constraints: ResourceConstraints,
+    |     ^^^^^^^^^^^
+227 |     /// Fairness policies
+228 |     fairness_policies: FairnessPolicies,
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = note: `ResourceArbitrationCoordinator` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `architecture_family`, `task_domain`, `performance`, and `confidence` are never read
+   --> nn\src\research\joint_search.rs:234:5
+    |
+233 | struct PerformanceDatum {
+    |        ---------------- fields in this struct
+234 |     architecture_family: String,
+    |     ^^^^^^^^^^^^^^^^^^^
+235 |     task_domain: String,
+    |     ^^^^^^^^^^^
+236 |     performance: f64,
+    |     ^^^^^^^^^^^
+237 |     confidence: f64,
+    |     ^^^^^^^^^^
+    |
+    = note: `PerformanceDatum` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `algorithm_name` is never read
+   --> nn\src\research\joint_search.rs:243:5
+    |
+242 | struct SearchEffectiveness {
+    |        ------------------- field in this struct
+243 |     algorithm_name: String,
+    |     ^^^^^^^^^^^^^^
+    |
+    = note: `SearchEffectiveness` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `experiment_id`, `gpu_allocation`, `time_allocation`, and `priority` are never read
+   --> nn\src\research\joint_search.rs:252:5
+    |
+251 | struct ResourceAllocation {
+    |        ------------------ fields in this struct
+252 |     experiment_id: String,
+    |     ^^^^^^^^^^^^^
+253 |     gpu_allocation: f64, // fraction of GPU
+    |     ^^^^^^^^^^^^^^
+254 |     time_allocation: std::time::Duration,
+    |     ^^^^^^^^^^^^^^^
+255 |     priority: usize,
+    |     ^^^^^^^^
+    |
+    = note: `ResourceAllocation` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `total_gpu_memory`, `total_cpu_cores`, and `time_limits` are never read
+   --> nn\src\research\joint_search.rs:261:5
+    |
+260 | struct ResourceConstraints {
+    |        ------------------- fields in this struct
+261 |     total_gpu_memory: f64,
+    |     ^^^^^^^^^^^^^^^^
+262 |     total_cpu_cores: usize,
+    |     ^^^^^^^^^^^^^^^
+263 |     time_limits: TimeLimits,
+    |     ^^^^^^^^^^^
+    |
+    = note: `ResourceConstraints` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `max_single_evaluation` and `max_total_search` are never read
+   --> nn\src\research\joint_search.rs:269:5
+    |
+268 | struct TimeLimits {
+    |        ---------- fields in this struct
+269 |     max_single_evaluation: std::time::Duration,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+270 |     max_total_search: std::time::Duration,
+    |     ^^^^^^^^^^^^^^^^
+    |
+    = note: `TimeLimits` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `egalitarian`, `merit_based`, and `starvation_prevention` are never read
+   --> nn\src\research\joint_search.rs:276:5
+    |
+275 | struct FairnessPolicies {
+    |        ---------------- fields in this struct
+276 |     egalitarian: bool,           // equal allocation
+    |     ^^^^^^^^^^^
+277 |     merit_based: bool,           // based on potential
+    |     ^^^^^^^^^^^
+278 |     starvation_prevention: bool, // prevent some algorithms f...
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `FairnessPolicies` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `base_algorithm` is never read
+   --> nn\src\research\nas_integration.rs:639:9
+    |
+638 |     pub struct EvolutionarySearchIntegration {
+    |                ----------------------------- field in this struct
+639 |         base_algorithm: EvolutionaryNAS,
+    |         ^^^^^^^^^^^^^^
+    |
+    = note: `EvolutionarySearchIntegration` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `base_algorithm` is never read
+   --> nn\src\research\nas_integration.rs:881:9
+    |
+880 |     pub struct RLSearchIntegration {
+    |                ------------------- field in this struct
+881 |         base_algorithm: ReinforcementNAS,
+    |         ^^^^^^^^^^^^^^
+    |
+    = note: `RLSearchIntegration` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `base_algorithm` is never read
+   --> nn\src\research\nas_integration.rs:922:9
+    |
+921 |     pub struct DartsSearchIntegration {
+    |                ---------------------- field in this struct
+922 |         base_algorithm: DartsNAS,
+    |         ^^^^^^^^^^^^^^
+    |
+    = note: `DartsSearchIntegration` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `tracker` is never read
+  --> nn\src\research\experiment_pipeline.rs:63:5
+   |
+61 | pub struct ExperimentPipeline {
+   |            ------------------ field in this struct
+62 |     config: ExperimentPipelineConfig,
+63 |     tracker: Arc<ExperimentTracker>,
+   |     ^^^^^^^
+
+warning: method `should_early_stop` is never used
+   --> nn\src\research\experiment_pipeline.rs:191:8
+    |
+ 66 | impl ExperimentPipeline {
+    | ----------------------- method in this implementation
+...
+191 |     fn should_early_stop(
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: fields `start_idx` and `end_idx` are never read
+  --> nn\src\training\checkpointing\mod.rs:49:5
+   |
+47 | struct CheckpointSegment {
+   |        ----------------- fields in this struct
+48 |     /// Starting layer index in the original model
+49 |     start_idx: usize,
+   |     ^^^^^^^^^
+50 |     /// Ending layer index (exclusive) in the original model
+51 |     end_idx: usize,
+   |     ^^^^^^^
+   |
+   = note: `CheckpointSegment` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `nn` (lib) generated 123 warnings (run `cargo fix --lib -p nn` to apply 86 suggestions)
+    Finished `dev` profile [unoptimized] target(s) in 2.32s

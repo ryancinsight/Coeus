@@ -6,9 +6,9 @@
 
 use std::collections::HashMap;
 
-use crate::error::{NNError, Result};
-use crate::linear::Linear;
+use crate::core::error::{NNError, Result};
 use crate::meta::prototypical::{DistanceMetric, PrototypicalNetwork};
+use crate::modules::linear::Linear;
 use backend::CpuBackend;
 use dtype::float::Float32;
 use storage::DenseStorage;

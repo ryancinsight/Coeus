@@ -1,6 +1,6 @@
 //! Serialization support for quantized models
 
-use crate::error::Result;
+use crate::core::error::Result;
 use crate::quantization::calibration::{CalibrationPipeline, SerializableCalibrationPipeline};
 use crate::quantization::core::{
     CalibrationConfig, MixedPrecisionConfig, QuantizationScheme, QuantizedWeights,

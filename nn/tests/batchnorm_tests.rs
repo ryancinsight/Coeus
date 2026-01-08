@@ -4,7 +4,7 @@
 
 use backend::CpuBackend;
 use dtype::float::Float32;
-use nn::batchnorm::BatchNorm1d;
+use nn::BatchNorm1d;
 use nn::{BatchNorm2d, BatchNorm3d, Module};
 use storage::DenseStorage;
 use tensor::Tensor;

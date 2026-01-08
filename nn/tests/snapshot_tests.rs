@@ -8,7 +8,8 @@ use serde::Serialize;
 
 use backend::CpuBackend;
 use dtype::float::Float32;
-use nn::*;
+use nn::functional_api as functional;
+use nn::functional_api as functional_loss;
 use storage::DenseStorage;
 use tensor::Tensor;
 
@@ -43,7 +44,7 @@ fn test_relu_snapshot() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[6])
             .unwrap();
 
-    let result = functional_activations::relu(&tensor).unwrap();
+    let result = functional::relu(&tensor).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -66,7 +67,7 @@ fn test_sigmoid_snapshot() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[5])
             .unwrap();
 
-    let result = functional_activations::sigmoid(&tensor).unwrap();
+    let result = functional::sigmoid(&tensor).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -83,7 +84,7 @@ fn test_tanh_snapshot() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[3])
             .unwrap();
 
-    let result = functional_activations::tanh(&tensor).unwrap();
+    let result = functional::tanh(&tensor).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -100,7 +101,7 @@ fn test_gelu_snapshot() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[3])
             .unwrap();
 
-    let result = functional_activations::gelu(&tensor).unwrap();
+    let result = functional::gelu(&tensor).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -137,7 +138,7 @@ fn test_max_pool2d_snapshot() {
     )
     .unwrap();
 
-    let result = functional_pooling::max_pool2d(&tensor, (2, 2), Some((2, 2)), (0, 0)).unwrap();
+    let result = functional::max_pool2d(&tensor, (2, 2), Some((2, 2)), (0, 0)).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -173,7 +174,7 @@ fn test_avg_pool2d_snapshot() {
     )
     .unwrap();
 
-    let result = functional_pooling::avg_pool2d(&tensor, (2, 2), Some((2, 2)), (0, 0)).unwrap();
+    let result = functional::avg_pool2d(&tensor, (2, 2), Some((2, 2)), (0, 0)).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -206,7 +207,7 @@ fn test_linear_snapshot() {
     )
     .unwrap();
 
-    let result = functional_linear::linear(&input, &weight, None).unwrap();
+    let result = functional::linear(&input, &weight, None).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -242,7 +243,7 @@ fn test_linear_with_bias_snapshot() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(bias_data, &[2])
             .unwrap();
 
-    let result = functional_linear::linear(&input, &weight, Some(&bias)).unwrap();
+    let result = functional::linear(&input, &weight, Some(&bias)).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -283,8 +284,7 @@ fn test_conv2d_snapshot() {
     )
     .unwrap();
 
-    let result =
-        functional_conv::conv2d(&input, &weight, None, Some((1, 1)), Some((0, 0))).unwrap();
+    let result = functional::conv2d(&input, &weight, None, Some((1, 1)), Some((0, 0))).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -301,7 +301,7 @@ fn test_softmax_snapshot() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[3])
             .unwrap();
 
-    let result = functional_attention::softmax(&tensor).unwrap();
+    let result = functional::softmax(&tensor).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -354,7 +354,7 @@ fn test_layer_norm_snapshot() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[2, 3])
             .unwrap();
 
-    let result = functional_normalization::layer_norm(&tensor, &[3], None, None, 1e-5).unwrap();
+    let result = functional::layer_norm(&tensor, &[3], None, None, 1e-5).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -381,9 +381,7 @@ fn test_layer_norm_with_affine_snapshot() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(bias_data, &[3])
             .unwrap();
 
-    let result =
-        functional_normalization::layer_norm(&tensor, &[3], Some(&weight), Some(&bias), 1e-5)
-            .unwrap();
+    let result = functional::layer_norm(&tensor, &[3], Some(&weight), Some(&bias), 1e-5).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -400,7 +398,7 @@ fn test_silu_snapshot() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[3])
             .unwrap();
 
-    let result = functional_activations::silu(&tensor).unwrap();
+    let result = functional::silu(&tensor).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -422,7 +420,7 @@ fn test_leaky_relu_snapshot() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[4])
             .unwrap();
 
-    let result = functional_activations::leaky_relu(&tensor, Float32::new(0.1)).unwrap();
+    let result = functional::leaky_relu(&tensor, Float32::new(0.1)).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(
@@ -444,7 +442,7 @@ fn test_elu_snapshot() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(data, &[4])
             .unwrap();
 
-    let result = functional_activations::elu(&tensor, Float32::new(1.0)).unwrap();
+    let result = functional::elu(&tensor, Float32::new(1.0)).unwrap();
     let snapshot = TensorSnapshot::from_tensor(&result);
 
     assert_snapshot!(

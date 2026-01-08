@@ -170,6 +170,27 @@ where
         }
     }
 
+    pub fn grad_storage(&self) -> Result<Tensor<B, S, T>>
+    where
+        B: Clone,
+        S: Clone,
+        T: Clone,
+    {
+        #[cfg(feature = "std")]
+        let grad_lock = self.grad.read().map_err(|_| {
+            TensorError::BackendError("Failed to acquire gradient lock".to_string())
+        })?;
+        #[cfg(not(feature = "std"))]
+        let grad_lock = self.grad.read();
+
+        match grad_lock.as_ref() {
+            Some(grad) => Ok((**grad).clone()),
+            None => Err(TensorError::BackendError(
+                "Gradient not available (call backward first)".into(),
+            )),
+        }
+    }
+
     /// Set the gradient tensor.
     ///
     /// Used internally during backward pass to accumulate gradients.
@@ -182,8 +203,10 @@ where
     /// Returns error if lock is poisoned or shapes don't match
     pub fn set_grad<GS>(&self, gradient: Tensor<B, GS, T>) -> Result<()>
     where
-        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T>,
-        S: StorageFromVec<T>,
+        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
+        S: StorageFromVec<T> + 'static,
+        B: Clone + 'static,
+        T: DataType + 'static,
     {
         // Validate shape matches
         if gradient.shape().dims() != self.shape().dims() {
@@ -195,11 +218,31 @@ where
         }
 
         // Convert gradient to the tensor's storage type
-        // Always convert via dense representation for safety
-        let dense = gradient.to_dense_generic()?;
-        let data = dense.as_slice().to_vec();
-        let dims = dense.shape().dims().to_vec();
-        let gradient_s = Tensor::<B, S, T>::from_vec(data, &dims)?;
+        // If GS is already S, we can preserve the metadata directly
+        let gradient_s = if std::any::TypeId::of::<GS>() == std::any::TypeId::of::<S>() {
+            // Safety: We verified that GS and S are the same type
+            unsafe {
+                let ptr = &gradient as *const Tensor<B, GS, T> as *const Tensor<B, S, T>;
+                (*ptr).clone()
+            }
+        } else {
+            // Convert via dense representation
+            let dense = gradient.to_dense_generic()?;
+            let data = dense.as_slice().to_vec();
+            let dims = dense.shape().dims().to_vec();
+            let mut result = Tensor::<B, S, T>::from_vec(data, &dims)?;
+            // If S is DenseStorage, we can still preserve metadata from the dense representation
+            if std::any::TypeId::of::<S>() == std::any::TypeId::of::<DenseStorage<T>>() {
+                result.requires_grad = dense.requires_grad;
+                unsafe {
+                    let grad_fn_ptr = &dense.grad_fn
+                        as *const Option<Arc<dyn Function<B, DenseStorage<T>, T>>>
+                        as *const Option<Arc<dyn Function<B, S, T>>>;
+                    result.grad_fn = (*grad_fn_ptr).clone();
+                }
+            }
+            result
+        };
 
         #[cfg(feature = "std")]
         {
@@ -269,18 +312,46 @@ where
                         |_| TensorError::BackendError("Failed to accumulate gradients".to_string()),
                     )?;
 
-                // Convert back to the tensor's storage type
-                let data = accumulated_dense.as_slice().to_vec();
-                let dims = accumulated_dense.shape().dims().to_vec();
-                let accumulated = Tensor::<B, S, T>::from_vec(data, &dims)?;
+                // Convert back to the tensor's storage type and preserve metadata if possible
+                let accumulated =
+                    if std::any::TypeId::of::<S>() == std::any::TypeId::of::<DenseStorage<T>>() {
+                        // Safety: We verified that S and DenseStorage<T> are the same type
+                        unsafe {
+                            let ptr = &accumulated_dense as *const Tensor<B, DenseStorage<T>, T>
+                                as *const Tensor<B, S, T>;
+                            (*ptr).clone()
+                        }
+                    } else {
+                        let data = accumulated_dense.as_slice().to_vec();
+                        let dims = accumulated_dense.shape().dims().to_vec();
+                        Tensor::<B, S, T>::from_vec(data, &dims)?
+                    };
 
                 *grad_lock = Some(Box::new(accumulated));
             } else {
                 // No existing gradient, convert and set it directly
                 let gradient_dense = gradient.to_dense_generic()?;
-                let data = gradient_dense.as_slice().to_vec();
-                let dims = gradient_dense.shape().dims().to_vec();
-                let gradient_converted = Tensor::<B, S, T>::from_vec(data, &dims)?;
+
+                let gradient_converted = if std::any::TypeId::of::<GS>()
+                    == std::any::TypeId::of::<S>()
+                {
+                    // Safety: We verified that GS and S are the same type
+                    unsafe {
+                        let ptr = gradient as *const Tensor<B, GS, T> as *const Tensor<B, S, T>;
+                        (*ptr).clone()
+                    }
+                } else if std::any::TypeId::of::<S>() == std::any::TypeId::of::<DenseStorage<T>>() {
+                    // Safety: We verified that S and DenseStorage<T> are the same type
+                    unsafe {
+                        let ptr = &gradient_dense as *const Tensor<B, DenseStorage<T>, T>
+                            as *const Tensor<B, S, T>;
+                        (*ptr).clone()
+                    }
+                } else {
+                    let data = gradient_dense.as_slice().to_vec();
+                    let dims = gradient_dense.shape().dims().to_vec();
+                    Tensor::<B, S, T>::from_vec(data, &dims)?
+                };
 
                 *grad_lock = Some(Box::new(gradient_converted));
             }
@@ -299,18 +370,46 @@ where
                         |_| TensorError::BackendError("Failed to accumulate gradients".to_string()),
                     )?;
 
-                // Convert back to the tensor's storage type
-                let data = accumulated_dense.as_slice().to_vec();
-                let dims = accumulated_dense.shape().dims().to_vec();
-                let accumulated = Tensor::<B, S, T>::from_vec(data, &dims)?;
+                // Convert back to the tensor's storage type and preserve metadata if possible
+                let accumulated =
+                    if std::any::TypeId::of::<S>() == std::any::TypeId::of::<DenseStorage<T>>() {
+                        // Safety: We verified that S and DenseStorage<T> are the same type
+                        unsafe {
+                            let ptr = &accumulated_dense as *const Tensor<B, DenseStorage<T>, T>
+                                as *const Tensor<B, S, T>;
+                            (*ptr).clone()
+                        }
+                    } else {
+                        let data = accumulated_dense.as_slice().to_vec();
+                        let dims = accumulated_dense.shape().dims().to_vec();
+                        Tensor::<B, S, T>::from_vec(data, &dims)?
+                    };
 
                 *grad_lock = Some(Box::new(accumulated));
             } else {
                 // No existing gradient, convert and set it directly
                 let gradient_dense = gradient.to_dense_generic()?;
-                let data = gradient_dense.as_slice().to_vec();
-                let dims = gradient_dense.shape().dims().to_vec();
-                let gradient_converted = Tensor::<B, S, T>::from_vec(data, &dims)?;
+
+                let gradient_converted = if std::any::TypeId::of::<GS>()
+                    == std::any::TypeId::of::<S>()
+                {
+                    // Safety: We verified that GS and S are the same type
+                    unsafe {
+                        let ptr = gradient as *const Tensor<B, GS, T> as *const Tensor<B, S, T>;
+                        (*ptr).clone()
+                    }
+                } else if std::any::TypeId::of::<S>() == std::any::TypeId::of::<DenseStorage<T>>() {
+                    // Safety: We verified that S and DenseStorage<T> are the same type
+                    unsafe {
+                        let ptr = &gradient_dense as *const Tensor<B, DenseStorage<T>, T>
+                            as *const Tensor<B, S, T>;
+                        (*ptr).clone()
+                    }
+                } else {
+                    let data = gradient_dense.as_slice().to_vec();
+                    let dims = gradient_dense.shape().dims().to_vec();
+                    Tensor::<B, S, T>::from_vec(data, &dims)?
+                };
 
                 *grad_lock = Some(Box::new(gradient_converted));
             }
@@ -375,15 +474,16 @@ where
     /// ```
     pub fn backward(&self) -> Result<()>
     where
-        B: Backend<Data = T> + Clone + Default,
+        B: Backend<Data = T> + Clone,
         S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     {
         // For backward() without arguments, tensor must be scalar (0-d or 1 element)
         if self.shape().ndim() == 0 || (self.shape().ndim() == 1 && self.shape().dims()[0] == 1) {
             // Create a gradient tensor with the same shape as self, filled with ones
-            let grad_output: Tensor<B, S, T> = Tensor::ones(self.shape().dims()).map_err(|e| {
-                TensorError::BackendError(format!("Failed to create gradient tensor: {e}"))
-            })?;
+            let grad_output: Tensor<B, S, T> =
+                Tensor::ones_with_backend(self.shape().dims(), self.backend().clone()).map_err(
+                    |e| TensorError::BackendError(format!("Failed to create gradient tensor: {e}")),
+                )?;
 
             self.backward_with_grad(&grad_output)
         } else {
@@ -402,7 +502,7 @@ where
     /// Returns error if backward pass fails
     pub fn backward_with_grad<GS>(&self, grad_output: &Tensor<B, GS, T>) -> Result<()>
     where
-        B: Backend<Data = T> + Clone + Default + 'static,
+        B: Backend<Data = T> + Clone + 'static,
         S: Storage<T> + Clone + 'static + StorageToDense<T> + StorageFromVec<T>,
         GS: Storage<T> + StorageToDense<T> + StorageFromVec<T>,
         T: std::ops::Add<Output = T> + Clone + Copy,
@@ -647,12 +747,38 @@ where {
     /// or if the conversion fails.
     pub fn to_dense_generic(&self) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
-        S: StorageToDense<T>,
-        B: Clone,
-        T: Clone,
+        S: StorageToDense<T> + 'static,
+        B: Clone + 'static,
+        T: Clone + 'static,
     {
+        if let Some(dense_self) = self
+            .as_any()
+            .downcast_ref::<Tensor<B, DenseStorage<T>, T>>()
+        {
+            return Ok(dense_self.clone());
+        }
+
         let dense_storage = self.storage.to_dense()?;
-        Ok(Tensor::from_storage(dense_storage, self.backend.clone()))
+        let mut result = Tensor::from_storage(dense_storage, self.backend.clone());
+        result.requires_grad = self.requires_grad;
+
+        Ok(result)
+    }
+
+    pub fn to_dense_preserving_identity(&self) -> Result<Tensor<B, DenseStorage<T>, T>>
+    where
+        S: StorageToDense<T> + 'static,
+        B: Clone + 'static,
+        T: Clone + 'static,
+    {
+        if let Some(dense_self) = self
+            .as_any()
+            .downcast_ref::<Tensor<B, DenseStorage<T>, T>>()
+        {
+            return Ok(dense_self.clone());
+        }
+
+        self.to_dense_generic()
     }
 
     /// Convert this tensor to CPU backend with dense storage.
@@ -984,6 +1110,42 @@ where {
     /// true if operation is supported by this backend
     pub fn backend_supports(&self, operation: &str) -> bool {
         self.backend.supports(operation)
+    }
+}
+
+impl<B, T> Tensor<B, DenseStorage<T>, T>
+where
+    B: Backend<Data = T> + Clone + 'static,
+    T: DataType + Clone + 'static,
+{
+    pub fn into_storage_preserving_metadata<S2>(self) -> Result<Tensor<B, S2, T>>
+    where
+        S2: Storage<T> + StorageFromVec<T> + 'static,
+    {
+        if std::any::TypeId::of::<S2>() == std::any::TypeId::of::<DenseStorage<T>>() {
+            let boxed: Box<dyn core::any::Any> = Box::new(self);
+            let boxed = boxed.downcast::<Tensor<B, S2, T>>().map_err(|_| {
+                TensorError::BackendError(
+                    "Failed to convert dense tensor to dense tensor (internal type mismatch)"
+                        .to_string(),
+                )
+            })?;
+            return Ok(*boxed);
+        }
+
+        if self.grad_fn.is_some() {
+            return Err(TensorError::BackendError(
+                "Cannot preserve computation graph across storage conversion".to_string(),
+            ));
+        }
+
+        let requires_grad = self.requires_grad;
+        let data = self.as_slice().to_vec();
+        let dims = self.shape().dims().to_vec();
+        let mut result =
+            Tensor::<B, S2, T>::from_vec_with_backend(data, &dims, self.backend.clone())?;
+        result.requires_grad = requires_grad;
+        Ok(result)
     }
 }
 

@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 use rand::Rng;
 
 use super::search_space::{Architecture, ArchitectureSpace};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Individual in the evolutionary population
 #[derive(Debug, Clone)]

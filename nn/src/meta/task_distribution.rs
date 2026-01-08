@@ -3,7 +3,7 @@
 //! This module implements task distribution learning for meta-learning,
 //! including task sampling strategies and distribution adaptation.
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use rand::Rng;
 
 /// Task distribution for meta-training

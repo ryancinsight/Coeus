@@ -8,7 +8,8 @@ use proptest::prelude::*;
 
 use backend::CpuBackend;
 use dtype::float::Float32;
-use nn::*;
+use nn::functional_api as functional;
+use nn::functional_api as functional_loss;
 use storage::DenseStorage;
 use tensor::Tensor;
 
@@ -31,7 +32,7 @@ proptest! {
         let shape = vec![float_data.len()];
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(float_data.clone(), &shape).unwrap();
 
-        let relu_result = functional_activations::relu(&tensor).unwrap();
+        let relu_result = functional::relu(&tensor).unwrap();
 
         // All output values should be non-negative
         for &val in relu_result.as_slice() {
@@ -55,7 +56,7 @@ proptest! {
         let shape = vec![float_data.len()];
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(float_data, &shape).unwrap();
 
-        let sigmoid_result = functional_activations::sigmoid(&tensor).unwrap();
+        let sigmoid_result = functional::sigmoid(&tensor).unwrap();
 
         // All sigmoid outputs should be in [0, 1]
         for &val in sigmoid_result.as_slice() {
@@ -72,7 +73,7 @@ proptest! {
         let shape = vec![float_data.len()];
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(float_data, &shape).unwrap();
 
-        let tanh_result = functional_activations::tanh(&tensor).unwrap();
+        let tanh_result = functional::tanh(&tensor).unwrap();
 
         // All tanh outputs should be in [-1, 1]
         for &val in tanh_result.as_slice() {
@@ -89,7 +90,7 @@ proptest! {
         let shape = vec![float_data.len()];
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(float_data.clone(), &shape).unwrap();
 
-        let gelu_result = functional_activations::gelu(&tensor).unwrap();
+        let gelu_result = functional::gelu(&tensor).unwrap();
 
         // GELU should be approximately equal to x * sigmoid(1.702 * x) for small x
         for (&input, &output) in float_data.iter().zip(gelu_result.as_slice()) {
@@ -122,7 +123,7 @@ proptest! {
         let height = input.shape().dims()[2];
         let width = input.shape().dims()[3];
 
-        let pool_result = functional_pooling::max_pool2d(
+        let pool_result = functional::max_pool2d(
             &input,
             (kernel_h, kernel_w),
             Some((stride_h, stride_w)),
@@ -181,7 +182,7 @@ proptest! {
         let batch_size = input.shape().dims()[0];
         let out_features = weight.shape().dims()[0];
 
-        let linear_result = functional_linear::linear(&input, &weight, None).unwrap();
+        let linear_result = functional::linear(&input, &weight, None).unwrap();
         let output_shape = linear_result.shape().dims();
 
         // Check output shape
@@ -200,7 +201,7 @@ proptest! {
         let shape = vec![float_data.len()];
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(float_data, &shape).unwrap();
 
-        let softmax_result = functional_attention::softmax(&tensor).unwrap();
+        let softmax_result = functional::softmax(&tensor).unwrap();
 
         // All values should be positive and less than 1
         for &val in softmax_result.as_slice() {
@@ -283,7 +284,7 @@ fn test_numerical_stability_extremes() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(tiny_data, &[2])
             .unwrap();
 
-    let relu_result = functional_activations::relu(&tiny_tensor).unwrap();
+    let relu_result = functional::relu(&tiny_tensor).unwrap();
     // Should not underflow to zero inappropriately
     assert!(relu_result.as_slice()[0] > Float32::new(0.0));
 
@@ -293,7 +294,7 @@ fn test_numerical_stability_extremes() {
         Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(huge_data, &[2])
             .unwrap();
 
-    let relu_huge = functional_activations::relu(&huge_tensor).unwrap();
+    let relu_huge = functional::relu(&huge_tensor).unwrap();
     assert_eq!(relu_huge.as_slice()[0], Float32::new(1e30));
     assert_eq!(relu_huge.as_slice()[1], Float32::new(0.0));
 }
@@ -312,8 +313,8 @@ fn test_operation_composition() {
             .unwrap();
 
     // Test that sigmoid ∘ relu gives valid probabilities
-    let relu_result = functional_activations::relu(&tensor).unwrap();
-    let sigmoid_result = functional_activations::sigmoid(&relu_result).unwrap();
+    let relu_result = functional::relu(&tensor).unwrap();
+    let sigmoid_result = functional::sigmoid(&relu_result).unwrap();
 
     // All sigmoid outputs should be in [0, 1]
     for &val in sigmoid_result.as_slice() {

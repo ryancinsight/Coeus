@@ -4,7 +4,7 @@
 //! including image augmentation pipelines and text preprocessing transforms.
 
 use super::ImageTextPair;
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use std::collections::HashMap;
 
 /// Trait for data transformations

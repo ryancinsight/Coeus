@@ -4,7 +4,7 @@
 //! including standard few-shot learning datasets, evaluation metrics, and statistical analysis.
 //! This supports the unified research framework for systematic algorithm comparison.
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use rand::Rng;
 
 #[cfg(feature = "research")]

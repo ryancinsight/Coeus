@@ -26,7 +26,7 @@ pub fn backward<B, S, T>(
     tensor: &Tensor<B, S, T>,
     grad_tensor: Option<Tensor<B, S, T>>,
     _retain_graph: bool,
-    _create_graph: bool,
+    create_graph: bool,
 ) -> Result<()>
 where
     B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone + Default,
@@ -36,8 +36,9 @@ where
         + Sync
         + 'static
         + StorageToDense<T>
-        + StorageFromVec<T>,
-    T: DataType + num_traits::One,
+        + StorageFromVec<T>
+        + Clone,
+    T: DataType + num_traits::One + num_traits::Zero,
 {
     let grad = if let Some(g) = grad_tensor {
         g
@@ -53,8 +54,7 @@ where
     };
 
     let mut engine = GradientEngine::new();
-    // TODO: Handle retain_graph and create_graph in GradientEngine
-    engine.backward(tensor.grad_fn(), &grad)
+    engine.backward(tensor.grad_fn(), &grad, create_graph)
 }
 
 /// Compute gradients for the given tensor with a specific gradient.
@@ -137,6 +137,10 @@ where
         }
     }
 
+    for input in inputs {
+        input.zero_grad().map_err(AutogradError::TensorError)?;
+    }
+
     // Run backward for each output
     for (i, output) in outputs.iter().enumerate() {
         let grad_out = grad_outputs.as_ref().map(|grads| grads[i].clone());
@@ -154,19 +158,8 @@ where
     // Collect gradients
     let mut results = Vec::new();
     for input in inputs {
-        match input.grad() {
-            Ok(dense_grad) => {
-                // Convert DenseStorage to S
-                // dense_grad is Tensor<B, DenseStorage<T>, T>
-                // We use as_slice() to get data and recreate tensor with backend B and storage S
-                let data = dense_grad.as_slice().to_vec();
-                let dims = dense_grad.shape().dims();
-                let grad_s = Tensor::from_vec_with_backend(data, dims, input.backend().clone())
-                    .map_err(|e| AutogradError::InvalidInput {
-                        message: e.to_string(),
-                    })?;
-                results.push(grad_s);
-            }
+        match input.grad_storage() {
+            Ok(grad_s) => results.push(grad_s),
             Err(_) => {
                 if allow_unused {
                     let size = input.shape().size();
@@ -203,9 +196,9 @@ where
 /// * `_v` - Vector to multiply Hessian with
 #[allow(clippy::missing_errors_doc)]
 pub fn hvp<B, S, T>(
-    _func: impl Fn(&[Tensor<B, S, T>]) -> Result<Tensor<B, S, T>>,
-    _inputs: &[Tensor<B, S, T>],
-    _v: &[Tensor<B, S, T>],
+    func: impl Fn(&[Tensor<B, S, T>]) -> Result<Tensor<B, S, T>>,
+    inputs: &[Tensor<B, S, T>],
+    v: &[Tensor<B, S, T>],
 ) -> Result<Vec<Tensor<B, S, T>>>
 where
     B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone + Default,
@@ -215,15 +208,38 @@ where
         + Sync
         + 'static
         + StorageToDense<T>
-        + StorageFromVec<T>,
-    T: DataType,
+        + StorageFromVec<T>
+        + Clone,
+    T: DataType + num_traits::One + num_traits::Zero + Copy,
 {
-    // TODO: Implement Hessian-vector product
-    // 1. Compute gradients of func w.r.t inputs (g = grad(func(inputs)))
-    // 2. Compute gradients of (g * v) w.r.t inputs
-    Err(AutogradError::NotImplemented {
-        operation: "hvp".to_string(),
-    })
+    // 1. Ensure inputs require grad by cloning and setting the flag
+    let grad_inputs: Vec<Tensor<B, S, T>> = inputs
+        .iter()
+        .map(|i| i.clone().requires_grad_(true))
+        .collect();
+
+    // 2. Compute gradients of func w.r.t inputs (g = grad(func(inputs)))
+    let output = func(&grad_inputs)?;
+    let grads = grad(&[output], &grad_inputs, None, true, true, false)?;
+
+    // 3. Compute dot product of gradients and v: scalar = sum(g_i * v_i)
+    let mut dot_product: Option<Tensor<B, S, T>> = None;
+    for (g, vi) in grads.iter().zip(v.iter()) {
+        let prod = mul(g, vi)?;
+        let sum_val = sum(&prod, None, false)?;
+
+        dot_product = match dot_product {
+            Some(curr) => Some(add(&curr, &sum_val)?),
+            None => Some(sum_val),
+        };
+    }
+
+    let dot_product = dot_product.ok_or_else(|| AutogradError::InvalidInput {
+        message: "Empty inputs for hvp".to_string(),
+    })?;
+
+    // 4. Compute gradients of dot_product w.r.t inputs
+    grad(&[dot_product], &grad_inputs, None, false, false, false)
 }
 
 /// Compute Jacobian-vector product
@@ -233,15 +249,15 @@ where
 /// might simulate it or use double backward.
 ///
 /// # Arguments
-/// * `_func` - Function to compute Jacobian for
-/// * `_inputs` - Input tensors
-/// * `_v` - Vector to multiply Jacobian with
+/// * `func` - Function to compute Jacobian for
+/// * `inputs` - Input tensors
+/// * `v` - Vector to multiply Jacobian with
 #[allow(clippy::missing_errors_doc)]
 pub fn jvp<B, S, T>(
-    _func: impl Fn(&[Tensor<B, S, T>]) -> Result<Tensor<B, S, T>>,
-    _inputs: &[Tensor<B, S, T>],
-    _v: &[Tensor<B, S, T>],
-) -> Result<Vec<Tensor<B, S, T>>>
+    func: impl Fn(&[Tensor<B, S, T>]) -> Result<Tensor<B, S, T>>,
+    inputs: &[Tensor<B, S, T>],
+    vector: &[Tensor<B, S, T>],
+) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone + Default,
     S: Storage<T>
@@ -250,12 +266,51 @@ where
         + Sync
         + 'static
         + StorageToDense<T>
-        + StorageFromVec<T>,
-    T: DataType,
+        + StorageFromVec<T>
+        + Clone,
+    T: DataType + num_traits::One + num_traits::Zero + Copy,
 {
-    // TODO: Implement Jacobian-vector product
-    // Ideally use forward mode AD
-    Err(AutogradError::NotImplemented {
-        operation: "jvp".to_string(),
-    })
+    // 1. Ensure inputs require grad
+    let grad_inputs: Vec<Tensor<B, S, T>> = inputs
+        .iter()
+        .map(|i| i.clone().requires_grad_(true))
+        .collect();
+
+    // 2. Compute output = f(x)
+    let output = func(&grad_inputs)?;
+
+    // 3. Create a probe tensor with the same shape as output, requiring grad
+    let probe_data = vec![T::zero(); output.shape().size()];
+    let probe =
+        Tensor::from_vec_with_backend(probe_data, output.shape().dims(), output.backend().clone())
+            .map_err(AutogradError::TensorError)?
+            .requires_grad_(true);
+
+    // 4. Compute objective = probe * output, reduced to scalar
+    let product = mul(&probe, &output)?;
+    let objective = sum(&product, None, false)?;
+
+    // 5. Compute grad_inputs = grad(objective, inputs, create_graph=true)
+    let grads_wrt_inputs = grad(&[objective], &grad_inputs, None, true, true, false)?;
+
+    // 6. Compute scalar = grads_wrt_inputs · vector
+    let mut scalar: Option<Tensor<B, S, T>> = None;
+    for (grad_component, vector_component) in grads_wrt_inputs.iter().zip(vector.iter()) {
+        let component_product = mul(grad_component, vector_component)?;
+        let component_sum = sum(&component_product, None, false)?;
+
+        scalar = match scalar {
+            Some(curr) => Some(add(&curr, &component_sum)?),
+            None => Some(component_sum),
+        };
+    }
+
+    let scalar = scalar.ok_or_else(|| AutogradError::InvalidInput {
+        message: "Empty inputs for jvp".to_string(),
+    })?;
+
+    // 7. Compute jvp = grad(scalar, probe)
+    let jvp_vec = grad(&[scalar], &[probe], None, false, false, false)?;
+
+    Ok(jvp_vec[0].clone())
 }

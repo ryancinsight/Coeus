@@ -168,7 +168,7 @@ fn bench_reduction_operations(c: &mut Criterion) {
 
     let sizes = [(100, 10), (1000, 100), (10000, 1000)];
 
-    for &(total_size, reduce_size) in &sizes {
+    for &(total_size, _reduce_size) in &sizes {
         let data: Vec<Float32> = (0..total_size).map(|i| Float32::new(i as f32)).collect();
         let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             data,

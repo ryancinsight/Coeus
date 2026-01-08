@@ -6,7 +6,7 @@
 use std::time::{Duration, Instant};
 
 use super::space::{HyperparameterConfig, HyperparameterSpace};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Optimization result
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

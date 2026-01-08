@@ -4,7 +4,7 @@
 //! neural TTS models, voice conversion, and speech synthesis pipelines.
 
 use std::fmt;
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Text-to-speech engine
 #[derive(Debug)]

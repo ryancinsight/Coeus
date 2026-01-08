@@ -269,6 +269,12 @@ impl ProcessingPipeline {
     }
 }
 
+impl Default for ProcessingPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Data sample representation
 #[derive(Debug, Clone)]
 pub struct DataSample {
@@ -442,8 +448,14 @@ impl DataMemoryManager {
     }
 }
 
-/// Data preprocessing transforms
+impl Default for DataMemoryManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
+/// Data preprocessing transforms
+///
 /// Text tokenization transform
 #[derive(Debug)]
 pub struct TokenizeTransform {
@@ -731,6 +743,12 @@ pub mod profiling {
                 max_batch_time: self.batch_times.iter().max().copied().unwrap_or_default(),
                 min_batch_time: self.batch_times.iter().min().copied().unwrap_or_default(),
             }
+        }
+    }
+
+    impl Default for DataLoadingProfiler {
+        fn default() -> Self {
+            Self::new()
         }
     }
 

@@ -143,25 +143,27 @@ mod tests {
 
     /// Test numerical gradient for simple quadratic function f(x) = x²
     #[test]
-    fn test_numerical_gradient_quadratic() {
+    fn test_numerical_gradient_quadratic() -> anyhow::Result<()> {
         // f(x) = x², so df/dx = 2x
         let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(3.0)],
             &[1],
-        )
-        .unwrap();
+        )?;
         let x = Variable::new(x_data);
 
         // Function that returns scalar: f(x) = x²
         let f = |v: &Variable<Float32>| {
             let x_val = v.data().as_slice()[0];
             let result = x_val * x_val;
-            let result_tensor = Tensor::from_vec(vec![result], &[1]).unwrap();
+            let result_tensor = Tensor::from_vec(vec![result], &[1]).expect("Failed to create result tensor");
             Variable::new(result_tensor)
         };
 
         let epsilon = Float32::new(1e-5);
-        let numerical_grad = numerical_gradient(f, &x, epsilon).unwrap();
+        let numerical_grad = numerical_gradient(f, &x, epsilon)
+            .expect("numerical_gradient should succeed for quadratic function");
+        let numerical_grad =
+            numerical_gradient(f, &x, epsilon).expect("numerical_gradient should succeed for pow");
 
         // Analytical gradient: df/dx = 2x = 2 * 3 = 6
         let expected = Float32::new(6.0);
@@ -174,23 +176,14 @@ mod tests {
         } else {
             expected.get() - actual.get()
         };
-        assert!(
-            diff < 1e-2,
-            "Expected {}, got {}, diff {}",
-            expected.get(),
-            actual.get(),
-            diff
-        );
-    }
+        assert!(diff < 1e-2);
 
-    /// Test `gradients_close` function with matching gradients
-    #[test]
-    fn test_gradients_close_match() {
+        Ok(())
+    fn test_gradients_close_match() -> anyhow::Result<()> {
         let analytical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
-        )
-        .unwrap();
+        )?;
 
         let numerical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![
@@ -199,115 +192,96 @@ mod tests {
                 Float32::new(3.00001),
             ],
             &[3],
-        )
-        .unwrap();
+        )?;
 
         let rtol = Float32::new(1e-4);
         let atol = Float32::new(1e-6);
 
         assert!(gradients_close(&analytical, &numerical, rtol, atol));
+
+        Ok(())
     }
 
     /// Test `gradients_close` function with mismatched gradients
     #[test]
-    fn test_gradients_close_mismatch() {
+    fn test_gradients_close_mismatch() -> anyhow::Result<()> {
         let analytical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
-        )
-        .unwrap();
+        )?;
 
         let numerical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.1), Float32::new(2.1), Float32::new(3.1)],
             &[3],
-        )
-        .unwrap();
+        )?;
 
         let rtol = Float32::new(1e-4);
         let atol = Float32::new(1e-6);
 
         assert!(!gradients_close(&analytical, &numerical, rtol, atol));
+
+        Ok(())
     }
 
     /// Test `gradients_close` with different shapes
     #[test]
-    fn test_gradients_close_different_shapes() {
+    fn test_gradients_close_different_shapes() -> anyhow::Result<()> {
         let analytical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0)],
             &[2],
-        )
-        .unwrap();
+        )?;
 
         let numerical = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
-        )
-        .unwrap();
+        )?;
 
         let rtol = Float32::new(1e-4);
         let atol = Float32::new(1e-6);
 
         assert!(!gradients_close(&analytical, &numerical, rtol, atol));
+
+        Ok(())
     }
 
     /// Test numerical gradient validation for simple sum operation
     #[test]
-    fn test_numerical_gradient_sum() {
+    fn test_numerical_gradient_sum() -> anyhow::Result<()> {
         use crate::graph::backward;
 
         let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(2.0), Float32::new(3.0)],
             &[2],
-        )
-        .unwrap();
+        )?;
         let x = Variable::new(x_data);
 
         // Forward pass: loss = sum(x)
         let loss = x.sum();
 
         // Backward pass
-        backward(&[&loss], &[]).unwrap();
+        backward(&[&loss], &[])?;
 
         // Analytical gradient
-        let analytical_grad = x.grad().unwrap();
+        let analytical_grad = x.grad().expect("analytical gradient should exist");
 
         // Numerical gradient
         let f = |v: &Variable<Float32>| v.sum();
         let epsilon = Float32::new(1e-5);
-        let numerical_grad = numerical_gradient(f, &x, epsilon).unwrap();
-
-        // Debug output
-        println!("Sum gradient check:");
-        println!(
-            "  Analytical: {:?}",
-            analytical_grad
-                .as_slice()
-                .iter()
-                .map(|x| x.get())
-                .collect::<Vec<f32>>()
-        );
-        println!(
-            "  Numerical:  {:?}",
-            numerical_grad
-                .as_slice()
-                .iter()
-                .map(|x| x.get())
-                .collect::<Vec<f32>>()
-        );
+        let numerical_grad =
+            numerical_gradient(f, &x, epsilon).expect("numerical_gradient should succeed for sum");
 
         // Check gradients match
         let rtol = Float32::new(1e-2);
         let atol = Float32::new(1e-4);
-        assert!(
-            gradients_close(&analytical_grad, &numerical_grad, rtol, atol),
-            "Analytical and numerical gradients don't match for sum"
-        );
+        assert!(gradients_close(&analytical_grad, &numerical_grad, rtol, atol));
+
+        Ok(())
     }
 
     /// Test numerical gradient validation for Pow operation
     /// Validates fix for approximation bug (x^(y-1) ≈ x*x)
     #[test]
-    fn test_numerical_gradient_pow() {
+    fn test_numerical_gradient_pow() -> anyhow::Result<()> {
         use crate::graph::backward;
 
         // Test case: x^3 where x=2.0
@@ -315,25 +289,23 @@ mod tests {
         let x_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(2.0)],
             &[1],
-        )
-        .unwrap();
+        )?;
         let x = Variable::new(x_data);
 
         let exp_data = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
             vec![Float32::new(3.0)],
             &[1],
-        )
-        .unwrap();
+        )?;
         let exp_var = Variable::new(exp_data);
 
         // Forward pass: loss = x^3
         let loss = x.pow(&exp_var);
 
         // Backward pass
-        backward(&[&loss], &[]).unwrap();
+        backward(&[&loss], &[])?;
 
         // Analytical gradient
-        let analytical_grad = x.grad().unwrap();
+        let analytical_grad = x.grad().expect("analytical gradient should exist");
 
         // Numerical gradient
         let f = |v: &Variable<Float32>| {

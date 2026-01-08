@@ -1,0 +1,12 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 3c57b60185b64e14af8638cf4ad3fb98fe58fcbe7ed0aa5f0ad3b470b00fe86e # shrinks to ref a = Tensor { shape: Shape { dims: [101], size: 101 }, len: 101, requires_grad: false, has_grad: false }
+cc d35e1e685b94ab954afd590834d1a105f63593f5dcf2b058294a407559704cae # shrinks to (ref a, ref b) = (Tensor { shape: Shape { dims: [929], size: 929 }, len: 929, requires_grad: false, has_grad: false }, Tensor { shape: Shape { dims: [929], size: 929 }, len: 929, requires_grad: false, has_grad: false })
+cc 0b575688b054bdcda9a8818a91fa65a8ffe534b34b121c32539ee10afa06eecf # shrinks to ref a = Tensor { shape: Shape { dims: [432], size: 432 }, len: 432, requires_grad: false, has_grad: false }
+cc 63e9bfb5bc5f348148bd8bdc69100388bcdbf52613894fceb793b944953cdc48 # shrinks to ref a = Tensor { shape: Shape { dims: [5], size: 5 }, len: 5, requires_grad: false, has_grad: false }
+cc 3344140bfe96452cd7aba72554db6dc0eb316072c17ab0cd5d61ba6b341825a9 # shrinks to (ref a, ref b) = (Tensor { shape: Shape { dims: [53, 16], size: 848 }, len: 848, requires_grad: false, has_grad: false }, Tensor { shape: Shape { dims: [53, 16], size: 848 }, len: 848, requires_grad: false, has_grad: false })
+cc 9dd91de600ea6916b707a1087a66428eb6796dc3a409cdec808c54b67be5a6ba # shrinks to (ref a, ref b) = (Tensor { shape: Shape { dims: [52, 49], size: 2548 }, len: 2548, requires_grad: false, has_grad: false }, Tensor { shape: Shape { dims: [52, 49], size: 2548 }, len: 2548, requires_grad: false, has_grad: false })

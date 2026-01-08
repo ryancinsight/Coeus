@@ -52,7 +52,7 @@ impl<'a> Arbitrary<'a> for ArbitraryTensorData {
 pub fn fuzz_relu(data: &[u8]) {
     use backend::CpuBackend;
     use dtype::float::Float32;
-    use nn::functional_activations::relu;
+    use nn::functional_api::relu;
     use storage::DenseStorage;
     use tensor::Tensor;
 
@@ -86,7 +86,7 @@ pub fn fuzz_relu(data: &[u8]) {
 pub fn fuzz_conv2d(data: &[u8]) {
     use backend::CpuBackend;
     use dtype::float::Float32;
-    use nn::functional_conv::conv2d;
+    use nn::functional_api::conv2d;
     use storage::DenseStorage;
     use tensor::Tensor;
 
@@ -162,7 +162,7 @@ pub fn fuzz_conv2d(data: &[u8]) {
 pub fn fuzz_max_pool2d(data: &[u8]) {
     use backend::CpuBackend;
     use dtype::float::Float32;
-    use nn::functional_pooling::max_pool2d;
+    use nn::functional_api::max_pool2d;
     use storage::DenseStorage;
     use tensor::Tensor;
 
@@ -213,7 +213,7 @@ pub fn fuzz_max_pool2d(data: &[u8]) {
 pub fn fuzz_linear(data: &[u8]) {
     use backend::CpuBackend;
     use dtype::float::Float32;
-    use nn::functional_linear::linear;
+    use nn::functional_api::linear;
     use storage::DenseStorage;
     use tensor::Tensor;
 
@@ -273,7 +273,7 @@ pub fn fuzz_linear(data: &[u8]) {
 pub fn fuzz_mse_loss(data: &[u8]) {
     use backend::CpuBackend;
     use dtype::float::Float32;
-    use nn::functional_loss::mse_loss;
+    use nn::functional_api::mse_loss;
     use storage::DenseStorage;
     use tensor::Tensor;
 
@@ -314,7 +314,7 @@ pub fn fuzz_mse_loss(data: &[u8]) {
 pub fn fuzz_softmax(data: &[u8]) {
     use backend::CpuBackend;
     use dtype::float::Float32;
-    use nn::functional_attention::softmax;
+    use nn::functional_api::softmax;
     use storage::DenseStorage;
     use tensor::Tensor;
 

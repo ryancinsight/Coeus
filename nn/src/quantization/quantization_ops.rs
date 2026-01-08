@@ -1,6 +1,6 @@
 //! Common quantization operations used across different quantization modules
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 use crate::quantization::core::QuantizationScheme;
 

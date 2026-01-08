@@ -13,6 +13,14 @@ pub enum AudioError {
     #[error("Invalid tensor shape for audio operation: {message}")]
     InvalidShape { message: String },
 
+    /// Invalid input data
+    #[error("Invalid input: {message}")]
+    InvalidInput { message: String },
+
+    /// Invalid configuration
+    #[error("Invalid configuration: {message}")]
+    InvalidConfiguration { message: String },
+
     /// Input tensor has incompatible dtype
     #[error("Incompatible tensor dtype for audio operation, expected {expected}, got {got}")]
     IncompatibleDtype { expected: String, got: String },
@@ -42,7 +50,17 @@ pub enum AudioError {
         #[from]
         source: std::io::Error,
     },
+
+    /// Neural network operation failed
+    #[error("Neural network error: {source}")]
+    NNError {
+        #[from]
+        source: nn::NNError,
+    },
 }
 
 /// Result type alias for audio operations
-pub type AudioResult<T> = Result<T, AudioError>;
+pub type AudioResult<T> = std::result::Result<T, AudioError>;
+
+/// Standard Result type for audio operations (alias for AudioResult)
+pub type Result<T> = AudioResult<T>;

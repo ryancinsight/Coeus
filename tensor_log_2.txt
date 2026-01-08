@@ -1,0 +1,66 @@
+    Checking tensor v0.2.0 (D:\coeus\tensor)
+error[E0425]: cannot find function `mul_scalar` in module `arithmetic`
+    --> tensor\src\python.rs:251:34
+     |
+ 251 |           let scaled = arithmetic::mul_scalar(&tensor, Float32(range)).map_err(to_py_err)?;
+     |                                    ^^^^^^^^^^ help: a function with a similar name exists: `pow_scalar`
+     |
+    ::: tensor\src\ops\arithmetic.rs:1007:1
+     |
+1007 | / pub fn pow_scalar<
+1008 | |     T: DataType + Float + Num + Clone,
+1009 | |     B: Backend<Data = T> + Clone + Send + Sync + Default,
+1010 | |     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
+...    |
+1039 | |     Ok(result)
+1040 | | }
+     | |_- similarly named function `pow_scalar` defined here
+
+error[E0425]: cannot find function `add_scalar` in module `arithmetic`
+    --> tensor\src\python.rs:252:35
+     |
+ 252 |           let shifted = arithmetic::add_scalar(&scaled, Float32(low_f)).map_err(to_py_err)?;
+     |                                     ^^^^^^^^^^ help: a function with a similar name exists: `pow_scalar`
+     |
+    ::: tensor\src\ops\arithmetic.rs:1007:1
+     |
+1007 | / pub fn pow_scalar<
+1008 | |     T: DataType + Float + Num + Clone,
+1009 | |     B: Backend<Data = T> + Clone + Send + Sync + Default,
+1010 | |     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
+...    |
+1039 | |     Ok(result)
+1040 | | }
+     | |_- similarly named function `pow_scalar` defined here
+
+error[E0425]: cannot find function `floor` in module `tensor_ops`
+   --> tensor\src\python.rs:253:35
+    |
+253 |         let floored = tensor_ops::floor(&shifted).map_err(to_py_err)?;
+    |                                   ^^^^^ not found in `tensor_ops`
+    |
+help: consider importing one of these functions
+    |
+  1 + use crate::ops::arithmetic::floor;
+    |
+  1 + use core::f32::math::floor;
+    |
+  1 + use core::f64::math::floor;
+    |
+help: if you import `floor`, refer to it directly
+    |
+253 -         let floored = tensor_ops::floor(&shifted).map_err(to_py_err)?;
+253 +         let floored = floor(&shifted).map_err(to_py_err)?;
+    |
+
+warning: unused imports: `comparison`, `matrix`, and `reduction`
+ --> tensor\src\python.rs:1:30
+  |
+1 | use crate::ops::{arithmetic, comparison, creation, matrix, reduction, tensor_ops};
+  |                              ^^^^^^^^^^            ^^^^^^  ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0425`.
+warning: `tensor` (lib) generated 1 warning
+error: could not compile `tensor` (lib) due to 3 previous errors; 1 warning emitted

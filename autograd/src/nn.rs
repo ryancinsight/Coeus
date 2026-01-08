@@ -102,12 +102,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use crate::backward;
     use dtype::float::Float32;
     use tensor::Tensor;
 
     #[test]
-    fn test_linear_forward() {
+    fn test_linear_forward() -> Result<()> {
         // Test linear layer forward pass
         // Input: [2, 3], Weight: [3, 2], Bias: [2]
         // Output: [2, 2]
@@ -124,7 +125,7 @@ mod tests {
                 ],
                 &[2, 3],
             )
-            .unwrap(),
+            ?,
         );
 
         let weight = Variable::new(
@@ -139,12 +140,11 @@ mod tests {
                 ],
                 &[3, 2],
             )
-            .unwrap(),
+            ?,
         );
 
-        let bias = Variable::new(
-            Tensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2)], &[2]).unwrap(),
-        );
+        let bias =
+            Variable::new(Tensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2)], &[2])?);
 
         let output = linear(&input, &weight, &bias);
 
@@ -171,10 +171,11 @@ mod tests {
                 actual
             );
         }
+        Ok(())
     }
 
     #[test]
-    fn test_linear_gradient() {
+    fn test_linear_gradient() -> Result<()> {
         // Test linear layer gradient computation
         let input = Variable::new(
             Tensor::from_vec(
@@ -186,7 +187,7 @@ mod tests {
                 ],
                 &[2, 2],
             )
-            .unwrap(),
+            ?,
         );
 
         let weight = Variable::new(
@@ -199,12 +200,11 @@ mod tests {
                 ],
                 &[2, 2],
             )
-            .unwrap(),
+            ?,
         );
 
-        let bias = Variable::new(
-            Tensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2)], &[2]).unwrap(),
-        );
+        let bias =
+            Variable::new(Tensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2)], &[2])?);
 
         let output = linear(&input, &weight, &bias);
 
@@ -212,7 +212,7 @@ mod tests {
         let loss = output.sum();
 
         // Backward pass
-        backward(&[&loss], &[]).unwrap();
+        backward(&[&loss], &[])?;
 
         // Check that all variables have gradients
         assert!(input.grad().is_ok(), "Input should have gradient");
@@ -220,21 +220,22 @@ mod tests {
         assert!(bias.grad().is_ok(), "Bias should have gradient");
 
         // Verify gradient shapes
-        let input_grad = input.grad().unwrap();
+        let input_grad = input.grad()?;
         assert_eq!(input_grad.shape().dims(), &[2, 2]);
 
-        let weight_grad = weight.grad().unwrap();
+        let weight_grad = weight.grad()?;
         assert_eq!(weight_grad.shape().dims(), &[2, 2]);
 
-        let bias_grad = bias.grad().unwrap();
+        let bias_grad = bias.grad()?;
         assert_eq!(bias_grad.shape().dims(), &[2]);
+        Ok(())
     }
 
     #[test]
-    fn test_linear_weight_gradient() {
+    fn test_linear_weight_gradient() -> Result<()> {
         // Test weight gradient: ∂L/∂W = x^T @ ∂L/∂y
         let input = Variable::new(
-            Tensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[1, 2]).unwrap(),
+            Tensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[1, 2])?,
         );
 
         let weight = Variable::new(
@@ -247,12 +248,11 @@ mod tests {
                 ],
                 &[2, 2],
             )
-            .unwrap(),
+            ?,
         );
 
-        let bias = Variable::new(
-            Tensor::from_vec(vec![Float32::new(0.0), Float32::new(0.0)], &[2]).unwrap(),
-        );
+        let bias =
+            Variable::new(Tensor::from_vec(vec![Float32::new(0.0), Float32::new(0.0)], &[2])?);
 
         let output = linear(&input, &weight, &bias);
 
@@ -260,13 +260,13 @@ mod tests {
         let loss = output.sum();
 
         // Backward pass
-        backward(&[&loss], &[]).unwrap();
+        backward(&[&loss], &[])?;
 
         // Weight gradient should be: x^T @ grad_output
         // x^T = [[1], [2]] (shape [2, 1])
         // grad_output = [[1, 1]] (shape [1, 2], all ones because sum loss)
         // x^T @ grad_output = [[1*1, 1*1], [2*1, 2*1]] = [[1, 1], [2, 2]]
-        let weight_grad = weight.grad().unwrap();
+        let weight_grad = weight.grad()?;
         let expected = vec![1.0, 1.0, 2.0, 2.0];
         for i in 0..4 {
             let actual = weight_grad.as_slice()[i].get();
@@ -279,10 +279,11 @@ mod tests {
                 actual
             );
         }
+        Ok(())
     }
 
     #[test]
-    fn test_linear_bias_gradient() {
+    fn test_linear_bias_gradient() -> Result<()> {
         // Test bias gradient: ∂L/∂b = sum(∂L/∂y, axis=0)
         let input = Variable::new(
             Tensor::from_vec(
@@ -294,7 +295,7 @@ mod tests {
                 ],
                 &[2, 2],
             )
-            .unwrap(),
+            ?,
         );
 
         let weight = Variable::new(
@@ -307,12 +308,11 @@ mod tests {
                 ],
                 &[2, 2],
             )
-            .unwrap(),
+            ?,
         );
 
-        let bias = Variable::new(
-            Tensor::from_vec(vec![Float32::new(0.0), Float32::new(0.0)], &[2]).unwrap(),
-        );
+        let bias =
+            Variable::new(Tensor::from_vec(vec![Float32::new(0.0), Float32::new(0.0)], &[2])?);
 
         let output = linear(&input, &weight, &bias);
 
@@ -320,12 +320,12 @@ mod tests {
         let loss = output.sum();
 
         // Backward pass
-        backward(&[&loss], &[]).unwrap();
+        backward(&[&loss], &[])?;
 
         // Bias gradient should be: sum(grad_output, axis=0)
         // grad_output = [[1, 1], [1, 1]] (shape [2, 2], all ones because sum loss)
         // sum(grad_output, axis=0) = [2, 2]
-        let bias_grad = bias.grad().unwrap();
+        let bias_grad = bias.grad()?;
         let expected = vec![2.0, 2.0];
         for i in 0..2 {
             let actual = bias_grad.as_slice()[i].get();
@@ -338,15 +338,15 @@ mod tests {
                 actual
             );
         }
+        Ok(())
     }
 
     #[test]
-    fn test_linear_numerical_gradient() {
+    fn test_linear_numerical_gradient() -> Result<()> {
         use crate::numerical::numerical_gradient;
 
         // Test linear layer with numerical gradient validation
-        let input_data =
-            Tensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[1, 2]).unwrap();
+        let input_data = Tensor::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[1, 2])?;
 
         let input = Variable::new(input_data.clone());
 
@@ -358,10 +358,9 @@ mod tests {
                 Float32::new(0.8),
             ],
             &[2, 2],
-        )
-        .unwrap();
+        )?;
 
-        let bias_data = Tensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2)], &[2]).unwrap();
+        let bias_data = Tensor::from_vec(vec![Float32::new(0.1), Float32::new(0.2)], &[2])?;
 
         // Compute numerical gradient for input
         let f = |inp: &Variable<Float32>| {
@@ -371,7 +370,7 @@ mod tests {
             output.sum()
         };
 
-        let numerical_grad = numerical_gradient(f, &input, Float32::new(1e-5)).unwrap();
+        let numerical_grad = numerical_gradient(f, &input, Float32::new(1e-5))?;
 
         // Compute analytical gradient
         let weight = Variable::new(weight_data);
@@ -379,9 +378,9 @@ mod tests {
         let output = linear(&input, &weight, &bias);
         let loss = output.sum();
 
-        backward(&[&loss], &[]).unwrap();
+        backward(&[&loss], &[])?;
 
-        let analytical_grad = input.grad().unwrap();
+        let analytical_grad = input.grad()?;
 
         // Compare gradients with tolerance of 3e-2 (numerical gradient approximation error)
         for i in 0..2 {
@@ -397,6 +396,7 @@ mod tests {
                 diff
             );
         }
+        Ok(())
     }
 }
 

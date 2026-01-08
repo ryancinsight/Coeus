@@ -4,11 +4,11 @@
 //! including speech recognition, text-to-speech synthesis, and music analysis.
 
 use std::fmt;
-use crate::error::{NNError, Result};
-use crate::attention::MultiHeadAttention;
-use crate::linear::Linear;
-use crate::layernorm::LayerNorm;
-use crate::activation::GELU;
+use crate::core::error::{NNError, Result};
+use crate::modules::attention::MultiHeadAttention;
+use crate::modules::linear::Linear;
+use crate::modules::normalization::LayerNorm;
+use crate::modules::activation::GELU;
 
 /// Wav2Vec 2.0 Model for self-supervised speech representation learning
 #[derive(Debug)]
@@ -419,4 +419,4 @@ impl Default for FastSpeechConfig {
         }
     }
 }
-
+

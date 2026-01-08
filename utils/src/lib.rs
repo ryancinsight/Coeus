@@ -144,4 +144,4 @@ pub use error::DataError;
 pub use sampler::{BatchSampler, RandomSampler, Sampler, SequentialSampler};
 pub use transforms::compose::{ComposableTransform, SimdCompose};
 pub use transforms::random_apply::{ConditionalTransform, RandomApply};
-pub use transforms::{Compose, Normalize, Resize, ToTensor, Transform, TransformError};
+pub use transforms::{Compose, Transform, TransformError};

@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use super::{BenchmarkDataset, ClipEvaluationConfig, ClipModelEvaluator};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 use storage::Storage;

@@ -4,7 +4,7 @@
 //! filter methods (correlation, mutual information), wrapper methods
 //! (recursive feature elimination), and embedded methods (LASSO-based).
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use std::collections::HashMap;
 
 /// Feature selection result

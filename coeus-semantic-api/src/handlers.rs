@@ -6,7 +6,7 @@
 use axum::{
     extract::{Query, State},
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     Json,
 };
 // use serde::{Deserialize, Serialize};
@@ -14,12 +14,137 @@ use axum::{
 use base64::{engine::general_purpose, Engine as _};
 use std::time::Instant;
 
-use crate::state::AppState;
+use crate::state::{AppState, VectorSearchResult};
 use crate::types::{
-    BenchmarkQuery, ContentType, IndexContent, IndexRequest, IndexResponse, SearchConfig,
-    SearchMethod, SearchMode, SearchPerformance, SearchResponse, SearchResult, *,
+    ApiResponse, BenchmarkMetadata, BenchmarkPerformance, BenchmarkQuery, BenchmarkQueryType,
+    BenchmarkResponse, BenchmarkResult, BenchmarkSummary, ComponentHealth, ComponentStatus,
+    ContentType, CrossModalSearchRequest, ErrorCode, ErrorResponse, HealthCheckResponse,
+    HealthStatus, ImageSearchRequest, IndexContent, IndexRequest, IndexResponse, MetricsResponse,
+    ResponseMeta, SearchConfig, SearchMethod, SearchMode, SearchPerformance, SearchResponse,
+    SearchResult, ServiceHealth, ServiceStatus, SystemConfig, SystemHealth, TextSearchRequest,
 };
 // use crate::errors::SemanticError;
+
+fn error_response(status: StatusCode, code: ErrorCode, message: String) -> Response {
+    (
+        status,
+        Json(ErrorResponse {
+            error_id: uuid::Uuid::new_v4().to_string(),
+            code,
+            message,
+            details: None,
+            retry_after: None,
+        }),
+    )
+        .into_response()
+}
+
+fn u64_ms_to_f64_saturating(ms: u64) -> f64 {
+    f64::from(u32::try_from(ms).unwrap_or(u32::MAX))
+}
+
+fn usize_to_f64_saturating(value: usize) -> f64 {
+    f64::from(u32::try_from(value).unwrap_or(u32::MAX))
+}
+
+fn method_used(search_method: SearchMethod) -> String {
+    match search_method {
+        SearchMethod::Cosine => "cosine".to_string(),
+        SearchMethod::Euclidean => "euclidean".to_string(),
+        SearchMethod::DotProduct => "dot_product".to_string(),
+    }
+}
+
+fn build_search_response(
+    results: Vec<VectorSearchResult>,
+    query: String,
+    top_k: usize,
+    threshold: f32,
+    search_method: SearchMethod,
+    search_mode: SearchMode,
+    content_type: ContentType,
+    processing_time: u64,
+) -> SearchResponse {
+    let total_results = results.len();
+
+    SearchResponse {
+        results: results
+            .into_iter()
+            .map(|r| SearchResult {
+                id: r.id.clone(),
+                content: r
+                    .metadata
+                    .get("content")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("content unavailable")
+                    .to_string(),
+                score: Some(r.similarity),
+                metadata: r.metadata,
+                indexed_at: chrono::Utc::now(),
+                content_type,
+            })
+            .collect(),
+        total_results,
+        query,
+        config: SearchConfig {
+            top_k,
+            threshold,
+            search_method,
+            search_mode,
+        },
+        performance: SearchPerformance {
+            embedding_time_ms: 0,
+            search_time_ms: processing_time,
+            total_time_ms: processing_time,
+            method_used: method_used(search_method),
+        },
+    }
+}
+
+async fn encode_cross_modal_query(
+    state: &AppState,
+    request: &CrossModalSearchRequest,
+) -> Result<Vec<f32>, Response> {
+    if !request.text_query.trim().is_empty() {
+        state
+            .clip_service
+            .encode_text(&request.text_query)
+            .await
+            .map_err(|e| {
+                error_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    ErrorCode::InternalError,
+                    format!("Failed to encode query: {e}"),
+                )
+            })
+    } else if let Some(image_b64) = &request.image_b64 {
+        let image_data = general_purpose::STANDARD.decode(image_b64).map_err(|e| {
+            error_response(
+                StatusCode::BAD_REQUEST,
+                ErrorCode::InvalidRequest,
+                format!("Invalid base64 image data: {e}"),
+            )
+        })?;
+
+        state
+            .clip_service
+            .encode_image(&image_data)
+            .await
+            .map_err(|e| {
+                error_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    ErrorCode::InternalError,
+                    format!("Failed to encode query: {e}"),
+                )
+            })
+    } else {
+        Err(error_response(
+            StatusCode::BAD_REQUEST,
+            ErrorCode::InvalidRequest,
+            "Either text_query or image_b64 must be provided".to_string(),
+        ))
+    }
+}
 
 /// Health check endpoint
 pub async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
@@ -38,7 +163,9 @@ pub async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
     };
 
     // Construct detailed service health if components are available
-    let services = if !health.components.is_empty() {
+    let services = if health.components.is_empty() {
+        None
+    } else {
         // Helper to get component health or default
         let get_comp = |name: &str| -> ComponentHealth {
             if let Some(status) = health.components.get(name) {
@@ -67,8 +194,6 @@ pub async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
             vector_db: get_comp("vector_db"),
             gpu_backend: get_comp("gpu_backend"),
         })
-    } else {
-        None
     };
 
     // Mock system health for now
@@ -128,17 +253,11 @@ pub async fn text_search(
     let embedding = match state.clip_service.encode_text(&request.query).await {
         Ok(emb) => emb,
         Err(e) => {
-            return (
+            return error_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error_id: uuid::Uuid::new_v4().to_string(),
-                    code: ErrorCode::InternalError,
-                    message: format!("Failed to encode query: {}", e),
-                    details: None,
-                    retry_after: None,
-                }),
-            )
-                .into_response();
+                ErrorCode::InternalError,
+                format!("Failed to encode query: {e}"),
+            );
         }
     };
 
@@ -146,17 +265,11 @@ pub async fn text_search(
     let results = match state.vector_db.search(&embedding, top_k).await {
         Ok(res) => res,
         Err(e) => {
-            return (
+            return error_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error_id: uuid::Uuid::new_v4().to_string(),
-                    code: ErrorCode::InternalError,
-                    message: format!("Search failed: {}", e),
-                    details: None,
-                    retry_after: None,
-                }),
-            )
-                .into_response();
+                ErrorCode::InternalError,
+                format!("Search failed: {e}"),
+            );
         }
     };
 
@@ -170,47 +283,28 @@ pub async fn text_search(
     let processing_time = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
 
     // Record metrics
-    state.record_search(processing_time as f64).await;
+    state
+        .record_search(u64_ms_to_f64_saturating(processing_time))
+        .await;
 
     let health = state.health.read().await;
-    let total_results = results.len();
+    let search_method = request.search_method.unwrap_or(SearchMethod::Cosine);
+    let response = build_search_response(
+        results,
+        request.query,
+        top_k,
+        threshold,
+        search_method,
+        SearchMode::Text,
+        ContentType::Text,
+        processing_time,
+    );
 
     (
         StatusCode::OK,
         Json(ApiResponse::new(
             uuid::Uuid::new_v4().to_string(),
-            SearchResponse {
-                results: results
-                    .into_iter()
-                    .map(|r| SearchResult {
-                        id: r.id.clone(),
-                        content: r
-                            .metadata
-                            .get("content")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("content unavailable")
-                            .to_string(),
-                        score: Some(r.similarity),
-                        metadata: r.metadata,
-                        indexed_at: chrono::Utc::now(),
-                        content_type: ContentType::Text,
-                    })
-                    .collect(),
-                total_results,
-                query: request.query,
-                config: SearchConfig {
-                    top_k,
-                    threshold,
-                    search_method: request.search_method.unwrap_or(SearchMethod::Cosine),
-                    search_mode: SearchMode::Text,
-                },
-                performance: SearchPerformance {
-                    embedding_time_ms: 0,
-                    search_time_ms: processing_time,
-                    total_time_ms: processing_time,
-                    method_used: "cosine".to_string(),
-                },
-            },
+            response,
             ResponseMeta {
                 processing_time_ms: processing_time,
                 api_version: "v1".to_string(),
@@ -227,38 +321,30 @@ pub async fn image_search(
     State(state): State<AppState>,
     Json(request): Json<ImageSearchRequest>,
 ) -> impl IntoResponse {
+    image_search_impl(state, request).await
+}
+
+async fn image_search_impl(state: AppState, request: ImageSearchRequest) -> Response {
     let start_time = Instant::now();
 
     let top_k = request.top_k;
     if top_k > state.config.max_top_k {
-        return (
+        return error_response(
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error_id: uuid::Uuid::new_v4().to_string(),
-                code: ErrorCode::InvalidRequest,
-                message: format!("top_k cannot exceed {}", state.config.max_top_k),
-                details: None,
-                retry_after: None,
-            }),
-        )
-            .into_response();
+            ErrorCode::InvalidRequest,
+            format!("top_k cannot exceed {}", state.config.max_top_k),
+        );
     }
 
     // Decode base64 image
     let image_data = match general_purpose::STANDARD.decode(&request.image_b64) {
         Ok(data) => data,
         Err(e) => {
-            return (
+            return error_response(
                 StatusCode::BAD_REQUEST,
-                Json(ErrorResponse {
-                    error_id: uuid::Uuid::new_v4().to_string(),
-                    code: ErrorCode::InvalidRequest,
-                    message: format!("Invalid base64 image data: {}", e),
-                    details: None,
-                    retry_after: None,
-                }),
-            )
-                .into_response();
+                ErrorCode::InvalidRequest,
+                format!("Invalid base64 image data: {e}"),
+            );
         }
     };
 
@@ -266,17 +352,11 @@ pub async fn image_search(
     let embedding = match state.clip_service.encode_image(&image_data).await {
         Ok(emb) => emb,
         Err(e) => {
-            return (
+            return error_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error_id: uuid::Uuid::new_v4().to_string(),
-                    code: ErrorCode::InternalError,
-                    message: format!("Failed to encode image: {}", e),
-                    details: None,
-                    retry_after: None,
-                }),
-            )
-                .into_response();
+                ErrorCode::InternalError,
+                format!("Failed to encode image: {e}"),
+            );
         }
     };
 
@@ -284,17 +364,11 @@ pub async fn image_search(
     let results = match state.vector_db.search(&embedding, top_k).await {
         Ok(res) => res,
         Err(e) => {
-            return (
+            return error_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error_id: uuid::Uuid::new_v4().to_string(),
-                    code: ErrorCode::InternalError,
-                    message: format!("Search failed: {}", e),
-                    details: None,
-                    retry_after: None,
-                }),
-            )
-                .into_response();
+                ErrorCode::InternalError,
+                format!("Search failed: {e}"),
+            );
         }
     };
 
@@ -308,47 +382,27 @@ pub async fn image_search(
     let processing_time = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
 
     // Record metrics
-    state.record_search(processing_time as f64).await;
+    state
+        .record_search(u64_ms_to_f64_saturating(processing_time))
+        .await;
 
     let health = state.health.read().await;
-    let total_results = results.len();
+    let response = build_search_response(
+        results,
+        format!("image_embedding_{}", embedding.len()),
+        top_k,
+        threshold,
+        SearchMethod::Cosine,
+        SearchMode::Image,
+        ContentType::Image,
+        processing_time,
+    );
 
     (
         StatusCode::OK,
         Json(ApiResponse::new(
             uuid::Uuid::new_v4().to_string(),
-            SearchResponse {
-                results: results
-                    .into_iter()
-                    .map(|r| SearchResult {
-                        id: r.id.clone(),
-                        content: r
-                            .metadata
-                            .get("content")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("content unavailable")
-                            .to_string(),
-                        score: Some(r.similarity),
-                        metadata: r.metadata,
-                        indexed_at: chrono::Utc::now(),
-                        content_type: ContentType::Image,
-                    })
-                    .collect(),
-                total_results,
-                query: format!("image_embedding_{}", embedding.len()),
-                config: SearchConfig {
-                    top_k,
-                    threshold,
-                    search_method: SearchMethod::Cosine,
-                    search_mode: SearchMode::Image,
-                },
-                performance: SearchPerformance {
-                    embedding_time_ms: 0,
-                    search_time_ms: processing_time,
-                    total_time_ms: processing_time,
-                    method_used: "cosine".to_string(),
-                },
-            },
+            response,
             ResponseMeta {
                 processing_time_ms: processing_time,
                 api_version: "v1".to_string(),
@@ -382,88 +436,20 @@ pub async fn cross_modal_search(
             .into_response();
     }
 
-    // Generate embedding based on available query data
-    let embedding = if !request.text_query.trim().is_empty() {
-        // Use text query
-        if request.text_query.trim().is_empty() {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(ErrorResponse {
-                    error_id: uuid::Uuid::new_v4().to_string(),
-                    code: ErrorCode::InvalidRequest,
-                    message: "Text query cannot be empty".to_string(),
-                    details: None,
-                    retry_after: None,
-                }),
-            )
-                .into_response();
-        }
-        state.clip_service.encode_text(&request.text_query).await
-    } else if let Some(image_b64) = &request.image_b64 {
-        // Decode base64 image
-        let image_data = match general_purpose::STANDARD.decode(image_b64) {
-            Ok(data) => data,
-            Err(e) => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(ErrorResponse {
-                        error_id: uuid::Uuid::new_v4().to_string(),
-                        code: ErrorCode::InvalidRequest,
-                        message: format!("Invalid base64 image data: {}", e),
-                        details: None,
-                        retry_after: None,
-                    }),
-                )
-                    .into_response();
-            }
-        };
-        state.clip_service.encode_image(&image_data).await
-    } else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error_id: uuid::Uuid::new_v4().to_string(),
-                code: ErrorCode::InvalidRequest,
-                message: "Either text_query or image_b64 must be provided".to_string(),
-                details: None,
-                retry_after: None,
-            }),
-        )
-            .into_response();
-    };
-
-    let embedding = match embedding {
+    let embedding = match encode_cross_modal_query(&state, &request).await {
         Ok(emb) => emb,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error_id: uuid::Uuid::new_v4().to_string(),
-                    code: ErrorCode::InternalError,
-                    message: format!("Failed to encode query: {}", e),
-                    details: None,
-                    retry_after: None,
-                }),
-            )
-                .into_response();
-        }
+        Err(resp) => return resp,
     };
 
     // Perform similarity search
     let results = match state.vector_db.search(&embedding, top_k).await {
         Ok(res) => res,
         Err(e) => {
-            return (
+            return error_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error_id: uuid::Uuid::new_v4().to_string(),
-                    code: ErrorCode::InternalError,
-                    message: format!("Search failed: {}", e),
-                    details: None,
-                    retry_after: None,
-                }),
-            )
-                .into_response();
+                ErrorCode::InternalError,
+                format!("Search failed: {e}"),
+            );
         }
     };
 
@@ -477,52 +463,32 @@ pub async fn cross_modal_search(
     let processing_time = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
 
     // Record metrics
-    #[allow(clippy::cast_precision_loss)]
-    state.record_search(processing_time as f64).await;
+    state
+        .record_search(u64_ms_to_f64_saturating(processing_time))
+        .await;
 
     let health = state.health.read().await;
-    let total_results = results.len();
+    let query = if request.text_query.is_empty() {
+        "cross_modal_image_query".to_string()
+    } else {
+        request.text_query
+    };
+    let response = build_search_response(
+        results,
+        query,
+        top_k,
+        threshold,
+        SearchMethod::Cosine,
+        SearchMode::CrossModal,
+        ContentType::Multimodal,
+        processing_time,
+    );
 
     (
         StatusCode::OK,
         Json(ApiResponse::new(
             uuid::Uuid::new_v4().to_string(),
-            SearchResponse {
-                results: results
-                    .into_iter()
-                    .map(|r| SearchResult {
-                        id: r.id.clone(),
-                        content: r
-                            .metadata
-                            .get("content")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("content unavailable")
-                            .to_string(),
-                        score: Some(r.similarity),
-                        metadata: r.metadata,
-                        indexed_at: chrono::Utc::now(),
-                        content_type: ContentType::Multimodal,
-                    })
-                    .collect(),
-                total_results,
-                query: if request.text_query.is_empty() {
-                    "cross_modal_image_query".to_string()
-                } else {
-                    request.text_query
-                },
-                config: SearchConfig {
-                    top_k,
-                    threshold,
-                    search_method: SearchMethod::Cosine,
-                    search_mode: SearchMode::CrossModal,
-                },
-                performance: SearchPerformance {
-                    embedding_time_ms: 0,
-                    search_time_ms: processing_time,
-                    total_time_ms: processing_time,
-                    method_used: "cosine".to_string(),
-                },
-            },
+            response,
             ResponseMeta {
                 processing_time_ms: processing_time,
                 api_version: "v1".to_string(),
@@ -590,7 +556,7 @@ pub async fn index_content(
         let embedding = match embedding {
             Ok(emb) => emb,
             Err(e) => {
-                errors.push(format!("Failed to encode item {}: {}", item.id, e));
+                errors.push(format!("Failed to encode item {}: {e}", item.id));
                 continue;
             }
         };
@@ -601,7 +567,7 @@ pub async fn index_content(
             .add(item.id.clone(), embedding, serde_json::json!(item.metadata))
             .await
         {
-            errors.push(format!("Failed to index item {}: {}", item.id, e));
+            errors.push(format!("Failed to index item {}: {e}", item.id));
             continue;
         }
 
@@ -675,12 +641,12 @@ pub async fn benchmark_search(
     let avg_latency = if latencies.is_empty() {
         0.0
     } else {
-        latencies.iter().sum::<f64>() / latencies.len() as f64
+        latencies.iter().sum::<f64>() / usize_to_f64_saturating(latencies.len())
     };
     let p95_latency = percentile(&latencies, 95.0);
     let p99_latency = percentile(&latencies, 99.0);
     let qps = if duration_ms > 0 {
-        (latencies.len() as f64) / (duration_ms as f64 / 1000.0)
+        usize_to_f64_saturating(latencies.len()) / (u64_ms_to_f64_saturating(duration_ms) / 1000.0)
     } else {
         0.0
     };

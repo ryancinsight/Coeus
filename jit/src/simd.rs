@@ -23,6 +23,12 @@ impl PrefetchOptimizer {
     }
 }
 
+impl Default for PrefetchOptimizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// SIMD specialization for different architectures
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimdSpecialization {
@@ -81,6 +87,7 @@ impl SimdKernelGenerator {
         #[cfg(target_arch = "x86_64")]
         {
             if self.specialization == SimdSpecialization::Avx512 {
+                #[cfg(feature = "avx512")]
                 return self.generate_avx512_add();
             }
             if self.specialization == SimdSpecialization::Avx2 {
@@ -112,6 +119,7 @@ impl SimdKernelGenerator {
         #[cfg(target_arch = "x86_64")]
         {
             if self.specialization == SimdSpecialization::Avx512 {
+                #[cfg(feature = "avx512")]
                 return self.generate_avx512_mul();
             }
             if self.specialization == SimdSpecialization::Avx2 {
@@ -141,6 +149,7 @@ impl SimdKernelGenerator {
         #[cfg(target_arch = "x86_64")]
         {
             if self.specialization == SimdSpecialization::Avx512 {
+                #[cfg(feature = "avx512")]
                 return self.generate_avx512_relu();
             }
             if self.specialization == SimdSpecialization::Avx2 {
@@ -191,7 +200,11 @@ impl SimdKernelGenerator {
         match capabilities.architecture {
             crate::hardware::Architecture::X86_64 => match capabilities.simd_level {
                 crate::hardware::SimdLevel::Avx512Full | crate::hardware::SimdLevel::Avx512f => {
-                    SimdSpecialization::Avx512
+                    if cfg!(feature = "avx512") {
+                        SimdSpecialization::Avx512
+                    } else {
+                        SimdSpecialization::Avx2
+                    }
                 }
                 crate::hardware::SimdLevel::Avx2 => SimdSpecialization::Avx2,
                 crate::hardware::SimdLevel::Avx => SimdSpecialization::Avx,
@@ -258,45 +271,48 @@ impl SimdKernelGenerator {
     pub fn generate_avx512_add(
         &self,
     ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
-        // Prefer direct intrinsics when AVX-512 is available
-        if cfg!(target_arch = "x86_64") && std::is_x86_feature_detected!("avx512f") {
-            Ok(Self::avx512_add_kernel)
-        } else {
-            // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "AVX-512 JIT compilation not implemented".to_string(),
-            })
+        #[cfg(all(target_arch = "x86_64", feature = "avx512"))]
+        {
+            if std::is_x86_feature_detected!("avx512f") {
+                return Ok(Self::avx512_add_kernel);
+            }
         }
+
+        Err(JitError::UnsupportedOperation {
+            operation: "AVX-512 kernels not enabled".to_string(),
+        })
     }
 
     /// Generate AVX-512 multiplication kernel
     pub fn generate_avx512_mul(
         &self,
     ) -> Result<unsafe extern "C" fn(*const f32, *const f32, *mut f32, usize)> {
-        // Prefer direct intrinsics when AVX-512 is available
-        if cfg!(target_arch = "x86_64") && std::is_x86_feature_detected!("avx512f") {
-            Ok(Self::avx512_mul_kernel)
-        } else {
-            // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "AVX-512 JIT compilation not implemented".to_string(),
-            })
+        #[cfg(all(target_arch = "x86_64", feature = "avx512"))]
+        {
+            if std::is_x86_feature_detected!("avx512f") {
+                return Ok(Self::avx512_mul_kernel);
+            }
         }
+
+        Err(JitError::UnsupportedOperation {
+            operation: "AVX-512 kernels not enabled".to_string(),
+        })
     }
 
     /// Generate AVX-512 ReLU kernel
     pub fn generate_avx512_relu(
         &self,
     ) -> Result<unsafe extern "C" fn(*const f32, *mut f32, usize)> {
-        // Prefer direct intrinsics when AVX-512 is available
-        if cfg!(target_arch = "x86_64") && std::is_x86_feature_detected!("avx512f") {
-            Ok(Self::avx512_relu_kernel)
-        } else {
-            // JIT fallback (not implemented yet)
-            Err(JitError::UnsupportedOperation {
-                operation: "AVX-512 JIT compilation not implemented".to_string(),
-            })
+        #[cfg(all(target_arch = "x86_64", feature = "avx512"))]
+        {
+            if std::is_x86_feature_detected!("avx512f") {
+                return Ok(Self::avx512_relu_kernel);
+            }
         }
+
+        Err(JitError::UnsupportedOperation {
+            operation: "AVX-512 kernels not enabled".to_string(),
+        })
     }
 
     /// Generate NEON addition kernel
@@ -458,7 +474,7 @@ impl SimdKernelGenerator {
     }
 
     /// AVX-512 optimized addition kernel with masking
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", feature = "avx512"))]
     #[target_feature(enable = "avx512f")]
     unsafe extern "C" fn avx512_add_kernel(
         input1: *const f32,
@@ -487,7 +503,7 @@ impl SimdKernelGenerator {
     }
 
     /// AVX-512 optimized multiplication kernel
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", feature = "avx512"))]
     #[target_feature(enable = "avx512f")]
     unsafe extern "C" fn avx512_mul_kernel(
         input1: *const f32,
@@ -516,7 +532,7 @@ impl SimdKernelGenerator {
     }
 
     /// AVX-512 optimized ReLU kernel
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", feature = "avx512"))]
     #[target_feature(enable = "avx512f")]
     unsafe extern "C" fn avx512_relu_kernel(input: *const f32, output: *mut f32, size: usize) {
         use std::arch::x86_64::*;
@@ -816,6 +832,7 @@ impl SimdKernelGenerator {
     /// AVX2 optimized addition with hardware prefetching for cache optimization
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2,fma")]
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe extern "C" fn avx2_add_prefetch_kernel(
         input1: *const f32,
         input2: *const f32,
@@ -851,8 +868,9 @@ impl SimdKernelGenerator {
     }
 
     /// AVX-512 optimized addition with advanced prefetching
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", feature = "avx512"))]
     #[target_feature(enable = "avx512f")]
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe extern "C" fn avx512_add_prefetch_kernel(
         input1: *const f32,
         input2: *const f32,
@@ -899,6 +917,7 @@ impl SimdKernelGenerator {
     /// AVX2 FMA-accelerated fused multiply-add: c = a * b + c
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2,fma")]
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe extern "C" fn avx2_fma_kernel(
         input1: *const f32,
         input2: *const f32,
@@ -929,8 +948,9 @@ impl SimdKernelGenerator {
     }
 
     /// AVX-512 masked operation for handling unaligned data
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", feature = "avx512"))]
     #[target_feature(enable = "avx512f")]
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe extern "C" fn avx512_masked_add_kernel(
         input1: *const f32,
         input2: *const f32,
@@ -966,6 +986,7 @@ impl SimdKernelGenerator {
     /// Cache-line aligned AVX2 operations for optimal memory access
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2,fma")]
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe extern "C" fn avx2_cache_aligned_add_kernel(
         input1: *const f32,
         input2: *const f32,
@@ -1018,6 +1039,7 @@ impl SimdKernelGenerator {
         #[cfg(target_arch = "x86_64")]
         {
             if self.specialization == SimdSpecialization::Avx512 {
+                #[cfg(feature = "avx512")]
                 return Ok(Self::avx512_add_prefetch_kernel);
             }
             if self.specialization == SimdSpecialization::Avx2 {
@@ -1038,5 +1060,11 @@ impl SimdKernelGenerator {
         }
 
         self.generate_scalar_add()
+    }
+}
+
+impl Default for SimdKernelGenerator {
+    fn default() -> Self {
+        Self::new()
     }
 }

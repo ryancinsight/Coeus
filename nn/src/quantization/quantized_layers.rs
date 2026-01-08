@@ -1,7 +1,7 @@
 //! Quantized neural network layers
 
-use crate::error::{NNError, Result};
-use crate::module::Module;
+use crate::core::error::{NNError, Result};
+use crate::core::module::Module;
 
 use crate::quantization::core::{QuantizationScheme, QuantizedWeights};
 use crate::quantization::quantization_ops::QuantizationOps;
@@ -240,7 +240,7 @@ where
         self.forward(input)
     }
 
-    fn parameters(&self) -> Vec<crate::parameter::Parameter<B, S, T>> {
+    fn parameters(&self) -> Vec<crate::core::parameter::Parameter<B, S, T>> {
         // QuantizedLinear doesn't have learnable parameters in the traditional sense
         // The quantization parameters are fixed after training
         vec![]

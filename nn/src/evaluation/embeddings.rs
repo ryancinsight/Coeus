@@ -8,7 +8,7 @@
 use std::time::Instant;
 
 use super::{ClipEvaluationConfig, ClipModelEvaluator, EvaluationDataset};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Simple matrix type for computations
 type Matrix = Vec<Vec<f64>>;

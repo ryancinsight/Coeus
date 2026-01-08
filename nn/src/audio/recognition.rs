@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 use std::fmt;
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Speech recognizer for automatic speech recognition
 #[derive(Debug)]

@@ -164,6 +164,6 @@ mod tests {
             Ok(v) => v,
             Err(e) => panic!("{e}"),
         };
-        approx(y1.as_slice()[0].get(), 0.841_344_746_f32, 1e-5);
+        approx(y1.as_slice()[0].get(), 0.841_344_8_f32, 1e-5);
     }
 }

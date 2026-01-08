@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Represents a neural network architecture
 #[derive(Debug, Clone, PartialEq)]

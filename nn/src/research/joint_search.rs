@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::hpo::{HyperparameterConfig, HyperparameterSpace};
 use crate::nas::search_space::LayerSpec;
 use crate::nas::{Architecture, ArchitectureEvaluator, ArchitectureSpace};
@@ -351,7 +351,7 @@ impl JointSearchFramework {
     ) -> Result<JointSearchResult> {
         if let Some(algorithm) = self.algorithms.get(algorithm_name) {
             let start_time = Instant::now();
-            let mut tracker = framework.create_experiment(
+            let mut _tracker = framework.create_experiment(
                 format!("{}_joint", context.experiment_id),
                 "Joint NAS-HPO Search".to_string(),
                 "Combined neural architecture and hyperparameter optimization".to_string(),
@@ -359,7 +359,7 @@ impl JointSearchFramework {
 
             let result =
                 algorithm.joint_search(context, framework, arch_evaluator, arch_space, hp_space)?;
-            let search_time = start_time.elapsed();
+            let _search_time = start_time.elapsed();
 
             // Store in search history for meta-learning
             self.search_history.push(result.clone());
@@ -654,7 +654,7 @@ pub mod algorithms {
             hp_space: &HyperparameterSpace,
             arch_rounds: usize,
             hp_rounds: usize,
-            sync_freq: usize,
+            _sync_freq: usize,
         ) -> Result<JointSearchResult> {
             let mut best_solution = None;
             let mut evaluations = 0;

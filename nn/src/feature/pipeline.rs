@@ -7,7 +7,7 @@ use super::selection::{FeatureSelectionResult, FeatureSelector, SelectionMethod}
 use super::transformation::{
     FeatureTransformationResult, FeatureTransformer, TransformationMethod,
 };
-use crate::error::Result;
+use crate::core::error::Result;
 
 /// Pipeline step
 #[derive(Debug, Clone)]

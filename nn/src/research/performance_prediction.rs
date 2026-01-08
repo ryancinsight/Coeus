@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::hpo::{HyperparameterConfig, HyperparameterSpace, HyperparameterValue};
 use crate::nas::search_space::LayerSpec;
 use crate::nas::{Architecture, ArchitectureSpace};

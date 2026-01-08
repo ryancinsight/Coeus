@@ -7,7 +7,7 @@ use rand::Rng;
 
 use super::optimizer::OptimizationResult;
 use super::space::{HyperparameterConfig, HyperparameterSpace};
-use crate::error::Result;
+use crate::core::error::Result;
 
 /// Multi-armed bandit algorithm types
 #[derive(Debug, Clone)]

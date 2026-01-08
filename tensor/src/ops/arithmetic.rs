@@ -30,7 +30,7 @@ pub fn add<
             .zip(b.as_slice())
             .map(|(x, y)| *x + *y)
             .collect();
-        Tensor::from_vec(data, a.shape().dims())?
+        Tensor::from_vec_with_backend(data, a.shape().dims(), a.backend().clone())?
     } else {
         broadcast_binary_op(a, b, |x, y| x + y)?
     };
@@ -61,7 +61,7 @@ pub fn mul<
             .zip(b.as_slice())
             .map(|(x, y)| *x * *y)
             .collect();
-        Tensor::from_vec(data, a.shape().dims())?
+        Tensor::from_vec_with_backend(data, a.shape().dims(), a.backend().clone())?
     } else {
         broadcast_binary_op(a, b, |x, y| x * y)?
     };
@@ -92,7 +92,7 @@ pub fn div<
             .zip(b.as_slice())
             .map(|(x, y)| *x / *y)
             .collect();
-        Tensor::from_vec(data, a.shape().dims())?
+        Tensor::from_vec_with_backend(data, a.shape().dims(), a.backend().clone())?
     } else {
         broadcast_binary_op(a, b, |x, y| x / y)?
     };
@@ -123,7 +123,7 @@ pub fn sub<
             .zip(b.as_slice())
             .map(|(x, y)| *x - *y)
             .collect();
-        Tensor::from_vec(data, a.shape().dims())?
+        Tensor::from_vec_with_backend(data, a.shape().dims(), a.backend().clone())?
     } else {
         broadcast_binary_op(a, b, |x, y| x - y)?
     };
@@ -148,7 +148,8 @@ pub fn neg<
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| -*x).collect();
 
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if crate::tensor_core::grad_enabled() && tensor.requires_grad() {
         let grad_fn = NegFunction::new(vec![Arc::new(tensor.clone())]);
@@ -211,7 +212,7 @@ fn broadcast_binary_op<
         .map(|(x, y)| op(*x, *y))
         .collect();
 
-    let mut result = Tensor::from_vec(data, broadcast_shape)?;
+    let mut result = Tensor::from_vec_with_backend(data, broadcast_shape, a.backend().clone())?;
 
     if crate::tensor_core::grad_enabled() && (a.requires_grad() || b.requires_grad()) {
         result = result.requires_grad_(true);
@@ -234,7 +235,7 @@ fn pad_tensor_to_shape<
     // Implement proper NumPy-style broadcasting
     let broadcasted_data = broadcast_tensor_data(tensor.as_slice(), source_shape, target_shape)?;
 
-    Tensor::from_vec(broadcasted_data, target_shape)
+    Tensor::from_vec_with_backend(broadcasted_data, target_shape, tensor.backend().clone())
 }
 
 /// Broadcast tensor data from source shape to target shape using NumPy-style broadcasting.
@@ -320,7 +321,7 @@ pub fn maximum<
         .map(|(x, y)| if *x > *y { *x } else { *y })
         .collect();
 
-    let mut result = Tensor::from_vec(data, a.shape().dims())?;
+    let mut result = Tensor::from_vec_with_backend(data, a.shape().dims(), a.backend().clone())?;
 
     if a.requires_grad() || b.requires_grad() {
         result = result.requires_grad_(true);
@@ -353,7 +354,7 @@ pub fn minimum<
         .map(|(x, y)| if *x < *y { *x } else { *y })
         .collect();
 
-    let mut result = Tensor::from_vec(data, a.shape().dims())?;
+    let mut result = Tensor::from_vec_with_backend(data, a.shape().dims(), a.backend().clone())?;
 
     if a.requires_grad() || b.requires_grad() {
         result = result.requires_grad_(true);
@@ -396,7 +397,8 @@ pub fn pow<
         })
         .collect();
 
-    let mut result = Tensor::from_vec(data, base.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, base.shape().dims(), base.backend().clone())?;
 
     if base.requires_grad() || exponent.requires_grad() {
         result = result.requires_grad_(true);
@@ -416,7 +418,8 @@ pub fn abs<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.abs()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -435,7 +438,8 @@ pub fn exp<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.exp()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad {
         result = result.requires_grad_(true);
@@ -454,7 +458,8 @@ pub fn log<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.ln()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad {
         result = result.requires_grad_(true);
@@ -473,7 +478,8 @@ pub fn sin<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.sin()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -492,7 +498,8 @@ pub fn cos<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.cos()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -511,7 +518,8 @@ pub fn acos<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.acos()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -530,7 +538,8 @@ pub fn atan<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.atan()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -557,7 +566,8 @@ pub fn erf<
             num_traits::FromPrimitive::from_f64(erf_f64).unwrap_or(T::zero())
         })
         .collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -576,7 +586,8 @@ pub fn exp2<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.exp2()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -595,7 +606,8 @@ pub fn log10<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.log10()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -614,7 +626,8 @@ pub fn log2<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.log2()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -637,7 +650,8 @@ pub fn rsqrt<
         .iter()
         .map(|x| T::one() / x.sqrt())
         .collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad {
         result = result.requires_grad_(true);
@@ -656,7 +670,8 @@ pub fn sqrt<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.sqrt()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad {
         result = result.requires_grad_(true);
@@ -675,7 +690,8 @@ pub fn tan<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.tan()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -694,7 +710,8 @@ pub fn asin<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.asin()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -713,7 +730,8 @@ pub fn sinh<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.sinh()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -732,7 +750,8 @@ pub fn cosh<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.cosh()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -751,7 +770,8 @@ pub fn tanh<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.tanh()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -770,7 +790,8 @@ pub fn floor<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.floor()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -789,7 +810,8 @@ pub fn ceil<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.ceil()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -807,7 +829,8 @@ pub fn round<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.round()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -825,7 +848,8 @@ pub fn trunc<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.trunc()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -843,7 +867,8 @@ pub fn sign<
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| x.signum()).collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -880,7 +905,8 @@ pub fn clamp<
             val
         })
         .collect();
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -900,7 +926,8 @@ pub fn scalar_add<
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| *x + scalar).collect();
 
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -921,7 +948,8 @@ pub fn scalar_mul<
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| *x * scalar).collect();
 
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -942,7 +970,8 @@ pub fn scalar_div<
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| *x / scalar).collect();
 
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -963,7 +992,8 @@ pub fn scalar_sub<
 ) -> Result<Tensor<B, S, T>> {
     let data = tensor.as_slice().iter().map(|x| *x - scalar).collect();
 
-    let mut result = Tensor::from_vec(data, tensor.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend().clone())?;
 
     if tensor.requires_grad() {
         result = result.requires_grad_(true);
@@ -998,7 +1028,8 @@ pub fn pow_scalar<
         })
         .collect();
 
-    let mut result = Tensor::from_vec(data, base.shape().dims())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, base.shape().dims(), base.backend().clone())?;
 
     if base.requires_grad {
         result = result.requires_grad_(true);
@@ -1053,7 +1084,7 @@ pub fn broadcast_to<
     // Use proper NumPy-style broadcasting
     let broadcasted_data = broadcast_tensor_data(tensor.as_slice(), source_shape, target_shape)?;
 
-    Tensor::from_vec(broadcasted_data, target_shape)
+    Tensor::from_vec_with_backend(broadcasted_data, target_shape, tensor.backend().clone())
 }
 
 impl<B, S, T> Tensor<B, S, T>

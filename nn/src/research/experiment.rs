@@ -9,7 +9,7 @@ use std::time::Instant;
 // Add required exports to parent module
 pub use super::agent::ResourceRequirements;
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 use super::{ResearchDomain, ResearchInsight};
 

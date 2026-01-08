@@ -11,6 +11,7 @@ use crate::error::{JitError, Result};
 use crate::graph::{ComputationGraph, NodeId, NodeMetadata, Operation};
 
 thread_local! {
+    #[allow(clippy::missing_const_for_thread_local)]
     static TRACING_CONTEXT: RefCell<Option<TracingContext>> = const { RefCell::new(None) };
 }
 
@@ -24,6 +25,12 @@ pub struct TracingContext {
     variable_map: HashMap<usize, NodeId>,
     /// Next available node ID
     next_node_id: NodeId,
+}
+
+impl Default for TracingContext {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TracingContext {
@@ -255,8 +262,8 @@ mod tests {
         let mut ctx = TracingContext::new();
 
         // Record input parameters first
-        let input1 = ctx.record_parameter(1, NodeMetadata::default());
-        let input2 = ctx.record_parameter(2, NodeMetadata::default());
+        let _input1 = ctx.record_parameter(1, NodeMetadata::default());
+        let _input2 = ctx.record_parameter(2, NodeMetadata::default());
 
         // Record an operation
         let op_node = ctx.record_operation(

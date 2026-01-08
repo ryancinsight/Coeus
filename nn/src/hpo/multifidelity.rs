@@ -5,7 +5,7 @@
 //! Hyperband).
 
 use super::space::{HyperparameterConfig, HyperparameterSpace};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use std::time::Duration;
 
 /// Bracket configuration for Hyperband

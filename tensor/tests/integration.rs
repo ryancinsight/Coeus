@@ -696,10 +696,6 @@ fn test_reshape_and_transpose_chain() {
 
 #[cfg(feature = "gpu")]
 mod gpu_tests {
-    use super::*;
-    use backend::Backend;
-    use pollster::FutureExt;
-
     // GPU backend is not implemented - commented out
     // type GpuTensorF32 = Tensor<GpuBackend, DenseStorage<Float32>, Float32>;
 
@@ -712,7 +708,6 @@ mod gpu_tests {
         }
 
         // GPU backend is not yet implemented - this test is disabled
-        // TODO: Re-enable when GPU backend provides actual functionality
         panic!("GPU backend not implemented");
     }
 }

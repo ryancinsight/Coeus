@@ -566,7 +566,7 @@ impl PipelineParallel {
 
         for (i, micro_batch) in micro_batches.iter().enumerate() {
             // Pipeline stage execution
-            let stage_output = self.execute_pipeline_stage(&micro_batch, i).await?;
+            let stage_output = self.execute_pipeline_stage(micro_batch, i).await?;
             outputs.push(stage_output);
         }
 
@@ -582,7 +582,7 @@ impl PipelineParallel {
 
         for (i, micro_grad) in micro_grads.iter().enumerate().rev() {
             // Pipeline stage backward
-            let stage_input_grad = self.backward_pipeline_stage(&micro_grad, i).await?;
+            let stage_input_grad = self.backward_pipeline_stage(micro_grad, i).await?;
             input_grads.push(stage_input_grad);
         }
 

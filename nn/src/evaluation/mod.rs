@@ -245,17 +245,17 @@ pub trait BenchmarkDataset: EvaluationDataset {
 /// CLIP model evaluator trait
 pub trait ClipModelEvaluator {
     /// Generate image embeddings
-    fn encode_images(&self, images: &[Vec<u8>]) -> crate::error::Result<Vec<Vec<f32>>>;
+    fn encode_images(&self, images: &[Vec<u8>]) -> crate::core::error::Result<Vec<Vec<f32>>>;
 
     /// Generate text embeddings
-    fn encode_texts(&self, texts: &[String]) -> crate::error::Result<Vec<Vec<f32>>>;
+    fn encode_texts(&self, texts: &[String]) -> crate::core::error::Result<Vec<Vec<f32>>>;
 
     /// Compute similarity between image and text embeddings
     fn compute_similarity(
         &self,
         image_embeddings: &[Vec<f32>],
         text_embeddings: &[Vec<f32>],
-    ) -> crate::error::Result<Vec<Vec<f32>>>;
+    ) -> crate::core::error::Result<Vec<Vec<f32>>>;
 }
 
 #[cfg(test)]

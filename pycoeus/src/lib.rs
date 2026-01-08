@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::{wrap_pyfunction, Bound, PyErr, PyResult};
+use pyo3::{pymodule, wrap_pyfunction, Bound, PyErr, PyResult, Python};
 use std::vec::Vec;
 
 // Module declarations
@@ -8,11 +8,13 @@ pub mod fft;
 pub mod functional;
 pub mod hub;
 pub mod linalg;
-pub mod nn;
+pub mod nn; // Local nn wrappers
 pub mod optim;
 pub mod schedulers;
+pub mod signal;
 pub mod sparse;
-pub mod tensor;
+pub mod special;
+pub mod tensor; // Re-enabled as re-export wrapper
 pub mod tokenizer;
 pub mod transforms; // ENABLED - Transform pipelines implemented
 pub mod utils; // ENABLED - PyO3 advanced features implemented
@@ -20,12 +22,9 @@ pub mod utils; // ENABLED - PyO3 advanced features implemented
 // Import optimizers from optim module
 use crate::optim::{Adagrad, Adam, AdamW, RMSprop, Sgd};
 // Import neural network modules
-use crate::nn::{
-    PyAdaptiveAvgPool1d, PyAdaptiveAvgPool2d, PyAvgPool1d, PyAvgPool2d, PyBatchNorm2d, PyConv2D,
-    PyDropout, PyEmbedding, PyGRU, PyGeLU, PyLSTM, PyLayerNorm, PyLinear, PyMaxPool1d, PyMaxPool2d,
-    PyPReLU, PyRNN, PyReLU, PySequential, PySiLU, PySigmoid, PyTanh,
-};
-// Import tensor types
+// Import neural network modules from crate::nn removed.
+// We will register them via nn::python::register.
+// Import tensor types from tensor crate native bindings
 use crate::tensor::{Device, PyTensor};
 // Import tokenizers
 use crate::tokenizer::{BERTTokenizer, BpeTokenizer, CLIPTokenizer, Encoding, GPT2Tokenizer};
@@ -52,7 +51,6 @@ use crate::transforms::{
 
 // Import available optimizers from optim crate
 // Import available schedulers from schedulers crate
-// Note: All schedulers temporarily disabled due to trait bound issues
 use crate::schedulers::{
     CosineAnnealingLR, ExponentialLR, MultiStepLR, OneCycleLR, ReduceLROnPlateau, StepLR,
 };
@@ -178,29 +176,8 @@ fn _coeus(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(tensor_ones_like, py)?)?;
     m.add_function(wrap_pyfunction!(tensor_full_like, py)?)?;
 
-    // Neural Network Layers - PyO3 bindings implemented with trait object support
-    m.add_class::<PyLinear>()?;
-    m.add_class::<PyConv2D>()?;
-    m.add_class::<PyBatchNorm2d>()?;
-    m.add_class::<PyDropout>()?;
-    m.add_class::<PyEmbedding>()?;
-    m.add_class::<PySequential>()?; // Sequential container - trait object support foundation implemented
-    m.add_class::<PyLayerNorm>()?;
-    m.add_class::<PyRNN>()?;
-    m.add_class::<PyLSTM>()?;
-    m.add_class::<PyGRU>()?;
-    m.add_class::<PyReLU>()?;
-    m.add_class::<PyGeLU>()?;
-    m.add_class::<PySiLU>()?;
-    m.add_class::<PyPReLU>()?;
-    m.add_class::<PySigmoid>()?;
-    m.add_class::<PyTanh>()?;
-    m.add_class::<PyMaxPool1d>()?;
-    m.add_class::<PyMaxPool2d>()?;
-    m.add_class::<PyAvgPool1d>()?;
-    m.add_class::<PyAvgPool2d>()?;
-    m.add_class::<PyAdaptiveAvgPool1d>()?;
-    m.add_class::<PyAdaptiveAvgPool2d>()?;
+    // Neural Network Layers - local bindings in pycoeus
+    crate::nn::register(py, m)?;
 
     // Optimizers - actually implemented ones only
     m.add_class::<Sgd>()?;
@@ -229,12 +206,28 @@ fn _coeus(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::functional::elu, m)?)?;
     m.add_function(wrap_pyfunction!(crate::functional::mse_loss, m)?)?;
     m.add_function(wrap_pyfunction!(crate::functional::cross_entropy, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::functional::nll_loss, m)?)?;
     m.add_function(wrap_pyfunction!(crate::functional::softmax, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::functional::batch_norm, m)?)?;
     m.add_function(wrap_pyfunction!(functional::max_pool2d, m)?)?;
     m.add_function(wrap_pyfunction!(functional::avg_pool2d, m)?)?;
     m.add_function(wrap_pyfunction!(functional::dropout, m)?)?;
     m.add_function(wrap_pyfunction!(functional::layer_norm, m)?)?;
     m.add_function(wrap_pyfunction!(functional::bce_with_logits_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::conv1d, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::conv2d, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::conv_transpose2d, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::conv3d, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::matmul, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::bmm, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::addmm, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::reshape, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::view, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::flatten, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::squeeze, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::unsqueeze, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::transpose, m)?)?;
+    m.add_function(wrap_pyfunction!(functional::permute, m)?)?;
     m.add_function(wrap_pyfunction!(argmax, m)?)?;
     m.add_function(wrap_pyfunction!(argmin, m)?)?;
     m.add_function(wrap_pyfunction!(cat, m)?)?;
@@ -256,6 +249,10 @@ fn _coeus(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     // FFT operations
     m.add_class::<FFT>()?;
     m.add_class::<IFFT>()?;
+    m.add_function(wrap_pyfunction!(crate::fft::fft, py)?)?;
+    m.add_function(wrap_pyfunction!(crate::fft::ifft, py)?)?;
+    m.add_function(wrap_pyfunction!(crate::fft::rfft, py)?)?;
+    m.add_function(wrap_pyfunction!(crate::fft::irfft, py)?)?;
 
     // Sparse operations
     m.add_class::<crate::sparse::PySparseCsrTensor>()?;
@@ -311,6 +308,24 @@ fn _coeus(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::linalg::cholesky, m)?)?;
     m.add_function(wrap_pyfunction!(crate::linalg::qr, m)?)?;
     m.add_function(wrap_pyfunction!(crate::linalg::svd, m)?)?;
+
+    // Signal functions
+    m.add_function(wrap_pyfunction!(crate::signal::hann_window, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::signal::hamming_window, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::signal::stft, m)?)?;
+
+    // Special functions
+    m.add_function(wrap_pyfunction!(crate::special::erf, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::special::erfc, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::special::erfinv, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::special::ndtr, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::special::gamma, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::special::lgamma, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::special::digamma, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::special::polygamma, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::special::logit, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::special::expit, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::special::sinc, m)?)?;
 
     Ok(())
 }

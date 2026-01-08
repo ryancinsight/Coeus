@@ -79,14 +79,14 @@ impl Hub {
     }
 
     /// Load a pretrained model by name and task
-    pub async fn load<M, B: Backend<Data = T>, S, T>(
+    pub async fn load<M, B, S, T>(
         &self,
         model_name: &str,
         task: ModelTask,
     ) -> Result<LoadedModel<M, B, T>>
     where
         M: Module<B, S, T>,
-        B: Backend,
+        B: Backend<Data = T>,
         S: storage::Storage<T>
             + Clone
             + 'static

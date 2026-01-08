@@ -1107,8 +1107,10 @@ mod tests {
         let mpi = create_backend(BackendType::MPI);
         let tcp = create_backend(BackendType::TCP);
 
-        // Just test that creation works
-        assert!(true);
+        assert!(matches!(nccl, CommunicationBackend::NCCL(_)));
+        assert!(matches!(gloo, CommunicationBackend::Gloo(_)));
+        assert!(matches!(mpi, CommunicationBackend::MPI(_)));
+        assert!(matches!(tcp, CommunicationBackend::TCP(_)));
     }
 
     #[test]

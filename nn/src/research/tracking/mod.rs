@@ -83,7 +83,7 @@ impl ExperimentTracker {
         key: String,
         value: serde_json::Value,
         description: Option<String>,
-    ) -> crate::error::Result<()> {
+    ) -> crate::core::error::Result<()> {
         self.hyperparameters
             .log_hyperparameter(key, value, description)
     }
@@ -93,7 +93,7 @@ impl ExperimentTracker {
         &mut self,
         name: String,
         data: CheckpointData,
-    ) -> crate::error::Result<String> {
+    ) -> crate::core::error::Result<String> {
         self.checkpoints.create_checkpoint(name, data)
     }
 
@@ -103,7 +103,7 @@ impl ExperimentTracker {
         name: String,
         artifact_type: ArtifactType,
         data: Vec<u8>,
-    ) -> crate::error::Result<String> {
+    ) -> crate::core::error::Result<String> {
         self.artifacts.store_artifact(name, artifact_type, data)
     }
 
@@ -209,7 +209,7 @@ impl ExperimentRegistry {
     }
 
     /// Complete experiment and archive it
-    pub fn complete_experiment(&self, experiment_id: String) -> crate::error::Result<()> {
+    pub fn complete_experiment(&self, experiment_id: String) -> crate::core::error::Result<()> {
         let tracker = self.experiments.write().unwrap().remove(&experiment_id);
         if let Some(tracker) = tracker {
             let summary = tracker.summary();

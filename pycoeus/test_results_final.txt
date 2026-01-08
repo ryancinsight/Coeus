@@ -1,0 +1,120 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-9.0.2, pluggy-1.6.0 -- D:\coeus\pycoeus\venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\coeus\pycoeus
+configfile: pyproject.toml
+collecting ... collected 11 items
+
+tests/test_fft_parity.py::test_fft_forward_parity PASSED                 [  9%]
+tests/test_fft_parity.py::test_fft_inverse_parity PASSED                 [ 18%]
+tests/test_nn_layers_parity.py::test_tensor_constructor_from_numpy_infers_shape PASSED [ 27%]
+tests/test_nn_layers_parity.py::test_maxpool2d_parity FAILED             [ 36%]
+tests/test_nn_layers_parity.py::test_avgpool2d_parity FAILED             [ 45%]
+tests/test_nn_layers_parity.py::test_adaptive_avgpool2d_parity FAILED    [ 54%]
+tests/test_nn_layers_parity.py::test_layernorm_parity FAILED             [ 63%]
+tests/test_nn_layers_parity.py::test_rnn_parity FAILED                   [ 72%]
+tests/test_nn_layers_parity.py::test_lstm_parity FAILED                  [ 81%]
+tests/test_nn_layers_parity.py::test_gru_parity FAILED                   [ 90%]
+tests/test_nn_layers_parity.py::test_activations_parity PASSED           [100%]
+
+================================== FAILURES ===================================
+____________________________ test_maxpool2d_parity ____________________________
+
+    def test_maxpool2d_parity():
+        input_np = np.random.randn(2, 3, 8, 8).astype(np.float32)
+        input_t = torch.from_numpy(input_np)
+        input_c = coeus.tensor(input_np)
+    
+        pool_t = torch.nn.MaxPool2d(2, stride=2)
+>       pool_c = coeus.nn.MaxPool2d(2, stride=2)
+                 ^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'coeus.nn' has no attribute 'MaxPool2d'
+
+tests\test_nn_layers_parity.py:18: AttributeError
+____________________________ test_avgpool2d_parity ____________________________
+
+    def test_avgpool2d_parity():
+        input_np = np.random.randn(2, 3, 8, 8).astype(np.float32)
+        input_t = torch.from_numpy(input_np)
+        input_c = coeus.tensor(input_np)
+    
+        pool_t = torch.nn.AvgPool2d(2, stride=2)
+>       pool_c = coeus.nn.AvgPool2d(2, stride=2)
+                 ^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'coeus.nn' has no attribute 'AvgPool2d'
+
+tests\test_nn_layers_parity.py:31: AttributeError
+_______________________ test_adaptive_avgpool2d_parity ________________________
+
+    def test_adaptive_avgpool2d_parity():
+        input_np = np.random.randn(2, 3, 8, 8).astype(np.float32)
+        input_t = torch.from_numpy(input_np)
+        input_c = coeus.tensor(input_np)
+    
+        pool_t = torch.nn.AdaptiveAvgPool2d((4, 4))
+>       pool_c = coeus.nn.AdaptiveAvgPool2d((4, 4))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'coeus.nn' has no attribute 'AdaptiveAvgPool2d'
+
+tests\test_nn_layers_parity.py:44: AttributeError
+____________________________ test_layernorm_parity ____________________________
+
+    def test_layernorm_parity():
+        input_np = np.random.randn(2, 10, 20).astype(np.float32)
+        input_t = torch.from_numpy(input_np)
+        input_c = coeus.tensor(input_np)
+    
+        norm_t = torch.nn.LayerNorm(20)
+>       norm_c = coeus.nn.LayerNorm(20)
+                 ^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'coeus.nn' has no attribute 'LayerNorm'
+
+tests\test_nn_layers_parity.py:57: AttributeError
+_______________________________ test_rnn_parity _______________________________
+
+    def test_rnn_parity():
+        input_np = np.random.randn(5, 3, 10).astype(np.float32) # (seq, batch, input)
+        input_t = torch.from_numpy(input_np)
+        input_c = coeus.tensor(input_np)
+    
+        rnn_t = torch.nn.RNN(10, 20, 1)
+>       rnn_c = coeus.nn.RNN(10, 20, 1)
+                ^^^^^^^^^^^^
+E       AttributeError: module 'coeus.nn' has no attribute 'RNN'
+
+tests\test_nn_layers_parity.py:76: AttributeError
+______________________________ test_lstm_parity _______________________________
+
+    def test_lstm_parity():
+        input_np = np.random.randn(5, 3, 10).astype(np.float32) # (seq, batch, input)
+        input_t = torch.from_numpy(input_np)
+        input_c = coeus.tensor(input_np)
+    
+        lstm_t = torch.nn.LSTM(10, 20, 1)
+>       lstm_c = coeus.nn.LSTM(10, 20, 1)
+                 ^^^^^^^^^^^^^
+E       AttributeError: module 'coeus.nn' has no attribute 'LSTM'
+
+tests\test_nn_layers_parity.py:91: AttributeError
+_______________________________ test_gru_parity _______________________________
+
+    def test_gru_parity():
+        input_np = np.random.randn(5, 3, 10).astype(np.float32) # (seq, batch, input)
+        input_t = torch.from_numpy(input_np)
+        input_c = coeus.tensor(input_np)
+    
+        gru_t = torch.nn.GRU(10, 20, 1)
+>       gru_c = coeus.nn.GRU(10, 20, 1)
+                ^^^^^^^^^^^^
+E       AttributeError: module 'coeus.nn' has no attribute 'GRU'
+
+tests\test_nn_layers_parity.py:106: AttributeError
+=========================== short test summary info ===========================
+FAILED tests/test_nn_layers_parity.py::test_maxpool2d_parity - AttributeError...
+FAILED tests/test_nn_layers_parity.py::test_avgpool2d_parity - AttributeError...
+FAILED tests/test_nn_layers_parity.py::test_adaptive_avgpool2d_parity - Attri...
+FAILED tests/test_nn_layers_parity.py::test_layernorm_parity - AttributeError...
+FAILED tests/test_nn_layers_parity.py::test_rnn_parity - AttributeError: modu...
+FAILED tests/test_nn_layers_parity.py::test_lstm_parity - AttributeError: mod...
+FAILED tests/test_nn_layers_parity.py::test_gru_parity - AttributeError: modu...
+========================= 7 failed, 4 passed in 3.32s =========================

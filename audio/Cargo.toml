@@ -15,15 +15,17 @@ rust-version = "1.70"
 [features]
 default = ["std"]
 std = []
-gpu = ["backend/gpu", "dep:wgpu"]
+gpu = ["backend/gpu", "coeus-fft/gpu", "dep:wgpu"]
+gpu_workaround = []
 
 [dependencies]
-rustfft = "6.1"
+coeus-fft = { path = "../fft" }
 tensor = { path = "../tensor" }
 dtype = { path = "../dtype" }
 backend = { path = "../backend", features = ["gpu"] }
 storage = { path = "../storage" }
 autograd = { path = "../autograd" }
+nn = { path = "../nn" }
 num-complex = { workspace = true }
 num-traits = { workspace = true }
 thiserror = { workspace = true }

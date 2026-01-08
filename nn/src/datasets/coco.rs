@@ -27,7 +27,7 @@
 use super::{
     DatasetSplit, DatasetStatistics, ImageTextPair, VisionLanguageData, VisionLanguageDataset,
 };
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use futures::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

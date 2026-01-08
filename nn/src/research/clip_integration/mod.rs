@@ -150,7 +150,7 @@ pub struct ClipResearchIntegrator {
 
 impl ClipResearchIntegrator {
     /// Create new CLIP research integrator
-    pub fn new(config: ClipResearchConfig) -> Result<Self, crate::error::NNError> {
+    pub fn new(config: ClipResearchConfig) -> Result<Self, crate::core::error::NNError> {
         Ok(Self {
             config: config.clone(),
             experiment_builder: ClipExperimentBuilder::new("default_experiment".to_string()),
@@ -208,7 +208,7 @@ impl ClipResearchIntegrator {
     /// Get best configuration from current research state
     pub fn get_best_configuration(
         &self,
-    ) -> Result<ClipTrainingConfiguration, crate::error::NNError> {
+    ) -> Result<ClipTrainingConfiguration, crate::core::error::NNError> {
         // This would query the experiment tracker for the best performing config
         Ok(ClipTrainingConfiguration::default())
     }

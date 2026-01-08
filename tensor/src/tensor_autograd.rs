@@ -172,7 +172,7 @@ where
     /// Panics if gradient shape doesn't match tensor shape
     pub fn backward(&self) -> Result<()> {
         // Create a gradient tensor filled with ones (same shape as self)
-        let grad_output = Tensor::ones(self.shape().dims())
+        let grad_output = Tensor::ones_with_backend(self.shape().dims(), self.tensor.backend().clone())
             .map_err(|e| TensorError::BackendError(format!("Failed to create gradient tensor: {e}")))?;
 
         self.backward_with_grad(&grad_output)
@@ -189,7 +189,7 @@ where
     pub fn backward_with_grad<GS>(&self, grad_output: &Tensor<B, GS, T>) -> Result<()>
     where
         GS: Storage<T> + StorageToDense<T>,
-        B: Clone + Default + 'static,
+        B: Clone + 'static,
         S: Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
         T: Clone + Copy,
     {
@@ -238,6 +238,5 @@ where
         }
     }
 }
-
 
 

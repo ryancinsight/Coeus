@@ -24,7 +24,6 @@ pub async fn request_id_middleware(request: Request, next: Next) -> Response {
             Ok(header_value) => break (request_id, header_value),
             Err(e) => {
                 tracing::error!(error = %e, request_id = %request_id, "Invalid request id header value");
-                continue;
             }
         }
     };
@@ -60,7 +59,7 @@ pub async fn metrics_middleware(request: Request, next: Next) -> Response {
 
 /// Rate limiting middleware
 pub fn rate_limit_middleware(
-    state: Arc<RwLock<HashMap<String, RateLimitInfo>>>,
+    state: Arc<RwLock<HashMap<String, RateLimitInfo, std::collections::hash_map::RandomState>>>,
     requests_per_minute: u32,
 ) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
        + Clone
@@ -115,7 +114,7 @@ pub fn rate_limit_middleware(
 
 /// Authentication middleware (basic token-based auth)
 pub async fn auth_middleware(
-    valid_tokens: Arc<HashMap<String, String>>,
+    valid_tokens: Arc<HashMap<String, String, std::collections::hash_map::RandomState>>,
     request: Request,
     next: Next,
 ) -> Response {
@@ -124,10 +123,7 @@ pub async fn auth_middleware(
 
     if let Some(auth_value) = auth_header {
         if let Ok(auth_str) = auth_value.to_str() {
-            if auth_str.starts_with("Bearer ") {
-                let token = &auth_str[7..]; // Remove "Bearer " prefix
-
-                // Check if token is valid
+            if let Some(token) = auth_str.strip_prefix("Bearer ") {
                 if valid_tokens.contains_key(token) {
                     return next.run(request).await;
                 }
@@ -181,6 +177,7 @@ pub async fn logging_middleware(request: Request, next: Next) -> Response {
 }
 
 /// CORS preflight handler
+#[must_use]
 pub fn cors_preflight_handler() -> impl IntoResponse {
     (
         StatusCode::OK,
@@ -300,10 +297,7 @@ pub async fn request_size_limit_middleware(
             if size > max_size_bytes {
                 return (
                     StatusCode::PAYLOAD_TOO_LARGE,
-                    format!(
-                        "Request size {} bytes exceeds limit of {} bytes",
-                        size, max_size_bytes
-                    ),
+                    format!("Request size {size} bytes exceeds limit of {max_size_bytes} bytes"),
                 )
                     .into_response();
             }

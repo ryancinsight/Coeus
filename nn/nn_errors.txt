@@ -1,0 +1,3270 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Checking nn v0.2.0 (D:\coeus\nn)
+error[E0761]: file for module `dropout` found at both "nn\src\modules\regularization\dropout.rs" and "nn\src\modules\regularization\dropout\mod.rs"
+ --> nn\src\modules\regularization\mod.rs:1:1
+  |
+1 | pub mod dropout;
+  | ^^^^^^^^^^^^^^^^
+  |
+  = help: delete or rename one of them to remove the ambiguity
+
+error[E0583]: file not found for module `activation`
+ --> nn\src\functional\mod.rs:1:1
+  |
+1 | pub mod activation;
+  | ^^^^^^^^^^^^^^^^^^^
+  |
+  = help: to create the module `activation`, create file "nn\src\functional\activation.rs" or "nn\src\functional\activation\mod.rs"
+  = note: if there is a `mod activation` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0761]: file for module `loss` found at both "nn\src\functional\loss.rs" and "nn\src\functional\loss\mod.rs"
+ --> nn\src\functional\mod.rs:5:1
+  |
+5 | pub mod loss;
+  | ^^^^^^^^^^^^^
+  |
+  = help: delete or rename one of them to remove the ambiguity
+
+error[E0432]: unresolved import `crate::functional_api::activations`
+ --> nn\src\modules\activation\gelu.rs:8:28
+  |
+8 | use crate::functional_api::activations::tanh as functional_tanh;
+  |                            ^^^^^^^^^^^ could not find `activations` in `functional_api`
+
+error[E0432]: unresolved import `crate::linear`
+ --> nn\src\modules\linear\sparse.rs:7:12
+  |
+7 | use crate::linear::Linear;
+  |            ^^^^^^
+  |            |
+  |            unresolved import
+  |            help: a similar path exists: `functional::linear`
+
+error[E0432]: unresolved import `super::utils`
+  --> nn\src\modules\attention\multihead.rs:18:12
+   |
+18 | use super::utils::{AttentionDispatch, DenseAttention};
+   |            ^^^^^ could not find `utils` in `super`
+
+error[E0432]: unresolved import `crate::activation`
+ --> nn\src\modules\attention\cross_modal.rs:6:12
+  |
+6 | use crate::activation::GeLU;
+  |            ^^^^^^^^^^
+  |            |
+  |            unresolved import
+  |            help: a similar path exists: `functional::activation`
+
+error[E0432]: unresolved import `crate::linear`
+  --> nn\src\modules\attention\cross_modal.rs:10:12
+   |
+10 | use crate::linear::Linear;
+   |            ^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `functional::linear`
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\rnn\gru_module.rs:13:12
+   |
+13 | use crate::rnn::gru_core::GRU;
+   |            ^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `modules::rnn`
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\rnn\gru_module.rs:14:12
+   |
+14 | use crate::rnn::gru_forward::GRUForward;
+   |            ^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `modules::rnn`
+
+error[E0432]: unresolved import `crate::functional_loss`
+  --> nn\src\modules\loss\bce.rs:11:12
+   |
+11 | use crate::functional_loss::bce_with_logits_loss;
+   |            ^^^^^^^^^^^^^^^ could not find `functional_loss` in the crate root
+
+error[E0432]: unresolved import `crate::ModuleSerialize`
+ --> nn\src\training\checkpointing\mod.rs:8:13
+  |
+8 | use crate::{ModuleSerialize, Sequential};
+  |             ^^^^^^^^^^^^^^^ no `ModuleSerialize` in the root
+
+error[E0433]: failed to resolve: could not find `clip` in the crate root
+  --> nn\src\research\clip_integration\experiment_builder.rs:11:12
+   |
+11 | use crate::clip::enhanced_trainer::{EnhancedClipTrainer, EnhancedClipTrainingConfig};
+   |            ^^^^ could not find `clip` in the crate root
+   |
+note: found an item that was configured out
+  --> nn\src\lib.rs:71:9
+   |
+70 | #[cfg(feature = "clip")]
+   |       ---------------- the item is gated behind the `clip` feature
+71 | pub mod clip;
+   |         ^^^^
+
+error[E0432]: unresolved import `crate::linear`
+  --> nn\src\research\meta_agents.rs:10:12
+   |
+10 | use crate::linear::Linear;
+   |            ^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `functional::linear`
+
+error[E0432]: unresolved import `crate::linear`
+   --> nn\src\io\onnx.rs:865:20
+    |
+865 |         use crate::linear::Linear;
+    |                    ^^^^^^
+    |                    |
+    |                    unresolved import
+    |                    help: a similar path exists: `functional::linear`
+
+error[E0432]: unresolved import `crate::modules::pooling::AdaptiveMaxPool1d`
+  --> nn\src\lib.rs:38:43
+   |
+38 |     AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveMaxPool1d, AdaptiveMaxPool2d,
+   |                                           ^^^^^^^^^^^^^^^^^
+   |                                           |
+   |                                           no `AdaptiveMaxPool1d` in `modules::pooling`
+   |                                           help: a similar name exists in the module: `AdaptiveMaxPool2d`
+
+error[E0432]: unresolved import `crate::modules::attention::SparseAttention`
+  --> nn\src\lib.rs:41:57
+   |
+41 | pub use crate::modules::attention::{MultiHeadAttention, SparseAttention};
+   |                                                         ^^^^^^^^^^^^^^^ no `SparseAttention` in `modules::attention`
+
+error[E0432]: unresolved import `crate::functional_api::activation`
+  --> nn\src\lib.rs:59:13
+   |
+59 |     pub use crate::functional_api::activation as activation;
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `activation` in `functional_api`
+   |
+help: consider importing one of these modules instead
+   |
+59 -     pub use crate::functional_api::activation as activation;
+59 +     pub use crate::functional::activation;
+   |
+59 -     pub use crate::functional_api::activation as activation;
+59 +     pub use crate::modules::activation;
+   |
+
+error[E0432]: unresolved import `crate::functional_api::convolution`
+  --> nn\src\lib.rs:60:13
+   |
+60 |     pub use crate::functional_api::convolution as convolution;
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `convolution` in `functional_api`
+   |
+help: consider importing one of these modules instead
+   |
+60 -     pub use crate::functional_api::convolution as convolution;
+60 +     pub use crate::functional::convolution;
+   |
+60 -     pub use crate::functional_api::convolution as convolution;
+60 +     pub use crate::modules::convolution;
+   |
+
+error[E0432]: unresolved import `crate::functional_api::normalization`
+  --> nn\src\lib.rs:61:13
+   |
+61 |     pub use crate::functional_api::normalization as normalization;
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `normalization` in `functional_api`
+   |
+help: consider importing one of these modules instead
+   |
+61 -     pub use crate::functional_api::normalization as normalization;
+61 +     pub use crate::functional::normalization;
+   |
+61 -     pub use crate::functional_api::normalization as normalization;
+61 +     pub use crate::functional::ops::normalization;
+   |
+61 -     pub use crate::functional_api::normalization as normalization;
+61 +     pub use crate::modules::normalization;
+   |
+
+error[E0432]: unresolved import `crate::functional_api::pooling`
+  --> nn\src\lib.rs:62:13
+   |
+62 |     pub use crate::functional_api::pooling as pooling;
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `pooling` in `functional_api`
+   |
+help: consider importing one of these modules instead
+   |
+62 -     pub use crate::functional_api::pooling as pooling;
+62 +     pub use crate::functional::ops::pooling;
+   |
+62 -     pub use crate::functional_api::pooling as pooling;
+62 +     pub use crate::functional::pooling;
+   |
+62 -     pub use crate::functional_api::pooling as pooling;
+62 +     pub use crate::modules::pooling;
+   |
+
+error[E0432]: unresolved import `crate::functional_api::loss`
+  --> nn\src\lib.rs:63:13
+   |
+63 |     pub use crate::functional_api::loss as loss;
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `loss` in `functional_api`
+   |
+help: consider importing one of these modules instead
+   |
+63 -     pub use crate::functional_api::loss as loss;
+63 +     pub use crate::functional::loss;
+   |
+63 -     pub use crate::functional_api::loss as loss;
+63 +     pub use crate::functional::ops::loss;
+   |
+63 -     pub use crate::functional_api::loss as loss;
+63 +     pub use crate::modules::loss;
+   |
+63 -     pub use crate::functional_api::loss as loss;
+63 +     pub use autograd::loss;
+   |
+
+error[E0432]: unresolved import `crate::functional_api::attention`
+  --> nn\src\lib.rs:64:13
+   |
+64 |     pub use crate::functional_api::attention as attention;
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `attention` in `functional_api`
+   |
+help: consider importing one of these modules instead
+   |
+64 -     pub use crate::functional_api::attention as attention;
+64 +     pub use crate::functional::attention;
+   |
+64 -     pub use crate::functional_api::attention as attention;
+64 +     pub use crate::functional::ops::attention;
+   |
+64 -     pub use crate::functional_api::attention as attention;
+64 +     pub use crate::modules::attention;
+   |
+64 -     pub use crate::functional_api::attention as attention;
+64 +     pub use crate::multimodal::attention;
+   |
+
+error[E0432]: unresolved import `crate::functional_api::linear`
+  --> nn\src\lib.rs:65:13
+   |
+65 |     pub use crate::functional_api::linear as linear;
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `linear` in `functional_api`
+   |
+help: consider importing one of these modules instead
+   |
+65 -     pub use crate::functional_api::linear as linear;
+65 +     pub use crate::functional::linear;
+   |
+65 -     pub use crate::functional_api::linear as linear;
+65 +     pub use crate::functional::ops::linear;
+   |
+65 -     pub use crate::functional_api::linear as linear;
+65 +     pub use crate::modules::linear;
+   |
+
+error[E0432]: unresolved import `crate::linear`
+  --> nn\src\multimodal\attention.rs:12:12
+   |
+12 | use crate::linear::Linear;
+   |            ^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `functional::linear`
+
+error[E0432]: unresolved import `crate::linear`
+  --> nn\src\multimodal\encoder.rs:10:12
+   |
+10 | use crate::linear::Linear;
+   |            ^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `functional::linear`
+
+error[E0432]: unresolved import `crate::activation`
+ --> nn\src\multimodal\fusion.rs:8:12
+  |
+8 | use crate::activation::GeLU;
+  |            ^^^^^^^^^^
+  |            |
+  |            unresolved import
+  |            help: a similar path exists: `functional::activation`
+
+error[E0432]: unresolved import `crate::linear`
+  --> nn\src\multimodal\fusion.rs:13:12
+   |
+13 | use crate::linear::Linear;
+   |            ^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `functional::linear`
+
+error[E0432]: unresolved import `crate::linear`
+ --> nn\src\multimodal\task.rs:6:12
+  |
+6 | use crate::linear::Linear;
+  |            ^^^^^^
+  |            |
+  |            unresolved import
+  |            help: a similar path exists: `functional::linear`
+
+error[E0432]: unresolved import `crate::activation`
+  --> nn\src\multimodal\transformer.rs:11:12
+   |
+11 | use crate::activation::GeLU;
+   |            ^^^^^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `functional::activation`
+
+error[E0432]: unresolved import `crate::linear`
+  --> nn\src\multimodal\transformer.rs:16:12
+   |
+16 | use crate::linear::Linear;
+   |            ^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `functional::linear`
+
+error[E0433]: failed to resolve: could not find `clip` in the crate root
+   --> nn\src\research\clip_integration\experiment_builder.rs:179:48
+    |
+179 |         let data_loader: fn() -> Option<crate::clip::enhanced_trainer::ClipBatch> = || None; // Placeholder - no data
+    |                                                ^^^^ could not find `clip` in the crate root
+    |
+note: found an item that was configured out
+   --> nn\src\lib.rs:71:9
+    |
+ 70 | #[cfg(feature = "clip")]
+    |       ---------------- the item is gated behind the `clip` feature
+ 71 | pub mod clip;
+    |         ^^^^
+
+error[E0433]: failed to resolve: could not find `clip` in the crate root
+   --> nn\src\research\clip_integration\experiment_builder.rs:206:33
+    |
+206 |     pub training_result: crate::clip::enhanced_trainer::EnhancedTrainingReport,
+    |                                 ^^^^ could not find `clip` in the crate root
+    |
+note: found an item that was configured out
+   --> nn\src\lib.rs:71:9
+    |
+ 70 | #[cfg(feature = "clip")]
+    |       ---------------- the item is gated behind the `clip` feature
+ 71 | pub mod clip;
+    |         ^^^^
+
+error[E0433]: failed to resolve: could not find `clip` in the crate root
+  --> nn\src\research\clip_integration\mod.rs:36:38
+   |
+36 |     pub base_training_config: crate::clip::enhanced_trainer::EnhancedClipTrainingConfig,
+   |                                      ^^^^ could not find `clip` in the crate root
+   |
+note: found an item that was configured out
+  --> nn\src\lib.rs:71:9
+   |
+70 | #[cfg(feature = "clip")]
+   |       ---------------- the item is gated behind the `clip` feature
+71 | pub mod clip;
+   |         ^^^^
+
+error[E0433]: failed to resolve: could not find `evaluation` in the crate root
+   --> nn\src\research\clip_integration\mod.rs:175:37
+    |
+175 |         _datasets: &[Box<dyn crate::evaluation::EvaluationDataset>],
+    |                                     ^^^^^^^^^^ could not find `evaluation` in the crate root
+    |
+note: found an item that was configured out
+   --> nn\src\lib.rs:75:9
+    |
+ 74 | #[cfg(feature = "clip")]
+    |       ---------------- the item is gated behind the `clip` feature
+ 75 | pub mod evaluation;
+    |         ^^^^^^^^^^
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\multimodal\encoder.rs:148:36
+    |
+148 |         let dropout_layer = crate::dropout::Dropout::new(dropout);
+    |                                    ^^^^^^^ unresolved import
+    |
+help: there is an enum variant `crate::nas::search_space::LayerSpec::Dropout`; try using the variant's enum
+    |
+148 -         let dropout_layer = crate::dropout::Dropout::new(dropout);
+148 +         let dropout_layer = crate::nas::search_space::LayerSpec::new(dropout);
+    |
+help: a similar path exists
+    |
+148 |         let dropout_layer = crate::modules::regularization::dropout::Dropout::new(dropout);
+    |                                    +++++++++++++++++++++++++
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\core\init.rs:425:27
+    |
+425 |         return Err(crate::error::NNError::InvalidInput {
+    |                           ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+425 |         return Err(crate::autograd::error::NNError::InvalidInput {
+    |                           ++++++++++
+help: consider importing this enum through its public re-export
+    |
+ 31 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+425 -         return Err(crate::error::NNError::InvalidInput {
+425 +         return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\activation\gelu.rs:112:40
+    |
+112 |     fn parameters(&self) -> Vec<crate::parameter::Parameter<B, S, T>> {
+    |                                        ^^^^^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+112 |     fn parameters(&self) -> Vec<crate::core::parameter::Parameter<B, S, T>> {
+    |                                        ++++++
+help: consider importing this module
+    |
+  1 + use crate::core::parameter;
+    |
+help: if you import `parameter`, refer to it directly
+    |
+112 -     fn parameters(&self) -> Vec<crate::parameter::Parameter<B, S, T>> {
+112 +     fn parameters(&self) -> Vec<parameter::Parameter<B, S, T>> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\activation\relu.rs:68:40
+   |
+68 |     fn parameters(&self) -> Vec<crate::parameter::Parameter<B, S, T>> {
+   |                                        ^^^^^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+68 |     fn parameters(&self) -> Vec<crate::core::parameter::Parameter<B, S, T>> {
+   |                                        ++++++
+help: consider importing this module
+   |
+ 1 + use crate::core::parameter;
+   |
+help: if you import `parameter`, refer to it directly
+   |
+68 -     fn parameters(&self) -> Vec<crate::parameter::Parameter<B, S, T>> {
+68 +     fn parameters(&self) -> Vec<parameter::Parameter<B, S, T>> {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\activation\silu.rs:77:40
+   |
+77 |     fn parameters(&self) -> Vec<crate::parameter::Parameter<B, S, T>> {
+   |                                        ^^^^^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+77 |     fn parameters(&self) -> Vec<crate::core::parameter::Parameter<B, S, T>> {
+   |                                        ++++++
+help: consider importing this module
+   |
+ 1 + use crate::core::parameter;
+   |
+help: if you import `parameter`, refer to it directly
+   |
+77 -     fn parameters(&self) -> Vec<crate::parameter::Parameter<B, S, T>> {
+77 +     fn parameters(&self) -> Vec<parameter::Parameter<B, S, T>> {
+   |
+
+error[E0425]: cannot find function `conv_transpose_2d` in module `crate::functional_api`
+   --> nn\src\modules\convolution\conv2d\mod.rs:442:53
+    |
+442 |         let input_grad_cpu = crate::functional_api::conv_transpose_2d(
+    |                                                     ^^^^^^^^^^^^^^^^^ not found in `crate::functional_api`
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\linear\dense.rs:80:31
+   |
+80 |             return Err(crate::error::NNError::InvalidInput {
+   |                               ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+80 |             return Err(crate::autograd::error::NNError::InvalidInput {
+   |                               ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 3 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+80 -             return Err(crate::error::NNError::InvalidInput {
+80 +             return Err(NNError::InvalidInput {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\linear\dense.rs:85:31
+   |
+85 |             return Err(crate::error::NNError::InvalidInput {
+   |                               ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+85 |             return Err(crate::autograd::error::NNError::InvalidInput {
+   |                               ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 3 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+85 -             return Err(crate::error::NNError::InvalidInput {
+85 +             return Err(NNError::InvalidInput {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\linear\dense.rs:182:31
+    |
+182 |             return Err(crate::error::NNError::InvalidInput {
+    |                               ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+182 |             return Err(crate::autograd::error::NNError::InvalidInput {
+    |                               ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  3 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+182 -             return Err(crate::error::NNError::InvalidInput {
+182 +             return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\linear\dense.rs:187:31
+    |
+187 |             return Err(crate::error::NNError::InvalidInput {
+    |                               ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+187 |             return Err(crate::autograd::error::NNError::InvalidInput {
+    |                               ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  3 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+187 -             return Err(crate::error::NNError::InvalidInput {
+187 +             return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\linear\dense.rs:192:31
+    |
+192 |             return Err(crate::error::NNError::InvalidInput {
+    |                               ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+192 |             return Err(crate::autograd::error::NNError::InvalidInput {
+    |                               ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  3 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+192 -             return Err(crate::error::NNError::InvalidInput {
+192 +             return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\linear\dense.rs:346:31
+    |
+346 |             return Err(crate::error::NNError::InvalidInput {
+    |                               ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+346 |             return Err(crate::autograd::error::NNError::InvalidInput {
+    |                               ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  3 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+346 -             return Err(crate::error::NNError::InvalidInput {
+346 +             return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\linear\dense.rs:356:31
+    |
+356 |             return Err(crate::error::NNError::InvalidInput {
+    |                               ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+356 |             return Err(crate::autograd::error::NNError::InvalidInput {
+    |                               ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  3 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+356 -             return Err(crate::error::NNError::InvalidInput {
+356 +             return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\normalization\group.rs:110:31
+    |
+110 |             return Err(crate::error::NNError::InvalidConfiguration {
+    |                               ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+110 |             return Err(crate::autograd::error::NNError::InvalidConfiguration {
+    |                               ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  6 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+110 -             return Err(crate::error::NNError::InvalidConfiguration {
+110 +             return Err(NNError::InvalidConfiguration {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\rnn\rnn.rs:128:31
+    |
+128 |             return Err(crate::error::NNError::InvalidInput {
+    |                               ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+128 |             return Err(crate::autograd::error::NNError::InvalidInput {
+    |                               ++++++++++
+help: consider importing this enum through its public re-export
+    |
+ 10 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+128 -             return Err(crate::error::NNError::InvalidInput {
+128 +             return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\rnn\rnn.rs:133:31
+    |
+133 |             return Err(crate::error::NNError::InvalidInput {
+    |                               ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+133 |             return Err(crate::autograd::error::NNError::InvalidInput {
+    |                               ++++++++++
+help: consider importing this enum through its public re-export
+    |
+ 10 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+133 -             return Err(crate::error::NNError::InvalidInput {
+133 +             return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\rnn\rnn.rs:138:31
+    |
+138 |             return Err(crate::error::NNError::InvalidInput {
+    |                               ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+138 |             return Err(crate::autograd::error::NNError::InvalidInput {
+    |                               ++++++++++
+help: consider importing this enum through its public re-export
+    |
+ 10 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+138 -             return Err(crate::error::NNError::InvalidInput {
+138 +             return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\rnn\rnn.rs:262:31
+    |
+262 |             return Err(crate::error::NNError::InvalidInput {
+    |                               ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+262 |             return Err(crate::autograd::error::NNError::InvalidInput {
+    |                               ++++++++++
+help: consider importing this enum through its public re-export
+    |
+ 10 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+262 -             return Err(crate::error::NNError::InvalidInput {
+262 +             return Err(NNError::InvalidInput {
+    |
+
+error[E0425]: cannot find function `tanh` in module `crate::functional_api`
+   --> nn\src\modules\rnn\rnn.rs:555:53
+    |
+555 |             current_hidden = crate::functional_api::tanh(&combined)?;
+    |                                                     ^^^^ not found in `crate::functional_api`
+    |
+help: consider importing one of these functions
+    |
+ 10 + use crate::functional::ops::activations::tanh;
+    |
+ 10 + use tensor::ops::arithmetic::tanh;
+    |
+help: if you import `tanh`, refer to it directly
+    |
+555 -             current_hidden = crate::functional_api::tanh(&combined)?;
+555 +             current_hidden = tanh(&combined)?;
+    |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\rnn\lstm.rs:84:31
+   |
+84 |             return Err(crate::error::NNError::InvalidInput {
+   |                               ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+84 |             return Err(crate::autograd::error::NNError::InvalidInput {
+   |                               ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 6 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+84 -             return Err(crate::error::NNError::InvalidInput {
+84 +             return Err(NNError::InvalidInput {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\rnn\lstm.rs:89:31
+   |
+89 |             return Err(crate::error::NNError::InvalidInput {
+   |                               ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+89 |             return Err(crate::autograd::error::NNError::InvalidInput {
+   |                               ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 6 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+89 -             return Err(crate::error::NNError::InvalidInput {
+89 +             return Err(NNError::InvalidInput {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\rnn\lstm.rs:94:31
+   |
+94 |             return Err(crate::error::NNError::InvalidInput {
+   |                               ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+94 |             return Err(crate::autograd::error::NNError::InvalidInput {
+   |                               ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 6 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+94 -             return Err(crate::error::NNError::InvalidInput {
+94 +             return Err(NNError::InvalidInput {
+   |
+
+error[E0425]: cannot find function `sigmoid` in module `crate::functional_api`
+   --> nn\src\modules\rnn\lstm.rs:412:54
+    |
+412 |             let i_activated = crate::functional_api::sigmoid(&i_gate)?;
+    |                                                      ^^^^^^^ not found in `crate::functional_api`
+    |
+help: consider importing this function
+    |
+  6 + use crate::functional::ops::activations::sigmoid;
+    |
+help: if you import `sigmoid`, refer to it directly
+    |
+412 -             let i_activated = crate::functional_api::sigmoid(&i_gate)?;
+412 +             let i_activated = sigmoid(&i_gate)?;
+    |
+
+error[E0425]: cannot find function `sigmoid` in module `crate::functional_api`
+   --> nn\src\modules\rnn\lstm.rs:413:54
+    |
+413 |             let f_activated = crate::functional_api::sigmoid(&f_gate)?;
+    |                                                      ^^^^^^^ not found in `crate::functional_api`
+    |
+help: consider importing this function
+    |
+  6 + use crate::functional::ops::activations::sigmoid;
+    |
+help: if you import `sigmoid`, refer to it directly
+    |
+413 -             let f_activated = crate::functional_api::sigmoid(&f_gate)?;
+413 +             let f_activated = sigmoid(&f_gate)?;
+    |
+
+error[E0425]: cannot find function `tanh` in module `crate::functional_api`
+   --> nn\src\modules\rnn\lstm.rs:414:54
+    |
+414 |             let g_activated = crate::functional_api::tanh(&g_gate)?;
+    |                                                      ^^^^ not found in `crate::functional_api`
+    |
+help: consider importing one of these functions
+    |
+  6 + use crate::functional::ops::activations::tanh;
+    |
+  6 + use tensor::ops::arithmetic::tanh;
+    |
+help: if you import `tanh`, refer to it directly
+    |
+414 -             let g_activated = crate::functional_api::tanh(&g_gate)?;
+414 +             let g_activated = tanh(&g_gate)?;
+    |
+
+error[E0425]: cannot find function `sigmoid` in module `crate::functional_api`
+   --> nn\src\modules\rnn\lstm.rs:415:54
+    |
+415 |             let o_activated = crate::functional_api::sigmoid(&o_gate)?;
+    |                                                      ^^^^^^^ not found in `crate::functional_api`
+    |
+help: consider importing this function
+    |
+  6 + use crate::functional::ops::activations::sigmoid;
+    |
+help: if you import `sigmoid`, refer to it directly
+    |
+415 -             let o_activated = crate::functional_api::sigmoid(&o_gate)?;
+415 +             let o_activated = sigmoid(&o_gate)?;
+    |
+
+error[E0425]: cannot find function `tanh` in module `crate::functional_api`
+   --> nn\src\modules\rnn\lstm.rs:423:49
+    |
+423 |             let tanh_c = crate::functional_api::tanh(&current_cell)?;
+    |                                                 ^^^^ not found in `crate::functional_api`
+    |
+help: consider importing one of these functions
+    |
+  6 + use crate::functional::ops::activations::tanh;
+    |
+  6 + use tensor::ops::arithmetic::tanh;
+    |
+help: if you import `tanh`, refer to it directly
+    |
+423 -             let tanh_c = crate::functional_api::tanh(&current_cell)?;
+423 +             let tanh_c = tanh(&current_cell)?;
+    |
+
+error[E0425]: cannot find function `sigmoid` in module `crate::functional_api`
+  --> nn\src\modules\rnn\gru_module.rs:87:44
+   |
+87 |             let r = crate::functional_api::sigmoid(&add(&r_ih, &r_hh)?)?;
+   |                                            ^^^^^^^ not found in `crate::functional_api`
+   |
+help: consider importing this function
+   |
+ 5 + use crate::functional::ops::activations::sigmoid;
+   |
+help: if you import `sigmoid`, refer to it directly
+   |
+87 -             let r = crate::functional_api::sigmoid(&add(&r_ih, &r_hh)?)?;
+87 +             let r = sigmoid(&add(&r_ih, &r_hh)?)?;
+   |
+
+error[E0425]: cannot find function `sigmoid` in module `crate::functional_api`
+  --> nn\src\modules\rnn\gru_module.rs:88:44
+   |
+88 |             let z = crate::functional_api::sigmoid(&add(&z_ih, &z_hh)?)?;
+   |                                            ^^^^^^^ not found in `crate::functional_api`
+   |
+help: consider importing this function
+   |
+ 5 + use crate::functional::ops::activations::sigmoid;
+   |
+help: if you import `sigmoid`, refer to it directly
+   |
+88 -             let z = crate::functional_api::sigmoid(&add(&z_ih, &z_hh)?)?;
+88 +             let z = sigmoid(&add(&z_ih, &z_hh)?)?;
+   |
+
+error[E0425]: cannot find function `tanh` in module `crate::functional_api`
+  --> nn\src\modules\rnn\gru_module.rs:89:44
+   |
+89 |             let n = crate::functional_api::tanh(&add(&n_ih, &mul(&r, &n_hh)?)?)?;
+   |                                            ^^^^ not found in `crate::functional_api`
+   |
+help: consider importing one of these functions
+   |
+ 5 + use crate::functional::ops::activations::tanh;
+   |
+ 5 + use tensor::ops::arithmetic::tanh;
+   |
+help: if you import `tanh`, refer to it directly
+   |
+89 -             let n = crate::functional_api::tanh(&add(&n_ih, &mul(&r, &n_hh)?)?)?;
+89 +             let n = tanh(&add(&n_ih, &mul(&r, &n_hh)?)?)?;
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\rnn\gru_core.rs:80:31
+   |
+80 |             return Err(crate::error::NNError::InvalidInput {
+   |                               ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+80 |             return Err(crate::autograd::error::NNError::InvalidInput {
+   |                               ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 5 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+80 -             return Err(crate::error::NNError::InvalidInput {
+80 +             return Err(NNError::InvalidInput {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\rnn\gru_core.rs:85:31
+   |
+85 |             return Err(crate::error::NNError::InvalidInput {
+   |                               ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+85 |             return Err(crate::autograd::error::NNError::InvalidInput {
+   |                               ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 5 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+85 -             return Err(crate::error::NNError::InvalidInput {
+85 +             return Err(NNError::InvalidInput {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\modules\rnn\gru_core.rs:90:31
+   |
+90 |             return Err(crate::error::NNError::InvalidInput {
+   |                               ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+90 |             return Err(crate::autograd::error::NNError::InvalidInput {
+   |                               ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 5 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+90 -             return Err(crate::error::NNError::InvalidInput {
+90 +             return Err(NNError::InvalidInput {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\vision\upsample\mod.rs:227:64
+    |
+227 |                     InterpolationMode::Trilinear => Err(crate::error::NNError::InvalidInput {
+    |                                                                ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+227 |                     InterpolationMode::Trilinear => Err(crate::autograd::error::NNError::InvalidInput {
+    |                                                                ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  3 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+227 -                     InterpolationMode::Trilinear => Err(crate::error::NNError::InvalidInput {
+227 +                     InterpolationMode::Trilinear => Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\modules\vision\upsample\mod.rs:234:29
+    |
+234 |             _ => Err(crate::error::NNError::InvalidInput {
+    |                             ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+234 |             _ => Err(crate::autograd::error::NNError::InvalidInput {
+    |                             ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  3 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+234 -             _ => Err(crate::error::NNError::InvalidInput {
+234 +             _ => Err(NNError::InvalidInput {
+    |
+
+error[E0425]: cannot find function `cross_entropy` in module `crate::functional_api`
+   --> nn\src\modules\loss\cross_entropy.rs:102:28
+    |
+102 |     crate::functional_api::cross_entropy(logits, targets)
+    |                            ^^^^^^^^^^^^^ not found in `crate::functional_api`
+    |
+help: consider importing this function
+    |
+  5 + use crate::functional::ops::loss::cross_entropy;
+    |
+help: if you import `cross_entropy`, refer to it directly
+    |
+102 -     crate::functional_api::cross_entropy(logits, targets)
+102 +     cross_entropy(logits, targets)
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\workflow.rs:792:62
+    |
+792 |     pub fn load_from_yaml<P: AsRef<Path>>(path: P) -> crate::error::Result<ResearchWorkflow> {
+    |                                                              ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+792 |     pub fn load_from_yaml<P: AsRef<Path>>(path: P) -> crate::autograd::error::Result<ResearchWorkflow> {
+    |                                                              ++++++++++
+help: consider importing one of these modules
+    |
+  6 + use crate::core::error;
+    |
+  6 + use autograd::error;
+    |
+  6 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+792 -     pub fn load_from_yaml<P: AsRef<Path>>(path: P) -> crate::error::Result<ResearchWorkflow> {
+792 +     pub fn load_from_yaml<P: AsRef<Path>>(path: P) -> error::Result<ResearchWorkflow> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\workflow.rs:795:20
+    |
+795 |             crate::error::NNError::InvalidConfiguration {
+    |                    ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+795 |             crate::autograd::error::NNError::InvalidConfiguration {
+    |                    ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  6 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+795 -             crate::error::NNError::InvalidConfiguration {
+795 +             NNError::InvalidConfiguration {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\workflow.rs:804:62
+    |
+804 |     pub fn load_from_json<P: AsRef<Path>>(path: P) -> crate::error::Result<ResearchWorkflow> {
+    |                                                              ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+804 |     pub fn load_from_json<P: AsRef<Path>>(path: P) -> crate::autograd::error::Result<ResearchWorkflow> {
+    |                                                              ++++++++++
+help: consider importing one of these modules
+    |
+  6 + use crate::core::error;
+    |
+  6 + use autograd::error;
+    |
+  6 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+804 -     pub fn load_from_json<P: AsRef<Path>>(path: P) -> crate::error::Result<ResearchWorkflow> {
+804 +     pub fn load_from_json<P: AsRef<Path>>(path: P) -> error::Result<ResearchWorkflow> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\workflow.rs:807:20
+    |
+807 |             crate::error::NNError::InvalidConfiguration {
+    |                    ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+807 |             crate::autograd::error::NNError::InvalidConfiguration {
+    |                    ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  6 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+807 -             crate::error::NNError::InvalidConfiguration {
+807 +             NNError::InvalidConfiguration {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\workflow.rs:816:59
+    |
+816 |     pub fn spec_to_workflow(spec: WorkflowSpec) -> crate::error::Result<ResearchWorkflow> {
+    |                                                           ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+816 |     pub fn spec_to_workflow(spec: WorkflowSpec) -> crate::autograd::error::Result<ResearchWorkflow> {
+    |                                                           ++++++++++
+help: consider importing one of these modules
+    |
+  6 + use crate::core::error;
+    |
+  6 + use autograd::error;
+    |
+  6 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+816 -     pub fn spec_to_workflow(spec: WorkflowSpec) -> crate::error::Result<ResearchWorkflow> {
+816 +     pub fn spec_to_workflow(spec: WorkflowSpec) -> error::Result<ResearchWorkflow> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\workflow.rs:855:17
+    |
+855 |     ) -> crate::error::Result<()> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+855 |     ) -> crate::autograd::error::Result<()> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+  6 + use crate::core::error;
+    |
+  6 + use autograd::error;
+    |
+  6 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+855 -     ) -> crate::error::Result<()> {
+855 +     ) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\workflow.rs:858:61
+    |
+858 |             serde_yaml::to_string(&spec).map_err(|e| crate::error::NNError::ExecutionError {
+    |                                                             ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+858 |             serde_yaml::to_string(&spec).map_err(|e| crate::autograd::error::NNError::ExecutionError {
+    |                                                             ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  6 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+858 -             serde_yaml::to_string(&spec).map_err(|e| crate::error::NNError::ExecutionError {
+858 +             serde_yaml::to_string(&spec).map_err(|e| NNError::ExecutionError {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\workflow.rs:866:68
+    |
+866 |     pub fn workflow_to_spec(workflow: &ResearchWorkflow) -> crate::error::Result<WorkflowSpec> {
+    |                                                                    ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+866 |     pub fn workflow_to_spec(workflow: &ResearchWorkflow) -> crate::autograd::error::Result<WorkflowSpec> {
+    |                                                                    ++++++++++
+help: consider importing one of these modules
+    |
+  6 + use crate::core::error;
+    |
+  6 + use autograd::error;
+    |
+  6 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+866 -     pub fn workflow_to_spec(workflow: &ResearchWorkflow) -> crate::error::Result<WorkflowSpec> {
+866 +     pub fn workflow_to_spec(workflow: &ResearchWorkflow) -> error::Result<WorkflowSpec> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\research\metrics\mod.rs:55:51
+   |
+55 |     pub fn apply(&self, values: &[f64]) -> crate::error::Result<f64> {
+   |                                                   ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+55 |     pub fn apply(&self, values: &[f64]) -> crate::autograd::error::Result<f64> {
+   |                                                   ++++++++++
+help: consider importing one of these modules
+   |
+ 8 + use crate::core::error;
+   |
+ 8 + use autograd::error;
+   |
+ 8 + use serde_json::error;
+   |
+help: if you import `error`, refer to it directly
+   |
+55 -     pub fn apply(&self, values: &[f64]) -> crate::error::Result<f64> {
+55 +     pub fn apply(&self, values: &[f64]) -> error::Result<f64> {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\research\metrics\mod.rs:57:31
+   |
+57 |             return Err(crate::error::NNError::InvalidInput {
+   |                               ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+57 |             return Err(crate::autograd::error::NNError::InvalidInput {
+   |                               ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 8 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+57 -             return Err(crate::error::NNError::InvalidInput {
+57 +             return Err(NNError::InvalidInput {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\metrics\mod.rs:278:49
+    |
+278 |     pub fn collect_metrics(&mut self) -> crate::error::Result<()> {
+    |                                                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+278 |     pub fn collect_metrics(&mut self) -> crate::autograd::error::Result<()> {
+    |                                                 ++++++++++
+help: consider importing one of these modules
+    |
+  8 + use crate::core::error;
+    |
+  8 + use autograd::error;
+    |
+  8 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+278 -     pub fn collect_metrics(&mut self) -> crate::error::Result<()> {
+278 +     pub fn collect_metrics(&mut self) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\metrics\mod.rs:454:49
+    |
+454 |     fn update_aggregations(&mut self) -> crate::error::Result<()> {
+    |                                                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+454 |     fn update_aggregations(&mut self) -> crate::autograd::error::Result<()> {
+    |                                                 ++++++++++
+help: consider importing one of these modules
+    |
+  8 + use crate::core::error;
+    |
+  8 + use autograd::error;
+    |
+  8 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+454 -     fn update_aggregations(&mut self) -> crate::error::Result<()> {
+454 +     fn update_aggregations(&mut self) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\metrics\mod.rs:700:45
+    |
+700 |     fn collect_metrics(&mut self) -> crate::error::Result<Vec<MetricEntry>>;
+    |                                             ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+700 |     fn collect_metrics(&mut self) -> crate::autograd::error::Result<Vec<MetricEntry>>;
+    |                                             ++++++++++
+help: consider importing one of these modules
+    |
+  8 + use crate::core::error;
+    |
+  8 + use autograd::error;
+    |
+  8 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+700 -     fn collect_metrics(&mut self) -> crate::error::Result<Vec<MetricEntry>>;
+700 +     fn collect_metrics(&mut self) -> error::Result<Vec<MetricEntry>>;
+    |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\research\tracking\artifacts.rs:38:17
+   |
+38 |     ) -> crate::error::Result<String> {
+   |                 ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+38 |     ) -> crate::autograd::error::Result<String> {
+   |                 ++++++++++
+help: consider importing one of these modules
+   |
+ 7 + use crate::core::error;
+   |
+ 7 + use autograd::error;
+   |
+ 7 + use serde_json::error;
+   |
+help: if you import `error`, refer to it directly
+   |
+38 -     ) -> crate::error::Result<String> {
+38 +     ) -> error::Result<String> {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\research\tracking\artifacts.rs:44:31
+   |
+44 |             return Err(crate::error::NNError::InvalidConfiguration {
+   |                               ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+44 |             return Err(crate::autograd::error::NNError::InvalidConfiguration {
+   |                               ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 7 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+44 -             return Err(crate::error::NNError::InvalidConfiguration {
+44 +             return Err(NNError::InvalidConfiguration {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\research\tracking\artifacts.rs:96:17
+   |
+96 |     ) -> crate::error::Result<String> {
+   |                 ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+96 |     ) -> crate::autograd::error::Result<String> {
+   |                 ++++++++++
+help: consider importing one of these modules
+   |
+ 7 + use crate::core::error;
+   |
+ 7 + use autograd::error;
+   |
+ 7 + use serde_json::error;
+   |
+help: if you import `error`, refer to it directly
+   |
+96 -     ) -> crate::error::Result<String> {
+96 +     ) -> error::Result<String> {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\research\tracking\artifacts.rs:99:34
+   |
+99 |             Err(e) => Err(crate::error::NNError::IoError { error: e }),
+   |                                  ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+99 |             Err(e) => Err(crate::autograd::error::NNError::IoError { error: e }),
+   |                                  ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 7 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+99 -             Err(e) => Err(crate::error::NNError::IoError { error: e }),
+99 +             Err(e) => Err(NNError::IoError { error: e }),
+   |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:109:57
+    |
+109 |     pub fn get_artifact_data(&self, id: &str) -> crate::error::Result<Vec<u8>> {
+    |                                                         ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+109 |     pub fn get_artifact_data(&self, id: &str) -> crate::autograd::error::Result<Vec<u8>> {
+    |                                                         ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+109 -     pub fn get_artifact_data(&self, id: &str) -> crate::error::Result<Vec<u8>> {
+109 +     pub fn get_artifact_data(&self, id: &str) -> error::Result<Vec<u8>> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:117:24
+    |
+117 |             Err(crate::error::NNError::NotFound {
+    |                        ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+117 |             Err(crate::autograd::error::NNError::NotFound {
+    |                        ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+117 -             Err(crate::error::NNError::NotFound {
+117 +             Err(NNError::NotFound {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:145:59
+    |
+145 |     pub fn delete_artifact(&mut self, id: &str) -> crate::error::Result<()> {
+    |                                                           ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+145 |     pub fn delete_artifact(&mut self, id: &str) -> crate::autograd::error::Result<()> {
+    |                                                           ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+145 -     pub fn delete_artifact(&mut self, id: &str) -> crate::error::Result<()> {
+145 +     pub fn delete_artifact(&mut self, id: &str) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:155:24
+    |
+155 |             Err(crate::error::NNError::NotFound {
+    |                        ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+155 |             Err(crate::autograd::error::NNError::NotFound {
+    |                        ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+155 -             Err(crate::error::NNError::NotFound {
+155 +             Err(NNError::NotFound {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:173:73
+    |
+173 |     pub fn export_artifact(&self, id: &str, file_path: &Path) -> crate::error::Result<()> {
+    |                                                                         ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+173 |     pub fn export_artifact(&self, id: &str, file_path: &Path) -> crate::autograd::error::Result<()> {
+    |                                                                         ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+173 -     pub fn export_artifact(&self, id: &str, file_path: &Path) -> crate::error::Result<()> {
+173 +     pub fn export_artifact(&self, id: &str, file_path: &Path) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:175:60
+    |
+175 |         std::fs::write(file_path, data).map_err(|e| crate::error::NNError::IoError { error: e })
+    |                                                            ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+175 |         std::fs::write(file_path, data).map_err(|e| crate::autograd::error::NNError::IoError { error: e })
+    |                                                            ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+175 -         std::fs::write(file_path, data).map_err(|e| crate::error::NNError::IoError { error: e })
+175 +         std::fs::write(file_path, data).map_err(|e| NNError::IoError { error: e })
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:183:17
+    |
+183 |     ) -> crate::error::Result<String> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+183 |     ) -> crate::autograd::error::Result<String> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+183 -     ) -> crate::error::Result<String> {
+183 +     ) -> error::Result<String> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:208:69
+    |
+208 |     pub fn tag_artifact(&mut self, id: &str, tag: String) -> crate::error::Result<()> {
+    |                                                                     ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+208 |     pub fn tag_artifact(&mut self, id: &str, tag: String) -> crate::autograd::error::Result<()> {
+    |                                                                     ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+208 -     pub fn tag_artifact(&mut self, id: &str, tag: String) -> crate::error::Result<()> {
+208 +     pub fn tag_artifact(&mut self, id: &str, tag: String) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:215:24
+    |
+215 |             Err(crate::error::NNError::NotFound {
+    |                        ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+215 |             Err(crate::autograd::error::NNError::NotFound {
+    |                        ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+215 -             Err(crate::error::NNError::NotFound {
+215 +             Err(NNError::NotFound {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:227:17
+    |
+227 |     ) -> crate::error::Result<()> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+227 |     ) -> crate::autograd::error::Result<()> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+227 -     ) -> crate::error::Result<()> {
+227 +     ) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:232:24
+    |
+232 |             Err(crate::error::NNError::NotFound {
+    |                        ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+232 |             Err(crate::autograd::error::NNError::NotFound {
+    |                        ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+232 -             Err(crate::error::NNError::NotFound {
+232 +             Err(NNError::NotFound {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:251:51
+    |
+251 |     fn cleanup_old_artifacts(&mut self) -> crate::error::Result<()> {
+    |                                                   ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+251 |     fn cleanup_old_artifacts(&mut self) -> crate::autograd::error::Result<()> {
+    |                                                   ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+251 -     fn cleanup_old_artifacts(&mut self) -> crate::error::Result<()> {
+251 +     fn cleanup_old_artifacts(&mut self) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:299:54
+    |
+299 |     fn compress_data(&self, data: Vec<u8>) -> crate::error::Result<Vec<u8>> {
+    |                                                      ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+299 |     fn compress_data(&self, data: Vec<u8>) -> crate::autograd::error::Result<Vec<u8>> {
+    |                                                      ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+299 -     fn compress_data(&self, data: Vec<u8>) -> crate::error::Result<Vec<u8>> {
+299 +     fn compress_data(&self, data: Vec<u8>) -> error::Result<Vec<u8>> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:306:54
+    |
+306 |     fn decompress_data(&self, data: &[u8]) -> crate::error::Result<Vec<u8>> {
+    |                                                      ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+306 |     fn decompress_data(&self, data: &[u8]) -> crate::autograd::error::Result<Vec<u8>> {
+    |                                                      ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+306 -     fn decompress_data(&self, data: &[u8]) -> crate::error::Result<Vec<u8>> {
+306 +     fn decompress_data(&self, data: &[u8]) -> error::Result<Vec<u8>> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:515:70
+    |
+515 |     pub fn archive_artifact(&mut self, artifact: Artifact) -> crate::error::Result<String> {
+    |                                                                      ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+515 |     pub fn archive_artifact(&mut self, artifact: Artifact) -> crate::autograd::error::Result<String> {
+    |                                                                      ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+515 -     pub fn archive_artifact(&mut self, artifact: Artifact) -> crate::error::Result<String> {
+515 +     pub fn archive_artifact(&mut self, artifact: Artifact) -> error::Result<String> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:539:64
+    |
+539 |     pub fn export_archive(&self, export_path: &Path) -> crate::error::Result<()> {
+    |                                                                ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+539 |     pub fn export_archive(&self, export_path: &Path) -> crate::autograd::error::Result<()> {
+    |                                                                ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+539 -     pub fn export_archive(&self, export_path: &Path) -> crate::error::Result<()> {
+539 +     pub fn export_archive(&self, export_path: &Path) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:541:20
+    |
+541 |             crate::error::NNError::SerializationError {
+    |                    ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+541 |             crate::autograd::error::NNError::SerializationError {
+    |                    ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+541 -             crate::error::NNError::SerializationError {
+541 +             NNError::SerializationError {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:546:33
+    |
+546 |             .map_err(|e| crate::error::NNError::IoError { error: e })
+    |                                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+546 |             .map_err(|e| crate::autograd::error::NNError::IoError { error: e })
+    |                                 ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+546 -             .map_err(|e| crate::error::NNError::IoError { error: e })
+546 +             .map_err(|e| NNError::IoError { error: e })
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:568:17
+    |
+568 |     ) -> crate::error::Result<String> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+568 |     ) -> crate::autograd::error::Result<String> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+568 -     ) -> crate::error::Result<String> {
+568 +     ) -> error::Result<String> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:573:78
+    |
+573 |     pub fn store_plot(&mut self, name: String, plot_data: Vec<u8>) -> crate::error::Result<String> {
+    |                                                                              ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+573 |     pub fn store_plot(&mut self, name: String, plot_data: Vec<u8>) -> crate::autograd::error::Result<String> {
+    |                                                                              ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+573 -     pub fn store_plot(&mut self, name: String, plot_data: Vec<u8>) -> crate::error::Result<String> {
+573 +     pub fn store_plot(&mut self, name: String, plot_data: Vec<u8>) -> error::Result<String> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:582:17
+    |
+582 |     ) -> crate::error::Result<String> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+582 |     ) -> crate::autograd::error::Result<String> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+582 -     ) -> crate::error::Result<String> {
+582 +     ) -> error::Result<String> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\artifacts.rs:591:17
+    |
+591 |     ) -> crate::error::Result<String> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+591 |     ) -> crate::autograd::error::Result<String> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+591 -     ) -> crate::error::Result<String> {
+591 +     ) -> error::Result<String> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\checkpoints.rs:102:17
+    |
+102 |     ) -> crate::error::Result<String> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+102 |     ) -> crate::autograd::error::Result<String> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+102 -     ) -> crate::error::Result<String> {
+102 +     ) -> error::Result<String> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\checkpoints.rs:172:61
+    |
+172 |     pub fn delete_checkpoint(&mut self, id: &str) -> crate::error::Result<()> {
+    |                                                             ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+172 |     pub fn delete_checkpoint(&mut self, id: &str) -> crate::autograd::error::Result<()> {
+    |                                                             ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+172 -     pub fn delete_checkpoint(&mut self, id: &str) -> crate::error::Result<()> {
+172 +     pub fn delete_checkpoint(&mut self, id: &str) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\checkpoints.rs:182:62
+    |
+182 |     pub fn load_checkpoint(&mut self, path: &Path) -> crate::error::Result<String> {
+    |                                                              ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+182 |     pub fn load_checkpoint(&mut self, path: &Path) -> crate::autograd::error::Result<String> {
+    |                                                              ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+182 -     pub fn load_checkpoint(&mut self, path: &Path) -> crate::error::Result<String> {
+182 +     pub fn load_checkpoint(&mut self, path: &Path) -> error::Result<String> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\checkpoints.rs:185:20
+    |
+185 |         Err(crate::error::NNError::NotImplemented {
+    |                    ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+185 |         Err(crate::autograd::error::NNError::NotImplemented {
+    |                    ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+185 -         Err(crate::error::NNError::NotImplemented {
+185 +         Err(NNError::NotImplemented {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\checkpoints.rs:191:68
+    |
+191 |     pub fn save_checkpoint(&self, id: &str, path: &Path) -> crate::error::Result<()> {
+    |                                                                    ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+191 |     pub fn save_checkpoint(&self, id: &str, path: &Path) -> crate::autograd::error::Result<()> {
+    |                                                                    ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+191 -     pub fn save_checkpoint(&self, id: &str, path: &Path) -> crate::error::Result<()> {
+191 +     pub fn save_checkpoint(&self, id: &str, path: &Path) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\checkpoints.rs:194:20
+    |
+194 |         Err(crate::error::NNError::NotImplemented {
+    |                    ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+194 |         Err(crate::autograd::error::NNError::NotImplemented {
+    |                    ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+194 -         Err(crate::error::NNError::NotImplemented {
+194 +         Err(NNError::NotImplemented {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\checkpoints.rs:263:53
+    |
+263 |     fn cleanup_old_checkpoints(&mut self) -> crate::error::Result<()> {
+    |                                                     ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+263 |     fn cleanup_old_checkpoints(&mut self) -> crate::autograd::error::Result<()> {
+    |                                                     ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+263 -     fn cleanup_old_checkpoints(&mut self) -> crate::error::Result<()> {
+263 +     fn cleanup_old_checkpoints(&mut self) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\research\tracking\hyperparameters.rs:47:17
+   |
+47 |     ) -> crate::error::Result<()> {
+   |                 ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+47 |     ) -> crate::autograd::error::Result<()> {
+   |                 ++++++++++
+help: consider importing one of these modules
+   |
+ 7 + use crate::core::error;
+   |
+ 7 + use autograd::error;
+   |
+ 7 + use serde_json::error;
+   |
+help: if you import `error`, refer to it directly
+   |
+47 -     ) -> crate::error::Result<()> {
+47 +     ) -> error::Result<()> {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\research\tracking\hyperparameters.rs:82:17
+   |
+82 |     ) -> crate::error::Result<()> {
+   |                 ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+82 |     ) -> crate::autograd::error::Result<()> {
+   |                 ++++++++++
+help: consider importing one of these modules
+   |
+ 7 + use crate::core::error;
+   |
+ 7 + use autograd::error;
+   |
+ 7 + use serde_json::error;
+   |
+help: if you import `error`, refer to it directly
+   |
+82 -     ) -> crate::error::Result<()> {
+82 +     ) -> error::Result<()> {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\research\tracking\mod.rs:86:17
+   |
+86 |     ) -> crate::error::Result<()> {
+   |                 ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+86 |     ) -> crate::autograd::error::Result<()> {
+   |                 ++++++++++
+help: consider importing one of these modules
+   |
+ 7 + use crate::core::error;
+   |
+ 7 + use autograd::error;
+   |
+ 7 + use serde_json::error;
+   |
+help: if you import `error`, refer to it directly
+   |
+86 -     ) -> crate::error::Result<()> {
+86 +     ) -> error::Result<()> {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\research\tracking\mod.rs:96:17
+   |
+96 |     ) -> crate::error::Result<String> {
+   |                 ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+96 |     ) -> crate::autograd::error::Result<String> {
+   |                 ++++++++++
+help: consider importing one of these modules
+   |
+ 7 + use crate::core::error;
+   |
+ 7 + use autograd::error;
+   |
+ 7 + use serde_json::error;
+   |
+help: if you import `error`, refer to it directly
+   |
+96 -     ) -> crate::error::Result<String> {
+96 +     ) -> error::Result<String> {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\mod.rs:106:17
+    |
+106 |     ) -> crate::error::Result<String> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+106 |     ) -> crate::autograd::error::Result<String> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+106 -     ) -> crate::error::Result<String> {
+106 +     ) -> error::Result<String> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\tracking\mod.rs:212:72
+    |
+212 |     pub fn complete_experiment(&self, experiment_id: String) -> crate::error::Result<()> {
+    |                                                                        ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+212 |     pub fn complete_experiment(&self, experiment_id: String) -> crate::autograd::error::Result<()> {
+    |                                                                        ++++++++++
+help: consider importing one of these modules
+    |
+  7 + use crate::core::error;
+    |
+  7 + use autograd::error;
+    |
+  7 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+212 -     pub fn complete_experiment(&self, experiment_id: String) -> crate::error::Result<()> {
+212 +     pub fn complete_experiment(&self, experiment_id: String) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\hpo_space.rs:162:81
+    |
+162 |     pub fn sample(&self, rng: &mut impl Rng) -> Result<HpoConfiguration, crate::error::NNError> {
+    |                                                                                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+162 |     pub fn sample(&self, rng: &mut impl Rng) -> Result<HpoConfiguration, crate::autograd::error::NNError> {
+    |                                                                                 ++++++++++
+help: consider importing this module
+    |
+  7 + use crate::core::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+162 -     pub fn sample(&self, rng: &mut impl Rng) -> Result<HpoConfiguration, crate::error::NNError> {
+162 +     pub fn sample(&self, rng: &mut impl Rng) -> Result<HpoConfiguration, error::NNError> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\hpo_space.rs:191:28
+    |
+191 |     ) -> Result<(), crate::error::NNError> {
+    |                            ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+191 |     ) -> Result<(), crate::autograd::error::NNError> {
+    |                            ++++++++++
+help: consider importing this module
+    |
+  7 + use crate::core::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+191 -     ) -> Result<(), crate::error::NNError> {
+191 +     ) -> Result<(), error::NNError> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\hpo_space.rs:392:82
+    |
+392 |     pub fn to_training_config(&self) -> Result<ClipTrainingConfiguration, crate::error::NNError> {
+    |                                                                                  ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+392 |     pub fn to_training_config(&self) -> Result<ClipTrainingConfiguration, crate::autograd::error::NNError> {
+    |                                                                                  ++++++++++
+help: consider importing this module
+    |
+  7 + use crate::core::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+392 -     pub fn to_training_config(&self) -> Result<ClipTrainingConfiguration, crate::error::NNError> {
+392 +     pub fn to_training_config(&self) -> Result<ClipTrainingConfiguration, error::NNError> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\hpo_space.rs:402:35
+    |
+402 |                 return Err(crate::error::NNError::InvalidInput {
+    |                                   ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+402 |                 return Err(crate::autograd::error::NNError::InvalidInput {
+    |                                   ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+402 -                 return Err(crate::error::NNError::InvalidInput {
+402 +                 return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\hpo_space.rs:411:35
+    |
+411 |                 return Err(crate::error::NNError::InvalidInput {
+    |                                   ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+411 |                 return Err(crate::autograd::error::NNError::InvalidInput {
+    |                                   ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+411 -                 return Err(crate::error::NNError::InvalidInput {
+411 +                 return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\hpo_space.rs:424:35
+    |
+424 |                 return Err(crate::error::NNError::InvalidInput {
+    |                                   ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+424 |                 return Err(crate::autograd::error::NNError::InvalidInput {
+    |                                   ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+424 -                 return Err(crate::error::NNError::InvalidInput {
+424 +                 return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\hpo_space.rs:438:35
+    |
+438 |                 return Err(crate::error::NNError::InvalidInput {
+    |                                   ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+438 |                 return Err(crate::autograd::error::NNError::InvalidInput {
+    |                                   ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+438 -                 return Err(crate::error::NNError::InvalidInput {
+438 +                 return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\hpo_space.rs:451:35
+    |
+451 |                 return Err(crate::error::NNError::InvalidInput {
+    |                                   ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+451 |                 return Err(crate::autograd::error::NNError::InvalidInput {
+    |                                   ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+451 -                 return Err(crate::error::NNError::InvalidInput {
+451 +                 return Err(NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\hpo_space.rs:562:47
+    |
+562 |     ) -> Result<Vec<HpoConfiguration>, crate::error::NNError> {
+    |                                               ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+562 |     ) -> Result<Vec<HpoConfiguration>, crate::autograd::error::NNError> {
+    |                                               ++++++++++
+help: consider importing this module
+    |
+  7 + use crate::core::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+562 -     ) -> Result<Vec<HpoConfiguration>, crate::error::NNError> {
+562 +     ) -> Result<Vec<HpoConfiguration>, error::NNError> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\hpo_space.rs:576:42
+    |
+576 |     ) -> Result<HpoConfiguration, crate::error::NNError> {
+    |                                          ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+576 |     ) -> Result<HpoConfiguration, crate::autograd::error::NNError> {
+    |                                          ++++++++++
+help: consider importing this module
+    |
+  7 + use crate::core::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+576 -     ) -> Result<HpoConfiguration, crate::error::NNError> {
+576 +     ) -> Result<HpoConfiguration, error::NNError> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\hpo_space.rs:599:35
+    |
+599 |             .ok_or_else(|| crate::error::NNError::InvalidInput {
+    |                                   ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+599 |             .ok_or_else(|| crate::autograd::error::NNError::InvalidInput {
+    |                                   ++++++++++
+help: consider importing this enum through its public re-export
+    |
+  7 + use crate::NNError;
+    |
+help: if you import `NNError`, refer to it directly
+    |
+599 -             .ok_or_else(|| crate::error::NNError::InvalidInput {
+599 +             .ok_or_else(|| NNError::InvalidInput {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\mod.rs:153:67
+    |
+153 |     pub fn new(config: ClipResearchConfig) -> Result<Self, crate::error::NNError> {
+    |                                                                   ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+153 |     pub fn new(config: ClipResearchConfig) -> Result<Self, crate::autograd::error::NNError> {
+    |                                                                   ++++++++++
+help: consider importing this module
+    |
+  7 + use crate::core::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+153 -     pub fn new(config: ClipResearchConfig) -> Result<Self, crate::error::NNError> {
+153 +     pub fn new(config: ClipResearchConfig) -> Result<Self, error::NNError> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\clip_integration\mod.rs:211:51
+    |
+211 |     ) -> Result<ClipTrainingConfiguration, crate::error::NNError> {
+    |                                                   ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+211 |     ) -> Result<ClipTrainingConfiguration, crate::autograd::error::NNError> {
+    |                                                   ++++++++++
+help: consider importing this module
+    |
+  7 + use crate::core::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+211 -     ) -> Result<ClipTrainingConfiguration, crate::error::NNError> {
+211 +     ) -> Result<ClipTrainingConfiguration, error::NNError> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\mod.rs:340:17
+    |
+340 |     ) -> crate::error::Result<ExperimentResult> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+340 |     ) -> crate::autograd::error::Result<ExperimentResult> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+215 + use crate::core::error;
+    |
+215 + use autograd::error;
+    |
+215 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+340 -     ) -> crate::error::Result<ExperimentResult> {
+340 +     ) -> error::Result<ExperimentResult> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\mod.rs:376:17
+    |
+376 |     ) -> crate::error::Result<orchestrator::WorkflowResult> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+376 |     ) -> crate::autograd::error::Result<orchestrator::WorkflowResult> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+215 + use crate::core::error;
+    |
+215 + use autograd::error;
+    |
+215 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+376 -     ) -> crate::error::Result<orchestrator::WorkflowResult> {
+376 +     ) -> error::Result<orchestrator::WorkflowResult> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\mod.rs:387:17
+    |
+387 |     ) -> crate::error::Result<orchestrator::WorkflowResult> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+387 |     ) -> crate::autograd::error::Result<orchestrator::WorkflowResult> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+215 + use crate::core::error;
+    |
+215 + use autograd::error;
+    |
+215 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+387 -     ) -> crate::error::Result<orchestrator::WorkflowResult> {
+387 +     ) -> error::Result<orchestrator::WorkflowResult> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\mod.rs:396:17
+    |
+396 |     ) -> crate::error::Result<orchestrator::WorkflowResult> {
+    |                 ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+396 |     ) -> crate::autograd::error::Result<orchestrator::WorkflowResult> {
+    |                 ++++++++++
+help: consider importing one of these modules
+    |
+215 + use crate::core::error;
+    |
+215 + use autograd::error;
+    |
+215 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+396 -     ) -> crate::error::Result<orchestrator::WorkflowResult> {
+396 +     ) -> error::Result<orchestrator::WorkflowResult> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\mod.rs:421:70
+    |
+421 |     pub async fn cancel_workflow(&self, workflow_id: &str) -> crate::error::Result<()> {
+    |                                                                      ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+421 |     pub async fn cancel_workflow(&self, workflow_id: &str) -> crate::autograd::error::Result<()> {
+    |                                                                      ++++++++++
+help: consider importing one of these modules
+    |
+215 + use crate::core::error;
+    |
+215 + use autograd::error;
+    |
+215 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+421 -     pub async fn cancel_workflow(&self, workflow_id: &str) -> crate::error::Result<()> {
+421 +     pub async fn cancel_workflow(&self, workflow_id: &str) -> error::Result<()> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\research\mod.rs:431:51
+    |
+431 |     pub fn export_research_state(&self) -> crate::error::Result<serde_json::Value> {
+    |                                                   ^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+431 |     pub fn export_research_state(&self) -> crate::autograd::error::Result<serde_json::Value> {
+    |                                                   ++++++++++
+help: consider importing one of these modules
+    |
+215 + use crate::core::error;
+    |
+215 + use autograd::error;
+    |
+215 + use serde_json::error;
+    |
+help: if you import `error`, refer to it directly
+    |
+431 -     pub fn export_research_state(&self) -> crate::error::Result<serde_json::Value> {
+431 +     pub fn export_research_state(&self) -> error::Result<serde_json::Value> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\io\onnx.rs:864:24
+    |
+864 |     ) -> Result<crate::linear::Linear<CpuBackend<T>, DenseStorage<T>, T>> {
+    |                        ^^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+864 |     ) -> Result<crate::functional::linear::Linear<CpuBackend<T>, DenseStorage<T>, T>> {
+    |                        ++++++++++++
+help: consider importing this module
+    |
+ 41 + use crate::modules::linear;
+    |
+help: if you import `linear`, refer to it directly
+    |
+864 -     ) -> Result<crate::linear::Linear<CpuBackend<T>, DenseStorage<T>, T>> {
+864 +     ) -> Result<linear::Linear<CpuBackend<T>, DenseStorage<T>, T>> {
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\io\onnx.rs:937:35
+    |
+937 |         let weight_param = crate::parameter::Parameter::new(
+    |                                   ^^^^^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+937 |         let weight_param = crate::core::parameter::Parameter::new(
+    |                                   ++++++
+help: consider importing one of these items
+    |
+ 41 + use crate::Parameter;
+    |
+ 41 + use optim::Parameter;
+    |
+help: if you import `Parameter`, refer to it directly
+    |
+937 -         let weight_param = crate::parameter::Parameter::new(
+937 +         let weight_param = Parameter::new(
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\io\onnx.rs:942:20
+    |
+942 |             crate::parameter::Parameter::new(bias.requires_grad_(true), "bias".to_string());
+    |                    ^^^^^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+942 |             crate::core::parameter::Parameter::new(bias.requires_grad_(true), "bias".to_string());
+    |                    ++++++
+help: consider importing one of these items
+    |
+ 41 + use crate::Parameter;
+    |
+ 41 + use optim::Parameter;
+    |
+help: if you import `Parameter`, refer to it directly
+    |
+942 -             crate::parameter::Parameter::new(bias.requires_grad_(true), "bias".to_string());
+942 +             Parameter::new(bias.requires_grad_(true), "bias".to_string());
+    |
+
+error[E0425]: cannot find function `dropout` in module `crate::functional_api`
+   --> nn\src\multimodal\attention.rs:176:45
+    |
+176 |         let output = crate::functional_api::dropout(
+    |                                             ^^^^^^^ not found in `crate::functional_api`
+    |
+help: consider importing this function
+    |
+  6 + use crate::functional::ops::activations::dropout;
+    |
+help: if you import `dropout`, refer to it directly
+    |
+176 -         let output = crate::functional_api::dropout(
+176 +         let output = dropout(
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\multimodal\encoder.rs:121:27
+    |
+121 |     pub attention: crate::attention::MultiHeadAttention<B, S, T>,
+    |                           ^^^^^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+121 |     pub attention: crate::functional::attention::MultiHeadAttention<B, S, T>,
+    |                           ++++++++++++
+help: consider importing one of these modules
+    |
+  6 + use crate::modules::attention;
+    |
+  6 + use crate::multimodal::attention;
+    |
+help: if you import `attention`, refer to it directly
+    |
+121 -     pub attention: crate::attention::MultiHeadAttention<B, S, T>,
+121 +     pub attention: attention::MultiHeadAttention<B, S, T>,
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\multimodal\encoder.rs:128:25
+    |
+128 |     pub dropout: crate::dropout::Dropout,
+    |                         ^^^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+128 |     pub dropout: crate::modules::regularization::dropout::Dropout,
+    |                         +++++++++++++++++++++++++
+help: consider importing this module
+    |
+  6 + use crate::modules::regularization::dropout;
+    |
+help: if you import `dropout`, refer to it directly
+    |
+128 -     pub dropout: crate::dropout::Dropout,
+128 +     pub dropout: dropout::Dropout,
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\multimodal\encoder.rs:144:32
+    |
+144 |         let attention = crate::attention::MultiHeadAttention::new(hidden_dim, num_heads)?;
+    |                                ^^^^^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+144 |         let attention = crate::functional::attention::MultiHeadAttention::new(hidden_dim, num_heads)?;
+    |                                ++++++++++++
+help: consider importing this struct through its public re-export
+    |
+  6 + use crate::MultiHeadAttention;
+    |
+help: if you import `MultiHeadAttention`, refer to it directly
+    |
+144 -         let attention = crate::attention::MultiHeadAttention::new(hidden_dim, num_heads)?;
+144 +         let attention = MultiHeadAttention::new(hidden_dim, num_heads)?;
+    |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\meta\datasets\tiered_imagenet.rs:86:20
+   |
+86 |         Err(crate::error::NNError::NotImplemented {
+   |                    ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+86 |         Err(crate::autograd::error::NNError::NotImplemented {
+   |                    ++++++++++
+help: consider importing this enum through its public re-export
+   |
+ 7 + use crate::NNError;
+   |
+help: if you import `NNError`, refer to it directly
+   |
+86 -         Err(crate::error::NNError::NotImplemented {
+86 +         Err(NNError::NotImplemented {
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\meta\datasets\mod.rs:29:46
+   |
+29 |     fn load(&mut self, path: &str) -> crate::error::Result<()>;
+   |                                              ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+29 |     fn load(&mut self, path: &str) -> crate::autograd::error::Result<()>;
+   |                                              ++++++++++
+help: consider importing one of these modules
+   |
+ 6 + use crate::core::error;
+   |
+ 6 + use autograd::error;
+   |
+ 6 + use serde_json::error;
+   |
+help: if you import `error`, refer to it directly
+   |
+29 -     fn load(&mut self, path: &str) -> crate::error::Result<()>;
+29 +     fn load(&mut self, path: &str) -> error::Result<()>;
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\meta\datasets\mod.rs:41:17
+   |
+41 |     ) -> crate::error::Result<FewShotEpisode<B, S, T>>;
+   |                 ^^^^^ unresolved import
+   |
+help: a similar path exists
+   |
+41 |     ) -> crate::autograd::error::Result<FewShotEpisode<B, S, T>>;
+   |                 ++++++++++
+help: consider importing one of these modules
+   |
+ 6 + use crate::core::error;
+   |
+ 6 + use autograd::error;
+   |
+ 6 + use serde_json::error;
+   |
+help: if you import `error`, refer to it directly
+   |
+41 -     ) -> crate::error::Result<FewShotEpisode<B, S, T>>;
+41 +     ) -> error::Result<FewShotEpisode<B, S, T>>;
+   |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\meta\maml.rs:345:24
+    |
+345 |                 crate::parameter::Parameter::new(gradient_tensor, format!("grad_{}", param_name));
+    |                        ^^^^^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+345 |                 crate::core::parameter::Parameter::new(gradient_tensor, format!("grad_{}", param_name));
+    |                        ++++++
+help: consider importing one of these items
+    |
+ 43 + use crate::Parameter;
+    |
+ 43 + use optim::Parameter;
+    |
+help: if you import `Parameter`, refer to it directly
+    |
+345 -                 crate::parameter::Parameter::new(gradient_tensor, format!("grad_{}", param_name));
+345 +                 Parameter::new(gradient_tensor, format!("grad_{}", param_name));
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\meta\maml.rs:358:40
+    |
+358 |     ) -> Result<HashMap<String, crate::parameter::Parameter<B, S, T>>> {
+    |                                        ^^^^^^^^^ unresolved import
+    |
+help: a similar path exists
+    |
+358 |     ) -> Result<HashMap<String, crate::core::parameter::Parameter<B, S, T>>> {
+    |                                        ++++++
+help: consider importing this module
+    |
+ 43 + use crate::core::parameter;
+    |
+help: if you import `parameter`, refer to it directly
+    |
+358 -     ) -> Result<HashMap<String, crate::parameter::Parameter<B, S, T>>> {
+358 +     ) -> Result<HashMap<String, parameter::Parameter<B, S, T>>> {
+    |
+
+error[E0603]: unresolved item import `GRU` is private
+  --> nn\src\modules\rnn\mod.rs:8:21
+   |
+ 8 | pub use gru_module::GRU;
+   |                     ^^^ private unresolved item import
+   |
+note: the unresolved item import `GRU` is defined here
+  --> nn\src\modules\rnn\gru_module.rs:13:5
+   |
+13 | use crate::rnn::gru_core::GRU;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+help: import `GRU` through the re-export
+   |
+ 8 - pub use gru_module::GRU;
+ 8 + pub use rnn::gru_core::GRU;
+   |
+
+warning: unused import: `NNError`
+ --> nn\src\modules\activation\gelu.rs:1:26
+  |
+1 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ActivationType`
+  --> nn\src\modules\activation\gelu.rs:10:25
+   |
+10 | use super::{Activation, ActivationType};
+   |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\prelu.rs:9:25
+  |
+9 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\activation\relu.rs:1:26
+  |
+1 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\relu.rs:8:25
+  |
+8 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\activation\silu.rs:1:26
+  |
+1 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `ops::arithmetic::*`
+ --> nn\src\modules\activation\silu.rs:6:14
+  |
+6 | use tensor::{ops::arithmetic::*, FloatExt, Tensor};
+  |              ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\silu.rs:9:25
+  |
+9 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `ActivationType`
+ --> nn\src\modules\activation\swiglu.rs:8:25
+  |
+8 | use super::{Activation, ActivationType};
+  |                         ^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\max2d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\max3d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\avg2d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\modules\pooling\avg3d.rs:6:26
+  |
+6 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `Sequential`
+ --> nn\src\training\checkpointing\mod.rs:8:30
+  |
+8 | use crate::{ModuleSerialize, Sequential};
+  |                              ^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> nn\src\training\checkpointing\mod.rs:17:5
+   |
+17 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+   --> nn\src\training\checkpointing\mod.rs:193:9
+    |
+193 |     use super::*;
+    |         ^^^^^^^^
+
+warning: unexpected `cfg` condition value: `gpu`
+   --> nn\src\training\distributed\mod.rs:178:7
+    |
+178 | #[cfg(feature = "gpu")]
+    |       ^^^^^^^^^^-----
+    |                 |
+    |                 help: there is a expected value with a similar name: `"cpu"`
+    |
+    = note: expected values for `feature` are: `attention`, `autograd`, `clip`, `cpu`, `cuda`, `default`, `distributed`, `dropout`, `embedding`, `functional`, `model_surgery`, `normalization`, `onnx`, `quantized`, `research`, `safetensors`, `serde`, `std`, and `sysinfo`
+    = help: consider adding `gpu` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `StateDict`
+ --> nn\src\training\distributed\mod.rs:9:35
+  |
+9 | use crate::core::module::{Module, StateDict};
+  |                                   ^^^^^^^^^
+
+warning: unused import: `crate::Sequential`
+  --> nn\src\training\distributed\mod.rs:10:5
+   |
+10 | use crate::Sequential;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> nn\src\training\distributed\mod.rs:15:5
+   |
+15 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+   --> nn\src\research\mod.rs:216:5
+    |
+216 | use std::collections::HashMap;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Instant`
+ --> nn\src\research\tracking\metadata.rs:9:5
+  |
+9 | use std::time::Instant;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+  --> nn\src\research\automated_research.rs:11:26
+   |
+11 | use crate::core::error::{NNError, Result};
+   |                          ^^^^^^^
+
+warning: unused import: `crate::research::nas_integration::NASSearchResult`
+  --> nn\src\research\automated_research.rs:12:5
+   |
+12 | use crate::research::nas_integration::NASSearchResult;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `JointSearchStrategy` and `hpo_integration::JointAlgorithm`
+  --> nn\src\research\automated_research.rs:14:5
+   |
+14 |     hpo_integration::JointAlgorithm,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+15 |     hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
+16 |     joint_search::{JointSearchContext, JointSearchFramework, JointSearchStrategy},
+   |                                                              ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `BTreeMap`
+ --> nn\src\research\benchmarking.rs:7:24
+  |
+7 | use std::collections::{BTreeMap, HashMap};
+  |                        ^^^^^^^^
+
+warning: unused imports: `HPOExperimentContext` and `JointSearchContext`
+  --> nn\src\research\benchmarking.rs:13:23
+   |
+13 |     hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
+   |                       ^^^^^^^^^^^^^^^^^^^^
+14 |     joint_search::{JointSearchContext, JointSearchFramework},
+   |                    ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `HPOptimizer` and `HyperparameterOptimizer`
+  --> nn\src\research\hpo_integration.rs:66:5
+   |
+66 |     HPOptimizer, HyperparameterConfig, HyperparameterOptimizer, HyperparameterSpace,
+   |     ^^^^^^^^^^^                        ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `MetricEntry` and `MetricsCollector`
+  --> nn\src\research\hpo_integration.rs:70:32
+   |
+70 | use crate::research::metrics::{MetricEntry, MetricsCollector};
+   |                                ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused import: `ExperimentTracker`
+  --> nn\src\research\hpo_integration.rs:71:52
+   |
+71 | use crate::research::tracking::{ExperimentSummary, ExperimentTracker};
+   |                                                    ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `HashSet`
+ --> nn\src\research\joint_search.rs:7:33
+  |
+7 | use std::collections::{HashMap, HashSet};
+  |                                 ^^^^^^^
+
+warning: unused import: `RwLock`
+ --> nn\src\research\joint_search.rs:8:22
+  |
+8 | use std::sync::{Arc, RwLock};
+  |                      ^^^^^^
+
+warning: unused import: `crate::nas::search_space::LayerSpec`
+  --> nn\src\research\joint_search.rs:13:5
+   |
+13 | use crate::nas::search_space::LayerSpec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `HPOptimizer` and `HyperparameterOptimizer`
+  --> nn\src\research\nas_integration.rs:12:18
+   |
+12 | use crate::hpo::{HPOptimizer, HyperparameterOptimizer};
+   |                  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `AutomatedResearchPipeline`
+  --> nn\src\research\nas_integration.rs:16:61
+   |
+16 |     Architecture, ArchitectureEvaluator, ArchitectureSpace, AutomatedResearchPipeline, DartsNAS,
+   |                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `MetricEntry` and `MetricsCollector`
+  --> nn\src\research\nas_integration.rs:19:32
+   |
+19 | use crate::research::metrics::{MetricEntry, MetricsCollector};
+   |                                ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ExperimentRegistry` and `ExperimentTracker`
+  --> nn\src\research\nas_integration.rs:23:33
+   |
+23 | use crate::research::tracking::{ExperimentRegistry, ExperimentSummary, ExperimentTracker};
+   |                                 ^^^^^^^^^^^^^^^^^^                     ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Arc` and `RwLock`
+ --> nn\src\research\performance_prediction.rs:8:17
+  |
+8 | use std::sync::{Arc, RwLock};
+  |                 ^^^  ^^^^^^
+
+warning: unused import: `HyperparameterSpace`
+  --> nn\src\research\performance_prediction.rs:11:40
+   |
+11 | use crate::hpo::{HyperparameterConfig, HyperparameterSpace, HyperparameterValue};
+   |                                        ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ArchitectureSpace`
+  --> nn\src\research\performance_prediction.rs:13:32
+   |
+13 | use crate::nas::{Architecture, ArchitectureSpace};
+   |                                ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> nn\src\research\experiment_pipeline.rs:8:5
+  |
+8 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Mutex`
+ --> nn\src\research\experiment_pipeline.rs:9:22
+  |
+9 | use std::sync::{Arc, Mutex};
+  |                      ^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\research\meta_learning_integration.rs:7:26
+  |
+7 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+error[E0223]: ambiguous associated type
+   --> nn\src\modules\attention\multihead.rs:480:40
+    |
+480 |     fn get_specialized_impl(&self) -> &Self::AttentionImpl {
+    |                                        ^^^^^^^^^^^^^^^^^^^
+    |
+help: if there were a trait named `Example` with associated type `AttentionImpl` implemented for `MultiHeadAttention<B, DenseStorage<T>, T>`, you could use the fully-qualified path
+    |
+480 -     fn get_specialized_impl(&self) -> &Self::AttentionImpl {
+480 +     fn get_specialized_impl(&self) -> &<MultiHeadAttention<B, DenseStorage<T>, T> as Example>::AttentionImpl {
+    |
+
+error[E0271]: type mismatch resolving `<B as Backend>::Data == T`
+   --> nn\src\core\autograd_stub.rs:35:35
+    |
+ 35 | pub fn backward<B, S, T>(_tensor: &Tensor<B, S, T>) -> Result<()>
+    |                       -           ^^^^^^^^^^^^^^^^ expected type parameter `T`, found associated type
+    |                       |
+    |                       expected this type parameter
+    |
+    = note: expected type parameter `T`
+              found associated type `<B as backend::Backend>::Data`
+note: required by a bound in `tensor::Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:16
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |                ^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting this bound
+    |
+ 37 |     B: backend::Backend<Data = T>,
+    |                        ++++++++++
+
+error[E0277]: the trait bound `T: FloatExt` is not satisfied
+  --> nn\src\training\distributed\mod.rs:38:8
+   |
+38 |     M: Module<B, DenseStorage<T>, T> + Send + Sync + Clone,
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `FloatExt` is not implemented for `T`
+   |
+note: required by a bound in `Module`
+  --> nn\src\core\module.rs:72:19
+   |
+68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+   |           ------ required by a bound in this trait
+...
+72 |     T: DataType + FloatExt,
+   |                   ^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `T` with trait `FloatExt`
+   |
+40 |     T: DataType + Send + Sync + dtype::FloatExt,
+   |                               +++++++++++++++++
+
+error[E0277]: the trait bound `S: StorageToDense<tensor::Float32>` is not satisfied
+   --> nn\src\io\safetensors.rs:364:12
+    |
+364 |         M: Module<B, S, Float32>,
+    |            ^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<tensor::Float32>` is not implemented for `S`
+    |
+note: required by a bound in `Module`
+   --> nn\src\core\module.rs:71:41
+    |
+ 68 | pub trait Module<B, S, T>: std::fmt::Debug + std::any::Any
+    |           ------ required by a bound in this trait
+...
+ 71 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Module`
+help: consider further restricting type parameter `S` with trait `StorageToDense`
+    |
+366 |         S: Storage<Float32> + StorageFromVec<Float32> + Clone + 'static + storage::StorageToDense<tensor::Float32>,
+    |                                                                         ++++++++++++++++++++++++++++++++++++++++++
+
+Some errors have detailed explanations: E0223, E0271, E0277, E0425, E0432, E0433, E0583, E0603, E0761.
+For more information about an error, try `rustc --explain E0223`.
+warning: `nn` (lib) generated 43 warnings
+error: could not compile `nn` (lib) due to 159 previous errors; 43 warnings emitted

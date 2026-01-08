@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use super::search_space::{Architecture, ArchitectureSpace};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Architecture comparison and analysis utilities
 pub struct ArchitectureAnalyzer;

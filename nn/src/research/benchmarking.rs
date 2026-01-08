@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::research::{
     hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
     joint_search::{JointSearchContext, JointSearchFramework},

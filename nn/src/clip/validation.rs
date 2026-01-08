@@ -9,7 +9,7 @@
 //! This module provides production-ready evaluation tools for CLIP training
 //! and benchmarking against state-of-the-art performance.
 
-use crate::error::Result;
+use crate::core::error::Result;
 use backend::Backend;
 use dtype::{DataType, FloatExt};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -267,8 +267,8 @@ where
     /// Compute retrieval metrics for given query and candidate embeddings
     fn compute_retrieval_metrics(
         &self,
-        query_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
-        candidate_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
+        query_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
+        candidate_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
         retrieval_type: RetrievalType,
     ) -> Result<RetrievalMetrics> {
         let mut ranks = Vec::new();
@@ -470,8 +470,8 @@ where
     /// Compute cosine similarity between two embeddings
     fn compute_similarity(
         &self,
-        emb1: &Tensor<B, crate::storage_crate::DenseStorage<T>, T>,
-        emb2: &Tensor<B, crate::storage_crate::DenseStorage<T>, T>,
+        emb1: &Tensor<B, storage::DenseStorage<T>, T>,
+        emb2: &Tensor<B, storage::DenseStorage<T>, T>,
     ) -> Result<f64> {
         // Simplified dot product similarity
         // In practice, you'd compute proper cosine similarity
@@ -505,7 +505,7 @@ where
     /// Compute uniformity of embeddings
     fn compute_uniformity(
         &self,
-        embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
+        embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
     ) -> Result<f64> {
         // Uniformity measures how uniformly distributed embeddings are on the hypersphere
         // Higher uniformity = better distributed embeddings
@@ -525,8 +525,8 @@ where
     /// Compute alignment between text and image embeddings
     fn compute_alignment(
         &self,
-        text_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
-        image_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
+        text_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
+        image_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
     ) -> Result<f64> {
         let mut total_alignment = 0.0;
 
@@ -540,8 +540,8 @@ where
     /// Compute simplified CKA (Centered Kernel Alignment)
     fn compute_cka(
         &self,
-        text_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
-        image_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
+        text_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
+        image_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
     ) -> Result<f64> {
         // Simplified CKA computation
         // Full CKA would use kernel matrices, this is a basic approximation
@@ -552,7 +552,7 @@ where
     /// Compute intra-modal variance
     fn compute_intra_modal_variance(
         &self,
-        embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
+        embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
     ) -> Result<f64> {
         if embeddings.is_empty() {
             return Ok(0.0);
@@ -585,8 +585,8 @@ where
     /// Compute inter-modal variance
     fn compute_inter_modal_variance(
         &self,
-        text_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
-        image_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
+        text_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
+        image_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
     ) -> Result<f64> {
         if text_embeddings.len() != image_embeddings.len() {
             return Ok(0.0);
@@ -614,8 +614,8 @@ where
     /// Compute Mean Reciprocal Rank
     fn compute_mean_reciprocal_rank(
         &self,
-        text_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
-        image_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
+        text_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
+        image_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
     ) -> Result<f64> {
         let mut reciprocal_ranks = Vec::new();
 
@@ -641,8 +641,8 @@ where
     /// Compute Mean Average Precision
     fn compute_mean_average_precision(
         &self,
-        text_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
-        image_embeddings: &[Tensor<B, crate::storage_crate::DenseStorage<T>, T>],
+        text_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
+        image_embeddings: &[Tensor<B, storage::DenseStorage<T>, T>],
     ) -> Result<f64> {
         let mut average_precisions = Vec::new();
 

@@ -4,7 +4,7 @@
 //! with the research framework, including MAML, Reptile, ANIL, and other
 //! meta-learning approaches for automated research.
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::research::{ExperimentTracker, UnifiedResearchFramework};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -296,7 +296,7 @@ impl MetaLearningExperiment {
     }
 
     /// Log meta-learning configuration
-    fn log_configuration(&self, tracker: &ExperimentTracker) -> Result<()> {
+    fn log_configuration(&self, _tracker: &ExperimentTracker) -> Result<()> {
         // In a real implementation, this would log to the experiment tracker
         println!("📋 Meta-Learning Configuration:");
         println!("  ├── Algorithm: {:?}", self.config.algorithm);
@@ -497,7 +497,7 @@ pub struct MetaLearnerState {
 }
 
 impl MetaLearnerState {
-    fn new(config: &MetaLearningConfig) -> Self {
+    fn new(_config: &MetaLearningConfig) -> Self {
         Self {
             iteration: 0,
             meta_params: HashMap::new(),

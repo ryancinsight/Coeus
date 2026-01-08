@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 use std::fmt;
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Audio classifier for general audio classification tasks
 #[derive(Debug)]

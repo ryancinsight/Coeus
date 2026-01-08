@@ -492,24 +492,36 @@ mod tests {
 
     /// Generate test data for benchmarking
     fn generate_test_data(size: usize, distribution: &str) -> Vec<f32> {
+        let size_u16: u16 = size.try_into().unwrap_or(u16::MAX);
+        let size_den = f32::from(size_u16.max(1));
         match distribution {
             "uniform" => (0..size)
-                .map(|i| (i as f32 / size as f32) * 10.0 - 5.0)
+                .map(|i| {
+                    let i_u16: u16 = i.try_into().unwrap_or(u16::MAX);
+                    (f32::from(i_u16) / size_den) * 10.0 - 5.0
+                })
                 .collect(),
             "normal" => (0..size)
                 .map(|i| {
-                    let x = i as f32 / size as f32;
+                    let i_u16: u16 = i.try_into().unwrap_or(u16::MAX);
+                    let x = f32::from(i_u16) / size_den;
                     // Simple approximation of normal distribution
                     2.0 * ((x - 0.5) * 4.0).sin() * (-0.5 * (x - 0.5).powi(2) / 0.1).exp()
                 })
                 .collect(),
             "exponential" => (0..size)
                 .map(|i| {
-                    let x = i as f32 / size as f32;
+                    let i_u16: u16 = i.try_into().unwrap_or(u16::MAX);
+                    let x = f32::from(i_u16) / size_den;
                     -((x * 3.0) + 0.1).ln()
                 })
                 .collect(),
-            _ => (0..size).map(|i| (i as f32).sin() * 5.0).collect(), // sinusoidal
+            _ => (0..size)
+                .map(|i| {
+                    let i_u16: u16 = i.try_into().unwrap_or(u16::MAX);
+                    f32::from(i_u16).sin() * 5.0
+                })
+                .collect(), // sinusoidal
         }
     }
 
@@ -579,7 +591,8 @@ mod tests {
 
         // Dequantize and check accuracy
         for (i, &q_val) in result.data.iter().enumerate() {
-            let dequantized = q_val as f32 * params.scale + params.zero_point as f32;
+            let zero_point_i16: i16 = params.zero_point.try_into().unwrap_or(0);
+            let dequantized = f32::from(q_val) * params.scale + f32::from(zero_point_i16);
             let error = (original[i] - dequantized).abs();
             // Should be within quantization error bounds
             assert!(error <= params.scale / 2.0 + 0.01);
@@ -618,7 +631,7 @@ mod tests {
         assert!(noise_analysis.signal_power >= 0.0);
         assert!(noise_analysis.noise_power >= 0.0);
         assert!(noise_analysis.enob >= 0.0);
-        assert_eq!(noise_analysis.quantization_step, params.scale);
+        assert!((noise_analysis.quantization_step - params.scale).abs() < 1e-6);
 
         // Check histogram
         let total_samples: usize = noise_analysis.error_histogram.iter().sum();
@@ -642,7 +655,7 @@ mod tests {
         // With perfect quantization, SNR and PSNR should be infinite
         assert!(noise_analysis.snr_db.is_infinite() || noise_analysis.snr_db > 100.0);
         assert!(noise_analysis.psnr_db.is_infinite() || noise_analysis.psnr_db > 100.0);
-        assert_eq!(noise_analysis.noise_power, 0.0);
+        assert!(noise_analysis.noise_power.abs() < 1e-12);
     }
 
     #[test]
@@ -805,9 +818,7 @@ mod tests {
         let min_reasonable_errors_per_bin = data.len() / (histogram.len() * 10); // At least 1/10 of uniform distribution
         assert!(
             max_bin_count >= min_reasonable_errors_per_bin,
-            "Error distribution seems too concentrated: max bin has {} errors out of {}",
-            max_bin_count,
-            total_errors
+            "Error distribution seems too concentrated: max bin has {max_bin_count} errors out of {total_errors}",
         );
     }
 

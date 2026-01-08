@@ -1,6 +1,6 @@
 //! Common types for few-shot learning datasets
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use backend::{Backend, DataType, Storage};
 use rand::Rng;
 use tensor::Tensor;

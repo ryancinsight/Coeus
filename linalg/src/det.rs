@@ -2,7 +2,7 @@
 //!
 //! Computes determinant using LU decomposition with partial pivoting.
 
-use crate::error::{dimension_mismatch, not_square, singular_matrix};
+use crate::error::{dimension_mismatch, not_square};
 use backend::Backend;
 use dtype::DataType;
 use num_traits::{Float, One, Zero};

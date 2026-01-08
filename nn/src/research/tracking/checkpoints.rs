@@ -99,7 +99,7 @@ impl CheckpointManager {
         &mut self,
         name: String,
         data: CheckpointData,
-    ) -> crate::error::Result<String> {
+    ) -> crate::core::error::Result<String> {
         let checkpoint_id = format!("{}_{}", name, chrono::Utc::now().timestamp());
         let mut data = data;
         data.id = checkpoint_id.clone();
@@ -169,7 +169,7 @@ impl CheckpointManager {
     }
 
     /// Delete checkpoint
-    pub fn delete_checkpoint(&mut self, id: &str) -> crate::error::Result<()> {
+    pub fn delete_checkpoint(&mut self, id: &str) -> crate::core::error::Result<()> {
         if let Some(checkpoint) = self.checkpoints.remove(id) {
             self.checkpoints_by_time
                 .remove(&checkpoint.metadata.created_at);
@@ -179,19 +179,19 @@ impl CheckpointManager {
     }
 
     /// Load checkpoint from file
-    pub fn load_checkpoint(&mut self, path: &Path) -> crate::error::Result<String> {
+    pub fn load_checkpoint(&mut self, path: &Path) -> crate::core::error::Result<String> {
         // Implementation would depend on storage format
         // For now, return error indicating not implemented
-        Err(crate::error::NNError::NotImplemented {
+        Err(crate::core::error::NNError::NotImplemented {
             operation: "File-based checkpoint loading not yet implemented".to_string(),
         })
     }
 
     /// Save checkpoint to file
-    pub fn save_checkpoint(&self, id: &str, path: &Path) -> crate::error::Result<()> {
+    pub fn save_checkpoint(&self, id: &str, path: &Path) -> crate::core::error::Result<()> {
         // Implementation would serialize checkpoint to file
         let _ = (id, path); // Suppress unused variable warnings
-        Err(crate::error::NNError::NotImplemented {
+        Err(crate::core::error::NNError::NotImplemented {
             operation: "File-based checkpoint saving not yet implemented".to_string(),
         })
     }
@@ -260,7 +260,7 @@ impl CheckpointManager {
     }
 
     /// Clean up old checkpoints based on policy
-    fn cleanup_old_checkpoints(&mut self) -> crate::error::Result<()> {
+    fn cleanup_old_checkpoints(&mut self) -> crate::core::error::Result<()> {
         if self.checkpoints.len() <= self.storage_config.max_checkpoints {
             return Ok(());
         }

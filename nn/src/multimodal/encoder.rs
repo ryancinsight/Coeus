@@ -5,10 +5,10 @@
 
 use super::fusion::FeedForward;
 use super::modality::{Modality, ModalityConfig};
-use crate::error::Result;
-use crate::layernorm::LayerNorm;
-use crate::linear::Linear;
-use crate::module::{Module, ModuleExt};
+use crate::core::error::Result;
+use crate::core::module::{Module, ModuleExt};
+use crate::modules::linear::Linear;
+use crate::modules::normalization::LayerNorm;
 use backend::Backend;
 use dtype::DataType;
 use storage::{Storage, StorageFromVec};
@@ -77,7 +77,7 @@ where
         mask: Option<&Tensor<B, S, T>>,
     ) -> Result<Tensor<B, S, T>> {
         // Project input to hidden dimension
-        let mut hidden = crate::functional::linear(
+        let mut hidden = crate::functional_api::linear(
             input,
             &self.input_proj.weight.data,
             Some(&self.input_proj.bias.data),
@@ -118,14 +118,14 @@ where
     T: DataType + 'static + dtype::FloatExt + num_traits::FromPrimitive + num_traits::Bounded,
 {
     /// Self-attention
-    pub attention: crate::attention::MultiHeadAttention<B, S, T>,
+    pub attention: crate::modules::attention::MultiHeadAttention<B, S, T>,
     /// Feed-forward network
     pub feed_forward: FeedForward<B, S, T>,
     /// Layer norms
     pub norm1: LayerNorm<B, S, T>,
     pub norm2: LayerNorm<B, S, T>,
     /// Intermediate dropout
-    pub dropout: crate::dropout::Dropout,
+    pub dropout: crate::modules::regularization::dropout::Dropout,
 }
 
 impl<B, S, T> Layer<B, S, T>
@@ -141,11 +141,11 @@ where
 {
     /// Create new transformer layer
     pub fn new(hidden_dim: usize, num_heads: usize, dropout: f64) -> Result<Self> {
-        let attention = crate::attention::MultiHeadAttention::new(hidden_dim, num_heads)?;
+        let attention = crate::modules::attention::MultiHeadAttention::new(hidden_dim, num_heads)?;
         let feed_forward = FeedForward::new(hidden_dim, hidden_dim * 4, dropout)?;
         let norm1 = LayerNorm::new(vec![hidden_dim], 1e-6);
         let norm2 = LayerNorm::new(vec![hidden_dim], 1e-6);
-        let dropout_layer = crate::dropout::Dropout::new(dropout);
+        let dropout_layer = crate::modules::regularization::dropout::Dropout::new(dropout);
 
         Ok(Self {
             attention,

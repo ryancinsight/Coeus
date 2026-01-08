@@ -199,7 +199,7 @@ fn test_zero_copy_operations() {
     assert_eq!(chunks[1].shape().dims(), &[1, 2]); // Second chunk shape
 }
 
-/// Property-based tests for mathematical correctness
+// Property-based tests for mathematical correctness
 // Temporarily disabled due to proptest compilation issues
 /*
 proptest! {

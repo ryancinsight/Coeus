@@ -3,8 +3,8 @@
 use crate::error::Result;
 use crate::process_group::{ProcessGroup, Rank, WorldSize};
 use crate::reducer::GradientReducer;
-use nn::error::NNError;
 use nn::Module;
+use nn::NNError;
 use std::sync::Arc;
 
 /// Data parallel wrapper for distributed training
@@ -16,7 +16,6 @@ pub struct DataParallel<M, B, S, T> {
     model: M,
     process_group: Arc<ProcessGroup>,
     gradient_reducer: GradientReducer,
-    use_gpu_sync: bool,
     _phantom: std::marker::PhantomData<(B, S, T)>,
 }
 
@@ -50,7 +49,6 @@ where
             model,
             process_group,
             gradient_reducer,
-            use_gpu_sync: false,
             _phantom: std::marker::PhantomData,
         })
     }
@@ -81,7 +79,6 @@ where
             model,
             process_group,
             gradient_reducer,
-            use_gpu_sync: true,
             _phantom: std::marker::PhantomData,
         })
     }

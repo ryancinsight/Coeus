@@ -789,10 +789,10 @@ pub struct WorkflowLoader;
 
 impl WorkflowLoader {
     /// Load workflow from YAML file
-    pub fn load_from_yaml<P: AsRef<Path>>(path: P) -> crate::error::Result<ResearchWorkflow> {
+    pub fn load_from_yaml<P: AsRef<Path>>(path: P) -> crate::core::error::Result<ResearchWorkflow> {
         let content = fs::read_to_string(path)?;
         let spec: WorkflowSpec = serde_yaml::from_str(&content).map_err(|e| {
-            crate::error::NNError::InvalidConfiguration {
+            crate::core::error::NNError::InvalidConfiguration {
                 message: format!("Failed to parse workflow YAML: {}", e),
             }
         })?;
@@ -801,10 +801,10 @@ impl WorkflowLoader {
     }
 
     /// Load workflow from JSON file
-    pub fn load_from_json<P: AsRef<Path>>(path: P) -> crate::error::Result<ResearchWorkflow> {
+    pub fn load_from_json<P: AsRef<Path>>(path: P) -> crate::core::error::Result<ResearchWorkflow> {
         let content = fs::read_to_string(path)?;
         let spec: WorkflowSpec = serde_json::from_str(&content).map_err(|e| {
-            crate::error::NNError::InvalidConfiguration {
+            crate::core::error::NNError::InvalidConfiguration {
                 message: format!("Failed to parse workflow JSON: {}", e),
             }
         })?;
@@ -813,7 +813,7 @@ impl WorkflowLoader {
     }
 
     /// Convert workflow specification to ResearchWorkflow
-    pub fn spec_to_workflow(spec: WorkflowSpec) -> crate::error::Result<ResearchWorkflow> {
+    pub fn spec_to_workflow(spec: WorkflowSpec) -> crate::core::error::Result<ResearchWorkflow> {
         let steps = spec
             .steps
             .into_iter()
@@ -852,18 +852,21 @@ impl WorkflowLoader {
     pub fn save_to_yaml<P: AsRef<Path>>(
         workflow: &ResearchWorkflow,
         path: P,
-    ) -> crate::error::Result<()> {
+    ) -> crate::core::error::Result<()> {
         let spec = Self::workflow_to_spec(workflow)?;
-        let yaml =
-            serde_yaml::to_string(&spec).map_err(|e| crate::error::NNError::ExecutionError {
+        let yaml = serde_yaml::to_string(&spec).map_err(|e| {
+            crate::core::error::NNError::ExecutionError {
                 message: format!("Failed to serialize workflow to YAML: {}", e),
-            })?;
+            }
+        })?;
         fs::write(path, yaml)?;
         Ok(())
     }
 
     /// Convert ResearchWorkflow to specification
-    pub fn workflow_to_spec(workflow: &ResearchWorkflow) -> crate::error::Result<WorkflowSpec> {
+    pub fn workflow_to_spec(
+        workflow: &ResearchWorkflow,
+    ) -> crate::core::error::Result<WorkflowSpec> {
         let steps = workflow
             .steps
             .iter()

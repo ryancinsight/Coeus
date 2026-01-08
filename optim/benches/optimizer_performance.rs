@@ -14,7 +14,7 @@ use std::time::Duration;
 // Import our optimizers and dependencies
 use backend::CpuBackend;
 use dtype::float::Float32;
-use optim::{Adam, BaseOptimizer, Optimizer, ParamGroup};
+use optim::{Adam, BaseOptimizer, Optimizer};
 use storage::DenseStorage;
 use tensor::Tensor;
 
@@ -63,7 +63,7 @@ fn bench_adam_optimizer(c: &mut Criterion) {
 
                     // Benchmark CPU steps with simple gradient setting
                     for _ in 0..config.num_steps {
-                        Optimizer::step(&mut adam);
+                        Optimizer::step(&mut adam).unwrap();
                         BaseOptimizer::zero_grad(&mut adam);
                     }
                 })
@@ -98,7 +98,7 @@ fn bench_numerical_accuracy(c: &mut Criterion) {
 
                     // Take a few steps to ensure no crashes
                     for _ in 0..3 {
-                        Optimizer::step(&mut adam);
+                        Optimizer::step(&mut adam).unwrap();
                         BaseOptimizer::zero_grad(&mut adam);
                     }
 

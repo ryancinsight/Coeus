@@ -117,16 +117,17 @@ impl GradientEngine {
             return Ok(index);
         }
 
-        // Create new node
+        // Create new node with placeholder values
         let node_index = graph.nodes.len();
         graph.function_to_index.insert(function_id, node_index);
 
-        let mut node = GraphNode {
+        // Push a placeholder node so the index is reserved and valid
+        graph.nodes.push(GraphNode {
             function: Arc::clone(function),
             incoming: Vec::new(),
             outgoing: Vec::new(),
             indegree: 0,
-        };
+        });
 
         // Process input tensors to find parent functions
         let inputs = function.inputs();
@@ -137,12 +138,11 @@ impl GradientEngine {
 
                 // Add edge: parent -> current
                 graph.nodes[parent_index].outgoing.push(node_index);
-                node.incoming.push(parent_index);
-                node.indegree += 1;
+                graph.nodes[node_index].incoming.push(parent_index);
+                graph.nodes[node_index].indegree += 1;
             }
         }
 
-        graph.nodes.push(node);
         Ok(node_index)
     }
 
@@ -193,9 +193,8 @@ impl GradientEngine {
 
     /// Compute gradients through automatic graph traversal
     ///
-    /// This implements PyTorch-compatible backward pass by traversing the `grad_fn` chain.
-    /// Unlike the abandoned node-based approach, this uses Function objects attached
-    /// to tensors for memory-efficient gradient computation.
+    /// This implements PyTorch-compatible backward pass by traversing the `grad_fn` chain
+    /// using topological sorting to handle shared nodes and complex graph structures correctly.
     ///
     /// # Arguments
     /// * `root_grad_fn` - The `grad_fn` of the tensor to start backward pass from
@@ -207,132 +206,199 @@ impl GradientEngine {
         &mut self,
         root_grad_fn: Option<&Arc<dyn tensor::Function<B, S, T>>>,
         grad_output: &tensor::Tensor<B, S, T>,
+        create_graph: bool,
     ) -> Result<()>
     where
-        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
+        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone + Default,
         S: Storage<T>
             + core::fmt::Debug
             + Send
             + Sync
             + 'static
             + StorageToDense<T>
-            + StorageFromVec<T>,
-        T: DataType,
+            + StorageFromVec<T>
+            + Clone,
+        T: DataType + num_traits::Zero + Clone + 'static,
     {
-        if let Some(grad_fn) = root_grad_fn {
-            // For now, use the simple recursive approach
-            // TODO: Implement full topological sorting
-            let grad_output_dense = grad_output
-                .to_dense_generic()
-                .map_err(AutogradError::TensorError)?;
-            self.backward_from_function(grad_fn, &grad_output_dense)?;
-        }
-        Ok(())
-    }
+        let Some(root_fn) = root_grad_fn else {
+            return Ok(());
+        };
 
-    /// Recursive backward pass starting from a specific function
-    fn backward_from_function<B, S, T>(
-        &mut self,
-        function: &Arc<dyn tensor::Function<B, S, T>>,
-        grad_output: &tensor::Tensor<B, storage::DenseStorage<T>, T>,
-    ) -> Result<()>
-    where
-        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
-        S: Storage<T>
-            + core::fmt::Debug
-            + Send
-            + Sync
-            + 'static
-            + StorageToDense<T>
-            + StorageFromVec<T>,
-        T: DataType,
-    {
-        // Prevent cycles by tracking visited functions
-        let function_ptr = Arc::as_ptr(function);
-        let function_id = function_ptr.cast::<()>() as usize;
-        if !self.visited.insert(function_id) {
-            return Ok(()); // Already processed this function
-        }
+        self.visited.clear();
 
-        // Call function.backward() to compute gradients w.r.t. inputs
-        // grad_output is already dense
-        let input_gradients =
-            function
-                .backward(grad_output)
-                .map_err(|e| AutogradError::InvalidOperation {
-                    operation: format!("Function backward failed: {e}"),
-                })?;
+        let prev_grad_enabled = tensor::tensor_core::grad_enabled();
+        tensor::tensor_core::set_grad_enabled(create_graph);
 
-        // Accumulate gradients into the input tensors
-        let inputs = function.inputs();
-        if inputs.len() != input_gradients.len() {
-            return Err(AutogradError::InvalidInput {
-                message: format!(
-                    "Function {} returned {} gradients but has {} inputs",
-                    function.name(),
-                    input_gradients.len(),
-                    inputs.len()
-                ),
-            });
-        }
+        // 1. Build the computation graph
+        let mut graph = ComputationGraph {
+            nodes: Vec::new(),
+            function_to_index: HashMap::new(),
+        };
+        Self::build_graph_recursive(&mut graph, root_fn)?;
 
-        // Accumulate gradients for each input tensor
-        println!(
-            "Accumulating {} gradients for {} inputs",
-            input_gradients.len(),
-            inputs.len()
-        );
-        for (i, (input_tensor_ref, grad_tensor)) in inputs.iter().zip(input_gradients).enumerate() {
-            println!(
-                "Accumulating gradient {}: input shape {:?}, grad shape {:?}",
-                i,
-                input_tensor_ref.shape().dims(),
-                grad_tensor.shape().dims()
-            );
-            Self::accumulate_gradient(input_tensor_ref, &grad_tensor)?;
-        }
+        // 2. Perform topological sort
+        let sorted_indices = Self::topological_sort(&graph)?;
 
-        // Recursively process parent functions
-        // Each input tensor's gradient becomes the grad_output for its parent function
-        for input_tensor_ref in inputs {
-            if let Some(parent_grad_fn) = input_tensor_ref.grad_fn() {
-                // The gradient w.r.t. this input becomes the grad_output for the parent
-                let input_grad = Self::get_accumulated_gradient(input_tensor_ref)?;
-                self.backward_from_function(parent_grad_fn, &input_grad)?;
+        // 3. Initialize accumulated gradients map
+        // Maps function pointer (id) to its accumulated gradient
+        let mut accumulated_grads: HashMap<usize, tensor::Tensor<B, storage::DenseStorage<T>, T>> =
+            HashMap::new();
+
+        // Set initial gradient for the root function
+        let root_id = Arc::as_ptr(root_fn).cast::<()>() as usize;
+        let grad_output_dense = grad_output
+            .to_dense_generic()
+            .map_err(AutogradError::from)?;
+
+        // If create_graph is true, the initial gradient should also track gradients
+        let grad_output_dense = if create_graph {
+            grad_output_dense.requires_grad_(true)
+        } else {
+            grad_output_dense
+        };
+
+        accumulated_grads.insert(root_id, grad_output_dense);
+
+        // 4. Process nodes in reverse topological order (from outputs to inputs)
+        for &node_idx in sorted_indices.iter().rev() {
+            let node = &graph.nodes[node_idx];
+            let function_id = Arc::as_ptr(&node.function).cast::<()>() as usize;
+
+            // Get accumulated gradient for this function
+            let Some(grad_out) = accumulated_grads.remove(&function_id) else {
+                continue; // No gradient reached this node
+            };
+
+            if !self.visited.insert(function_id) {
+                continue;
+            }
+
+            // Call backward on the function
+            let input_gradients =
+                node.function
+                    .backward(&grad_out)
+                    .map_err(|e| AutogradError::InvalidOperation {
+                        operation: format!(
+                            "Function {} backward failed: {e}",
+                            node.function.name()
+                        ),
+                    })?;
+
+            // Accumulate gradients into inputs
+            let inputs = node.function.inputs();
+            for (input_tensor, grad_in_dense) in inputs.iter().zip(input_gradients) {
+                // Convert gradient to dense for accumulation if it's not already dense
+                let grad_in_dense_converted = grad_in_dense
+                    .to_dense_generic()
+                    .map_err(AutogradError::from)?;
+
+                // If input has a grad_fn, accumulate into the map for the next layer
+                if let Some(parent_fn) = input_tensor.grad_fn() {
+                    let parent_id = Arc::as_ptr(parent_fn).cast::<()>() as usize;
+
+                    if let Some(existing_grad) = accumulated_grads.get_mut(&parent_id) {
+                        // Use autograd-aware add if create_graph is true
+                        let updated_grad = if create_graph {
+                            crate::tensor_ops::add(existing_grad, &grad_in_dense_converted)?
+                        } else {
+                            existing_grad
+                                .add(&grad_in_dense_converted)
+                                .map_err(AutogradError::TensorError)?
+                        };
+                        *existing_grad = updated_grad;
+                    } else {
+                        accumulated_grads.insert(parent_id, grad_in_dense_converted.clone());
+                    }
+                }
+
+                // If input requires grad, also accumulate into its .grad field
+                if input_tensor.requires_grad() {
+                    Self::accumulate_gradient(
+                        input_tensor,
+                        &grad_in_dense_converted,
+                        create_graph,
+                    )?;
+                }
             }
         }
 
+        // Restore grad enabled state
+        tensor::tensor_core::set_grad_enabled(prev_grad_enabled);
+
+        Ok(())
+    }
+
+    /// Backward pass for a single tensor
+    #[allow(clippy::missing_errors_doc)]
+    pub fn backward_tensor<B, S, T>(tensor: &tensor::Tensor<B, S, T>) -> Result<()>
+    where
+        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone + Default,
+        S: Storage<T>
+            + core::fmt::Debug
+            + Send
+            + Sync
+            + 'static
+            + StorageToDense<T>
+            + StorageFromVec<T>
+            + Clone,
+        T: DataType + num_traits::Zero + Clone + 'static,
+    {
+        let Some(grad_fn) = tensor.grad_fn() else {
+            return Ok(());
+        };
+
+        // Create initial gradient of ones with same shape as tensor
+        let shape = tensor.shape();
+        let grad_data = vec![T::one(); shape.size()];
+        let grad_output = tensor::Tensor::<B, S, T>::from_vec_with_backend(
+            grad_data,
+            shape.dims(),
+            tensor.backend().clone(),
+        )
+        .map_err(AutogradError::TensorError)?;
+
+        let mut engine = GradientEngine::new();
+        engine.backward(Some(grad_fn), &grad_output, false)?;
         Ok(())
     }
 
     /// Accumulate gradient into a tensor's grad field
     #[allow(clippy::used_underscore_binding)]
-    fn accumulate_gradient<B, S, T>(
+    fn accumulate_gradient<B, S, GS, T>(
         tensor: &tensor::Tensor<B, S, T>,
-        gradient: &tensor::Tensor<B, S, T>,
+        gradient: &tensor::Tensor<B, GS, T>,
+        create_graph: bool,
     ) -> Result<()>
     where
-        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
+        B: Backend<Data = T> + std::fmt::Debug + Send + Sync + 'static + Clone,
         S: Storage<T>
-            + core::fmt::Debug
+            + std::fmt::Debug
             + Send
             + Sync
             + Clone
             + 'static
             + StorageFromVec<T>
             + StorageToDense<T>,
+        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
         T: DataType + Clone,
     {
-        println!(
-            "accumulate_gradient called for tensor with shape {:?}",
-            tensor.shape().dims()
-        );
-        println!("gradient shape: {:?}", gradient.shape().dims());
+        if create_graph {
+            let gradient_dense = gradient.to_dense_generic().map_err(AutogradError::from)?;
 
-        // Accumulate gradients properly
-        let result = tensor.accumulate_grad(gradient);
-        println!("accumulate_grad result: {result:?}");
-        result.map_err(AutogradError::TensorError)
+            match tensor.grad() {
+                Ok(existing_dense) => {
+                    let updated = crate::tensor_ops::add(&existing_dense, &gradient_dense)?;
+                    tensor.set_grad(updated).map_err(AutogradError::TensorError)
+                }
+                Err(_) => tensor
+                    .set_grad(gradient_dense)
+                    .map_err(AutogradError::TensorError),
+            }
+        } else {
+            tensor
+                .accumulate_grad(gradient)
+                .map_err(AutogradError::TensorError)
+        }
     }
 
     /// Get accumulated gradient for a tensor (always returns dense tensor)
@@ -341,9 +407,9 @@ impl GradientEngine {
         tensor: &tensor::Tensor<B, S, T>,
     ) -> Result<tensor::Tensor<B, storage::DenseStorage<T>, T>>
     where
-        B: Backend<Data = T> + core::fmt::Debug + Send + Sync + 'static + Clone,
+        B: Backend<Data = T> + std::fmt::Debug + Send + Sync + 'static + Clone,
         S: Storage<T>
-            + core::fmt::Debug
+            + std::fmt::Debug
             + Send
             + Sync
             + 'static
@@ -365,9 +431,9 @@ impl GradientEngine {
 /// Returns error if backward pass fails
 pub fn backward<B, S, T>(tensor: &tensor::Tensor<B, S, T>) -> Result<()>
 where
-    B: Backend<Data = T> + core::fmt::Debug + Send + Sync + Clone + 'static,
+    B: Backend<Data = T> + std::fmt::Debug + Send + Sync + Clone + 'static,
     S: Storage<T>
-        + core::fmt::Debug
+        + std::fmt::Debug
         + Send
         + Sync
         + Clone
@@ -382,7 +448,7 @@ where
             .map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))?;
         let grad_output = tensor::Tensor::from_storage(one_storage, tensor.backend().clone());
 
-        engine.backward(Some(grad_fn), &grad_output)?;
+        engine.backward(Some(grad_fn), &grad_output, false)?;
     }
     Ok(())
 }
@@ -399,15 +465,15 @@ mod tests {
     }
 
     #[test]
-    fn test_backward_with_none_grad_fn() {
+    fn test_backward_with_none_grad_fn() -> Result<()> {
         let mut engine = GradientEngine::new();
         let grad_tensor = tensor::Tensor::<
             backend::CpuBackend<Float32>,
             storage::DenseStorage<Float32>,
             Float32,
-        >::from_vec(vec![Float32::new(1.0)], &[1])
-        .unwrap();
-        let result = engine.backward(None, &grad_tensor);
+        >::from_vec(vec![Float32::new(1.0)], &[1])?;
+        let result = engine.backward(None, &grad_tensor, false);
         assert!(result.is_ok());
+        Ok(())
     }
 }

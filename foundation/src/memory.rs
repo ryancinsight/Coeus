@@ -382,6 +382,12 @@ impl ActivationManager {
     }
 }
 
+impl Default for ActivationManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Gradient Checkpointing Manager
 #[derive(Debug)]
 pub struct GradientManager {
@@ -450,6 +456,12 @@ impl GradientManager {
         }
 
         Ok(())
+    }
+}
+
+impl Default for GradientManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -548,6 +560,12 @@ impl MixedPrecisionManager {
         } else {
             Ok(false)
         }
+    }
+}
+
+impl Default for MixedPrecisionManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -683,6 +701,12 @@ impl OffloadingManager {
     pub async fn prefetch_parameters(&self, _param_names: &[String]) -> Result<()> {
         // Implement parameter prefetching to reduce latency
         Ok(())
+    }
+}
+
+impl Default for OffloadingManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

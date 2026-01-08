@@ -3,7 +3,7 @@
 //! This module implements feature importance analysis techniques including
 //! permutation importance, SHAP values, and model-based importance methods.
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use crate::Module;
 use backend::{Backend, DataType, Storage};
 use dtype::traits::FloatExt;
@@ -471,7 +471,7 @@ impl Default for FeatureImportance {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::linear::Linear;
+    use crate::modules::linear::Linear;
     use backend::CpuBackend;
     use dtype::float::Float32;
     use storage::DenseStorage;

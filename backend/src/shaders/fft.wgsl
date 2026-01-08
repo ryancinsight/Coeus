@@ -124,7 +124,7 @@ struct InverseFlag {
 var<uniform> inverse_flag: InverseFlag;
 
 @compute @workgroup_size(256)
-fn fft_forward(@builtin(global_invocation_id) global_id: vec3<u32>) {
+fn fft_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let N = fft_params.x;
     let radix = fft_params.y;
     let pass = fft_params.z;
@@ -147,59 +147,6 @@ fn fft_forward(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // Ensure bit reversal is complete before proceeding
     storageBarrier();
 
-    // Each pass processes different radix levels
-    let stride = 1u << (pass + 1u); // 2^(pass+1)
-    let block_size = 1u << (pass + 2u); // 2^(pass+2)
-
-    if (thread_id * u32(radix) >= N) {
-        return;
-    }
-
-    let block_start = (thread_id / (block_size / u32(radix))) * block_size;
-    let butterfly_index = thread_id % (block_size / u32(radix));
-
-    if (radix == 2u) {
-        // 2-point DFT
-        var result: array<vec2<f32>, 2>;
-        radix2_butterfly(&fft_data, block_start + butterfly_index * stride / 2u, stride / 2u, N, false, result);
-
-        fft_data[block_start + butterfly_index * stride + 0u] = result[0];
-        fft_data[block_start + butterfly_index * stride + stride / 2u] = result[1];
-    } else if (radix == 4u) {
-        // 4-point DFT
-        var result: array<vec2<f32>, 4>;
-        radix4_butterfly(&fft_data, block_start + butterfly_index * stride / 4u, stride / 4u, N, false, result);
-
-        for (var i = 0u; i < 4u; i = i + 1u) {
-            fft_data[block_start + butterfly_index * stride + i * (stride / 4u)] = result[i];
-        }
-    }
-}
-
-// Inverse 1D FFT using Cooley-Tukey algorithm with proper scaling
-@compute @workgroup_size(256)
-fn fft_inverse(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let N = fft_params.x;
-    let radix = fft_params.y;
-    let pass = fft_params.z;
-    let inverse = inverse_flag.inverse != 0u;
-
-    let thread_id = global_id.x;
-
-    // Same algorithm as forward but with inverse twiddle factors
-    if (pass == 0u && thread_id < N) {
-        let original_index = thread_id;
-        let reversed_index = bit_reverse(original_index, N);
-
-        if (original_index != reversed_index) {
-            let temp = fft_data[original_index];
-            fft_data[original_index] = fft_data[reversed_index];
-            fft_data[reversed_index] = temp;
-        }
-    }
-
-    storageBarrier();
-
     let stride = 1u << (pass + 1u);
     let block_size = 1u << (pass + 2u);
 
@@ -212,20 +159,26 @@ fn fft_inverse(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     if (radix == 2u) {
         var result: array<vec2<f32>, 2>;
-        radix2_butterfly(&fft_data, block_start + butterfly_index * stride / 2u, stride / 2u, N, true, result);
+        radix2_butterfly(&fft_data, block_start + butterfly_index * stride / 2u, stride / 2u, N, inverse, result);
 
-        // Apply 1/N scaling for inverse FFT
-        result[0] = complex_scale(result[0], 1.0 / f32(N));
-        result[1] = complex_scale(result[1], 1.0 / f32(N));
+        // Apply 1/N scaling ONLY on the final pass of inverse FFT
+        let logN = u32(log2(f32(N)));
+        if (inverse && (pass == logN - 1u)) {
+            result[0] = complex_scale(result[0], 1.0 / f32(N));
+            result[1] = complex_scale(result[1], 1.0 / f32(N));
+        }
 
         fft_data[block_start + butterfly_index * stride + 0u] = result[0];
         fft_data[block_start + butterfly_index * stride + stride / 2u] = result[1];
     } else if (radix == 4u) {
         var result: array<vec2<f32>, 4>;
-        radix4_butterfly(&fft_data, block_start + butterfly_index * stride / 4u, stride / 4u, N, true, result);
+        radix4_butterfly(&fft_data, block_start + butterfly_index * stride / 4u, stride / 4u, N, inverse, result);
 
+        let logN = u32(log2(f32(N)));
         for (var i = 0u; i < 4u; i = i + 1u) {
-            result[i] = complex_scale(result[i], 1.0 / f32(N));
+            if (inverse && (pass == logN - 1u)) {
+                result[i] = complex_scale(result[i], 1.0 / f32(N));
+            }
             fft_data[block_start + butterfly_index * stride + i * (stride / 4u)] = result[i];
         }
     }

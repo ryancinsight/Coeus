@@ -1,41 +1,67 @@
-//! # Coeus Audio Processing Library
+//! Audio Processing and Speech Models for Neural Networks
 //!
-//! High-performance audio processing operations with GPU acceleration support.
+//! This module provides comprehensive audio processing capabilities including:
+//! - Audio feature extraction (MFCC, spectrograms, mel-spectrograms)
+//! - Speech recognition models (wav2vec, HuBERT, Whisper) - MS-46 Phase 3
+//! - Text-to-speech synthesis models - MS-46 Phase 3
+//! - Audio classification and music genre recognition - MS-46 Phase 3
+//! - Real-time audio processing pipelines - MS-46 Phase 3
+//! - Multi-language speech processing - MS-46 Phase 3
+//! - Audio-visual multimodal integration - MS-47
 //!
-//! ## Features
+//! ## Current Status: Sprint MS-46 ~65% Complete
+//! - ✓ Audio feature extraction (MFCC, spectrograms, mel-spectrograms, chroma, wavelet)
+//! - ⏳ Speech models (wav2vec, HuBERT, Whisper) - TODO
+//! - ⏳ Text-to-speech synthesis (Tacotron, FastSpeech) - TODO
+//! - ⏳ Audio classification and recognition - TODO
 //!
-//! - **Fast Fourier Transform (FFT)**: High-performance FFT/IFFT with both CPU and GPU implementations
-//! - **GPU Acceleration**: Leverages WebGPU for parallel audio processing on modern GPUs
-//! - **Real-time Processing**: Optimized for low-latency audio applications
-//! - **Flexible API**: Easy integration with tensor operations and ML frameworks
-//!
-//! ## Quick Start
-//!
+//! ## Feature Extraction
 //! ```rust
-//! use audio::Fft;
-//! #[cfg(feature = "gpu")]
-//! use audio::GpuFft;
+//! use audio::{AudioFeatureExtractor, MFCCExtractor, SpectrogramExtractor};
 //!
-//! // CPU FFT processing
-//! let mut fft = Fft::new(1024).unwrap();
+//! // Extract MFCC features for speech recognition
+//! let mfcc_extractor = MFCCExtractor::new(13, 23, 16000, 512);
+//! let features = mfcc_extractor.extract(audio_samples)?;
 //!
-//! // GPU FFT processing (async)
-//! #[cfg(feature = "gpu")]
-//! {
-//!     let backend = std::sync::Arc::new(
-//!         futures::executor::block_on(backend::gpu::GpuBackend::new()).unwrap(),
-//!     );
-//!     let gpu_fft = GpuFft::new(backend, 1024).unwrap();
+//! // Extract mel spectrograms for music processing
+//! let mel_extractor = MelSpectrogramExtractor::new(128, 16000, 1024, 512);
+//! let mel_spec = mel_extractor.extract(audio_samples)?;
+//! ```
 //!
-//!     let input = vec![0.0; 1024]; // Your audio samples
-//!     let _result = futures::executor::block_on(gpu_fft.forward_real(&input)).unwrap();
-//! }
+//! ## Future APIs (Sprint MS-46 Completion)
+//! ```rust
+//! // Speech Recognition (TODO)
+//! use audio::{WhisperModel, SpeechRecognizer};
+//!
+//! let model = WhisperModel::load("whisper-base")?;
+//! let result = model.transcribe(audio_samples, "en")?;
+//! println!("Transcription: {}", result.text);
+//!
+//! // Text-to-Speech (TODO)
+//! use audio::TTSModel;
+//!
+//! let tts = TTSModel::new("tacotron2")?;
+//! let audio = tts.synthesize("Hello, world!", "en")?;
 //! ```
 
+pub mod classification;
 pub mod error;
-pub mod fft;
+pub mod features;
+pub mod models;
+pub mod processing;
+pub mod recognition;
+pub mod synthesis; // Added error module which existed in audio crate
 
-pub use error::{AudioError, AudioResult};
-pub use fft::Fft;
-#[cfg(feature = "gpu")]
-pub use fft::GpuFft;
+// Re-exports for convenient access
+pub use features::{
+    AudioFeatureExtractor, ChromagramExtractor, MFCCExtractor, MelSpectrogramExtractor,
+    SpectrogramExtractor, WaveletExtractor,
+};
+
+pub use models::{FastSpeechModel, HubertModel, TacotronModel, Wav2VecModel, WhisperModel};
+
+pub use classification::{AudioClassifier, MusicGenreClassifier};
+pub use error::{AudioError, Result};
+pub use processing::{AudioProcessor, RealTimeAudioProcessor};
+pub use recognition::SpeechRecognizer;
+pub use synthesis::{TTSEngine, TTSModel};

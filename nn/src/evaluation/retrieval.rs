@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use super::{ClipEvaluationConfig, ClipModelEvaluator, EvaluationDataset};
-use crate::error::Result;
+use crate::core::error::Result;
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 use storage::Storage;

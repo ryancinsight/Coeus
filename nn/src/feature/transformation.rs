@@ -4,7 +4,7 @@
 //! scaling/normalization, categorical encoding, feature generation, and
 //! dimensionality reduction.
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use std::collections::HashMap;
 
 /// Feature transformation result

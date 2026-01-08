@@ -10,6 +10,10 @@ use rand::prelude::*;
 use autograd::ops::backward_with_grad;
 use backend::CpuBackend;
 use dtype::float::Float32;
+#[cfg(feature = "research")]
+use nn::research::{
+    ExperimentSpec, MAMLResearchAgentFactory, ResearchAgentFactory, ResearchDomain,
+};
 use nn::{
     activation::GeLU,
     attention::SparseAttentionPattern,
@@ -19,8 +23,6 @@ use nn::{
     BatchNorm2d, Conv2D, LayerNorm, Linear, Module, MultiHeadAttention, ReLU, Sequential,
     SparseAttention,
 };
-#[cfg(feature = "research")]
-use nn::research::{ExperimentSpec, MAMLResearchAgentFactory, ResearchAgentFactory, ResearchDomain};
 use storage::DenseStorage;
 use tensor::Tensor;
 

@@ -233,6 +233,7 @@ pub mod tracking;
 // Sprint MS-44: NAS & AutoML Integration
 pub mod automated_research;
 pub mod benchmarking;
+#[cfg(feature = "clip")]
 pub mod clip_integration;
 pub mod hpo_integration;
 pub mod joint_search;
@@ -275,6 +276,7 @@ pub struct ResearchConfig {
 }
 
 // CLIP research integration
+#[cfg(feature = "clip")]
 pub use clip_integration::{
     AblationAutomation, AblationStudy, AutomatedResearchWorkflow, ClipExperimentBuilder,
     ClipExperimentRunner, ClipResearchConfig, HpoAutomation, HpoSpace, ResearchAutomation,
@@ -337,7 +339,7 @@ impl UnifiedResearchFramework {
     pub fn execute_research_workflow(
         &mut self,
         workflow: &ResearchWorkflow,
-    ) -> crate::error::Result<ExperimentResult> {
+    ) -> crate::core::error::Result<ExperimentResult> {
         self.stats.workflows_executed += 1;
         self.orchestrator.execute_workflow(workflow, &self.registry)
     }
@@ -373,7 +375,7 @@ impl UnifiedResearchFramework {
     pub async fn execute_workflow_async(
         &mut self,
         workflow: &ResearchWorkflow,
-    ) -> crate::error::Result<orchestrator::WorkflowResult> {
+    ) -> crate::core::error::Result<orchestrator::WorkflowResult> {
         self.stats.workflows_executed += 1;
         self.orchestrator
             .execute_workflow_async(workflow, &self.registry)
@@ -384,7 +386,7 @@ impl UnifiedResearchFramework {
     pub async fn execute_workflow_from_yaml<P: AsRef<std::path::Path>>(
         &mut self,
         yaml_path: P,
-    ) -> crate::error::Result<orchestrator::WorkflowResult> {
+    ) -> crate::core::error::Result<orchestrator::WorkflowResult> {
         let workflow = WorkflowLoader::load_from_yaml(yaml_path)?;
         self.execute_workflow_async(&workflow).await
     }
@@ -393,7 +395,7 @@ impl UnifiedResearchFramework {
     pub async fn execute_workflow_from_json<P: AsRef<std::path::Path>>(
         &mut self,
         json_path: P,
-    ) -> crate::error::Result<orchestrator::WorkflowResult> {
+    ) -> crate::core::error::Result<orchestrator::WorkflowResult> {
         let workflow = WorkflowLoader::load_from_json(json_path)?;
         self.execute_workflow_async(&workflow).await
     }
@@ -418,7 +420,7 @@ impl UnifiedResearchFramework {
     }
 
     /// Cancel workflow execution
-    pub async fn cancel_workflow(&self, workflow_id: &str) -> crate::error::Result<()> {
+    pub async fn cancel_workflow(&self, workflow_id: &str) -> crate::core::error::Result<()> {
         self.orchestrator.cancel_workflow(workflow_id).await
     }
 
@@ -428,7 +430,7 @@ impl UnifiedResearchFramework {
     }
 
     /// Export complete research state for backup/transfer
-    pub fn export_research_state(&self) -> crate::error::Result<serde_json::Value> {
+    pub fn export_research_state(&self) -> crate::core::error::Result<serde_json::Value> {
         Ok(serde_json::json!({
             "framework_version": env!("CARGO_PKG_VERSION"),
             "export_timestamp": chrono::Utc::now(),

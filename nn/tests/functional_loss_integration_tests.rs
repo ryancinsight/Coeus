@@ -1,6 +1,6 @@
 use backend::CpuBackend;
 use dtype::float::Float32;
-use nn::functional_loss;
+use nn::functional_api as functional_loss;
 use storage::DenseStorage;
 use tensor::Tensor;
 

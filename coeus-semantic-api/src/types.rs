@@ -292,7 +292,7 @@ pub struct CrossModalSearchRequest {
 }
 
 /// Supported image formats
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ImageFormat {
     #[serde(rename = "jpeg")]
     Jpeg,
@@ -303,7 +303,7 @@ pub enum ImageFormat {
 }
 
 /// Search method preference
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum SearchMethod {
     /// Standardized cosine similarity search
     #[serde(rename = "cosine")]
@@ -341,7 +341,7 @@ pub struct SearchResult {
 }
 
 /// Content classification
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ContentType {
     #[serde(rename = "text")]
     Text,

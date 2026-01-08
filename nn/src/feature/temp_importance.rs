@@ -3,7 +3,7 @@
 //! This module implements feature importance analysis techniques including
 //! permutation importance, SHAP values, and model-based importance methods.
 
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use std::collections::HashMap;
 use rand::Rng;
 

@@ -200,7 +200,7 @@ mod tests {
     use dtype::float::Float32;
 
     #[test]
-    fn test_custom_function() {
+    fn test_custom_function() -> anyhow::Result<()> {
         // Define a simple function that doubles its input
         let forward_fn = |inputs: &[&tensor::Tensor<
             backend::CpuBackend<Float32>,
@@ -209,7 +209,8 @@ mod tests {
         >]| {
             let input = &inputs[0];
             // Create a scalar tensor with value 2.0 for multiplication
-            let two = tensor::Tensor::from_vec(vec![Float32::new(2.0)], &[]).unwrap();
+            let two = tensor::Tensor::from_vec(vec![Float32::new(2.0)], &[])
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
             Ok(&**input * &two)
         };
 
@@ -219,24 +220,24 @@ mod tests {
             Float32,
         >| {
             // Gradient is always 2.0 for f(x) = 2*x
-            let two = tensor::Tensor::from_vec(vec![Float32::new(2.0)], &[]).unwrap();
+            let two = tensor::Tensor::from_vec(vec![Float32::new(2.0)], &[])?;
             let grad_input = grad_output * &two;
             Ok(vec![grad_input])
         };
 
         // Create input tensor
-        let input = tensor::Tensor::from_vec(vec![Float32::new(3.0)], &[])
-            .unwrap()
-            .requires_grad_(true);
+        let input = tensor::Tensor::from_vec(vec![Float32::new(3.0)], &[])?.requires_grad_(true);
 
         // Apply custom function
-        let output = apply_custom_function(&[&input], forward_fn, backward_fn, "Double").unwrap();
+        let output = apply_custom_function(&[&input], forward_fn, backward_fn, "Double")?;
 
         // Check forward pass result
         assert_eq!(output.shape().dims(), &[]);
         assert!(output.function_object().is_some());
 
         // Test backward pass
-        crate::ops::backward(&output, None, false, false).unwrap();
+        crate::ops::backward(&output, None, false, false)?;
+
+        Ok(())
     }
 }

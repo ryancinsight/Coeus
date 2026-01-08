@@ -4,7 +4,7 @@
 
 use backend::CpuBackend;
 use dtype::float::Float32;
-use nn::attention::SparseAttentionPattern;
+use nn::modules::attention::sparse::SparseAttentionPattern;
 use nn::{Module, MultiHeadAttention, SparseAttention};
 use storage::DenseStorage;
 use tensor::Tensor;

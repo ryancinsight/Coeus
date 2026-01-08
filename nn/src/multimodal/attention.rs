@@ -4,13 +4,13 @@
 //! between different input modalities in multimodal processing.
 
 use super::modality::Modality;
-use crate::attention::MultiHeadAttention;
-use crate::dropout::Dropout;
-use crate::error::{NNError, Result};
-use crate::functional::linear;
-use crate::layernorm::LayerNorm;
-use crate::linear::Linear;
-use crate::module::{Module, ModuleExt};
+use crate::core::error::{NNError, Result};
+use crate::core::module::{Module, ModuleExt};
+use crate::functional_api::linear;
+use crate::modules::attention::MultiHeadAttention;
+use crate::modules::linear::Linear;
+use crate::modules::normalization::LayerNorm;
+use crate::modules::regularization::dropout::Dropout;
 use backend::Backend;
 use dtype::DataType;
 use std::collections::HashMap;
@@ -173,12 +173,8 @@ where
             &self.out_proj.weight.data,
             Some(&self.out_proj.bias.data),
         )?;
-        let output = crate::functional::dropout(
-            &output,
-            Some(self.dropout.p),
-            Some(self.dropout.training),
-            Some(false),
-        )?;
+        let output =
+            crate::functional_api::dropout(&output, self.dropout.p, self.dropout.training)?;
 
         // Add residual connection and layer norm
         let residual = query + &output;

@@ -42,7 +42,6 @@ pollster.workspace = true
 [[test]]
 name = "proptest"
 path = "tests/proptest.rs"
-harness = false
 
 [[test]]
 name = "concurrency"

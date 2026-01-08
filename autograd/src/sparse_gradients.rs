@@ -7,9 +7,9 @@
 //! - Automatic dense/sparse format conversion based on sparsity
 
 use crate::error::{AutogradError, Result};
-use std::{sync::Arc, vec::Vec};
 use backend::Backend;
 use dtype::DataType;
+use std::{sync::Arc, vec::Vec};
 use storage::{Storage, StorageFromVec, StorageToDense};
 
 /// Type alias for tensor references used in sparse gradients
@@ -334,12 +334,7 @@ where
     }
 
     /// CPU implementation of sparse-dense matrix multiplication
-    fn spmm_cpu(
-        a_sparse: &storage::CsrStorage<T>,
-        b_dense: &[T],
-        b_cols: usize,
-        output: &mut [T],
-    )
+    fn spmm_cpu(a_sparse: &storage::CsrStorage<T>, b_dense: &[T], b_cols: usize, output: &mut [T])
     where
         T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + Copy,
     {
@@ -372,12 +367,7 @@ where
     }
 
     /// GPU implementation of sparse-dense matrix multiplication
-    fn spmm_gpu(
-        a_sparse: &storage::CsrStorage<T>,
-        b_dense: &[T],
-        b_cols: usize,
-        output: &mut [T],
-    ) {
+    fn spmm_gpu(a_sparse: &storage::CsrStorage<T>, b_dense: &[T], b_cols: usize, output: &mut [T]) {
         Self::spmm_cpu(a_sparse, b_dense, b_cols, output);
     }
 
@@ -598,7 +588,7 @@ mod tests {
     use dtype::float::Float32;
     use storage::CsrStorage;
 
-    fn create_test_csr() -> CsrStorage<Float32> {
+    fn create_test_csr() -> anyhow::Result<CsrStorage<Float32>> {
         // 3x3 sparse matrix: [[1, 0, 2], [0, 0, 0], [0, 3, 4]]
         // Non-zeros: (0,0)=1, (0,2)=2, (2,1)=3, (2,2)=4
         let data = vec![
@@ -609,7 +599,7 @@ mod tests {
         ];
         let indices = vec![0, 2, 1, 2]; // column indices
         let indptr = vec![0, 2, 2, 4]; // row pointers
-        CsrStorage::new(data, indices, indptr, &[3, 3]).unwrap()
+        Ok(CsrStorage::new(data, indices, indptr, &[3, 3])?)
     }
 
     #[test]
@@ -644,13 +634,14 @@ mod tests {
     }
 
     #[test]
-    fn test_csr_matrix_creation() {
-        let csr = create_test_csr();
+    fn test_csr_matrix_creation() -> anyhow::Result<()> {
+        let csr = create_test_csr()?;
         assert_eq!(csr.nnz(), 4);
         assert_eq!(csr.shape().dims(), &[3, 3]);
         // Sparsity = 1 - nnz/total = 1 - 4/9 = 5/9 ≈ 0.555
         // Previous test asserted sparsity - 4/9 < 0.01 which is wrong (it assumed sparsity = nnz/total)
         let expected_sparsity = 1.0 - (4.0 / 9.0);
         assert!((csr.sparsity() - expected_sparsity).abs() < 0.01);
+        Ok(())
     }
 }

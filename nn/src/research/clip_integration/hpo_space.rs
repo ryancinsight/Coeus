@@ -159,7 +159,10 @@ impl HpoSpace {
     }
 
     /// Sample a configuration from this space
-    pub fn sample(&self, rng: &mut impl Rng) -> Result<HpoConfiguration, crate::error::NNError> {
+    pub fn sample(
+        &self,
+        rng: &mut impl Rng,
+    ) -> Result<HpoConfiguration, crate::core::error::NNError> {
         let mut samples = HashMap::new();
 
         for dimension in &self.dimensions {
@@ -188,7 +191,7 @@ impl HpoSpace {
     fn apply_constraints(
         &self,
         samples: &mut HashMap<String, ParameterValue>,
-    ) -> Result<(), crate::error::NNError> {
+    ) -> Result<(), crate::core::error::NNError> {
         // Simple constraint checking (would implement full expression evaluation)
         for constraint in &self.constraints {
             if constraint.name.as_str() == "lr_batch_balance" {
@@ -389,7 +392,9 @@ impl HpoConfiguration {
     /// Convert to CLIP training configuration
     /// Note: This is a simplified stub - proper integration would require
     /// the training configuration types to be defined
-    pub fn to_training_config(&self) -> Result<ClipTrainingConfiguration, crate::error::NNError> {
+    pub fn to_training_config(
+        &self,
+    ) -> Result<ClipTrainingConfiguration, crate::core::error::NNError> {
         let mut config = ClipTrainingConfiguration::default();
 
         // Apply sampled parameters with validation
@@ -399,7 +404,7 @@ impl HpoConfiguration {
             .and_then(|v| v.as_float())
         {
             if lr <= 0.0 {
-                return Err(crate::error::NNError::InvalidInput {
+                return Err(crate::core::error::NNError::InvalidInput {
                     message: "Learning rate must be positive".to_string(),
                 });
             }
@@ -408,7 +413,7 @@ impl HpoConfiguration {
 
         if let Some(bs) = self.parameters.get("batch_size").and_then(|v| v.as_int()) {
             if bs == 0 {
-                return Err(crate::error::NNError::InvalidInput {
+                return Err(crate::core::error::NNError::InvalidInput {
                     message: "Batch size must be positive".to_string(),
                 });
             }
@@ -421,7 +426,7 @@ impl HpoConfiguration {
             .and_then(|v| v.as_float())
         {
             if temp <= 0.0 {
-                return Err(crate::error::NNError::InvalidInput {
+                return Err(crate::core::error::NNError::InvalidInput {
                     message: "Temperature must be positive".to_string(),
                 });
             }
@@ -435,7 +440,7 @@ impl HpoConfiguration {
             .and_then(|v| v.as_float())
         {
             if wd < 0.0 {
-                return Err(crate::error::NNError::InvalidInput {
+                return Err(crate::core::error::NNError::InvalidInput {
                     message: "Weight decay must be non-negative".to_string(),
                 });
             }
@@ -448,7 +453,7 @@ impl HpoConfiguration {
             .and_then(|v| v.as_float())
         {
             if clip <= 0.0 {
-                return Err(crate::error::NNError::InvalidInput {
+                return Err(crate::core::error::NNError::InvalidInput {
                     message: "Gradient clip norm must be positive".to_string(),
                 });
             }
@@ -559,7 +564,7 @@ impl HpoSampler<StdRng> {
         &mut self,
         space: &HpoSpace,
         batch_size: usize,
-    ) -> Result<Vec<HpoConfiguration>, crate::error::NNError> {
+    ) -> Result<Vec<HpoConfiguration>, crate::core::error::NNError> {
         let mut batch = Vec::with_capacity(batch_size);
         for _ in 0..batch_size {
             batch.push(space.sample(&mut self.rng)?);
@@ -573,7 +578,7 @@ impl HpoSampler<StdRng> {
         space: &HpoSpace,
         history: &[HpoTrial],
         num_candidates: usize,
-    ) -> Result<HpoConfiguration, crate::error::NNError> {
+    ) -> Result<HpoConfiguration, crate::core::error::NNError> {
         // Simplified EI optimization - would implement full Gaussian process optimization
         if history.is_empty() {
             return space.sample(&mut self.rng);
@@ -596,7 +601,7 @@ impl HpoSampler<StdRng> {
         candidates
             .into_iter()
             .next()
-            .ok_or_else(|| crate::error::NNError::InvalidInput {
+            .ok_or_else(|| crate::core::error::NNError::InvalidInput {
                 message: "No candidates generated".to_string(),
             })
     }

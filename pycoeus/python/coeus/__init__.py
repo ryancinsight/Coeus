@@ -25,14 +25,17 @@ import numpy as np
 from ._coeus import (
     # Core tensor operations
     tensor_zeros, tensor_ones,
+    matmul, bmm, addmm,
+    reshape, view, flatten, squeeze, unsqueeze, transpose, permute,
     # Classes
     Tensor, Device,
     grad_enabled as _grad_enabled,
     set_grad_enabled as _set_grad_enabled,
     # Functional
     relu, sigmoid, tanh, gelu, silu, leaky_relu, elu,
-    mse_loss, cross_entropy, softmax, max_pool2d, avg_pool2d,
+    mse_loss, cross_entropy, nll_loss, softmax, batch_norm, max_pool2d, avg_pool2d,
     dropout, layer_norm, bce_with_logits_loss,
+    conv1d, conv2d, conv_transpose2d, conv3d,
     cat as _cat, stack as _stack,
     argmax as _argmax, argmin as _argmin,
     # Utils
@@ -40,7 +43,7 @@ from ._coeus import (
     # Transform factory functions
     to_tensor, normalize, resize, random_apply, compose,
     # FFT
-    FFT, IFFT,
+    FFT, IFFT, fft as _fft, ifft as _ifft, rfft as _rfft, irfft as _irfft,
     # Sparse
     # SparseCsrTensor, CooTensor,
 )
@@ -73,16 +76,37 @@ def tensor(data, dtype=None, device=None, requires_grad=False):
     raise ValueError(f"Unsupported data type for coeus.tensor(): {type(data)}")
 
 def zeros(*size, **kwargs):
-    return Tensor.zeros(list(size))
+    """Create a tensor filled with zeros."""
+    # Handle both zeros(2, 3, 4) and zeros((2, 3, 4)) forms
+    if len(size) == 1 and isinstance(size[0], (tuple, list)):
+        shape = list(size[0])
+    else:
+        shape = list(size)
+    return Tensor.zeros(shape)
 
 def ones(*size, **kwargs):
-    return Tensor.ones(list(size))
+    """Create a tensor filled with ones."""
+    if len(size) == 1 and isinstance(size[0], (tuple, list)):
+        shape = list(size[0])
+    else:
+        shape = list(size)
+    return Tensor.ones(shape)
 
 def empty(*size, **kwargs):
-    return Tensor.empty(list(size))
+    """Create an uninitialized tensor."""
+    if len(size) == 1 and isinstance(size[0], (tuple, list)):
+        shape = list(size[0])
+    else:
+        shape = list(size)
+    return Tensor.empty(shape)
 
 def full(size, fill_value, **kwargs):
-    return Tensor.full(list(size), fill_value)
+    """Create a tensor filled with fill_value."""
+    if isinstance(size, (tuple, list)):
+        shape = list(size)
+    else:
+        shape = [size]
+    return Tensor.full(shape, fill_value)
 
 def arange(start, end=None, step=1.0, **kwargs):
     return Tensor.arange(start, end, step)
@@ -148,6 +172,8 @@ __all__ = [
 
     # Utility functions
     "cat", "stack", "split", "chunk",
+    "matmul", "bmm", "addmm",
+    "reshape", "view", "flatten", "squeeze", "unsqueeze", "transpose", "permute",
 
     # Functional activations (re-exported)
     "relu", "sigmoid", "tanh", "gelu", "silu", "leaky_relu", "elu",
@@ -157,7 +183,7 @@ __all__ = [
     "__version__",
 
     # FFT
-    "FFT", "IFFT",
+    "FFT", "IFFT", "fft", "ifft", "rfft", "irfft",
 
     # Sparse
     # "sparse",

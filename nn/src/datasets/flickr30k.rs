@@ -21,7 +21,7 @@
 //! - Train/validation split handling
 
 use super::{DatasetSplit, DatasetStatistics, ImageTextPair, VisionLanguageData};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 use futures::prelude::*;
 use regex::Regex;
 use std::collections::HashMap;

@@ -23,6 +23,7 @@ quantized = ["dtype/quantized", "dtype/std"]
 attention = []
 normalization = []
 clip = []
+multimodal = []
 model_surgery = []
 onnx = []
 safetensors = []
@@ -32,7 +33,7 @@ embedding = []
 functional = []
 serde = ["dep:serde"]
 sysinfo = ["dep:sysinfo"]
-research = ["serde", "sysinfo"]
+research = ["serde", "sysinfo", "dep:coeus-distributions"]
 cpu = []
 cuda = []
 
@@ -44,6 +45,7 @@ backend = { workspace = true }
 tensor = { workspace = true }
 autograd = { workspace = true, optional = true }
 optim = { workspace = true }  # Re-enabled for complete async training support
+coeus-distributions = { workspace = true, optional = true }
 
 # Async ecosystem
 tokio = { workspace = true }

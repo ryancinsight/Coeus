@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use super::{BenchmarkDataset, ClipEvaluationConfig, ClipModelEvaluator, EvaluationResult};
-use crate::error::{NNError, Result};
+use crate::core::error::{NNError, Result};
 
 /// Comprehensive benchmark result
 #[derive(Debug, Clone)]

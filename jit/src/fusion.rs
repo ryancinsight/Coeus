@@ -63,25 +63,20 @@ pub struct FusionDetector {
 impl FusionDetector {
     /// Create a new fusion detector with default patterns
     pub fn new() -> Self {
-        let mut patterns = Vec::new();
-
-        // MatMul + ReLU fusion pattern
-        patterns.push(FusionPattern {
-            operations: vec![Operation::MatMul, Operation::ReLU],
-            benefit_score: 2.5,
-        });
-
-        // Element-wise operations chain
-        patterns.push(FusionPattern {
-            operations: vec![Operation::Add, Operation::ReLU],
-            benefit_score: 1.8,
-        });
-
-        // Convolution + activation
-        patterns.push(FusionPattern {
-            operations: vec![Operation::Conv2d, Operation::ReLU],
-            benefit_score: 3.0,
-        });
+        let patterns = vec![
+            FusionPattern {
+                operations: vec![Operation::MatMul, Operation::ReLU],
+                benefit_score: 2.5,
+            },
+            FusionPattern {
+                operations: vec![Operation::Add, Operation::ReLU],
+                benefit_score: 1.8,
+            },
+            FusionPattern {
+                operations: vec![Operation::Conv2d, Operation::ReLU],
+                benefit_score: 3.0,
+            },
+        ];
 
         Self {
             patterns,
