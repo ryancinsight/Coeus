@@ -4,14 +4,14 @@
 //! NAS algorithms, HPO methods, and joint optimization approaches across multiple
 //! dimensions including performance, efficiency, robustness, and scalability.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use crate::core::error::{NNError, Result};
 use crate::research::{
-    hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
-    joint_search::{JointSearchContext, JointSearchFramework},
+    hpo_integration::IntegratedHPOFramework,
+    joint_search::JointSearchFramework,
     nas_integration::{IntegratedNASFramework, NASExperimentContext},
     performance_prediction::PerformancePredictionFramework,
     UnifiedResearchFramework,
@@ -172,7 +172,7 @@ pub struct ExecutionConstraints {
 }
 
 /// Benchmark execution engine
-#[derive(Debug)]
+#[allow(dead_code)]
 pub struct BenchmarkExecutionEngine {
     /// Research frameworks
     nas_framework: Arc<RwLock<IntegratedNASFramework>>,
@@ -187,7 +187,7 @@ pub struct BenchmarkExecutionEngine {
 }
 
 /// Benchmark scheduler
-#[derive(Debug)]
+#[allow(dead_code)]
 pub struct BenchmarkScheduler {
     /// Pending benchmark runs
     pending_runs: Vec<BenchmarkRun>,
@@ -355,7 +355,7 @@ pub struct StatisticalSummary {
 }
 
 /// Results database for storing and querying benchmark results
-#[derive(Debug)]
+#[allow(dead_code)]
 pub struct ResultsDatabase {
     /// Results storage (in production, would be a proper database)
     results: HashMap<String, Vec<BenchmarkResult>>,
@@ -373,7 +373,7 @@ pub struct BenchmarkMetadata {
 }
 
 /// Statistical analysis tools
-#[derive(Debug)]
+#[allow(dead_code)]
 pub struct StatisticalAnalyzer {
     /// Statistical test implementations
     statistical_tests: HashMap<String, Box<dyn StatisticalTest>>,
@@ -420,7 +420,7 @@ pub struct ComparativeAnalysis {
 }
 
 /// Report generator
-#[derive(Debug)]
+#[allow(dead_code)]
 pub struct ReportGenerator {
     /// Available report templates
     templates: HashMap<String, ReportTemplate>,
@@ -467,6 +467,7 @@ pub trait ReportFormatter: Send + Sync + std::fmt::Debug {
 
 /// Resource monitor
 #[derive(Debug)]
+#[allow(dead_code)]
 struct ResourceMonitor {
     /// Monitoring frequency
     monitoring_interval: std::time::Duration,
@@ -476,6 +477,7 @@ struct ResourceMonitor {
 
 /// Resource thresholds for alerts
 #[derive(Debug)]
+#[allow(dead_code)]
 struct ResourceThresholds {
     cpu_threshold_percent: f64,
 }

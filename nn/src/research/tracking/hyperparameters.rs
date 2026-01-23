@@ -4,7 +4,6 @@
 //! of hyperparameters across experiments, including automatic discovery,
 //! validation, and cross-experiment comparison capabilities.
 
-use crate::hpo::HyperparameterValue;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -176,7 +175,6 @@ impl HyperparameterTracker {
 
     /// Generate hyperparameter analysis report
     pub fn generate_analysis_report(&self) -> HyperparameterAnalysisReport {
-        let mut value_distributions: HashMap<String, Vec<HyperparameterValue>> = HashMap::new();
         let mut type_distribution: HashMap<String, usize> = HashMap::new();
 
         for entry in self.parameters.values() {

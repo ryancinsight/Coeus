@@ -194,28 +194,28 @@ where
         T: Clone + Copy,
     {
         if let Some(obj) = &self.grad_fn {
-            println!("DEBUG: grad_fn object found, trying downcast - tensor requires_grad: {}", self.requires_grad());
+            tracing::debug!("grad_fn object found, trying downcast - tensor requires_grad: {}", self.requires_grad());
             let type_name = core::any::type_name_of_val(obj.as_any());
-            println!("DEBUG: Function type: {}", type_name);
+            tracing::debug!("Function type: {}", type_name);
 
             // Try to handle autograd functions by type name
             if type_name.contains("autograd::functions::AddFunction") {
-                println!("DEBUG: Detected autograd AddFunction - treating as addition");
+                tracing::debug!("Detected autograd AddFunction - treating as addition");
                 // For addition, both inputs get the same gradient
                 // Since we don't have access to the inputs here, we can't propagate gradients
                 // This should be handled by the autograd backward system
             } else if type_name.contains("autograd::functions::MulFunction") {
-                println!("DEBUG: Detected autograd MulFunction - treating as multiplication");
+                tracing::debug!("Detected autograd MulFunction - treating as multiplication");
                 // For multiplication, gradients depend on the other input
                 // This should be handled by the autograd backward system
             } else if type_name.contains("autograd::functions::SumFunction") {
-                println!("DEBUG: Detected autograd SumFunction - treating as sum");
+                tracing::debug!("Detected autograd SumFunction - treating as sum");
                 // For sum, gradient is broadcasted to input
                 // This should be handled by the autograd backward system
             } else {
                 // Try tensor crate functions
                 if let Some(add_fn) = obj.as_any().downcast_ref::<crate::functions::AddFunction<B, S, T>>() {
-                    println!("DEBUG: Successfully downcast to tensor AddFunction");
+                    tracing::debug!("Successfully downcast to tensor AddFunction");
                     // Accumulate gradients on input tensors
                     for input in &add_fn.inputs {
                         if input.requires_grad() {
@@ -223,7 +223,7 @@ where
                         }
                     }
                 } else {
-                    println!("DEBUG: Unknown function type: {}", type_name);
+                    tracing::debug!("Unknown function type: {}", type_name);
                 }
             }
             // Also set gradient on this tensor if it requires grad

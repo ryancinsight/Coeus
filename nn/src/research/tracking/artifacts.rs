@@ -48,7 +48,7 @@ impl ArtifactStorage {
 
         // Create artifact metadata
         let content_type = self.infer_content_type(&artifact_type);
-        let mut artifact = Artifact {
+        let artifact = Artifact {
             id: artifact_id.clone(),
             name,
             artifact_type,
@@ -500,6 +500,7 @@ pub struct ArtifactArchive {
     /// Archived artifacts
     archived: HashMap<String, ArchivedArtifact>,
     /// Archive storage path
+    #[allow(dead_code)]
     archive_path: PathBuf,
 }
 

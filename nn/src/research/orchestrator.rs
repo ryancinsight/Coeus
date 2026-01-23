@@ -18,6 +18,7 @@ use crate::core::error::{NNError, Result};
 #[derive(Debug)]
 pub struct ResearchOrchestrator {
     /// Orchestrator configuration
+    #[allow(dead_code)]
     config: ResearchConfig,
     /// Execution engine for workflow orchestration
     execution_engine: WorkflowExecutionEngine,
@@ -31,10 +32,13 @@ pub struct ResearchOrchestrator {
 #[derive(Debug)]
 pub struct WorkflowExecutionEngine {
     /// Maximum concurrent workflow steps
+    #[allow(dead_code)]
     max_concurrent_steps: usize,
     /// Execution timeout
+    #[allow(dead_code)]
     execution_timeout: Duration,
     /// Enable parallel execution
+    #[allow(dead_code)]
     enable_parallel: bool,
 }
 
@@ -254,7 +258,7 @@ pub enum WorkflowStatus {
 }
 
 /// Execution graph for DAG-based workflow orchestration
-#[derive(Debug)]
+#[allow(dead_code)]
 struct ExecutionGraph {
     /// Execution nodes
     nodes: Vec<ExecutionNode>,
@@ -265,6 +269,7 @@ struct ExecutionGraph {
 }
 
 /// Execution node representing a workflow step
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ExecutionNode {
     /// Step identifier
@@ -280,8 +285,9 @@ struct ExecutionNode {
 }
 
 /// Execution status for workflow steps
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
-enum ExecutionStatus {
+pub enum ExecutionStatus {
     /// Step is waiting for dependencies
     Pending,
     /// Step is currently executing
@@ -318,12 +324,14 @@ impl ExecutionGraph {
     }
 
     /// Mark node as completed
+    #[allow(dead_code)]
     fn mark_completed(&mut self, node_idx: usize) {
         self.completed.insert(node_idx);
         self.nodes[node_idx].status = ExecutionStatus::Completed;
     }
 
     /// Get nodes ready for execution (dependencies satisfied)
+    #[allow(dead_code)]
     fn get_ready_nodes(&self) -> Vec<usize> {
         let mut ready = Vec::new();
 
@@ -355,6 +363,7 @@ impl ExecutionGraph {
     }
 
     /// Check if execution graph is complete
+    #[allow(dead_code)]
     fn is_complete(&self) -> bool {
         self.completed.len() == self.nodes.len()
     }
@@ -362,13 +371,13 @@ impl ExecutionGraph {
 
 /// Resource allocation for workflow steps
 #[derive(Debug, Clone)]
-struct ResourceAllocation {
+pub struct ResourceAllocation {
     /// Allocated GPUs
-    gpu_count: usize,
+    pub gpu_count: usize,
     /// Allocated CPU cores
-    cpu_cores: usize,
+    pub cpu_cores: usize,
     /// Allocated memory (MB)
-    memory_mb: usize,
+    pub memory_mb: usize,
 }
 
 /// Resource manager for workflow execution
@@ -485,29 +494,30 @@ pub struct ProgressTracker {
 #[derive(Debug, Clone)]
 pub struct WorkflowProgress {
     /// Workflow status
-    status: WorkflowExecutionStatus,
+    pub status: WorkflowExecutionStatus,
     /// Start time
-    start_time: Instant,
+    pub start_time: Instant,
     /// Completion time
-    end_time: Option<Instant>,
+    pub end_time: Option<Instant>,
     /// Progress percentage (0-100)
-    progress_percentage: f64,
+    pub progress_percentage: f64,
 }
 
 #[derive(Debug, Clone)]
 pub struct StepMetrics {
     /// Execution status
-    status: ExecutionStatus,
+    pub status: ExecutionStatus,
     /// Start time
-    start_time: Option<Instant>,
+    pub start_time: Option<Instant>,
     /// Execution time
     execution_time: Option<Duration>,
     /// Resource usage
+    #[allow(dead_code)]
     resource_usage: Option<ResourceAllocation>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum WorkflowExecutionStatus {
+pub enum WorkflowExecutionStatus {
     /// Workflow not started
     Pending,
     /// Workflow is running

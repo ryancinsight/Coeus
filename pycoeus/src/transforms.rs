@@ -1,6 +1,20 @@
 use pyo3::prelude::*;
 use pyo3::types::PyList;
-use pyo3::Py;
+use pyo3::{wrap_pyfunction, Bound, Py, PyResult, Python};
+
+pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    m.add_class::<PyToTensor>()?;
+    m.add_class::<PyNormalize>()?;
+    m.add_class::<PyResize>()?;
+    m.add_class::<PyRandomApply>()?;
+    m.add_class::<PyCompose>()?;
+    m.add_function(wrap_pyfunction!(to_tensor, m)?)?;
+    m.add_function(wrap_pyfunction!(normalize, m)?)?;
+    m.add_function(wrap_pyfunction!(resize, m)?)?;
+    m.add_function(wrap_pyfunction!(random_apply, m)?)?;
+    m.add_function(wrap_pyfunction!(compose, m)?)?;
+    Ok(())
+}
 
 /// Python bindings for data transformations
 ///
@@ -56,7 +70,7 @@ impl PyToTensor {
     /// Apply transform to f32 list
     fn __call__(&self, py: Python, data: Vec<f32>) -> PyResult<Py<PyAny>> {
         let result = self.inner.apply_f32(data).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Transform failed: {:?}", e))
+            crate::error::convert_error(format!("Transform failed: {:?}", e))
         })?;
 
         // Convert tensor to Python list for now

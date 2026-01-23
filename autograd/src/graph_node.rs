@@ -322,8 +322,8 @@ where
 
 impl<B, T> GradientAccumulator<B, T>
 where
-    B: Backend<Data = T> + Default,
-    T: DataType + core::ops::Add<Output = T>,
+    B: Backend<Data = T> + Default + Clone + Send + Sync + 'static,
+    T: DataType + core::ops::Add<Output = T> + std::ops::Neg<Output = T>,
 {
     /// Create a new gradient accumulator
     #[must_use]
@@ -416,8 +416,8 @@ where
 
 impl<B, T> Default for GradientAccumulator<B, T>
 where
-    B: Backend<Data = T> + Default,
-    T: DataType + core::ops::Add<Output = T>,
+    B: Backend<Data = T> + Default + Clone + Send + Sync + 'static,
+    T: DataType + core::ops::Add<Output = T> + std::ops::Neg<Output = T>,
 {
     fn default() -> Self {
         Self::new()

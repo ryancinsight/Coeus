@@ -182,7 +182,7 @@ where
         grad_output: &tensor::Tensor<B, DenseStorage<T>, T>,
     ) -> anyhow::Result<Vec<tensor::Tensor<B, S, T>>> {
         // Convert grad_output back to storage type S for the user's function
-        let grad_data = grad_output.storage_ref().as_slice().to_vec();
+        let grad_data = grad_output.storage().as_slice().to_vec();
         let grad_dims = grad_output.shape().dims().to_vec();
         let grad_output_converted = tensor::Tensor::from_vec_with_backend(
             grad_data,

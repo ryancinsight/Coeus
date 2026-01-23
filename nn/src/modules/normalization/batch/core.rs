@@ -7,10 +7,11 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 use backend::Backend;
-use dtype::DataType;
+use dtype::{traits::FloatExt, DataType};
 use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
+use crate::core::error::{NNError, Result};
 use crate::core::parameter::Parameter;
 
 /// Common trait for batch normalization operations
@@ -21,7 +22,7 @@ where
     T: DataType,
 {
     /// Update running statistics during training
-    fn update_running_stats(&self, batch_mean: &Tensor<B, S, T>, batch_var: &Tensor<B, S, T>) -> crate::core::error::Result<()>;
+    fn update_running_stats(&self, batch_mean: &[T], batch_var: &[T]) -> Result<()>;
 }
 
 /// Batch Normalization base structure
@@ -60,7 +61,7 @@ impl<B, S, T> BatchNormBase<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType,
+    T: DataType + FloatExt,
 {
     /// Create a new BatchNorm base with the given parameters
     pub fn new(
@@ -69,23 +70,27 @@ where
         eps: f64,
         momentum: f64,
         track_running_stats: bool,
-    ) -> crate::core::error::Result<Self> {
+    ) -> Result<Self> {
         // Initialize weight (γ) to ones
-        let weight_data = vec![T::from(1.0).unwrap(); num_features];
-        let weight_tensor = Tensor::<B, S, T>::from_vec(weight_data, &[num_features])?;
-        let weight = Parameter::new(weight_tensor, "weight".to_string());
+        let weight_data = vec![T::one(); num_features];
+        let weight_storage = S::from_vec(weight_data, &[num_features])?;
+        let weight_tensor = Tensor::from_storage(weight_storage, backend.clone());
+        let weight = Parameter::new(weight_tensor.requires_grad_(true), "weight".to_string());
 
         // Initialize bias (β) to zeros
-        let bias_data = vec![T::from(0.0).unwrap(); num_features];
-        let bias_tensor = Tensor::<B, S, T>::from_vec(bias_data, &[num_features])?;
-        let bias = Parameter::new(bias_tensor, "bias".to_string());
+        let bias_data = vec![T::zero(); num_features];
+        let bias_storage = S::from_vec(bias_data, &[num_features])?;
+        let bias_tensor = Tensor::from_storage(bias_storage, backend.clone());
+        let bias = Parameter::new(bias_tensor.requires_grad_(true), "bias".to_string());
 
         // Initialize running statistics
-        let running_mean_data = vec![T::from(0.0).unwrap(); num_features];
-        let running_mean = Tensor::<B, S, T>::from_vec(running_mean_data, &[num_features])?;
+        let running_mean_data = vec![T::zero(); num_features];
+        let running_mean_storage = S::from_vec(running_mean_data, &[num_features])?;
+        let running_mean = Tensor::from_storage(running_mean_storage, backend.clone());
 
-        let running_var_data = vec![T::from(1.0).unwrap(); num_features];
-        let running_var = Tensor::<B, S, T>::from_vec(running_var_data, &[num_features])?;
+        let running_var_data = vec![T::one(); num_features];
+        let running_var_storage = S::from_vec(running_var_data, &[num_features])?;
+        let running_var = Tensor::from_storage(running_var_storage, backend);
 
         Ok(Self {
             num_features,
@@ -99,6 +104,49 @@ where
             track_running_stats,
             _phantom: PhantomData,
         })
+    }
+
+    /// Update running statistics with exponential moving average.
+    pub fn update_running_stats(&self, batch_mean: &[T], batch_var: &[T]) -> Result<()> {
+        if !self.track_running_stats {
+            return Ok(());
+        }
+
+        let momentum_t = T::from(self.momentum).ok_or_else(|| NNError::NumericalError {
+            message: format!("momentum ({}) not representable", self.momentum),
+        })?;
+        let one_minus_momentum =
+            T::from(1.0 - self.momentum).ok_or_else(|| NNError::NumericalError {
+                message: format!("1.0 - momentum ({}) not representable", 1.0 - self.momentum),
+            })?;
+
+        // Update running mean
+        {
+            let running_mean_tensor = self.running_mean.borrow();
+            let running_mean_slice = running_mean_tensor.as_slice();
+            let mut updated_mean = Vec::with_capacity(self.num_features);
+            for i in 0..self.num_features {
+                updated_mean
+                    .push(momentum_t * running_mean_slice[i] + one_minus_momentum * batch_mean[i]);
+            }
+            drop(running_mean_tensor);
+            *self.running_mean.borrow_mut() = Tensor::from_vec(updated_mean, &[self.num_features])?;
+        }
+
+        // Update running variance
+        {
+            let running_var_tensor = self.running_var.borrow();
+            let running_var_slice = running_var_tensor.as_slice();
+            let mut updated_var = Vec::with_capacity(self.num_features);
+            for i in 0..self.num_features {
+                updated_var
+                    .push(momentum_t * running_var_slice[i] + one_minus_momentum * batch_var[i]);
+            }
+            drop(running_var_tensor);
+            *self.running_var.borrow_mut() = Tensor::from_vec(updated_var, &[self.num_features])?;
+        }
+
+        Ok(())
     }
 }
 

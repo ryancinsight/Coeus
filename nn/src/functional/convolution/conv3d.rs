@@ -1,9 +1,9 @@
 //! 3D Convolution operations for neural networks.
 
 use crate::core::error::{NNError, Result};
-use backend::{Backend, CpuBackend};
+use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
-use storage::{DenseStorage, Storage, StorageFromVec};
+use storage::{Storage, StorageFromVec};
 use tensor::Tensor;
 
 /// Pad a 3D tensor with zeros according to padding parameters.
@@ -74,19 +74,16 @@ where
 
 /// Compute output dimensions for 3D convolution.
 pub fn conv3d_output_size(
-    input_depth: usize,
-    input_height: usize,
-    input_width: usize,
-    kernel_depth: usize,
-    kernel_height: usize,
-    kernel_width: usize,
-    stride_d: usize,
-    stride_h: usize,
-    stride_w: usize,
-    padding_d: usize,
-    padding_h: usize,
-    padding_w: usize,
+    input: (usize, usize, usize),
+    kernel: (usize, usize, usize),
+    stride: (usize, usize, usize),
+    padding: (usize, usize, usize),
 ) -> (u64, u64, u64) {
+    let (input_depth, input_height, input_width) = input;
+    let (kernel_depth, kernel_height, kernel_width) = kernel;
+    let (stride_d, stride_h, stride_w) = stride;
+    let (padding_d, padding_h, padding_w) = padding;
+
     let out_depth = (input_depth + 2 * padding_d - kernel_depth) / stride_d + 1;
     let out_height = (input_height + 2 * padding_h - kernel_height) / stride_h + 1;
     let out_width = (input_width + 2 * padding_w - kernel_width) / stride_w + 1;

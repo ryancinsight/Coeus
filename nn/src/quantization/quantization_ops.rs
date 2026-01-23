@@ -2,7 +2,7 @@
 
 use crate::core::error::{NNError, Result};
 
-use crate::quantization::core::QuantizationScheme;
+use quantization::QuantizationScheme;
 
 use backend::Backend;
 use dtype::DataType;

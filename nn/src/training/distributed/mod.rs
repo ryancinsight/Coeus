@@ -6,8 +6,7 @@
 #[cfg(not(feature = "autograd"))]
 use crate::autograd_stub::backward;
 use crate::core::error::{NNError, Result};
-use crate::core::module::{Module, StateDict};
-use crate::Sequential;
+use crate::core::module::Module;
 #[cfg(feature = "autograd")]
 use autograd::backward;
 use backend::Backend;
@@ -176,12 +175,12 @@ impl DistributedStats {
 
 /// GPU-based distributed training
 #[cfg(feature = "gpu")]
-pub type DistributedGpu<M, T> = Distributed<M, backend::GpuBackend, T>;
+pub type DistributedGpu<M, T> = Distributed<M, backend::GpuBackend<T>, T>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Linear, Sequential};
+    use crate::Linear;
     use backend::CpuBackend;
     use dtype::float::Float32;
 
@@ -198,7 +197,7 @@ mod tests {
     #[test]
     fn test_distributed_forward() {
         let model = Linear::<CpuBackend<Float32>, _, Float32>::new(4, 2).unwrap();
-        let mut distributed = Distributed::new(model, 0, 1).unwrap();
+        let distributed = Distributed::new(model, 0, 1).unwrap();
 
         let input = Tensor::<CpuBackend<Float32>, _, Float32>::from_vec(
             vec![

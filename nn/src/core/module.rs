@@ -220,7 +220,6 @@ where
     /// # Returns
     /// Vector of (name, tensor) pairs.
     fn named_buffers(&self) -> Vec<(String, Tensor<B, S, T>)> {
-        println!("DEBUG: Default named_buffers called for module");
         Vec::new() // Default: no buffers
     }
 

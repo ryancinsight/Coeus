@@ -9,8 +9,8 @@ use approx::assert_relative_eq;
 use backend::CpuBackend;
 use dtype::float::Float32;
 use storage::DenseStorage;
-use tensor::ops::arithmetic;
-use tensor::Tensor;
+use tensor::ops::{arithmetic, reduction, linalg};
+use tensor::{Tensor, Backend};
 
 /// Type alias for our test tensor type
 type TestTensor = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
@@ -182,7 +182,7 @@ proptest! {
     /// Test matrix multiplication shape compatibility
     #[test]
     fn test_matrix_mult_shape((ref a, ref b) in arb_matrix_mult_pair()) {
-        let result = a.matmul(b).unwrap();
+        let result = linalg::matmul(a, b).unwrap();
         let expected_shape = &[a.shape().dims()[0], b.shape().dims()[1]];
         prop_assert_eq!(result.shape().dims(), expected_shape);
     }
@@ -193,7 +193,7 @@ proptest! {
         let original_shape = a.shape().dims();
 
         if original_shape.len() == 2 {
-            let transposed = a.transpose(0, 1).unwrap();
+            let transposed = tensor::ops::transpose(a, 0, 1).unwrap();
             let expected_shape = &[original_shape[1], original_shape[0]];
             prop_assert_eq!(transposed.shape().dims(), expected_shape);
         }
@@ -203,8 +203,8 @@ proptest! {
     #[test]
     fn test_transpose_involution(ref a in arb_tensor()) {
         if a.shape().dims().len() == 2 {
-            let transposed = a.transpose(0, 1).unwrap();
-            let double_transposed = transposed.transpose(0, 1).unwrap();
+            let transposed = tensor::ops::transpose(a, 0, 1).unwrap();
+            let double_transposed = tensor::ops::transpose(&transposed, 0, 1).unwrap();
 
             prop_assert_eq!(double_transposed.shape().dims(), a.shape().dims());
             for i in 0..a.len() {
@@ -255,7 +255,7 @@ proptest! {
     /// Test sum reduction
     #[test]
     fn test_sum_reduction(ref a in arb_tensor()) {
-        let sum_result = a.sum_all();
+        let sum_result = reduction::sum(a, None, false).unwrap();
 
         // Sum should be scalar (shape [1])
         prop_assert_eq!(sum_result.shape().dims(), &[1]);
@@ -272,7 +272,7 @@ proptest! {
     /// Test mean reduction
     #[test]
     fn test_mean_reduction(ref a in arb_tensor()) {
-        let mean_result = a.mean_all();
+        let mean_result = reduction::mean(a, None, false).unwrap();
 
         // Mean should be scalar (shape [1])
         prop_assert_eq!(mean_result.shape().dims(), &[1]);
@@ -291,7 +291,8 @@ proptest! {
     #[test]
     fn test_scalar_broadcasting(ref a in arb_tensor()) {
         let scalar = Float32::new(3.5);
-        let result = arithmetic::scalar_add(a, scalar).unwrap();
+        let scalar_t = Tensor::from_vec(vec![scalar], &[1]).unwrap();
+        let result = arithmetic::add(a, &scalar_t).unwrap();
 
         prop_assert_eq!(result.shape().dims(), a.shape().dims());
         for i in 0..result.len() {

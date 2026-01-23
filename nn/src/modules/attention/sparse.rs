@@ -200,13 +200,13 @@ where
 
         // Compute Q @ K^T: [seq, embed] @ [seq, embed]^T -> [seq, seq]
         let keys_2d_t = keys_2d.transpose(0, 1)?;
-        let attention_logits = queries_2d.matmul(&keys_2d_t)?;
+        let attention_logits = tensor::ops::matmul(&queries_2d, &keys_2d_t)?;
 
         // Scale by sqrt(d_k) (convert to dense for division)
         let scale = T::from((self.head_dim as f64).sqrt()).unwrap();
         let attention_dense = attention_logits.to_dense_generic()?;
         let scale_tensor = Tensor::<B, DenseStorage<T>, T>::from_vec(vec![scale], &[1])?;
-        let scaled_dense = &attention_dense / &scale_tensor;
+        let scaled_dense = tensor::ops::div(&attention_dense, &scale_tensor)?;
         // Convert back to generic storage
         let _scaled_logits = Tensor::<B, S, T>::from_vec(
             scaled_dense.as_slice().to_vec(),
@@ -215,7 +215,7 @@ where
 
         // Create sparse attention mask and apply it
         let attention_mask = self.create_sparse_attention_mask(seq_len)?;
-        let masked_attention = &scaled_dense * &attention_mask;
+        let masked_attention = tensor::ops::mul(&scaled_dense, &attention_mask)?;
 
         // Apply sparse softmax along the last dimension (seq_len)
         let attention_weights_dense = self.sparse_softmax_rows(&masked_attention)?;
@@ -518,7 +518,7 @@ where
                 values_reshaped.reshape(&[seq_len as isize, self.embed_dim as isize])?;
             let attention_weights_dense_2 = attention_weights.to_dense_generic()?;
             let values_2d_dense = values_2d.to_dense_generic()?;
-            let attended_batch_dense = attention_weights_dense_2.matmul(&values_2d_dense)?;
+            let attended_batch_dense = tensor::ops::matmul(&attention_weights_dense_2, &values_2d_dense)?;
             let attended_batch = Tensor::<B, DenseStorage<T>, T>::from_vec(
                 attended_batch_dense.as_slice().to_vec(),
                 attended_batch_dense.shape().dims(),

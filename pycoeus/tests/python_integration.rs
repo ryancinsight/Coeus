@@ -580,7 +580,7 @@ fn test_functional_api_pytorch_parity_surface() {
         let e = std::f64::consts::E;
         let row1_denom = e.powf(1.0) + e.powf(2.0);
         let row2_denom = e.powf(3.0) + e.powf(4.0);
-        let expected_dim1 = vec![
+        let expected_dim1 = [
             vec![e.powf(1.0) / row1_denom, e.powf(2.0) / row1_denom],
             vec![e.powf(3.0) / row2_denom, e.powf(4.0) / row2_denom],
         ];
@@ -606,7 +606,7 @@ fn test_functional_api_pytorch_parity_surface() {
 
         let col1_denom = e.powf(1.0) + e.powf(3.0);
         let col2_denom = e.powf(2.0) + e.powf(4.0);
-        let expected_dim0 = vec![
+        let expected_dim0 = [
             vec![e.powf(1.0) / col1_denom, e.powf(2.0) / col2_denom],
             vec![e.powf(3.0) / col1_denom, e.powf(4.0) / col2_denom],
         ];

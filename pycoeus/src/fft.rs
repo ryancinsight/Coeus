@@ -5,10 +5,21 @@ use backend::CpuBackend;
 use coeus_fft::cpu::CpuFft;
 use dtype::complex::Complex32;
 use dtype::float::Float32;
-use pyo3::{pyclass, pyfunction, pymethods, PyResult, Python, PyErr};
+use pyo3::prelude::*;
+use pyo3::types::PyModule;
 use storage::DenseStorage;
 use storage::Storage;
 use tensor::Tensor;
+
+pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    m.add_class::<FFT>()?;
+    m.add_class::<IFFT>()?;
+    m.add_function(wrap_pyfunction!(fft, m)?)?;
+    m.add_function(wrap_pyfunction!(ifft, m)?)?;
+    m.add_function(wrap_pyfunction!(rfft, m)?)?;
+    m.add_function(wrap_pyfunction!(irfft, m)?)?;
+    Ok(())
+}
 
 #[pyfunction]
 #[pyo3(signature = (input, n=None))]
@@ -91,7 +102,7 @@ pub fn irfft(input_real: &PyTensor, input_imag: &PyTensor, n: Option<usize>) -> 
     let complex_data: Vec<Complex32> = re_data
         .iter()
         .zip(im_data.iter())
-        .map(|(&r, &i)| Complex32::new(r.get(), i.get()))
+        .map(|(&r, &i): (&Float32, &Float32)| Complex32::new(r.get(), i.get()))
         .collect();
 
     let storage = DenseStorage::from_vec(complex_data, &[input_len]).map_err(|e| {
@@ -103,7 +114,9 @@ pub fn irfft(input_real: &PyTensor, input_imag: &PyTensor, n: Option<usize>) -> 
     })?;
 
     let out = Tensor::from_storage(result, CpuBackend::new());
-    Ok(PyTensor { inner: out })
+    Ok(PyTensor {
+        inner: crate::tensor::TensorWrapper::CpuDenseF32(out),
+    })
 }
 
 fn decompose_complex(result: &DenseStorage<Complex32>) -> PyResult<(PyTensor, PyTensor)> {
@@ -128,8 +141,12 @@ fn decompose_complex(result: &DenseStorage<Complex32>) -> PyResult<(PyTensor, Py
     let imag_tensor = Tensor::from_storage(imag_storage, CpuBackend::<Float32>::new());
 
     Ok((
-        PyTensor { inner: real_tensor },
-        PyTensor { inner: imag_tensor },
+        PyTensor {
+            inner: crate::tensor::TensorWrapper::CpuDenseF32(real_tensor),
+        },
+        PyTensor {
+            inner: crate::tensor::TensorWrapper::CpuDenseF32(imag_tensor),
+        },
     ))
 }
 

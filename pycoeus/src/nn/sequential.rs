@@ -1,76 +1,322 @@
+use crate::tensor::{to_py_err, PyTensor, TensorWrapper};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyTuple};
-use pyo3::{pyclass, pymethods, Py, PyErr, PyResult};
+use pyo3::types::{PyAny, PyTuple};
 
 use backend::CpuBackend;
-use dtype::float::Float32;
+#[cfg(feature = "gpu")]
+use backend::GpuBackend;
+use dtype::float::{Float32, Float64};
 use storage::DenseStorage;
-use crate::tensor::PyTensor;
-use tensor::Tensor;
 
-use nn::containers::sequential::Sequential;
-use nn::modules::linear::Linear;
-use nn::modules::convolution::Conv2D;
-use nn::modules::normalization::BatchNorm2d;
-use nn::modules::activation::{ReLU, GeLU, SiLU};
-//use nn::modules::regularization::dropout::Dropout;
-use nn::modules::normalization::LayerNorm;
+use coeus_nn::containers::sequential::Sequential;
+use coeus_nn::modules::activation::{GeLU, Hardtanh, LeakyReLU, Mish, ReLU, SiLU, Softplus, ELU};
+use coeus_nn::modules::linear::Linear;
+use coeus_nn::modules::pooling::MaxPool2d;
+use coeus_nn::modules::regularization::dropout::Dropout;
 
-use nn::core::module::Module;
+use coeus_nn::core::module::Module;
 
 // Import binding classes for type extraction
-use crate::nn::linear::PyLinear;
-use crate::nn::conv::PyConv2D;
-use crate::nn::normalization::PyBatchNorm2d; // PyLayerNorm not yet implemented
-use crate::nn::activations::{PyReLU, PyGeLU, PySiLU};
-// Note: PyDropout and PyLayerNorm need to be implemented in their respective files or added if missing.
-// I haven't implemented PyDropout yet. I'll skip extracting it for now or implement it quickly.
+use crate::nn::activations::{
+    PyELU, PyGeLU, PyHardtanh, PyLeakyReLU, PyMish, PyReLU, PySiLU, PySoftplus,
+};
+use crate::nn::conv::{Conv1DWrapper, Conv2DWrapper, Conv3DWrapper, PyConv1d, PyConv2d, PyConv3d};
+use crate::nn::dropout::PyDropout;
+use crate::nn::linear::{LinearWrapper, PyLinear};
+use crate::nn::normalization::{
+    BatchNorm1DWrapper, BatchNorm2DWrapper, BatchNorm3DWrapper, GroupNormWrapper, LayerNormWrapper,
+    PyBatchNorm1d, PyBatchNorm2d, PyBatchNorm3d, PyGroupNorm, PyLayerNorm, PyRMSNorm,
+    RMSNormWrapper,
+};
+use crate::nn::pooling::PyMaxPool2d;
 
-#[pyclass(name = "Sequential", module = "nn", unsendable)]
+#[derive(Clone)]
+pub enum SequentialWrapper {
+    CpuF32(Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>),
+    CpuF64(Sequential<CpuBackend<Float64>, DenseStorage<Float64>, Float64>),
+    #[cfg(feature = "gpu")]
+    GpuF32(Sequential<GpuBackend<Float32>, DenseStorage<Float32>, Float32>),
+}
+
+#[pyclass(name = "Sequential", module = "coeus.nn", subclass, unsendable)]
 #[derive(Clone)]
 pub struct PySequential {
-    pub inner: Sequential<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
+    pub inner: SequentialWrapper,
 }
 
 #[pymethods]
 impl PySequential {
     #[new]
-    #[pyo3(signature = (*args))]
-    fn new(args: &Bound<PyTuple>) -> PyResult<Self> {
-        let mut sequential = Sequential::new();
+    #[pyo3(signature = (*args, dtype="float32", device="cpu"))]
+    fn new(args: &Bound<PyTuple>, dtype: Option<&str>, device: Option<&str>) -> PyResult<Self> {
+        let dtype_str = dtype.unwrap_or("float32");
+        let device_str = device.unwrap_or("cpu");
+
+        let mut inner = match (device_str, dtype_str) {
+            ("cpu", "float32") => SequentialWrapper::CpuF32(Sequential::new()),
+            ("cpu", "float64") => SequentialWrapper::CpuF64(Sequential::new()),
+            #[cfg(feature = "gpu")]
+            ("cuda", "float32") => SequentialWrapper::GpuF32(Sequential::new()),
+            _ => {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Unsupported device/dtype combination: {}/{}",
+                    device_str, dtype_str
+                )))
+            }
+        };
 
         for (i, arg) in args.iter().enumerate() {
             let name = i.to_string();
 
-            // Try to downcast to known module types
-            if let Ok(m) = arg.extract::<PyLinear>() {
-                sequential.add_module(name, m.inner.clone());
-            } else if let Ok(m) = arg.extract::<PyConv2D>() {
-                sequential.add_module(name, m.inner.clone());
-            } else if let Ok(m) = arg.extract::<PyReLU>() {
-                sequential.add_module(name, m.inner.clone());
-            } else if let Ok(m) = arg.extract::<PyGeLU>() {
-                sequential.add_module(name, m.inner.clone());
-            } else if let Ok(m) = arg.extract::<PySiLU>() {
-                sequential.add_module(name, m.inner.clone());
-            } else if let Ok(m) = arg.extract::<PyBatchNorm2d>() {
-                 sequential.add_module(name, m.inner.clone());
-            //} else if let Ok(m) = arg.extract::<PyLayerNorm>() {
-            //    sequential.add_module(name, m.inner.clone());
-            } else if let Ok(m) = arg.extract::<PySequential>() {
-                sequential.add_module(name, m.inner.clone());
-            } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                    "Sequential: Argument {} is not a supported Module (or use add_module). Supported: Linear, Conv2D, ReLU, GeLU, SiLU, BatchNorm2d.",
-                    i
-                )));
+            match &mut inner {
+                SequentialWrapper::CpuF32(seq) => {
+                    if let Ok(m) = arg.extract::<PyLinear>() {
+                        if let LinearWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(m) = arg.extract::<PyConv2d>() {
+                        if let Conv2DWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(m) = arg.extract::<PyConv1d>() {
+                        if let Conv1DWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(m) = arg.extract::<PyConv3d>() {
+                        if let Conv3DWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(m) = arg.extract::<PyBatchNorm1d>() {
+                        if let BatchNorm1DWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(m) = arg.extract::<PyBatchNorm2d>() {
+                        if let BatchNorm2DWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(m) = arg.extract::<PyBatchNorm3d>() {
+                        if let BatchNorm3DWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(m) = arg.extract::<PyLayerNorm>() {
+                        if let LayerNormWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(m) = arg.extract::<PyGroupNorm>() {
+                        if let GroupNormWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(m) = arg.extract::<PyRMSNorm>() {
+                        if let RMSNormWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(_m) = arg.extract::<PyReLU>() {
+                        seq.add_module(
+                            name,
+                            ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+                        );
+                    } else if let Ok(_m) = arg.extract::<PyGeLU>() {
+                        seq.add_module(
+                            name,
+                            GeLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+                        );
+                    } else if let Ok(_m) = arg.extract::<PySiLU>() {
+                        seq.add_module(
+                            name,
+                            SiLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+                        );
+                    } else if let Ok(m) = arg.extract::<PyLeakyReLU>() {
+                        seq.add_module(
+                            name,
+                            LeakyReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                                Float32::new(m.negative_slope as f32),
+                            ),
+                        );
+                    } else if let Ok(m) = arg.extract::<PyELU>() {
+                        seq.add_module(
+                            name,
+                            ELU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                                Float32::new(m.alpha as f32),
+                            ),
+                        );
+                    } else if let Ok(m) = arg.extract::<PySoftplus>() {
+                        seq.add_module(
+                            name,
+                            Softplus::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                                Float32::new(m.beta as f32),
+                                Float32::new(m.threshold as f32),
+                            ),
+                        );
+                    } else if let Ok(m) = arg.extract::<PyHardtanh>() {
+                        seq.add_module(
+                            name,
+                            Hardtanh::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                                Float32::new(m.min_val as f32),
+                                Float32::new(m.max_val as f32),
+                            ),
+                        );
+                    } else if let Ok(_m) = arg.extract::<PyMish>() {
+                        seq.add_module(
+                            name,
+                            Mish::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+                        );
+                    } else if let Ok(m) = arg.extract::<PyMaxPool2d>() {
+                        seq.add_module(
+                            name,
+                            MaxPool2d::new(m.inner.kernel_size, m.inner.stride, m.inner.padding),
+                        );
+                    } else if let Ok(m) = arg.extract::<PyDropout>() {
+                        seq.add_module(name, Dropout::new(m.inner.p));
+                    } else if let Ok(m) = arg.extract::<PySequential>() {
+                        if let SequentialWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
+                    } else {
+                        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Sequential: Argument {} is not a supported Module or type mismatch.",
+                            i
+                        )));
+                    }
+                }
+                SequentialWrapper::CpuF64(seq) => {
+                    if let Ok(m) = arg.extract::<PyLinear>() {
+                        if let LinearWrapper::CpuF64(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f64)",
+                            ));
+                        }
+                    } else if let Ok(_m) = arg.extract::<PyReLU>() {
+                        seq.add_module(
+                            name,
+                            ReLU::<CpuBackend<Float64>, DenseStorage<Float64>, Float64>::new(),
+                        );
+                    } else if let Ok(_m) = arg.extract::<PyGeLU>() {
+                        seq.add_module(
+                            name,
+                            GeLU::<CpuBackend<Float64>, DenseStorage<Float64>, Float64>::new(),
+                        );
+                    } else if let Ok(_m) = arg.extract::<PySiLU>() {
+                        seq.add_module(
+                            name,
+                            SiLU::<CpuBackend<Float64>, DenseStorage<Float64>, Float64>::new(),
+                        );
+                    } else if let Ok(m) = arg.extract::<PyDropout>() {
+                        seq.add_module(name, Dropout::new(m.inner.p));
+                    } else if let Ok(m) = arg.extract::<PySequential>() {
+                        if let SequentialWrapper::CpuF64(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f64)",
+                            ));
+                        }
+                    } else if let Ok(m) = arg.extract::<PyMaxPool2d>() {
+                        seq.add_module(
+                            name,
+                            MaxPool2d::new(m.inner.kernel_size, m.inner.stride, m.inner.padding),
+                        );
+                    }
+                    // Add more mappings as needed for F64
+                    else {
+                        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Sequential: Argument {} is not a supported Module or type mismatch for f64.", i)));
+                    }
+                }
+                #[cfg(feature = "gpu")]
+                SequentialWrapper::GpuF32(seq) => {
+                    if let Ok(m) = arg.extract::<PyLinear>() {
+                        if let LinearWrapper::GpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(gpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(_m) = arg.extract::<PyReLU>() {
+                        seq.add_module(
+                            name,
+                            ReLU::<GpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+                        );
+                    } else if let Ok(m) = arg.extract::<PySequential>() {
+                        if let SequentialWrapper::GpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(gpu, f32)",
+                            ));
+                        }
+                    } else if let Ok(m) = arg.extract::<PyMaxPool2d>() {
+                        seq.add_module(
+                            name,
+                            MaxPool2d::<GpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                                m.kernel_size,
+                                m.stride,
+                                m.padding,
+                            ),
+                        );
+                    }
+                    // Add more mappings as needed for GPU F32
+                    else {
+                        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!("Sequential: Argument {} is not a supported Module or type mismatch for gpu.", i)));
+                    }
+                }
             }
         }
-        Ok(PySequential { inner: sequential })
+        Ok(PySequential { inner })
     }
 
     fn __len__(&self) -> usize {
-        self.inner.len()
+        match &self.inner {
+            SequentialWrapper::CpuF32(s) => s.len(),
+            SequentialWrapper::CpuF64(s) => s.len(),
+            #[cfg(feature = "gpu")]
+            SequentialWrapper::GpuF32(s) => s.len(),
+        }
     }
 
     #[allow(deprecated)]
@@ -81,122 +327,133 @@ impl PySequential {
         ))
     }
 
-    /// Add a Linear layer to the sequential model
     #[pyo3(signature = (name, in_features, out_features))]
-    fn add_linear(
-        &mut self,
-        name: String,
-        in_features: usize,
-        out_features: usize,
-    ) -> PyResult<()> {
-        let linear = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            in_features,
-            out_features,
-        )
-        .map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Sequential operation failed: {:?}",
-                e
-            ))
-        })?;
-        self.inner.add_module(name, linear);
-        Ok(())
+    fn add_linear(&mut self, name: &str, in_features: usize, out_features: usize) -> PyResult<()> {
+        match &mut self.inner {
+            SequentialWrapper::CpuF32(seq) => {
+                let linear = Linear::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                    in_features,
+                    out_features,
+                )
+                .map_err(to_py_err)?;
+                seq.add_module(name.to_string(), linear);
+                Ok(())
+            }
+            SequentialWrapper::CpuF64(seq) => {
+                let linear = Linear::<CpuBackend<Float64>, DenseStorage<Float64>, Float64>::new(
+                    in_features,
+                    out_features,
+                )
+                .map_err(to_py_err)?;
+                seq.add_module(name.to_string(), linear);
+                Ok(())
+            }
+            #[cfg(feature = "gpu")]
+            SequentialWrapper::GpuF32(seq) => {
+                let linear = Linear::<GpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
+                    in_features,
+                    out_features,
+                )
+                .map_err(to_py_err)?;
+                seq.add_module(name.to_string(), linear);
+                Ok(())
+            }
+        }
     }
 
-    /// Add a ReLU activation to the sequential model
-    fn add_relu(&mut self, name: String) -> PyResult<()> {
-        let relu = ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new();
-        self.inner.add_module(name, relu);
-        Ok(())
+    #[pyo3(signature = (name,))]
+    fn add_relu(&mut self, name: &str) -> PyResult<()> {
+        match &mut self.inner {
+            SequentialWrapper::CpuF32(seq) => {
+                seq.add_module(
+                    name.to_string(),
+                    ReLU::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+                );
+                Ok(())
+            }
+            SequentialWrapper::CpuF64(seq) => {
+                seq.add_module(
+                    name.to_string(),
+                    ReLU::<CpuBackend<Float64>, DenseStorage<Float64>, Float64>::new(),
+                );
+                Ok(())
+            }
+            #[cfg(feature = "gpu")]
+            SequentialWrapper::GpuF32(seq) => {
+                seq.add_module(
+                    name.to_string(),
+                    ReLU::<GpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
+                );
+                Ok(())
+            }
+        }
     }
-
-    /// Add a Conv2D layer to the sequential model
-    #[pyo3(signature = (name, in_channels, out_channels, kernel_size, stride=None, padding=None, bias=None))]
-    fn add_conv2d(
-        &mut self,
-        name: String,
-        in_channels: usize,
-        out_channels: usize,
-        kernel_size: (usize, usize),
-        stride: Option<(usize, usize)>,
-        padding: Option<(usize, usize)>,
-        bias: Option<bool>,
-    ) -> PyResult<()> {
-        let conv = Conv2D::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride,
-            padding,
-            bias,
-        )
-        .map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Sequential operation failed: {:?}",
-                e
-            ))
-        })?;
-        self.inner.add_module(name, conv);
-        Ok(())
-    }
-
-    /*
-    /// Add a BatchNorm2d layer to the sequential model
-    #[pyo3(signature = (name, num_features, eps=1e-5, momentum=0.1))]
-    fn add_batch_norm2d(
-        &mut self,
-        name: String,
-        num_features: usize,
-        eps: Option<f64>,
-        momentum: Option<f64>,
-    ) -> PyResult<()> {
-        let eps_val = eps.unwrap_or(1e-5);
-        let momentum_val = momentum.unwrap_or(0.1);
-        let batchnorm =
-            BatchNorm2d::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new_with_backend(
-                CpuBackend::default(),
-                num_features,
-                eps_val,
-                momentum_val,
-            )
-            .map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "Sequential operation failed: {:?}",
-                    e
-                ))
-            })?;
-        self.inner.add_module(name, batchnorm);
-        Ok(())
-    }
-    */
 
     fn __call__(&self, input: &PyTensor) -> PyResult<PyTensor> {
         self.forward(input)
     }
 
     fn forward(&self, input: &PyTensor) -> PyResult<PyTensor> {
-        let output = self.inner.forward(&input.inner).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Forward pass failed: {:?}",
-                e
-            ))
-        })?;
-        Ok(PyTensor { inner: output })
+        match (&self.inner, &input.inner) {
+            (SequentialWrapper::CpuF32(s), TensorWrapper::CpuDenseF32(i)) => {
+                let res = s.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor {
+                    inner: TensorWrapper::CpuDenseF32(res),
+                })
+            }
+            (SequentialWrapper::CpuF64(s), TensorWrapper::CpuDenseF64(i)) => {
+                let res = s.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor {
+                    inner: TensorWrapper::CpuDenseF64(res),
+                })
+            }
+            #[cfg(feature = "gpu")]
+            (SequentialWrapper::GpuF32(s), TensorWrapper::GpuDenseF32(i)) => {
+                let res = s.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor {
+                    inner: TensorWrapper::GpuDenseF32(res),
+                })
+            }
+            _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Sequential forward: device/dtype mismatch between container and input",
+            )),
+        }
     }
 
-    fn parameters(&self) -> PyResult<Vec<PyTensor>> {
-        let params = self.inner.parameters();
-        let py_params = params
-            .into_iter()
-            .map(|p| PyTensor {
-                inner: p.data().clone(),
-            })
-            .collect();
-        Ok(py_params)
+    fn parameters(&self) -> Vec<PyTensor> {
+        match &self.inner {
+            SequentialWrapper::CpuF32(s) => s
+                .parameters()
+                .into_iter()
+                .map(|p| PyTensor {
+                    inner: TensorWrapper::CpuDenseF32(p.data().clone()),
+                })
+                .collect(),
+            SequentialWrapper::CpuF64(s) => s
+                .parameters()
+                .into_iter()
+                .map(|p| PyTensor {
+                    inner: TensorWrapper::CpuDenseF64(p.data().clone()),
+                })
+                .collect(),
+            #[cfg(feature = "gpu")]
+            SequentialWrapper::GpuF32(s) => s
+                .parameters()
+                .into_iter()
+                .map(|p| PyTensor {
+                    inner: TensorWrapper::GpuDenseF32(p.data().clone()),
+                })
+                .collect(),
+        }
     }
 }
 
 pub fn register(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PySequential>()?;
+
+    // Add to module __dict__ for dir() visibility (PyTorch compatibility)
+    let dict = m.dict();
+    dict.set_item("Sequential", m.getattr("Sequential")?)?;
+
     Ok(())
 }

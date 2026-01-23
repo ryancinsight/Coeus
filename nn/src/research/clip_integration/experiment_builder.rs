@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use super::{AblationStudy, ClipExperimentMetadata, ClipResearchConfig, HpoSpace};
-use crate::clip::enhanced_trainer::{EnhancedClipTrainer, EnhancedClipTrainingConfig};
+use crate::clip::training::enhanced_trainer::{EnhancedClipTrainer, EnhancedClipTrainingConfig};
 use crate::core::error::{NNError, Result};
 
 /// CLIP experiment builder for systematic research
@@ -176,7 +176,7 @@ impl ClipExperimentRunner {
         })?;
 
         // Run training
-        let data_loader: fn() -> Option<crate::clip::enhanced_trainer::ClipBatch> = || None; // Placeholder - no data
+        let data_loader: fn() -> Option<crate::clip::training::enhanced_trainer::ClipBatch> = || None; // Placeholder - no data
         let training_result =
             trainer
                 .train(data_loader)
@@ -203,7 +203,7 @@ impl ClipExperimentRunner {
 pub struct ExperimentResult {
     pub experiment_name: String,
     pub status: ExperimentStatus,
-    pub training_result: crate::clip::enhanced_trainer::EnhancedTrainingReport,
+    pub training_result: crate::clip::training::enhanced_trainer::EnhancedTrainingReport,
     pub metrics: HashMap<String, f64>,
     pub artifacts: Vec<String>,
     pub execution_time: std::time::Duration,

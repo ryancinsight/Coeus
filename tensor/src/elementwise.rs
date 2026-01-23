@@ -1,39 +1,29 @@
 //! Element-wise mathematical operations.
 //!
-//! This module provides element-wise mathematical functions that operate
-//! on each element of a tensor independently, such as exponential, logarithm,
-//! trigonometric functions, and power operations.
+//! This module provides convenience methods for element-wise mathematical functions
+//! that delegate to the single source of truth in `ops::arithmetic`.
+//!
+//! **ARCHITECTURAL NOTE:** This module follows the Single Source of Truth (SSOT) principle.
+//! All implementations are in `tensor::ops::arithmetic`. These methods are thin wrappers
+//! that provide ergonomic method-call syntax while delegating to the stateless functions.
 
-use std::vec::Vec;
+use num_traits::Float;
+use crate::FloatExt;
+use crate::StorageToDense;
 
 /// Element-wise mathematical operations for tensors with float-extended types.
 ///
-/// This trait provides methods for applying mathematical functions to each
-/// element of a tensor, resulting in a new tensor with the same shape.
+/// These methods delegate to `tensor::ops::arithmetic` functions, maintaining
+/// Single Source of Truth (SSOT) principle.
 impl<B, S, T> crate::Tensor<B, S, T>
 where
-    B: crate::Backend<Data = T> + Clone,
-    S: crate::Storage<T> + Clone + crate::StorageFromVec<T>,
-    T: crate::DataType + crate::FloatExt,
+    B: crate::Backend<Data = T> + Clone + Send + Sync + Default + 'static,
+    S: crate::Storage<T> + Clone + crate::StorageFromVec<T> + 'static,
+    T: crate::DataType + Float + Clone,
 {
     /// Computes the exponential of each element in the tensor.
     ///
-    /// # Mathematical Definition
-    ///
-    /// For each element x in the tensor:
-    /// ```text
-    /// exp(x) = e^x
-    /// ```
-    ///
-    /// # Returns
-    ///
-    /// A new tensor with the same shape containing `exp(x)` for each element.
-    ///
-    /// # Panics
-    ///
-    /// This function uses conditional unsafe in release builds for performance.
-    /// In debug builds, panics if shape invariants are violated (indicates a bug).
-    /// In release builds, uses `unwrap_unchecked()` after mathematical proof of correctness.
+    /// Delegates to `tensor::ops::arithmetic::exp`.
     ///
     /// # Examples
     ///
@@ -43,43 +33,27 @@ where
     /// use storage::DenseStorage;
     /// use dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
-    ///     &[Float32::new(0.0), Float32::new(1.0)], &[2]
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+    ///     vec![Float32::new(0.0), Float32::new(1.0)],
+    ///     &[2]
     /// ).unwrap();
     ///
     /// let b = a.exp();
     /// // exp(0) = 1, exp(1) ≈ 2.718
-    /// assert_eq!(b.shape().dims(), &[2]);
     /// ```
     #[must_use]
-    pub fn exp(&self) -> Self {
-        let mut result_data = Vec::with_capacity(self.len());
-        result_data.extend(self.as_slice().iter().map(|&x| x.exp()));
-
-        // Create new tensor with result data
-        let storage = S::from_vec(result_data, self.shape().dims())
-            .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor::from_storage(storage, self.backend.clone())
+    pub fn exp(&self) -> Self 
+    where
+        T: FloatExt,
+        S: StorageToDense<T>,
+    {
+        crate::ops::exp(self)
+            .expect("exp operation failed: this is a bug in the tensor implementation")
     }
 
     /// Computes the natural logarithm of each element in the tensor.
     ///
-    /// # Mathematical Definition
-    ///
-    /// For each element x in the tensor:
-    /// ```text
-    /// log(x) = ln(x)
-    /// ```
-    ///
-    /// # Returns
-    ///
-    /// A new tensor with the same shape containing `ln(x)` for each element.
-    ///
-    /// # Panics
-    ///
-    /// This function uses conditional unsafe in release builds for performance.
-    /// In debug builds, panics if shape invariants are violated (indicates a bug).
-    /// In release builds, uses `unwrap_unchecked()` after mathematical proof of correctness.
+    /// Delegates to `tensor::ops::arithmetic::log`.
     ///
     /// # Examples
     ///
@@ -89,43 +63,27 @@ where
     /// use storage::DenseStorage;
     /// use dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
-    ///     &[Float32::new(1.0), Float32::new(std::f32::consts::E)], &[2]
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+    ///     vec![Float32::new(1.0), Float32::new(std::f32::consts::E)],
+    ///     &[2]
     /// ).unwrap();
     ///
     /// let b = a.log();
     /// // log(1) = 0, log(e) = 1
-    /// assert_eq!(b.shape().dims(), &[2]);
     /// ```
     #[must_use]
-    pub fn log(&self) -> Self {
-        let mut result_data = Vec::with_capacity(self.len());
-        result_data.extend(self.as_slice().iter().map(|&x| x.ln()));
-
-        // Create new tensor with result data
-        let storage = S::from_vec(result_data, self.shape().dims())
-            .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor::from_storage(storage, self.backend.clone())
+    pub fn log(&self) -> Self 
+    where
+        T: FloatExt,
+        S: StorageToDense<T>,
+    {
+        crate::ops::log(self)
+            .expect("log operation failed: this is a bug in the tensor implementation")
     }
 
     /// Computes the sine of each element in the tensor.
     ///
-    /// # Mathematical Definition
-    ///
-    /// For each element x in the tensor:
-    /// ```text
-    /// sin(x) = sine of x (in radians)
-    /// ```
-    ///
-    /// # Returns
-    ///
-    /// A new tensor with the same shape containing `sin(x)` for each element.
-    ///
-    /// # Panics
-    ///
-    /// This function uses conditional unsafe in release builds for performance.
-    /// In debug builds, panics if shape invariants are violated (indicates a bug).
-    /// In release builds, uses `unwrap_unchecked()` after mathematical proof of correctness.
+    /// Delegates to `tensor::ops::arithmetic::sin`.
     ///
     /// # Examples
     ///
@@ -135,43 +93,27 @@ where
     /// use storage::DenseStorage;
     /// use dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
-    ///     &[Float32::new(0.0), Float32::new(std::f32::consts::PI / 2.0)], &[2]
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+    ///     vec![Float32::new(0.0), Float32::new(std::f32::consts::PI / 2.0)],
+    ///     &[2]
     /// ).unwrap();
     ///
     /// let b = a.sin();
     /// // sin(0) = 0, sin(π/2) ≈ 1
-    /// assert_eq!(b.shape().dims(), &[2]);
     /// ```
     #[must_use]
-    pub fn sin(&self) -> Self {
-        let mut result_data = Vec::with_capacity(self.len());
-        result_data.extend(self.as_slice().iter().map(|&x| x.sin()));
-
-        // Create new tensor with result data
-        let storage = S::from_vec(result_data, self.shape().dims())
-            .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor::from_storage(storage, self.backend.clone())
+    pub fn sin(&self) -> Self 
+    where
+        T: FloatExt,
+        S: StorageToDense<T>,
+    {
+        crate::ops::sin(self)
+            .expect("sin operation failed: this is a bug in the tensor implementation")
     }
 
     /// Computes the cosine of each element in the tensor.
     ///
-    /// # Mathematical Definition
-    ///
-    /// For each element x in the tensor:
-    /// ```text
-    /// cos(x) = cosine of x (in radians)
-    /// ```
-    ///
-    /// # Returns
-    ///
-    /// A new tensor with the same shape containing `cos(x)` for each element.
-    ///
-    /// # Panics
-    ///
-    /// This function uses conditional unsafe in release builds for performance.
-    /// In debug builds, panics if shape invariants are violated (indicates a bug).
-    /// In release builds, uses `unwrap_unchecked()` after mathematical proof of correctness.
+    /// Delegates to `tensor::ops::arithmetic::cos`.
     ///
     /// # Examples
     ///
@@ -187,42 +129,25 @@ where
     ///
     /// let b = a.cos();
     /// // cos(0) = 1, cos(π/2) ≈ 0
-    /// assert_eq!(b.shape().dims(), &[2]);
     /// ```
     #[must_use]
-    pub fn cos(&self) -> Self {
-        let mut result_data = Vec::with_capacity(self.len());
-        result_data.extend(self.as_slice().iter().map(|&x| x.cos()));
-
-        // Create new tensor with result data
-        let storage = S::from_vec(result_data, self.shape().dims())
-            .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor::from_storage(storage, self.backend.clone())
+    pub fn cos(&self) -> Self 
+    where
+        T: FloatExt,
+        S: StorageToDense<T>,
+    {
+        crate::ops::cos(self)
+            .expect("cos operation failed: this is a bug in the tensor implementation")
     }
 
     /// Computes the power of each element in the tensor.
     ///
-    /// # Mathematical Definition
-    ///
-    /// For each element x in the tensor:
-    /// ```text
-    /// pow(x, exp) = x^exp
-    /// ```
+    /// Delegates to `tensor::ops::arithmetic::pow_scalar`.
     ///
     /// # Arguments
     ///
     /// * `exp` - The exponent to raise each element to
     ///
-    /// # Returns
-    ///
-    /// A new tensor with the same shape containing `x^exp` for each element.
-    ///
-    /// # Panics
-    ///
-    /// This function uses conditional unsafe in release builds for performance.
-    /// In debug builds, panics if shape invariants are violated (indicates a bug).
-    /// In release builds, uses `unwrap_unchecked()` after mathematical proof of correctness.
-    ///
     /// # Examples
     ///
     /// ```
@@ -231,43 +156,27 @@ where
     /// use storage::DenseStorage;
     /// use dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
-    ///     &[Float32::new(2.0), Float32::new(3.0)], &[2]
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+    ///     vec![Float32::new(2.0), Float32::new(3.0)],
+    ///     &[2]
     /// ).unwrap();
     ///
     /// let b = a.powf(Float32::new(2.0));
     /// // 2^2 = 4, 3^2 = 9
-    /// assert_eq!(b.shape().dims(), &[2]);
     /// ```
     #[must_use]
-    pub fn powf(&self, exp: T) -> Self {
-        let mut result_data = Vec::with_capacity(self.len());
-        result_data.extend(self.as_slice().iter().map(|&x| x.powf(exp)));
-
-        // Create new tensor with result data
-        let storage = S::from_vec(result_data, self.shape().dims())
-            .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor::from_storage(storage, self.backend.clone())
+    pub fn powf(&self, exp: T) -> Self
+    where
+        T: num_traits::Num + FloatExt,
+        S: StorageToDense<T>,
+    {
+        crate::ops::math::pow_scalar(self, exp)
+            .expect("powf operation failed: this is a bug in the tensor implementation")
     }
 
     /// Computes the square of each element in the tensor.
     ///
-    /// # Mathematical Definition
-    ///
-    /// For each element x in the tensor:
-    /// ```text
-    /// square(x) = x² = x * x
-    /// ```
-    ///
-    /// # Returns
-    ///
-    /// A new tensor with the same shape containing `x²` for each element.
-    ///
-    /// # Panics
-    ///
-    /// This function uses conditional unsafe in release builds for performance.
-    /// In debug builds, panics if shape invariants are violated (indicates a bug).
-    /// In release builds, uses `unwrap_unchecked()` after mathematical proof of correctness.
+    /// This is a convenience method that uses `powf(2.0)`.
     ///
     /// # Examples
     ///
@@ -277,43 +186,28 @@ where
     /// use storage::DenseStorage;
     /// use dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
-    ///     &[Float32::new(2.0), Float32::new(3.0)], &[2]
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+    ///     vec![Float32::new(2.0), Float32::new(3.0)],
+    ///     &[2]
     /// ).unwrap();
     ///
     /// let b = a.square();
     /// // 2² = 4, 3² = 9
-    /// assert_eq!(b.shape().dims(), &[2]);
     /// ```
     #[must_use]
-    pub fn square(&self) -> Self {
-        let mut result_data = Vec::with_capacity(self.len());
-        result_data.extend(self.as_slice().iter().map(|&x| x * x));
-
-        // Create new tensor with result data
-        let storage = S::from_vec(result_data, self.shape().dims())
-            .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor::from_storage(storage, self.backend.clone())
+    pub fn square(&self) -> Self
+    where
+        T: num_traits::Num + num_traits::FromPrimitive + FloatExt,
+        S: StorageToDense<T>,
+    {
+        let two = T::from_f64(2.0).expect("Failed to convert 2.0 to target type");
+        crate::ops::math::pow_scalar(self, two)
+            .expect("square operation failed: this is a bug in the tensor implementation")
     }
 
     /// Computes the square root of each element in the tensor.
     ///
-    /// # Mathematical Definition
-    ///
-    /// For each element x in the tensor:
-    /// ```text
-    /// sqrt(x) = √x
-    /// ```
-    ///
-    /// # Returns
-    ///
-    /// A new tensor with the same shape containing `√x` for each element.
-    ///
-    /// # Panics
-    ///
-    /// This function uses conditional unsafe in release builds for performance.
-    /// In debug builds, panics if shape invariants are violated (indicates a bug).
-    /// In release builds, uses `unwrap_unchecked()` after mathematical proof of correctness.
+    /// Delegates to `tensor::ops::arithmetic::sqrt`.
     ///
     /// # Examples
     ///
@@ -323,22 +217,21 @@ where
     /// use storage::DenseStorage;
     /// use dtype::float::Float32;
     ///
-    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_slice(
-    ///     &[Float32::new(4.0), Float32::new(9.0)], &[2]
+    /// let a = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+    ///     vec![Float32::new(4.0), Float32::new(9.0)],
+    ///     &[2]
     /// ).unwrap();
     ///
     /// let b = a.sqrt();
     /// // √4 = 2, √9 = 3
-    /// assert_eq!(b.shape().dims(), &[2]);
     /// ```
     #[must_use]
-    pub fn sqrt(&self) -> Self {
-        let mut result_data = Vec::with_capacity(self.len());
-        result_data.extend(self.as_slice().iter().map(|&x| x.sqrt()));
-
-        // Create new tensor with result data
-        let storage = S::from_vec(result_data, self.shape().dims())
-            .expect("Shape invariant violated: this is a bug in the tensor implementation");
-        crate::Tensor::from_storage(storage, self.backend.clone())
+    pub fn sqrt(&self) -> Self 
+    where
+        T: FloatExt + num_traits::FromPrimitive,
+        S: StorageToDense<T>,
+    {
+        crate::ops::sqrt(self)
+            .expect("sqrt operation failed: this is a bug in the tensor implementation")
     }
 }

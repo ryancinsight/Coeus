@@ -52,7 +52,6 @@ where
 
 /// Additional autograd stub functions can be added here as needed
 /// for other NN operations that might depend on autograd in the future.
-
 #[cfg(test)]
 mod tests {
     use super::*;

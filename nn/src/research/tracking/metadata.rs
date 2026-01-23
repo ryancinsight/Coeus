@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Instant;
+
 #[cfg(feature = "sysinfo")]
 use sysinfo::System;
 
@@ -280,7 +280,7 @@ impl EnvironmentInfo {
 
         #[cfg(feature = "sysinfo")]
         let os_version = {
-            let mut sys = System::new();
+            let _sys = System::new();
             // TODO: Update sysinfo API usage
             // sys.refresh_system();
             // sys.long_os_version().unwrap_or_else(|| "Unknown".to_string())
@@ -520,7 +520,6 @@ pub struct DataTransformation {
 }
 
 /// Helper functions
-
 fn get_current_user() -> String {
     std::env::var("USERNAME")
         .unwrap_or_else(|_| std::env::var("USER").unwrap_or_else(|_| "Unknown".to_string()))
@@ -547,12 +546,12 @@ fn collect_relevant_env_vars() -> HashMap<String, String> {
 
 fn collect_gpu_info() -> Vec<String> {
     // Basic GPU detection - could be enhanced with actual GPU libraries
-    #[cfg(feature = "cuda")]
+    #[cfg(feature = "gpu")]
     {
         // CUDA GPU detection would go here
         vec!["CUDA GPU(s) detected".to_string()]
     }
-    #[cfg(not(feature = "cuda"))]
+    #[cfg(not(feature = "gpu"))]
     {
         vec![]
     }
@@ -636,7 +635,7 @@ fn collect_build_config() -> String {
         config.push("release");
     }
 
-    if cfg!(feature = "cuda") {
+    if cfg!(feature = "gpu") {
         config.push("cuda");
     }
 

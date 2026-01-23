@@ -1,5 +1,13 @@
 use pyo3::prelude::*;
-use pyo3::pyclass;
+
+pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    m.add_class::<Encoding>()?;
+    m.add_class::<BpeTokenizer>()?;
+    m.add_class::<GPT2Tokenizer>()?;
+    m.add_class::<CLIPTokenizer>()?;
+    m.add_class::<BERTTokenizer>()?;
+    Ok(())
+}
 
 /// Encoding result
 #[pyclass(name = "Encoding", module = "_coeus")]

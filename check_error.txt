@@ -1,0 +1,340 @@
+warning: function `canonical_reduce_dims` is never used
+  --> autograd\src\functions\mod.rs:52:15
+   |
+52 | pub(crate) fn canonical_reduce_dims(
+   |               ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `kept_shape_for_reduction` is never used
+  --> autograd\src\functions\mod.rs:74:15
+   |
+74 | pub(crate) fn kept_shape_for_reduction(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `unbroadcast_dense` is never used
+   --> autograd\src\functions\mod.rs:117:15
+    |
+117 | pub(crate) fn unbroadcast_dense<B, T>(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `to_storage_preserving_graph` is never used
+   --> autograd\src\functions\mod.rs:160:15
+    |
+160 | pub(crate) fn to_storage_preserving_graph<B, S, T>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `to_dense_preserving_graph_identity` is never used
+   --> autograd\src\functions\mod.rs:174:15
+    |
+174 | pub(crate) fn to_dense_preserving_graph_identity<B, S, T>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `autograd` (lib) generated 5 warnings
+warning: fields `feature_encoder`, `quantizer`, `transformer_layers`, and `config` are never read
+  --> nn\src\audio\models\base.rs:17:5
+   |
+10 | pub struct Wav2VecModel<B, S, T>
+   |            ------------ fields in this struct
+...
+17 |     feature_encoder: Vec<Conv1D<B, S, T>>,
+   |     ^^^^^^^^^^^^^^^
+18 |     /// Quantizer for discrete representations
+19 |     quantizer: Option<ProductQuantizer<B, S, T>>,
+   |     ^^^^^^^^^
+20 |     /// Transformer layers for contextual representations
+21 |     transformer_layers: Vec<TransformerLayer<B, S, T>>,
+   |     ^^^^^^^^^^^^^^^^^^
+22 |     /// Configuration
+23 |     config: Wav2VecConfig,
+   |     ^^^^^^
+   |
+   = note: `Wav2VecModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `wav2vec_encoder`, `clustering_head`, and `config` are never read
+  --> nn\src\audio\models\base.rs:35:5
+   |
+28 | pub struct HubertModel<B, S, T>
+   |            ----------- fields in this struct
+...
+35 |     wav2vec_encoder: Wav2VecModel<B, S, T>,
+   |     ^^^^^^^^^^^^^^^
+36 |     /// Clustering head for unit discovery
+37 |     clustering_head: Linear<B, S, T>,
+   |     ^^^^^^^^^^^^^^^
+38 |     /// Configuration
+39 |     config: HubertConfig,
+   |     ^^^^^^
+   |
+   = note: `HubertModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `encoder`, `decoder`, `lm_head`, and `config` are never read
+  --> nn\src\audio\models\base.rs:51:5
+   |
+44 | pub struct WhisperModel<B, S, T>
+   |            ------------ fields in this struct
+...
+51 |     encoder: Vec<TransformerLayer<B, S, T>>,
+   |     ^^^^^^^
+52 |     /// Text decoder for autoregressive generation
+53 |     decoder: Vec<TransformerLayer<B, S, T>>,
+   |     ^^^^^^^
+54 |     /// Language model head
+55 |     lm_head: Linear<B, S, T>,
+   |     ^^^^^^^
+56 |     /// Configuration
+57 |     config: WhisperConfig,
+   |     ^^^^^^
+   |
+   = note: `WhisperModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `encoder`, `decoder`, `postnet`, and `config` are never read
+  --> nn\src\audio\models\base.rs:69:5
+   |
+62 | pub struct TacotronModel<B, S, T>
+   |            ------------- fields in this struct
+...
+69 |     encoder: Vec<TransformerLayer<B, S, T>>,
+   |     ^^^^^^^
+70 |     /// Decoder with attention
+71 |     decoder: Vec<TacotronDecoderLayer<B, S, T>>,
+   |     ^^^^^^^
+72 |     /// Post-net for spectrogram refinement
+73 |     postnet: Vec<Conv1D<B, S, T>>,
+   |     ^^^^^^^
+74 |     /// Configuration
+75 |     config: TacotronConfig,
+   |     ^^^^^^
+   |
+   = note: `TacotronModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: multiple fields are never read
+  --> nn\src\audio\models\base.rs:87:5
+   |
+80 | pub struct FastSpeechModel<B, S, T>
+   |            --------------- fields in this struct
+...
+87 |     encoder: Vec<TransformerLayer<B, S, T>>,
+   |     ^^^^^^^
+88 |     /// Duration predictor
+89 |     duration_predictor: DurationPredictor<B, S, T>,
+   |     ^^^^^^^^^^^^^^^^^^
+90 |     /// Pitch predictor
+91 |     pitch_predictor: PitchPredictor<B, S, T>,
+   |     ^^^^^^^^^^^^^^^
+92 |     /// Energy predictor
+93 |     energy_predictor: EnergyPredictor<B, S, T>,
+   |     ^^^^^^^^^^^^^^^^
+94 |     /// Decoder
+95 |     decoder: Vec<TransformerLayer<B, S, T>>,
+   |     ^^^^^^^
+96 |     /// Post-net
+97 |     postnet: Vec<Conv1D<B, S, T>>,
+   |     ^^^^^^^
+98 |     /// Configuration
+99 |     config: FastSpeechConfig,
+   |     ^^^^^^
+   |
+   = note: `FastSpeechModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `decoder_config` is never read
+  --> nn\src\audio\models\recognition.rs:21:5
+   |
+13 | pub struct SpeechRecognizer {
+   |            ---------------- field in this struct
+...
+21 |     decoder_config: DecoderConfig,
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `SpeechRecognizer` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `model_type`, `vocab_size`, and `weight` are never read
+  --> nn\src\audio\models\recognition.rs:41:5
+   |
+39 | pub struct LanguageModel {
+   |            ------------- fields in this struct
+40 |     /// Language model type
+41 |     model_type: LanguageModelType,
+   |     ^^^^^^^^^^
+42 |     /// Vocabulary size
+43 |     vocab_size: usize,
+   |     ^^^^^^^^^^
+44 |     /// Language model weight
+45 |     weight: f32,
+   |     ^^^^^^
+   |
+   = note: `LanguageModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `confidence_threshold` is never read
+  --> nn\src\audio\models\recognition.rs:65:5
+   |
+61 | pub struct LanguageIdModel {
+   |            --------------- field in this struct
+...
+65 |     confidence_threshold: f32,
+   |     ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `LanguageIdModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `sample_rate` is never read
+  --> nn\src\audio\models\synthesis.rs:32:5
+   |
+22 | pub struct TTSModel {
+   |            -------- field in this struct
+...
+32 |     sample_rate: usize,
+   |     ^^^^^^^^^^^
+   |
+   = note: `TTSModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `wavelet_type` is never read
+   --> nn\src\audio\ops\features.rs:589:5
+    |
+586 | pub struct WaveletExtractor {
+    |            ---------------- field in this struct
+...
+589 |     wavelet_type: String,
+    |     ^^^^^^^^^^^^
+
+warning: field `model` is never read
+  --> nn\src\audio\ops\classification.rs:28:5
+   |
+26 | pub struct MusicGenreClassifier {
+   |            -------------------- field in this struct
+27 |     /// Specialized model for music genre recognition
+28 |     model: MusicClassificationModel,
+   |     ^^^^^
+   |
+   = note: `MusicGenreClassifier` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `architecture`, `dataset`, and `parameters` are never read
+  --> nn\src\audio\ops\classification.rs:52:5
+   |
+50 | pub struct MusicClassificationModel {
+   |            ------------------------ fields in this struct
+51 |     /// Model architecture
+52 |     architecture: MusicModelArchitecture,
+   |     ^^^^^^^^^^^^
+53 |     /// Training dataset used
+54 |     dataset: String,
+   |     ^^^^^^^
+55 |     /// Model parameters
+56 |     parameters: usize,
+   |     ^^^^^^^^^^
+   |
+   = note: `MusicClassificationModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `params` is never read
+  --> nn\src\audio\ops\classification.rs:91:5
+   |
+87 | pub struct MusicFeatureExtractor {
+   |            --------------------- field in this struct
+...
+91 |     params: MusicFeatureParams,
+   |     ^^^^^^
+   |
+   = note: `MusicFeatureExtractor` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: `nn` (lib) generated 13 warnings
+    Checking pycoeus v0.2.1 (D:\coeus\pycoeus)
+error[E0592]: duplicate definitions with name `atan2`
+   --> pycoeus\src\tensor\ops\activation.rs:279:5
+    |
+279 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `atan2`
+    |
+   ::: pycoeus\src\tensor\ops\linalg.rs:26:5
+    |
+ 26 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ----------------------------------------------------------- other definition for `atan2`
+
+error[E0592]: duplicate definitions with name `__pymethod_atan2__`
+ --> pycoeus\src\tensor\ops\activation.rs:6:1
+  |
+6 | #[pymethods]
+  | ^^^^^^^^^^^^ duplicate definitions for `__pymethod_atan2__`
+  |
+ ::: pycoeus\src\tensor\ops\linalg.rs:4:1
+  |
+4 | #[pymethods]
+  | ------------ other definition for `__pymethod_atan2__`
+  |
+  = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\activation.rs:279:12
+    |
+279 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |            ^^^^^ multiple `atan2` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\activation.rs:279:5
+    |
+279 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:26:5
+    |
+ 26 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\activation.rs:279:46
+    |
+279 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |                                              ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+    |
+    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\linalg.rs:26:12
+    |
+ 26 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |            ^^^^^ multiple `atan2` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\activation.rs:279:5
+    |
+279 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:26:5
+    |
+ 26 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\linalg.rs:26:46
+   |
+26 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+   |                                              ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+   |
+   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+warning: unused import: `numpy::PyUntypedArrayMethods`
+ --> pycoeus\src\tensor\ops\conversion.rs:6:5
+  |
+6 | use numpy::PyUntypedArrayMethods;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `optim::BaseOptimizer`
+ --> pycoeus\src\optim\rmsprop.rs:4:5
+  |
+4 | use optim::BaseOptimizer;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `optim::BaseOptimizer`
+ --> pycoeus\src\optim\sgd.rs:4:5
+  |
+4 | use optim::BaseOptimizer; // Need BaseOptimizer import for add_param_group on SGD?
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0034, E0592.
+For more information about an error, try `rustc --explain E0034`.
+warning: `pycoeus` (lib) generated 3 warnings
+error: could not compile `pycoeus` (lib) due to 6 previous errors; 3 warnings emitted

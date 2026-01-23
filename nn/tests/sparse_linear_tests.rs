@@ -67,7 +67,7 @@ fn test_sparse_linear_forward() {
     assert_eq!(output.shape().dims(), &[2, 3]);
 
     // Output should be non-zero (since input is non-zero and weights are initialized)
-    let output_slice = output.storage_ref().as_slice();
+    let output_slice = output.storage().as_slice();
     assert!(!output_slice.iter().all(|&x| x.0 == 0.0));
 }
 

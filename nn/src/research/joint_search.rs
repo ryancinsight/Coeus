@@ -4,13 +4,13 @@
 //! and hyperparameters, combining NAS and HPO into efficient, coordinated search
 //! processes that exploit the synergies between architecture and optimization decisions.
 
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, RwLock};
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::core::error::{NNError, Result};
 use crate::hpo::{HyperparameterConfig, HyperparameterSpace};
-use crate::nas::search_space::LayerSpec;
+
 use crate::nas::{Architecture, ArchitectureEvaluator, ArchitectureSpace};
 use crate::research::joint_search::algorithms::{
     AlternatingSearch, ConcurrentSearch, EvolutionaryJointSearch, FactorizedSearch,
@@ -183,6 +183,7 @@ pub struct JointSearchFramework {
     prediction_framework:
         Option<Arc<super::performance_prediction::PerformancePredictionFramework>>,
     /// Multi-objective optimization utilities
+    #[allow(dead_code)]
     multi_objective_utils: MultiObjectiveUtils,
     /// Coordination mechanisms between NAS and HPO
     coordination_mechanisms: CoordinationMechanisms,
@@ -196,6 +197,7 @@ struct CoordinationMechanisms {
     /// Knowledge sharing between search algorithms
     knowledge_sharing: KnowledgeSharingCoordinator,
     /// Resource allocation across joint evaluations
+    #[allow(dead_code)]
     resource_arbitration: ResourceArbitrationCoordinator,
 }
 
@@ -219,6 +221,7 @@ struct KnowledgeSharingCoordinator {
 
 /// Resource arbitration coordinator
 #[derive(Debug)]
+#[allow(dead_code)]
 struct ResourceArbitrationCoordinator {
     /// Current resource allocations
     allocations: HashMap<String, ResourceAllocation>,
@@ -230,6 +233,7 @@ struct ResourceArbitrationCoordinator {
 
 /// Performance datum for knowledge sharing
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct PerformanceDatum {
     architecture_family: String,
     task_domain: String,
@@ -239,6 +243,7 @@ struct PerformanceDatum {
 
 /// Search effectiveness meta-knowledge
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct SearchEffectiveness {
     algorithm_name: String,
     domain_adaptability: f64,
@@ -248,6 +253,7 @@ struct SearchEffectiveness {
 
 /// Resource allocation
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ResourceAllocation {
     experiment_id: String,
     gpu_allocation: f64, // fraction of GPU
@@ -257,6 +263,7 @@ struct ResourceAllocation {
 
 /// Resource constraints
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ResourceConstraints {
     total_gpu_memory: f64,
     total_cpu_cores: usize,
@@ -265,6 +272,7 @@ struct ResourceConstraints {
 
 /// Time limits for resource allocation
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct TimeLimits {
     max_single_evaluation: std::time::Duration,
     max_total_search: std::time::Duration,
@@ -272,6 +280,7 @@ struct TimeLimits {
 
 /// Fairness policies for resource allocation
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct FairnessPolicies {
     egalitarian: bool,           // equal allocation
     merit_based: bool,           // based on potential
@@ -280,6 +289,7 @@ struct FairnessPolicies {
 
 /// Multi-objective optimization utilities
 #[derive(Debug)]
+#[allow(dead_code)]
 struct MultiObjectiveUtils {
     // Implementation details will be added as needed
 }

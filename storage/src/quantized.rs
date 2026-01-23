@@ -358,6 +358,10 @@ impl<
 impl<T: DataType + num_traits::Float + num_traits::FromPrimitive, const BITS: usize> Storage<T>
     for QuantizedStorage<T, BITS>
 {
+    fn format(&self) -> crate::StorageFormat {
+        crate::StorageFormat::Quantized
+    }
+
     fn as_slice(&self) -> &[T] {
         // For quantized storage, we can't directly return T slice
         // This is a limitation - quantized storage needs special handling
@@ -399,6 +403,16 @@ impl<T: DataType + num_traits::Float + num_traits::FromPrimitive, const BITS: us
     fn full(dims: &[usize], value: T) -> Result<Self> {
         QuantizedStorage::full(dims, value)
     }
+
+    fn map_structure<F>(&self, _f: F) -> Result<Self>
+    where
+        Self: Sized,
+        F: FnMut(T) -> T,
+    {
+        // Re-quantization requires finding new min/max scales, which is complex.
+        // For now we return error.
+        Err(StorageError::NotImplemented)
+    }
 }
 
 // Type aliases for common quantized storage types
@@ -408,6 +422,19 @@ pub type QuantizedStorage4<T> = QuantizedStorage<T, 4>;
 pub type QuantizedStorage8<T> = QuantizedStorage<T, 8>;
 /// 16-bit quantized storage
 pub type QuantizedStorage16<T> = QuantizedStorage<T, 16>;
+
+impl<T, const BITS: usize> crate::AsAny for QuantizedStorage<T, BITS>
+where
+    T: crate::DataType
+        + core::cmp::PartialOrd
+        + num_traits::Float
+        + num_traits::FromPrimitive
+        + num_traits::ToPrimitive,
+{
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+}
 
 impl<T, const BITS: usize> crate::StorageToDense<T> for QuantizedStorage<T, BITS>
 where

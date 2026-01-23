@@ -6,7 +6,7 @@ use dtype::DataType;
 use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::{ops::arithmetic::*, FloatExt, Tensor};
 
-use super::{Activation, ActivationType};
+use super::Activation;
 
 /// Swish-Gated Linear Unit (SwiGLU) activation function
 ///
@@ -25,7 +25,7 @@ where
 impl<B, S, T> SwiGLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     /// Create a new SwiGLU activation function
@@ -69,7 +69,7 @@ where
         let exp_neg_x = neg_x.exp();
 
         // Then compute 1 + exp(-x)
-        let one = Tensor::<B, S, T>::ones_generic(x.shape().dims())?;
+        let one = Tensor::<B, S, T>::ones(x.shape().dims())?;
         let denominator = add(&one, &exp_neg_x)?;
 
         // Finally compute 1 / (1 + exp(-x))
@@ -160,7 +160,8 @@ where
 impl<B, S, T> Default for SwiGLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn default() -> Self {
@@ -171,7 +172,7 @@ where
 impl<B, S, T> Activation<B, S, T> for SwiGLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
@@ -183,7 +184,7 @@ where
 impl<B, S, T> Module<B, S, T> for SwiGLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {

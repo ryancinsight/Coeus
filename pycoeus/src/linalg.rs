@@ -1,8 +1,19 @@
 use crate::tensor::PyTensor;
-use coeus_linalg::{Cholesky, Det, Inverse, Norm, Solve, QR, SVD};
 use pyo3::prelude::*;
-use pyo3::{pyfunction, PyResult};
+use pyo3::{pyfunction, wrap_pyfunction, Bound, PyResult, Python};
 use tensor::Float32;
+
+pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(inv, m)?)?;
+    m.add_function(wrap_pyfunction!(norm, m)?)?;
+    m.add_function(wrap_pyfunction!(vector_norm, m)?)?;
+    m.add_function(wrap_pyfunction!(det, m)?)?;
+    m.add_function(wrap_pyfunction!(solve, m)?)?;
+    m.add_function(wrap_pyfunction!(cholesky, m)?)?;
+    m.add_function(wrap_pyfunction!(qr, m)?)?;
+    m.add_function(wrap_pyfunction!(svd, m)?)?;
+    Ok(())
+}
 
 /// Computes the inverse of a square matrix.
 #[pyfunction]
@@ -77,7 +88,14 @@ pub fn qr(input: &PyTensor) -> PyResult<(PyTensor, PyTensor)> {
     let result = input.inner.qr().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("linalg.qr failed: {:?}", e))
     })?;
-    Ok((PyTensor { inner: result.q }, PyTensor { inner: result.r }))
+    Ok((
+        PyTensor {
+            inner: crate::tensor::TensorWrapper::CpuDenseF32(result.q),
+        },
+        PyTensor {
+            inner: crate::tensor::TensorWrapper::CpuDenseF32(result.r),
+        },
+    ))
 }
 
 /// Computes the Singular Value Decomposition (SVD) of a matrix.
@@ -89,8 +107,14 @@ pub fn svd(input: &PyTensor, full_matrices: bool) -> PyResult<(PyTensor, PyTenso
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("linalg.svd failed: {:?}", e))
     })?;
     Ok((
-        PyTensor { inner: result.u },
-        PyTensor { inner: result.s },
-        PyTensor { inner: result.vh },
+        PyTensor {
+            inner: crate::tensor::TensorWrapper::CpuDenseF32(result.u),
+        },
+        PyTensor {
+            inner: crate::tensor::TensorWrapper::CpuDenseF32(result.s),
+        },
+        PyTensor {
+            inner: crate::tensor::TensorWrapper::CpuDenseF32(result.vh),
+        },
     ))
 }

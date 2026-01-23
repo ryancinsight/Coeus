@@ -1,12 +1,84 @@
-//! Tensor shape manipulation operations.
-//!
-//! This module provides operations for reshaping and transposing tensors.
-
-use std::{format, string::ToString, vec, vec::Vec};
-
-use backend::Backend;
-use dtype::DataType;
+use backend::{Backend, DataType};
 use storage::{Storage, StorageFromVec, StorageToDense};
+
+/// Helper to broadcast tensor data to a target shape
+pub fn broadcast_tensor_data<T: Clone>(
+    data: &[T],
+    current_shape: &[usize],
+    target_shape: &[usize],
+) -> crate::Result<Vec<T>> {
+    if current_shape == target_shape {
+        return Ok(data.to_vec());
+    }
+
+    let target_numel: usize = target_shape.iter().product();
+    let mut result = Vec::with_capacity(target_numel);
+
+    for i in 0..target_numel {
+        let mut current_idx = 0;
+        let mut remaining = i;
+        let mut stride = target_numel;
+
+        for (d, &target_dim) in target_shape.iter().enumerate() {
+            stride /= target_dim;
+            let target_coord = remaining / stride;
+            remaining %= stride;
+
+            // Mapping target coord to source coord
+            // If target_dim > current_dim and current_dim == 1, we use coord 0 (broadcast)
+            // We need to handle padding of current_shape with 1s at the front
+            let current_dim_idx = d as i32 - (target_shape.len() as i32 - current_shape.len() as i32);
+            if current_dim_idx >= 0 {
+                let current_dim = current_shape[current_dim_idx as usize];
+                if current_dim > 1 {
+                    // Calculate current stride
+                    let current_stride: usize = current_shape.iter().skip(current_dim_idx as usize + 1).product();
+                    current_idx += target_coord * current_stride;
+                }
+            }
+        }
+        result.push(data[current_idx].clone());
+    }
+
+    Ok(result)
+}
+
+/// Helper to calculate broadcasted shapes
+pub fn broadcast_shapes(shape_a: &[usize], shape_b: &[usize]) -> crate::Result<Vec<usize>> {
+    let len_a = shape_a.len();
+    let len_b = shape_b.len();
+    let out_len = len_a.max(len_b);
+    let mut out_shape = Vec::with_capacity(out_len);
+
+    for i in 0..out_len {
+        let dim_a = if i < out_len - len_a {
+            1
+        } else {
+            shape_a[i - (out_len - len_a)]
+        };
+        let dim_b = if i < out_len - len_b {
+            1
+        } else {
+            shape_b[i - (out_len - len_b)]
+        };
+
+        if dim_a == dim_b {
+            out_shape.push(dim_a);
+        } else if dim_a == 1 {
+            out_shape.push(dim_b);
+        } else if dim_b == 1 {
+            out_shape.push(dim_a);
+        } else {
+            return Err(crate::TensorError::ShapeError {
+                expected: dim_a,
+                actual: dim_b,
+                message: format!("Cannot broadcast shapes {shape_a:?} and {shape_b:?}"),
+            });
+        }
+    }
+    Ok(out_shape)
+}
+
 
 /// Shape manipulation operations for tensors with dense storage.
 ///
@@ -221,6 +293,66 @@ where
         Ok(Self::from_storage(new_storage, B::default()))
     }
 
+    /// Unsqueezes the tensor by inserting a dimension of size 1 at the specified position.
+    pub fn unsqueeze(&self, dim: usize) -> crate::Result<Self> {
+        let current_dims = self.shape().dims();
+        let ndim = current_dims.len();
+        if dim > ndim {
+            return Err(crate::TensorError::ShapeError {
+                expected: ndim,
+                actual: dim,
+                message: format!("unsqueeze: dimension {dim} out of bounds for ndim {ndim}"),
+            });
+        }
+
+        let mut new_dims = Vec::with_capacity(ndim + 1);
+        new_dims.extend(current_dims.iter().take(dim).copied());
+        new_dims.push(1);
+        new_dims.extend(current_dims.iter().skip(dim).copied());
+
+        let data = self.as_slice().to_vec();
+        let new_storage = storage::DenseStorage::from_vec(data, &new_dims)
+            .map_err(crate::TensorError::StorageError)?;
+        Ok(Self::from_storage(new_storage, self.backend.clone()))
+    }
+
+    /// Squeezes the tensor by removing a dimension of size 1 at the specified position.
+    pub fn squeeze(&self, dim: usize) -> crate::Result<Self> {
+        let current_dims = self.shape().dims();
+        let ndim = current_dims.len();
+        if dim >= ndim {
+            return Err(crate::TensorError::ShapeError {
+                expected: ndim,
+                actual: dim,
+                message: format!("squeeze: dimension {dim} out of bounds for ndim {ndim}"),
+            });
+        }
+
+        if current_dims[dim] != 1 {
+            return Err(crate::TensorError::ShapeError {
+                expected: 1,
+                actual: current_dims[dim],
+                message: format!(
+                    "squeeze: dimension {dim} must have size 1, got {}",
+                    current_dims[dim]
+                ),
+            });
+        }
+
+        let mut new_dims = Vec::with_capacity(ndim - 1);
+        new_dims.extend(
+            current_dims
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &d)| (i != dim).then_some(d)),
+        );
+
+        let data = self.as_slice().to_vec();
+        let new_storage = storage::DenseStorage::from_vec(data, &new_dims)
+            .map_err(crate::TensorError::StorageError)?;
+        Ok(Self::from_storage(new_storage, self.backend.clone()))
+    }
+
     /// Helper method to resolve reshape dimensions with -1 inference.
     #[allow(dead_code)]
     fn resolve_reshape_dims(&self, dims: &[isize]) -> crate::Result<Vec<usize>> {
@@ -333,5 +465,78 @@ where
             new_storage,
             dense_tensor.backend,
         ))
+    }
+
+    /// Flattens the tensor by contiguous dimensions between `start_dim` and `end_dim`.
+    ///
+    /// # Arguments
+    /// * `start_dim` - The first dimension to flatten
+    /// * `end_dim` - The last dimension to flatten (inclusive)
+    ///
+    /// # Returns
+    /// A new tensor with the flattened dimensions (always dense storage).
+    pub fn flatten(
+        &self,
+        start_dim: usize,
+        end_dim: isize,
+    ) -> crate::Result<crate::Tensor<B, crate::DenseStorage<T>, T>> {
+        let current_dims = self.shape().dims();
+        let ndim = current_dims.len();
+
+        let end_dim_idx = if end_dim < 0 {
+            let idx = (ndim as isize + end_dim) as usize;
+            if idx >= ndim {
+                return Err(crate::TensorError::ShapeError {
+                    expected: ndim,
+                    actual: idx,
+                    message: format!("flatten: end_dim {end_dim} out of bounds for ndim {ndim}"),
+                });
+            }
+            idx
+        } else {
+            let idx = end_dim as usize;
+            if idx >= ndim {
+                return Err(crate::TensorError::ShapeError {
+                    expected: ndim,
+                    actual: idx,
+                    message: format!("flatten: end_dim {end_dim} out of bounds for ndim {ndim}"),
+                });
+            }
+            idx
+        };
+
+        if start_dim >= ndim {
+            return Err(crate::TensorError::ShapeError {
+                expected: ndim,
+                actual: start_dim,
+                message: format!("flatten: start_dim {start_dim} out of bounds for ndim {ndim}"),
+            });
+        }
+
+        if start_dim > end_dim_idx {
+            return Err(crate::TensorError::ShapeError {
+                expected: 0,
+                actual: 0,
+                message: format!(
+                    "flatten: start_dim {start_dim} must be <= end_dim_idx {end_dim_idx}"
+                ),
+            });
+        }
+
+        let mut new_dims = Vec::new();
+        new_dims.extend(current_dims.iter().take(start_dim).map(|&d| d as isize));
+
+        let flattened_dim: usize = current_dims[start_dim..=end_dim_idx].iter().product();
+        new_dims.push(flattened_dim as isize);
+
+        new_dims.extend(
+            current_dims
+                .iter()
+                .take(ndim)
+                .skip(end_dim_idx + 1)
+                .map(|&d| d as isize),
+        );
+
+        self.reshape(&new_dims)
     }
 }

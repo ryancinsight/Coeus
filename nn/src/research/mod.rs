@@ -213,7 +213,6 @@
 //! while maintaining the highest standards of experimental rigor and reproducibility.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 // Re-export all research modules for unified API
 pub mod agent;

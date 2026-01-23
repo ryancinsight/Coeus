@@ -229,7 +229,7 @@ where
         let in_features = self.in_features;
 
         // Get input data
-        let input_data = input.storage_ref().as_slice();
+        let input_data = input.storage().as_slice();
         let input_shape = input.shape().dims();
         let batch_size = input_shape[0];
 
@@ -264,7 +264,7 @@ where
 
         // Add bias if present
         if let Some(ref bias_param) = self.bias {
-            let bias_data = bias_param.data.storage_ref().as_slice();
+            let bias_data = bias_param.data.storage().as_slice();
             for batch_idx in 0..batch_size {
                 let output_offset = batch_idx * out_features;
                 #[allow(clippy::needless_range_loop)]

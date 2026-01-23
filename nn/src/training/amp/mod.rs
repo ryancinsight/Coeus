@@ -40,6 +40,7 @@
 //! ```
 
 use crate::core::error::{NNError, Result};
+use num_traits::ToPrimitive;
 use tensor::{FloatExt, Tensor};
 
 /// Automatic Mixed Precision training context
@@ -141,7 +142,7 @@ impl MixedPrecision {
     /// Unscale gradients after backward pass
     pub fn unscale_gradients<T, B, S>(&mut self, gradients: &mut [Tensor<B, S, T>]) -> Result<bool>
     where
-        T: FloatExt + num_traits::FromPrimitive,
+        T: FloatExt + num_traits::FromPrimitive + ToPrimitive,
         B: backend::Backend<Data = T>,
         S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + 'static,
     {
@@ -176,15 +177,14 @@ impl MixedPrecision {
     /// Check if tensor contains NaN or Inf values
     pub fn has_nan_or_inf<T, B, S>(&self, tensor: &Tensor<B, S, T>) -> Result<bool>
     where
-        T: FloatExt,
+        T: FloatExt + ToPrimitive,
         B: backend::Backend<Data = T>,
         S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + 'static,
     {
-        let data = tensor.storage_ref().as_slice();
+        let data = tensor.storage().as_slice();
 
-        for &value in data {
-            let f32_val: Option<f32> = value.to_f32();
-            if let Some(f32_val) = f32_val {
+        for value in data {
+            if let Some(f32_val) = value.to_f32() {
                 if f32_val.is_nan() || f32_val.is_infinite() {
                     return Ok(true);
                 }
@@ -294,7 +294,7 @@ impl GradientScaler {
     /// Check gradients for overflow and update scaler state
     pub fn check_gradients<T, B, S>(&mut self, gradients: &[&Tensor<B, S, T>]) -> Result<()>
     where
-        T: FloatExt,
+        T: FloatExt + ToPrimitive,
         B: backend::Backend<Data = T>,
         S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + 'static,
     {
@@ -311,15 +311,14 @@ impl GradientScaler {
     /// Check if tensor has inf or nan values
     fn has_inf_or_nan<T, B, S>(&self, tensor: &Tensor<B, S, T>) -> Result<bool>
     where
-        T: FloatExt,
+        T: FloatExt + ToPrimitive,
         B: backend::Backend<Data = T>,
         S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + 'static,
     {
-        let data = tensor.storage_ref().as_slice();
+        let data = tensor.storage().as_slice();
 
-        for &value in data {
-            let f32_val: Option<f32> = value.to_f32();
-            if let Some(f32_val) = f32_val {
+        for value in data {
+            if let Some(f32_val) = value.to_f32() {
                 if f32_val.is_nan() || f32_val.is_infinite() {
                     return Ok(true);
                 }
@@ -392,7 +391,7 @@ mod tests {
             Tensor::from_vec(data, &[2])?;
 
         let scaled_loss = amp.scale_loss(&loss)?;
-        let scaled_data = scaled_loss.storage_ref().as_slice();
+        let scaled_data = scaled_loss.storage().as_slice();
 
         assert_eq!(scaled_data[0].get(), 2.0);
         assert_eq!(scaled_data[1].get(), 4.0);

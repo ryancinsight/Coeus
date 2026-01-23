@@ -69,14 +69,18 @@
 //! - **LambdaLR**: Custom learning rate scheduling with lambda functions
 //! - **MultiplicativeLR**: Multiplicative learning rate updates
 
+pub mod adadelta;
 pub mod adagrad;
 pub mod adam;
+pub mod adamax;
 pub mod adamw;
 pub mod error;
 pub mod gpu_backend;
+pub mod nadam;
 pub mod optimizer;
 pub mod optimizer_core;
 pub mod optimizers;
+pub mod radam;
 pub mod rmsprop;
 pub mod schedulers;
 pub mod sgd;

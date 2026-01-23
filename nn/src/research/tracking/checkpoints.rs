@@ -179,7 +179,7 @@ impl CheckpointManager {
     }
 
     /// Load checkpoint from file
-    pub fn load_checkpoint(&mut self, path: &Path) -> crate::core::error::Result<String> {
+    pub fn load_checkpoint(&mut self, _path: &Path) -> crate::core::error::Result<String> {
         // Implementation would depend on storage format
         // For now, return error indicating not implemented
         Err(crate::core::error::NNError::NotImplemented {

@@ -1,0 +1,56 @@
+pub mod activation;
+pub mod conv;
+pub mod linear;
+pub mod loss;
+pub mod normalization;
+pub mod ops;
+pub mod pooling;
+
+pub use activation::*;
+pub use conv::*;
+pub use linear::*;
+pub use loss::*;
+pub use normalization::*;
+pub use ops::*;
+pub use pooling::*;
+
+use pyo3::prelude::*;
+
+pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(linear::linear, m)?)?;
+    m.add_function(wrap_pyfunction!(activation::relu, m)?)?;
+    m.add_function(wrap_pyfunction!(activation::sigmoid, m)?)?;
+    m.add_function(wrap_pyfunction!(activation::tanh, m)?)?;
+    m.add_function(wrap_pyfunction!(activation::gelu, m)?)?;
+    m.add_function(wrap_pyfunction!(activation::silu, m)?)?;
+    m.add_function(wrap_pyfunction!(activation::leaky_relu, m)?)?;
+    m.add_function(wrap_pyfunction!(activation::elu, m)?)?;
+    m.add_function(wrap_pyfunction!(loss::mse_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(loss::cross_entropy, m)?)?;
+    m.add_function(wrap_pyfunction!(loss::nll_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(loss::l1_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(loss::smooth_l1_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(loss::binary_cross_entropy, m)?)?;
+    m.add_function(wrap_pyfunction!(loss::bce_with_logits_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(normalization::softmax, m)?)?;
+    m.add_function(wrap_pyfunction!(normalization::batch_norm, m)?)?;
+    m.add_function(wrap_pyfunction!(normalization::layer_norm, m)?)?;
+    m.add_function(wrap_pyfunction!(pooling::max_pool2d, m)?)?;
+    m.add_function(wrap_pyfunction!(pooling::avg_pool2d, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::dropout, m)?)?;
+    m.add_function(wrap_pyfunction!(conv::conv1d, m)?)?;
+    m.add_function(wrap_pyfunction!(conv::conv2d, m)?)?;
+    m.add_function(wrap_pyfunction!(conv::conv_transpose2d, m)?)?;
+    m.add_function(wrap_pyfunction!(conv::conv3d, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::matmul, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::bmm, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::addmm, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::reshape, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::view, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::flatten, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::squeeze, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::unsqueeze, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::transpose, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::permute, m)?)?;
+    Ok(())
+}

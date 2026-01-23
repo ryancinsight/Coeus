@@ -33,7 +33,7 @@ pub use tracking::{ClipExperimentTracker, ClipExperimentTracking};
 #[derive(Debug, Clone, Default)]
 pub struct ClipResearchConfig {
     /// Base CLIP training configuration to extend
-    pub base_training_config: crate::clip::enhanced_trainer::EnhancedClipTrainingConfig,
+    pub base_training_config: crate::clip::training::enhanced_trainer::EnhancedClipTrainingConfig,
     /// HPO search spaces for hyperparameters
     pub hpo_spaces: Vec<HpoSpace>,
     /// Ablation study configurations
@@ -142,10 +142,10 @@ impl Default for NotificationSettings {
 /// CLIP research integrator - main entry point
 pub struct ClipResearchIntegrator {
     config: ClipResearchConfig,
-    experiment_builder: ClipExperimentBuilder,
-    hpo_automation: crate::research::clip_integration::HpoAutomation,
-    ablation_automation: crate::research::clip_integration::AblationAutomation,
-    experiment_tracker: crate::research::clip_integration::ClipExperimentTracker,
+    _experiment_builder: ClipExperimentBuilder,
+    _hpo_automation: crate::research::clip_integration::HpoAutomation,
+    _ablation_automation: crate::research::clip_integration::AblationAutomation,
+    _experiment_tracker: crate::research::clip_integration::ClipExperimentTracker,
 }
 
 impl ClipResearchIntegrator {
@@ -153,16 +153,16 @@ impl ClipResearchIntegrator {
     pub fn new(config: ClipResearchConfig) -> Result<Self, crate::core::error::NNError> {
         Ok(Self {
             config: config.clone(),
-            experiment_builder: ClipExperimentBuilder::new("default_experiment".to_string()),
-            hpo_automation: crate::research::clip_integration::HpoAutomation::new(
+            _experiment_builder: ClipExperimentBuilder::new("default_experiment".to_string()),
+            _hpo_automation: crate::research::clip_integration::HpoAutomation::new(
                 config.hpo_spaces.clone(),
                 crate::research::clip_integration::ResearchAutomation::default(),
             ),
-            ablation_automation: crate::research::clip_integration::AblationAutomation::new(
+            _ablation_automation: crate::research::clip_integration::AblationAutomation::new(
                 config.ablation_configs.clone(),
                 crate::research::clip_integration::ResearchAutomation::default(),
             ),
-            experiment_tracker: crate::research::clip_integration::ClipExperimentTracker::new(
+            _experiment_tracker: crate::research::clip_integration::ClipExperimentTracker::new(
                 "default_experiment".to_string(),
                 std::path::PathBuf::from("./experiments"),
             ),
@@ -214,13 +214,13 @@ impl ClipResearchIntegrator {
     }
 
     /// Generate next experiments based on current results
-    fn generate_next_experiments(&self) -> Vec<ExperimentSuggestion> {
+    fn _generate_next_experiments(&self) -> Vec<ExperimentSuggestion> {
         // Would analyze current results and suggest follow-up experiments
         Vec::new()
     }
 
     /// Track compute resource usage
-    fn track_compute_usage(&self) -> ComputeUsage {
+    fn _track_compute_usage(&self) -> ComputeUsage {
         ComputeUsage {
             cpu_hours: 0.0,
             gpu_hours: 0.0,
@@ -230,7 +230,7 @@ impl ClipResearchIntegrator {
     }
 
     /// Compute success metrics
-    fn compute_success_metrics(&self) -> SuccessMetrics {
+    fn _compute_success_metrics(&self) -> SuccessMetrics {
         SuccessMetrics {
             criteria_met: true,
             confidence_level: 0.95,

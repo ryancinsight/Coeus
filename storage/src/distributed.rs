@@ -488,6 +488,17 @@ impl<T: DataType> AsAny for DistributedStorage<T> {
 }
 
 impl<T: DataType> Storage<T> for DistributedStorage<T> {
+    fn map_structure<F>(&self, _f: F) -> Result<Self>
+    where
+        Self: Sized,
+        F: FnMut(T) -> T,
+    {
+        Err(StorageError::NotImplemented)
+    }
+    fn format(&self) -> crate::StorageFormat {
+        crate::StorageFormat::Distributed
+    }
+
     fn as_slice(&self) -> &[T] {
         // Distributed storage doesn't have a single contiguous slice
         // This would need to gather data first, which is expensive
@@ -777,6 +788,17 @@ impl<T: DataType> ShardedStorage<T> {
 }
 
 impl<T: DataType> Storage<T> for ShardedStorage<T> {
+    fn map_structure<F>(&self, _f: F) -> Result<Self>
+    where
+        Self: Sized,
+        F: FnMut(T) -> T,
+    {
+        Err(StorageError::NotImplemented)
+    }
+    fn format(&self) -> crate::StorageFormat {
+        crate::StorageFormat::Distributed
+    }
+
     fn as_slice(&self) -> &[T] {
         // For sharded storage, we can't return a single slice
         // This would need to be handled differently in practice

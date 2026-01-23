@@ -1,0 +1,452 @@
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:171:21
+    |
+171 |     StorageOps<T> + MatMulOps<T> + LayoutOps<T> + ArithmeticOps<T> + ReductionOps<T>
+    |                     ^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:179:24
+    |
+179 |     S: StorageOps<T> + MatMulOps<T> + LayoutOps<T> + ArithmeticOps<T> + ReductionOps<T>,
+    |                        ^^^^^^^^^
+
+warning: `storage` (lib) generated 2 warnings
+warning: unexpected `cfg` condition value: `std`
+  --> sparse\src\lib.rs:30:7
+   |
+30 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default` and `gpu`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `Storage`
+ --> sparse\src\linear_algebra\matmul.rs:9:37
+  |
+9 | use storage::{CsrStorage, DataType, Storage, StorageError};
+  |                                     ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Storage`
+ --> sparse\src\layout\transpose.rs:7:37
+  |
+7 | use storage::{CsrStorage, DataType, Storage};
+  |                                     ^^^^^^^
+
+warning: unexpected `cfg` condition value: `std`
+  --> dense\src\lib.rs:32:7
+   |
+32 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^ help: remove the condition
+   |
+   = note: no expected values for `feature`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: `coeus-sparse` (lib) generated 3 warnings
+warning: `dense` (lib) generated 1 warning
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csr.rs:1:74
+  |
+1 | use crate::{error::TensorError, Backend, DataType, DenseStorage, Result, Storage, Tensor};
+  |                                                                          ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csc.rs:1:40
+  |
+1 | use crate::{Backend, DataType, Result, Storage, Tensor};
+  |                                        ^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\classification\cross_entropy.rs:6:5
+  |
+6 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `StorageToDense`
+  --> tensor\src\ops\dispatch\sparse_dispatch.rs:13:36
+   |
+13 | use storage::{CsrStorage, Storage, StorageToDense};
+   |                                    ^^^^^^^^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\reduction\mean.rs:7:5
+  |
+7 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Zero`
+ --> tensor\src\ops\math\sign.rs:8:25
+  |
+8 | use num_traits::{Float, Zero};
+  |                         ^^^^
+
+warning: function `input_data_len` is never used
+  --> tensor\src\ops\classification\cross_entropy.rs:76:4
+   |
+76 | fn input_data_len<B, S, T>(tensor: &Tensor<B, S, T>) -> usize 
+   |    ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tensor` (lib) generated 7 warnings
+warning: function `canonical_reduce_dims` is never used
+  --> autograd\src\functions\mod.rs:52:15
+   |
+52 | pub(crate) fn canonical_reduce_dims(
+   |               ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `kept_shape_for_reduction` is never used
+  --> autograd\src\functions\mod.rs:74:15
+   |
+74 | pub(crate) fn kept_shape_for_reduction(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `unbroadcast_dense` is never used
+   --> autograd\src\functions\mod.rs:117:15
+    |
+117 | pub(crate) fn unbroadcast_dense<B, T>(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `to_storage_preserving_graph` is never used
+   --> autograd\src\functions\mod.rs:160:15
+    |
+160 | pub(crate) fn to_storage_preserving_graph<B, S, T>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `to_dense_preserving_graph_identity` is never used
+   --> autograd\src\functions\mod.rs:174:15
+    |
+174 | pub(crate) fn to_dense_preserving_graph_identity<B, S, T>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `autograd` (lib) generated 5 warnings
+    Checking nn v0.2.1 (D:\coeus\nn)
+error[E0433]: failed to resolve: could not find `model` in `clip`
+  --> nn\src\clip\training\validation.rs:27:29
+   |
+27 |     model: Arc<crate::clip::model::ClipModel<B, storage::DenseStorage<T>, T>>,
+   |                             ^^^^^ could not find `model` in `clip`
+
+error[E0433]: failed to resolve: could not find `model` in `clip`
+   --> nn\src\clip\training\validation.rs:144:33
+    |
+144 |         model: Arc<crate::clip::model::ClipModel<B, storage::DenseStorage<T>, T>>,
+    |                                 ^^^^^ could not find `model` in `clip`
+
+error[E0433]: failed to resolve: could not find `storage` in the crate root
+  --> nn\src\clip\research\mod.rs:30:15
+   |
+30 |     S: crate::storage::Storage<T> + Clone,
+   |               ^^^^^^^ could not find `storage` in the crate root
+
+error[E0433]: failed to resolve: could not find `dtype` in the crate root
+  --> nn\src\clip\research\mod.rs:31:15
+   |
+31 |     T: crate::dtype::DataType,
+   |               ^^^^^ could not find `dtype` in the crate root
+
+error[E0433]: failed to resolve: could not find `storage` in the crate root
+   --> nn\src\clip\research\mod.rs:274:15
+    |
+274 |     S: crate::storage::Storage<T> + Clone,
+    |               ^^^^^^^ could not find `storage` in the crate root
+
+error[E0433]: failed to resolve: could not find `dtype` in the crate root
+   --> nn\src\clip\research\mod.rs:275:15
+    |
+275 |     T: crate::dtype::DataType,
+    |               ^^^^^ could not find `dtype` in the crate root
+
+error[E0433]: failed to resolve: could not find `storage` in the crate root
+   --> nn\src\clip\research\mod.rs:286:15
+    |
+286 |     S: crate::storage::Storage<T> + Clone + Send + Sync,
+    |               ^^^^^^^ could not find `storage` in the crate root
+
+error[E0433]: failed to resolve: could not find `dtype` in the crate root
+   --> nn\src\clip\research\mod.rs:287:15
+    |
+287 |     T: crate::dtype::DataType + Send + Sync,
+    |               ^^^^^ could not find `dtype` in the crate root
+
+error[E0433]: failed to resolve: could not find `storage` in the crate root
+   --> nn\src\clip\research\mod.rs:427:15
+    |
+427 |     S: crate::storage::Storage<T> + Clone + Send + Sync,
+    |               ^^^^^^^ could not find `storage` in the crate root
+
+error[E0433]: failed to resolve: could not find `dtype` in the crate root
+   --> nn\src\clip\research\mod.rs:428:15
+    |
+428 |     T: crate::dtype::DataType + Send + Sync,
+    |               ^^^^^ could not find `dtype` in the crate root
+
+error[E0403]: the name `T` is already used for a generic parameter in this item's generic parameters
+   --> nn\src\clip\research\mod.rs:661:25
+    |
+424 | impl<B, S, T> ClipResearchFramework<B, S, T>
+    |            - first use of `T`
+...
+661 |     fn sample_parameter<T>(&self, range: &ParameterRange<T>, rng: &mut impl Rng) -> Result<T>
+    |                         ^ already used
+
+error[E0433]: failed to resolve: could not find `enhanced_trainer` in `clip`
+  --> nn\src\research\clip_integration\mod.rs:36:44
+   |
+36 |     pub base_training_config: crate::clip::enhanced_trainer::EnhancedClipTrainingConfig,
+   |                                            ^^^^^^^^^^^^^^^^ could not find `enhanced_trainer` in `clip`
+   |
+help: consider importing this module
+   |
+ 7 + use crate::clip::training::enhanced_trainer;
+   |
+help: if you import `enhanced_trainer`, refer to it directly
+   |
+36 -     pub base_training_config: crate::clip::enhanced_trainer::EnhancedClipTrainingConfig,
+36 +     pub base_training_config: enhanced_trainer::EnhancedClipTrainingConfig,
+   |
+
+error[E0433]: failed to resolve: could not find `trainer` in `clip`
+  --> nn\src\clip\training\enhanced_trainer.rs:34:35
+   |
+34 |     pub base_config: crate::clip::trainer::ClipTrainingConfig,
+   |                                   ^^^^^^^ could not find `trainer` in `clip`
+   |
+help: consider importing this module
+   |
+11 + use crate::clip::training::trainer;
+   |
+help: if you import `trainer`, refer to it directly
+   |
+34 -     pub base_config: crate::clip::trainer::ClipTrainingConfig,
+34 +     pub base_config: trainer::ClipTrainingConfig,
+   |
+
+error[E0433]: failed to resolve: unresolved import
+  --> nn\src\clip\research\mod.rs:29:15
+   |
+29 |     B: crate::backend::Backend<Data = T> + Clone,
+   |               ^^^^^^^ unresolved import
+   |
+help: a trait with a similar name exists
+   |
+29 -     B: crate::backend::Backend<Data = T> + Clone,
+29 +     B: crate::Backend::Backend<Data = T> + Clone,
+   |
+help: a similar path exists
+   |
+29 |     B: crate::backend::cpu::backend::Backend<Data = T> + Clone,
+   |                      ++++++++++++++
+help: consider importing one of these modules
+   |
+18 + use backend::cpu::backend;
+   |
+18 + use backend::gpu::backend;
+   |
+help: if you import `backend`, refer to it directly
+   |
+29 -     B: crate::backend::Backend<Data = T> + Clone,
+29 +     B: backend::Backend<Data = T> + Clone,
+   |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\clip\research\mod.rs:273:15
+    |
+273 |     B: crate::backend::Backend<Data = T> + Clone,
+    |               ^^^^^^^ unresolved import
+    |
+help: a trait with a similar name exists
+    |
+273 -     B: crate::backend::Backend<Data = T> + Clone,
+273 +     B: crate::Backend::Backend<Data = T> + Clone,
+    |
+help: a similar path exists
+    |
+273 |     B: crate::backend::cpu::backend::Backend<Data = T> + Clone,
+    |                      ++++++++++++++
+help: consider importing one of these modules
+    |
+ 18 + use backend::cpu::backend;
+    |
+ 18 + use backend::gpu::backend;
+    |
+help: if you import `backend`, refer to it directly
+    |
+273 -     B: crate::backend::Backend<Data = T> + Clone,
+273 +     B: backend::Backend<Data = T> + Clone,
+    |
+
+error[E0433]: failed to resolve: could not find `validation` in `clip`
+   --> nn\src\clip\research\mod.rs:280:31
+    |
+280 |     eval_config: crate::clip::validation::ValidationConfig,
+    |                               ^^^^^^^^^^ could not find `validation` in `clip`
+    |
+help: consider importing this module
+    |
+ 18 + use crate::clip::training::validation;
+    |
+help: if you import `validation`, refer to it directly
+    |
+280 -     eval_config: crate::clip::validation::ValidationConfig,
+280 +     eval_config: validation::ValidationConfig,
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\clip\research\mod.rs:285:15
+    |
+285 |     B: crate::backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+    |               ^^^^^^^ unresolved import
+    |
+help: a trait with a similar name exists
+    |
+285 -     B: crate::backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+285 +     B: crate::Backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+    |
+help: a similar path exists
+    |
+285 |     B: crate::backend::cpu::backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+    |                      ++++++++++++++
+help: consider importing one of these modules
+    |
+ 18 + use backend::cpu::backend;
+    |
+ 18 + use backend::gpu::backend;
+    |
+help: if you import `backend`, refer to it directly
+    |
+285 -     B: crate::backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+285 +     B: backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+    |
+
+error[E0433]: failed to resolve: could not find `validation` in `clip`
+   --> nn\src\clip\research\mod.rs:292:35
+    |
+292 |         eval_config: crate::clip::validation::ValidationConfig,
+    |                                   ^^^^^^^^^^ could not find `validation` in `clip`
+    |
+help: consider importing this module
+    |
+ 18 + use crate::clip::training::validation;
+    |
+help: if you import `validation`, refer to it directly
+    |
+292 -         eval_config: crate::clip::validation::ValidationConfig,
+292 +         eval_config: validation::ValidationConfig,
+    |
+
+error[E0433]: failed to resolve: could not find `validation` in `clip`
+   --> nn\src\clip\research\mod.rs:317:26
+    |
+317 |             crate::clip::validation::EvaluationType::Full,
+    |                          ^^^^^^^^^^ could not find `validation` in `clip`
+    |
+help: consider importing this enum through its public re-export
+    |
+ 18 + use crate::clip::EvaluationType;
+    |
+help: if you import `EvaluationType`, refer to it directly
+    |
+317 -             crate::clip::validation::EvaluationType::Full,
+317 +             EvaluationType::Full,
+    |
+
+error[E0433]: failed to resolve: unresolved import
+   --> nn\src\clip\research\mod.rs:426:15
+    |
+426 |     B: crate::backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+    |               ^^^^^^^ unresolved import
+    |
+help: a trait with a similar name exists
+    |
+426 -     B: crate::backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+426 +     B: crate::Backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+    |
+help: a similar path exists
+    |
+426 |     B: crate::backend::cpu::backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+    |                      ++++++++++++++
+help: consider importing one of these modules
+    |
+ 18 + use backend::cpu::backend;
+    |
+ 18 + use backend::gpu::backend;
+    |
+help: if you import `backend`, refer to it directly
+    |
+426 -     B: crate::backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+426 +     B: backend::Backend<Data = T> + Clone + Send + Sync + 'static,
+    |
+
+error[E0433]: failed to resolve: could not find `validation` in `clip`
+   --> nn\src\clip\research\mod.rs:438:26
+    |
+438 |             crate::clip::validation::ValidationConfig::default(),
+    |                          ^^^^^^^^^^ could not find `validation` in `clip`
+    |
+help: consider importing this struct through its public re-export
+    |
+ 18 + use crate::clip::ValidationConfig;
+    |
+help: if you import `ValidationConfig`, refer to it directly
+    |
+438 -             crate::clip::validation::ValidationConfig::default(),
+438 +             ValidationConfig::default(),
+    |
+
+error[E0405]: cannot find trait `Rng` in this scope
+   --> nn\src\clip\research\mod.rs:661:77
+    |
+661 |     fn sample_parameter<T>(&self, range: &ParameterRange<T>, rng: &mut impl Rng) -> Result<T>
+    |                                                                             ^^^ not found in this scope
+    |
+help: consider importing this trait
+    |
+ 18 + use rand::Rng;
+    |
+
+warning: unused import: `std::ops::Mul`
+ --> nn\src\clip\models\clip.rs:9:5
+  |
+9 | use std::ops::Mul;
+  |     ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::ops::Mul`
+ --> nn\src\clip\training\loss.rs:9:5
+  |
+9 | use std::ops::Mul;
+  |     ^^^^^^^^^^^^^
+
+warning: unused imports: `BTreeMap` and `HashSet`
+  --> nn\src\clip\research\mod.rs:22:33
+   |
+22 | use std::collections::{HashMap, HashSet, BTreeMap};
+   |                                 ^^^^^^^  ^^^^^^^^
+
+warning: ambiguous glob re-exports
+  --> nn\src\clip\mod.rs:9:9
+   |
+ 9 | pub use training::trainer::*;
+   |         ^^^^^^^^^^^^^^^^^^^^ the name `ClipBatch` in the type namespace is first re-exported here
+10 | pub use training::enhanced_trainer::*;
+   |         ----------------------------- but the name `ClipBatch` in the type namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+Some errors have detailed explanations: E0403, E0405, E0433.
+For more information about an error, try `rustc --explain E0403`.
+warning: `nn` (lib) generated 4 warnings
+error: could not compile `nn` (lib) due to 22 previous errors; 4 warnings emitted

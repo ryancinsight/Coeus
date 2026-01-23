@@ -1,7 +1,21 @@
 use pyo3::prelude::*;
-use pyo3::pyclass;
 use pyo3::types::PyList;
-use pyo3::{Py, PyAny, PyErr, PyResult};
+use pyo3::{Bound, Py, PyAny, PyErr, PyResult, Python};
+
+pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    m.add_class::<PyDataLoader>()?;
+    m.add_class::<PyDataLoaderIter>()?;
+    m.add_class::<PyTensorDataset>()?;
+    m.add_class::<PyTensorSample>()?;
+    m.add_class::<PyTensorBatch>()?;
+    m.add_class::<PyConcatDataset>()?;
+    m.add_class::<PySubset>()?;
+    m.add_class::<PyTransform>()?;
+    m.add_class::<PyRandomHorizontalFlip>()?;
+    m.add_class::<PyRandomVerticalFlip>()?;
+    m.add_class::<PyColorJitter>()?;
+    Ok(())
+}
 use std::boxed::Box;
 use std::vec::Vec;
 
@@ -35,7 +49,7 @@ impl PyDataLoader {
                 batch_size,
                 shuffle,
             }),
-            None => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+            None => Err(crate::error::convert_error(
                 "Dataset not provided",
             )),
         }
@@ -52,7 +66,7 @@ impl PyDataLoader {
                 }
 
                 let dataloader = builder.build().map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    crate::error::convert_error(format!(
                         "Failed to create DataLoader iterator: {:?}",
                         e
                     ))
@@ -62,7 +76,7 @@ impl PyDataLoader {
                     inner: Some(dataloader),
                 })
             }
-            None => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+            None => Err(crate::error::convert_error(
                 "DataLoader not initialized",
             )),
         }
@@ -77,7 +91,7 @@ impl PyDataLoader {
                     builder = builder.shuffle(true);
                 }
                 let dataloader = builder.build().map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    crate::error::convert_error(format!(
                         "Failed to get DataLoader length: {:?}",
                         e
                     ))
@@ -102,7 +116,7 @@ impl PyDataLoaderIter {
             Some(iter) => match iter.next() {
                 Some(batch) => match batch {
                     Ok(samples) => Ok(Some(PyTensorBatch::from(samples))),
-                    Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    Err(e) => Err(crate::error::convert_error(format!(
                         "Batch processing error: {:?}",
                         e
                     ))),
@@ -138,46 +152,59 @@ impl PyTensorDataset {
         }
 
         // Convert PyTensors to Rust tensors with proper types
-        // Simplified implementation: assume all PyTensors contain Float32 data
-        // In production, this would need proper type checking and conversion
+        use crate::tensor::TensorWrapper;
+
         let mut rust_inputs = Vec::new();
         let mut rust_targets = Vec::new();
 
         for input_tensor in inputs {
-            // For inputs, use the Float32 tensor directly
-            // Clone the tensor for now - in production this should be type-checked
-            rust_inputs.push(input_tensor.inner.clone());
+            // Extract CpuDenseF32 tensor from TensorWrapper
+            match &input_tensor.inner {
+                TensorWrapper::CpuDenseF32(t) => {
+                    rust_inputs.push(t.clone());
+                }
+                _ => {
+                    return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                        "TensorDataset only supports CpuDenseF32 tensors currently",
+                    ));
+                }
+            }
         }
 
         for target_tensor in targets {
-            // For targets, convert Float32 data to Int32
-            let shape = target_tensor.inner.shape().dims();
-            let float_data: Vec<f32> = target_tensor
-                .inner
-                .as_slice()
-                .iter()
-                .map(|x| x.get())
-                .collect();
-            let int_data: Vec<i32> = float_data.into_iter().map(|x| x as i32).collect();
+            // For targets, extract CpuDenseF32 and convert to Int32
+            match &target_tensor.inner {
+                TensorWrapper::CpuDenseF32(t) => {
+                    let shape = t.shape().dims();
+                    let float_data: Vec<f32> = t.as_slice().iter().map(|x| x.get()).collect();
+                    let int_data: Vec<i32> = float_data.into_iter().map(|x| x as i32).collect();
 
-            // Create Int32 tensor for targets
-            let int32_tensor = Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec(
-                int_data.into_iter().map(Int32).collect(),
-                shape,
-            )
-            .map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "Failed to convert target tensor: {:?}",
-                    e
-                ))
-            })?;
+                    // Create Int32 tensor for targets
+                    let int32_tensor =
+                        Tensor::<CpuBackend<Int32>, DenseStorage<Int32>, Int32>::from_vec(
+                            int_data.into_iter().map(Int32).collect(),
+                            shape,
+                        )
+                        .map_err(|e| {
+                            crate::error::convert_error(format!(
+                                "tensor: Failed to convert target tensor: {:?}",
+                                e
+                            ))
+                        })?;
 
-            rust_targets.push(int32_tensor);
+                    rust_targets.push(int32_tensor);
+                }
+                _ => {
+                    return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                        "TensorDataset only supports CpuDenseF32 tensors currently",
+                    ));
+                }
+            }
         }
 
         // Create Rust TensorDataset
         let dataset = RustTensorDataset::new(rust_inputs, rust_targets).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            crate::error::convert_error(format!(
                 "Failed to create TensorDataset: {:?}",
                 e
             ))
@@ -203,7 +230,7 @@ impl PyTensorDataset {
                 })?;
                 Ok(PyTensorSample::from(sample))
             }
-            None => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+            None => Err(crate::error::convert_error(
                 "TensorDataset not initialized",
             )),
         }
@@ -224,7 +251,9 @@ impl From<TensorSample> for PyTensorSample {
                 inputs: sample
                     .inputs
                     .into_iter()
-                    .map(|t| PyTensor { inner: t })
+                    .map(|t| PyTensor {
+                        inner: crate::tensor::TensorWrapper::CpuDenseF32(t),
+                    })
                     .collect(),
                 targets: sample
                     .targets
@@ -270,7 +299,9 @@ impl From<Vec<TensorSample>> for PyTensorBatch {
                     sample
                         .inputs
                         .iter()
-                        .map(|t| PyTensor { inner: t.clone() })
+                        .map(|t| PyTensor {
+                            inner: crate::tensor::TensorWrapper::CpuDenseF32(t.clone()),
+                        })
                         .collect()
                 })
                 .collect();
@@ -326,12 +357,14 @@ impl PyToTensor {
     /// Apply transform to f32 data
     fn __call__(&self, input: Vec<f32>) -> PyResult<PyTensor> {
         let tensor = self.inner.apply_f32(input).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            crate::error::convert_error(format!(
                 "ToTensor transform failed: {:?}",
                 e
             ))
         })?;
-        Ok(PyTensor { inner: tensor })
+        Ok(PyTensor {
+            inner: crate::tensor::TensorWrapper::CpuDenseF32(tensor),
+        })
     }
 }
 
@@ -356,13 +389,22 @@ impl PyNormalize {
 
     /// Apply transform to tensor
     fn __call__(&self, input: &PyTensor) -> PyResult<PyTensor> {
-        let tensor = self.inner.apply(&input.inner).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Normalize transform failed: {:?}",
-                e
-            ))
-        })?;
-        Ok(PyTensor { inner: tensor })
+        match &input.inner {
+            crate::tensor::TensorWrapper::CpuDenseF32(t) => {
+                let tensor = self.inner.apply(t).map_err(|e| {
+                    crate::error::convert_error(format!(
+                        "Normalize transform failed: {:?}",
+                        e
+                    ))
+                })?;
+                Ok(PyTensor {
+                    inner: crate::tensor::TensorWrapper::CpuDenseF32(tensor),
+                })
+            }
+            _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Normalize only supports CpuDenseF32 tensors",
+            )),
+        }
     }
 }
 
@@ -425,7 +467,7 @@ impl PyConcatDataset {
                         // Wrap in Box<dyn Dataset<TensorSample>> for trait object support
                         rust_datasets.push(Box::new(rust_dataset.clone()));
                     } else {
-                        return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                        return Err(crate::error::convert_error(
                             "TensorDataset not initialized - ensure datasets are created with inputs and targets"
                         ));
                     }
@@ -463,7 +505,7 @@ impl PyConcatDataset {
             .partition_point(|&cumulative_len| cumulative_len < target);
 
         if dataset_idx >= self.datasets.len() {
-            return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            return Err(crate::error::convert_error(format!(
                 "ConcatDataset index mapping invariant violated: index={}, dataset_idx={}, num_datasets={}, cumulative_lengths={:?}",
                 index,
                 dataset_idx,
@@ -478,14 +520,14 @@ impl PyConcatDataset {
             .unwrap_or(0);
 
         let local_index = index.checked_sub(base).ok_or_else(|| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            crate::error::convert_error(format!(
                 "ConcatDataset index mapping invariant violated: index={}, dataset_idx={}, base={}, cumulative_lengths={:?}",
                 index, dataset_idx, base, self.cumulative_lengths
             ))
         })?;
 
         let sample = self.datasets[dataset_idx].get(local_index).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            crate::error::convert_error(format!(
                 "Failed to get sample: {:?}",
                 e
             ))
@@ -514,14 +556,14 @@ impl PySubset {
         match &dataset.inner {
             Some(rust_dataset) => {
                 let subset = RustSubset::new(rust_dataset.clone(), indices).map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    crate::error::convert_error(format!(
                         "Failed to create subset: {:?}",
                         e
                     ))
                 })?;
                 Ok(PySubset { inner: subset })
             }
-            None => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+            None => Err(crate::error::convert_error(
                 "Dataset not initialized",
             )),
         }

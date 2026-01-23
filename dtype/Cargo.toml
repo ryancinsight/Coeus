@@ -15,7 +15,7 @@ authors.workspace = true
 rust-version.workspace = true
 
 [features]
-default = ["std", "simd", "serde", "complex"]
+default = ["std", "simd", "serde", "complex", "half"]
 std = ["num-traits/std"]
 simd = []
 half = ["dep:half"]

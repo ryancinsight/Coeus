@@ -1,0 +1,639 @@
+warning: unused import: `vec::Vec`
+ --> storage\src\sparse\coo\conversion.rs:5:18
+  |
+5 | use alloc::{vec, vec::Vec};
+  |                  ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `vec`
+ --> storage\src\sparse\csc\core.rs:4:13
+  |
+4 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: unused import: `vec`
+ --> storage\src\sparse\csr\core.rs:6:13
+  |
+6 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:171:21
+    |
+171 | ...s<T> + MatMulOps<T> + La...
+    |           ^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:179:24
+    |
+179 | ...s<T> + MatMulOps<T> + La...
+    |           ^^^^^^^^^
+
+warning: unused variable: `rows`
+   --> storage\src\sparse\coo\traits.rs:140:13
+    |
+140 |         let rows = dims[0];
+    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_rows`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `storage` (lib) generated 6 warnings (run `cargo fix --lib -p storage` to apply 4 suggestions)
+warning: unused import: `StorageError`
+ --> backend\src\gpu\sparse\arithmetic.rs:6:35
+  |
+6 | ...esult, StorageError};
+  |           ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `CsrStorage`
+ --> backend\src\gpu\sparse\mod.rs:9:15
+  |
+9 | use storage::{CsrStorage, Den...
+  |               ^^^^^^^^^^
+
+warning: unused variable: `input`
+   --> backend\src\cpu\backend.rs:517:9
+    |
+517 |         input: &DenseStorag...
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_input`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `image_embeddings`
+   --> backend\src\cpu\backend.rs:656:9
+    |
+656 | ...   image_embeddings: &De...
+    |       ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_image_embeddings`
+
+warning: unused variable: `text_embeddings`
+   --> backend\src\cpu\backend.rs:657:9
+    |
+657 | ...   text_embeddings: &Den...
+    |       ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_text_embeddings`
+
+warning: unused variable: `temperature`
+   --> backend\src\cpu\backend.rs:658:9
+    |
+658 |         temperature: f32,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_temperature`
+
+warning: unused variable: `keys`
+   --> backend\src\cpu\backend.rs:667:9
+    |
+667 |         keys: &DenseStorage...
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_keys`
+
+warning: unused variable: `values`
+   --> backend\src\cpu\backend.rs:668:9
+    |
+668 |         values: &DenseStora...
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_values`
+
+warning: unused variable: `num_heads`
+   --> backend\src\cpu\backend.rs:669:9
+    |
+669 |         num_heads: usize,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_num_heads`
+
+warning: `backend` (lib) generated 9 warnings (run `cargo fix --lib -p backend` to apply 9 suggestions)
+warning: unexpected `cfg` condition value: `std`
+  --> sparse\src\lib.rs:30:7
+   |
+30 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default` and `gpu`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `crate::Result`
+  --> sparse\src\arithmetic\mod.rs:39:5
+   |
+39 | use crate::Result;
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `storage::CsrStorage`
+  --> sparse\src\arithmetic\mod.rs:41:5
+   |
+41 | use storage::CsrStorage;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\activation\sigmoid.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `StorageError`
+  --> sparse\src\activation\mod.rs:17:35
+   |
+17 | ...sult, StorageError};
+   |          ^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+ --> sparse\src\creation\zeros.rs:6:5
+  |
+6 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\layout\transpose.rs:7:5
+  |
+7 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `CooStorage`, `CscStorage`, and `Result`
+  --> sparse\src\reduction\mod.rs:16:27
+   |
+16 | ...e, CscStorage, CooStorage, Result};
+   |       ^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^
+
+warning: unused import: `Storage`
+ --> sparse\src\linear_algebra\matmul.rs:9:37
+  |
+9 | ...ataType, Storage, StorageE...
+  |             ^^^^^^^
+
+warning: unused import: `Storage`
+ --> sparse\src\layout\transpose.rs:8:37
+  |
+8 | ...ataType, Storage};
+  |             ^^^^^^^
+
+warning: unexpected `cfg` condition value: `std`
+  --> dense\src\lib.rs:32:7
+   |
+32 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^ help: remove the condition
+   |
+   = note: no expected values for `feature`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused imports: `StorageError` and `Storage`
+ --> dense\src\activation\relu.rs:5:29
+  |
+5 | ...e, Storage, StorageError};
+  |       ^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\relu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\sigmoid.rs:5:29
+  |
+5 | ...Storage, Storage};
+  |             ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\sigmoid.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\tanh.rs:5:29
+  |
+5 | ...Storage, Storage};
+  |             ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\tanh.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\gelu.rs:5:29
+  |
+5 | ...Storage, Storage};
+  |             ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\gelu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+  --> dense\src\layout\mod.rs:16:37
+   |
+16 | ... Result, Storage};
+   |             ^^^^^^^
+
+warning: unused import: `Shape`
+ --> dense\src\creation\zeros.rs:3:37
+  |
+3 | ..., Result, Shape, Storage};
+  |              ^^^^^
+
+warning: unused import: `Storage`
+  --> dense\src\creation\mod.rs:16:37
+   |
+16 | ... Result, Storage};
+   |             ^^^^^^^
+
+warning: unused variable: `new_shape`
+   --> dense\src\layout\transpose.rs:194:5
+    |
+194 |     new_shape: &[usize],
+    |     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_shape`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `coeus-sparse` (lib) generated 10 warnings (run `cargo fix --lib -p coeus-sparse` to apply 7 suggestions)
+warning: `dense` (lib) generated 13 warnings (run `cargo fix --lib -p dense` to apply 12 suggestions)
+    Checking tensor v0.2.1 (D:\coeus\tensor)
+warning: unused import: `std::sync::Arc`
+ --> tensor\src\ops\activation\relu.rs:6:5
+  |
+6 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `DenseStorage`
+ --> tensor\src\ops\activation\relu.rs:7:15
+  |
+7 | use storage::{DenseStorage, StorageFromVec, StorageToDense};
+  |               ^^^^^^^^^^^^
+
+warning: unused import: `crate::functions::ReluFunction`
+ --> tensor\src\ops\activation\relu.rs:8:5
+  |
+8 | use crate::functions::ReluFunction;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `SparseDiv`, `SparseMul`, and `SparseSub`
+  --> tensor\src\ops\arithmetic\dispatch.rs:30:31
+   |
+30 | use coeus_sparse::{SparseAdd, SparseSub, SparseMul, SparseDiv};
+   |                               ^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `num_traits::Float`
+ --> tensor\src\ops\math\abs.rs:6:5
+  |
+6 | use num_traits::Float;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Tensor`
+ --> tensor\src\ops\sparse\traits.rs:6:21
+  |
+6 | use crate::{Result, Tensor, TensorError};
+  |                     ^^^^^^
+
+warning: unused imports: `Backend`, `DataType`, and `TensorError`
+ --> tensor\src\ops\sparse\mod.rs:8:13
+  |
+8 | use crate::{Backend, DataType, Result, Tensor, TensorError};
+  |             ^^^^^^^  ^^^^^^^^                  ^^^^^^^^^^^
+
+warning: unused imports: `SparseAdd` and `SparseMatMul`
+  --> tensor\src\ops\sparse\mod.rs:10:20
+   |
+10 | use coeus_sparse::{SparseMatMul, SparseAdd};
+   |                    ^^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `SparseFormat`
+  --> tensor\src\ops\sparse\mod.rs:11:27
+   |
+11 | use storage::{CsrStorage, SparseFormat};
+   |                           ^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> tensor\src\ops\sparse\mod.rs:12:5
+   |
+12 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `DenseStorage` and `Storage`
+ --> tensor\src\sparse\coo.rs:1:32
+  |
+1 | use crate::{Backend, DataType, DenseStorage, Result, Storage, Tensor};
+  |                                ^^^^^^^^^^^^          ^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> tensor\src\sparse\csc.rs:1:32
+  |
+1 | use crate::{Backend, DataType, DenseStorage, Result, Storage, Tensor};
+  |                                ^^^^^^^^^^^^
+
+warning: unused import: `crate::ops::sparse::TensorSparseOps`
+  --> tensor\src\sparse\csr.rs:51:13
+   |
+51 |         use crate::ops::sparse::TensorSparseOps;
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csr.rs:1:74
+  |
+1 | use crate::{error::TensorError, Backend, DataType, DenseStorage, Result, Storage, Tensor};
+  |                                                                          ^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csc.rs:1:54
+  |
+1 | use crate::{Backend, DataType, DenseStorage, Result, Storage, Tensor};
+  |                                                      ^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\classification\cross_entropy.rs:6:5
+  |
+6 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `StorageToDense`
+  --> tensor\src\ops\dispatch\sparse_dispatch.rs:13:36
+   |
+13 | use storage::{CsrStorage, Storage, StorageToDense};
+   |                                    ^^^^^^^^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\reduction\mean.rs:7:5
+  |
+7 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+  --> tensor\src\ops\activation\relu.rs:24:9
+   |
+24 |     let mut result = Tensor::from_storage(result_storage, input.backend().clone());
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `i`
+  --> tensor\src\ops\layout\cat.rs:36:10
+   |
+36 |     for (i, t) in tensors.iter().enumerate() {
+   |          ^ help: if this is intentional, prefix it with an underscore: `_i`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `weight_ih`
+  --> tensor\src\ops\rnn\rnn.rs:36:13
+   |
+36 |         let weight_ih = input.clone(); // Dummy
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_ih`
+
+warning: unused variable: `weight_hh`
+  --> tensor\src\ops\rnn\rnn.rs:37:13
+   |
+37 |         let weight_hh = input.clone(); // Dummy
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_hh`
+
+warning: unused variable: `bias_ih`
+  --> tensor\src\ops\rnn\rnn.rs:38:13
+   |
+38 |         let bias_ih: Option<Tensor<B, S, T>> = None; // Dummy
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_ih`
+
+warning: unused variable: `bias_hh`
+  --> tensor\src\ops\rnn\rnn.rs:39:13
+   |
+39 |         let bias_hh: Option<Tensor<B, S, T>> = None; // Dummy
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_hh`
+
+warning: unused variable: `sqrt2`
+  --> tensor\src\functions\activation\gelu.rs:59:13
+   |
+59 |         let sqrt2 = T::from_f64(std::f64::consts::SQRT_2).unwrap();
+   |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_sqrt2`
+
+warning: function `input_data_len` is never used
+  --> tensor\src\ops\classification\cross_entropy.rs:76:4
+   |
+76 | fn input_data_len<B, S, T>(tensor: &Tensor<B, S, T>) -> usize 
+   |    ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tensor` (lib) generated 26 warnings (run `cargo fix --lib -p tensor` to apply 20 suggestions)
+    Checking autograd v0.2.1 (D:\coeus\autograd)
+warning: function `canonical_reduce_dims` is never used
+  --> autograd\src\functions\mod.rs:52:15
+   |
+52 | pub(crate) fn canonical_reduce_dims(
+   |               ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `kept_shape_for_reduction` is never used
+  --> autograd\src\functions\mod.rs:74:15
+   |
+74 | pub(crate) fn kept_shape_for_reduction(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `unbroadcast_dense` is never used
+   --> autograd\src\functions\mod.rs:117:15
+    |
+117 | pub(crate) fn unbroadcast_dense<B, T>(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `to_storage_preserving_graph` is never used
+   --> autograd\src\functions\mod.rs:160:15
+    |
+160 | pub(crate) fn to_storage_preserving_graph<B, S, T>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `to_dense_preserving_graph_identity` is never used
+   --> autograd\src\functions\mod.rs:174:15
+    |
+174 | pub(crate) fn to_dense_preserving_graph_identity<B, S, T>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `autograd` (lib) generated 5 warnings
+    Checking optim v0.2.1 (D:\coeus\optim)
+warning: unused variable: `one_minus_rho`
+   --> optim\src\adadelta.rs:171:21
+    |
+171 |                 let one_minus_rho = one - rho;
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_one_minus_rho`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `step_size`
+   --> optim\src\adamax.rs:104:13
+    |
+104 |         let step_size = lr * bias_correction;
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_step_size`
+
+warning: `optim` (lib) generated 2 warnings (run `cargo fix --lib -p optim` to apply 2 suggestions)
+    Checking nn v0.2.1 (D:\coeus\nn)
+warning: unused import: `std::ops::Mul`
+  --> nn\src\functional\attention\mod.rs:14:5
+   |
+14 | use std::ops::Mul;
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `DenseStorage`, `StorageFromVec`, and `StorageToDense`
+ --> nn\src\functional\ops\activation\relu.rs:7:15
+  |
+7 | use storage::{DenseStorage, StorageFromVec, StorageToDense};
+  |               ^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `std::fmt`
+ --> nn\src\audio\models\base.rs:6:5
+  |
+6 | use std::fmt;
+  |     ^^^^^^^^
+
+warning: unused imports: `NNError` and `Result`
+ --> nn\src\audio\models\base.rs:7:26
+  |
+7 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^  ^^^^^^
+
+warning: unused import: `crate::modules::attention::MultiHeadAttention`
+ --> nn\src\audio\models\base.rs:8:5
+  |
+8 | use crate::modules::attention::MultiHeadAttention;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::modules::normalization::LayerNorm`
+  --> nn\src\audio\models\base.rs:10:5
+   |
+10 | use crate::modules::normalization::LayerNorm;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::modules::activation::GeLU`
+  --> nn\src\audio\models\base.rs:11:5
+   |
+11 | use crate::modules::activation::GeLU;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\audio\models\recognition.rs:9:26
+  |
+9 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused imports: `Arc` and `Mutex`
+ --> nn\src\audio\ops\processing.rs:7:17
+  |
+7 | use std::sync::{Arc, Mutex};
+  |                 ^^^  ^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\audio\ops\processing.rs:8:26
+  |
+8 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `core::*`
+ --> nn\src\audio\mod.rs:5:9
+  |
+5 | pub use core::*;
+  |         ^^^^^^^
+
+error[E0277]: the trait bound `S: StorageToDense<T>` is not satisfied
+  --> nn\src\functional\ops\activation\relu.rs:28:23
+   |
+28 |     tensor::ops::relu(input)
+   |     ----------------- ^^^^^ the trait `StorageToDense<T>` is not implemented for `S`
+   |     |
+   |     required by a bound introduced by this call
+   |
+note: required by a bound in `tensor::ops::relu`
+  --> D:\coeus\tensor\src\ops\activation\relu.rs:19:8
+   |
+13 | pub fn relu<B, T, S>(
+   |        ---- required by a bound in this function
+...
+19 |     S: StorageToDense<T> + StorageFromVec<T> + 'static,
+   |        ^^^^^^^^^^^^^^^^^ required by this bound in `relu`
+help: consider further restricting type parameter `S` with trait `StorageToDense`
+   |
+25 |     S: storage::Storage<T> + storage::StorageToDense<T>,
+   |                            ++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: storage::StorageFromVec<T>` is not satisfied
+  --> nn\src\functional\ops\activation\relu.rs:28:23
+   |
+28 |     tensor::ops::relu(input)
+   |     ----------------- ^^^^^ the trait `storage::StorageFromVec<T>` is not implemented for `S`
+   |     |
+   |     required by a bound introduced by this call
+   |
+note: required by a bound in `tensor::ops::relu`
+  --> D:\coeus\tensor\src\ops\activation\relu.rs:19:28
+   |
+13 | pub fn relu<B, T, S>(
+   |        ---- required by a bound in this function
+...
+19 |     S: StorageToDense<T> + StorageFromVec<T> + 'static,
+   |                            ^^^^^^^^^^^^^^^^^ required by this bound in `relu`
+help: consider further restricting type parameter `S` with trait `StorageFromVec`
+   |
+25 |     S: storage::Storage<T> + storage::StorageFromVec<T>,
+   |                            ++++++++++++++++++++++++++++
+
+error[E0308]: mismatched types
+  --> nn\src\functional\ops\activation\relu.rs:28:5
+   |
+22 | ) -> Result<Tensor<B, S, T>>
+   |      ----------------------- expected `std::result::Result<tensor::Tensor<B, S, T>, core::error::NNError>` because of return type
+...
+28 |     tensor::ops::relu(input)
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<Tensor<B, S, T>, NNError>`, found `Result<Tensor<B, S, T>, TensorError>`
+   |
+   = note: expected enum `std::result::Result<_, core::error::NNError>`
+              found enum `std::result::Result<_, tensor::TensorError>`
+help: use `?` to coerce and return an appropriate `Err`, and wrap the resulting value in `Ok` so the expression remains of type `Result`
+   |
+28 |     Ok(tensor::ops::relu(input)?)
+   |     +++                        ++
+
+warning: unused variable: `frame`
+   --> nn\src\audio\ops\features.rs:227:63
+    |
+227 |         let power_spectra: Vec<Vec<f32>> = frames.iter().map(|frame| {
+    |                                                               ^^^^^ help: if this is intentional, prefix it with an underscore: `_frame`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `params`
+   --> nn\src\audio\ops\processing.rs:368:45
+    |
+368 |                 ProcessingStage::Resampling(params) => {
+    |                                             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_params`
+
+warning: unused variable: `sample_rate`
+   --> nn\src\audio\ops\classification.rs:212:47
+    |
+212 |     fn extract_features(&self, audio: &[f32], sample_rate: usize) -> Result<Vec<f32>> {
+    |                                               ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+warning: unused variable: `audio`
+   --> nn\src\audio\ops\classification.rs:371:43
+    |
+371 |     pub fn extract_characteristics(&self, audio: &[f32], sample_rate: usize) -> Option<MusicCharacteristics> {
+    |                                           ^^^^^ help: if this is intentional, prefix it with an underscore: `_audio`
+
+warning: unused variable: `sample_rate`
+   --> nn\src\audio\ops\classification.rs:371:58
+    |
+371 |     pub fn extract_characteristics(&self, audio: &[f32], sample_rate: usize) -> Option<MusicCharacteristics> {
+    |                                                          ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+Some errors have detailed explanations: E0277, E0308.
+For more information about an error, try `rustc --explain E0277`.
+warning: `nn` (lib) generated 16 warnings
+error: could not compile `nn` (lib) due to 3 previous errors; 16 warnings emitted

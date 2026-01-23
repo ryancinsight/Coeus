@@ -1,6 +1,7 @@
 //! # Quantization-Aware Training (QAT), Quantized Inference, and Post-Training Quantization (PTQ)
 //!
 //! Implements full B<S<T>> generic quantization support for neural networks.
+//! This module now uses the dedicated quantization crate for core functionality.
 //!
 //! ## Features
 //!
@@ -83,18 +84,42 @@
 //! - **Cache-Aware Kernels**: Optimized memory access patterns for CPU cache hierarchies
 //! - **Multi-Core Scaling**: Efficient parallelization across CPU cores for quantization tasks
 
-pub mod calibration;
-pub mod core;
-pub mod fake_quantize;
 pub mod fusion;
 pub mod quantization_ops;
 pub mod quantized_layers;
 pub mod serialization;
 
-// Re-exports for convenience
-pub use calibration::*;
-pub use core::*;
-pub use fake_quantize::*;
+// Re-export from quantization crate
+pub use quantization::{
+    // Core types and algorithms
+    QuantizationScheme, QuantizationGranularity, QuantizationBitwidth,
+    CalibrationMethod, CalibrationConfig, CalibrationStats,
+    MixedPrecisionConfig, QuantizedWeights, SerializableQuantizedWeights,
+    
+    // Calibration
+    CalibrationPipeline, SerializableCalibrationPipeline,
+    SerializableCalibrationStats,
+    
+    // Fake quantization
+    LinearFakeQuantize, ConvFakeQuantize,
+    
+    // Types
+    QuantizationParams, QuantizationError, QuantizationNoiseAnalysis,
+    QuantizationResult, QInt8, QUInt8, QInt4, QUInt4, QuantizedType,
+    
+    // Utilities
+    MinMaxQuantizer, SymmetricQuantizer, PercentileQuantizer,
+    CalibrationData,
+    
+    // Calibration methods
+    EntropyCalibrator, PercentileCalibrator, MseCalibrator,
+    
+    // Algorithms
+    SymmetricQuantizer as AlgorithmicSymmetricQuantizer,
+    AsymmetricQuantizer, DynamicQuantizer,
+};
+
+// Re-exports for convenience from local modules
 pub use fusion::*;
 pub use quantization_ops::*;
 pub use quantized_layers::*;

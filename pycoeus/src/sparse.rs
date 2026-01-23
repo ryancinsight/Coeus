@@ -1,10 +1,21 @@
-use crate::tensor::PyTensor;
+//! Python bindings for sparse tensor operations.
+//!
+//! This module exposes sparse tensor types (CSR and COO) to Python via PyO3,
+//! using TensorWrapper for dense tensor conversions.
+
+use crate::tensor::{PyTensor, TensorWrapper};
 use crate::tensor_error;
 use backend::CpuBackend;
 use dtype::float::Float32;
 use pyo3::prelude::*;
 use storage::{CooStorage, CsrStorage};
 use tensor::Tensor;
+
+pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    m.add_class::<PySparseCsrTensor>()?;
+    m.add_class::<PyCooTensor>()?;
+    Ok(())
+}
 
 /// CSR Sparse Tensor wrapper for Python
 #[pyclass(name = "SparseCsrTensor", module = "_coeus")]
@@ -35,12 +46,13 @@ impl PySparseCsrTensor {
     }
 
     /// Multiply CSR tensor with another CSR tensor
-    fn matmul(&self, other: &PySparseCsrTensor) -> PyResult<PyCooTensor> {
+    fn matmul(&self, other: &PySparseCsrTensor) -> PyResult<PySparseCsrTensor> {
+        // Coeus sparse_matmul on CSR returns CSR
         let result = self
             .inner
             .sparse_matmul(&other.inner)
             .map_err(|e| tensor_error!(e))?;
-        Ok(PyCooTensor { inner: result })
+        Ok(PySparseCsrTensor { inner: result })
     }
 
     /// Convert to dense PyTensor
@@ -50,7 +62,7 @@ impl PySparseCsrTensor {
             .to_dense_generic()
             .map_err(|e| tensor_error!(e))?;
         Ok(PyTensor {
-            inner: dense_tensor,
+            inner: TensorWrapper::CpuDenseF32(dense_tensor),
         })
     }
 }
@@ -83,13 +95,18 @@ impl PyCooTensor {
         self.inner.shape().dims().to_vec()
     }
 
-    /// Add two COO tensors
-    fn add(&self, other: &PyCooTensor) -> PyResult<PyCooTensor> {
-        let result = self
-            .inner
-            .sparse_add(&other.inner)
+    /// Add two COO tensors (converts to CSR for optimized addition)
+    fn add(&self, other: &PyCooTensor) -> PyResult<PySparseCsrTensor> {
+        let self_csr = self.inner.storage().to_csr().map_err(|e| tensor_error!(e))?;
+        let other_csr = other.inner.storage().to_csr().map_err(|e| tensor_error!(e))?;
+        
+        let self_tensor = Tensor::from_storage(self_csr, self.inner.backend().clone());
+        let other_tensor = Tensor::from_storage(other_csr, other.inner.backend().clone());
+        
+        let result = self_tensor
+            .sparse_add(&other_tensor)
             .map_err(|e| tensor_error!(e))?;
-        Ok(PyCooTensor { inner: result })
+        Ok(PySparseCsrTensor { inner: result })
     }
 
     /// Convert to dense PyTensor
@@ -99,7 +116,7 @@ impl PyCooTensor {
             .to_dense_generic()
             .map_err(|e| tensor_error!(e))?;
         Ok(PyTensor {
-            inner: dense_tensor,
+            inner: TensorWrapper::CpuDenseF32(dense_tensor),
         })
     }
 }

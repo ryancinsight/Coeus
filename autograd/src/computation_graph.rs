@@ -218,7 +218,7 @@ impl GradientEngine {
             + StorageToDense<T>
             + StorageFromVec<T>
             + Clone,
-        T: DataType + num_traits::Zero + Clone + 'static,
+        T: DataType + num_traits::Zero + Clone + 'static + std::ops::Neg<Output = T>,
     {
         let Some(root_fn) = root_grad_fn else {
             return Ok(());
@@ -301,8 +301,7 @@ impl GradientEngine {
                         let updated_grad = if create_graph {
                             crate::tensor_ops::add(existing_grad, &grad_in_dense_converted)?
                         } else {
-                            existing_grad
-                                .add(&grad_in_dense_converted)
+                            tensor::ops::arithmetic::add(existing_grad, &grad_in_dense_converted)
                                 .map_err(AutogradError::TensorError)?
                         };
                         *existing_grad = updated_grad;
@@ -341,7 +340,7 @@ impl GradientEngine {
             + StorageToDense<T>
             + StorageFromVec<T>
             + Clone,
-        T: DataType + num_traits::Zero + Clone + 'static,
+        T: DataType + num_traits::Zero + Clone + 'static + std::ops::Neg<Output = T>,
     {
         let Some(grad_fn) = tensor.grad_fn() else {
             return Ok(());
@@ -380,7 +379,7 @@ impl GradientEngine {
             + StorageFromVec<T>
             + StorageToDense<T>,
         GS: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
-        T: DataType + Clone,
+        T: DataType + Clone + std::ops::Neg<Output = T>,
     {
         if create_graph {
             let gradient_dense = gradient.to_dense_generic().map_err(AutogradError::from)?;
@@ -440,7 +439,7 @@ where
         + 'static
         + StorageToDense<T>
         + storage::StorageFromVec<T>,
-    T: DataType,
+    T: DataType + std::ops::Neg<Output = T>,
 {
     let mut engine = GradientEngine::new();
     if let Some(grad_fn) = tensor.grad_fn() {

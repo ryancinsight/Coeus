@@ -279,7 +279,7 @@ impl MetricsCollector {
         let mut all_metrics = Vec::new();
 
         // Collect all metrics first
-        for (name, collector) in &mut self.collectors {
+        for collector in self.collectors.values_mut() {
             let metrics = collector.collect_metrics()?;
             all_metrics.extend(metrics);
         }
@@ -619,8 +619,7 @@ impl MetricsCollector {
         let traces: Vec<serde_json::Value> = self
             .metrics_data
             .iter()
-            .enumerate()
-            .map(|(i, (name, entries))| {
+            .map(|(name, entries)| {
                 let x: Vec<String> = entries.iter().map(|e| e.timestamp.to_rfc3339()).collect();
                 let y: Vec<f64> = entries.iter().map(|e| e.value).collect();
 

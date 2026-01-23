@@ -8,12 +8,11 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
-use crate::core::error::{NNError, Result};
-use crate::research::nas_integration::NASSearchResult;
+use crate::core::error::Result;
+
 use crate::research::{
-    hpo_integration::JointAlgorithm,
     hpo_integration::{HPOExperimentContext, IntegratedHPOFramework},
-    joint_search::{JointSearchContext, JointSearchFramework, JointSearchStrategy},
+    joint_search::{JointSearchContext, JointSearchFramework},
     nas_integration::{IntegratedNASFramework, NASExperimentContext},
     performance_prediction::PerformancePredictionFramework,
     UnifiedResearchFramework,
@@ -325,7 +324,6 @@ impl AutomatedResearchPipeline {
         match stage {
             PipelineStage::NAS { context } => {
                 let mut nas_framework = self.nas_framework.write().unwrap();
-                let mut research_framework = self.research_framework.write().unwrap();
 
                 let experiment_id = nas_framework.start_nas_experiment(context.clone())?;
                 let evaluator = Arc::new(crate::nas::SimpleEvaluator::new(0.5, 0.01, 0.05)); // Placeholder
@@ -435,7 +433,7 @@ impl AutomatedResearchPipeline {
     async fn execute_benchmarking(
         &self,
         datasets: &[String],
-        metrics: &[String],
+        _metrics: &[String],
     ) -> Result<BenchmarkResults> {
         // Placeholder benchmarking implementation
         let mut dataset_results = HashMap::new();

@@ -59,15 +59,14 @@ extern crate std;
 extern crate alloc;
 
 pub use alloc::{vec, vec::Vec};
-use dtype::traits::FloatExt;
 pub use dtype::DataType;
 pub use num_traits;
-use num_traits::Zero;
 
 // Core infrastructure
 pub mod error;
 pub mod iter;
 pub mod shape;
+pub mod traits; // Unified storage operation traits
 
 // Storage implementations
 pub mod dense;
@@ -86,61 +85,13 @@ pub use dense::DenseStorage;
 pub use distributed::{DistributedStorage, ReduceOperation, ShardingStrategy};
 pub use strided::StridedStorage;
 
+// Re-export sparse types from sparse module for API stability
+pub use sparse::{CsrStorage, CscStorage, CooStorage, SparseFormat, SparseStorage};
+
 /// Trait for dynamic downcasting of storage types
 pub trait AsAny {
     /// Get as Any reference for downcasting
     fn as_any(&self) -> &dyn core::any::Any;
-}
-
-/// Trait for activation functions on storage types
-pub trait ActivationOps<T: DataType> {
-    /// Apply `ReLU` activation function
-    #[must_use]
-    fn relu(&self) -> Self
-    where
-        Self: Sized + Clone,
-        T: Zero + PartialOrd + Clone;
-    /// Apply tanh activation function
-    #[must_use]
-    fn tanh(&self) -> Self
-    where
-        Self: Sized + Clone,
-        T: FloatExt + Clone;
-    /// Apply sigmoid activation function
-    #[must_use]
-    fn sigmoid(&self) -> Self
-    where
-        Self: Sized + Clone,
-        T: FloatExt + Clone + core::ops::Neg<Output = T>;
-    /// Apply GELU activation function
-    #[must_use]
-    fn gelu(&self) -> Self
-    where
-        Self: Sized + Clone,
-        T: FloatExt + Clone + core::ops::Neg<Output = T> + num_traits::Pow<f32, Output = T>;
-    /// Apply Swish activation function
-    #[must_use]
-    fn swish(&self) -> Self
-    where
-        Self: Sized + Clone,
-        T: FloatExt + Clone + core::ops::Neg<Output = T>;
-    /// Apply Hardsigmoid activation function
-    #[must_use]
-    fn hardsigmoid(&self) -> Self
-    where
-        Self: Sized + Clone,
-        T: Zero + PartialOrd + Clone + core::ops::Add<Output = T> + core::ops::Div<Output = T>;
-    /// Apply Hardswish activation function
-    #[must_use]
-    fn hardswish(&self) -> Self
-    where
-        Self: Sized + Clone,
-        T: Zero
-            + PartialOrd
-            + Clone
-            + core::ops::Add<Output = T>
-            + core::ops::Div<Output = T>
-            + core::ops::Mul<Output = T>;
 }
 
 /// Trait for storage types that can be created from vectors
@@ -189,52 +140,53 @@ pub trait StorageToDense<T: crate::DataType>: Storage<T> {
 pub use error::StorageError;
 pub use quantized::{QuantizedStorage, QuantizedStorage16, QuantizedStorage4, QuantizedStorage8};
 pub use shape::Shape;
-pub use sparse::{CooStorage, CscStorage, CsrStorage, SparseFormat};
-
-/// Storage-level matrix multiplication trait
-///
-/// This trait provides matrix multiplication at the storage level,
-/// enabling true zero-cost abstractions for all storage types.
-pub trait MatMulStorage<T: crate::DataType>: Storage<T> {
-    /// Multiply this storage by another storage
-    ///
-    /// # Arguments
-    /// * `other` - The right-hand side storage
-    ///
-    /// # Returns
-    /// Result storage containing the matrix product
-    ///
-    /// # Errors
-    /// Returns error if dimensions are incompatible
-    fn matmul_storage(&self, other: &Self) -> crate::Result<Self>
-    where
-        Self: Sized;
-}
-
-/// Storage-level transpose trait
-///
-/// This trait provides transpose operations at the storage level,
-/// enabling true zero-cost abstractions for all storage types.
-pub trait TransposeStorage<T: crate::DataType>: Storage<T> {
-    /// Transpose this storage along specified dimensions
-    ///
-    /// # Arguments
-    /// * `dim0` - First dimension to transpose
-    /// * `dim1` - Second dimension to transpose
-    ///
-    /// # Returns
-    /// Result storage containing the transposed data
-    ///
-    /// # Errors
-    /// Returns error if dimensions are invalid
-    fn transpose_storage(&self, dim0: usize, dim1: usize) -> crate::Result<Self>
-    where
-        Self: Sized;
-}
+// Sparse types already exported above (line 89)
 pub use sparse_indexing::{SparseBooleanIndex, SparseFancyIndex};
+
 
 /// Result type for storage operations
 pub type Result<T> = core::result::Result<T, StorageError>;
+
+/// Storage format enumeration for runtime type identification
+///
+/// Enables zero-cost dispatch based on storage format without dynamic typing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum StorageFormat {
+    /// Dense contiguous storage (row-major or column-major)
+    Dense,
+    /// Compressed Sparse Row format
+    Csr,
+    /// Compressed Sparse Column format
+    Csc,
+    /// Coordinate format (COO)
+    Coo,
+    /// Quantized storage (4/8/16-bit)
+    Quantized,
+    /// Strided storage (for views and transposes)
+    Strided,
+    /// Distributed storage (multi-device)
+    Distributed,
+}
+
+impl StorageFormat {
+    /// Returns true if this format is sparse
+    #[must_use]
+    pub fn is_sparse(self) -> bool {
+        matches!(self, Self::Csr | Self::Csc | Self::Coo)
+    }
+
+    /// Returns true if this format is dense
+    #[must_use]
+    pub fn is_dense(self) -> bool {
+        matches!(self, Self::Dense | Self::Strided)
+    }
+
+    /// Returns true if this format is quantized
+    #[must_use]
+    pub fn is_quantized(self) -> bool {
+        matches!(self, Self::Quantized)
+    }
+}
 
 /// Core storage trait for tensor memory layouts.
 ///
@@ -252,6 +204,9 @@ pub type Result<T> = core::result::Result<T, StorageError>;
 /// - Correct stride calculations
 /// - No aliasing violations for mutable access
 pub trait Storage<T: DataType>: Send + Sync + Clone + core::fmt::Debug + 'static {
+    /// Returns the storage format type for runtime dispatch
+    fn format(&self) -> StorageFormat;
+
     /// Returns a reference to the underlying data as a slice.
     ///
     /// # Examples
@@ -308,4 +263,13 @@ pub trait Storage<T: DataType>: Send + Sync + Clone + core::fmt::Debug + 'static
     fn full(dims: &[usize], value: T) -> Result<Self>
     where
         Self: Sized;
+
+    /// Apply a function to the stored structure.
+    ///
+    /// For sparse storage, this only applies to mapped values.
+    /// The function `f` MUST preserve zero (f(0) == 0) for sparse storage correctness.
+    fn map_structure<F>(&self, f: F) -> Result<Self>
+    where
+        Self: Sized,
+        F: FnMut(T) -> T;
 }

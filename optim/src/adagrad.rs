@@ -26,8 +26,8 @@ use crate::Parameter;
 pub struct Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     param_states: Vec<ParamState<B, S, T>>,
     param_groups: Vec<crate::optimizer::ParamGroup<B, S, T>>,
@@ -41,8 +41,8 @@ where
 impl<B, S, T> Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     /// Create Adagrad optimizer with default hyperparameters
     ///
@@ -112,15 +112,16 @@ where
 impl<B, S, T> BaseOptimizer<B, S, T> for Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     fn step(&mut self) -> Result<usize, crate::OptimError> {
         self.step_cpu()
     }
 
     fn step_cpu(&mut self) -> Result<usize, crate::OptimError> {
-        use tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
+        use tensor::ops::arithmetic::{add, div, mul, sub};
+        use tensor::ops::math::sqrt;
 
         let lr = T::from(self.lr).unwrap();
         let eps = T::from(self.eps).unwrap();
@@ -144,8 +145,11 @@ where
             };
 
             // Apply weight decay if specified (L2 regularization)
+            // Apply weight decay if specified (L2 regularization)
             let effective_grad = if self.weight_decay > 0.0 {
-                let weight_decay_term = scalar_mul(&param_state.param, weight_decay)?;
+                let weight_decay_t = Tensor::from_vec_with_backend(vec![weight_decay], &[], param_state.param.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let weight_decay_term = mul(&param_state.param, &weight_decay_t)?;
                 add(&grad, &weight_decay_term)?
             } else {
                 grad.clone()
@@ -164,7 +168,9 @@ where
             let accumulator_val = add(accumulator, &grad_squared)?;
 
             // Update the stored accumulator
-            *accumulator = scalar_add(&accumulator_val, initial_accum_val)?;
+            let initial_accum_t = Tensor::from_vec_with_backend(vec![initial_accum_val], &[], effective_grad.backend().clone())
+                 .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            *accumulator = add(&accumulator_val, &initial_accum_t)?;
 
             // Apply learning rate decay (if specified)
             let effective_lr = if self.lr_decay > 0.0 {
@@ -176,12 +182,15 @@ where
             };
 
             // Compute adaptive learning rate: lr / sqrt(state_sum + eps)
-            let accumulator_with_eps = scalar_add(&accumulator_val, eps)?;
+            let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+                 .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            let accumulator_with_eps = add(&accumulator_val, &eps_t)?;
             let sqrt_accum = sqrt(&accumulator_with_eps)?;
             // Create tensor filled with effective_lr for element-wise division
-            let lr_tensor = Tensor::from_vec(
+            let lr_tensor = Tensor::from_vec_with_backend(
                 vec![effective_lr; sqrt_accum.as_slice().len()],
                 sqrt_accum.shape().dims(),
+                sqrt_accum.backend().clone(),
             )?;
             let adaptive_lr = div(&lr_tensor, &sqrt_accum)?;
 
@@ -207,9 +216,10 @@ where
 
             // Initialize Adagrad state: sum of squared gradients accumulator
             let shape = tensor.shape().dims().to_vec();
-            let state_sum = Tensor::from_vec(
+            let state_sum = Tensor::from_vec_with_backend(
                 vec![T::from(self.initial_accumulator_value).unwrap(); shape.iter().product()],
                 &shape,
+                tensor.backend().clone(),
             )
             .unwrap(); // Accumulates sum of squared gradients
 
@@ -313,8 +323,8 @@ where
 impl<B, S, T> Optimizer<B, S, T> for Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     fn name(&self) -> &str {
         "Adagrad"
@@ -362,9 +372,10 @@ where
 
         // Initialize Adagrad state (gradient accumulator)
         let shape = param.shape().dims();
-        let initial_accumulator = Tensor::from_vec(
+        let initial_accumulator = Tensor::from_vec_with_backend(
             vec![T::from(self.initial_accumulator_value).unwrap(); shape.iter().product()],
             shape,
+            param.backend().clone(),
         )
         .map_err(|e| crate::error::OptimError::TensorError { source: e })?;
         param_state.init_state("state_sum".to_string(), initial_accumulator);

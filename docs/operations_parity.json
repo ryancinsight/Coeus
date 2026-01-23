@@ -1,0 +1,863 @@
+{
+  "storage_matrix": {
+    "abs": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "acosh": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "add": {
+      "dense": true,
+      "csr": true,
+      "csc": true,
+      "coo": true
+    },
+    "asinh": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "atan2": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "atanh": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "cat": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "cos": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "cross_entropy": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "cumprod": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "cumsum": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "deg2rad": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "dispatch": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "div": {
+      "dense": true,
+      "csr": true,
+      "csc": true,
+      "coo": true
+    },
+    "elementwise": {
+      "dense": false,
+      "csr": true,
+      "csc": true,
+      "coo": true
+    },
+    "erfc": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "erfinv": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "exp": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "expm1": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "frac": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "from_vec": {
+      "dense": true,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "gelu": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "leaky_relu": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "log": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "log1p": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "matmul": {
+      "dense": true,
+      "csr": true,
+      "csc": true,
+      "coo": true
+    },
+    "matrix_ops": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "max": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "maximum": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "mean": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "min": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "minimum": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "mul": {
+      "dense": true,
+      "csr": true,
+      "csc": true,
+      "coo": true
+    },
+    "nan_to_num": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "neg": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "nll_loss": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "ones": {
+      "dense": true,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "optimizer": {
+      "dense": false,
+      "csr": true,
+      "csc": true,
+      "coo": true
+    },
+    "pow": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "rad2deg": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "reciprocal": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "reduction": {
+      "dense": false,
+      "csr": true,
+      "csc": true,
+      "coo": true
+    },
+    "relu": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "reshape": {
+      "dense": true,
+      "csr": true,
+      "csc": true,
+      "coo": true
+    },
+    "rnn": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "sigmoid": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "sin": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "softmax": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "sqrt": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "stride": {
+      "dense": true,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "sub": {
+      "dense": true,
+      "csr": true,
+      "csc": true,
+      "coo": true
+    },
+    "sum": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "tanh": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "traits": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "transpose": {
+      "dense": true,
+      "csr": true,
+      "csc": true,
+      "coo": true
+    },
+    "trunc": {
+      "dense": false,
+      "csr": false,
+      "csc": false,
+      "coo": false
+    },
+    "zeros": {
+      "dense": true,
+      "csr": true,
+      "csc": true,
+      "coo": true
+    }
+  },
+  "backend_matrix": {
+    "abs": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "acosh": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "add": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "asinh": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "atan2": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "atanh": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "cat": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "cos": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "cross_entropy": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "cumprod": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "cumsum": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "deg2rad": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "dispatch": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "div": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "elementwise": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "erfc": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "erfinv": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "exp": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "expm1": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "frac": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "from_vec": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "gelu": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "leaky_relu": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "log": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "log1p": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "matmul": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "matrix_ops": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "max": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "maximum": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "mean": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "min": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "minimum": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "mul": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "nan_to_num": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "neg": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "nll_loss": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "ones": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "optimizer": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "pow": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "rad2deg": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "reciprocal": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "reduction": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "relu": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "reshape": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "rnn": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "sigmoid": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "sin": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "softmax": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "sqrt": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "stride": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "sub": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "sum": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "tanh": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "traits": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "transpose": {
+      "cpu": true,
+      "gpu": true,
+      "tpu": true,
+      "npu": true
+    },
+    "trunc": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    },
+    "zeros": {
+      "cpu": false,
+      "gpu": false,
+      "tpu": false,
+      "npu": false
+    }
+  },
+  "category_summary": {
+    "activation": 5,
+    "arithmetic": 9,
+    "classification": 3,
+    "layout": 3,
+    "linalg": 2,
+    "math": 23,
+    "reduction": 4,
+    "rnn": 1
+  },
+  "dense_operations": {
+    "arithmetic": [
+      "mul",
+      "div",
+      "add",
+      "sub"
+    ],
+    "layout": [
+      "transpose",
+      "reshape",
+      "stride"
+    ],
+    "creation": [
+      "zeros",
+      "from_vec",
+      "ones"
+    ],
+    "linear_algebra": [
+      "matmul"
+    ]
+  },
+  "sparse_operations": {
+    "common": {
+      "arithmetic": [
+        "div",
+        "optimizer",
+        "elementwise",
+        "sub",
+        "matmul",
+        "reduction",
+        "mul",
+        "add"
+      ],
+      "layout": [
+        "transpose",
+        "reshape"
+      ],
+      "creation": [
+        "zeros"
+      ]
+    },
+    "csr": {
+      "arithmetic": [
+        "mul",
+        "add",
+        "matmul"
+      ],
+      "conversion": [],
+      "indexing": []
+    },
+    "csc": {
+      "arithmetic": [
+        "mul",
+        "add",
+        "matmul"
+      ],
+      "conversion": [],
+      "indexing": []
+    },
+    "coo": {
+      "arithmetic": [
+        "mul",
+        "add",
+        "matmul"
+      ],
+      "conversion": [],
+      "indexing": []
+    }
+  },
+  "backend_operations": {
+    "cpu": {
+      "arithmetic": [
+        "mul",
+        "div",
+        "add",
+        "sub"
+      ],
+      "linear_algebra": [
+        "decomposition",
+        "transpose",
+        "matmul"
+      ],
+      "activation": [
+        "sigmoid",
+        "tanh",
+        "relu"
+      ],
+      "reduction": [
+        "mean",
+        "sum",
+        "max"
+      ]
+    },
+    "gpu": {
+      "arithmetic": [
+        "mul",
+        "div",
+        "add",
+        "sub"
+      ],
+      "linear_algebra": [
+        "decomposition",
+        "transpose",
+        "matmul"
+      ],
+      "activation": [
+        "sigmoid",
+        "tanh",
+        "relu"
+      ],
+      "reduction": [
+        "mean",
+        "sum",
+        "max"
+      ]
+    },
+    "tpu": {
+      "arithmetic": [
+        "mul",
+        "div",
+        "add",
+        "sub"
+      ],
+      "linear_algebra": [
+        "decomposition",
+        "transpose",
+        "matmul"
+      ],
+      "activation": [
+        "sigmoid",
+        "tanh",
+        "relu"
+      ],
+      "reduction": [
+        "mean",
+        "sum",
+        "max"
+      ]
+    },
+    "npu": {
+      "arithmetic": [
+        "mul",
+        "div",
+        "add",
+        "sub"
+      ],
+      "linear_algebra": [
+        "decomposition",
+        "transpose",
+        "matmul"
+      ],
+      "activation": [
+        "sigmoid",
+        "tanh",
+        "relu"
+      ],
+      "reduction": [
+        "mean",
+        "sum",
+        "max"
+      ]
+    }
+  }
+}

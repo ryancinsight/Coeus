@@ -5,17 +5,19 @@
 //! and is used in modern transformer architectures like GPT-NeoX, PaLM, and LLaMA.
 
 use crate::core::error::{NNError, Result};
+use crate::core::module::Module;
 use crate::core::parameter::Parameter;
 use autograd::ops::mean;
 use backend::Backend;
 use dtype::DataType;
 use storage::{Storage, StorageFromVec, StorageToDense};
-use tensor::{ops::arithmetic::*, FloatExt, Tensor};
+use tensor::{ops::{self, arithmetic::*}, FloatExt, Tensor};
 
 /// RMSNorm layer
 ///
 /// RMSNorm(x) = (x / sqrt(mean(x^2) + ε)) * g
 /// where g is a learnable parameter and ε is a small constant for numerical stability
+#[derive(Debug)]
 pub struct RMSNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
@@ -37,10 +39,26 @@ where
     elementwise_affine: bool,
 }
 
+impl<B, S, T> Clone for RMSNorm<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::FromPrimitive,
+{
+    fn clone(&self) -> Self {
+        Self {
+            weight: self.weight.clone(),
+            normalized_shape: self.normalized_shape.clone(),
+            eps: self.eps,
+            elementwise_affine: self.elementwise_affine,
+        }
+    }
+}
+
 impl<B, S, T> RMSNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType
         + 'static
         + FloatExt
@@ -121,7 +139,7 @@ where
         let variance = add(&mean_squared, &eps_tensor)?;
 
         // Compute sqrt(variance)
-        let rms = sqrt(&variance)?;
+        let rms = ops::sqrt(&variance)?;
 
         // Broadcast RMS back to input shape for element-wise division
         let rms_broadcast = self.broadcast_to_input_shape(&rms, input.shape().dims())?;
@@ -227,6 +245,48 @@ where
     /// Check if elementwise affine is enabled
     pub fn elementwise_affine(&self) -> bool {
         self.elementwise_affine
+    }
+}
+
+impl<B, S, T> Module<B, S, T> for RMSNorm<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType
+        + FloatExt
+        + num_traits::Bounded
+        + std::cmp::PartialOrd
+        + num_traits::FromPrimitive
+        + 'static,
+{
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        RMSNorm::forward(self, input)
+    }
+
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
+        if self.elementwise_affine {
+            vec![self.weight.clone()]
+        } else {
+            vec![]
+        }
+    }
+
+    fn modules(&self) -> Vec<&dyn Module<B, S, T>> {
+        vec![]
+    }
+
+    fn zero_grad(&mut self) {
+        self.weight.zero_grad();
+    }
+
+    fn train(&mut self, _mode: bool) {}
+
+    fn name(&self) -> &str {
+        "RMSNorm"
+    }
+
+    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+        Box::new(self.clone())
     }
 }
 

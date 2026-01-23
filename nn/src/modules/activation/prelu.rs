@@ -6,7 +6,7 @@ use dtype::DataType;
 use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::{ops::arithmetic::*, FloatExt, Tensor};
 
-use super::{Activation, ActivationType};
+use super::Activation;
 
 /// PReLU (Parametric ReLU) activation function
 ///
@@ -28,6 +28,7 @@ where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Copy,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
 {
     /// Create a new PReLU activation function
     ///
@@ -60,7 +61,7 @@ where
 
         if num_params == 1 {
             let w_scalar = weight_tensor.to_dense_generic()?.as_slice()[0];
-            let neg_scaled = scalar_mul(&neg, w_scalar)?;
+            let neg_scaled = neg.mul_scalar(w_scalar)?;
             Ok(add(&pos, &neg_scaled)?)
         } else {
             // Determine broadcasting shape
@@ -105,6 +106,7 @@ where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Copy,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
 {
     fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.forward(x)
@@ -116,6 +118,7 @@ where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Copy,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.forward(input)

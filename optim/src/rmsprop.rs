@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
-use storage::{Storage, StorageFromVec, StorageToDense};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::gpu_backend::{GpuAcceleratedOptimizer, GpuOptimizerBackend, GpuOptimizerConfig};
@@ -67,8 +67,8 @@ use crate::Parameter;
 pub struct RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + dtype::num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     /// Parameter states
     param_states: Vec<ParamState<B, S, T>>,
@@ -96,8 +96,8 @@ where
 impl<B, S, T> RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + dtype::num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     /// Create a new RMSprop optimizer.
     ///
@@ -225,8 +225,8 @@ where
             } else if let Ok(tensor_grad) = param_state.param.grad() {
                 // Convert gradient storage to dense, then create optimizer's storage type
                 // This handles any gradient storage type (dense, sparse, quantized, etc.)
-                let dense_grad = tensor_grad
-                    .storage_ref()
+                let dense_grad: DenseStorage<T> = tensor_grad
+                    .storage()
                     .to_dense()
                     .map_err(|_| crate::error::OptimError::GradientNotAvailable)?;
                 let converted_storage =
@@ -243,7 +243,9 @@ where
             // Apply weight decay if specified (L2 regularization)
             let effective_grad = if self.weight_decay > 0.0 {
                 let grad_clone = grad.clone();
-                let weight_decay_term = param_state.param.mul_scalar(weight_decay)?;
+                let weight_decay_t = Tensor::from_vec_with_backend(vec![weight_decay], &[], grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let weight_decay_term = mul(&param_state.param, &weight_decay_t)?;
                 add(&grad_clone, &weight_decay_term)?
             } else {
                 grad.clone()
@@ -252,7 +254,8 @@ where
             // Update square average: square_avg = alpha * square_avg + (1 - alpha) * grad^2
             let param_name = param_state.name.clone();
 
-            use tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
+            use tensor::ops::arithmetic::{add, div, mul, sub};
+            use tensor::ops::math::sqrt;
 
             {
                 let square_avg = param_state.get_state_mut("square_avg").ok_or_else(|| {
@@ -263,8 +266,14 @@ where
                 })?;
 
                 let grad_squared = mul(&effective_grad, &effective_grad)?;
-                let square_avg_alpha = scalar_mul(&*square_avg, alpha)?;
-                let grad_squared_alpha = scalar_mul(&grad_squared, one_minus_alpha)?;
+                
+                let alpha_t = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let square_avg_alpha = mul(&*square_avg, &alpha_t)?;
+                
+                let one_minus_alpha_t = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let grad_squared_alpha = mul(&grad_squared, &one_minus_alpha_t)?;
                 *square_avg = add(&square_avg_alpha, &grad_squared_alpha)?;
             }
 
@@ -278,8 +287,15 @@ where
                         state_key: "grad_avg".to_string(),
                     }
                 })?;
-                let grad_avg_alpha = scalar_mul(&*grad_avg, alpha)?;
-                let grad_alpha = scalar_mul(&effective_grad, one_minus_alpha)?;
+                
+                let alpha_t = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let grad_avg_alpha = mul(&*grad_avg, &alpha_t)?;
+                
+                let one_minus_alpha_t = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let grad_alpha = mul(&effective_grad, &one_minus_alpha_t)?;
+                
                 let new_grad_avg = add(&grad_avg_alpha, &grad_alpha)?;
                 let grad_avg_squared = mul(&new_grad_avg, &new_grad_avg)?;
                 *grad_avg = new_grad_avg;
@@ -287,17 +303,24 @@ where
                 // Compute denom = sqrt(square_avg - grad_avg^2 + eps)
                 let square_avg_ref = param_state.get_state("square_avg").unwrap();
                 let square_avg_minus_grad_avg_sq = sub(square_avg_ref, &grad_avg_squared)?;
-                let denom_inner = scalar_add(&square_avg_minus_grad_avg_sq, eps)?;
+                
+                let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let denom_inner = add(&square_avg_minus_grad_avg_sq, &eps_t)?;
                 sqrt(&denom_inner)?
             } else {
                 // Basic RMSprop: denom = sqrt(square_avg + eps)
                 let square_avg_ref = param_state.get_state("square_avg").unwrap();
                 let square_avg_sqrt = sqrt(square_avg_ref)?;
-                scalar_add(&square_avg_sqrt, eps)?
+                let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                add(&square_avg_sqrt, &eps_t)?
             };
 
             // Basic RMSprop: param = param - lr * grad / denom
-            let grad_scaled = scalar_mul(&effective_grad, lr)?;
+            let lr_t = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            let grad_scaled = mul(&effective_grad, &lr_t)?;
             let update = div(&grad_scaled, &denom)?;
             if param_state.param.as_slice().len() != update.as_slice().len() {
                 return Err(crate::error::OptimError::ShapeMismatch {
@@ -323,8 +346,8 @@ where
 impl<B, S, T> BaseOptimizer<B, S, T> for RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + dtype::num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     fn step(&mut self) -> Result<usize, crate::OptimError> {
         self.step_cpu()
@@ -401,8 +424,8 @@ where
 impl<B, S, T> Optimizer<B, S, T> for RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + dtype::num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     fn name(&self) -> &str {
         "RMSprop"
@@ -542,8 +565,8 @@ where
             } else if let Ok(tensor_grad) = param_state.param.grad() {
                 // Convert gradient storage to dense, then create optimizer's storage type
                 // This handles any gradient storage type (dense, sparse, quantized, etc.)
-                let dense_grad = tensor_grad
-                    .storage_ref()
+                let dense_grad: DenseStorage<T> = tensor_grad
+                    .storage()
                     .to_dense()
                     .map_err(|_| crate::error::OptimError::GradientNotAvailable)?;
                 let converted_storage =
@@ -560,7 +583,9 @@ where
             // Apply weight decay if specified (L2 regularization)
             let effective_grad = if self.weight_decay > 0.0 {
                 let grad_clone = grad.clone();
-                let weight_decay_term = param_state.param.mul_scalar(weight_decay)?;
+                let weight_decay_t = Tensor::from_vec_with_backend(vec![weight_decay], &[], grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let weight_decay_term = mul(&param_state.param, &weight_decay_t)?;
                 add(&grad_clone, &weight_decay_term)?
             } else {
                 grad.clone()
@@ -569,7 +594,8 @@ where
             // Update square average: square_avg = alpha * square_avg + (1 - alpha) * grad^2
             let param_name = param_state.name.clone();
 
-            use tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
+            use tensor::ops::arithmetic::{add, div, mul, sub};
+            use tensor::ops::math::sqrt;
 
             {
                 let square_avg = param_state.get_state_mut("square_avg").ok_or_else(|| {
@@ -580,8 +606,14 @@ where
                 })?;
 
                 let grad_squared = mul(&effective_grad, &effective_grad)?;
-                let square_avg_alpha = scalar_mul(&*square_avg, alpha)?;
-                let grad_squared_alpha = scalar_mul(&grad_squared, one_minus_alpha)?;
+                
+                let alpha_t = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let square_avg_alpha = mul(&*square_avg, &alpha_t)?;
+                
+                let one_minus_alpha_t = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let grad_squared_alpha = mul(&grad_squared, &one_minus_alpha_t)?;
                 *square_avg = add(&square_avg_alpha, &grad_squared_alpha)?;
             }
 
@@ -595,8 +627,15 @@ where
                         state_key: "grad_avg".to_string(),
                     }
                 })?;
-                let grad_avg_alpha = scalar_mul(&*grad_avg, alpha)?;
-                let grad_alpha = scalar_mul(&effective_grad, one_minus_alpha)?;
+                
+                let alpha_t = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let grad_avg_alpha = mul(&*grad_avg, &alpha_t)?;
+                
+                let one_minus_alpha_t = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let grad_alpha = mul(&effective_grad, &one_minus_alpha_t)?;
+                
                 let new_grad_avg = add(&grad_avg_alpha, &grad_alpha)?;
                 let grad_avg_squared = mul(&new_grad_avg, &new_grad_avg)?;
                 *grad_avg = new_grad_avg;
@@ -604,17 +643,25 @@ where
                 // Compute denom = sqrt(square_avg - grad_avg^2 + eps)
                 let square_avg_ref = param_state.get_state("square_avg").unwrap();
                 let square_avg_minus_grad_avg_sq = sub(square_avg_ref, &grad_avg_squared)?;
-                let denom_inner = scalar_add(&square_avg_minus_grad_avg_sq, eps)?;
+                
+                let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let denom_inner = add(&square_avg_minus_grad_avg_sq, &eps_t)?;
                 sqrt(&denom_inner)?
             } else {
                 // Basic RMSprop: denom = sqrt(square_avg + eps)
                 let square_avg_ref = param_state.get_state("square_avg").unwrap();
                 let square_avg_sqrt = sqrt(square_avg_ref)?;
-                scalar_add(&square_avg_sqrt, eps)?
+                
+                let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                add(&square_avg_sqrt, &eps_t)?
             };
 
             // Basic RMSprop: param = param - lr * grad / denom
-            let grad_scaled = scalar_mul(&effective_grad, lr)?;
+            let lr_t = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
+                 .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            let grad_scaled = mul(&effective_grad, &lr_t)?;
             let update = div(&grad_scaled, &denom)?;
             if param_state.param.as_slice().len() != update.as_slice().len() {
                 return Err(crate::error::OptimError::ShapeMismatch {
@@ -701,8 +748,8 @@ where
 impl<B, S, T> Default for RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + dtype::num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     fn default() -> Self {
         Self::new(0.01, 0.99, 1e-8, 0.0, 0.0, false)
@@ -713,8 +760,8 @@ where
 impl<B, S, T> GpuAcceleratedOptimizer for RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + dtype::num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     fn gpu_available(&self) -> bool {
         self.gpu_enabled

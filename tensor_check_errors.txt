@@ -1,0 +1,405 @@
+warning: unused imports: `Result` and `StorageError`
+ --> storage\src\dense\core.rs:3:23
+  |
+3 | use crate::{DataType, Result, Shape, StorageError};
+  |                       ^^^^^^         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `vec::Vec`
+ --> storage\src\sparse\coo\conversion.rs:5:18
+  |
+5 | use alloc::{vec, vec::Vec};
+  |                  ^^^^^^^^
+
+warning: unused import: `vec`
+ --> storage\src\sparse\csc\core.rs:4:13
+  |
+4 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: unused import: `vec`
+ --> storage\src\sparse\csr\core.rs:6:13
+  |
+6 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:174:21
+    |
+174 |     StorageOps<T> + MatMulOps<T> + LayoutOps<T> + ArithmeticOps<T> + ReductionOps<T>
+    |                     ^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:182:24
+    |
+182 |     S: StorageOps<T> + MatMulOps<T> + LayoutOps<T> + ArithmeticOps<T> + ReductionOps<T>,
+    |                        ^^^^^^^^^
+
+warning: unused variable: `rows`
+   --> storage\src\sparse\coo\traits.rs:127:13
+    |
+127 |         let rows = dims[0];
+    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_rows`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `storage` (lib) generated 7 warnings (run `cargo fix --lib -p storage` to apply 5 suggestions)
+warning: unused import: `StorageError`
+ --> backend\src\gpu\sparse\arithmetic.rs:6:35
+  |
+6 | ...esult, StorageError};
+  |           ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `CsrStorage`
+ --> backend\src\gpu\sparse\mod.rs:9:15
+  |
+9 | use storage::{CsrStorage, Den...
+  |               ^^^^^^^^^^
+
+warning: unused variable: `input`
+   --> backend\src\cpu\backend.rs:517:9
+    |
+517 |         input: &DenseStorag...
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_input`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `image_embeddings`
+   --> backend\src\cpu\backend.rs:656:9
+    |
+656 | ...   image_embeddings: &De...
+    |       ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_image_embeddings`
+
+warning: unused variable: `text_embeddings`
+   --> backend\src\cpu\backend.rs:657:9
+    |
+657 | ...   text_embeddings: &Den...
+    |       ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_text_embeddings`
+
+warning: unused variable: `temperature`
+   --> backend\src\cpu\backend.rs:658:9
+    |
+658 |         temperature: f32,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_temperature`
+
+warning: unused variable: `keys`
+   --> backend\src\cpu\backend.rs:667:9
+    |
+667 |         keys: &DenseStorage...
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_keys`
+
+warning: unused variable: `values`
+   --> backend\src\cpu\backend.rs:668:9
+    |
+668 |         values: &DenseStora...
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_values`
+
+warning: unused variable: `num_heads`
+   --> backend\src\cpu\backend.rs:669:9
+    |
+669 |         num_heads: usize,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_num_heads`
+
+warning: `backend` (lib) generated 9 warnings (run `cargo fix --lib -p backend` to apply 9 suggestions)
+warning: unexpected `cfg` condition value: `std`
+  --> sparse\src\lib.rs:30:7
+   |
+30 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default` and `gpu`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `crate::Result`
+  --> sparse\src\arithmetic\mod.rs:39:5
+   |
+39 | use crate::Result;
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `storage::CsrStorage`
+  --> sparse\src\arithmetic\mod.rs:41:5
+   |
+41 | use storage::CsrStorage;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\activation\sigmoid.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `StorageError`
+  --> sparse\src\activation\mod.rs:17:35
+   |
+17 | ...ult, StorageError};
+   |         ^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+ --> sparse\src\creation\zeros.rs:6:5
+  |
+6 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\layout\transpose.rs:7:5
+  |
+7 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `CooStorage`, `CscStorage`, and `Result`
+  --> sparse\src\reduction\mod.rs:16:27
+   |
+16 | ...e, CscStorage, CooStorage, Result};
+   |       ^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^
+
+warning: unused import: `Storage`
+ --> sparse\src\linear_algebra\matmul.rs:9:37
+  |
+9 | ...taType, Storage, Storage...
+  |            ^^^^^^^
+
+warning: unused import: `Storage`
+ --> sparse\src\layout\transpose.rs:8:37
+  |
+8 | ...taType, Storage};
+  |            ^^^^^^^
+
+warning: unexpected `cfg` condition value: `std`
+  --> dense\src\lib.rs:32:7
+   |
+32 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^ help: remove the condition
+   |
+   = note: no expected values for `feature`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused imports: `StorageError` and `Storage`
+ --> dense\src\activation\relu.rs:5:29
+  |
+5 | ...e, Storage, StorageError};
+  |       ^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\relu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\sigmoid.rs:5:29
+  |
+5 | ...Storage, Storage};
+  |             ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\sigmoid.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\tanh.rs:5:29
+  |
+5 | ...Storage, Storage};
+  |             ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\tanh.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\gelu.rs:5:29
+  |
+5 | ...Storage, Storage};
+  |             ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\gelu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+  --> dense\src\layout\mod.rs:16:37
+   |
+16 | ... Result, Storage};
+   |             ^^^^^^^
+
+warning: unused import: `Shape`
+ --> dense\src\creation\zeros.rs:3:37
+  |
+3 | ..., Result, Shape, Storage};
+  |              ^^^^^
+
+warning: unused import: `Storage`
+  --> dense\src\creation\mod.rs:16:37
+   |
+16 | ... Result, Storage};
+   |             ^^^^^^^
+
+warning: unused variable: `new_shape`
+   --> dense\src\layout\transpose.rs:194:5
+    |
+194 |     new_shape: &[usize],
+    |     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_shape`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `coeus-sparse` (lib) generated 10 warnings (run `cargo fix --lib -p coeus-sparse` to apply 7 suggestions)
+warning: `dense` (lib) generated 13 warnings (run `cargo fix --lib -p dense` to apply 12 suggestions)
+    Checking tensor v0.2.1 (D:\coeus\tensor)
+error[E0407]: method `storage_tanh` is not a member of trait `TensorStorageOps`
+   --> tensor\src\ops\dispatch\sparse_dispatch.rs:140:5
+    |
+140 |       fn storage_tanh<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    |       ^  ------------ help: there is an associated function with a similar name: `storage_add`
+    |  _____|
+    | |
+141 | |     where
+142 | |         T: num_traits::Float,
+...   |
+145 | |     }
+    | |_____^ not a member of trait `TensorStorageOps`
+
+warning: unused imports: `SparseDiv`, `SparseMul`, and `SparseSub`
+  --> tensor\src\ops\arithmetic\dispatch.rs:30:31
+   |
+30 | use coeus_sparse::{SparseAdd, SparseSub, SparseMul, SparseDiv};
+   |                               ^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Tensor`
+ --> tensor\src\ops\sparse\traits.rs:6:21
+  |
+6 | use crate::{Result, Tensor, TensorError};
+  |                     ^^^^^^
+
+warning: unused imports: `Backend`, `DataType`, and `TensorError`
+ --> tensor\src\ops\sparse\mod.rs:8:13
+  |
+8 | use crate::{Backend, DataType, Result, Tensor, TensorError};
+  |             ^^^^^^^  ^^^^^^^^                  ^^^^^^^^^^^
+
+warning: unused imports: `SparseAdd` and `SparseMatMul`
+  --> tensor\src\ops\sparse\mod.rs:10:20
+   |
+10 | use coeus_sparse::{SparseMatMul, SparseAdd};
+   |                    ^^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `SparseFormat`
+  --> tensor\src\ops\sparse\mod.rs:11:27
+   |
+11 | use storage::{CsrStorage, SparseFormat};
+   |                           ^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> tensor\src\ops\sparse\mod.rs:12:5
+   |
+12 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `DenseStorage` and `Storage`
+ --> tensor\src\sparse\coo.rs:1:32
+  |
+1 | use crate::{Backend, DataType, DenseStorage, Result, Storage, Tensor};
+  |                                ^^^^^^^^^^^^          ^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> tensor\src\sparse\csc.rs:1:32
+  |
+1 | use crate::{Backend, DataType, DenseStorage, Result, Storage, Tensor};
+  |                                ^^^^^^^^^^^^
+
+warning: unused import: `crate::ops::sparse::TensorSparseOps`
+  --> tensor\src\sparse\csr.rs:51:13
+   |
+51 |         use crate::ops::sparse::TensorSparseOps;
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csr.rs:1:74
+  |
+1 | use crate::{error::TensorError, Backend, DataType, DenseStorage, Result, Storage, Tensor};
+  |                                                                          ^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csc.rs:1:54
+  |
+1 | use crate::{Backend, DataType, DenseStorage, Result, Storage, Tensor};
+  |                                                      ^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\classification\cross_entropy.rs:6:5
+  |
+6 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\reduction\mean.rs:7:5
+  |
+7 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `StorageToDense`
+  --> tensor\src\ops\dispatch\sparse_dispatch.rs:13:36
+   |
+13 | use storage::{CsrStorage, Storage, StorageToDense};
+   |                                    ^^^^^^^^^^^^^^
+
+warning: unused variable: `i`
+  --> tensor\src\ops\layout\cat.rs:36:10
+   |
+36 |     for (i, t) in tensors.iter().enumerate() {
+   |          ^ help: if this is intentional, prefix it with an underscore: `_i`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `weight_ih`
+  --> tensor\src\ops\rnn\rnn.rs:36:13
+   |
+36 |         let weight_ih = input.clone(); // Dummy
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_ih`
+
+warning: unused variable: `weight_hh`
+  --> tensor\src\ops\rnn\rnn.rs:37:13
+   |
+37 |         let weight_hh = input.clone(); // Dummy
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_hh`
+
+warning: unused variable: `bias_ih`
+  --> tensor\src\ops\rnn\rnn.rs:38:13
+   |
+38 |         let bias_ih: Option<Tensor<B, S, T>> = None; // Dummy
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_ih`
+
+warning: unused variable: `bias_hh`
+  --> tensor\src\ops\rnn\rnn.rs:39:13
+   |
+39 |         let bias_hh: Option<Tensor<B, S, T>> = None; // Dummy
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_hh`
+
+warning: unused variable: `sqrt2`
+  --> tensor\src\functions\activation\gelu.rs:59:13
+   |
+59 |         let sqrt2 = T::from_f64(std::f64::consts::SQRT_2).unwrap();
+   |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_sqrt2`
+
+For more information about this error, try `rustc --explain E0407`.
+warning: `tensor` (lib) generated 20 warnings
+error: could not compile `tensor` (lib) due to 1 previous error; 20 warnings emitted

@@ -10,7 +10,9 @@ use crate::errors::{ErrorHandler, SemanticError};
 use crate::state::CLIPService;
 
 // Import core crates
-use backend::{Backend, GpuBackend};
+use backend::Backend;
+use backend::gpu::GpuBackend;
+use tensor::ops::arithmetic::traits::TensorStorageArithmetic;
 use dtype::{float::Float32, traits::FloatExt, DataType};
 use nn::clip::ClipModel;
 use storage::{Storage, StorageFromVec};
@@ -19,7 +21,7 @@ use storage::{Storage, StorageFromVec};
 pub struct RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T>,
+    S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageArithmetic<T>,
     T: DataType + FloatExt + backend::num_traits::FromPrimitive + backend::num_traits::Bounded,
 {
     /// CLIP model instance
@@ -35,7 +37,7 @@ where
 impl<B, S, T> RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
-    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + Send + Sync + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageArithmetic<T> + Send + Sync + 'static,
     T: DataType
         + FloatExt
         + std::ops::Neg<Output = T>
@@ -61,9 +63,7 @@ where
         println!("🎯 Initializing GPU-accelerated CLIP service");
 
         // Initialize GPU backend
-        let _gpu_backend = GpuBackend::<Float32>::new().await.map_err(|e| {
-            SemanticError::ServiceUnavailable(format!("Failed to initialize GPU backend: {e}"))
-        })?;
+        let _gpu_backend = GpuBackend::<Float32>::new();
 
         println!("✅ GPU backend initialized");
 
@@ -155,7 +155,8 @@ where
 impl<B, S, T> CLIPService for RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
-    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Default + Send + Sync,
+    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageArithmetic<T> + Send + Sync + 'static,
     T: DataType
         + FloatExt
         + std::ops::Neg<Output = T>

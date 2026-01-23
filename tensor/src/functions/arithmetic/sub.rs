@@ -1,0 +1,88 @@
+//! Sub backward function
+
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use backend::Backend;
+use dtype::DataType;
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use crate::{DifferentiableFunction, Function, Tensor};
+use crate::functions::utils::{unbroadcast_dense, to_storage_preserving_graph};
+
+/// Sub function for element-wise subtraction
+#[derive(Debug)]
+pub struct SubFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    pub inputs: Vec<Arc<Tensor<B, S, T>>>,
+}
+
+impl<B, S, T> SubFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    #[must_use]
+    pub fn new(lhs: Arc<Tensor<B, S, T>>, rhs: Arc<Tensor<B, S, T>>) -> Self {
+        Self {
+            inputs: vec![lhs, rhs],
+        }
+    }
+}
+
+impl<B, S, T> Function<B, S, T> for SubFunction<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + Clone + Copy + num_traits::Zero + std::ops::Sub<Output = T> + std::ops::Neg<Output = T>,
+{
+    fn inputs(&self) -> &[Arc<Tensor<B, S, T>>] {
+        &self.inputs
+    }
+
+    fn backward(
+        &self,
+        grad_output: &Tensor<B, DenseStorage<T>, T>,
+    ) -> anyhow::Result<Vec<Tensor<B, S, T>>> {
+        let lhs = &*self.inputs[0];
+        let rhs = &*self.inputs[1];
+
+        // d/dlhs (lhs - rhs) = 1
+        let left_grad_dense = unbroadcast_dense(grad_output, lhs.shape().dims())?;
+        
+        // d/drhs (lhs - rhs) = -1
+        let neg_grad_data: Vec<T> = grad_output.as_slice().iter().map(|&g| T::zero() - g).collect();
+        let neg_grad = Tensor::from_vec_with_backend(neg_grad_data, grad_output.shape().dims(), grad_output.backend.clone())?;
+        let right_grad_dense = unbroadcast_dense(&neg_grad, rhs.shape().dims())?;
+
+        let grad_lhs = to_storage_preserving_graph(left_grad_dense)?;
+        let grad_rhs = to_storage_preserving_graph(right_grad_dense)?;
+
+        Ok(vec![grad_lhs, grad_rhs])
+    }
+}
+
+impl<B, S, T> DifferentiableFunction<B, S, T> for SubFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    fn name(&self) -> &'static str {
+        "SubBackward"
+    }
+}
+
+impl<B, S, T> crate::AsAny for SubFunction<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T> + StorageFromVec<T>,
+    T: DataType,
+{
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+}

@@ -97,9 +97,9 @@ where
     let input_flat = input_dense.reshape(&input_flat_shape)?;
 
     let weight_t = weight_dense.transpose(1, 0)?;
-    let output_flat = input_flat.matmul(&weight_t)?;
+    let output_flat = tensor::ops::matmul(&input_flat, &weight_t)?;
 
-    let output = if let Some(bias_tensor) = &bias_dense {
+    let bias_expanded = if let Some(bias_tensor) = &bias_dense {
         let bias_data = bias_tensor.as_slice();
         let mut expanded_bias = Vec::with_capacity(batch_size * out_features);
 
@@ -107,9 +107,13 @@ where
             expanded_bias.extend_from_slice(bias_data);
         }
 
-        let bias_expanded =
-            Tensor::<B, DenseStorage<T>, T>::from_vec(expanded_bias, &[batch_size, out_features])?;
-        &output_flat + &bias_expanded
+        Some(Tensor::<B, DenseStorage<T>, T>::from_vec(expanded_bias, &[batch_size, out_features])?)
+    } else {
+        None
+    };
+
+    let output = if let Some(bias_expanded_tensor) = bias_expanded {
+        tensor::ops::add(&output_flat, &bias_expanded_tensor)?
     } else {
         output_flat
     };

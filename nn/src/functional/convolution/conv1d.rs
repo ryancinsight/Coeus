@@ -3,7 +3,7 @@
 use crate::core::error::{NNError, Result};
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
-use storage::{DenseStorage, Storage, StorageFromVec};
+use storage::{Storage, StorageFromVec};
 use tensor::Tensor;
 
 /// Compute output length for 1D convolution.

@@ -1,0 +1,13 @@
+//! CPU activation function primitives
+//!
+//! Activation function primitives optimized for CPU execution.
+//! These operations provide the foundation for neural network activations.
+
+pub mod relu;
+pub mod sigmoid;
+pub mod tanh;
+
+// Re-export operations for convenience
+pub use relu::relu_primitive;
+pub use sigmoid::sigmoid_primitive;
+pub use tanh::tanh_primitive;

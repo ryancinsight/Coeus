@@ -4,15 +4,10 @@
 //! - MSE Loss (Mean Squared Error)
 //! - Cross-Entropy Loss
 //! - NLL Loss (Negative Log Likelihood)
-//! - L1 Loss
-//! - Smooth L1 Loss
+//! - L1 Loss (Mean Absolute Error)
+//! - Smooth L1 Loss (Huber Loss)
+//! - Binary Cross-Entropy Loss
 //! - Binary Cross-Entropy with Logits Loss
-//! - Focal Loss
-//! - Dice Loss
-//! - Tversky Loss
-//! - KL Divergence Loss
-//! - Triplet Margin Loss
-//! - Combo Loss
 
 pub mod bce;
 pub mod cross_entropy;
@@ -20,7 +15,7 @@ pub mod mse;
 pub mod nll;
 
 // Re-export commonly used loss functions
-pub use crate::functional::ops::loss::bce_with_logits_loss;
+pub use crate::ops::loss::bce_with_logits_loss;
 pub use bce::BCEWithLogitsLoss;
 pub use cross_entropy::{cross_entropy_loss as cross_entropy, CrossEntropyLoss};
 pub use mse::{mse_loss, MSELoss};

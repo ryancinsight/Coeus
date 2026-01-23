@@ -7,11 +7,11 @@ use std::fmt;
 use backend::Backend;
 use dtype::traits::FloatExt;
 use dtype::DataType;
-use num_traits::FromPrimitive;
+
 use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
-use crate::core::error::{NNError, Result};
+use crate::core::error::Result;
 
 /// Mean Squared Error (MSE) Loss function.
 ///
@@ -64,7 +64,7 @@ impl MSELoss {
     ) -> Result<Tensor<B, S, T>>
     where
         B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
+        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
         T: DataType + FloatExt + num_traits::FromPrimitive + Copy + Send + Sync + 'static,
     {
         mse_loss(predictions, targets)
@@ -97,10 +97,10 @@ pub fn mse_loss<B, S, T>(
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + num_traits::FromPrimitive + Copy + Send + Sync + 'static,
 {
-    crate::functional::ops::loss::mse_loss(predictions, targets)
+    crate::ops::loss::mse_loss(predictions, targets)
 }
 
 #[cfg(test)]

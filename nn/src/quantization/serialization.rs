@@ -1,8 +1,8 @@
 //! Serialization support for quantized models
 
 use crate::core::error::Result;
-use crate::quantization::calibration::{CalibrationPipeline, SerializableCalibrationPipeline};
-use crate::quantization::core::{
+use quantization::{
+    CalibrationPipeline, SerializableCalibrationPipeline,
     CalibrationConfig, MixedPrecisionConfig, QuantizationScheme, QuantizedWeights,
 };
 
@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializableQuantizedWeights {
     /// Bitwidth of the quantized weights
-    pub bitwidth: crate::quantization::core::QuantizationBitwidth,
+    pub bitwidth: QuantizationBitwidth,
     /// Shape of the weight tensor
     pub shape: Vec<usize>,
     /// Flattened quantized weight data

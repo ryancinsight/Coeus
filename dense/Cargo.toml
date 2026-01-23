@@ -1,0 +1,30 @@
+[package]
+name = "dense"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "Dense tensor implementation for Coeus"
+keywords = ["tensor", "dense", "deep-learning"]
+categories = ["science", "mathematics"]
+
+[dependencies]
+dtype.workspace = true
+storage.workspace = true
+backend.workspace = true
+coeus-error.workspace = true
+quantization.workspace = true
+num-traits.workspace = true
+rayon.workspace = true
+tracing.workspace = true
+bytemuck.workspace = true
+anyhow.workspace = true
+statrs.workspace = true
+rand.workspace = true
+rand_distr.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+approx.workspace = true
+criterion.workspace = true

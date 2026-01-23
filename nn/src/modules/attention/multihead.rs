@@ -152,7 +152,7 @@ where
     fn create_projection(in_features: usize, out_features: usize) -> Tensor<B, S, T> {
         // Xavier/Glorot uniform initialization
         let _limit = (T::from(6.0).unwrap() / T::from(in_features + out_features).unwrap()).sqrt();
-        let weight_data = Tensor::<B, S, T>::zeros_generic(&[out_features, in_features]).unwrap();
+        let weight_data = Tensor::<B, S, T>::zeros(&[out_features, in_features]).unwrap();
 
         // For now, initialize with a simple constant (can be improved with proper random sampling)
         // This works for both dense and sparse storage
@@ -254,7 +254,7 @@ where
             // Compute Q @ K^T: [query_seq, embed] @ [key_seq, embed]^T -> [query_seq, key_seq]
             // Use available tensor operations - they handle storage conversions internally
             let key_batch_t = key_batch.transpose(0, 1)?;
-            let attention_logits = query_batch.matmul(&key_batch_t)?;
+            let attention_logits = tensor::ops::matmul(&query_batch, &key_batch_t)?;
 
             // Scale by sqrt(d_k) where d_k = head_dim
             // Theorem: Attention(Q,K,V) = softmax((Q×K^T)/√d_k) × V
@@ -280,7 +280,7 @@ where
 
             // Apply attention: attention_weights @ values
             // attention_weights: [query_seq, key_seq], value_batch: [value_seq, embed] -> [query_seq, embed]
-            let attended_batch = attention_weights.matmul(&value_batch)?;
+            let attended_batch = tensor::ops::matmul(&attention_weights, &value_batch)?;
 
             // Collect the attended data
             attended_data.extend_from_slice(attended_batch.as_slice());
@@ -376,9 +376,9 @@ where
         let out_proj_dense = self.out_proj.data().to_dense_generic()?;
 
         // Project inputs to query, key, value: [batch*seq, embed] @ [embed, embed] -> [batch*seq, embed]
-        let queries_reshaped = reshaped_input.matmul(&query_proj_dense.transpose(0, 1)?)?;
-        let keys_reshaped = reshaped_input.matmul(&key_proj_dense.transpose(0, 1)?)?;
-        let values_reshaped = reshaped_input.matmul(&value_proj_dense.transpose(0, 1)?)?;
+        let queries_reshaped = tensor::ops::matmul(&reshaped_input, &query_proj_dense.transpose(0, 1)?)?;
+        let keys_reshaped = tensor::ops::matmul(&reshaped_input, &key_proj_dense.transpose(0, 1)?)?;
+        let values_reshaped = tensor::ops::matmul(&reshaped_input, &value_proj_dense.transpose(0, 1)?)?;
 
         // Reshape back to [batch, seq, embed] for attention computation
         let queries = queries_reshaped.reshape(&[
@@ -405,7 +405,7 @@ where
             attended.reshape(&[(batch_size * seq_len) as isize, self.embed_dim as isize])?;
 
         // Apply output projection
-        let output_reshaped = attended_reshaped.matmul(&out_proj_dense.transpose(0, 1)?)?;
+        let output_reshaped = tensor::ops::matmul(&attended_reshaped, &out_proj_dense.transpose(0, 1)?)?;
 
         // Reshape back to [batch, seq, embed]
         let output = output_reshaped.reshape(&[
@@ -601,7 +601,7 @@ mod tests {
         let value_flat = value
             .reshape(&[batch_size as isize * seq_len as isize, embed_dim as isize])
             .unwrap();
-        let attended_flat = attention_weights.matmul(&value_flat).unwrap();
+        let attended_flat = tensor::ops::matmul(&attention_weights, &value_flat).unwrap();
         let attended_output = attended_flat
             .reshape(&[batch_size as isize, seq_len as isize, embed_dim as isize])
             .unwrap();
@@ -687,7 +687,7 @@ mod tests {
             .reshape(&[batch_size as isize * seq_len as isize, embed_dim as isize])
             .unwrap();
         let key_t = key_flat.transpose(0, 1).unwrap();
-        let unscaled_logits = query_flat.matmul(&key_t).unwrap();
+        let unscaled_logits = tensor::ops::matmul(&query_flat, &key_t).unwrap();
 
         // Apply scaling as implemented
         let scale = Float32::from((attention.head_dim as f32).sqrt());
@@ -748,7 +748,7 @@ mod tests {
             ])
             .unwrap();
         let key_t = key_flat.transpose(0, 1).unwrap();
-        let attention_logits = query_flat.matmul(&key_t).unwrap();
+        let attention_logits = tensor::ops::matmul(&query_flat, &key_t).unwrap();
 
         // Apply scaling
         let scale = Float32::from((attention.head_dim as f32).sqrt());

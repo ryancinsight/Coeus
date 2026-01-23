@@ -5,8 +5,7 @@
 
 use crate::core::error::{NNError, Result};
 use crate::research::tracking::{ExperimentSummary, ExperimentTracker};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::sync::Semaphore;
 
 /// Configuration for an experimental pipeline
@@ -60,6 +59,7 @@ pub struct PipelineStatistics {
 /// Experimental pipeline executor
 pub struct ExperimentPipeline {
     config: ExperimentPipelineConfig,
+    #[allow(dead_code)]
     tracker: Arc<ExperimentTracker>,
 }
 
@@ -188,6 +188,7 @@ impl ExperimentPipeline {
     }
 
     /// Check if early stopping criteria are met
+    #[allow(dead_code)]
     fn should_early_stop(
         &self,
         experiments: &[ExperimentSummary],

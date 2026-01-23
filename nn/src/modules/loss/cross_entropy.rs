@@ -4,10 +4,8 @@
 
 use std::fmt;
 
-use backend::CpuBackend;
 use dtype::traits::FloatExt;
 use dtype::DataType;
-use storage::DenseStorage;
 use tensor::Tensor;
 
 use crate::core::error::Result;
@@ -60,13 +58,28 @@ impl CrossEntropyLoss {
     ///
     /// # Returns
     /// Scalar tensor containing the cross-entropy loss value.
-    pub fn forward<T>(
+    pub fn forward<B, S, T>(
         &self,
-        logits: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-        targets: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>>
+        logits: &Tensor<B, S, T>,
+        targets: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, S, T>>
     where
-        T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + num_traits::FromPrimitive,
+        B: backend::Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+        S: storage::Storage<T>
+            + storage::StorageFromVec<T>
+            + storage::StorageToDense<T>
+            + Clone
+            + 'static
+            + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+        T: DataType
+            + FloatExt
+            + std::ops::Neg<Output = T>
+            + PartialOrd
+            + num_traits::FromPrimitive
+            + Copy
+            + Send
+            + Sync
+            + 'static,
     {
         cross_entropy_loss(logits, targets)
     }
@@ -92,20 +105,39 @@ impl fmt::Display for CrossEntropyLoss {
 ///
 /// # Returns
 /// Scalar tensor containing the cross-entropy loss value.
-pub fn cross_entropy_loss<T>(
-    logits: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    targets: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>>
+pub fn cross_entropy_loss<B, S, T>(
+    logits: &Tensor<B, S, T>,
+    targets: &Tensor<B, S, T>,
+) -> Result<Tensor<B, S, T>>
 where
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + PartialOrd + num_traits::FromPrimitive,
+    B: backend::Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: storage::Storage<T>
+        + storage::StorageFromVec<T>
+        + storage::StorageToDense<T>
+        + Clone
+        + Send
+        + Sync
+        + 'static
+        + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType
+        + FloatExt
+        + std::ops::Neg<Output = T>
+        + PartialOrd
+        + num_traits::FromPrimitive
+        + Copy
+        + Send
+        + Sync
+        + 'static,
 {
-    crate::functional_api::cross_entropy(logits, targets)
+    crate::ops::loss::cross_entropy(logits, targets)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use backend::CpuBackend;
     use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_cross_entropy_loss_basic() {

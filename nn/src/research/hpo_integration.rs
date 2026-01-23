@@ -63,12 +63,11 @@ use std::time::{Duration, Instant};
 
 use crate::core::error::{NNError, Result};
 use crate::hpo::{
-    HPOptimizer, HyperparameterConfig, HyperparameterOptimizer, HyperparameterSpace,
-    HyperparameterValue, OptimizationResult,
+    HyperparameterConfig, HyperparameterSpace, HyperparameterValue, OptimizationResult,
 };
 use crate::research::hpo_integration::objectives::{F1ScoreObjective, StandardAccuracyObjective};
-use crate::research::metrics::{MetricEntry, MetricsCollector};
-use crate::research::tracking::{ExperimentSummary, ExperimentTracker};
+// use crate::Result as _; // dummy for unused imports check if any
+use crate::research::tracking::ExperimentSummary;
 use crate::research::UnifiedResearchFramework;
 
 /// HPO Experiment Context
@@ -206,6 +205,7 @@ pub struct IntegratedHPOFramework {
     /// Optimizer factory
     optimizer_factory: HPOOptimizerFactory,
     /// Multi-objective utilities
+    #[allow(dead_code)]
     multi_objective_utils: MultiObjectiveUtils,
 }
 
@@ -272,6 +272,7 @@ pub trait HPOAlgorithmImpl: Send + Sync {
 /// **Hypervolume Theorem**: The hypervolume $H(S, \mathbf{r})$ measures the volume of objective
 /// space dominated by Pareto set $S$ with reference point $\mathbf{r}$.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MultiObjectiveUtils {
     // Implementation details will be added as needed
 }
@@ -373,7 +374,7 @@ impl IntegratedHPOFramework {
                 .unwrap_or("accuracy")
         };
 
-        let objective = self
+        let _objective = self
             .objective_functions
             .get(objective_name)
             .ok_or_else(|| NNError::InvalidConfiguration {
@@ -382,7 +383,7 @@ impl IntegratedHPOFramework {
 
         // Create optimizer
         let optimizer_config = &context.optimizer_config;
-        let optimizer = self
+        let _optimizer = self
             .optimizer_factory
             .create_optimizer(&context.search_space, optimizer_config)?;
 
@@ -394,8 +395,8 @@ impl IntegratedHPOFramework {
         );
 
         let start_time = Instant::now();
-        let mut search_history = Vec::new();
-        let mut evaluations = 0;
+        let search_history = Vec::new();
+        let _evaluations = 0;
 
         // TODO: Fix trait object optimization
         // let result = optimizer.optimize(Arc::from(objective), &context)?;
@@ -802,7 +803,7 @@ impl MultiObjectiveUtils {
             .map(|point| point.iter().map(|&val| -val).collect())
             .collect::<Vec<_>>();
 
-        let mut ref_point: Vec<f64> = reference_point.iter().map(|&val| -val).collect();
+        let ref_point: Vec<f64> = reference_point.iter().map(|&val| -val).collect();
 
         // Sort points by first objective (required for WFG algorithm)
         processed_points
@@ -1227,7 +1228,7 @@ pub mod optimizer_factories {
         /// - Surrogate model confidence intervals
         fn check_convergence(
             &self,
-            optimizer: &crate::hpo::BayesianOptimizer,
+            _optimizer: &crate::hpo::BayesianOptimizer,
             history: &[(HyperparameterConfig, f64, Duration)],
         ) -> bool {
             if history.len() < 10 {
@@ -1387,7 +1388,7 @@ pub mod optimizer_factories {
                 for (config, _) in &challengers[..challengers.len().min(3)] {
                     // Generate nearby configurations (local search)
                     for _ in 0..3 {
-                        let mut new_config = config.clone();
+                        let new_config = config.clone();
                         // Add small perturbations to create nearby configurations
                         // In practice, this would use more sophisticated local search
                         new_candidates.push(new_config);

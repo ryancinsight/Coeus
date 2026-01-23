@@ -1,0 +1,2484 @@
+warning: unused imports: `Result` and `StorageError`
+ --> storage\src\dense\core.rs:3:23
+  |
+3 | ...e, Result, Shape, StorageError};
+  |       ^^^^^^         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `vec::Vec`
+ --> storage\src\sparse\coo\conversion.rs:5:18
+  |
+5 | use alloc::{vec, vec::Vec};
+  |                  ^^^^^^^^
+
+warning: unused import: `vec`
+ --> storage\src\sparse\csc\core.rs:4:13
+  |
+4 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: unused import: `vec`
+ --> storage\src\sparse\csr\core.rs:6:13
+  |
+6 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:174:21
+    |
+174 | ...<T> + MatMulOps<T> + L...
+    |          ^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:182:24
+    |
+182 | ...<T> + MatMulOps<T> + L...
+    |          ^^^^^^^^^
+
+warning: unused variable: `rows`
+   --> storage\src\sparse\coo\traits.rs:127:13
+    |
+127 |         let rows = dims[0];
+    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_rows`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `storage` (lib) generated 7 warnings (run `cargo fix --lib -p storage` to apply 5 suggestions)
+warning: unused import: `StorageError`
+ --> backend\src\gpu\sparse\arithmetic.rs:6:35
+  |
+6 | ...sult, StorageError};
+  |          ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `CsrStorage`
+ --> backend\src\gpu\sparse\mod.rs:9:15
+  |
+9 | use storage::{CsrStorage, D...
+  |               ^^^^^^^^^^
+
+warning: unused variable: `input`
+   --> backend\src\cpu\backend.rs:517:9
+    |
+517 |         input: &DenseStor...
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_input`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `image_embeddings`
+   --> backend\src\cpu\backend.rs:656:9
+    |
+656 | ...   image_embeddings: &...
+    |       ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_image_embeddings`
+
+warning: unused variable: `text_embeddings`
+   --> backend\src\cpu\backend.rs:657:9
+    |
+657 | ...   text_embeddings: &D...
+    |       ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_text_embeddings`
+
+warning: unused variable: `temperature`
+   --> backend\src\cpu\backend.rs:658:9
+    |
+658 |         temperature: f32,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_temperature`
+
+warning: unused variable: `keys`
+   --> backend\src\cpu\backend.rs:667:9
+    |
+667 |         keys: &DenseStora...
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_keys`
+
+warning: unused variable: `values`
+   --> backend\src\cpu\backend.rs:668:9
+    |
+668 |         values: &DenseSto...
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_values`
+
+warning: unused variable: `num_heads`
+   --> backend\src\cpu\backend.rs:669:9
+    |
+669 |         num_heads: usize,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_num_heads`
+
+warning: `backend` (lib) generated 9 warnings (run `cargo fix --lib -p backend` to apply 9 suggestions)
+warning: unexpected `cfg` condition value: `std`
+  --> sparse\src\lib.rs:30:7
+   |
+30 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default` and `gpu`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `crate::Result`
+  --> sparse\src\arithmetic\mod.rs:39:5
+   |
+39 | use crate::Result;
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `storage::CsrStorage`
+  --> sparse\src\arithmetic\mod.rs:41:5
+   |
+41 | use storage::CsrStorage;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\activation\sigmoid.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `StorageError`
+  --> sparse\src\activation\mod.rs:17:35
+   |
+17 | ...ult, StorageError};
+   |         ^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+ --> sparse\src\creation\zeros.rs:6:5
+  |
+6 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\layout\transpose.rs:7:5
+  |
+7 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `CooStorage`, `CscStorage`, and `Result`
+  --> sparse\src\reduction\mod.rs:16:27
+   |
+16 | ...e, CscStorage, CooStorage, Result};
+   |       ^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^
+
+warning: unused import: `Storage`
+ --> sparse\src\linear_algebra\matmul.rs:9:37
+  |
+9 | ...taType, Storage, Storage...
+  |            ^^^^^^^
+
+warning: unused import: `Storage`
+ --> sparse\src\layout\transpose.rs:8:37
+  |
+8 | ...taType, Storage};
+  |            ^^^^^^^
+
+warning: unexpected `cfg` condition value: `std`
+  --> dense\src\lib.rs:32:7
+   |
+32 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^ help: remove the condition
+   |
+   = note: no expected values for `feature`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused imports: `StorageError` and `Storage`
+ --> dense\src\activation\relu.rs:5:29
+  |
+5 | ...e, Storage, StorageError};
+  |       ^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\relu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\sigmoid.rs:5:29
+  |
+5 | ...torage, Storage};
+  |            ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\sigmoid.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\tanh.rs:5:29
+  |
+5 | ...torage, Storage};
+  |            ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\tanh.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\gelu.rs:5:29
+  |
+5 | ...torage, Storage};
+  |            ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\gelu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+  --> dense\src\layout\mod.rs:16:37
+   |
+16 | ...Result, Storage};
+   |            ^^^^^^^
+
+warning: unused import: `Shape`
+ --> dense\src\creation\zeros.rs:3:37
+  |
+3 | ... Result, Shape, Storage};
+  |             ^^^^^
+
+warning: unused import: `Storage`
+  --> dense\src\creation\mod.rs:16:37
+   |
+16 | ...Result, Storage};
+   |            ^^^^^^^
+
+warning: unused variable: `new_shape`
+   --> dense\src\layout\transpose.rs:194:5
+    |
+194 |     new_shape: &[usize],
+    |     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_shape`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `coeus-sparse` (lib) generated 10 warnings (run `cargo fix --lib -p coeus-sparse` to apply 7 suggestions)
+warning: `dense` (lib) generated 13 warnings (run `cargo fix --lib -p dense` to apply 12 suggestions)
+warning: unused imports: `SparseDiv`, `SparseMul`, and `SparseSub`
+  --> tensor\src\ops\arithmetic\dispatch.rs:30:31
+   |
+30 | ...d, SparseSub, SparseMul, SparseDiv};
+   |       ^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Tensor`
+ --> tensor\src\ops\sparse\traits.rs:6:21
+  |
+6 | ...{Result, Tensor, TensorE...
+  |             ^^^^^^
+
+warning: unused imports: `Backend`, `DataType`, and `TensorError`
+ --> tensor\src\ops\sparse\mod.rs:8:13
+  |
+8 | ...::{Backend, DataType, Result, Tensor, TensorError};
+  |       ^^^^^^^  ^^^^^^^^                  ^^^^^^^^^^^
+
+warning: unused imports: `SparseAdd` and `SparseMatMul`
+  --> tensor\src\ops\sparse\mod.rs:10:20
+   |
+10 | ...::{SparseMatMul, SparseAdd};
+   |       ^^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `SparseFormat`
+  --> tensor\src\ops\sparse\mod.rs:11:27
+   |
+11 | ...age, SparseFormat};
+   |         ^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> tensor\src\ops\sparse\mod.rs:12:5
+   |
+12 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `DenseStorage` and `Storage`
+ --> tensor\src\sparse\coo.rs:1:32
+  |
+1 | ...e, DenseStorage, Result, Storage, T...
+  |       ^^^^^^^^^^^^          ^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> tensor\src\sparse\csc.rs:1:32
+  |
+1 | ...Type, DenseStorage, Resu...
+  |          ^^^^^^^^^^^^
+
+warning: unused import: `crate::ops::sparse::TensorSparseOps`
+  --> tensor\src\sparse\csr.rs:51:13
+   |
+51 | ...se crate::ops::sparse::TensorSparseOps;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csr.rs:1:74
+  |
+1 | ...Result, Storage, Tensor};
+  |            ^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csc.rs:1:54
+  |
+1 | ...Result, Storage, Tensor};
+  |            ^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\classification\cross_entropy.rs:6:5
+  |
+6 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\reduction\mean.rs:7:5
+  |
+7 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `StorageToDense`
+  --> tensor\src\ops\dispatch\sparse_dispatch.rs:13:36
+   |
+13 | ...ge, StorageToDense};
+   |        ^^^^^^^^^^^^^^
+
+warning: unused variable: `i`
+  --> tensor\src\ops\layout\cat.rs:36:10
+   |
+36 |     for (i, t) in tensors....
+   |          ^ help: if this is intentional, prefix it with an underscore: `_i`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `weight_ih`
+  --> tensor\src\ops\rnn\rnn.rs:36:13
+   |
+36 | ... let weight_ih = input....
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_ih`
+
+warning: unused variable: `weight_hh`
+  --> tensor\src\ops\rnn\rnn.rs:37:13
+   |
+37 | ... let weight_hh = input....
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_hh`
+
+warning: unused variable: `bias_ih`
+  --> tensor\src\ops\rnn\rnn.rs:38:13
+   |
+38 | ...   let bias_ih: Option<...
+   |           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_ih`
+
+warning: unused variable: `bias_hh`
+  --> tensor\src\ops\rnn\rnn.rs:39:13
+   |
+39 | ...   let bias_hh: Option<...
+   |           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_hh`
+
+warning: unused variable: `sqrt2`
+  --> tensor\src\functions\activation\gelu.rs:59:13
+   |
+59 | ...   let sqrt2 = T::from_...
+   |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_sqrt2`
+
+warning: function `input_data_len` is never used
+  --> tensor\src\ops\classification\cross_entropy.rs:76:4
+   |
+76 | fn input_data_len<B, S, T>...
+   |    ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tensor` (lib) generated 21 warnings (run `cargo fix --lib -p tensor` to apply 15 suggestions)
+warning: function `canonical_reduce_dims` is never used
+  --> autograd\src\functions\mod.rs:52:15
+   |
+52 | ...fn canonical_reduce_dims(
+   |       ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `kept_shape_for_reduction` is never used
+  --> autograd\src\functions\mod.rs:74:15
+   |
+74 | ...fn kept_shape_for_reduction(
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `unbroadcast_dense` is never used
+   --> autograd\src\functions\mod.rs:117:15
+    |
+117 | ...fn unbroadcast_dense<B,...
+    |       ^^^^^^^^^^^^^^^^^
+
+warning: function `to_storage_preserving_graph` is never used
+   --> autograd\src\functions\mod.rs:160:15
+    |
+160 | ...fn to_storage_preserving_graph<B,...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `to_dense_preserving_graph_identity` is never used
+   --> autograd\src\functions\mod.rs:174:15
+    |
+174 | ...fn to_dense_preserving_graph_identity<B,...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `autograd` (lib) generated 5 warnings
+warning: unused variable: `one_minus_rho`
+   --> optim\src\adadelta.rs:171:21
+    |
+171 | ...et one_minus_rho = one...
+    |       ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_one_minus_rho`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `step_size`
+   --> optim\src\adamax.rs:104:13
+    |
+104 | ... let step_size = lr * ...
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_step_size`
+
+warning: `optim` (lib) generated 2 warnings (run `cargo fix --lib -p optim` to apply 2 suggestions)
+warning: unused import: `std::ops::Mul`
+  --> nn\src\functional\attention\mod.rs:14:5
+   |
+14 | use std::ops::Mul;
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::fmt`
+ --> nn\src\audio\models\base.rs:6:5
+  |
+6 | use std::fmt;
+  |     ^^^^^^^^
+
+warning: unused imports: `NNError` and `Result`
+ --> nn\src\audio\models\base.rs:7:26
+  |
+7 | ...r::{NNError, Result};
+  |        ^^^^^^^  ^^^^^^
+
+warning: unused import: `crate::modules::attention::MultiHeadAttention`
+ --> nn\src\audio\models\base.rs:8:5
+  |
+8 | use crate::modules::attention::MultiHeadAttention;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::modules::normalization::LayerNorm`
+  --> nn\src\audio\models\base.rs:10:5
+   |
+10 | use crate::modules::normalization::LayerNorm;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::modules::activation::GeLU`
+  --> nn\src\audio\models\base.rs:11:5
+   |
+11 | use crate::modules::activation::GeLU;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\audio\models\recognition.rs:9:26
+  |
+9 | ...error::{NNError, Result};
+  |            ^^^^^^^
+
+warning: unused imports: `Arc` and `Mutex`
+ --> nn\src\audio\ops\processing.rs:7:17
+  |
+7 | use std::sync::{Arc, Mutex};
+  |                 ^^^  ^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\audio\ops\processing.rs:8:26
+  |
+8 | ...error::{NNError, Result};
+  |            ^^^^^^^
+
+warning: unused import: `core::*`
+ --> nn\src\audio\mod.rs:5:9
+  |
+5 | pub use core::*;
+  |         ^^^^^^^
+
+warning: unused variable: `frame`
+   --> nn\src\audio\ops\features.rs:227:63
+    |
+227 | ...).map(|frame| {
+    |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_frame`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `params`
+   --> nn\src\audio\ops\processing.rs:368:45
+    |
+368 | ...mpling(params) => {
+    |           ^^^^^^ help: if this is intentional, prefix it with an underscore: `_params`
+
+warning: unused variable: `sample_rate`
+   --> nn\src\audio\ops\classification.rs:212:47
+    |
+212 | ...32], sample_rate: usiz...
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+warning: unused variable: `audio`
+   --> nn\src\audio\ops\classification.rs:371:43
+    |
+371 | ...&self, audio: &[f32], ...
+    |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_audio`
+
+warning: unused variable: `sample_rate`
+   --> nn\src\audio\ops\classification.rs:371:58
+    |
+371 | ...32], sample_rate: usiz...
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+warning: fields `feature_encoder`, `quantizer`, `transformer_layers`, and `config` are never read
+  --> nn\src\audio\models\base.rs:22:5
+   |
+15 | pub struct Wav2VecModel<B,...
+   |            ------------ fields in this struct
+...
+22 |     feature_encoder: Vec<C...
+   |     ^^^^^^^^^^^^^^^
+23 |     /// Quantizer for disc...
+24 |     quantizer: Option<Prod...
+   |     ^^^^^^^^^
+25 |     /// Transformer layers...
+26 |     transformer_layers: Ve...
+   |     ^^^^^^^^^^^^^^^^^^
+27 |     /// Configuration
+28 |     config: Wav2VecConfig,
+   |     ^^^^^^
+   |
+   = note: `Wav2VecModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `wav2vec_encoder`, `clustering_head`, and `config` are never read
+  --> nn\src\audio\models\base.rs:40:5
+   |
+33 | pub struct HubertModel<B, ...
+   |            ----------- fields in this struct
+...
+40 |     wav2vec_encoder: Wav2V...
+   |     ^^^^^^^^^^^^^^^
+41 |     /// Clustering head fo...
+42 |     clustering_head: Linea...
+   |     ^^^^^^^^^^^^^^^
+43 |     /// Configuration
+44 |     config: HubertConfig,
+   |     ^^^^^^
+   |
+   = note: `HubertModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `encoder`, `decoder`, `lm_head`, and `config` are never read
+  --> nn\src\audio\models\base.rs:56:5
+   |
+49 | pub struct WhisperModel<B,...
+   |            ------------ fields in this struct
+...
+56 |     encoder: Vec<Transform...
+   |     ^^^^^^^
+57 |     /// Text decoder for a...
+58 |     decoder: Vec<Transform...
+   |     ^^^^^^^
+59 |     /// Language model head
+60 |     lm_head: Linear<B, S, T>,
+   |     ^^^^^^^
+61 |     /// Configuration
+62 |     config: WhisperConfig,
+   |     ^^^^^^
+   |
+   = note: `WhisperModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `encoder`, `decoder`, `postnet`, and `config` are never read
+  --> nn\src\audio\models\base.rs:74:5
+   |
+67 | pub struct TacotronModel<B,...
+   |            ------------- fields in this struct
+...
+74 |     encoder: Vec<Transforme...
+   |     ^^^^^^^
+75 |     /// Decoder with attention
+76 |     decoder: Vec<TacotronDe...
+   |     ^^^^^^^
+77 |     /// Post-net for spectr...
+78 |     postnet: Vec<Conv1D<B, ...
+   |     ^^^^^^^
+79 |     /// Configuration
+80 |     config: TacotronConfig,
+   |     ^^^^^^
+   |
+   = note: `TacotronModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: multiple fields are never read
+   --> nn\src\audio\models\base.rs:92:5
+    |
+ 85 | pub struct FastSpeechModel<B,...
+    |            --------------- fields in this struct
+...
+ 92 |     encoder: Vec<TransformerL...
+    |     ^^^^^^^
+ 93 |     /// Duration predictor
+ 94 |     duration_predictor: Durat...
+    |     ^^^^^^^^^^^^^^^^^^
+ 95 |     /// Pitch predictor
+ 96 |     pitch_predictor: PitchPre...
+    |     ^^^^^^^^^^^^^^^
+ 97 |     /// Energy predictor
+ 98 |     energy_predictor: EnergyP...
+    |     ^^^^^^^^^^^^^^^^
+ 99 |     /// Decoder
+100 |     decoder: Vec<TransformerL...
+    |     ^^^^^^^
+101 |     /// Post-net
+102 |     postnet: Vec<Conv1D<B, S,...
+    |     ^^^^^^^
+103 |     /// Configuration
+104 |     config: FastSpeechConfig,
+    |     ^^^^^^
+    |
+    = note: `FastSpeechModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `decoder_config` is never read
+  --> nn\src\audio\models\recognition.rs:21:5
+   |
+13 | pub struct SpeechRecognizer {
+   |            ---------------- field in this struct
+...
+21 |     decoder_config: DecoderCon...
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `SpeechRecognizer` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `model_type`, `vocab_size`, and `weight` are never read
+  --> nn\src\audio\models\recognition.rs:41:5
+   |
+39 | pub struct LanguageModel {
+   |            ------------- fields in this struct
+40 |     /// Language model type
+41 |     model_type: LanguageMod...
+   |     ^^^^^^^^^^
+42 |     /// Vocabulary size
+43 |     vocab_size: usize,
+   |     ^^^^^^^^^^
+44 |     /// Language model weight
+45 |     weight: f32,
+   |     ^^^^^^
+   |
+   = note: `LanguageModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `confidence_threshold` is never read
+  --> nn\src\audio\models\recognition.rs:65:5
+   |
+61 | pub struct LanguageIdModel {
+   |            --------------- field in this struct
+...
+65 |     confidence_threshold: f32,
+   |     ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `LanguageIdModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `sample_rate` is never read
+  --> nn\src\audio\models\synthesis.rs:32:5
+   |
+22 | pub struct TTSModel {
+   |            -------- field in this struct
+...
+32 |     sample_rate: usize,
+   |     ^^^^^^^^^^^
+   |
+   = note: `TTSModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `wavelet_type` is never read
+   --> nn\src\audio\ops\features.rs:589:5
+    |
+586 | pub struct WaveletExtractor {
+    |            ---------------- field in this struct
+...
+589 |     wavelet_type: String,
+    |     ^^^^^^^^^^^^
+
+warning: field `model` is never read
+  --> nn\src\audio\ops\classification.rs:28:5
+   |
+26 | pub struct MusicGenreClassifier {
+   |            -------------------- field in this struct
+27 |     /// Specialized model for musi...
+28 |     model: MusicClassificationModel,
+   |     ^^^^^
+   |
+   = note: `MusicGenreClassifier` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `architecture`, `dataset`, and `parameters` are never read
+  --> nn\src\audio\ops\classification.rs:52:5
+   |
+50 | pub struct MusicClassificationModel {
+   |            ------------------------ fields in this struct
+51 |     /// Model architecture
+52 |     architecture: MusicModelArchitecture,
+   |     ^^^^^^^^^^^^
+53 |     /// Training dataset used
+54 |     dataset: String,
+   |     ^^^^^^^
+55 |     /// Model parameters
+56 |     parameters: usize,
+   |     ^^^^^^^^^^
+   |
+   = note: `MusicClassificationModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `params` is never read
+  --> nn\src\audio\ops\classification.rs:91:5
+   |
+87 | pub struct MusicFeatureExtractor {
+   |            --------------------- field in this struct
+...
+91 |     params: MusicFeatureParams,
+   |     ^^^^^^
+   |
+   = note: `MusicFeatureExtractor` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: `nn` (lib) generated 28 warnings (run `cargo fix --lib -p nn` to apply 15 suggestions)
+    Checking pycoeus v0.2.1 (D:\coeus\pycoeus)
+error[E0433]: failed to resolve: could not find `PyTensorFactory` in `factory`
+   --> pycoeus\src\tensor\ops\mod.rs:198:53
+    |
+198 |         let scalar_tensor = crate::tensor::factory::PyTensorFactory::full(self.shape(), value, Some(dtype.as_str()), Some("cpu"))?;
+    |                                                     ^^^^^^^^^^^^^^^ could not find `PyTensorFactory` in `factory`
+
+error[E0425]: cannot find function `matmul` in module `linalg`
+   --> pycoeus\src\tensor\ops\mod.rs:176:76
+    |
+176 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::matmul(self, other) }
+    |                                                                            ^^^^^^ not found in `linalg`
+    |
+help: consider importing one of these functions
+    |
+  1 + use crate::functional::matmul;
+    |
+  1 + use crate::functional::ops::matmul;
+    |
+  1 + use autograd::tensor_ops::matmul;
+    |
+  1 + use tensor::ops::matmul;
+    |
+help: if you import `matmul`, refer to it directly
+    |
+176 -     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::matmul(self, other) }
+176 +     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> { matmul(self, other) }
+    |
+
+error[E0425]: cannot find function `bmm` in module `linalg`
+   --> pycoeus\src\tensor\ops\mod.rs:177:73
+    |
+177 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::bmm(self, other) }
+    |                                                                         ^^^ not found in `linalg`
+    |
+help: consider importing one of these functions
+    |
+  1 + use crate::functional::bmm;
+    |
+  1 + use crate::functional::ops::bmm;
+    |
+  1 + use tensor::ops::linalg::bmm;
+    |
+help: if you import `bmm`, refer to it directly
+    |
+177 -     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::bmm(self, other) }
+177 +     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> { bmm(self, other) }
+    |
+
+error[E0425]: cannot find function `atan2` in module `linalg`
+   --> pycoeus\src\tensor\ops\mod.rs:178:75
+    |
+178 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::atan2(self, other) }
+    |                                                                           ^^^^^ not found in `linalg`
+    |
+help: consider importing this function
+    |
+  1 + use tensor::ops::atan2;
+    |
+help: if you import `atan2`, refer to it directly
+    |
+178 -     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::atan2(self, other) }
+178 +     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> { atan2(self, other) }
+    |
+
+error[E0425]: cannot find function `reshape` in module `shape`
+   --> pycoeus\src\tensor\ops\mod.rs:180:77
+    |
+180 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::reshape(self, shape) }
+    |                                                                             ^^^^^^^ not found in `shape`
+    |
+help: consider importing one of these functions
+    |
+  1 + use crate::functional::reshape;
+    |
+  1 + use autograd::tensor_ops::reshape;
+    |
+  1 + use tensor::ops::reshape;
+    |
+help: if you import `reshape`, refer to it directly
+    |
+180 -     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::reshape(self, shape) }
+180 +     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> { reshape(self, shape) }
+    |
+
+error[E0425]: cannot find function `view` in module `shape`
+   --> pycoeus\src\tensor\ops\mod.rs:181:74
+    |
+181 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::view(self, shape) }
+    |                                                                          ^^^^ not found in `shape`
+    |
+help: consider importing this function through its public re-export
+    |
+  1 + use crate::functional::view;
+    |
+help: if you import `view`, refer to it directly
+    |
+181 -     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::view(self, shape) }
+181 +     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> { view(self, shape) }
+    |
+
+error[E0425]: cannot find function `permute` in module `shape`
+   --> pycoeus\src\tensor\ops\mod.rs:183:98
+    |
+183 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> { shape::permute(self, dims) }
+    |                                                                                                  ^^^^^^^ not found in `shape`
+    |
+help: consider importing this function through its public re-export
+    |
+  1 + use crate::functional::permute;
+    |
+help: if you import `permute`, refer to it directly
+    |
+183 -     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> { shape::permute(self, dims) }
+183 +     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> { permute(self, dims) }
+    |
+
+error[E0425]: cannot find function `squeeze` in module `shape`
+   --> pycoeus\src\tensor\ops\mod.rs:184:78
+    |
+184 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { shape::squeeze(self, dim) }
+    |                                                                              ^^^^^^^ not found in `shape`
+    |
+help: consider importing this function through its public re-export
+    |
+  1 + use crate::functional::squeeze;
+    |
+help: if you import `squeeze`, refer to it directly
+    |
+184 -     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { shape::squeeze(self, dim) }
+184 +     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { squeeze(self, dim) }
+    |
+
+error[E0425]: cannot find function `unsqueeze` in module `shape`
+   --> pycoeus\src\tensor\ops\mod.rs:185:72
+    |
+185 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> { shape::unsqueeze(self, dim) }
+    |                                                                        ^^^^^^^^^ not found in `shape`
+    |
+help: consider importing this function through its public re-export
+    |
+  1 + use crate::functional::unsqueeze;
+    |
+help: if you import `unsqueeze`, refer to it directly
+    |
+185 -     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> { shape::unsqueeze(self, dim) }
+185 +     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> { unsqueeze(self, dim) }
+    |
+
+error[E0425]: cannot find function `transpose` in module `shape`
+   --> pycoeus\src\tensor\ops\mod.rs:186:86
+    |
+186 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> { shape::transpose(self, dim0, dim1) }
+    |                                                                                      ^^^^^^^^^ not found in `shape`
+    |
+help: consider importing one of these functions
+    |
+  1 + use crate::functional::transpose;
+    |
+  1 + use autograd::tensor_ops::transpose;
+    |
+  1 + use tensor::ops::transpose;
+    |
+help: if you import `transpose`, refer to it directly
+    |
+186 -     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> { shape::transpose(self, dim0, dim1) }
+186 +     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> { transpose(self, dim0, dim1) }
+    |
+
+warning: ambiguous glob re-exports
+  --> pycoeus\src\functional\mod.rs:11:9
+   |
+11 | pub use linear::*;
+   |         ^^^^^^^^^ the name `matmul` in the value namespace is first re-exported here
+...
+14 | pub use ops::*;
+   |         ------ but the name `matmul` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: ambiguous glob re-exports
+  --> pycoeus\src\functional\mod.rs:11:9
+   |
+11 | pub use linear::*;
+   |         ^^^^^^^^^ the name `matmul` in the type namespace is first re-exported here
+...
+14 | pub use ops::*;
+   |         ------ but the name `matmul` in the type namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> pycoeus\src\functional\mod.rs:11:9
+   |
+11 | pub use linear::*;
+   |         ^^^^^^^^^ the name `bmm` in the value namespace is first re-exported here
+...
+14 | pub use ops::*;
+   |         ------ but the name `bmm` in the value namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> pycoeus\src\functional\mod.rs:11:9
+   |
+11 | pub use linear::*;
+   |         ^^^^^^^^^ the name `bmm` in the type namespace is first re-exported here
+...
+14 | pub use ops::*;
+   |         ------ but the name `bmm` in the type namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> pycoeus\src\functional\mod.rs:11:9
+   |
+11 | pub use linear::*;
+   |         ^^^^^^^^^ the name `addmm` in the value namespace is first re-exported here
+...
+14 | pub use ops::*;
+   |         ------ but the name `addmm` in the value namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> pycoeus\src\functional\mod.rs:11:9
+   |
+11 | pub use linear::*;
+   |         ^^^^^^^^^ the name `addmm` in the type namespace is first re-exported here
+...
+14 | pub use ops::*;
+   |         ------ but the name `addmm` in the type namespace is also re-exported here
+
+warning: unused import: `storage::DenseStorage`
+ --> pycoeus\src\optim\sgd.rs:8:5
+  |
+8 | use storage::DenseStorage;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `wrap_pyfunction`
+ --> pycoeus\src\schedulers.rs:7:12
+  |
+7 | use pyo3::{wrap_pyfunction, Bound, PyResult, Python};
+  |            ^^^^^^^^^^^^^^^
+
+warning: unused import: `dispatch_unary`
+ --> pycoeus\src\tensor\ops\comparison.rs:2:30
+  |
+2 | use crate::{dispatch_binary, dispatch_unary};
+  |                              ^^^^^^^^^^^^^^
+
+warning: unused imports: `TensorWrapper` and `to_py_err`
+ --> pycoeus\src\tensor\ops\reduction.rs:1:38
+  |
+1 | use crate::tensor::class::{PyTensor, TensorWrapper, to_py_err};
+  |                                      ^^^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `Device`
+ --> pycoeus\src\tensor\ops\conversion.rs:1:64
+  |
+1 | use crate::tensor::class::{PyTensor, TensorWrapper, to_py_err, Device};
+  |                                                                ^^^^^^
+
+warning: unused import: `crate::dispatch_tensor`
+ --> pycoeus\src\tensor\ops\conversion.rs:2:5
+  |
+2 | use crate::dispatch_tensor;
+  |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `backend::CpuBackend`
+ --> pycoeus\src\tensor\ops\conversion.rs:3:5
+  |
+3 | use backend::CpuBackend;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `wrap_pyfunction`
+ --> pycoeus\src\utils.rs:3:12
+  |
+3 | use pyo3::{wrap_pyfunction, Bound, Py, PyAny, PyErr, PyResult, Python};
+  |            ^^^^^^^^^^^^^^^
+
+error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyMethods<PyTensor>` for type `pyo3::impl_::pyclass::PyClassImplCollector<PyTensor>`
+ --> pycoeus\src\tensor\ops\shape.rs:5:1
+  |
+5 | #[pymethods]
+  | ^^^^^^^^^^^^ conflicting implementation for `pyo3::impl_::pyclass::PyClassImplCollector<PyTensor>`
+  |
+ ::: pycoeus\src\tensor\ops\comparison.rs:6:1
+  |
+6 | #[pymethods]
+  | ------------ first implementation here
+  |
+  = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyMethods<PyTensor>` for type `pyo3::impl_::pyclass::PyClassImplCollector<PyTensor>`
+ --> pycoeus\src\tensor\ops\linalg.rs:4:1
+  |
+4 | #[pymethods]
+  | ^^^^^^^^^^^^ conflicting implementation for `pyo3::impl_::pyclass::PyClassImplCollector<PyTensor>`
+  |
+ ::: pycoeus\src\tensor\ops\comparison.rs:6:1
+  |
+6 | #[pymethods]
+  | ------------ first implementation here
+  |
+  = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyMethods<PyTensor>` for type `pyo3::impl_::pyclass::PyClassImplCollector<PyTensor>`
+ --> pycoeus\src\tensor\ops\reduction.rs:4:1
+  |
+4 | #[pymethods]
+  | ^^^^^^^^^^^^ conflicting implementation for `pyo3::impl_::pyclass::PyClassImplCollector<PyTensor>`
+  |
+ ::: pycoeus\src\tensor\ops\comparison.rs:6:1
+  |
+6 | #[pymethods]
+  | ------------ first implementation here
+  |
+  = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyMethods<PyTensor>` for type `pyo3::impl_::pyclass::PyClassImplCollector<PyTensor>`
+ --> pycoeus\src\tensor\ops\inplace.rs:6:1
+  |
+6 | #[pymethods]
+  | ^^^^^^^^^^^^ conflicting implementation for `pyo3::impl_::pyclass::PyClassImplCollector<PyTensor>`
+  |
+ ::: pycoeus\src\tensor\ops\comparison.rs:6:1
+  |
+6 | #[pymethods]
+  | ------------ first implementation here
+  |
+  = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `pyo3::impl_::pyclass::PyMethods<PyTensor>` for type `pyo3::impl_::pyclass::PyClassImplCollector<PyTensor>`
+  --> pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ^^^^^^^^^^^^ conflicting implementation for `pyo3::impl_::pyclass::PyClassImplCollector<PyTensor>`
+   |
+  ::: pycoeus\src\tensor\ops\comparison.rs:6:1
+   |
+ 6 | #[pymethods]
+   | ------------ first implementation here
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `reshape`
+   --> pycoeus\src\tensor\ops\shape.rs:7:5
+    |
+  7 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `reshape`
+    |
+   ::: pycoeus\src\tensor\ops\mod.rs:180:5
+    |
+180 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::reshape(self, shape) }
+    |     -------------------------------------------------------------- other definition for `reshape`
+
+error[E0592]: duplicate definitions with name `view`
+   --> pycoeus\src\tensor\ops\shape.rs:11:5
+    |
+ 11 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `view`
+    |
+   ::: pycoeus\src\tensor\ops\mod.rs:181:5
+    |
+181 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::view(self, shape) }
+    |     ----------------------------------------------------------- other definition for `view`
+
+error[E0592]: duplicate definitions with name `permute`
+   --> pycoeus\src\tensor\ops\shape.rs:16:5
+    |
+ 16 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `permute`
+    |
+   ::: pycoeus\src\tensor\ops\mod.rs:183:5
+    |
+183 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> { shape::permute(self, dims) }
+    |     ----------------------------------------------------------------------------------- other definition for `permute`
+
+error[E0592]: duplicate definitions with name `squeeze`
+   --> pycoeus\src\tensor\ops\shape.rs:34:5
+    |
+ 34 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `squeeze`
+    |
+   ::: pycoeus\src\tensor\ops\mod.rs:184:5
+    |
+184 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { shape::squeeze(self, dim) }
+    |     --------------------------------------------------------------- other definition for `squeeze`
+
+error[E0592]: duplicate definitions with name `unsqueeze`
+   --> pycoeus\src\tensor\ops\shape.rs:65:5
+    |
+ 65 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `unsqueeze`
+    |
+   ::: pycoeus\src\tensor\ops\mod.rs:185:5
+    |
+185 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> { shape::unsqueeze(self, dim) }
+    |     --------------------------------------------------------- other definition for `unsqueeze`
+
+error[E0592]: duplicate definitions with name `transpose`
+   --> pycoeus\src\tensor\ops\shape.rs:69:5
+    |
+ 69 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `transpose`
+    |
+   ::: pycoeus\src\tensor\ops\mod.rs:186:5
+    |
+186 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> { shape::transpose(self, dim0, dim1) }
+    |     ----------------------------------------------------------------------- other definition for `transpose`
+
+error[E0592]: duplicate definitions with name `__pymethod_reshape__`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^ duplicate definitions for `__pymethod_reshape__`
+   |
+  ::: pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ------------ other definition for `__pymethod_reshape__`
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pymethod_view__`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^ duplicate definitions for `__pymethod_view__`
+   |
+  ::: pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ------------ other definition for `__pymethod_view__`
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pymethod_permute__`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^ duplicate definitions for `__pymethod_permute__`
+   |
+  ::: pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ------------ other definition for `__pymethod_permute__`
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pymethod_squeeze__`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^ duplicate definitions for `__pymethod_squeeze__`
+   |
+  ::: pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ------------ other definition for `__pymethod_squeeze__`
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pymethod_unsqueeze__`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^ duplicate definitions for `__pymethod_unsqueeze__`
+   |
+  ::: pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ------------ other definition for `__pymethod_unsqueeze__`
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pymethod_transpose__`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^ duplicate definitions for `__pymethod_transpose__`
+   |
+  ::: pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ------------ other definition for `__pymethod_transpose__`
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `matmul`
+   --> pycoeus\src\tensor\ops\linalg.rs:6:5
+    |
+  6 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `matmul`
+    |
+   ::: pycoeus\src\tensor\ops\mod.rs:176:5
+    |
+176 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::matmul(self, other) }
+    |     ------------------------------------------------------------ other definition for `matmul`
+
+error[E0592]: duplicate definitions with name `bmm`
+   --> pycoeus\src\tensor\ops\linalg.rs:22:5
+    |
+ 22 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `bmm`
+    |
+   ::: pycoeus\src\tensor\ops\mod.rs:177:5
+    |
+177 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::bmm(self, other) }
+    |     --------------------------------------------------------- other definition for `bmm`
+
+error[E0592]: duplicate definitions with name `atan2`
+   --> pycoeus\src\tensor\ops\linalg.rs:26:5
+    |
+ 26 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `atan2`
+    |
+   ::: pycoeus\src\tensor\ops\mod.rs:178:5
+    |
+178 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::atan2(self, other) }
+    |     ----------------------------------------------------------- other definition for `atan2`
+
+error[E0592]: duplicate definitions with name `__pymethod_matmul__`
+  --> pycoeus\src\tensor\ops\linalg.rs:4:1
+   |
+ 4 | #[pymethods]
+   | ^^^^^^^^^^^^ duplicate definitions for `__pymethod_matmul__`
+   |
+  ::: pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ------------ other definition for `__pymethod_matmul__`
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pymethod_bmm__`
+  --> pycoeus\src\tensor\ops\linalg.rs:4:1
+   |
+ 4 | #[pymethods]
+   | ^^^^^^^^^^^^ duplicate definitions for `__pymethod_bmm__`
+   |
+  ::: pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ------------ other definition for `__pymethod_bmm__`
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `__pymethod_atan2__`
+  --> pycoeus\src\tensor\ops\linalg.rs:4:1
+   |
+ 4 | #[pymethods]
+   | ^^^^^^^^^^^^ duplicate definitions for `__pymethod_atan2__`
+   |
+  ::: pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ------------ other definition for `__pymethod_atan2__`
+   |
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\functional\loss.rs:89:32
+    |
+ 89 |     PyTensor { inner: result }.squeeze(None)
+    |                                ^^^^^^^ multiple `squeeze` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:184:5
+    |
+184 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { shape::squeeze(self, dim) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:34:5
+    |
+ 34 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\functional\loss.rs:127:12
+    |
+127 |     result.squeeze(None)
+    |            ^^^^^^^ multiple `squeeze` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:184:5
+    |
+184 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { shape::squeeze(self, dim) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:34:5
+    |
+ 34 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\functional\ops.rs:22:11
+    |
+ 22 |     input.matmul(other)
+    |           ^^^^^^ multiple `matmul` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:176:5
+    |
+176 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::matmul(self, other) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:6:5
+    |
+  6 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\functional\ops.rs:28:11
+    |
+ 28 |     input.bmm(other)
+    |           ^^^ multiple `bmm` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:177:5
+    |
+177 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::bmm(self, other) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:22:5
+    |
+ 22 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\functional\ops.rs:47:11
+    |
+ 47 |     input.reshape(shape)
+    |           ^^^^^^^ multiple `reshape` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:180:5
+    |
+180 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::reshape(self, shape) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:7:5
+    |
+  7 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\functional\ops.rs:53:11
+    |
+ 53 |     input.view(shape)
+    |           ^^^^ multiple `view` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:181:5
+    |
+181 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::view(self, shape) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:11:5
+    |
+ 11 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\functional\ops.rs:67:11
+    |
+ 67 |     input.squeeze(dim)
+    |           ^^^^^^^ multiple `squeeze` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:184:5
+    |
+184 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { shape::squeeze(self, dim) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:34:5
+    |
+ 34 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\functional\ops.rs:73:11
+    |
+ 73 |     input.unsqueeze(dim)
+    |           ^^^^^^^^^ multiple `unsqueeze` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:185:5
+    |
+185 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> { shape::unsqueeze(self, dim) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:65:5
+    |
+ 65 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\functional\ops.rs:79:11
+    |
+ 79 |     input.transpose(dim0, dim1)
+    |           ^^^^^^^^^ multiple `transpose` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:186:5
+    |
+186 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> { shape::transpose(self, dim0, dim1) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:69:5
+    |
+ 69 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\nn\normalization\batchnorm.rs:104:36
+    |
+104 |             let unsqueezed = input.unsqueeze(2)?;
+    |                                    ^^^^^^^^^ multiple `unsqueeze` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:185:5
+    |
+185 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> { shape::unsqueeze(self, dim) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:65:5
+    |
+ 65 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> pycoeus\src\nn\normalization\batchnorm.rs:107:30
+    |
+107 |                     .forward(i)
+    |                      ------- ^ expected `&Tensor<CpuBackend<Float32>, ..., ...>`, found `Tensor<CpuBackend<Float32>, ..., ...>`
+    |                      |
+    |                      arguments to this method are incorrect
+    |
+    = note: expected reference `&tensor::Tensor<_, _, _>`
+                  found struct `tensor::Tensor<_, _, _>`
+note: method defined here
+   --> D:\coeus\nn\src\core\module.rs:81:8
+    |
+ 81 |     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>;
+    |        ^^^^^^^
+help: consider borrowing here
+    |
+107 |                     .forward(&i)
+    |                              +
+
+error[E0308]: mismatched types
+   --> pycoeus\src\nn\normalization\batchnorm.rs:111:30
+    |
+111 |                     .forward(i)
+    |                      ------- ^ expected `&Tensor<CpuBackend<Float64>, ..., ...>`, found `Tensor<CpuBackend<Float64>, ..., ...>`
+    |                      |
+    |                      arguments to this method are incorrect
+    |
+    = note: expected reference `&tensor::Tensor<_, _, _>`
+                  found struct `tensor::Tensor<_, _, _>`
+note: method defined here
+   --> D:\coeus\nn\src\core\module.rs:81:8
+    |
+ 81 |     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>;
+    |        ^^^^^^^
+help: consider borrowing here
+    |
+111 |                     .forward(&i)
+    |                              +
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\nn\normalization\batchnorm.rs:151:40
+    |
+151 |             PyTensor { inner: output }.squeeze(Some(2))
+    |                                        ^^^^^^^ multiple `squeeze` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:184:5
+    |
+184 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { shape::squeeze(self, dim) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:34:5
+    |
+ 34 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `Result<CsrStorage<F32>, storage::StorageError>: backend::Storage<_>` is not satisfied
+   --> pycoeus\src\sparse.rs:103:27
+    |
+103 |         let self_tensor = Tensor::from_storage(self_csr, self.inner.backend().clone());
+    |                           ^^^^^^ the trait `backend::Storage<_>` is not implemented for `Result<CsrStorage<F32>, storage::StorageError>`
+    |
+    = help: the following other types implement trait `backend::Storage<T>`:
+              CooStorage<T>
+              CscStorage<T>
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              ShardedStorage<T>
+              StridedStorage<T>
+note: required by a bound in `tensor::Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:218:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+218 |     S: Storage<T>,
+    |        ^^^^^^^^^^ required by this bound in `Tensor`
+
+error[E0277]: the trait bound `Result<CsrStorage<F32>, storage::StorageError>: StorageFromVec<_>` is not satisfied
+   --> pycoeus\src\sparse.rs:103:48
+    |
+103 |         let self_tensor = Tensor::from_storage(self_csr, self.inner.backend().clone());
+    |                           -------------------- ^^^^^^^^ the trait `StorageFromVec<_>` is not implemented for `Result<CsrStorage<F32>, storage::StorageError>`
+    |                           |
+    |                           required by a bound introduced by this call
+    |
+    = help: the following other types implement trait `StorageFromVec<T>`:
+              CooStorage<T>
+              CscStorage<T>
+              CsrStorage<T>
+              DenseStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `tensor::creation::<impl tensor::Tensor<B, S, T>>::from_storage`
+   --> D:\coeus\tensor\src\implementations\creation.rs:14:29
+    |
+ 14 |     S: Storage<T> + Clone + storage::StorageFromVec<T>,
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `tensor::creation::<impl Tensor<B, S, T>>::from_storage`
+...
+ 28 |     pub fn from_storage(storage: S, backend: B) -> Self {
+    |            ------------ required by a bound in this associated function
+
+error[E0277]: the trait bound `Result<CsrStorage<F32>, storage::StorageError>: backend::Storage<F32>` is not satisfied
+   --> pycoeus\src\sparse.rs:103:27
+    |
+103 |         let self_tensor = Tensor::from_storage(self_csr, self.inner.backend().clone());
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `backend::Storage<F32>` is not implemented for `Result<CsrStorage<F32>, storage::StorageError>`
+    |
+    = help: the following other types implement trait `backend::Storage<T>`:
+              CooStorage<T>
+              CscStorage<T>
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              ShardedStorage<T>
+              StridedStorage<T>
+note: required by a bound in `tensor::Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:218:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+218 |     S: Storage<T>,
+    |        ^^^^^^^^^^ required by this bound in `Tensor`
+
+error[E0277]: the trait bound `Result<CsrStorage<F32>, storage::StorageError>: backend::Storage<_>` is not satisfied
+   --> pycoeus\src\sparse.rs:104:28
+    |
+104 |         let other_tensor = Tensor::from_storage(other_csr, other.inner.backend().clone());
+    |                            ^^^^^^ the trait `backend::Storage<_>` is not implemented for `Result<CsrStorage<F32>, storage::StorageError>`
+    |
+    = help: the following other types implement trait `backend::Storage<T>`:
+              CooStorage<T>
+              CscStorage<T>
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              ShardedStorage<T>
+              StridedStorage<T>
+note: required by a bound in `tensor::Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:218:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+218 |     S: Storage<T>,
+    |        ^^^^^^^^^^ required by this bound in `Tensor`
+
+error[E0277]: the trait bound `Result<CsrStorage<F32>, storage::StorageError>: StorageFromVec<_>` is not satisfied
+   --> pycoeus\src\sparse.rs:104:49
+    |
+104 |         let other_tensor = Tensor::from_storage(other_csr, other.inner.backend().clone());
+    |                            -------------------- ^^^^^^^^^ the trait `StorageFromVec<_>` is not implemented for `Result<CsrStorage<F32>, storage::StorageError>`
+    |                            |
+    |                            required by a bound introduced by this call
+    |
+    = help: the following other types implement trait `StorageFromVec<T>`:
+              CooStorage<T>
+              CscStorage<T>
+              CsrStorage<T>
+              DenseStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `tensor::creation::<impl tensor::Tensor<B, S, T>>::from_storage`
+   --> D:\coeus\tensor\src\implementations\creation.rs:14:29
+    |
+ 14 |     S: Storage<T> + Clone + storage::StorageFromVec<T>,
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `tensor::creation::<impl Tensor<B, S, T>>::from_storage`
+...
+ 28 |     pub fn from_storage(storage: S, backend: B) -> Self {
+    |            ------------ required by a bound in this associated function
+
+error[E0277]: the trait bound `Result<CsrStorage<F32>, storage::StorageError>: backend::Storage<F32>` is not satisfied
+   --> pycoeus\src\sparse.rs:104:28
+    |
+104 |         let other_tensor = Tensor::from_storage(other_csr, other.inner.backend().clone());
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `backend::Storage<F32>` is not implemented for `Result<CsrStorage<F32>, storage::StorageError>`
+    |
+    = help: the following other types implement trait `backend::Storage<T>`:
+              CooStorage<T>
+              CscStorage<T>
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              ShardedStorage<T>
+              StridedStorage<T>
+note: required by a bound in `tensor::Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:218:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+218 |     S: Storage<T>,
+    |        ^^^^^^^^^^ required by this bound in `Tensor`
+
+error[E0599]: no method named `sparse_add` found for struct `tensor::Tensor<CpuBackend<F32>, Result<CsrStorage<F32>, storage::StorageError>, F32>` in the current scope
+   --> pycoeus\src\sparse.rs:107:14
+    |
+106 |           let result = self_tensor
+    |  ______________________-
+107 | |             .sparse_add(&other_tensor)
+    | |             -^^^^^^^^^^ method not found in `tensor::Tensor<CpuBackend<F32>, Result<CsrStorage<F32>, storage::StorageError>, F32>`
+    | |_____________|
+    |
+    |
+    = note: the method was found for
+            - `tensor::Tensor<B, CsrStorage<T>, T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\shape.rs:12:14
+    |
+ 12 |         self.reshape(shape)
+    |              ^^^^^^^ multiple `reshape` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:180:5
+    |
+180 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::reshape(self, shape) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:7:5
+    |
+  7 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\shape.rs:7:12
+   |
+ 7 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+   |            ^^^^^^^ multiple `__pymethod_reshape__` found
+   |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\shape.rs:11:12
+   |
+11 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+   |            ^^^^ multiple `__pymethod_view__` found
+   |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\shape.rs:16:12
+   |
+16 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> {
+   |            ^^^^^^^ multiple `__pymethod_permute__` found
+   |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\shape.rs:34:12
+   |
+34 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> {
+   |            ^^^^^^^ multiple `__pymethod_squeeze__` found
+   |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\shape.rs:65:12
+   |
+65 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> {
+   |            ^^^^^^^^^ multiple `__pymethod_unsqueeze__` found
+   |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\shape.rs:69:12
+   |
+69 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> {
+   |            ^^^^^^^^^ multiple `__pymethod_transpose__` found
+   |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\shape.rs:5:1
+   |
+ 5 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\shape.rs:7:12
+    |
+  7 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+    |            ^^^^^^^ multiple `reshape` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:180:5
+    |
+180 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::reshape(self, shape) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:7:5
+    |
+  7 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+ --> pycoeus\src\tensor\ops\shape.rs:7:49
+  |
+7 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+  |                                                 ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+  |
+  = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+  = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\shape.rs:11:12
+    |
+ 11 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+    |            ^^^^ multiple `view` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:181:5
+    |
+181 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::view(self, shape) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:11:5
+    |
+ 11 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\shape.rs:11:46
+   |
+11 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+   |                                              ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+   |
+   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\shape.rs:16:12
+    |
+ 16 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> {
+    |            ^^^^^^^ multiple `permute` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:183:5
+    |
+183 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> { shape::permute(self, dims) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:16:5
+    |
+ 16 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\shape.rs:16:70
+   |
+16 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> {
+   |                                                                      ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+   |
+   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\shape.rs:34:12
+    |
+ 34 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> {
+    |            ^^^^^^^ multiple `squeeze` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:184:5
+    |
+184 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { shape::squeeze(self, dim) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:34:5
+    |
+ 34 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\shape.rs:34:50
+   |
+34 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> {
+   |                                                  ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+   |
+   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\shape.rs:65:12
+    |
+ 65 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> {
+    |            ^^^^^^^^^ multiple `unsqueeze` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:185:5
+    |
+185 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> { shape::unsqueeze(self, dim) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:65:5
+    |
+ 65 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\shape.rs:65:44
+   |
+65 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> {
+   |                                            ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+   |
+   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\shape.rs:69:12
+    |
+ 69 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> {
+    |            ^^^^^^^^^ multiple `transpose` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:186:5
+    |
+186 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> { shape::transpose(self, dim0, dim1) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:69:5
+    |
+ 69 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\shape.rs:69:58
+   |
+69 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> {
+   |                                                          ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+   |
+   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\linalg.rs:23:14
+    |
+ 23 |         self.matmul(other)
+    |              ^^^^^^ multiple `matmul` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:176:5
+    |
+176 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::matmul(self, other) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:6:5
+    |
+  6 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\linalg.rs:6:12
+   |
+ 6 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
+   |            ^^^^^^ multiple `__pymethod_matmul__` found
+   |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\linalg.rs:4:1
+   |
+ 4 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\linalg.rs:22:12
+   |
+22 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> {
+   |            ^^^ multiple `__pymethod_bmm__` found
+   |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\linalg.rs:4:1
+   |
+ 4 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\linalg.rs:26:12
+   |
+26 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+   |            ^^^^^ multiple `__pymethod_atan2__` found
+   |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\mod.rs:18:1
+   |
+18 | #[pymethods]
+   | ^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+  --> pycoeus\src\tensor\ops\linalg.rs:4:1
+   |
+ 4 | #[pymethods]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `pymethods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\linalg.rs:6:12
+    |
+  6 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |            ^^^^^^ multiple `matmul` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:176:5
+    |
+176 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::matmul(self, other) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:6:5
+    |
+  6 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+ --> pycoeus\src\tensor\ops\linalg.rs:6:47
+  |
+6 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
+  |                                               ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+  |
+  = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+  = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\linalg.rs:22:12
+    |
+ 22 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |            ^^^ multiple `bmm` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:177:5
+    |
+177 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::bmm(self, other) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:22:5
+    |
+ 22 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\linalg.rs:22:44
+   |
+22 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> {
+   |                                            ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+   |
+   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\linalg.rs:26:12
+    |
+ 26 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |            ^^^^^ multiple `atan2` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:178:5
+    |
+178 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::atan2(self, other) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:26:5
+    |
+ 26 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+  --> pycoeus\src\tensor\ops\linalg.rs:26:46
+   |
+26 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+   |                                              ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+   |
+   = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+   = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0277]: the trait bound `Result<CsrStorage<F32>, storage::StorageError>: backend::Storage<_>` is not satisfied
+   --> pycoeus\src\tensor\ops\conversion.rs:100:33
+    |
+100 |             let sparse_tensor = Tensor::from_storage(csr, t.backend().clone());
+    |                                 ^^^^^^ the trait `backend::Storage<_>` is not implemented for `Result<CsrStorage<F32>, storage::StorageError>`
+    |
+    = help: the following other types implement trait `backend::Storage<T>`:
+              CooStorage<T>
+              CscStorage<T>
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              ShardedStorage<T>
+              StridedStorage<T>
+note: required by a bound in `tensor::Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:218:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+218 |     S: Storage<T>,
+    |        ^^^^^^^^^^ required by this bound in `Tensor`
+
+error[E0277]: the trait bound `Result<CsrStorage<F32>, storage::StorageError>: StorageFromVec<_>` is not satisfied
+   --> pycoeus\src\tensor\ops\conversion.rs:100:54
+    |
+100 |             let sparse_tensor = Tensor::from_storage(csr, t.backend().clone());
+    |                                 -------------------- ^^^ the trait `StorageFromVec<_>` is not implemented for `Result<CsrStorage<F32>, storage::StorageError>`
+    |                                 |
+    |                                 required by a bound introduced by this call
+    |
+    = help: the following other types implement trait `StorageFromVec<T>`:
+              CooStorage<T>
+              CscStorage<T>
+              CsrStorage<T>
+              DenseStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `tensor::creation::<impl tensor::Tensor<B, S, T>>::from_storage`
+   --> D:\coeus\tensor\src\implementations\creation.rs:14:29
+    |
+ 14 |     S: Storage<T> + Clone + storage::StorageFromVec<T>,
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `tensor::creation::<impl Tensor<B, S, T>>::from_storage`
+...
+ 28 |     pub fn from_storage(storage: S, backend: B) -> Self {
+    |            ------------ required by a bound in this associated function
+
+error[E0277]: the trait bound `Result<CsrStorage<F32>, storage::StorageError>: backend::Storage<F32>` is not satisfied
+   --> pycoeus\src\tensor\ops\conversion.rs:100:33
+    |
+100 |             let sparse_tensor = Tensor::from_storage(csr, t.backend().clone());
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `backend::Storage<F32>` is not implemented for `Result<CsrStorage<F32>, storage::StorageError>`
+    |
+    = help: the following other types implement trait `backend::Storage<T>`:
+              CooStorage<T>
+              CscStorage<T>
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              ShardedStorage<T>
+              StridedStorage<T>
+note: required by a bound in `tensor::Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:218:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+218 |     S: Storage<T>,
+    |        ^^^^^^^^^^ required by this bound in `Tensor`
+
+error[E0308]: mismatched types
+   --> pycoeus\src\tensor\ops\conversion.rs:101:62
+    |
+101 |             Ok(PyTensor { inner: TensorWrapper::CpuSparseF32(sparse_tensor) })
+    |                                  --------------------------- ^^^^^^^^^^^^^ expected `CsrStorage<F32>`, found `Result<CsrStorage<Float32>, ...>`
+    |                                  |
+    |                                  arguments to this enum variant are incorrect
+    |
+    = note: expected struct `tensor::Tensor<_, CsrStorage<_>, _>`
+               found struct `tensor::Tensor<_, Result<CsrStorage<_>, storage::StorageError>, _>`
+note: tuple variant defined here
+   --> pycoeus\src\tensor\class.rs:26:5
+    |
+ 26 |     CpuSparseF32(Tensor<CpuBackend<Float32>, CsrStorage<Float32>, Float32>),
+    |     ^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:206:23
+    |
+206 |         let mm = mat1.matmul(mat2)?;
+    |                       ^^^^^^ multiple `matmul` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:176:5
+    |
+176 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::matmul(self, other) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:6:5
+    |
+  6 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:176:12
+    |
+176 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::matmul(self, other) }
+    |            ^^^^^^ multiple `matmul` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:176:5
+    |
+176 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::matmul(self, other) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:6:5
+    |
+  6 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:176:47
+    |
+176 |     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::matmul(self, other) }
+    |                                               ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+    |
+    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:177:12
+    |
+177 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::bmm(self, other) }
+    |            ^^^ multiple `bmm` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:177:5
+    |
+177 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::bmm(self, other) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:22:5
+    |
+ 22 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:177:44
+    |
+177 |     pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::bmm(self, other) }
+    |                                            ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+    |
+    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:178:12
+    |
+178 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::atan2(self, other) }
+    |            ^^^^^ multiple `atan2` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:178:5
+    |
+178 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::atan2(self, other) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\linalg.rs:26:5
+    |
+ 26 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:178:46
+    |
+178 |     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> { linalg::atan2(self, other) }
+    |                                              ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+    |
+    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:180:12
+    |
+180 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::reshape(self, shape) }
+    |            ^^^^^^^ multiple `reshape` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:180:5
+    |
+180 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::reshape(self, shape) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:7:5
+    |
+  7 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:180:49
+    |
+180 |     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::reshape(self, shape) }
+    |                                                 ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+    |
+    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:181:12
+    |
+181 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::view(self, shape) }
+    |            ^^^^ multiple `view` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:181:5
+    |
+181 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::view(self, shape) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:11:5
+    |
+ 11 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:181:46
+    |
+181 |     pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> { shape::view(self, shape) }
+    |                                              ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+    |
+    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:183:12
+    |
+183 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> { shape::permute(self, dims) }
+    |            ^^^^^^^ multiple `permute` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:183:5
+    |
+183 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> { shape::permute(self, dims) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:16:5
+    |
+ 16 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:183:70
+    |
+183 |     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> { shape::permute(self, dims) }
+    |                                                                      ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+    |
+    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:184:12
+    |
+184 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { shape::squeeze(self, dim) }
+    |            ^^^^^^^ multiple `squeeze` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:184:5
+    |
+184 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { shape::squeeze(self, dim) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:34:5
+    |
+ 34 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:184:50
+    |
+184 |     pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> { shape::squeeze(self, dim) }
+    |                                                  ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+    |
+    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:185:12
+    |
+185 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> { shape::unsqueeze(self, dim) }
+    |            ^^^^^^^^^ multiple `unsqueeze` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:185:5
+    |
+185 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> { shape::unsqueeze(self, dim) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:65:5
+    |
+ 65 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:185:44
+    |
+185 |     pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> { shape::unsqueeze(self, dim) }
+    |                                            ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+    |
+    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:186:12
+    |
+186 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> { shape::transpose(self, dim0, dim1) }
+    |            ^^^^^^^^^ multiple `transpose` found
+    |
+note: candidate #1 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\mod.rs:186:5
+    |
+186 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> { shape::transpose(self, dim0, dim1) }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `PyTensor`
+   --> pycoeus\src\tensor\ops\shape.rs:69:5
+    |
+ 69 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> pycoeus\src\tensor\ops\mod.rs:186:58
+    |
+186 |     pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> { shape::transpose(self, dim0, dim1) }
+    |                                                          ^^^^^^^^^^^^^^^^^^ multiple `wrap` found
+    |
+    = note: candidate #1 is defined in an impl for the type `IntoPyObjectConverter<Result<T, E>>`
+    = note: candidate #2 is defined in an impl for the type `IntoPyObjectConverter<T>`
+
+warning: unused import: `optim::BaseOptimizer`
+ --> pycoeus\src\optim\rmsprop.rs:4:5
+  |
+4 | use optim::BaseOptimizer;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `optim::BaseOptimizer`
+ --> pycoeus\src\optim\sgd.rs:4:5
+  |
+4 | use optim::BaseOptimizer; // Need BaseOptimizer import for add_param_group on SGD?
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `numpy::PyUntypedArrayMethods`
+ --> pycoeus\src\tensor\ops\conversion.rs:8:5
+  |
+8 | use numpy::PyUntypedArrayMethods;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `slf`
+  --> pycoeus\src\tensor\ops\conversion.rs:27:13
+   |
+27 | pub fn cuda(slf: &PyTensor) -> PyResult<PyTensor> {
+   |             ^^^ help: if this is intentional, prefix it with an underscore: `_slf`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0034, E0119, E0277, E0308, E0425, E0433, E0592, E0599.
+For more information about an error, try `rustc --explain E0034`.
+warning: `pycoeus` (lib) generated 18 warnings
+error: could not compile `pycoeus` (lib) due to 105 previous errors; 18 warnings emitted

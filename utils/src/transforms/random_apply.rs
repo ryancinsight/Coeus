@@ -300,8 +300,7 @@ mod tests {
                 .iter()
                 .map(|v| Float32::new((v.get() - self.offset) / self.scale))
                 .collect();
-            Tensor::from_vec(data, input.shape().dims())
-                .map_err(|e| TransformError::TensorError(e))
+            Tensor::from_vec(data, input.shape().dims()).map_err(TransformError::TensorError)
         }
     }
 

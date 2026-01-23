@@ -22,7 +22,7 @@
 
 use super::{DatasetSplit, DatasetStatistics, ImageTextPair, VisionLanguageData};
 use crate::core::error::{NNError, Result};
-use futures::prelude::*;
+// use futures::prelude::*;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -31,6 +31,7 @@ use tokio::fs;
 /// Flickr30K dataset implementation
 pub struct Flickr30kDataset {
     /// Base dataset directory
+    #[allow(dead_code)]
     base_path: PathBuf,
     /// Image directory path
     image_dir: PathBuf,
@@ -251,7 +252,7 @@ impl Flickr30kDataset {
     /// Compute dataset statistics
     async fn compute_statistics(
         annotations: &HashMap<String, Vec<String>>,
-        image_dir: &Path,
+        _image_dir: &Path,
     ) -> DatasetStatistics {
         let total_pairs: usize = annotations.values().map(|v| v.len()).sum();
         let avg_caption_length = Self::compute_average_caption_length(annotations);
@@ -260,7 +261,7 @@ impl Flickr30kDataset {
         let mut image_sizes = Vec::new();
         for (_, captions) in annotations.iter().take(100) {
             // Sample first 100 images to estimate sizes
-            if let Some(first_caption) = captions.first() {
+            if let Some(_first_caption) = captions.first() {
                 // In a real implementation, we'd load actual image sizes
                 // For now, assume standard Flickr30K sizes
                 image_sizes.push((640, 480)); // Approximate average
@@ -464,7 +465,7 @@ impl VisionLanguageData for Flickr30kDataset {
 
 impl Flickr30kDataset {
     /// Load image data from file
-    async fn load_image_data(&self, image_path: &Path) -> Result<Vec<u8>> {
+    async fn _load_image_data(&self, image_path: &Path) -> Result<Vec<u8>> {
         Self::load_image_data_static(image_path).await
     }
 

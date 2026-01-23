@@ -111,23 +111,11 @@ where
         use storage::{CooStorage, CscStorage, CsrStorage};
 
         // Check if tensor is already in sparse format
-        if let Some(csr) = tensor
-            .storage_ref()
-            .as_any()
-            .downcast_ref::<CsrStorage<T>>()
-        {
-            return Ok(csr.to_coo());
-        } else if let Some(csc) = tensor
-            .storage_ref()
-            .as_any()
-            .downcast_ref::<CscStorage<T>>()
-        {
-            return Ok(csc.to_coo());
-        } else if let Some(coo) = tensor
-            .storage_ref()
-            .as_any()
-            .downcast_ref::<CooStorage<T>>()
-        {
+        if let Some(csr) = tensor.storage().as_any().downcast_ref::<CsrStorage<T>>() {
+            return Ok(csr.to_coo()?);
+        } else if let Some(csc) = tensor.storage().as_any().downcast_ref::<CscStorage<T>>() {
+            return Ok(csc.to_coo()?);
+        } else if let Some(coo) = tensor.storage().as_any().downcast_ref::<CooStorage<T>>() {
             return Ok(coo.clone());
         }
 
@@ -222,7 +210,7 @@ where
         let storage = if sparsity_ratio > 0.5 && shape.len() == 2 {
             // Use CSR format for very sparse matrices
             let csr = coo.to_csr();
-            S::from_vec(csr.as_slice().to_vec(), shape)
+            S::from_vec(csr?.as_slice().to_vec(), shape)
                 .map_err(|e| AutogradError::TensorError(tensor::TensorError::StorageError(e)))?
         } else if sparsity_ratio > 0.3 && shape.len() == 2 {
             // Use COO for moderately sparse matrices

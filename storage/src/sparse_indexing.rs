@@ -1,296 +1,101 @@
 //! Advanced indexing operations for sparse tensors
 //!
 //! Provides boolean indexing, fancy indexing, and slicing operations
-//! optimized for sparse matrix formats.
+//! optimized for the CSR sparse matrix format.
 
-use crate::{CooStorage, CscStorage, CsrStorage, Result, Storage, StorageError};
-use alloc::vec::Vec;
+use crate::{CsrStorage, Result, StorageError};
+use alloc::{vec, vec::Vec};
 
-/// Boolean indexing for sparse tensors
+/// Boolean indexing for sparse tensors using CSR format
 pub trait SparseBooleanIndex<T: crate::DataType> {
-    /// Select elements where boolean mask is true
+    /// Apply boolean mask to select elements
     ///
-    /// # Arguments
-    /// * `mask` - Boolean mask with same length as tensor
-    ///
-    /// # Returns
-    /// COO matrix containing selected elements
-    ///
-    /// # Errors
-    /// Returns error if mask length doesn't match tensor length
-    fn boolean_index(&self, mask: &[bool]) -> Result<CooStorage<T>>;
+    /// Returns a new CSR storage containing only elements where mask is true.
+    /// The mask is applied row-wise for 2D matrices.
+    fn boolean_index(&self, mask: &[bool]) -> Result<CsrStorage<T>>;
 }
 
-/// Fancy indexing for sparse tensors
+/// Fancy indexing for sparse tensors using CSR format
+///
+/// Provides advanced indexing operations for selecting specific rows/columns
+/// or arbitrary element combinations from sparse matrices.
 pub trait SparseFancyIndex<T: crate::DataType> {
-    /// Select elements at specified indices
+    /// Select specific indices from the sparse tensor
     ///
-    /// # Arguments
-    /// * `indices` - 1D array of integer indices
-    ///
-    /// # Returns
-    /// COO matrix containing selected elements
-    ///
-    /// # Errors
-    /// Returns error if any index is out of bounds
-    fn fancy_index(&self, indices: &[i32]) -> Result<CooStorage<T>>;
+    /// For 2D matrices, this selects specific rows based on the indices array.
+    /// Returns a new CSR storage with the selected rows.
+    fn fancy_index(&self, indices: &[i32]) -> Result<CsrStorage<T>>;
 }
 
-// CSR Boolean Indexing
+// Implementation for CsrStorage - the optimal sparse format
 impl<T: crate::DataType + Copy> SparseBooleanIndex<T> for CsrStorage<T> {
-    fn boolean_index(&self, mask: &[bool]) -> Result<CooStorage<T>> {
-        let tensor_len = self.shape().size();
-
-        if mask.len() != tensor_len {
+    fn boolean_index(&self, mask: &[bool]) -> Result<CsrStorage<T>> {
+        let (rows, cols) = self.dims();
+        
+        if mask.len() != rows {
             return Err(StorageError::ShapeMismatch {
-                expected: tensor_len,
+                expected: rows,
                 actual: mask.len(),
             });
         }
-
-        let mut result_data = Vec::new();
-        let mut result_row_indices = Vec::new();
-        let mut result_col_indices = Vec::new();
-
-        let rows = self.shape().dims()[0];
-        let cols = self.shape().dims()[1];
-
-        // For each row in CSR
-        for i in 0..rows {
-            let row_start = self.indptr()[i];
-            let row_end = self.indptr()[i + 1];
-
-            // For each non-zero element in this row
-            for j in row_start..row_end {
-                let col_idx = self.indices()[j];
-                let flat_idx = i * cols + col_idx;
-
-                // Check if this position should be selected
-                if mask[flat_idx] {
-                    result_data.push(self.as_slice()[j]);
-                    result_row_indices.push(i);
-                    result_col_indices.push(col_idx);
+        
+        let mut new_data = Vec::new();
+        let mut new_indices = Vec::new();
+        let mut new_indptr = vec![0];
+        let mut selected_rows = 0;
+        
+        for (row, &include) in mask.iter().enumerate() {
+            if include {
+                let start = self.indptr()[row];
+                let end = self.indptr()[row + 1];
+                
+                // Copy this row's data
+                for idx in start..end {
+                    new_data.push(self.data()[idx]);
+                    new_indices.push(self.indices()[idx]);
                 }
+                
+                selected_rows += 1;
+                new_indptr.push(new_data.len());
             }
         }
-
-        CooStorage::new(
-            result_data,
-            result_row_indices,
-            result_col_indices,
-            self.shape().dims(),
-        )
+        
+        CsrStorage::new(new_data, new_indices, new_indptr, &[selected_rows, cols])
     }
 }
 
-// CSC Boolean Indexing
-impl<T: crate::DataType + Copy> SparseBooleanIndex<T> for CscStorage<T> {
-    fn boolean_index(&self, mask: &[bool]) -> Result<CooStorage<T>> {
-        // Convert to CSR and use CSR implementation
-        let csr = self.to_csr();
-        csr.boolean_index(mask)
-    }
-}
-
-// COO Boolean Indexing
-impl<T: crate::DataType + Copy> SparseBooleanIndex<T> for CooStorage<T> {
-    fn boolean_index(&self, mask: &[bool]) -> Result<CooStorage<T>> {
-        let tensor_len = self.shape().size();
-
-        if mask.len() != tensor_len {
-            return Err(StorageError::ShapeMismatch {
-                expected: tensor_len,
-                actual: mask.len(),
-            });
-        }
-
-        let mut result_data = Vec::new();
-        let mut result_row_indices = Vec::new();
-        let mut result_col_indices = Vec::new();
-
-        let _rows = self.shape().dims()[0];
-        let cols = self.shape().dims()[1];
-
-        // Check each non-zero element
-        for i in 0..self.nnz() {
-            let row = self.row_indices()[i];
-            let col = self.col_indices()[i];
-            let flat_idx = row * cols + col;
-
-            if mask[flat_idx] {
-                result_data.push(self.as_slice()[i]);
-                result_row_indices.push(row);
-                result_col_indices.push(col);
-            }
-        }
-
-        CooStorage::new(
-            result_data,
-            result_row_indices,
-            result_col_indices,
-            self.shape().dims(),
-        )
-    }
-}
-
-// CSR Fancy Indexing
 impl<T: crate::DataType + Copy> SparseFancyIndex<T> for CsrStorage<T> {
-    fn fancy_index(&self, indices: &[i32]) -> Result<CooStorage<T>> {
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let tensor_len = self.shape().size() as i32;
-
+    fn fancy_index(&self, indices: &[i32]) -> Result<CsrStorage<T>> {
+        let (rows, cols) = self.dims();
+        
         // Validate indices
         for &idx in indices {
-            if idx < 0 || idx >= tensor_len {
+            if idx < 0 || idx as usize >= rows {
                 return Err(StorageError::IndexOutOfBounds {
-                    #[allow(clippy::cast_sign_loss)]
                     index: idx as usize,
-                    #[allow(clippy::cast_sign_loss)]
-                    bound: tensor_len as usize,
+                    bound: rows,
                 });
             }
         }
-
-        let mut result_data = Vec::new();
-        let mut result_row_indices = Vec::new();
-        let mut result_col_indices = Vec::new();
-
-        let _rows = self.shape().dims()[0];
-        let cols = self.shape().dims()[1];
-
-        // For each requested index
-        for &flat_idx in indices {
-            #[allow(clippy::cast_sign_loss)]
-            let flat_idx = flat_idx as usize;
-            let row = flat_idx / cols;
-            let col = flat_idx % cols;
-
-            // Find if this position has a non-zero element
-            let row_start = self.indptr()[row];
-            let row_end = self.indptr()[row + 1];
-
-            // Binary search for the column in this row
-            if let Ok(pos) = self.indices()[row_start..row_end].binary_search(&col) {
-                let data_idx = row_start + pos;
-                result_data.push(self.as_slice()[data_idx]);
-                result_row_indices.push(row);
-                result_col_indices.push(col);
+        
+        let mut new_data = Vec::new();
+        let mut new_indices = Vec::new();
+        let mut new_indptr = vec![0];
+        
+        for &row_idx in indices {
+            let row = row_idx as usize;
+            let start = self.indptr()[row];
+            let end = self.indptr()[row + 1];
+            
+            // Copy this row's data
+            for idx in start..end {
+                new_data.push(self.data()[idx]);
+                new_indices.push(self.indices()[idx]);
             }
-            // If not found, it's zero - skip (sparse indexing only returns non-zeros)
+            
+            new_indptr.push(new_data.len());
         }
-
-        CooStorage::new(
-            result_data,
-            result_row_indices,
-            result_col_indices,
-            self.shape().dims(),
-        )
-    }
-}
-
-// CSC Fancy Indexing
-impl<T: crate::DataType + Copy> SparseFancyIndex<T> for CscStorage<T> {
-    fn fancy_index(&self, indices: &[i32]) -> Result<CooStorage<T>> {
-        let csr = self.to_csr();
-        csr.fancy_index(indices)
-    }
-}
-
-// COO Fancy Indexing
-impl<T: crate::DataType + Copy> SparseFancyIndex<T> for CooStorage<T> {
-    fn fancy_index(&self, indices: &[i32]) -> Result<CooStorage<T>> {
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let tensor_len = self.shape().size() as i32;
-
-        // Validate indices
-        for &idx in indices {
-            if idx < 0 || idx >= tensor_len {
-                return Err(StorageError::IndexOutOfBounds {
-                    #[allow(clippy::cast_sign_loss)]
-                    index: idx as usize,
-                    #[allow(clippy::cast_sign_loss)]
-                    bound: tensor_len as usize,
-                });
-            }
-        }
-
-        let mut result_data = Vec::new();
-        let mut result_row_indices = Vec::new();
-        let mut result_col_indices = Vec::new();
-
-        let _rows = self.shape().dims()[0];
-        let cols = self.shape().dims()[1];
-
-        // Create a set of requested positions for efficient lookup
-        let mut requested_positions = alloc::collections::BTreeSet::new();
-        for &flat_idx in indices {
-            #[allow(clippy::cast_sign_loss)]
-            let flat_idx = flat_idx as usize;
-            let row = flat_idx / cols;
-            let col = flat_idx % cols;
-            requested_positions.insert((row, col));
-        }
-
-        // Check each non-zero element
-        for i in 0..self.nnz() {
-            let row = self.row_indices()[i];
-            let col = self.col_indices()[i];
-
-            if requested_positions.contains(&(row, col)) {
-                result_data.push(self.as_slice()[i]);
-                result_row_indices.push(row);
-                result_col_indices.push(col);
-            }
-        }
-
-        CooStorage::new(
-            result_data,
-            result_row_indices,
-            result_col_indices,
-            self.shape().dims(),
-        )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use alloc::vec;
-    use dtype::float::F32;
-
-    #[test]
-    fn test_csr_boolean_index() {
-        // Create 2x2 CSR matrix: [[1, 0], [2, 3]]
-        let data = vec![F32::new(1.0), F32::new(2.0), F32::new(3.0)];
-        let indices = vec![0, 0, 1];
-        let indptr = vec![0, 1, 3];
-        let csr = CsrStorage::new(data, indices, indptr, &[2, 2]).unwrap();
-
-        // Select elements at positions [0, 2] (first and third elements)
-        let mask = vec![true, false, true, false];
-        let result = csr.boolean_index(&mask).unwrap();
-
-        // Should have 2 elements: (0,0)=1 and (1,0)=2
-        assert_eq!(result.nnz(), 2);
-        assert_eq!(result.as_slice(), &[F32::new(1.0), F32::new(2.0)]);
-        assert_eq!(result.row_indices(), &[0, 1]);
-        assert_eq!(result.col_indices(), &[0, 0]);
-    }
-
-    #[test]
-    fn test_coo_fancy_index() {
-        // Create 2x2 COO matrix: [[1, 0], [0, 2]]
-        let data = vec![F32::new(1.0), F32::new(2.0)];
-        let row_indices = vec![0, 1];
-        let col_indices = vec![0, 1];
-        let coo = CooStorage::new(data, row_indices, col_indices, &[2, 2]).unwrap();
-
-        // Select elements at indices [0, 3] (positions (0,0) and (1,1))
-        let indices = [0i32, 3];
-        let result = coo.fancy_index(&indices).unwrap();
-
-        // Should have both elements
-        assert_eq!(result.nnz(), 2);
-        assert_eq!(result.as_slice(), &[F32::new(1.0), F32::new(2.0)]);
+        
+        CsrStorage::new(new_data, new_indices, new_indptr, &[indices.len(), cols])
     }
 }

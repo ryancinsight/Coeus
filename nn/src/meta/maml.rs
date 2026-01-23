@@ -103,10 +103,12 @@ impl<M, B, S, T> MAML<M, B, S, T>
 where
     M: Module<B, S, T> + Clone,
     B: Backend<Data = T> + Default,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType
         + FloatExt
         + num_traits::FromPrimitive
+        + num_traits::Zero
+        + num_traits::One
         + std::ops::Add<Output = T>
         + std::ops::Sub<Output = T>
         + std::ops::Mul<Output = T>

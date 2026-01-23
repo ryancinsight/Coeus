@@ -28,7 +28,7 @@ use super::{
     DatasetSplit, DatasetStatistics, ImageTextPair, VisionLanguageData, VisionLanguageDataset,
 };
 use crate::core::error::{NNError, Result};
-use futures::prelude::*;
+// No futures::prelude used here
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -43,6 +43,7 @@ type MetadataBuildOutput = (
 /// COCO dataset implementation
 pub struct CocoDataset {
     /// Base dataset directory
+    #[allow(dead_code)]
     base_path: PathBuf,
     /// Parsed annotations (image_id -> captions)
     annotations: HashMap<String, Vec<String>>,
@@ -51,6 +52,7 @@ pub struct CocoDataset {
     /// Dataset split
     split: DatasetSplit,
     /// Image base directory for this split
+    #[allow(dead_code)]
     image_dir: PathBuf,
     /// Statistics
     statistics: DatasetStatistics,
@@ -103,19 +105,19 @@ struct Category {
 
 /// Image metadata for efficient access
 #[derive(Debug, Clone)]
-struct ImageMetadata {
+pub struct ImageMetadata {
     /// Image ID (as string)
-    image_id: String,
+    pub image_id: String,
     /// Image filename
-    filename: String,
+    pub filename: String,
     /// Image dimensions
-    dimensions: (u32, u32),
+    pub dimensions: (u32, u32),
     /// Pre-computed captions
-    captions: Vec<String>,
+    pub captions: Vec<String>,
     /// Image aspect ratio
-    aspect_ratio: f64,
+    pub aspect_ratio: f64,
     /// Full image path
-    image_path: PathBuf,
+    pub image_path: PathBuf,
 }
 
 impl CocoDataset {
@@ -331,7 +333,7 @@ impl CocoDataset {
     }
 
     /// Estimate dataset size on disk
-    fn estimate_disk_size(metadata: &[ImageMetadata], image_dir: &Path) -> Option<f64> {
+    fn estimate_disk_size(metadata: &[ImageMetadata], _image_dir: &Path) -> Option<f64> {
         // Rough estimation based on image count (average JPEG size ~200KB)
         let avg_image_size_mb = 0.2;
         let total_images = metadata.len();
@@ -452,7 +454,7 @@ impl VisionLanguageData for CocoDataset {
 
 impl CocoDataset {
     /// Load image data from file
-    async fn load_image_data(&self, image_path: &Path) -> Result<Vec<u8>> {
+    async fn _load_image_data(&self, image_path: &Path) -> Result<Vec<u8>> {
         Self::load_image_data_static(image_path).await
     }
 

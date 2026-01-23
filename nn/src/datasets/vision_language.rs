@@ -5,7 +5,7 @@
 //! specific dataset implementations like COCO and Flickr30K.
 
 use crate::core::error::{NNError, Result};
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -72,6 +72,7 @@ impl<T: VisionLanguageData> VisionLanguageDataset<T> {
 
 /// Iterator over vision-language dataset
 pub struct DatasetIterator<'a, T> {
+    #[allow(dead_code)]
     dataset: &'a T,
     current_index: usize,
     len: usize,
@@ -88,7 +89,7 @@ impl<'a, T: VisionLanguageData> Iterator for DatasetIterator<'a, T> {
             // In practice, you might want to use streams/futures
             // For now, return an error indicating async iteration is needed
             self.current_index += 1;
-            Some(Err(crate::core::error::NNError::NotImplemented {
+            Some(Err(NNError::NotImplemented {
                 operation: "Async iteration required".to_string(),
             }))
         }
@@ -394,6 +395,7 @@ pub mod quality {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use std::collections::HashMap;
 
     // Mock dataset for testing

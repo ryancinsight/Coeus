@@ -15,7 +15,7 @@
 
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
-use storage::{Storage, StorageFromVec, StorageToDense};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::gpu_backend::GpuAcceleratedOptimizer;
@@ -28,8 +28,8 @@ use crate::Parameter;
 pub struct AdamW<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     param_states: Vec<ParamState<B, S, T>>,
     param_groups: Vec<crate::optimizer::ParamGroup<B, S, T>>,
@@ -44,8 +44,8 @@ where
 impl<B, S, T> AdamW<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     /// Create AdamW optimizer with default hyperparameters
     ///
@@ -131,15 +131,16 @@ where
 impl<B, S, T> BaseOptimizer<B, S, T> for AdamW<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     fn step(&mut self) -> Result<usize, crate::OptimError> {
         self.step_cpu()
     }
 
     fn step_cpu(&mut self) -> Result<usize, crate::OptimError> {
-        use tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt, sub};
+        use tensor::ops::arithmetic::{add, div, mul, sub};
+        use tensor::ops::math::sqrt;
 
         self.t += 1;
 
@@ -157,8 +158,8 @@ where
         for param_state in &mut self.param_states {
             let grad = match param_state.param.grad() {
                 Ok(tensor_grad) => {
-                    let dense_grad = tensor_grad
-                        .storage_ref()
+                    let dense_grad: DenseStorage<T> = tensor_grad
+                        .storage()
                         .to_dense()
                         .map_err(|_| crate::OptimError::GradientNotAvailable)?;
                     match S::from_vec(dense_grad.as_slice().to_vec(), tensor_grad.shape().dims()) {
@@ -176,7 +177,9 @@ where
             // θ = θ - lr * wd * θ
             if self.weight_decay > 0.0 {
                 let wd_lr = weight_decay * lr;
-                let wd_term = scalar_mul(&param_state.param, wd_lr)?;
+                let wd_lr_t = Tensor::from_vec_with_backend(vec![wd_lr], &[], param_state.param.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let wd_term = mul(&param_state.param, &wd_lr_t)?;
                 param_state.param = sub(&param_state.param, &wd_term)?;
             }
 
@@ -188,8 +191,15 @@ where
                         state_key: "m".to_string(),
                     }
                 })?;
-                let beta1_m = scalar_mul(m, beta1)?;
-                let one_minus_beta1_grad = scalar_mul(&grad, one - beta1)?;
+                
+                let beta1_t = Tensor::from_vec_with_backend(vec![beta1], &[], grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let beta1_m = mul(m, &beta1_t)?;
+                
+                let one_minus_beta1 = one - beta1;
+                let one_minus_beta1_t = Tensor::from_vec_with_backend(vec![one_minus_beta1], &[], grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let one_minus_beta1_grad = mul(&grad, &one_minus_beta1_t)?;
                 *m = add(&beta1_m, &one_minus_beta1_grad)?;
             }
 
@@ -201,20 +211,38 @@ where
                     }
                 })?;
                 let grad_squared = mul(&grad, &grad)?;
-                let beta2_v = scalar_mul(v, beta2)?;
-                let one_minus_beta2_grad_sq = scalar_mul(&grad_squared, one - beta2)?;
+                
+                let beta2_t = Tensor::from_vec_with_backend(vec![beta2], &[], grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let beta2_v = mul(v, &beta2_t)?;
+                
+                let one_minus_beta2 = one - beta2;
+                let one_minus_beta2_t = Tensor::from_vec_with_backend(vec![one_minus_beta2], &[], grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let one_minus_beta2_grad_sq = mul(&grad_squared, &one_minus_beta2_t)?;
                 *v = add(&beta2_v, &one_minus_beta2_grad_sq)?;
             }
 
             let m_ref = param_state.get_state("m").unwrap();
             let v_ref = param_state.get_state("v").unwrap();
-            let m_hat = scalar_mul(m_ref, bias_correction1)?;
-            let v_hat = scalar_mul(v_ref, bias_correction2)?;
+            
+            let bc1_t = Tensor::from_vec_with_backend(vec![bias_correction1], &[], grad.backend().clone())
+                 .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            let m_hat = mul(m_ref, &bc1_t)?;
+            
+            let bc2_t = Tensor::from_vec_with_backend(vec![bias_correction2], &[], grad.backend().clone())
+                 .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            let v_hat = mul(v_ref, &bc2_t)?;
 
-            let v_hat_plus_eps = scalar_add(&v_hat, eps)?;
+            let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], grad.backend().clone())
+                 .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            let v_hat_plus_eps = add(&v_hat, &eps_t)?;
             let v_hat_sqrt = sqrt(&v_hat_plus_eps)?;
             let update_ratio = div(&m_hat, &v_hat_sqrt)?;
-            let scaled_update = scalar_mul(&update_ratio, lr)?;
+            
+            let lr_t = Tensor::from_vec_with_backend(vec![lr], &[], grad.backend().clone())
+                 .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            let scaled_update = mul(&update_ratio, &lr_t)?;
             param_state.param = sub(&param_state.param, &scaled_update)?;
         }
 
@@ -317,8 +345,8 @@ where
 impl<B, S, T> Optimizer<B, S, T> for AdamW<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     fn name(&self) -> &str {
         "AdamW"
@@ -445,7 +473,7 @@ where
 impl<B, S, T> GpuAcceleratedOptimizer for AdamW<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
 }

@@ -72,7 +72,7 @@ use crate::Module;
 use backend::{Backend, DataType, Storage};
 use dtype::traits::FloatExt;
 use storage::{StorageFromVec, StorageToDense};
-use tensor::ops::arithmetic::scalar_div;
+// use tensor::ops::arithmetic::scalar_div;
 use tensor::{ops::arithmetic, Tensor};
 
 /// Few-shot episode (task) definition
@@ -148,17 +148,28 @@ impl<M, B, S, T> PrototypicalNetwork<M, B, S, T>
 where
     M: Clone + Module<B, S, T>,
     B: Backend<Data = T> + Default,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T>
+        + StorageFromVec<T>
+        + StorageToDense<T>
+        + Clone
+        + Send
+        + Sync
+        + 'static
+        + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType
         + FloatExt
+        + num_traits::FromPrimitive
+        + num_traits::Zero
+        + num_traits::One
         + std::ops::Add<Output = T>
         + std::ops::Sub<Output = T>
         + std::ops::Mul<Output = T>
         + std::ops::Div<Output = T>
-        + Clone
-        + Copy
-        + From<f64>
-        + Into<f64>,
+        + std::cmp::PartialOrd
+        + std::fmt::Debug
+        + std::marker::Copy
+        + Into<f64>
+        + 'static,
 {
     /// Create a new Prototypical Network
     pub fn new(encoder: M) -> Self {
@@ -262,8 +273,9 @@ where
             }
 
             // Average the features
-            let count = num_traits::cast::cast(class_features.len() as f64).unwrap();
-            prototype = scalar_div(&prototype, count)?;
+            let count: f64 = num_traits::cast::cast(class_features.len() as f64).unwrap();
+            let count_t = Tensor::full_like(&prototype, T::from_f64(count as f64).unwrap())?;
+            prototype = arithmetic::div(&prototype, &count_t)?;
 
             // For prototypical networks, we want the prototype to have shape [feature_dim]
             // Since the encoder outputs [batch_size, feature_dim] and we average over batch_size,
@@ -340,8 +352,6 @@ where
 
     /// Compute distance between two feature vectors
     fn compute_distance(&self, x: &Tensor<B, S, T>, y: &Tensor<B, S, T>) -> Result<f64>
-    where
-        T: Into<f64>,
     {
         match self.distance_metric {
             DistanceMetric::Euclidean => {
@@ -661,46 +671,38 @@ where
 }
 
 /// Meta-training loop for Prototypical Networks
-pub fn train_prototypical_network<M, B, S, T>(
+pub fn check_meta_learning<M, B, S, T>(
     network: &mut PrototypicalNetwork<M, B, S, T>,
-    episode_generator: &FewShotEpisodeGenerator<B, S, T>,
-    num_episodes: usize,
+    episode: Episode<B, S, T>,
     adaptation_steps: usize,
     adaptation_lr: f64,
 ) -> Result<Vec<f64>>
 where
     M: Clone + Module<B, S, T>,
     B: Backend<Data = T> + Default,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType
         + FloatExt
+        + num_traits::FromPrimitive
+        + num_traits::Zero
+        + num_traits::One
         + std::ops::Add<Output = T>
         + std::ops::Sub<Output = T>
+        + std::ops::Mul<Output = T>
         + std::ops::Div<Output = T>
-        + Clone
-        + Copy
-        + From<f64>
-        + Into<f64>,
+        + std::cmp::PartialOrd
+        + std::fmt::Debug
+        + std::marker::Copy
+        + Into<f64>
+        + 'static,
 {
-    let mut losses = Vec::new();
+    // Adapt the network to this episode
+    network.adapt_episode(&episode, adaptation_steps, adaptation_lr)?;
 
-    for episode_idx in 0..num_episodes {
-        // Generate an episode
-        let episode: Episode<B, S, T> = episode_generator.generate_episode()?;
-
-        // Adapt the network to this episode
-        network.adapt_episode(&episode, adaptation_steps, adaptation_lr)?;
-
-        // Compute loss after adaptation
-        let loss = network.episode_loss(&episode)?;
-        losses.push(loss);
-
-        if episode_idx % 100 == 0 {
-            println!("Episode {}: Loss = {:.4}", episode_idx, loss);
-        }
-    }
-
-    Ok(losses)
+    // Compute loss after adaptation
+    let loss = network.episode_loss(&episode)?;
+    
+    Ok(vec![loss])
 }
 
 #[cfg(test)]

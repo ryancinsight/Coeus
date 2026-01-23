@@ -57,7 +57,7 @@ where
 impl<B, S, T> Linear<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive,
 {
     /// Create a new linear layer.
@@ -326,7 +326,7 @@ where
 impl<B, S, T> Module<B, S, T> for Linear<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::One,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
@@ -366,7 +366,7 @@ where
         // TODO: Integrate with working autograd system
         let input_dense = input.to_dense_generic()?;
         let weight_t = self.weight.data().to_dense_generic()?.transpose(1, 0)?;
-        let output = input_dense.matmul(&weight_t)?;
+        let output = tensor::ops::matmul(&input_dense, &weight_t)?;
 
         // Add bias manually - add bias to each sample in the batch
         let bias_data = self.bias.data().as_slice();

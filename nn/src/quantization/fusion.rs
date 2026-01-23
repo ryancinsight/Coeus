@@ -4,7 +4,7 @@ use crate::core::error::Result;
 use crate::core::module::Module;
 use crate::core::parameter::Parameter;
 
-use crate::quantization::core::{QuantizationBitwidth, QuantizationScheme};
+use quantization::{QuantizationBitwidth, QuantizationScheme};
 
 use backend::Backend;
 use dtype::DataType;

@@ -44,6 +44,12 @@ pub enum StorageError {
         /// Dimension where incompatibility occurs
         dimension: usize,
     },
+
+    /// Backend operation error
+    BackendError(alloc::string::String),
+
+    /// Operation not implemented
+    NotImplemented,
 }
 
 #[cfg(feature = "std")]
@@ -76,6 +82,12 @@ impl fmt::Display for StorageError {
                     f,
                     "Incompatible shapes for broadcasting: {shape_a:?} and {shape_b:?} at dimension {dimension}"
                 )
+            }
+            Self::BackendError(msg) => {
+                write!(f, "Backend operation failed: {msg}")
+            }
+            Self::NotImplemented => {
+                write!(f, "Operation not implemented")
             }
         }
     }

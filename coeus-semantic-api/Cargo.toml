@@ -34,6 +34,7 @@ nn = { path = "../nn", features = ["clip"] }
 backend = { path = "../backend", default-features = false, features = ["gpu"] }
 dtype = { path = "../dtype" }
 storage = { path = "../storage" }
+tensor = { path = "../tensor" }
 
 # Tracing for observability
 tracing = "0.1"

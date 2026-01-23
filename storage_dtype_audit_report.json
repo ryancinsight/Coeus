@@ -1,0 +1,253 @@
+{
+  "dtypes": {
+    "Half": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": false,
+      "feature_gated": null
+    },
+    "BFloat16": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": false,
+      "feature_gated": null
+    },
+    "Float32": {
+      "has_datatype_trait": true,
+      "has_float_ext": true,
+      "has_int_ext": false,
+      "feature_gated": null
+    },
+    "Float64": {
+      "has_datatype_trait": true,
+      "has_float_ext": true,
+      "has_int_ext": false,
+      "feature_gated": null
+    },
+    "Int8": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": true,
+      "feature_gated": null
+    },
+    "Int16": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": true,
+      "feature_gated": null
+    },
+    "Int32": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": true,
+      "feature_gated": null
+    },
+    "Int64": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": true,
+      "feature_gated": null
+    },
+    "UInt8": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": true,
+      "feature_gated": null
+    },
+    "UInt16": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": true,
+      "feature_gated": null
+    },
+    "UInt32": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": true,
+      "feature_gated": null
+    },
+    "UInt64": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": true,
+      "feature_gated": null
+    },
+    "Complex32": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": false,
+      "feature_gated": "complex"
+    },
+    "Complex64": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": false,
+      "feature_gated": "complex"
+    },
+    "QInt4": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": false,
+      "feature_gated": "quantized"
+    },
+    "QUInt4": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": false,
+      "feature_gated": "quantized"
+    },
+    "QInt8": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": false,
+      "feature_gated": "quantized"
+    },
+    "QUInt8": {
+      "has_datatype_trait": true,
+      "has_float_ext": false,
+      "has_int_ext": false,
+      "feature_gated": "quantized"
+    }
+  },
+  "storages": {
+    "DenseStorage": [
+      "Storage"
+    ],
+    "CsrStorage": [
+      "Storage"
+    ],
+    "CscStorage": [
+      "Storage"
+    ],
+    "CooStorage": [
+      "Storage"
+    ]
+  },
+  "autograd_functions": [
+    {
+      "name": "SubFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "DivFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "NegFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "TransposeFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "AddFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "MatMulFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "MulFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "SumFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "MeanFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "ExpFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "LogFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "SinFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "CosFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "NLLLossFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "RNNFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "SqrtFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "PowFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "ReshapeFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "MaxFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "SigmoidFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "ReluFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "TanhFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "LeakyReluFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "SoftmaxFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "CrossEntropyFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "CatFunction",
+      "converts_to_dense": true
+    },
+    {
+      "name": "GeluFunction",
+      "converts_to_dense": true
+    }
+  ],
+  "sparse_traits": {
+    "CsrStorage": [
+      "SparseElementWise",
+      "SparseReshape",
+      "SparseTranspose"
+    ],
+    "CscStorage": [
+      "SparseElementWise",
+      "SparseReshape",
+      "SparseTranspose"
+    ],
+    "CooStorage": [
+      "SparseElementWise",
+      "SparseReshape",
+      "SparseTranspose"
+    ]
+  }
+}

@@ -190,19 +190,16 @@ pub fn conv2d_output_size(
 /// # Returns
 /// (output_depth, output_height, output_width)
 pub fn conv3d_output_size(
-    input_depth: usize,
-    input_height: usize,
-    input_width: usize,
-    kernel_depth: usize,
-    kernel_height: usize,
-    kernel_width: usize,
-    stride_d: usize,
-    stride_h: usize,
-    stride_w: usize,
-    padding_d: usize,
-    padding_h: usize,
-    padding_w: usize,
+    input: (usize, usize, usize),
+    kernel: (usize, usize, usize),
+    stride: (usize, usize, usize),
+    padding: (usize, usize, usize),
 ) -> (usize, usize, usize) {
+    let (input_depth, input_height, input_width) = input;
+    let (kernel_depth, kernel_height, kernel_width) = kernel;
+    let (stride_d, stride_h, stride_w) = stride;
+    let (padding_d, padding_h, padding_w) = padding;
+
     let out_depth = (input_depth + 2 * padding_d - kernel_depth) / stride_d + 1;
     let out_height = (input_height + 2 * padding_h - kernel_height) / stride_h + 1;
     let out_width = (input_width + 2 * padding_w - kernel_width) / stride_w + 1;
@@ -419,18 +416,10 @@ where
     let (padding_d, padding_h, padding_w) = padding;
 
     let (output_depth, output_height, output_width) = conv3d_output_size(
-        input_depth,
-        input_height,
-        input_width,
-        kernel_depth,
-        kernel_height,
-        kernel_width,
-        stride_d,
-        stride_h,
-        stride_w,
-        padding_d,
-        padding_h,
-        padding_w,
+        (input_depth, input_height, input_width),
+        (kernel_depth, kernel_height, kernel_width),
+        (stride_d, stride_h, stride_w),
+        (padding_d, padding_h, padding_w),
     );
 
     // Pad input if necessary
@@ -833,7 +822,7 @@ mod tests {
         assert_eq!(conv1d_output_size(10, 3, 1, 0), 8);
         assert_eq!(conv2d_output_size(10, 10, 3, 3, 1, 1, 0, 0), (8, 8));
         assert_eq!(
-            conv3d_output_size(5, 10, 10, 3, 3, 3, 1, 1, 1, 0, 0, 0),
+            conv3d_output_size((5, 10, 10), (3, 3, 3), (1, 1, 1), (0, 0, 0)),
             (3, 8, 8)
         );
     }

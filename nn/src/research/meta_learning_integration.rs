@@ -4,7 +4,7 @@
 //! with the research framework, including MAML, Reptile, ANIL, and other
 //! meta-learning approaches for automated research.
 
-use crate::core::error::{NNError, Result};
+use crate::core::error::Result;
 use crate::research::{ExperimentTracker, UnifiedResearchFramework};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -151,7 +151,7 @@ impl MetaLearningExperiment {
             num_iterations
         );
 
-        let mut tracker = self.framework.create_experiment(
+        let tracker = self.framework.create_experiment(
             "meta_learning_exp".to_string(),
             "Meta-Learning Research Experiment".to_string(),
             "Automated meta-learning algorithm evaluation".to_string(),

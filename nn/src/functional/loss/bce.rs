@@ -8,7 +8,7 @@ use dtype::DataType;
 use tensor::Tensor;
 
 use crate::core::error::Result;
-use crate::functional::ops::loss::bce_with_logits_loss;
+use crate::ops::loss::bce_with_logits_loss;
 
 /// Binary Cross-Entropy with Logits Loss function.
 ///
@@ -65,7 +65,7 @@ impl BCEWithLogitsLoss {
     ) -> Result<Tensor<B, S, T>>
     where
         B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-        S: storage::StorageToDense<T> + storage::StorageFromVec<T> + 'static,
+        S: storage::StorageToDense<T> + storage::StorageFromVec<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
         T: DataType
             + FloatExt
             + num_traits::FromPrimitive
@@ -73,7 +73,7 @@ impl BCEWithLogitsLoss {
             + Copy
             + Send
             + Sync
-            + 'static,
+            + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     {
         bce_with_logits_loss(input, target)
     }

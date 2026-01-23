@@ -10,7 +10,7 @@ use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 use storage::DenseStorage;
 use tensor::{
-    ops::arithmetic::{add, scalar_mul},
+    ops::arithmetic::{add, mul},
     Tensor,
 };
 
@@ -57,7 +57,7 @@ use crate::optimizer_core::{Optimizer, ParamState};
 pub struct SGD<B, T>
 where
     B: Backend<Data = T> + Clone,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + num_traits::FromPrimitive,
 {
     /// Parameter states
     param_states: Vec<ParamState<B, DenseStorage<T>, T>>,
@@ -79,7 +79,7 @@ where
 impl<B, T> SGD<B, T>
 where
     B: Backend<Data = T> + Clone,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     /// Create a new SGD optimizer.
     ///
@@ -138,6 +138,7 @@ where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
     T: DataType
         + FloatExt
+        + num_traits::FromPrimitive
         + core::ops::Add<Output = T>
         + core::ops::Sub<Output = T>
         + core::ops::Mul<Output = T>
@@ -211,6 +212,7 @@ where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
     T: DataType
         + FloatExt
+        + num_traits::FromPrimitive
         + core::ops::Add<Output = T>
         + core::ops::Sub<Output = T>
         + core::ops::Mul<Output = T>
@@ -333,7 +335,9 @@ where
 
             // Apply weight decay if specified
             let effective_grad = if self.weight_decay > 0.0 {
-                let weight_decay_term = scalar_mul(&param_state.param, weight_decay)?;
+                let weight_decay_t = Tensor::from_vec_with_backend(vec![weight_decay], &[], param_state.param.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let weight_decay_term = mul(&param_state.param, &weight_decay_t)?;
                 add(&grad, &weight_decay_term)?
             } else {
                 grad
@@ -350,21 +354,29 @@ where
                     }
                 })?;
 
+                let momentum_t = Tensor::from_vec_with_backend(vec![momentum], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                     
+                let one_minus_dampening_t = Tensor::from_vec_with_backend(vec![one - dampening], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+
                 let new_velocity = add(
-                    &scalar_mul(&*velocity, momentum)?,
-                    &scalar_mul(&effective_grad, one - dampening)?,
+                    &mul(&*velocity, &momentum_t)?,
+                    &mul(&effective_grad, &one_minus_dampening_t)?,
                 )?;
                 velocity
                     .as_mut_slice()
                     .copy_from_slice(new_velocity.as_slice());
 
                 let update_dir = if self.nesterov {
-                    add(&effective_grad, &scalar_mul(&*velocity, momentum)?)?
+                    add(&effective_grad, &mul(&*velocity, &momentum_t)?)?
                 } else {
                     velocity.clone()
                 };
 
-                let param_update = scalar_mul(&update_dir, lr)?;
+                let lr_t = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let param_update = mul(&update_dir, &lr_t)?;
                 if param_state.param.as_slice().len() != param_update.as_slice().len() {
                     return Err(crate::error::OptimError::ShapeMismatch {
                         param_name: param_state.name.clone(),
@@ -382,7 +394,9 @@ where
                 }
             } else {
                 // Standard SGD: p = p - lr * g
-                let param_update = scalar_mul(&effective_grad, lr)?;
+                let lr_t = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let param_update = mul(&effective_grad, &lr_t)?;
                 if param_state.param.as_slice().len() != param_update.as_slice().len() {
                     return Err(crate::error::OptimError::ShapeMismatch {
                         param_name: param_state.name.clone(),
@@ -448,7 +462,7 @@ where
 impl<B, T> Default for SGD<B, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    T: DataType + FloatExt,
+    T: DataType + FloatExt + num_traits::FromPrimitive,
 {
     fn default() -> Self {
         Self::new(0.01, 0.0, 0.0, 0.0, false)

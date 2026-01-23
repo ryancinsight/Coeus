@@ -281,8 +281,8 @@ impl HpoDimension {
                 };
                 ParameterValue::Float(val)
             }
-            ParameterRange::Discrete { values } => self.sample_random(rng),
-            ParameterRange::Categorical { choices } => self.sample_random(rng),
+            ParameterRange::Discrete { values: _ } => self.sample_random(rng),
+            ParameterRange::Categorical { choices: _ } => self.sample_random(rng),
         }
     }
 
@@ -585,7 +585,7 @@ impl HpoSampler<StdRng> {
         }
 
         // Find best performing regions
-        let best_score = history
+        let _best_score = history
             .iter()
             .map(|t| t.score)
             .fold(f64::NEG_INFINITY, f64::max);

@@ -107,7 +107,7 @@ fn test_tensor_scalar() {
 #[test]
 fn test_tensor_device_name() {
     let tensor = CpuTensorF32::zeros(&[3]).unwrap();
-    assert_eq!(tensor.device_name(), "cpu");
+    assert_eq!(tensor.device_name(), "Cpu");
 }
 
 #[test]

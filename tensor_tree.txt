@@ -1,0 +1,197 @@
+Folder PATH listing for volume div2
+Volume serial number is 026B-E160
+D:\COEUS\TENSOR
+|   Cargo.toml
+|   README.md
+|   
++---benches
+|       conditional_unsafe.rs
+|       
++---src
+|   |   elementwise.rs
+|   |   error.rs
+|   |   indexing.rs
+|   |   lib.rs
+|   |   lib_clean.rs
+|   |   minimal_tensor.rs
+|   |   shape_ops.rs
+|   |   simd_ops.rs
+|   |   tensor_autograd.rs
+|   |   tensor_backend_dispatch.rs
+|   |   tensor_core.rs
+|   |   tensor_sparse_ops.rs
+|   |   tests.rs
+|   |   zero_copy.rs
+|   |   
+|   +---functions
+|   |   |   mod.rs
+|   |   |   utils.rs
+|   |   |   
+|   |   +---activation
+|   |   |       gelu.rs
+|   |   |       leaky_relu.rs
+|   |   |       mod.rs
+|   |   |       relu.rs
+|   |   |       sigmoid.rs
+|   |   |       tanh.rs
+|   |   |       
+|   |   +---arithmetic
+|   |   |       add.rs
+|   |   |       div.rs
+|   |   |       mod.rs
+|   |   |       mul.rs
+|   |   |       neg.rs
+|   |   |       sub.rs
+|   |   |       
+|   |   +---classification
+|   |   |       cross_entropy.rs
+|   |   |       mod.rs
+|   |   |       nll_loss.rs
+|   |   |       softmax.rs
+|   |   |       
+|   |   +---layout
+|   |   |       cat.rs
+|   |   |       mod.rs
+|   |   |       reshape.rs
+|   |   |       transpose.rs
+|   |   |       
+|   |   +---linalg
+|   |   |       matmul.rs
+|   |   |       mod.rs
+|   |   |       
+|   |   +---math
+|   |   |       cos.rs
+|   |   |       exp.rs
+|   |   |       log.rs
+|   |   |       mod.rs
+|   |   |       pow.rs
+|   |   |       sin.rs
+|   |   |       sqrt.rs
+|   |   |       
+|   |   +---reduction
+|   |   |       max.rs
+|   |   |       mean.rs
+|   |   |       min.rs
+|   |   |       mod.rs
+|   |   |       sum.rs
+|   |   |       
+|   |   \---rnn
+|   |           mod.rs
+|   |           rnn.rs
+|   |           
+|   +---implementations
+|   |       arithmetic.rs
+|   |       autograd.rs
+|   |       creation.rs
+|   |       manipulation.rs
+|   |       math.rs
+|   |       mod.rs
+|   |       reduction.rs
+|   |       
+|   +---ops
+|   |   |   comparison.rs
+|   |   |   creation.rs
+|   |   |   mod.rs
+|   |   |   tensor_ops.rs
+|   |   |   
+|   |   +---activation
+|   |   |       gelu.rs
+|   |   |       leaky_relu.rs
+|   |   |       mod.rs
+|   |   |       relu.rs
+|   |   |       sigmoid.rs
+|   |   |       tanh.rs
+|   |   |       
+|   |   +---arithmetic
+|   |   |       add.rs
+|   |   |       dispatch.rs
+|   |   |       div.rs
+|   |   |       maximum.rs
+|   |   |       minimum.rs
+|   |   |       mod.rs
+|   |   |       mul.rs
+|   |   |       neg.rs
+|   |   |       sub.rs
+|   |   |       traits.rs
+|   |   |       
+|   |   +---classification
+|   |   |       cross_entropy.rs
+|   |   |       mod.rs
+|   |   |       nll_loss.rs
+|   |   |       softmax.rs
+|   |   |       
+|   |   +---dispatch
+|   |   |       dense_dispatch.rs
+|   |   |       mod.rs
+|   |   |       sparse_dispatch.rs
+|   |   |       traits.rs
+|   |   |       
+|   |   +---layout
+|   |   |       cat.rs
+|   |   |       mod.rs
+|   |   |       reshape.rs
+|   |   |       transpose.rs
+|   |   |       
+|   |   +---linalg
+|   |   |       matmul.rs
+|   |   |       matrix_ops.rs
+|   |   |       mod.rs
+|   |   |       
+|   |   +---math
+|   |   |       abs.rs
+|   |   |       acosh.rs
+|   |   |       asinh.rs
+|   |   |       atan2.rs
+|   |   |       atanh.rs
+|   |   |       cos.rs
+|   |   |       cumprod.rs
+|   |   |       cumsum.rs
+|   |   |       deg2rad.rs
+|   |   |       erfc.rs
+|   |   |       erfinv.rs
+|   |   |       exp.rs
+|   |   |       expm1.rs
+|   |   |       frac.rs
+|   |   |       log.rs
+|   |   |       log1p.rs
+|   |   |       mod.rs
+|   |   |       nan_to_num.rs
+|   |   |       pow.rs
+|   |   |       rad2deg.rs
+|   |   |       reciprocal.rs
+|   |   |       sin.rs
+|   |   |       sqrt.rs
+|   |   |       trunc.rs
+|   |   |       
+|   |   +---reduction
+|   |   |       max.rs
+|   |   |       mean.rs
+|   |   |       min.rs
+|   |   |       mod.rs
+|   |   |       sum.rs
+|   |   |       
+|   |   +---rnn
+|   |   |       mod.rs
+|   |   |       rnn.rs
+|   |   |       
+|   |   \---sparse
+|   |           mod.rs
+|   |           traits.rs
+|   |           
+|   \---sparse
+|           coo.rs
+|           csc.rs
+|           csr.rs
+|           mod.rs
+|           
+\---tests
+        backend_integration.rs
+        concurrency.rs
+        integration.rs
+        integration_tests.rs
+        proptest.proptest-regressions
+        proptest.rs
+        proptest_arithmetic.proptest-regressions
+        proptest_arithmetic.rs
+        ssot_property_test.rs
+        

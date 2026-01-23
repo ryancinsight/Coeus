@@ -1,0 +1,1395 @@
+warning: unused imports: `Result` and `StorageError`
+ --> storage\src\dense\core.rs:3:23
+  |
+3 | use crate::{DataType, Result, Shape, StorageError};
+  |                       ^^^^^^         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `vec::Vec`
+ --> storage\src\sparse\coo\conversion.rs:5:18
+  |
+5 | use alloc::{vec, vec::Vec};
+  |                  ^^^^^^^^
+
+warning: unused import: `vec`
+ --> storage\src\sparse\csc\core.rs:4:13
+  |
+4 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: unused import: `vec`
+ --> storage\src\sparse\csr\core.rs:6:13
+  |
+6 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:174:21
+    |
+174 |     StorageOps<T> + MatMulOps<T> + LayoutOps<T> + ArithmeticOps<T> + ReductionOps<T>
+    |                     ^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:182:24
+    |
+182 |     S: StorageOps<T> + MatMulOps<T> + LayoutOps<T> + ArithmeticOps<T> + ReductionOps<T>,
+    |                        ^^^^^^^^^
+
+warning: unused variable: `rows`
+   --> storage\src\sparse\coo\traits.rs:118:13
+    |
+118 |         let rows = dims[0];
+    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_rows`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `storage` (lib) generated 7 warnings (run `cargo fix --lib -p storage` to apply 5 suggestions)
+warning: unused import: `StorageError`
+ --> backend\src\gpu\sparse\arithmetic.rs:6:35
+  |
+6 | ...sult, StorageError};
+  |          ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `CsrStorage`
+ --> backend\src\gpu\sparse\mod.rs:9:15
+  |
+9 | use storage::{CsrStorage, D...
+  |               ^^^^^^^^^^
+
+warning: unused variable: `input`
+   --> backend\src\cpu\backend.rs:517:9
+    |
+517 |         input: &DenseStor...
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_input`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `image_embeddings`
+   --> backend\src\cpu\backend.rs:656:9
+    |
+656 | ...   image_embeddings: &...
+    |       ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_image_embeddings`
+
+warning: unused variable: `text_embeddings`
+   --> backend\src\cpu\backend.rs:657:9
+    |
+657 | ...   text_embeddings: &D...
+    |       ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_text_embeddings`
+
+warning: unused variable: `temperature`
+   --> backend\src\cpu\backend.rs:658:9
+    |
+658 |         temperature: f32,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_temperature`
+
+warning: unused variable: `keys`
+   --> backend\src\cpu\backend.rs:667:9
+    |
+667 |         keys: &DenseStora...
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_keys`
+
+warning: unused variable: `values`
+   --> backend\src\cpu\backend.rs:668:9
+    |
+668 |         values: &DenseSto...
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_values`
+
+warning: unused variable: `num_heads`
+   --> backend\src\cpu\backend.rs:669:9
+    |
+669 |         num_heads: usize,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_num_heads`
+
+warning: `backend` (lib) generated 9 warnings (run `cargo fix --lib -p backend` to apply 9 suggestions)
+warning: unexpected `cfg` condition value: `std`
+  --> dense\src\lib.rs:32:7
+   |
+32 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^ help: remove the condition
+   |
+   = note: no expected values for `feature`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused imports: `StorageError` and `Storage`
+ --> dense\src\activation\relu.rs:5:29
+  |
+5 | ...e, Storage, StorageError};
+  |       ^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\relu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\sigmoid.rs:5:29
+  |
+5 | ...torage, Storage};
+  |            ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\sigmoid.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\tanh.rs:5:29
+  |
+5 | ...torage, Storage};
+  |            ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\tanh.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\gelu.rs:5:29
+  |
+5 | ...torage, Storage};
+  |            ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\gelu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+  --> dense\src\layout\mod.rs:16:37
+   |
+16 | ...Result, Storage};
+   |            ^^^^^^^
+
+warning: unused import: `Shape`
+ --> dense\src\creation\zeros.rs:3:37
+  |
+3 | ... Result, Shape, Storage};
+  |             ^^^^^
+
+warning: unused import: `Storage`
+  --> dense\src\creation\mod.rs:16:37
+   |
+16 | ...Result, Storage};
+   |            ^^^^^^^
+
+warning: unused variable: `new_shape`
+   --> dense\src\layout\transpose.rs:194:5
+    |
+194 |     new_shape: &[usize],
+    |     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_shape`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unexpected `cfg` condition value: `std`
+  --> sparse\src\lib.rs:30:7
+   |
+30 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default` and `gpu`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `crate::Result`
+  --> sparse\src\arithmetic\mod.rs:39:5
+   |
+39 | use crate::Result;
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `storage::CsrStorage`
+  --> sparse\src\arithmetic\mod.rs:41:5
+   |
+41 | use storage::CsrStorage;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\activation\relu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\activation\sigmoid.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\activation\tanh.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\activation\gelu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `StorageError`
+  --> sparse\src\activation\mod.rs:17:35
+   |
+17 | ...ult, StorageError};
+   |         ^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+ --> sparse\src\creation\zeros.rs:6:5
+  |
+6 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\layout\transpose.rs:7:5
+  |
+7 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `CooStorage`, `CscStorage`, and `Result`
+  --> sparse\src\reduction\mod.rs:16:27
+   |
+16 | ...e, CscStorage, CooStorage, Result};
+   |       ^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^
+
+warning: unused import: `Storage`
+ --> sparse\src\linear_algebra\matmul.rs:9:37
+  |
+9 | ...taType, Storage, Storage...
+  |            ^^^^^^^
+
+warning: unused import: `Storage`
+ --> sparse\src\layout\transpose.rs:8:37
+  |
+8 | ...taType, Storage};
+  |            ^^^^^^^
+
+warning: `dense` (lib) generated 13 warnings (run `cargo fix --lib -p dense` to apply 12 suggestions)
+warning: `coeus-sparse` (lib) generated 13 warnings (run `cargo fix --lib -p coeus-sparse` to apply 10 suggestions)
+warning: unused imports: `SparseDiv`, `SparseMul`, and `SparseSub`
+  --> tensor\src\ops\arithmetic\dispatch.rs:30:31
+   |
+30 | ...d, SparseSub, SparseMul, SparseDiv};
+   |       ^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Tensor`
+ --> tensor\src\ops\sparse\traits.rs:6:21
+  |
+6 | ...{Result, Tensor, TensorE...
+  |             ^^^^^^
+
+warning: unused imports: `Backend`, `DataType`, and `TensorError`
+ --> tensor\src\ops\sparse\mod.rs:8:13
+  |
+8 | ...::{Backend, DataType, Result, Tensor, TensorError};
+  |       ^^^^^^^  ^^^^^^^^                  ^^^^^^^^^^^
+
+warning: unused imports: `SparseAdd` and `SparseMatMul`
+  --> tensor\src\ops\sparse\mod.rs:10:20
+   |
+10 | ...::{SparseMatMul, SparseAdd};
+   |       ^^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `SparseFormat`
+  --> tensor\src\ops\sparse\mod.rs:11:27
+   |
+11 | ...age, SparseFormat};
+   |         ^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> tensor\src\ops\sparse\mod.rs:12:5
+   |
+12 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `DenseStorage` and `Storage`
+ --> tensor\src\sparse\coo.rs:1:32
+  |
+1 | ...e, DenseStorage, Result, Storage, T...
+  |       ^^^^^^^^^^^^          ^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> tensor\src\sparse\csc.rs:1:32
+  |
+1 | ...Type, DenseStorage, Resu...
+  |          ^^^^^^^^^^^^
+
+warning: unused import: `crate::ops::sparse::TensorSparseOps`
+  --> tensor\src\sparse\csr.rs:51:13
+   |
+51 | ...se crate::ops::sparse::TensorSparseOps;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csr.rs:1:74
+  |
+1 | ...Result, Storage, Tensor};
+  |            ^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csc.rs:1:54
+  |
+1 | ...Result, Storage, Tensor};
+  |            ^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\classification\cross_entropy.rs:6:5
+  |
+6 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\reduction\mean.rs:7:5
+  |
+7 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `StorageToDense`
+  --> tensor\src\ops\dispatch\sparse_dispatch.rs:22:36
+   |
+22 | ...ge, StorageToDense};
+   |        ^^^^^^^^^^^^^^
+
+warning: unused variable: `i`
+  --> tensor\src\ops\layout\cat.rs:36:10
+   |
+36 |     for (i, t) in tensors....
+   |          ^ help: if this is intentional, prefix it with an underscore: `_i`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `weight_ih`
+  --> tensor\src\ops\rnn\rnn.rs:36:13
+   |
+36 | ... let weight_ih = input....
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_ih`
+
+warning: unused variable: `weight_hh`
+  --> tensor\src\ops\rnn\rnn.rs:37:13
+   |
+37 | ... let weight_hh = input....
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_hh`
+
+warning: unused variable: `bias_ih`
+  --> tensor\src\ops\rnn\rnn.rs:38:13
+   |
+38 | ...   let bias_ih: Option<...
+   |           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_ih`
+
+warning: unused variable: `bias_hh`
+  --> tensor\src\ops\rnn\rnn.rs:39:13
+   |
+39 | ...   let bias_hh: Option<...
+   |           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_hh`
+
+warning: unused variable: `sqrt2`
+  --> tensor\src\functions\activation\gelu.rs:59:13
+   |
+59 | ...   let sqrt2 = T::from_...
+   |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_sqrt2`
+
+warning: function `input_data_len` is never used
+  --> tensor\src\ops\classification\cross_entropy.rs:76:4
+   |
+76 | fn input_data_len<B, S, T>...
+   |    ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tensor` (lib) generated 21 warnings (run `cargo fix --lib -p tensor` to apply 15 suggestions)
+warning: function `canonical_reduce_dims` is never used
+  --> autograd\src\functions\mod.rs:52:15
+   |
+52 | pub(crate) fn canonical_reduce_dims(
+   |               ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `kept_shape_for_reduction` is never used
+  --> autograd\src\functions\mod.rs:74:15
+   |
+74 | pub(crate) fn kept_shape_for_reduction(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `unbroadcast_dense` is never used
+   --> autograd\src\functions\mod.rs:117:15
+    |
+117 | pub(crate) fn unbroadcast_dense<B, T>(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `to_storage_preserving_graph` is never used
+   --> autograd\src\functions\mod.rs:160:15
+    |
+160 | pub(crate) fn to_storage_preserving_graph<B, S, T>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `to_dense_preserving_graph_identity` is never used
+   --> autograd\src\functions\mod.rs:174:15
+    |
+174 | pub(crate) fn to_dense_preserving_graph_identity<B, S, T>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `autograd` (lib) generated 5 warnings
+    Checking optim v0.2.1 (D:\coeus\optim)
+warning: unused variable: `one_minus_rho`
+   --> optim\src\adadelta.rs:171:21
+    |
+171 |                 let one_minus_rho = one - rho;
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_one_minus_rho`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `step_size`
+   --> optim\src\adamax.rs:104:13
+    |
+104 |         let step_size = lr * bias_correction;
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_step_size`
+
+warning: `optim` (lib) generated 2 warnings (run `cargo fix --lib -p optim` to apply 2 suggestions)
+    Checking nn v0.2.1 (D:\coeus\nn)
+error[E0432]: unresolved import `crate::modules::activation::GELU`
+  --> nn\src\audio\models\base.rs:11:5
+   |
+11 | use crate::modules::activation::GELU;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `GELU` in `modules::activation`
+   |
+help: a similar name exists in the module
+   |
+11 - use crate::modules::activation::GELU;
+11 + use crate::modules::activation::gelu;
+   |
+help: consider importing this variant instead
+   |
+11 - use crate::modules::activation::GELU;
+11 + use crate::nas::search_space::ActivationType::GELU;
+   |
+
+error[E0432]: unresolved import `crate::conv1d`
+   --> nn\src\audio\models\base.rs:247:12
+    |
+247 | use crate::conv1d::Conv1D;
+    |            ^^^^^^
+    |            |
+    |            unresolved import
+    |            help: a similar path exists: `functional_api::conv1d`
+
+error[E0412]: cannot find type `Conv1d` in this scope
+  --> nn\src\audio\models\base.rs:22:26
+   |
+22 |     feature_encoder: Vec<Conv1d<B, S, T>>,
+   |                          ^^^^^^ not found in this scope
+
+error[E0412]: cannot find type `Conv1d` in this scope
+  --> nn\src\audio\models\base.rs:78:18
+   |
+78 |     postnet: Vec<Conv1d<B, S, T>>,
+   |                  ^^^^^^ not found in this scope
+
+error[E0412]: cannot find type `Conv1d` in this scope
+   --> nn\src\audio\models\base.rs:102:18
+    |
+102 |     postnet: Vec<Conv1d<B, S, T>>,
+    |                  ^^^^^^ not found in this scope
+
+warning: unused import: `std::ops::Mul`
+  --> nn\src\functional\attention\mod.rs:14:5
+   |
+14 | use std::ops::Mul;
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `DenseStorage`
+ --> nn\src\functional\ops\activation\dropout.rs:7:15
+  |
+7 | use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+  |               ^^^^^^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+  --> nn\src\functional\ops\activation\dropout.rs:10:5
+   |
+10 | use num_traits::FromPrimitive;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `relu` in the value namespace is first re-exported here
+12 | pub use activation::*;
+   |         ------------- but the name `relu` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `sigmoid` in the value namespace is first re-exported here
+12 | pub use activation::*;
+   |         ------------- but the name `sigmoid` in the value namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `tanh` in the value namespace is first re-exported here
+12 | pub use activation::*;
+   |         ------------- but the name `tanh` in the value namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `gelu` in the value namespace is first re-exported here
+12 | pub use activation::*;
+   |         ------------- but the name `gelu` in the value namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `silu` in the value namespace is first re-exported here
+12 | pub use activation::*;
+   |         ------------- but the name `silu` in the value namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `leaky_relu` in the value namespace is first re-exported here
+12 | pub use activation::*;
+   |         ------------- but the name `leaky_relu` in the value namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `elu` in the value namespace is first re-exported here
+12 | pub use activation::*;
+   |         ------------- but the name `elu` in the value namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `softmax` in the value namespace is first re-exported here
+12 | pub use activation::*;
+   |         ------------- but the name `softmax` in the value namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `log_softmax` in the value namespace is first re-exported here
+12 | pub use activation::*;
+   |         ------------- but the name `log_softmax` in the value namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `softmax_dim` in the value namespace is first re-exported here
+12 | pub use activation::*;
+   |         ------------- but the name `softmax_dim` in the value namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^ the name `dropout` in the value namespace is first re-exported here
+12 | pub use activation::*;
+   |         ------------- but the name `dropout` in the value namespace is also re-exported here
+
+warning: unused import: `activations::*`
+  --> nn\src\functional\ops\mod.rs:11:9
+   |
+11 | pub use activations::*;
+   |         ^^^^^^^^^^^^^^
+
+warning: unused import: `std::fmt`
+ --> nn\src\audio\models\base.rs:6:5
+  |
+6 | use std::fmt;
+  |     ^^^^^^^^
+
+warning: unused imports: `NNError` and `Result`
+ --> nn\src\audio\models\base.rs:7:26
+  |
+7 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^  ^^^^^^
+
+warning: unused import: `crate::modules::attention::MultiHeadAttention`
+ --> nn\src\audio\models\base.rs:8:5
+  |
+8 | use crate::modules::attention::MultiHeadAttention;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::modules::normalization::LayerNorm`
+  --> nn\src\audio\models\base.rs:10:5
+   |
+10 | use crate::modules::normalization::LayerNorm;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\audio\models\recognition.rs:9:26
+  |
+9 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused imports: `Arc` and `Mutex`
+ --> nn\src\audio\ops\processing.rs:7:17
+  |
+7 | use std::sync::{Arc, Mutex};
+  |                 ^^^  ^^^^^
+
+warning: unused import: `NNError`
+ --> nn\src\audio\ops\processing.rs:8:26
+  |
+8 | use crate::core::error::{NNError, Result};
+  |                          ^^^^^^^
+
+warning: unused import: `core::*`
+ --> nn\src\audio\mod.rs:5:9
+  |
+5 | pub use core::*;
+  |         ^^^^^^^
+
+warning: ambiguous glob re-exports
+ --> nn\src\audio\mod.rs:8:9
+  |
+8 | pub use models::synthesis::*;
+  |         ^^^^^^^^^^^^^^^^^^^^ the name `AudioConfig` in the type namespace is first re-exported here
+9 | pub use ops::features::*;
+  |         ---------------- but the name `AudioConfig` in the type namespace is also re-exported here
+
+warning: ambiguous glob re-exports
+  --> nn\src\audio\mod.rs:9:9
+   |
+ 9 | pub use ops::features::*;
+   |         ^^^^^^^^^^^^^^^^ the name `AudioFeatureExtractor` in the type namespace is first re-exported here
+10 | pub use ops::processing::*;
+11 | pub use ops::classification::*;
+   |         ---------------------- but the name `AudioFeatureExtractor` in the type namespace is also re-exported here
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:218:30
+    |
+218 |     ) -> std::result::Result<Parameter<B, CscStorage<T>, T>, NNError>
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:276:30
+    |
+276 |     ) -> std::result::Result<Parameter<B, CooStorage<T>, T>, NNError>
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:360:30
+    |
+360 |     ) -> std::result::Result<Parameter<B, CscStorage<T>, T>, NNError> {
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:391:30
+    |
+391 |     ) -> std::result::Result<Parameter<B, CooStorage<T>, T>, NNError> {
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:229:20
+    |
+229 |             return Err(NNError::InvalidInput {
+    |                    ^^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:234:20
+    |
+234 |             return Err(NNError::InvalidInput {
+    |                    ^^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:240:26
+    |
+240 |         let dense_data = Self::create_sparse_dense_init(&backend, dims, sparsity)?;
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:244:13
+    |
+244 |             CscStorage::<T>::from_vec(dense_data.as_slice().to_vec(), dense_data.shape().dims())?;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:253:27
+    |
+253 |         Ok(Parameter::new(data, name))
+    |            -------------- ^^^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |            |
+    |            required by a bound introduced by this call
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter::<B, S, T>::new`
+   --> nn\src\core\parameter.rs:39:41
+    |
+ 39 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter::<B, S, T>::new`
+...
+ 61 |     pub fn new(data: Tensor<B, S, T>, name: String) -> Self {
+    |            --- required by a bound in this associated function
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:253:9
+    |
+253 |         Ok(Parameter::new(data, name))
+    |         ^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:253:9
+    |
+253 |         Ok(Parameter::new(data, name))
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:287:20
+    |
+287 |             return Err(NNError::InvalidInput {
+    |                    ^^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:292:20
+    |
+292 |             return Err(NNError::InvalidInput {
+    |                    ^^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:298:26
+    |
+298 |         let dense_data = Self::create_sparse_dense_init(&backend, dims, sparsity)?;
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:302:13
+    |
+302 |             CooStorage::<T>::from_vec(dense_data.as_slice().to_vec(), dense_data.shape().dims())?;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:311:27
+    |
+311 |         Ok(Parameter::new(data, name))
+    |            -------------- ^^^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |            |
+    |            required by a bound introduced by this call
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter::<B, S, T>::new`
+   --> nn\src\core\parameter.rs:39:41
+    |
+ 39 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter::<B, S, T>::new`
+...
+ 61 |     pub fn new(data: Tensor<B, S, T>, name: String) -> Self {
+    |            --- required by a bound in this associated function
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:311:9
+    |
+311 |         Ok(Parameter::new(data, name))
+    |         ^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:311:9
+    |
+311 |         Ok(Parameter::new(data, name))
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:365:23
+    |
+365 |           let storage = CscStorage::new(vec![], vec![], indptr, dims)
+    |  _______________________^
+366 | |             .map_err(|e| NNError::StorageError { source: e })?;
+    | |______________________________________________________________^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:373:30
+    |
+373 |         Ok(Parameter { data: tensor, name })
+    |                              ^^^^^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:373:9
+    |
+373 |         Ok(Parameter { data: tensor, name })
+    |         ^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CscStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:373:9
+    |
+373 |         Ok(Parameter { data: tensor, name })
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CscStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:393:23
+    |
+393 |           let storage = CooStorage::new(vec![], vec![], vec![], dims)
+    |  _______________________^
+394 | |             .map_err(|e| NNError::StorageError { source: e })?;
+    | |______________________________________________________________^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:401:30
+    |
+401 |         Ok(Parameter { data: tensor, name })
+    |                              ^^^^^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:401:9
+    |
+401 |         Ok(Parameter { data: tensor, name })
+    |         ^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0277]: the trait bound `CooStorage<T>: StorageToDense<T>` is not satisfied
+   --> nn\src\core\parameter.rs:401:9
+    |
+401 |         Ok(Parameter { data: tensor, name })
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `CooStorage<T>`
+    |
+    = help: the following other types implement trait `StorageToDense<T>`:
+              CsrStorage<T>
+              DenseStorage<T>
+              DistributedStorage<T>
+              QuantizedStorage<T, BITS>
+              StridedStorage<T>
+note: required by a bound in `Parameter`
+   --> nn\src\core\parameter.rs:27:41
+    |
+ 24 | pub struct Parameter<B, S, T>
+    |            --------- required by a bound in this struct
+...
+ 27 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    |                                         ^^^^^^^^^^^^^^^^^ required by this bound in `Parameter`
+
+error[E0533]: expected value, found struct variant `NNError::InvalidConfiguration`
+   --> nn\src\audio\models\synthesis.rs:156:28
+    |
+156 |             .ok_or_else(|| NNError::InvalidConfiguration(
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not a value
+    |
+help: you might have meant to create a new value of the struct
+    |
+156 -             .ok_or_else(|| NNError::InvalidConfiguration(
+157 -                 format!("Model '{}' not found", model_name)
+158 -             ))?;
+156 +             .ok_or_else(|| NNError::InvalidConfiguration { message: /* value */ })?;
+    |
+
+error[E0533]: expected value, found struct variant `NNError::InvalidConfiguration`
+   --> nn\src\audio\models\synthesis.rs:173:32
+    |
+173 |                 .ok_or_else(|| NNError::InvalidConfiguration(
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not a value
+    |
+help: you might have meant to create a new value of the struct
+    |
+173 -                 .ok_or_else(|| NNError::InvalidConfiguration(
+174 -                     format!("Voice '{}' not found", voice_name)
+175 -                 ))?
+173 +                 .ok_or_else(|| NNError::InvalidConfiguration { message: /* value */ })?
+    |
+
+error[E0277]: `(dyn processing::AudioFeatureExtractor + Send + Sync + 'static)` doesn't implement `Debug`
+  --> nn\src\audio\ops\processing.rs:24:5
+   |
+11 | #[derive(Debug)]
+   |          ----- in this derive macro expansion
+...
+24 |     feature_extractors: Vec<Box<dyn AudioFeatureExtractor + Send + Sync>>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Debug` is not implemented for `(dyn processing::AudioFeatureExtractor + Send + Sync + 'static)`
+   |
+   = help: the following other types implement trait `Debug`:
+             dyn Any + Send + Sync
+             dyn Any + Send
+             dyn Any
+             dyn tracing::Value
+             dyn wgpu::send_sync::AnyWasmNotSendSync
+
+error[E0277]: `(dyn processing::AudioFeatureExtractor + Send + Sync + 'static)` doesn't implement `Debug`
+  --> nn\src\audio\ops\processing.rs:33:5
+   |
+30 | #[derive(Debug)]
+   |          ----- in this derive macro expansion
+...
+33 |     feature_extractors: Vec<Box<dyn AudioFeatureExtractor + Send + Sync>>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Debug` is not implemented for `(dyn processing::AudioFeatureExtractor + Send + Sync + 'static)`
+   |
+   = help: the following other types implement trait `Debug`:
+             dyn Any + Send + Sync
+             dyn Any + Send
+             dyn Any
+             dyn tracing::Value
+             dyn wgpu::send_sync::AnyWasmNotSendSync
+
+error[E0277]: `(dyn AudioProcessorStage + Send + Sync + 'static)` doesn't implement `Debug`
+   --> nn\src\audio\ops\processing.rs:107:12
+    |
+ 98 | #[derive(Debug)]
+    |          ----- in this derive macro expansion
+...
+107 |     Custom(Box<dyn AudioProcessorStage + Send + Sync>),
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Debug` is not implemented for `(dyn AudioProcessorStage + Send + Sync + 'static)`
+    |
+    = help: the following other types implement trait `Debug`:
+              dyn Any + Send + Sync
+              dyn Any + Send
+              dyn Any
+              dyn tracing::Value
+              dyn wgpu::send_sync::AnyWasmNotSendSync
+
+error[E0533]: expected value, found struct variant `NNError::InvalidInput`
+   --> nn\src\audio\ops\classification.rs:300:24
+    |
+300 |             return Err(NNError::InvalidInput(
+    |                        ^^^^^^^^^^^^^^^^^^^^^ not a value
+    |
+help: you might have meant to create a new value of the struct
+    |
+300 -             return Err(NNError::InvalidInput(
+301 -                 format!("Confidence {:.3} below threshold {:.3}", max_prob, self.threshold)
+302 -             ));
+300 +             return Err(NNError::InvalidInput { message: /* value */ });
+    |
+
+error[E0382]: borrow of moved value: `lang_id_model`
+   --> nn\src\audio\models\recognition.rs:148:36
+    |
+146 |     pub fn with_language_id(mut self, lang_id_model: LanguageIdModel) -> Self {
+    |                                       ------------- move occurs because `lang_id_model` has type `LanguageIdModel`, which does not implement the `Copy` trait
+147 |         self.lang_id_model = Some(lang_id_model);
+    |                                   ------------- value moved here
+148 |         self.supported_languages = lang_id_model.languages.clone();
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^^ value borrowed here after move
+    |
+note: if `LanguageIdModel` implemented `Clone`, you could clone the value
+   --> nn\src\audio\models\recognition.rs:61:1
+    |
+ 61 | pub struct LanguageIdModel {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^ consider implementing `Clone` for this type
+...
+147 |         self.lang_id_model = Some(lang_id_model);
+    |                                   ------------- you could clone this value
+
+warning: unused variable: `frame`
+   --> nn\src\audio\ops\features.rs:227:63
+    |
+227 |         let power_spectra: Vec<Vec<f32>> = frames.iter().map(|frame| {
+    |                                                               ^^^^^ help: if this is intentional, prefix it with an underscore: `_frame`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+error[E0596]: cannot borrow `**processor` as mutable, as it is behind a `&` reference
+   --> nn\src\audio\ops\processing.rs:377:21
+    |
+377 |                     processor.process(&processed)?
+    |                     ^^^^^^^^^ `processor` is a `&` reference, so the data it refers to cannot be borrowed as mutable
+
+warning: unused variable: `params`
+   --> nn\src\audio\ops\processing.rs:368:45
+    |
+368 |                 ProcessingStage::Resampling(params) => {
+    |                                             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_params`
+
+warning: unused variable: `sample_rate`
+   --> nn\src\audio\ops\classification.rs:212:47
+    |
+212 |     fn extract_features(&self, audio: &[f32], sample_rate: usize) -> Result<Vec<f32>> {
+    |                                               ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+warning: unused variable: `audio`
+   --> nn\src\audio\ops\classification.rs:371:43
+    |
+371 |     pub fn extract_characteristics(&self, audio: &[f32], sample_rate: usize) -> Option<MusicCharacteristics> {
+    |                                           ^^^^^ help: if this is intentional, prefix it with an underscore: `_audio`
+
+warning: unused variable: `sample_rate`
+   --> nn\src\audio\ops\classification.rs:371:58
+    |
+371 |     pub fn extract_characteristics(&self, audio: &[f32], sample_rate: usize) -> Option<MusicCharacteristics> {
+    |                                                          ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+Some errors have detailed explanations: E0277, E0382, E0412, E0432, E0533, E0596.
+For more information about an error, try `rustc --explain E0277`.
+warning: `nn` (lib) generated 30 warnings
+error: could not compile `nn` (lib) due to 39 previous errors; 30 warnings emitted

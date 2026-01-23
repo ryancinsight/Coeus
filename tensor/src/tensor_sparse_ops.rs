@@ -8,8 +8,8 @@ where
     /// # Arguments
     /// * `data` - Non-zero values in row-major order
     /// * `indices` - Column indices for each non-zero element
-    /// * `indptr` - Row pointers (must have shape[0] + 1 elements)
-    /// * `shape` - Matrix shape [rows, cols]
+    /// * `indptr` - Row pointers (must have shape\[0\] + 1 elements)
+    /// * `shape` - Matrix shape \[rows, cols\]
     /// * `backend` - Backend instance
     ///
     /// # Errors

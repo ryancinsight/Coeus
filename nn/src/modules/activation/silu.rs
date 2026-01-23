@@ -2,11 +2,10 @@ use crate::core::error::Result;
 use crate::core::module::Module;
 use backend::Backend;
 use dtype::DataType;
-use storage::{Storage, StorageFromVec, StorageToDense};
-use tensor::{ops::arithmetic::*, FloatExt, Tensor};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use tensor::{FloatExt, Tensor};
 
-use super::swiglu::SwiGLU;
-use super::{Activation, ActivationType};
+use super::Activation;
 
 /// SiLU (Sigmoid Linear Unit) activation function
 ///
@@ -19,13 +18,13 @@ where
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
-    swiglu: SwiGLU<B, S, T>,
+    _phantom: std::marker::PhantomData<(B, S, T)>,
 }
 
 impl<B, S, T> Default for SiLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn default() -> Self {
@@ -36,27 +35,33 @@ where
 impl<B, S, T> SiLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     /// Create a new SiLU activation function
     pub fn new() -> Self {
         Self {
-            swiglu: SwiGLU::new(),
+            _phantom: std::marker::PhantomData,
         }
     }
 
     /// Apply SiLU activation: x * sigmoid(x)
     pub fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
-        // SiLU(x) = x * sigmoid(x), which is equivalent to SwiGLU(x, x)
-        self.swiglu.forward(x, x)
+        let y = crate::ops::activation::silu(x)?;
+        // Wrap output in tensor with correct storage if needed, or if silu returns correct type.
+        // crate::ops::activation::silu returns Tensor<B, DenseStorage<T>, T> usually if ported from functional.
+        // Wait, my implementation of silu in ops/activation.rs returns Tensor<B, DenseStorage<T>, T> because it does to_dense.
+        // But SiLU module expects Result<Tensor<B, S, T>>.
+        // I need to convert back to storage S.
+        let storage = S::from_vec(y.as_slice().to_vec(), y.shape().dims())?;
+        Ok(Tensor::from_storage(storage, x.backend().clone()))
     }
 }
 
 impl<B, S, T> Activation<B, S, T> for SiLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
@@ -67,7 +72,7 @@ where
 impl<B, S, T> Module<B, S, T> for SiLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {

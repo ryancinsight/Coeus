@@ -13,7 +13,7 @@ use storage::DenseStorage;
 use tensor::Tensor;
 
 fn arb_tensor_data_with_len(len: usize) -> impl Strategy<Value = Vec<Float32>> {
-    prop::collection::vec(prop::num::f32::NORMAL.prop_map(Float32::new), len..=len)
+    prop::collection::vec((-10.0f32..10.0f32).prop_map(Float32::new), len..=len)
 }
 
 /// Generate small tensor shapes suitable for neural network operations

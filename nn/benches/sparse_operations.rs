@@ -1,4 +1,4 @@
-#[cfg(feature = "cuda")]
+#[cfg(feature = "gpu")]
 use backend::GpuBackend;
 use backend::{Backend, CpuBackend};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -80,7 +80,7 @@ fn bench_sparse_matvec_cpu(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "cuda")]
+#[cfg(feature = "gpu")]
 fn bench_sparse_matvec_gpu(c: &mut Criterion) {
     let mut group = c.benchmark_group("sparse_matvec_gpu");
 
@@ -165,7 +165,7 @@ fn bench_sparse_matmul_cpu(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "cuda")]
+#[cfg(feature = "gpu")]
 fn bench_sparse_matmul_gpu(c: &mut Criterion) {
     let mut group = c.benchmark_group("sparse_matmul_gpu");
 
@@ -254,14 +254,14 @@ fn bench_sparse_efficiency_comparison(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(not(feature = "cuda"))]
+#[cfg(not(feature = "gpu"))]
 criterion_group! {
     name = benches;
     config = Criterion::default().measurement_time(Duration::from_secs(30));
     targets = bench_sparse_matvec_cpu, bench_sparse_matmul_cpu, bench_sparse_efficiency_comparison
 }
 
-#[cfg(feature = "cuda")]
+#[cfg(feature = "gpu")]
 criterion_group! {
     name = benches;
     config = Criterion::default().measurement_time(Duration::from_secs(30));

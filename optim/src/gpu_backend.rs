@@ -98,7 +98,7 @@ impl GpuOptimizerBackend {
         let queue = Arc::new(queue);
 
         // Load RMSprop shader source
-        let shader_source = include_str!("../../backend/src/shaders/sparse_dense_optimizers.wgsl");
+        let shader_source = include_str!("../../backend/src/gpu/shaders/sparse_dense_optimizers.wgsl");
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("RMSprop Shaders"),
             source: wgpu::ShaderSource::Wgsl(shader_source.into()),

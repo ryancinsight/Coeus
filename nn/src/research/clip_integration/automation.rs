@@ -49,6 +49,7 @@ pub enum FailureRecovery {
 
 /// Automated research workflow
 pub struct AutomatedResearchWorkflow {
+    #[allow(dead_code)]
     config: ClipResearchConfig,
     automation: ResearchAutomation,
     experiment_queue: Arc<Mutex<Vec<QueuedExperiment>>>,
@@ -60,11 +61,12 @@ struct QueuedExperiment {
     id: String,
     builder: ClipExperimentBuilder,
     priority: super::experiment_builder::ExperimentPriority,
+    #[allow(dead_code)]
     created_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Clone)]
-enum ExperimentStatus {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ExperimentStatus {
     Pending,
     Running,
     Completed,
@@ -190,6 +192,7 @@ pub struct WorkflowStatus {
 /// Hyperparameter optimization automation
 pub struct HpoAutomation {
     spaces: Vec<HpoSpace>,
+    #[allow(dead_code)]
     automation_config: ResearchAutomation,
 }
 
@@ -211,10 +214,10 @@ impl HpoAutomation {
         let mut builders = Vec::new();
 
         for _ in 0..num_samples {
-            let mut builder = base_builder.clone();
+            let builder = base_builder.clone();
 
             // Sample hyperparameters from spaces
-            for space in &self.spaces {
+            for _space in &self.spaces {
                 // TODO: Implement actual hyperparameter sampling
                 // For now, just clone the base builder
             }
@@ -229,6 +232,7 @@ impl HpoAutomation {
 /// Ablation study automation
 pub struct AblationAutomation {
     studies: Vec<AblationStudy>,
+    #[allow(dead_code)]
     automation_config: ResearchAutomation,
 }
 

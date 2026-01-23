@@ -316,6 +316,10 @@ impl<T: crate::DataType> AsAny for StridedStorage<T> {
 }
 
 impl<T: crate::DataType> Storage<T> for StridedStorage<T> {
+    fn format(&self) -> crate::StorageFormat {
+        crate::StorageFormat::Strided
+    }
+
     fn as_slice(&self) -> &[T] {
         &self.data
     }
@@ -346,6 +350,23 @@ impl<T: crate::DataType> Storage<T> for StridedStorage<T> {
         let size = dims.iter().product();
         let data = vec![value; size];
         Self::new(data, dims)
+    }
+
+    fn map_structure<F>(&self, f: F) -> Result<Self>
+    where
+        Self: Sized,
+        F: FnMut(T) -> T,
+    {
+        // For strided storage, we map the underlying data.
+        // This might map elements that are skipped by strides, which is acceptable
+        // for structure-preserving operations (they remain skipped).
+        let data = self.data.iter().cloned().map(f).collect();
+        Ok(Self {
+            data,
+            shape: self.shape.clone(),
+            strides: self.strides.clone(),
+            offset: self.offset,
+        })
     }
 }
 

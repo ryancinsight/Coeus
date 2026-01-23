@@ -4,10 +4,9 @@
 //! lifetime management for maximum performance. Maintains backward compatibility while
 //! adding production-ready performance optimizations.
 
-use std::any::{Any, TypeId};
+use std::any::Any;
 
-use super::{Transform, TransformError};
-use dtype::float::Float32;
+use super::TransformError;
 
 /// Trait for transformations that can be composed
 ///
@@ -169,7 +168,7 @@ mod tests {
 
     #[test]
     fn test_compose_describe() {
-        let mut compose = Compose::default();
+        let compose = Compose::default();
         assert_eq!(compose.describe(), "Compose(0 transforms)");
     }
 }

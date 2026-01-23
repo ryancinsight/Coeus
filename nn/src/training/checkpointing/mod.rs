@@ -6,16 +6,14 @@
 #[cfg(not(feature = "autograd"))]
 use crate::autograd_stub::backward;
 use crate::core::error::{NNError, Result};
-use crate::core::module::{Module, StateDict};
+use crate::core::module::Module;
 #[cfg(feature = "safetensors")]
 use crate::ModuleSerialize;
-#[allow(unused_imports)]
-use crate::Sequential;
 #[cfg(feature = "autograd")]
 use autograd::backward;
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use storage::DenseStorage;
 use tensor::Tensor;
 
@@ -46,9 +44,9 @@ pub struct Checkpointed<M, B, T> {
 #[derive(Debug, Clone)]
 struct CheckpointSegment {
     /// Starting layer index in the original model
-    start_idx: usize,
+    _start_idx: usize,
     /// Ending layer index (exclusive) in the original model
-    end_idx: usize,
+    _end_idx: usize,
     /// Whether this segment should be checkpointed
     checkpoint: bool,
 }
@@ -68,8 +66,8 @@ where
         let segments = if checkpoint_every == 0 {
             // No checkpointing - single segment
             vec![CheckpointSegment {
-                start_idx: 0,
-                end_idx: usize::MAX, // Will be adjusted
+                _start_idx: 0,
+                _end_idx: usize::MAX, // Will be adjusted
                 checkpoint: false,
             }]
         } else {
@@ -94,8 +92,8 @@ where
         loop {
             let end_idx = start_idx + checkpoint_every;
             segments.push(CheckpointSegment {
-                start_idx,
-                end_idx,
+                _start_idx: start_idx,
+                _end_idx: end_idx,
                 checkpoint: true,
             });
             start_idx = end_idx;
@@ -138,7 +136,8 @@ where
             1.0 // No savings
         } else {
             // Rough estimate: 50% memory reduction with checkpointing
-            0.5
+            // Returns savings ratio: 2.0 means 2x savings (using 50% of original memory)
+            2.0
         }
     }
 
@@ -206,7 +205,7 @@ where
 
 /// Utility functions for gradient checkpointing
 pub mod utils {
-    use super::*;
+    // use super::*;
 
     /// Estimate optimal checkpoint frequency for given model and memory constraints
     ///
@@ -264,8 +263,15 @@ mod tests {
         let model = Linear::<CpuBackend<Float32>, _, Float32>::new(10, 5).unwrap();
         let checkpointed = Checkpointed::new(model, 2);
 
-        assert!(checkpointed.memory_savings_estimate() > 1.0);
-        assert!(checkpointed.computation_overhead_estimate() > 1.0);
+        let savings = checkpointed.memory_savings_estimate();
+        assert!(savings > 1.0, "memory_savings_estimate = {}", savings);
+
+        let overhead = checkpointed.computation_overhead_estimate();
+        assert!(
+            overhead > 1.0,
+            "computation_overhead_estimate = {}",
+            overhead
+        );
     }
 
     #[test]

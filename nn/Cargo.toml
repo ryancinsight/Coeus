@@ -35,7 +35,7 @@ serde = ["dep:serde"]
 sysinfo = ["dep:sysinfo"]
 research = ["serde", "sysinfo", "dep:coeus-distributions"]
 cpu = []
-cuda = []
+gpu = []
 
 [dependencies]
 # Workspace dependencies
@@ -45,6 +45,7 @@ backend = { workspace = true }
 tensor = { workspace = true }
 autograd = { workspace = true, optional = true }
 optim = { workspace = true }  # Re-enabled for complete async training support
+quantization = { workspace = true }  # New quantization crate
 coeus-distributions = { workspace = true, optional = true }
 
 # Async ecosystem

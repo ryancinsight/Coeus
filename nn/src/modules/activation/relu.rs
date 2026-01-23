@@ -1,11 +1,11 @@
-use crate::core::error::{NNError, Result};
+use crate::core::error::Result;
 use crate::core::module::Module;
 use backend::Backend;
 use dtype::DataType;
 use storage::{Storage, StorageFromVec, StorageToDense};
-use tensor::{ops::arithmetic::*, FloatExt, Tensor};
+use tensor::{FloatExt, Tensor};
 
-use super::{Activation, ActivationType};
+use super::Activation;
 
 /// ReLU activation for completeness
 #[derive(Debug, Clone)]
@@ -45,20 +45,20 @@ where
 impl<B, S, T> Activation<B, S, T> for ReLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
-        // ReLU(x) = max(0, x)
-        let zero = Tensor::<B, S, T>::zeros_like(x)?;
-        Ok(maximum(x, &zero)?)
+        let y = crate::ops::activation::relu(x)?;
+        let storage = S::from_vec(y.as_slice().to_vec(), y.shape().dims())?;
+        Ok(Tensor::from_storage(storage, x.backend().clone()))
     }
 }
 
 impl<B, S, T> Module<B, S, T> for ReLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {

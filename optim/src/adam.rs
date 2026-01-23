@@ -14,7 +14,7 @@
 
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
-use storage::{Storage, StorageFromVec, StorageToDense};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::gpu_backend::GpuAcceleratedOptimizer;
@@ -28,7 +28,7 @@ pub struct Adam<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     param_states: Vec<ParamState<B, S, T>>,
     param_groups: Vec<crate::optimizer::ParamGroup<B, S, T>>,
@@ -43,8 +43,8 @@ where
 impl<B, S, T> Adam<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     /// Create Adam optimizer with default hyperparameters
     ///
@@ -149,15 +149,16 @@ where
 impl<B, S, T> BaseOptimizer<B, S, T> for Adam<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     fn step(&mut self) -> Result<usize, crate::OptimError> {
         self.step_cpu()
     }
 
     fn step_cpu(&mut self) -> Result<usize, crate::OptimError> {
-        use tensor::ops::arithmetic::{add, div, mul, scalar_add, scalar_mul, sqrt};
+        use tensor::ops::arithmetic::{add, div, mul};
+        use tensor::ops::math::sqrt;
 
         self.t += 1; // increment timestep for bias correction
 
@@ -181,7 +182,7 @@ where
                 Ok(tensor_grad) => {
                     // Convert gradient storage to dense, then create optimizer's storage type
                     // This handles any gradient storage type (dense, sparse, quantized, etc.)
-                    let dense_grad = match tensor_grad.storage_ref().to_dense() {
+                    let dense_grad: DenseStorage<T> = match tensor_grad.storage().to_dense() {
                         Ok(dense) => dense,
                         Err(_) => continue,
                     };
@@ -198,7 +199,9 @@ where
 
             // Apply weight decay if specified (L2 regularization)
             let effective_grad = if self.weight_decay > 0.0 {
-                let weight_decay_term = scalar_mul(&param_state.param, weight_decay)?;
+                let weight_decay_t = Tensor::from_vec_with_backend(vec![weight_decay], &[], param_state.param.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let weight_decay_term = mul(&param_state.param, &weight_decay_t)?;
                 add(&grad, &weight_decay_term)?
             } else {
                 grad.clone()
@@ -213,9 +216,15 @@ where
                         state_key: "m".to_string(),
                     }
                 })?;
-                let beta1_m = scalar_mul(m, beta1)?;
+                
+                let beta1_t = Tensor::from_vec_with_backend(vec![beta1], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let beta1_m = mul(m, &beta1_t)?;
+                
                 let one_minus_beta1 = one - beta1;
-                let one_minus_beta1_grad = scalar_mul(&effective_grad, one_minus_beta1)?;
+                let one_minus_beta1_t = Tensor::from_vec_with_backend(vec![one_minus_beta1], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let one_minus_beta1_grad = mul(&effective_grad, &one_minus_beta1_t)?;
                 *m = add(&beta1_m, &one_minus_beta1_grad)?;
             }
 
@@ -228,24 +237,41 @@ where
                     }
                 })?;
                 let grad_squared = mul(&effective_grad, &effective_grad)?;
-                let beta2_v = scalar_mul(v, beta2)?;
+                
+                let beta2_t = Tensor::from_vec_with_backend(vec![beta2], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let beta2_v = mul(v, &beta2_t)?;
+                
                 let one_minus_beta2 = one - beta2;
-                let one_minus_beta2_grad_sq = scalar_mul(&grad_squared, one_minus_beta2)?;
+                let one_minus_beta2_t = Tensor::from_vec_with_backend(vec![one_minus_beta2], &[], effective_grad.backend().clone())
+                     .map_err(|e| crate::OptimError::TensorError { source: e })?;
+                let one_minus_beta2_grad_sq = mul(&grad_squared, &one_minus_beta2_t)?;
                 *v = add(&beta2_v, &one_minus_beta2_grad_sq)?;
             }
 
             // Bias-corrected moments: m̂ = m / (1 - β₁^t), v̂ = v / (1 - β₂^t)
             let m_ref = param_state.get_state("m").unwrap();
             let v_ref = param_state.get_state("v").unwrap();
-            let m_hat = scalar_mul(m_ref, bias_correction1)?;
-            let v_hat = scalar_mul(v_ref, bias_correction2)?;
+            
+            let bc1_t = Tensor::from_vec_with_backend(vec![bias_correction1], &[], effective_grad.backend().clone())
+                 .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            let m_hat = mul(m_ref, &bc1_t)?;
+            
+            let bc2_t = Tensor::from_vec_with_backend(vec![bias_correction2], &[], effective_grad.backend().clone())
+                 .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            let v_hat = mul(v_ref, &bc2_t)?;
 
             // Parameter update: θ = θ - α * m̂ / (√v̂ + ε)
             // For numerical stability, compute √(v̂ + ε)
-            let v_hat_plus_eps = scalar_add(&v_hat, eps)?;
+            let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+                 .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            let v_hat_plus_eps = add(&v_hat, &eps_t)?;
             let v_hat_sqrt = sqrt(&v_hat_plus_eps)?;
             let update_ratio = div(&m_hat, &v_hat_sqrt)?;
-            let scaled_update = scalar_mul(&update_ratio, lr)?;
+            
+            let lr_t = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
+                 .map_err(|e| crate::OptimError::TensorError { source: e })?;
+            let scaled_update = mul(&update_ratio, &lr_t)?;
             for (p, u) in param_state
                 .param
                 .as_mut_slice()
@@ -274,8 +300,8 @@ where
 
             // Initialize Adam state: first moment (m) and second moment (v)
             let shape = tensor.shape().dims().to_vec();
-            let m = Tensor::zeros(&shape).unwrap(); // first moment
-            let v = Tensor::zeros(&shape).unwrap(); // second moment
+            let m = Tensor::zeros_with_backend(&shape, tensor.backend().clone()).unwrap(); // first moment
+            let v = Tensor::zeros_with_backend(&shape, tensor.backend().clone()).unwrap(); // second moment
 
             param_state.init_state("m".to_string(), m);
             param_state.init_state("v".to_string(), v);
@@ -377,8 +403,8 @@ where
 impl<B, S, T> Optimizer<B, S, T> for Adam<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     fn name(&self) -> &str {
         "Adam"
@@ -422,13 +448,13 @@ where
         }
 
         let param_clone = param.clone();
-        let mut param_state = ParamState::new(param_clone, name);
+        let mut param_state = ParamState::new(param_clone.clone(), name);
 
         // Initialize Adam state (m, v)
         let shape = param.shape().dims();
-        let m = Tensor::zeros(shape)
+        let m = Tensor::zeros_with_backend(shape, param_clone.backend().clone())
             .map_err(|e| crate::error::OptimError::TensorError { source: e })?;
-        let v = Tensor::zeros(shape)
+        let v = Tensor::zeros_with_backend(shape, param_clone.backend().clone())
             .map_err(|e| crate::error::OptimError::TensorError { source: e })?;
         param_state.init_state("m".to_string(), m);
         param_state.init_state("v".to_string(), v);
@@ -516,6 +542,6 @@ impl<B, S, T> GpuAcceleratedOptimizer for Adam<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T>,
-    T: DataType + FloatExt + num_traits::Float,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
 }

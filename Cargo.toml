@@ -7,6 +7,7 @@ members = [
     "coeus-error",
     "dtype",
     "storage",
+    "dense", # New dense crate for dense tensor operations
     "tensor",
     "nn",
     "optim",
@@ -27,10 +28,12 @@ members = [
     "signal",
     "special",
     "vision",
+    "quantization", # New quantization crate
+    "xtask",
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.70"
 authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
@@ -125,6 +128,7 @@ flate2 = "1.0"
 # Internal workspace packages
 dtype = { path = "dtype", version = "0.2.0" }
 storage = { path = "storage", version = "0.2.0" }
+dense = { path = "dense", version = "0.2.0" }
 tensor = { path = "tensor", version = "0.2.0" }
 autograd = { path = "autograd", version = "0.2.0" }
 backend = { path = "backend", version = "0.2.0" }
@@ -148,6 +152,7 @@ coeus-signal = { path = "signal", version = "0.1.0" }
 coeus-special = { path = "special", version = "0.1.0" }
 coeus-vision = { path = "vision", version = "0.1.0" }
 coeus-distributions = { path = "distributions", version = "0.1.0" }
+quantization = { path = "quantization", version = "0.2.0" }
 pycoeus = { path = "pycoeus", version = "0.2.0" }
 
 # Core crates
@@ -206,6 +211,12 @@ rand.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
+walkdir = "2.4"
+regex = "1.10"
+
+[[test]]
+name = "boundary_enforcement_tests"
+path = "tests/boundary_enforcement_tests.rs"
 
 [profile.dev]
 debug = 0

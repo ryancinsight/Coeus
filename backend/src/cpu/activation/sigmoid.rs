@@ -1,0 +1,67 @@
+//! CPU sigmoid activation primitive
+//!
+//! Provides optimized sigmoid activation for CPU execution.
+
+use crate::DataType;
+
+/// Sigmoid activation primitive for CPU backend
+///
+/// Performs element-wise sigmoid: result[i] = 1 / (1 + exp(-input[i]))
+///
+/// # Arguments
+/// * `input` - Input data slice
+/// * `result` - Output slice to write results
+///
+/// # Returns
+/// Result indicating success or failure
+pub fn sigmoid_primitive<T: DataType>(
+    input: &[T],
+    result: &mut [T],
+) -> crate::Result<()>
+where
+    T: Copy,
+{
+    if input.len() != result.len() {
+        return Err(crate::BackendError::InvalidInput(
+            "Input and result slice lengths must match".to_string(),
+        ));
+    }
+
+    // TODO: Future SIMD optimization point
+    for (inp, res) in input.iter().zip(result.iter_mut()) {
+        // Convert to f64 for computation, then back
+        let x_f64 = inp.to_f64().unwrap_or(0.0);
+        let sigmoid_result = 1.0 / (1.0 + (-x_f64).exp());
+        *res = T::from(sigmoid_result).unwrap_or(*inp);
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dtype::float::Float32;
+
+    #[test]
+    fn test_sigmoid_primitive() {
+        let input = [
+            Float32::new(-2.0),
+            Float32::new(0.0),
+            Float32::new(2.0),
+        ];
+        let mut result = [Float32::new(0.0); 3];
+
+        sigmoid_primitive(&input, &mut result).unwrap();
+
+        // Check that results are in valid sigmoid range [0, 1]
+        for &val in &result {
+            assert!(val.get() >= 0.0 && val.get() <= 1.0);
+        }
+
+        // Check specific values (approximately)
+        assert!((result[0].get() - 0.119).abs() < 0.01); // sigmoid(-2) ≈ 0.119
+        assert!((result[1].get() - 0.5).abs() < 0.01);   // sigmoid(0) = 0.5
+        assert!((result[2].get() - 0.881).abs() < 0.01); // sigmoid(2) ≈ 0.881
+    }
+}

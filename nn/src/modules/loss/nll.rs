@@ -2,15 +2,12 @@
 //!
 //! This module provides the NLL loss function commonly used with log-softmax outputs.
 
-use std::fmt;
-
-use backend::CpuBackend;
 use dtype::traits::FloatExt;
 use dtype::DataType;
-use storage::DenseStorage;
+use std::fmt;
 use tensor::Tensor;
 
-use crate::core::error::{NNError, Result};
+use crate::core::error::Result;
 
 /// Negative Log Likelihood (NLL) Loss function.
 ///
@@ -60,13 +57,29 @@ impl NLLLoss {
     ///
     /// # Returns
     /// Scalar tensor containing the mean NLL loss.
-    pub fn forward<T>(
+    pub fn forward<B, S, T>(
         &self,
-        log_probs: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-        targets: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>>
+        log_probs: &Tensor<B, S, T>,
+        targets: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, S, T>>
     where
-        T: DataType + FloatExt + std::ops::Neg<Output = T>,
+        B: backend::Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+        S: storage::Storage<T>
+            + storage::StorageFromVec<T>
+            + storage::StorageToDense<T>
+            + Clone
+            + Send
+            + Sync
+            + 'static
+            + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+        T: DataType
+            + FloatExt
+            + std::ops::Neg<Output = T>
+            + num_traits::FromPrimitive
+            + Copy
+            + Send
+            + Sync
+            + 'static,
     {
         nll_loss(log_probs, targets)
     }
@@ -84,81 +97,38 @@ impl fmt::Display for NLLLoss {
     }
 }
 
-/// Compute negative log likelihood loss.
-///
-/// # Arguments
-/// * `log_probs` - Log probabilities from log-softmax (shape: [batch_size, num_classes])
-/// * `targets` - Target class indices (shape: [batch_size])
-///
-/// # Returns
-/// Scalar tensor containing the mean NLL loss.
-pub fn nll_loss<T>(
-    log_probs: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    targets: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>>
+pub fn nll_loss<B, S, T>(
+    log_probs: &Tensor<B, S, T>,
+    targets: &Tensor<B, S, T>,
+) -> Result<Tensor<B, S, T>>
 where
-    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+    B: backend::Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: storage::Storage<T>
+        + storage::StorageFromVec<T>
+        + storage::StorageToDense<T>
+        + Clone
+        + Send
+        + Sync
+        + 'static
+        + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType
+        + FloatExt
+        + std::ops::Neg<Output = T>
+        + num_traits::FromPrimitive
+        + Copy
+        + Send
+        + Sync
+        + 'static,
 {
-    let log_probs_shape = log_probs.shape().dims();
-    let targets_shape = targets.shape().dims();
-
-    // Validate shapes
-    if log_probs_shape.len() != 2usize {
-        return Err(NNError::InvalidInput {
-            message: format!("log_probs must be 2D, got {}D", log_probs_shape.len()),
-        });
-    }
-
-    if targets_shape.len() != 1usize {
-        return Err(NNError::InvalidInput {
-            message: format!("targets must be 1D, got {}D", targets_shape.len()),
-        });
-    }
-
-    let batch_size = log_probs_shape[0];
-    let num_classes = log_probs_shape[1];
-
-    if targets_shape[0] != batch_size {
-        return Err(NNError::InvalidInput {
-            message: format!(
-                "Batch size mismatch: log_probs has {}, targets has {}",
-                batch_size, targets_shape[0]
-            ),
-        });
-    }
-
-    let log_probs_data = log_probs.as_slice();
-    let targets_data = targets.as_slice();
-
-    // Compute NLL: mean(-log_probs[i, targets[i]])
-    let mut total_loss = T::zero();
-
-    for (i, &target) in targets_data.iter().enumerate().take(batch_size) {
-        let target_class = target.to_f64().unwrap() as usize;
-
-        if target_class >= num_classes {
-            return Err(NNError::InvalidInput {
-                message: format!(
-                    "Target class {} out of range [0, {})",
-                    target_class, num_classes
-                ),
-            });
-        }
-
-        let idx = i * num_classes + target_class;
-        total_loss = total_loss + (-log_probs_data[idx]);
-    }
-
-    let batch_size_float = T::from(batch_size).unwrap();
-    let mean_loss = total_loss / batch_size_float;
-
-    Tensor::from_vec(vec![mean_loss], &[]).map_err(Into::into)
+    crate::ops::loss::nll_loss(log_probs, targets)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use backend::CpuBackend;
     use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_nll_loss_basic() {

@@ -1,20 +1,11 @@
-pub mod adaptive_avg1d;
-pub mod adaptive_avg2d;
-pub mod adaptive_max2d;
-pub mod avg1d;
-pub mod avg2d;
-pub mod avg3d;
+pub mod adaptive;
+pub mod avg;
 pub mod core;
-pub mod max1d;
-pub mod max2d;
-pub mod max3d;
+pub mod max;
 
-pub use adaptive_avg1d::AdaptiveAvgPool1d;
-pub use adaptive_avg2d::AdaptiveAvgPool2d;
-pub use adaptive_max2d::AdaptiveMaxPool2d;
-pub use avg1d::AvgPool1d;
-pub use avg2d::AvgPool2d;
-pub use avg3d::AvgPool3d;
-pub use max1d::MaxPool1d;
-pub use max2d::MaxPool2d;
-pub use max3d::MaxPool3d;
+pub use adaptive::{
+    AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveAvgPool3d, AdaptiveMaxPool1d, AdaptiveMaxPool2d,
+    AdaptiveMaxPool3d,
+};
+pub use avg::{AvgPool1d, AvgPool2d, AvgPool3d};
+pub use max::{MaxPool1d, MaxPool2d, MaxPool3d};

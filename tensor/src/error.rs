@@ -63,6 +63,24 @@ pub enum TensorError {
 
     /// Operation on empty tensor
     EmptyTensor,
+
+    /// Invalid dimension index
+    InvalidDimension {
+        /// Dimension index attempted
+        dim: usize,
+        /// Number of dimensions in tensor
+        ndim: usize,
+    },
+
+    /// Invalid range specification
+    InvalidRange {
+        /// Start index
+        start: usize,
+        /// End index
+        end: usize,
+        /// Size of dimension
+        size: usize,
+    },
 }
 
 #[cfg(feature = "std")]
@@ -116,6 +134,12 @@ impl fmt::Display for TensorError {
             Self::EmptyTensor => {
                 write!(f, "Operation on empty tensor")
             }
+            Self::InvalidDimension { dim, ndim } => {
+                write!(f, "Invalid dimension {dim} for tensor with {ndim} dimensions")
+            }
+            Self::InvalidRange { start, end, size } => {
+                write!(f, "Invalid range [{start}, {end}) for dimension of size {size}")
+            }
         }
     }
 }
@@ -138,6 +162,9 @@ impl From<backend::BackendError> for TensorError {
                 Self::BackendError(std::format!("Invalid input: {msg}"))
             }
             backend::BackendError::StorageError { source } => Self::StorageError(source),
+            backend::BackendError::GpuError(msg) => {
+                Self::BackendError(std::format!("GPU error: {msg}"))
+            }
         }
     }
 }

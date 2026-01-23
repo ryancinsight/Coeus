@@ -39,9 +39,12 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
+extern crate alloc;
+
 pub mod checkpointing;
 pub mod computation_graph;
 pub mod custom;
+
 pub mod functions;
 pub mod graph_node;
 pub mod loss;

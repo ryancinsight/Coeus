@@ -9,18 +9,18 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use crate::core::error::{NNError, Result};
-use crate::hpo::{HPOptimizer, HyperparameterOptimizer};
+// use crate::hpo::HyperparameterConfig;
 use crate::nas::search_space::ArchitectureType;
 use crate::nas::search_space::LayerType;
 use crate::nas::{
-    Architecture, ArchitectureEvaluator, ArchitectureSpace, AutomatedResearchPipeline, DartsNAS,
-    EvolutionaryNAS, ReinforcementNAS,
+    Architecture, ArchitectureEvaluator, ArchitectureSpace, DartsNAS, EvolutionaryNAS,
+    ReinforcementNAS,
 };
-use crate::research::metrics::{MetricEntry, MetricsCollector};
+// use crate::research::metrics::MetricsCollector;
 use crate::research::nas_integration::search_integrations::{
     DartsSearchIntegration, EvolutionarySearchIntegration, RLSearchIntegration,
 };
-use crate::research::tracking::{ExperimentRegistry, ExperimentSummary, ExperimentTracker};
+use crate::research::tracking::ExperimentSummary;
 use crate::research::UnifiedResearchFramework;
 
 /// NAS Experiment Context
@@ -634,6 +634,7 @@ pub mod search_integrations {
     use super::*;
 
     /// Evolutionary NAS integration
+    #[allow(dead_code)]
     #[derive(Debug)]
     pub struct EvolutionarySearchIntegration {
         base_algorithm: EvolutionaryNAS,
@@ -838,7 +839,7 @@ pub mod search_integrations {
             &self,
             parent1: &Architecture,
             parent2: &Architecture,
-            space: &ArchitectureSpace,
+            _space: &ArchitectureSpace,
         ) -> Result<Architecture> {
             // Simple single-point crossover
             let mut child = parent1.clone();
@@ -876,6 +877,7 @@ pub mod search_integrations {
     }
 
     /// Reinforcement Learning NAS integration
+    #[allow(dead_code)]
     #[derive(Debug)]
     pub struct RLSearchIntegration {
         base_algorithm: ReinforcementNAS,
@@ -899,10 +901,10 @@ pub mod search_integrations {
     impl IntegratedSearchAlgorithm for RLSearchIntegration {
         fn search_with_tracking(
             &self,
-            context: &NASExperimentContext,
-            framework: &mut UnifiedResearchFramework,
-            evaluator: Arc<dyn ArchitectureEvaluator>,
-            space: &ArchitectureSpace,
+            _context: &NASExperimentContext,
+            _framework: &mut UnifiedResearchFramework,
+            _evaluator: Arc<dyn ArchitectureEvaluator>,
+            _space: &ArchitectureSpace,
         ) -> Result<NASSearchResult> {
             // Similar implementation to evolutionary but using RL
             // Placeholder for now
@@ -917,6 +919,7 @@ pub mod search_integrations {
     }
 
     /// DARTS NAS integration
+    #[allow(dead_code)]
     #[derive(Debug)]
     pub struct DartsSearchIntegration {
         base_algorithm: DartsNAS,
@@ -940,10 +943,10 @@ pub mod search_integrations {
     impl IntegratedSearchAlgorithm for DartsSearchIntegration {
         fn search_with_tracking(
             &self,
-            context: &NASExperimentContext,
-            framework: &mut UnifiedResearchFramework,
-            evaluator: Arc<dyn ArchitectureEvaluator>,
-            space: &ArchitectureSpace,
+            _context: &NASExperimentContext,
+            _framework: &mut UnifiedResearchFramework,
+            _evaluator: Arc<dyn ArchitectureEvaluator>,
+            _space: &ArchitectureSpace,
         ) -> Result<NASSearchResult> {
             // Placeholder for DARTS implementation
             Err(NNError::NotImplemented {

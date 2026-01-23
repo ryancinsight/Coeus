@@ -1,12 +1,7 @@
-pub mod gru_core;
-pub mod gru_display;
-pub mod gru_forward;
-pub mod gru_module;
-#[cfg(test)]
-pub mod gru_tests;
+pub mod basic;
+pub mod gru;
 pub mod lstm;
-pub mod rnn;
 
-pub use gru_core::GRU;
+pub use basic::RNN;
+pub use gru::{GRUCell, GRU};
 pub use lstm::LSTM;
-pub use rnn::RNN;

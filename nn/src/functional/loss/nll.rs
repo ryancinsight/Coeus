@@ -2,16 +2,15 @@
 //!
 //! This module provides the NLL loss function commonly used with log-softmax outputs.
 
-use std::fmt;
-
-use backend::{Backend, CpuBackend};
+use backend::Backend;
 use dtype::traits::FloatExt;
+use std::fmt;
+use storage::{Storage, StorageFromVec, StorageToDense};
+
 use dtype::DataType;
-use num_traits::FromPrimitive;
-use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
-use crate::core::error::{NNError, Result};
+use crate::core::error::Result;
 
 /// Negative Log Likelihood (NLL) Loss function.
 ///
@@ -68,7 +67,7 @@ impl NLLLoss {
     ) -> Result<Tensor<B, S, T>>
     where
         B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
+        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
         T: DataType
             + FloatExt
             + std::ops::Neg<Output = T>
@@ -108,7 +107,7 @@ pub fn nll_loss<B, S, T>(
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType
         + FloatExt
         + std::ops::Neg<Output = T>
@@ -118,13 +117,15 @@ where
         + Sync
         + 'static,
 {
-    crate::functional::ops::loss::nll_loss(log_probs, targets)
+    crate::ops::loss::nll_loss(log_probs, targets)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use backend::CpuBackend;
     use dtype::float::Float32;
+    use storage::DenseStorage;
 
     #[test]
     fn test_nll_loss_basic() {

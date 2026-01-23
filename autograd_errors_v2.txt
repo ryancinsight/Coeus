@@ -1,0 +1,1203 @@
+warning: unused imports: `Result` and `StorageError`
+ --> storage\src\dense\core.rs:3:23
+  |
+3 | use crate::{DataType, Result, Shape, StorageError};
+  |                       ^^^^^^         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `vec::Vec`
+ --> storage\src\sparse\coo\conversion.rs:5:18
+  |
+5 | use alloc::{vec, vec::Vec};
+  |                  ^^^^^^^^
+
+warning: unused import: `vec`
+ --> storage\src\sparse\csc\core.rs:4:13
+  |
+4 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: unused import: `vec`
+ --> storage\src\sparse\csr\core.rs:6:13
+  |
+6 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:174:21
+    |
+174 |     StorageOps<T> + MatMulOps<T> + LayoutOps<T> + ArithmeticOps<T> + ReductionOps<T>
+    |                     ^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
+   --> storage\src\traits.rs:182:24
+    |
+182 |     S: StorageOps<T> + MatMulOps<T> + LayoutOps<T> + ArithmeticOps<T> + ReductionOps<T>,
+    |                        ^^^^^^^^^
+
+warning: unused variable: `rows`
+   --> storage\src\sparse\coo\traits.rs:118:13
+    |
+118 |         let rows = dims[0];
+    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_rows`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `storage` (lib) generated 7 warnings (run `cargo fix --lib -p storage` to apply 5 suggestions)
+warning: unused import: `StorageError`
+ --> backend\src\gpu\sparse\arithmetic.rs:6:35
+  |
+6 | use storage::{CsrStorage, Result, StorageError};
+  |                                   ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `CsrStorage`
+ --> backend\src\gpu\sparse\mod.rs:9:15
+  |
+9 | use storage::{CsrStorage, DenseStorage};
+  |               ^^^^^^^^^^
+
+warning: unused variable: `input`
+   --> backend\src\cpu\backend.rs:517:9
+    |
+517 |         input: &DenseStorage<Self::Data>,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_input`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `image_embeddings`
+   --> backend\src\cpu\backend.rs:656:9
+    |
+656 |         image_embeddings: &DenseStorage<Self::Data>,
+    |         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_image_embeddings`
+
+warning: unused variable: `text_embeddings`
+   --> backend\src\cpu\backend.rs:657:9
+    |
+657 |         text_embeddings: &DenseStorage<Self::Data>,
+    |         ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_text_embeddings`
+
+warning: unused variable: `temperature`
+   --> backend\src\cpu\backend.rs:658:9
+    |
+658 |         temperature: f32,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_temperature`
+
+warning: unused variable: `keys`
+   --> backend\src\cpu\backend.rs:667:9
+    |
+667 |         keys: &DenseStorage<Self::Data>,
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_keys`
+
+warning: unused variable: `values`
+   --> backend\src\cpu\backend.rs:668:9
+    |
+668 |         values: &DenseStorage<Self::Data>,
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_values`
+
+warning: unused variable: `num_heads`
+   --> backend\src\cpu\backend.rs:669:9
+    |
+669 |         num_heads: usize,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_num_heads`
+
+warning: `backend` (lib) generated 9 warnings (run `cargo fix --lib -p backend` to apply 9 suggestions)
+warning: unexpected `cfg` condition value: `std`
+  --> dense\src\lib.rs:32:7
+   |
+32 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^ help: remove the condition
+   |
+   = note: no expected values for `feature`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused imports: `StorageError` and `Storage`
+ --> dense\src\activation\relu.rs:5:29
+  |
+5 | use storage::{DenseStorage, Storage, StorageError};
+  |                             ^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\relu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\sigmoid.rs:5:29
+  |
+5 | use storage::{DenseStorage, Storage};
+  |                             ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\sigmoid.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\tanh.rs:5:29
+  |
+5 | use storage::{DenseStorage, Storage};
+  |                             ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\tanh.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> dense\src\activation\gelu.rs:5:29
+  |
+5 | use storage::{DenseStorage, Storage};
+  |                             ^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> dense\src\activation\gelu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+  --> dense\src\layout\mod.rs:16:37
+   |
+16 | use storage::{DenseStorage, Result, Storage};
+   |                                     ^^^^^^^
+
+warning: unused import: `Shape`
+ --> dense\src\creation\zeros.rs:3:37
+  |
+3 | use storage::{DenseStorage, Result, Shape, Storage};
+  |                                     ^^^^^
+
+warning: unused import: `Storage`
+  --> dense\src\creation\mod.rs:16:37
+   |
+16 | use storage::{DenseStorage, Result, Storage};
+   |                                     ^^^^^^^
+
+warning: unused variable: `new_shape`
+   --> dense\src\layout\transpose.rs:194:5
+    |
+194 |     new_shape: &[usize],
+    |     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_shape`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unexpected `cfg` condition value: `std`
+  --> sparse\src\lib.rs:30:7
+   |
+30 | #[cfg(feature = "std")]
+   |       ^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default` and `gpu`
+   = help: consider adding `std` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `crate::Result`
+  --> sparse\src\arithmetic\mod.rs:39:5
+   |
+39 | use crate::Result;
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `storage::CsrStorage`
+  --> sparse\src\arithmetic\mod.rs:41:5
+   |
+41 | use storage::CsrStorage;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\activation\relu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\activation\sigmoid.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\activation\tanh.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\activation\gelu.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `StorageError`
+  --> sparse\src\activation\mod.rs:17:35
+   |
+17 | ...ult, StorageError};
+   |         ^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+ --> sparse\src\creation\zeros.rs:6:5
+  |
+6 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> sparse\src\layout\transpose.rs:7:5
+  |
+7 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `CooStorage`, `CscStorage`, and `Result`
+  --> sparse\src\reduction\mod.rs:16:27
+   |
+16 | ...e, CscStorage, CooStorage, Result};
+   |       ^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^
+
+warning: unused import: `Storage`
+ --> sparse\src\linear_algebra\matmul.rs:9:37
+  |
+9 | ...taType, Storage, Storage...
+  |            ^^^^^^^
+
+warning: unused import: `Storage`
+ --> sparse\src\layout\transpose.rs:8:37
+  |
+8 | ...taType, Storage};
+  |            ^^^^^^^
+
+warning: `dense` (lib) generated 13 warnings (run `cargo fix --lib -p dense` to apply 12 suggestions)
+warning: `coeus-sparse` (lib) generated 13 warnings (run `cargo fix --lib -p coeus-sparse` to apply 10 suggestions)
+warning: unused imports: `SparseDiv`, `SparseMul`, and `SparseSub`
+  --> tensor\src\ops\arithmetic\dispatch.rs:30:31
+   |
+30 | ...d, SparseSub, SparseMul, SparseDiv};
+   |       ^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Tensor`
+ --> tensor\src\ops\sparse\traits.rs:6:21
+  |
+6 | ...{Result, Tensor, TensorE...
+  |             ^^^^^^
+
+warning: unused imports: `Backend`, `DataType`, and `TensorError`
+ --> tensor\src\ops\sparse\mod.rs:8:13
+  |
+8 | ...::{Backend, DataType, Result, Tensor, TensorError};
+  |       ^^^^^^^  ^^^^^^^^                  ^^^^^^^^^^^
+
+warning: unused imports: `SparseAdd` and `SparseMatMul`
+  --> tensor\src\ops\sparse\mod.rs:10:20
+   |
+10 | ...::{SparseMatMul, SparseAdd};
+   |       ^^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `SparseFormat`
+  --> tensor\src\ops\sparse\mod.rs:11:27
+   |
+11 | ...age, SparseFormat};
+   |         ^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> tensor\src\ops\sparse\mod.rs:12:5
+   |
+12 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `DenseStorage` and `Storage`
+ --> tensor\src\sparse\coo.rs:1:32
+  |
+1 | ...e, DenseStorage, Result, Storage, T...
+  |       ^^^^^^^^^^^^          ^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> tensor\src\sparse\csc.rs:1:32
+  |
+1 | ...Type, DenseStorage, Resu...
+  |          ^^^^^^^^^^^^
+
+warning: unused import: `crate::ops::sparse::TensorSparseOps`
+  --> tensor\src\sparse\csr.rs:51:13
+   |
+51 | ...se crate::ops::sparse::TensorSparseOps;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csr.rs:1:74
+  |
+1 | ...Result, Storage, Tensor};
+  |            ^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\sparse\csc.rs:1:54
+  |
+1 | ...Result, Storage, Tensor};
+  |            ^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\classification\cross_entropy.rs:6:5
+  |
+6 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `num_traits::FromPrimitive`
+ --> tensor\src\ops\reduction\mean.rs:7:5
+  |
+7 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `StorageToDense`
+  --> tensor\src\ops\dispatch\sparse_dispatch.rs:22:36
+   |
+22 | ...ge, StorageToDense};
+   |        ^^^^^^^^^^^^^^
+
+warning: unused variable: `i`
+  --> tensor\src\ops\layout\cat.rs:36:10
+   |
+36 |     for (i, t) in tensors....
+   |          ^ help: if this is intentional, prefix it with an underscore: `_i`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `weight_ih`
+  --> tensor\src\ops\rnn\rnn.rs:36:13
+   |
+36 | ... let weight_ih = input....
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_ih`
+
+warning: unused variable: `weight_hh`
+  --> tensor\src\ops\rnn\rnn.rs:37:13
+   |
+37 | ... let weight_hh = input....
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_hh`
+
+warning: unused variable: `bias_ih`
+  --> tensor\src\ops\rnn\rnn.rs:38:13
+   |
+38 | ...   let bias_ih: Option<...
+   |           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_ih`
+
+warning: unused variable: `bias_hh`
+  --> tensor\src\ops\rnn\rnn.rs:39:13
+   |
+39 | ...   let bias_hh: Option<...
+   |           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_hh`
+
+warning: unused variable: `sqrt2`
+  --> tensor\src\functions\activation\gelu.rs:59:13
+   |
+59 | ...   let sqrt2 = T::from_...
+   |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_sqrt2`
+
+warning: function `input_data_len` is never used
+  --> tensor\src\ops\classification\cross_entropy.rs:76:4
+   |
+76 | fn input_data_len<B, S, T>...
+   |    ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tensor` (lib) generated 21 warnings (run `cargo fix --lib -p tensor` to apply 15 suggestions)
+    Checking autograd v0.2.1 (D:\coeus\autograd)
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:323:12
+    |
+323 | impl<B, T> GradientAccumulator<B, T>
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `graph_node::GradientAccumulator`
+   --> autograd\src\graph_node.rs:316:8
+    |
+314 | pub struct GradientAccumulator<B, T>
+    |            ------------------- required by a bound in this struct
+315 | where
+316 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `GradientAccumulator`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\tensor_ops.rs:96:11
+    |
+ 96 |     lhs: &Tensor<B, S, T>,
+    |           ^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+101 |     T: DataType + 'static + std::ops::Neg, B: backend::Backend
+    |                                            +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:329:21
+    |
+329 |     pub fn new() -> Self {
+    |                     ^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `graph_node::GradientAccumulator`
+   --> autograd\src\graph_node.rs:316:8
+    |
+314 | pub struct GradientAccumulator<B, T>
+    |            ------------------- required by a bound in this struct
+315 | where
+316 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `GradientAccumulator`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:341:14
+    |
+341 |         &mut self,
+    |              ^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `graph_node::GradientAccumulator`
+   --> autograd\src\graph_node.rs:316:8
+    |
+314 | pub struct GradientAccumulator<B, T>
+    |            ------------------- required by a bound in this struct
+315 | where
+316 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `GradientAccumulator`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:360:10
+    |
+360 |         &self,
+    |          ^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `graph_node::GradientAccumulator`
+   --> autograd\src\graph_node.rs:316:8
+    |
+314 | pub struct GradientAccumulator<B, T>
+    |            ------------------- required by a bound in this struct
+315 | where
+316 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `GradientAccumulator`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:372:33
+    |
+372 |     pub fn apply_gradients(&mut self) -> Result<(), crate::error::AutogradError> {
+    |                                 ^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `graph_node::GradientAccumulator`
+   --> autograd\src\graph_node.rs:316:8
+    |
+314 | pub struct GradientAccumulator<B, T>
+    |            ------------------- required by a bound in this struct
+315 | where
+316 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `GradientAccumulator`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:411:23
+    |
+411 |     pub fn clear(&mut self) {
+    |                       ^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `graph_node::GradientAccumulator`
+   --> autograd\src\graph_node.rs:316:8
+    |
+314 | pub struct GradientAccumulator<B, T>
+    |            ------------------- required by a bound in this struct
+315 | where
+316 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `GradientAccumulator`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0271]: type mismatch resolving `<T as Neg>::Output == T`
+   --> autograd\src\computation_graph.rs:302:29
+    |
+205 |     pub fn backward<B, S, T>(
+    |                           - expected this type parameter
+...
+302 |                             crate::tensor_ops::add(existing_grad, &grad_in_dense_converted)?
+    |                             ^^^^^^^^^^^^^^^^^^^^^^ expected type parameter `T`, found associated type
+    |
+    = note: expected type parameter `T`
+              found associated type `<T as Neg>::Output`
+    = note: required for `DenseStorage<T>` to implement `TensorStorageArithmetic<T>`
+note: required by a bound in `tensor_ops::add`
+   --> autograd\src\tensor_ops.rs:249:61
+    |
+246 | pub fn add<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
+    |        --- required by a bound in this function
+...
+249 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + TensorStorageArithmetic<T> + Clone + Send + Sync + 'static,
+    |                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting this bound
+    |
+221 |         T: DataType + num_traits::Zero + Clone + 'static + std::ops::Neg<Output = T>,
+    |                                                                         ++++++++++++
+
+error[E0271]: type mismatch resolving `<T as Neg>::Output == T`
+   --> autograd\src\computation_graph.rs:304:29
+    |
+205 |     pub fn backward<B, S, T>(
+    |                           - expected this type parameter
+...
+304 |                             tensor::ops::arithmetic::add(existing_grad, &grad_in_dense_converted)
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected type parameter `T`, found associated type
+    |
+    = note: expected type parameter `T`
+              found associated type `<T as Neg>::Output`
+    = note: required for `DenseStorage<T>` to implement `TensorStorageArithmetic<T>`
+note: required by a bound in `tensor::ops::add`
+   --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+    |
+ 11 | ...fn add<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + super::traits::TensorStorageArithmetic<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting this bound
+    |
+221 |         T: DataType + num_traits::Zero + Clone + 'static + std::ops::Neg<Output = T>,
+    |                                                                         ++++++++++++
+
+error[E0277]: the trait bound `T: Neg` is not satisfied
+   --> autograd\src\computation_graph.rs:360:16
+    |
+360 |         engine.backward(Some(grad_fn), &grad_output, false)?;
+    |                ^^^^^^^^ the trait `Neg` is not implemented for `T`
+    |
+note: required by a bound in `GradientEngine::backward`
+   --> autograd\src\computation_graph.rs:221:60
+    |
+205 |     pub fn backward<B, S, T>(
+    |            -------- required by a bound in this associated function
+...
+221 |         T: DataType + num_traits::Zero + Clone + 'static + std::ops::Neg,
+    |                                                            ^^^^^^^^^^^^^ required by this bound in `GradientEngine::backward`
+help: consider further restricting type parameter `T` with trait `Neg`
+    |
+343 |         T: DataType + num_traits::Zero + Clone + 'static + std::ops::Neg,
+    |                                                          +++++++++++++++
+
+error[E0271]: type mismatch resolving `<T as Neg>::Output == T`
+   --> autograd\src\computation_graph.rs:389:35
+    |
+366 |     fn accumulate_gradient<B, S, GS, T>(
+    |                                      - expected this type parameter
+...
+389 |                     let updated = crate::tensor_ops::add(&existing_dense, &gradient_dense)?;
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^ expected type parameter `T`, found associated type
+    |
+    = note: expected type parameter `T`
+              found associated type `<T as Neg>::Output`
+    = note: required for `DenseStorage<T>` to implement `TensorStorageArithmetic<T>`
+note: required by a bound in `tensor_ops::add`
+   --> autograd\src\tensor_ops.rs:249:61
+    |
+246 | pub fn add<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
+    |        --- required by a bound in this function
+...
+249 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + TensorStorageArithmetic<T> + Clone + Send + Sync + 'static,
+    |                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting this bound
+    |
+382 |         T: DataType + Clone + std::ops::Neg<Output = T>,
+    |                                            ++++++++++++
+
+error[E0277]: the trait bound `T: Neg` is not satisfied
+   --> autograd\src\computation_graph.rs:450:16
+    |
+450 |         engine.backward(Some(grad_fn), &grad_output, false)?;
+    |                ^^^^^^^^ the trait `Neg` is not implemented for `T`
+    |
+note: required by a bound in `GradientEngine::backward`
+   --> autograd\src\computation_graph.rs:221:60
+    |
+205 |     pub fn backward<B, S, T>(
+    |            -------- required by a bound in this associated function
+...
+221 |         T: DataType + num_traits::Zero + Clone + 'static + std::ops::Neg,
+    |                                                            ^^^^^^^^^^^^^ required by this bound in `GradientEngine::backward`
+help: consider further restricting type parameter `T` with trait `Neg`
+    |
+442 |     T: DataType + std::ops::Neg,
+    |                 +++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:330:9
+    |
+330 |         Self {
+    |         ^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `graph_node::GradientAccumulator`
+   --> autograd\src\graph_node.rs:316:8
+    |
+314 | pub struct GradientAccumulator<B, T>
+    |            ------------------- required by a bound in this struct
+315 | where
+316 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `GradientAccumulator`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:331:24
+    |
+331 |             gradients: std::collections::HashMap::new(),
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:345:30
+    |
+345 |         let key = (tensor as *const Tensor<B, storage::DenseStorage<T>, T>).cast::<()>();
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:347:38
+    |
+347 |         if let Some(existing_grad) = self.gradients.get_mut(&key) {
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0369]: cannot add `&Tensor<B, DenseStorage<T>, T>` to `&Tensor<B, DenseStorage<T>, T>`
+   --> autograd\src\graph_node.rs:350:46
+    |
+350 |             *existing_grad = &*existing_grad + &grad;
+    |                              --------------- ^ ----- &Tensor<B, DenseStorage<T>, T>
+    |                              |
+    |                              &Tensor<B, DenseStorage<T>, T>
+    |
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+help: consider further restricting type parameter `B` with trait `Clone`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: std::clone::Clone
+    |                                                               ++++++++++++++++++++
+help: consider further restricting type parameter `B` with trait `Default`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: std::default::Default
+    |                                                               ++++++++++++++++++++++++
+help: consider further restricting type parameter `B` with trait `Send`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: std::marker::Send
+    |                                                               ++++++++++++++++++++
+help: consider further restricting type parameter `B` with trait `Sync`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: std::marker::Sync
+    |                                                               ++++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:353:13
+    |
+353 |             self.gradients.insert(key, grad);
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:363:30
+    |
+363 |         let key = (tensor as *const Tensor<B, storage::DenseStorage<T>, T>).cast::<()>();
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:364:9
+    |
+364 |         self.gradients.get(&key)
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:373:35
+    |
+373 |         for (tensor_ptr, grad) in self.gradients.drain() {
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:375:55
+    |
+375 |             let tensor = unsafe { &*tensor_ptr.cast::<Tensor<B, storage::DenseStorage<T>, T>>() };
+    |                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0599]: the method `grad` exists for reference `&Tensor<B, DenseStorage<T>, T>`, but its trait bounds were not satisfied
+   --> autograd\src\graph_node.rs:378:47
+    |
+378 |             if let Ok(existing_grad) = tensor.grad() {
+    |                                               ^^^^ private field, not a method
+    |
+    = note: the following trait bounds were not satisfied:
+            `B: Backend`
+
+error[E0282]: type annotations needed
+   --> autograd\src\graph_node.rs:380:37
+    |
+380 |                 let existing_data = existing_grad.as_slice();
+    |                                     ^^^^^^^^^^^^^ cannot infer type
+
+error[E0599]: the method `as_slice` exists for struct `Tensor<B, DenseStorage<T>, T>`, but its trait bounds were not satisfied
+   --> autograd\src\graph_node.rs:381:38
+    |
+381 |                 let grad_data = grad.as_slice();
+    |                                      ^^^^^^^^ method cannot be called on `Tensor<B, DenseStorage<T>, T>` due to unsatisfied trait bounds
+    |
+    = note: the following trait bounds were not satisfied:
+            `B: Backend`
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:388:34
+    |
+388 |                 let accumulated: Tensor<B, DenseStorage<T>, T> =
+    |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0599]: the method `set_grad` exists for reference `&Tensor<B, DenseStorage<T>, T>`, but its trait bounds were not satisfied
+   --> autograd\src\graph_node.rs:392:40
+    |
+392 |                 if let Err(e) = tensor.set_grad(accumulated) {
+    |                                        ^^^^^^^^ method cannot be called on `&Tensor<B, DenseStorage<T>, T>` due to unsatisfied trait bounds
+    |
+    = note: the following trait bounds were not satisfied:
+            `B: Backend`
+
+error[E0599]: the method `set_grad` exists for reference `&Tensor<B, DenseStorage<T>, T>`, but its trait bounds were not satisfied
+   --> autograd\src\graph_node.rs:399:40
+    |
+399 |                 if let Err(e) = tensor.set_grad(grad) {
+    |                                        ^^^^^^^^ method cannot be called on `&Tensor<B, DenseStorage<T>, T>` due to unsatisfied trait bounds
+    |
+    = note: the following trait bounds were not satisfied:
+            `B: Backend`
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\graph_node.rs:412:9
+    |
+412 |         self.gradients.clear();
+    |         ^^^^^^^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg, B: backend::Backend
+    |                                                               +++++++++++++++++++
+
+error[E0599]: the function or associated item `new` exists for struct `graph_node::GradientAccumulator<B, T>`, but its trait bounds were not satisfied
+   --> autograd\src\graph_node.rs:422:15
+    |
+314 | pub struct GradientAccumulator<B, T>
+    | ------------------------------------ function or associated item `new` not found for this struct
+...
+422 |         Self::new()
+    |               ^^^ function or associated item cannot be called on `graph_node::GradientAccumulator<B, T>` due to unsatisfied trait bounds
+    |
+note: trait bound `T: Neg` was not satisfied
+   --> autograd\src\graph_node.rs:325:48
+    |
+323 | impl<B, T> GradientAccumulator<B, T>
+    |            -------------------------
+324 | where
+325 |     T: DataType + core::ops::Add<Output = T> + std::ops::Neg,
+    |                                                ^^^^^^^^^^^^^ unsatisfied trait bound introduced here
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `new`, perhaps you need to implement one of them:
+            candidate #1: `parking_lot_core::thread_parker::ThreadParkerT`
+            candidate #2: `rand::distributions::uniform::UniformSampler`
+            candidate #3: `typenum::marker_traits::Bit`
+
+error[E0277]: the trait bound `T: Neg` is not satisfied
+   --> autograd\src\ops.rs:57:12
+    |
+ 57 |     engine.backward(tensor.grad_fn(), &grad, create_graph)
+    |            ^^^^^^^^ the trait `Neg` is not implemented for `T`
+    |
+note: required by a bound in `GradientEngine::backward`
+   --> autograd\src\computation_graph.rs:221:60
+    |
+205 |     pub fn backward<B, S, T>(
+    |            -------- required by a bound in this associated function
+...
+221 |         T: DataType + num_traits::Zero + Clone + 'static + std::ops::Neg,
+    |                                                            ^^^^^^^^^^^^^ required by this bound in `GradientEngine::backward`
+help: consider further restricting type parameter `T` with trait `Neg`
+    |
+ 41 |     T: DataType + num_traits::One + num_traits::Zero + std::ops::Neg,
+    |                                                      +++++++++++++++
+
+error[E0277]: the trait bound `T: Neg` is not satisfied
+   --> autograd\src\ops.rs:229:20
+    |
+229 |         let prod = mul(g, vi)?;
+    |                    ^^^ the trait `Neg` is not implemented for `T`
+    |
+note: required by a bound in `tensor_ops::mul`
+   --> autograd\src\tensor_ops.rs:318:64
+    |
+314 | pub fn mul<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
+    |        --- required by a bound in this function
+...
+318 |     T: DataType + std::ops::Mul<Output = T> + Copy + 'static + std::ops::Neg,
+    |                                                                ^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `T` with trait `Neg`
+    |
+214 |     T: DataType + num_traits::One + num_traits::Zero + Copy + std::ops::Neg,
+    |                                                             +++++++++++++++
+
+error[E0277]: the trait bound `T: Neg` is not satisfied
+   --> autograd\src\ops.rs:292:19
+    |
+292 |     let product = mul(&probe, &output)?;
+    |                   ^^^ the trait `Neg` is not implemented for `T`
+    |
+note: required by a bound in `tensor_ops::mul`
+   --> autograd\src\tensor_ops.rs:318:64
+    |
+314 | pub fn mul<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
+    |        --- required by a bound in this function
+...
+318 |     T: DataType + std::ops::Mul<Output = T> + Copy + 'static + std::ops::Neg,
+    |                                                                ^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `T` with trait `Neg`
+    |
+273 |     T: DataType + num_traits::One + num_traits::Zero + Copy + std::ops::Neg,
+    |                                                             +++++++++++++++
+
+error[E0277]: the trait bound `T: Neg` is not satisfied
+   --> autograd\src\ops.rs:301:33
+    |
+301 |         let component_product = mul(grad_component, vector_component)?;
+    |                                 ^^^ the trait `Neg` is not implemented for `T`
+    |
+note: required by a bound in `tensor_ops::mul`
+   --> autograd\src\tensor_ops.rs:318:64
+    |
+314 | pub fn mul<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
+    |        --- required by a bound in this function
+...
+318 |     T: DataType + std::ops::Mul<Output = T> + Copy + 'static + std::ops::Neg,
+    |                                                                ^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `T` with trait `Neg`
+    |
+273 |     T: DataType + num_traits::One + num_traits::Zero + Copy + std::ops::Neg,
+    |                                                             +++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\tensor_ops.rs:104:18
+    |
+104 |         Arc::new(lhs.clone()),
+    |                  ^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+101 |     T: DataType + 'static + std::ops::Neg, B: backend::Backend
+    |                                            +++++++++++++++++++
+
+error[E0308]: mismatched types
+   --> autograd\src\tensor_ops.rs:104:18
+    |
+104 |         Arc::new(lhs.clone()),
+    |         -------- ^^^^^^^^^^^ expected `Tensor<_, _, _>`, found `&Tensor<B, S, T>`
+    |         |
+    |         arguments to this function are incorrect
+    |
+    = note: expected struct `Tensor<_, _, _>`
+            found reference `&Tensor<B, S, T>`
+note: `Tensor<_, _, _>` does not implement `Clone`, so `&Tensor<B, S, T>` was cloned instead
+   --> autograd\src\tensor_ops.rs:104:18
+    |
+104 |         Arc::new(lhs.clone()),
+    |                  ^^^
+note: associated function defined here
+   --> C:\Users\RyanClanton\.rustup\toolchains\nightly-x86_64-pc-windows-gnu\lib/rustlib/src/rust\library\alloc\src\sync.rs:417:12
+    |
+417 |     pub fn new(data: T) -> Arc<T> {
+    |            ^^^
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\tensor_ops.rs:105:18
+    |
+105 |         Arc::new(rhs.clone()),
+    |                  ^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:217:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+216 | where
+217 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Tensor`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+101 |     T: DataType + 'static + std::ops::Neg, B: backend::Backend
+    |                                            +++++++++++++++++++
+
+error[E0308]: mismatched types
+   --> autograd\src\tensor_ops.rs:105:18
+    |
+105 |         Arc::new(rhs.clone()),
+    |         -------- ^^^^^^^^^^^ expected `Tensor<_, _, _>`, found `&Tensor<B, S, T>`
+    |         |
+    |         arguments to this function are incorrect
+    |
+    = note: expected struct `Tensor<_, _, _>`
+            found reference `&Tensor<B, S, T>`
+note: `Tensor<_, _, _>` does not implement `Clone`, so `&Tensor<B, S, T>` was cloned instead
+   --> autograd\src\tensor_ops.rs:105:18
+    |
+105 |         Arc::new(rhs.clone()),
+    |                  ^^^
+note: associated function defined here
+   --> C:\Users\RyanClanton\.rustup\toolchains\nightly-x86_64-pc-windows-gnu\lib/rustlib/src/rust\library\alloc\src\sync.rs:417:12
+    |
+417 |     pub fn new(data: T) -> Arc<T> {
+    |            ^^^
+
+error[E0271]: type mismatch resolving `<T as Neg>::Output == T`
+   --> autograd\src\tensor_ops.rs:103:5
+    |
+ 95 |   fn create_mul_function<B, S, T>(
+    |                                - expected this type parameter
+...
+103 | /     Arc::new(MulFunction::new(
+104 | |         Arc::new(lhs.clone()),
+105 | |         Arc::new(rhs.clone()),
+106 | |     ))
+    | |______^ expected type parameter `T`, found associated type
+    |
+    = note: expected type parameter `T`
+              found associated type `<T as Neg>::Output`
+    = note: required for `MulFunction<B, S, T>` to implement `Function<B, S, T>`
+    = note: required for the cast from `Arc<MulFunction<B, S, T>>` to `Arc<(dyn Function<B, S, T> + 'static)>`
+help: consider further restricting this bound
+    |
+101 |     T: DataType + 'static + std::ops::Neg<Output = T>,
+    |                                          ++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\tensor_ops.rs:103:5
+    |
+103 | /     Arc::new(MulFunction::new(
+104 | |         Arc::new(lhs.clone()),
+105 | |         Arc::new(rhs.clone()),
+106 | |     ))
+    | |______^ the trait `Backend` is not implemented for `B`
+    |
+    = note: required for `MulFunction<B, S, T>` to implement `Function<B, S, T>`
+    = note: required for the cast from `Arc<MulFunction<B, S, T>>` to `Arc<(dyn Function<B, S, T> + 'static)>`
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+101 |     T: DataType + 'static + std::ops::Neg, B: backend::Backend
+    |                                            +++++++++++++++++++
+
+error[E0277]: the trait bound `B: Backend` is not satisfied
+   --> autograd\src\tensor_ops.rs:103:14
+    |
+103 |     Arc::new(MulFunction::new(
+    |              ^^^^^^^^^^^^^^^^ the trait `Backend` is not implemented for `B`
+    |
+note: required by a bound in `MulFunction::<B, S, T>::new`
+   --> D:\coeus\tensor\src\functions\arithmetic\mul.rs:24:8
+    |
+ 24 |     B: Backend<Data = T>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `MulFunction::<B, S, T>::new`
+...
+ 29 |     pub fn new(lhs: Arc<Tensor<B, S, T>>, rhs: Arc<Tensor<B, S, T>>) -> Self {
+    |            --- required by a bound in this associated function
+help: consider further restricting type parameter `B` with trait `Backend`
+    |
+101 |     T: DataType + 'static + std::ops::Neg, B: backend::Backend
+    |                                            +++++++++++++++++++
+
+error[E0271]: type mismatch resolving `<T as Neg>::Output == T`
+   --> autograd\src\tensor_ops.rs:322:9
+    |
+314 | pub fn mul<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
+    |                  - expected this type parameter
+...
+322 |         tensor::ops::arithmetic::mul(lhs, rhs).map_err(crate::AutogradError::TensorError)?;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected type parameter `T`, found associated type
+    |
+    = note: expected type parameter `T`
+              found associated type `<T as Neg>::Output`
+note: required by a bound in `tensor::ops::mul`
+   --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:12:145
+    |
+ 11 | ...fn mul<
+    |       --- required by a bound in this function
+ 12 | ...T: DataType + std::ops::Mul<Output = T> + std::ops::Add<Output = T> + std::ops::Sub<Output = T> + std::ops::Div<Output = T> + std::ops::Neg<Output = T> +...
+    |                                                                                                                                                ^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting this bound
+    |
+318 |     T: DataType + std::ops::Mul<Output = T> + Copy + 'static + std::ops::Neg<Output = T>,
+    |                                                                             ++++++++++++
+
+Some errors have detailed explanations: E0271, E0277, E0282, E0308, E0369, E0599.
+For more information about an error, try `rustc --explain E0271`.
+error: could not compile `autograd` (lib) due to 42 previous errors

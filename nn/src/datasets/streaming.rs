@@ -4,9 +4,9 @@
 //! that don't fit entirely in memory. Supports distributed processing and prefetching.
 
 use super::{ImageTextPair, VisionLanguageData};
-use crate::core::error::{NNError, Result};
+use crate::core::error::Result;
 use async_stream;
-use futures::stream::{Stream, StreamExt};
+use futures::stream::Stream;
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -51,6 +51,7 @@ pub struct StreamingDataset<T: VisionLanguageData + Send + Sync + 'static> {
     dataset: Arc<T>,
     config: StreamingConfig,
     current_index: std::sync::atomic::AtomicUsize,
+    #[allow(dead_code)]
     semaphore: Arc<Semaphore>,
 }
 
@@ -95,9 +96,13 @@ impl<T: VisionLanguageData + Send + Sync + 'static> StreamingDataset<T> {
 
 /// Stream implementation for dataset items
 pub struct DatasetStream<T: VisionLanguageData + Send + Sync + 'static> {
+    #[allow(dead_code)]
     dataset: Arc<T>,
+    #[allow(dead_code)]
     config: StreamingConfig,
+    #[allow(dead_code)]
     current_index: usize,
+    #[allow(dead_code)]
     total_items: usize,
     receiver: Option<mpsc::Receiver<Result<ImageTextPair>>>,
 }
@@ -115,7 +120,7 @@ impl<T: VisionLanguageData + Send + Sync + 'static> DatasetStream<T> {
         let dataset_clone = dataset.clone();
         tokio::spawn(async move {
             let mut sent = 0;
-            let mut indices: Vec<usize> = if config.shuffle {
+            let indices: Vec<usize> = if config.shuffle {
                 // Create shuffled indices
                 let mut indices: Vec<usize> =
                     (start_index..std::cmp::min(start_index + max_items, total_items)).collect();
@@ -177,7 +182,9 @@ impl<T: VisionLanguageData + Send + Sync + 'static> Stream for DatasetStream<T> 
 
 /// Batched streaming for efficient processing
 pub struct BatchedDatasetStream<T: VisionLanguageData + Send + Sync + 'static> {
+    #[allow(dead_code)]
     dataset: Arc<T>,
+    #[allow(dead_code)]
     config: StreamingConfig,
     receiver: Option<mpsc::Receiver<Result<Vec<ImageTextPair>>>>,
 }
@@ -460,6 +467,7 @@ pub mod utils {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::StreamExt;
 
     // Mock dataset for testing
     struct MockDataset {

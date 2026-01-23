@@ -21,7 +21,7 @@
 use crate::tensor_ops;
 use crate::tensor_ops::{mul, sub};
 use std::sync::Arc;
-use tensor::{Backend, DataType, Storage, StorageFromVec, StorageToDense, Tensor};
+use tensor::{Backend, DataType, DenseStorage, Storage, StorageFromVec, StorageToDense, Tensor};
 
 use dtype::traits::FloatExt;
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -72,7 +72,7 @@ pub fn mse_loss<B, S, T>(
 ) -> crate::Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + FromPrimitive + Copy + Send + Sync + 'static,
 {
     // Compute (predictions - targets)
@@ -237,15 +237,16 @@ where
 {
     let (batch_size, num_classes) = validate_nll_shapes(log_probs, targets)?;
 
-    let targets_dense = targets
+    let targets_dense: Tensor<B, DenseStorage<T>, T> = targets
         .to_dense_preserving_identity()
         .map_err(crate::AutogradError::TensorError)?;
-    let log_probs_dense = log_probs
-        .to_dense_preserving_identity()
-        .map_err(crate::AutogradError::TensorError)?;
+    let log_probs_dense: Tensor<B, DenseStorage<T>, T> =
+        log_probs
+            .to_dense_preserving_identity()
+            .map_err(crate::AutogradError::TensorError)?;
 
-    let targets_slice = targets_dense.storage_ref().as_slice();
-    let log_probs_slice = log_probs_dense.storage_ref().as_slice();
+    let targets_slice = targets_dense.storage().as_slice();
+    let log_probs_slice = log_probs_dense.storage().as_slice();
 
     let mut nll_loss_vals = Vec::new();
 
@@ -382,15 +383,15 @@ where
     // This is a simplified implementation - in practice would use advanced indexing
 
     // Convert to dense for manual indexing
-    let targets_dense = targets
+    let targets_dense: Tensor<B, DenseStorage<T>, T> = targets
         .to_dense_generic()
         .map_err(crate::AutogradError::TensorError)?;
-    let log_softmax_dense = log_softmax
+    let log_softmax_dense: Tensor<B, DenseStorage<T>, T> = log_softmax
         .to_dense_generic()
         .map_err(crate::AutogradError::TensorError)?;
 
-    let targets_slice = targets_dense.storage_ref().as_slice();
-    let log_softmax_slice = log_softmax_dense.storage_ref().as_slice();
+    let targets_slice = targets_dense.storage().as_slice();
+    let log_softmax_slice = log_softmax_dense.storage().as_slice();
 
     let mut nll_loss = Vec::new();
 
@@ -559,12 +560,12 @@ where
         let softmax_dense = softmax
             .to_dense_generic()
             .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
-        let softmax_data = softmax_dense.storage_ref().as_slice();
+        let softmax_data = softmax_dense.storage().as_slice();
 
         let targets_dense = targets
             .to_dense_generic()
             .map_err(|e| anyhow::anyhow!("Tensor error: {e:?}"))?;
-        let targets_data = targets_dense.storage_ref().as_slice();
+        let targets_data = targets_dense.storage().as_slice();
 
         let mut grad_data = Vec::with_capacity(batch_size * num_classes);
         let batch_size_t = T::from_usize(batch_size)
@@ -575,7 +576,7 @@ where
         // If grad_output is not 1.0, we multiply by it.
         // grad_output is dense.
         let grad_scale = if grad_output.numel() == 1 {
-            grad_output.storage_ref().as_slice()[0]
+            grad_output.storage().as_slice()[0]
         } else {
             return Err(anyhow::anyhow!(
                 "Expected scalar grad_output for NLL loss backward, got numel={}",
@@ -636,7 +637,7 @@ where
     let input_dense = input
         .to_dense_generic()
         .map_err(crate::AutogradError::TensorError)?;
-    let input_slice = input_dense.storage_ref().as_slice();
+    let input_slice = input_dense.storage().as_slice();
 
     let mut result_data = Vec::with_capacity(input_slice.len());
 

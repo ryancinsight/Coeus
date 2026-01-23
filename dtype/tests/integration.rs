@@ -67,9 +67,9 @@ fn test_dtype_categories() {
     assert!(Dtype::Int32.is_integer());
     assert!(!Dtype::Int32.is_floating_point());
 
-    assert!(!Dtype::QInt8.is_floating_point());
-    assert!(!Dtype::QInt8.is_integer());
-    assert!(Dtype::QInt8.is_quantized());
+    // No quantized types in dtype crate anymore
+    assert!(!Dtype::Float32.is_quantized());
+    assert!(!Dtype::Int32.is_quantized());
 }
 
 #[test]

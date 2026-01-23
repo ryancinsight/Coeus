@@ -627,24 +627,9 @@ impl BackendSelector {
     ) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
-                // Use actual CPU backend implementation
-                use crate::cpu::CpuBackend;
-                use storage::DenseStorage;
-
-                // Convert slices to DenseStorage for CPU backend
-                let lhs_storage = DenseStorage::from_vec(lhs.to_vec(), &[lhs.len()])?;
-                let rhs_storage = DenseStorage::from_vec(rhs.to_vec(), &[rhs.len()])?;
-
-                let backend = CpuBackend::<T>::new();
-                let result_storage = backend.add_dense(&lhs_storage, &rhs_storage)?;
-
-                // Copy result back to slice
-                let result_data = result_storage.as_slice();
-                for (i, &val) in result_data.iter().enumerate() {
-                    if let Some(res) = result.get_mut(i) {
-                        *res = val;
-                    }
-                }
+                // Direct primitive call - ZERO COPY overhead
+                use crate::cpu::arithmetic::add_primitive;
+                add_primitive(lhs, rhs, result)?;
                 Ok(())
             }
             _ => Err(crate::BackendError::UnsupportedOperation {
@@ -663,24 +648,9 @@ impl BackendSelector {
     ) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
-                // Use actual CPU backend implementation
-                use crate::cpu::CpuBackend;
-                use storage::DenseStorage;
-
-                // Convert slices to DenseStorage for CPU backend
-                let lhs_storage = DenseStorage::from_vec(lhs.to_vec(), &[lhs.len()])?;
-                let rhs_storage = DenseStorage::from_vec(rhs.to_vec(), &[rhs.len()])?;
-
-                let backend = CpuBackend::<T>::new();
-                let result_storage = backend.mul_dense(&lhs_storage, &rhs_storage)?;
-
-                // Copy result back to slice
-                let result_data = result_storage.as_slice();
-                for (i, &val) in result_data.iter().enumerate() {
-                    if let Some(res) = result.get_mut(i) {
-                        *res = val;
-                    }
-                }
+                // Direct primitive call - ZERO COPY overhead
+                use crate::cpu::arithmetic::mul_primitive;
+                mul_primitive(lhs, rhs, result)?;
                 Ok(())
             }
             _ => Err(crate::BackendError::UnsupportedOperation {
@@ -702,24 +672,9 @@ impl BackendSelector {
     ) -> crate::Result<()> {
         match backend_type {
             BackendType::Cpu => {
-                // Use actual CPU backend implementation
-                use crate::cpu::CpuBackend;
-                use storage::DenseStorage;
-
-                // Convert slices to DenseStorage for CPU backend
-                let lhs_storage = DenseStorage::from_vec(lhs.to_vec(), &[m, k])?;
-                let rhs_storage = DenseStorage::from_vec(rhs.to_vec(), &[k, n])?;
-
-                let backend = CpuBackend::<T>::new();
-                let result_storage = backend.matmul_dense(&lhs_storage, &rhs_storage)?;
-
-                // Copy result back to slice
-                let result_data = result_storage.as_slice();
-                for (i, &val) in result_data.iter().enumerate() {
-                    if let Some(res) = result.get_mut(i) {
-                        *res = val;
-                    }
-                }
+                // Direct primitive call - ZERO COPY overhead
+                use crate::cpu::linear_algebra::matmul_primitive;
+                matmul_primitive(lhs, rhs, result, m, k, n)?;
                 Ok(())
             }
             _ => Err(crate::BackendError::UnsupportedOperation {
@@ -930,6 +885,8 @@ pub enum BackendError {
     InvalidInput(String),
     /// Storage operation error
     StorageError { source: storage::StorageError },
+    /// GPU-specific error
+    GpuError(String),
 }
 
 impl core::fmt::Display for BackendError {
@@ -944,6 +901,9 @@ impl core::fmt::Display for BackendError {
             BackendError::StorageError { source } => {
                 write!(f, "Storage error: {source}")
             }
+            BackendError::GpuError(msg) => {
+                write!(f, "GPU error: {msg}")
+            }
         }
     }
 }
@@ -955,16 +915,6 @@ impl std::error::Error for BackendError {}
 impl From<storage::StorageError> for BackendError {
     fn from(err: storage::StorageError) -> Self {
         BackendError::InvalidInput(format!("Storage error: {}", err))
-    }
-}
-
-#[cfg(feature = "gpu")]
-impl From<crate::gpu::GpuError> for BackendError {
-    fn from(err: crate::gpu::GpuError) -> Self {
-        BackendError::UnsupportedOperation {
-            operation: format!("GPU error: {}", err),
-            backend: String::from("GPU"),
-        }
     }
 }
 
@@ -1017,6 +967,14 @@ pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
     where
         Self::Data: PartialOrd + Default;
 
+    /// Apply sigmoid activation to dense storage
+    fn sigmoid_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
     /// Sum all elements in dense storage
     fn sum_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<Self::Data>;
 
@@ -1051,25 +1009,137 @@ pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
     fn exp_dense(
         &self,
         input: &storage::DenseStorage<Self::Data>,
-    ) -> Result<storage::DenseStorage<Self::Data>>;
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
 
     /// Apply natural logarithm element-wise
     fn log_dense(
         &self,
         input: &storage::DenseStorage<Self::Data>,
-    ) -> Result<storage::DenseStorage<Self::Data>>;
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
 
     /// Apply sine function element-wise
     fn sin_dense(
         &self,
         input: &storage::DenseStorage<Self::Data>,
-    ) -> Result<storage::DenseStorage<Self::Data>>;
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
 
     /// Apply cosine function element-wise
     fn cos_dense(
         &self,
         input: &storage::DenseStorage<Self::Data>,
-    ) -> Result<storage::DenseStorage<Self::Data>>;
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply tangent function element-wise
+    fn tan_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply arc sine function element-wise
+    fn asin_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply arc cosine function element-wise
+    fn acos_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply arc tangent function element-wise
+    fn atan_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply hyperbolic sine function element-wise
+    fn sinh_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply hyperbolic cosine function element-wise
+    fn cosh_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply hyperbolic tangent function element-wise
+    fn tanh_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply GELU activation element-wise
+    fn gelu_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply square root function element-wise
+    fn sqrt_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply absolute value function element-wise
+    fn abs_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Signed;
+
+    /// Apply floor function element-wise
+    fn floor_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply ceil function element-wise
+    fn ceil_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Apply round function element-wise
+    fn round_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
 
     /// Apply 2D convolution
     fn conv2d_dense(
@@ -1119,7 +1189,7 @@ pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
         m: usize,
         k: usize,
         n: usize,
-    ) -> Result<storage::CooStorage<Self::Data>>;
+    ) -> Result<storage::CsrStorage<Self::Data>>;
 
     /// Coordinate format sparse matrix multiplication (sparse-dense)
     fn coo_matmul_dense(
@@ -1144,7 +1214,7 @@ pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
         rhs_col: &[usize],
         m: usize,
         n: usize,
-    ) -> Result<storage::CooStorage<Self::Data>>;
+    ) -> Result<storage::CsrStorage<Self::Data>>;
 
     /// Coordinate format sparse multiplication
     fn coo_mul_sparse(
@@ -1157,7 +1227,7 @@ pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
         rhs_col: &[usize],
         m: usize,
         n: usize,
-    ) -> Result<storage::CooStorage<Self::Data>>;
+    ) -> Result<storage::CsrStorage<Self::Data>>;
 
     /// Quantization operation
     fn quantize(
@@ -1273,6 +1343,19 @@ impl<D: DataType> Backend for StubBackend<D> {
         })
     }
 
+    fn sigmoid_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float,
+    {
+        Err(BackendError::UnsupportedOperation {
+            operation: "sigmoid_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
     fn sum_dense(&self, _input: &storage::DenseStorage<Self::Data>) -> Result<Self::Data> {
         Err(BackendError::UnsupportedOperation {
             operation: "sum_dense".to_string(),
@@ -1371,6 +1454,139 @@ impl<D: DataType> Backend for StubBackend<D> {
         })
     }
 
+    fn tan_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "tan_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn asin_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "asin_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn acos_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "acos_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn atan_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "atan_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn sinh_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "sinh_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn cosh_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "cosh_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn tanh_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "tanh_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn gelu_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> 
+    where
+        Self::Data: num_traits::Float,
+    {
+        Err(BackendError::UnsupportedOperation {
+            operation: "gelu_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn sqrt_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "sqrt_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn abs_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "abs_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn floor_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "floor_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn ceil_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "ceil_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn round_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "round_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
     fn conv2d_dense(
         &self,
         _input: &storage::DenseStorage<Self::Data>,
@@ -1434,7 +1650,7 @@ impl<D: DataType> Backend for StubBackend<D> {
         _m: usize,
         _k: usize,
         _n: usize,
-    ) -> Result<storage::CooStorage<Self::Data>> {
+    ) -> Result<storage::CsrStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "coo_matmul_sparse".to_string(),
             backend: "stub".to_string(),
@@ -1467,7 +1683,7 @@ impl<D: DataType> Backend for StubBackend<D> {
         _rhs_col: &[usize],
         _m: usize,
         _n: usize,
-    ) -> Result<storage::CooStorage<Self::Data>> {
+    ) -> Result<storage::CsrStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "coo_add_sparse".to_string(),
             backend: "stub".to_string(),
@@ -1484,7 +1700,7 @@ impl<D: DataType> Backend for StubBackend<D> {
         _rhs_col: &[usize],
         _m: usize,
         _n: usize,
-    ) -> Result<storage::CooStorage<Self::Data>> {
+    ) -> Result<storage::CsrStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "coo_mul_sparse".to_string(),
             backend: "stub".to_string(),
@@ -1601,10 +1817,12 @@ pub mod device;
 
 #[cfg(feature = "gpu")]
 pub mod gpu;
-// Distributed backend coordination
-// TODO: NPU backend is incomplete implementation - defer until core system is production ready
 
-// TODO: TPU backend is incomplete implementation - defer until core system is production ready
+// TPU backend (Tensor Processing Unit)
+pub mod tpu;
+
+// NPU backend (Neural Processing Unit)
+pub mod npu;
 
 // Distributed backend coordination
 pub mod distributed;
@@ -1619,13 +1837,6 @@ pub mod memory_integration;
 
 pub use cpu::CpuBackend;
 pub use device::{Device, DeviceInfo};
-
-#[cfg(feature = "gpu")]
-pub use gpu::GpuBackend;
-
-// TODO: NPU and TPU backends are incomplete implementations - defer until core system is production ready
-// mod npu;
-// mod tpu;
 
 #[cfg(test)]
 mod tests {

@@ -13,7 +13,6 @@
 //! - **Floating Point**: f16, f32, f64, bfloat16
 //! - **Integer**: i8, i16, i32, i64, u8, u16, u32, u64
 //! - **Complex**: `Complex<f32>`, `Complex<f64>`
-//! - **Quantized**: 4-bit and 8-bit affine quantized types (`QInt4`, `QUInt4`, `QInt8`, `QUInt8`)
 //!
 //! ## Safety
 //!
@@ -38,25 +37,20 @@ pub mod traits;
 pub mod complex;
 pub mod float;
 pub mod int;
-pub mod quantized;
+
+// Half-precision types (feature-gated)
+#[cfg(feature = "half")]
+pub mod half;
+
+#[cfg(feature = "half")]
+pub use half::{BFloat16, Half};
 
 // Type promotion rules
 pub mod promotion;
 
-// Quantization utilities (feature-gated)
-#[cfg(all(feature = "quantized", feature = "std"))]
-pub mod quantization;
-
-#[cfg(all(feature = "quantized", feature = "std"))]
-pub use quantization::{QuantizationError, QuantizationNoiseAnalysis};
-
 // Type aliases for convenience
 pub use error::DtypeError;
 pub use traits::{DataType, FloatExt};
-
-// Quantized types (feature-gated)
-#[cfg(feature = "quantized")]
-pub use quantized::{symmetric, QInt4, QInt8, QUInt4, QUInt8, QuantizedType};
 
 /// Result type for dtype operations
 pub type Result<T> = core::result::Result<T, DtypeError>;
@@ -93,14 +87,6 @@ pub enum Dtype {
     Complex32,
     /// 64-bit complex floating point
     Complex64,
-    /// 4-bit quantized (signed, packed)
-    QInt4,
-    /// 4-bit quantized (unsigned, packed)
-    QUInt4,
-    /// 8-bit quantized (signed)
-    QInt8,
-    /// 8-bit quantized (unsigned)
-    QUInt8,
 }
 
 impl Dtype {
@@ -138,17 +124,14 @@ impl Dtype {
     /// Returns true if this dtype is quantized
     #[must_use]
     pub const fn is_quantized(self) -> bool {
-        matches!(
-            self,
-            Self::QInt4 | Self::QUInt4 | Self::QInt8 | Self::QUInt8
-        )
+        false // No quantized types in dtype crate anymore
     }
 
     /// Returns the size in bytes of this dtype
     #[must_use]
     pub const fn size_bytes(self) -> usize {
         match self {
-            Self::Int8 | Self::UInt8 | Self::QInt4 | Self::QUInt4 | Self::QInt8 | Self::QUInt8 => 1,
+            Self::Int8 | Self::UInt8 => 1,
             Self::Half | Self::BFloat16 | Self::Int16 | Self::UInt16 => 2,
             Self::Float32 | Self::Int32 | Self::UInt32 => 4,
             Self::Float64 | Self::Int64 | Self::UInt64 | Self::Complex32 => 8,
@@ -174,10 +157,6 @@ impl Dtype {
             Self::UInt64 => "uint64",
             Self::Complex32 => "complex32",
             Self::Complex64 => "complex64",
-            Self::QInt4 => "qint4",
-            Self::QUInt4 => "quint4",
-            Self::QInt8 => "qint8",
-            Self::QUInt8 => "quint8",
         }
     }
 }
@@ -199,7 +178,6 @@ mod tests {
         assert!(Dtype::Float32.is_floating_point());
         assert!(Dtype::Int32.is_integer());
         assert!(Dtype::Complex64.is_complex());
-        assert!(Dtype::QInt8.is_quantized());
         assert!(!Dtype::Float32.is_integer());
         assert!(!Dtype::Int32.is_floating_point());
     }

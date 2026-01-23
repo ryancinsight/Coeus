@@ -233,6 +233,104 @@ where
     pub(crate) grad_fn: Option<Arc<dyn Function<B, S, T>>>,
 }
 
+impl<B, S, T> Tensor<B, S, T>
+where
+    B: Backend<Data = T>,
+    S: Storage<T>,
+    T: DataType,
+{
+    /// Returns a reference to the tensor's backend.
+    pub fn backend(&self) -> &B {
+        &self.backend
+    }
+
+    /// Returns a reference to the tensor's storage.
+    pub fn storage(&self) -> &S {
+        &self.storage
+    }
+
+    /// Create a tensor from storage and backend
+    pub fn from_storage(storage: S, backend: B) -> Self {
+        Self {
+            storage,
+            backend,
+            requires_grad: false,
+            grad: Arc::new(std::sync::RwLock::new(None)),
+            grad_fn: None,
+        }
+    }
+
+    /// Returns the number of elements in the tensor.
+    pub fn len(&self) -> usize {
+        self.storage.len()
+    }
+
+    /// Check if tensor is empty.
+    pub fn is_empty(&self) -> bool {
+        self.storage.len() == 0
+    }
+
+    /// Helper method to resolve reshape dimensions with -1 inference.
+    pub fn resolve_reshape_dims_generic(
+        total_elements: usize,
+        dims: &[isize],
+    ) -> crate::Result<Vec<usize>> {
+        let mut result = Vec::with_capacity(dims.len());
+        let mut infer_idx = None;
+
+        // First pass: collect known dimensions and find inference point
+        let mut known_product = 1usize;
+        for (i, &dim) in dims.iter().enumerate() {
+            if dim == -1 {
+                if infer_idx.is_some() {
+                    return Err(crate::TensorError::ShapeError {
+                        expected: 0,
+                        actual: 0,
+                        message: "Multiple -1 dimensions in reshape".to_string(),
+                    });
+                }
+                infer_idx = Some(i);
+                result.push(0); // Placeholder
+            } else if dim <= 0 {
+                return Err(crate::TensorError::ShapeError {
+                    expected: 0,
+                    actual: 0,
+                    message: format!("Invalid dimension {dim} in reshape"),
+                });
+            } else {
+                let dim_usize =
+                    usize::try_from(dim).map_err(|_| crate::TensorError::ShapeError {
+                        expected: 0,
+                        actual: 0,
+                        message: format!("Dimension overflow in reshape: {dim} exceeds usize::MAX"),
+                    })?;
+                result.push(dim_usize);
+                known_product = known_product.checked_mul(dim_usize).ok_or_else(|| {
+                    crate::TensorError::ShapeError {
+                        expected: 0,
+                        actual: 0,
+                        message: "Dimension product overflow in reshape".to_string(),
+                    }
+                })?;
+            }
+        }
+
+        // Infer the -1 dimension
+        if let Some(idx) = infer_idx {
+            if total_elements % known_product != 0 {
+                return Err(crate::TensorError::ShapeError {
+                    expected: known_product,
+                    actual: total_elements,
+                    message: "Cannot infer -1 dimension: total elements not divisible by known dimensions".to_string(),
+                });
+            }
+            result[idx] = total_elements / known_product;
+        }
+
+        Ok(result)
+    }
+}
+
 // Implement Clone when all components are Clone
 impl<B, S, T> Clone for Tensor<B, S, T>
 where

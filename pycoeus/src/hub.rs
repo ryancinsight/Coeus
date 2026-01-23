@@ -1,5 +1,10 @@
 use pyo3::prelude::*;
-use pyo3::pyclass;
+
+pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    m.add_class::<HubManager>()?;
+    m.add_class::<ModelInfo>()?;
+    Ok(())
+}
 
 /// Hub Manager (placeholder)
 #[pyclass(name = "HubManager", module = "_coeus")]

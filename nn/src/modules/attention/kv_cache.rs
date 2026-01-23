@@ -146,8 +146,8 @@ where
 
         // For now, we'll implement a simple copy using storage access
         // In a full implementation, this would use proper tensor slice assignment
-        let keys_storage = keys.storage_ref();
-        let values_storage = values.storage_ref();
+        let keys_storage = keys.storage();
+        let values_storage = values.storage();
 
         let _keys_data = keys_storage.as_slice();
         let _values_data = values_storage.as_slice();
@@ -160,13 +160,13 @@ where
         // Efficient tensor slice assignment for cache updates
         // Instead of cloning entire tensors, perform in-place slice assignment
         // For now, use storage_ref and copy to update cache - will implement true mutability when available
-        let _cache_keys_storage = cache_keys.storage_ref();
-        let _cache_values_storage = cache_values.storage_ref();
+        let _cache_keys_storage = cache_keys.storage();
+        let _cache_values_storage = cache_values.storage();
 
         // Perform efficient slice assignment: cache[start:end] = new_data
         let _start_idx = current_seq_len * self.num_heads * self.head_dim;
-        let keys_data = keys.storage_ref().as_slice();
-        let values_data = values.storage_ref().as_slice();
+        let keys_data = keys.storage().as_slice();
+        let values_data = values.storage().as_slice();
 
         let new_len = new_seq_len * self.num_heads * self.head_dim;
 
@@ -204,7 +204,7 @@ where
         }
 
         // Use storage-level slicing for efficiency
-        let keys_storage = cached_keys.storage_ref();
+        let keys_storage = cached_keys.storage();
         let slice_len = seq_len * self.num_heads * self.head_dim;
 
         // Get the slice up to current sequence length
@@ -240,7 +240,7 @@ where
         }
 
         // Use storage-level slicing for efficiency
-        let values_storage = cached_values.storage_ref();
+        let values_storage = cached_values.storage();
         let slice_len = seq_len * self.num_heads * self.head_dim;
 
         // Get the slice up to current sequence length
@@ -551,7 +551,8 @@ where
     /// Dequantize a key-value tensor for computation
     fn dequantize_kv_tensor(&self, quantized: &QuantizedWeights<B, T>) -> Result<Tensor<B, S, T>> {
         // Convert quantized storage back to dense
-        let dense_storage = quantized.as_storage_ref().to_dense()?;
+        let dense_storage = quantized.to_dense().map_err(|e| NNError::InvalidConfiguration { message: e.to_string() })?;
+
         Ok(Tensor::from_storage(dense_storage, B::default()))
     }
 
@@ -597,7 +598,8 @@ where
                             QuantizedWeights::Bits8(_) => 4,  // 4x compression vs FP32
                             QuantizedWeights::Bits16(_) => 2, // 2x compression vs FP32
                         };
-                        total_elements += quantized_key.as_storage_ref().len() * compression_ratio;
+                        total_elements += quantized_key.len() * compression_ratio;
+
                     }
                 }
             }
@@ -614,7 +616,8 @@ where
                             QuantizedWeights::Bits16(_) => 2,
                         };
                         total_elements +=
-                            quantized_value.as_storage_ref().len() * compression_ratio;
+                            quantized_value.len() * compression_ratio;
+
                     }
                 }
             }

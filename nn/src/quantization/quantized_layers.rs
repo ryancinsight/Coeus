@@ -3,7 +3,7 @@
 use crate::core::error::{NNError, Result};
 use crate::core::module::Module;
 
-use crate::quantization::core::{QuantizationScheme, QuantizedWeights};
+use quantization::{QuantizationScheme, QuantizedWeights};
 use crate::quantization::quantization_ops::QuantizationOps;
 
 use backend::Backend;

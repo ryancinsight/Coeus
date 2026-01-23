@@ -16,15 +16,18 @@ categories = ["api-bindings", "science"]
 name = "pycoeus"
 crate-type = ["cdylib"]
 
+[features]
+gpu = ["coeus-nn/gpu", "tensor/gpu", "backend/gpu"]
+
 [dependencies]
-pyo3 = { version = ">=0.24.1", features = ["extension-module", "abi3-py312"] }
+pyo3 = { version = ">=0.24.1", features = ["extension-module", "abi3-py312", "multiple-pymethods"] }
 numpy = ">=0.26"
 tensor = { path = "../tensor" }
 dtype = { path = "../dtype" }
 backend = { path = "../backend" }
 storage = { path = "../storage" }
 autograd = { path = "../autograd" }
-nn = { path = "../nn", features = ["autograd", "dropout"] }
+coeus-nn = { path = "../nn", package = "nn", features = ["autograd", "dropout"] }
 optim = { path = "../optim" }
 utils = { path = "../utils" }
 coeus-linalg = { path = "../linalg" }

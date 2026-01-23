@@ -1,13 +1,13 @@
-use crate::core::error::{NNError, Result};
+use crate::core::error::Result;
 use crate::core::module::Module;
 use backend::Backend;
 use dtype::DataType;
-use storage::{Storage, StorageFromVec, StorageToDense};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::{ops::arithmetic::*, FloatExt, Tensor};
 // Note: adjusting import path for functional
-use crate::functional::activation::tanh as functional_tanh;
+// use crate::ops::activation::gelu; // Removed unused
 
-use super::{Activation, ActivationType};
+use super::Activation;
 
 /// GeLU (Gaussian Error Linear Unit) activation function
 ///
@@ -28,6 +28,7 @@ where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
 {
     /// Create a new GeLU activation function
     pub fn new() -> Self {
@@ -46,19 +47,19 @@ where
 
         // Compute 0.044715 * x^3
         let coeff = T::from(0.044715).unwrap();
-        let scaled_cubed = scalar_mul(&x_cubed, coeff)?;
+        let scaled_cubed = x_cubed.mul_scalar(coeff)?;
 
         // Compute x + 0.044715 * x^3
         let inner_term = add(x, &scaled_cubed)?;
 
         // Compute sqrt(2/π) ≈ 0.7978845608
         let sqrt_2_pi = T::from(0.7978845608).unwrap();
-        let scaled_inner = scalar_mul(&inner_term, sqrt_2_pi)?;
+        let scaled_inner = inner_term.mul_scalar(sqrt_2_pi)?;
 
         // Compute tanh(scaled_inner)
         let scaled_inner_dense = scaled_inner.to_dense_generic()?;
         // Assuming functional_tanh is available
-        let tanh_result_dense = functional_tanh(&scaled_inner_dense)?;
+        let tanh_result_dense = crate::ops::activation::tanh(&scaled_inner_dense)?;
         let tanh_result_data = tanh_result_dense.as_slice().to_vec();
         let tanh_result =
             Tensor::<B, S, T>::from_vec(tanh_result_data, scaled_inner.shape().dims())?;
@@ -71,7 +72,7 @@ where
         // Compute 0.5 * x * (1 + tanh_result)
         let half = T::from(0.5).unwrap();
         let x_scaled = mul(x, &tanh_plus_one)?;
-        let result = scalar_mul(&x_scaled, half)?;
+        let result = x_scaled.mul_scalar(half)?;
 
         Ok(result)
     }
@@ -80,7 +81,7 @@ where
 impl<B, S, T> Default for GeLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Clone,
 {
     fn default() -> Self {
@@ -93,6 +94,7 @@ where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
 {
     fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         GeLU::<B, S, T>::forward(self, x)
@@ -104,6 +106,7 @@ where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.forward(input)

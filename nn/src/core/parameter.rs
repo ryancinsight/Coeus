@@ -63,22 +63,11 @@ where
     }
 }
 
-impl<B, S, T> ParameterTrait for Parameter<B, S, T>
-where
-    B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType,
-{
-    fn name(&self) -> &str {
-        &self.name
-    }
-}
-
 impl<B, S, T> Parameter<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + std::ops::Neg<Output = T>,
 {
     /// Update parameter data using gradient descent.
     ///
@@ -119,8 +108,25 @@ where
 
         Ok(())
     }
+}
 
-    /// Get mutable reference to the parameter data tensor.
+impl<B, S, T> ParameterTrait for Parameter<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType,
+{
+    fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+impl<B, S, T> Parameter<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType,
+{
     ///
     /// This is used by optimizers and other components that need to modify
     /// parameter values directly.

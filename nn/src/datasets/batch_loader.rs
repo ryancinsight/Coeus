@@ -5,7 +5,7 @@
 //! Supports parallel loading, prefetching, and automatic memory management.
 
 use super::{ImageTextPair, VisionLanguageData};
-use crate::core::error::{NNError, Result};
+use crate::core::error::Result;
 use futures::stream::{self, StreamExt};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -88,6 +88,7 @@ pub struct VisionLanguageBatchLoader<T: VisionLanguageData + Send + Sync + 'stat
     /// Shuffled indices (if shuffling enabled)
     indices: Vec<usize>,
     /// Memory management
+    #[allow(dead_code)]
     memory_manager: MemoryManager,
     /// Parallel loading semaphore
     semaphore: Arc<Semaphore>,
@@ -111,7 +112,6 @@ impl<T: VisionLanguageData + Send + Sync + 'static> VisionLanguageBatchLoader<T>
 
         // Create shuffled indices if requested
         let indices = if config.shuffle {
-            use std::collections::HashSet;
             let mut rng = rand::thread_rng();
             let mut indices: Vec<usize> = (0..total_items).collect();
             // Fisher-Yates shuffle
@@ -294,7 +294,7 @@ impl<T: VisionLanguageData + Send + Sync + 'static> VisionLanguageBatchLoader<T>
             .collect::<Result<Vec<_>>>()?;
 
         // Process each pair
-        for (i, pair) in pairs.into_iter().enumerate() {
+        for pair in pairs.into_iter() {
             // Process image (simplified - real implementation would do proper preprocessing)
             let processed_image = Self::preprocess_image(&pair.image_data, config)?;
             images.extend(processed_image);
@@ -423,6 +423,7 @@ impl<T: VisionLanguageData + Send + Sync + 'static> VisionLanguageBatchLoader<T>
 }
 
 /// Memory management utilities
+#[allow(dead_code)]
 struct MemoryManager {
     memory_limit_mb: usize,
     current_usage_mb: std::sync::atomic::AtomicUsize,
@@ -438,6 +439,7 @@ impl MemoryManager {
         }
     }
 
+    #[allow(dead_code)]
     fn can_allocate(&self, size_mb: usize) -> bool {
         let current = self
             .current_usage_mb
@@ -445,6 +447,7 @@ impl MemoryManager {
         current + size_mb <= self.memory_limit_mb
     }
 
+    #[allow(dead_code)]
     fn allocate(&self, size_mb: usize) -> bool {
         if self.can_allocate(size_mb) {
             self.current_usage_mb
@@ -455,11 +458,13 @@ impl MemoryManager {
         }
     }
 
+    #[allow(dead_code)]
     fn deallocate(&self, size_mb: usize) {
         self.current_usage_mb
             .fetch_sub(size_mb, std::sync::atomic::Ordering::Relaxed);
     }
 
+    #[allow(dead_code)]
     fn usage_mb(&self) -> usize {
         self.current_usage_mb
             .load(std::sync::atomic::Ordering::Relaxed)
@@ -470,6 +475,7 @@ impl MemoryManager {
 mod tests {
     use super::*;
     use crate::datasets::DatasetStatistics;
+    use crate::NNError;
 
     // Mock dataset for testing
     struct MockDataset {

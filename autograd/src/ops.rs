@@ -38,7 +38,7 @@ where
         + StorageToDense<T>
         + StorageFromVec<T>
         + Clone,
-    T: DataType + num_traits::One + num_traits::Zero,
+    T: DataType + num_traits::One + num_traits::Zero + std::ops::Neg<Output = T>,
 {
     let grad = if let Some(g) = grad_tensor {
         g
@@ -69,7 +69,7 @@ where
         + 'static
         + StorageToDense<T>
         + StorageFromVec<T>,
-    T: DataType + num_traits::One,
+    T: DataType + num_traits::One + std::ops::Neg<Output = T>,
 {
     backward(tensor, Some(grad), false, false)
 }
@@ -91,7 +91,7 @@ where
         + 'static
         + StorageToDense<T>
         + StorageFromVec<T>,
-    T: DataType + num_traits::One,
+    T: DataType + num_traits::One + std::ops::Neg<Output = T>,
 {
     backward(tensor, Some(grad), retain_graph, create_graph)
 }
@@ -123,7 +123,7 @@ where
         + 'static
         + StorageToDense<T>
         + StorageFromVec<T>,
-    T: DataType + num_traits::One + num_traits::Zero + Copy,
+    T: DataType + num_traits::One + num_traits::Zero + Copy + std::ops::Neg<Output = T>,
 {
     if let Some(grads) = &grad_outputs {
         if grads.len() != outputs.len() {
@@ -209,8 +209,9 @@ where
         + 'static
         + StorageToDense<T>
         + StorageFromVec<T>
-        + Clone,
-    T: DataType + num_traits::One + num_traits::Zero + Copy,
+        + Clone
+        + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + num_traits::One + num_traits::Zero + Copy + std::ops::Neg<Output = T>,
 {
     // 1. Ensure inputs require grad by cloning and setting the flag
     let grad_inputs: Vec<Tensor<B, S, T>> = inputs
@@ -267,8 +268,9 @@ where
         + 'static
         + StorageToDense<T>
         + StorageFromVec<T>
-        + Clone,
-    T: DataType + num_traits::One + num_traits::Zero + Copy,
+        + Clone
+        + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    T: DataType + num_traits::One + num_traits::Zero + Copy + std::ops::Neg<Output = T>,
 {
     // 1. Ensure inputs require grad
     let grad_inputs: Vec<Tensor<B, S, T>> = inputs

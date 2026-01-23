@@ -10,7 +10,8 @@ use dtype::DataType;
 use storage::{Storage, StorageFromVec};
 use tensor::Tensor;
 
-use crate::core::error::{NNError, Result};
+use crate::core::error::Result;
+pub use crate::ops::loss::mse_loss;
 
 /// Mean Squared Error (MSE) Loss function.
 ///
@@ -62,9 +63,9 @@ impl MSELoss {
         targets: &Tensor<B, S, T>,
     ) -> Result<Tensor<B, S, T>>
     where
-        B: Backend<Data = T> + Clone + Default,
-        S: Storage<T> + StorageFromVec<T> + Clone + 'static,
-        T: DataType + FloatExt,
+        B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+        S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+        T: DataType + FloatExt + num_traits::FromPrimitive + Copy + Send + Sync + 'static,
     {
         mse_loss(predictions, targets)
     }
@@ -80,52 +81,6 @@ impl fmt::Display for MSELoss {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "MSELoss")
     }
-}
-
-/// Compute MSE loss between predictions and targets.
-///
-/// # Arguments
-/// * `predictions` - Predicted values
-/// * `targets` - Target values
-///
-/// # Returns
-/// Scalar tensor containing the MSE loss value.
-pub fn mse_loss<B, S, T>(
-    predictions: &Tensor<B, S, T>,
-    targets: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
-where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
-    T: DataType + FloatExt,
-{
-    // Validate shapes match
-    if predictions.shape().dims() != targets.shape().dims() {
-        return Err(NNError::ShapeMismatch {
-            operation: "MSELoss forward".to_string(),
-            expected: predictions.shape().dims().to_vec(),
-            actual: targets.shape().dims().to_vec(),
-        });
-    }
-
-    // Compute (predictions - targets)² element-wise
-    let diff_squared: Vec<T> = predictions
-        .as_slice()
-        .iter()
-        .zip(targets.as_slice().iter())
-        .map(|(&pred, &target)| {
-            let diff = pred - target;
-            diff * diff
-        })
-        .collect();
-
-    // Compute mean using T's arithmetic
-    let len = T::from(diff_squared.len()).unwrap_or(T::one());
-    let sum: T = diff_squared.iter().fold(T::zero(), |acc, &x| acc + x);
-    let loss_value = sum / len;
-
-    // Return scalar tensor
-    Tensor::from_vec(vec![loss_value], &[]).map_err(Into::into)
 }
 
 #[cfg(test)]

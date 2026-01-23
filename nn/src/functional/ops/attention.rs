@@ -107,25 +107,24 @@ where
     let value_dense = value.to_dense_generic()?;
 
     let key_t = key_dense.transpose(key_shape.len() - 2, key_shape.len() - 1)?;
-    let attn_scores = query_dense.matmul(&key_t)?;
+    let attn_scores = tensor::ops::matmul(&query_dense, &key_t)?;
 
     let scale_factor = T::from_f64((d_k as f64).sqrt()).unwrap();
     let attn_scores_scaled = attn_scores.mul_scalar(T::from_f64(1.0).unwrap() / scale_factor)?;
 
-    let attn_scores_masked = if let Some(mask) = attn_mask {
+    let attn_scores = if let Some(mask) = attn_mask {
         let mask_dense = mask.to_dense_generic()?;
-        &attn_scores_scaled + &mask_dense
+        tensor::ops::add(&attn_scores_scaled, &mask_dense)?
     } else {
         attn_scores_scaled
     };
 
-    let attn_weights = softmax(&attn_scores_masked)?;
+    let attn_weights = crate::ops::activation::softmax(&attn_scores)?;
 
     let attn_weights = if dropout_p > 0.0 {
         if training {
             let dropout_mask = create_dropout_mask(&attn_weights, dropout_p as f32)?;
-            attn_weights
-                .mul(&dropout_mask)?
+            tensor::ops::mul(&attn_weights, &dropout_mask)?
                 .mul_scalar(T::from_f64(1.0 / (1.0 - dropout_p)).unwrap())?
         } else {
             attn_weights
@@ -134,56 +133,7 @@ where
         attn_weights
     };
 
-    let output = attn_weights.matmul(&value_dense)?;
+    let output = tensor::ops::matmul(&attn_weights, &value_dense)?;
 
     Ok(output)
-}
-
-pub fn softmax<
-    B: Backend<Data = T> + Default,
-    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
-    T,
->(
-    input: &Tensor<B, S, T>,
-) -> Result<Tensor<B, DenseStorage<T>, T>>
-where
-    T: DataType + FloatExt + Neg<Output = T> + PartialOrd + Clone + FromPrimitive,
-{
-    let input_dense = input.to_dense_generic()?;
-    let input_shape = input_dense.shape().dims();
-    let input_data = input_dense.as_slice();
-
-    let last_dim_size = *input_shape.last().unwrap();
-    let batch_size: usize = input_data.len() / last_dim_size;
-
-    let mut output_data = Vec::with_capacity(input_data.len());
-
-    for batch in 0..batch_size {
-        let start_idx = batch * last_dim_size;
-        let end_idx = start_idx + last_dim_size;
-        let slice = &input_data[start_idx..end_idx];
-
-        let mut max_val = slice[0];
-        for val in slice {
-            if *val > max_val {
-                max_val = *val;
-            }
-        }
-
-        let mut exp_sum = T::from_f32(0.0).unwrap();
-        let mut exp_values = Vec::with_capacity(last_dim_size);
-
-        for val in slice {
-            let shifted = *val - max_val;
-            let exp_val = shifted.exp();
-            exp_values.push(exp_val);
-            exp_sum = exp_sum + exp_val;
-        }
-
-        for exp_val in exp_values {
-            output_data.push(exp_val / exp_sum);
-        }
-    }
-
-    Ok(Tensor::from_vec(output_data, input_shape)?)
 }

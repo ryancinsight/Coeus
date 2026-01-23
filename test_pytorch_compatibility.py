@@ -7,11 +7,18 @@ This script tests the PyTorch-compatible API exposed by pycoeus.
 
 import sys
 import os
+import argparse
+import pkgutil
+import importlib
 
 # Add the built wheel to Python path
 wheel_dir = os.path.join(os.path.dirname(__file__), 'target', 'wheels')
 if wheel_dir not in sys.path:
     sys.path.insert(0, wheel_dir)
+
+pycoeus_wheel_dir = os.path.join(os.path.dirname(__file__), 'pycoeus', 'target', 'wheels')
+if pycoeus_wheel_dir not in sys.path:
+    sys.path.insert(0, pycoeus_wheel_dir)
 
 try:
     import coeus as torch
@@ -20,6 +27,80 @@ try:
 except ImportError as e:
     print(f"[ERROR] Failed to import coeus: {e}")
     sys.exit(1)
+
+def _iter_package_modules(package):
+    if not hasattr(package, "__path__"):
+        return set()
+
+    prefix = package.__name__ + "."
+    modules = set()
+    for module_info in pkgutil.walk_packages(package.__path__, prefix=prefix):
+        modules.add(module_info.name)
+    return modules
+
+def _is_private_module_path(module_path: str) -> bool:
+    parts = module_path.split(".")
+    return any(part.startswith("_") for part in parts)
+
+def compare_torch_module_surface(include_private: bool, max_list: int) -> int:
+    try:
+        pytorch = importlib.import_module("torch")
+    except ImportError as e:
+        print(f"[ERROR] Failed to import torch for comparison: {e}")
+        return 2
+
+    coeus_pkg = importlib.import_module("coeus")
+
+    torch_modules_full = _iter_package_modules(pytorch)
+    coeus_modules_full = _iter_package_modules(coeus_pkg)
+
+    torch_rel = {name.removeprefix("torch.") for name in torch_modules_full if name.startswith("torch.")}
+    coeus_rel = {name.removeprefix("coeus.") for name in coeus_modules_full if name.startswith("coeus.")}
+
+    if not include_private:
+        torch_rel = {m for m in torch_rel if not _is_private_module_path(m)}
+        coeus_rel = {m for m in coeus_rel if not _is_private_module_path(m)}
+
+    missing_in_coeus = sorted(torch_rel - coeus_rel)
+    extra_in_coeus = sorted(coeus_rel - torch_rel)
+
+    print("Module Surface Comparison: torch vs coeus")
+    print("=" * 50)
+    print(f"torch modules discovered: {len(torch_rel)}")
+    print(f"coeus modules discovered: {len(coeus_rel)}")
+    print(f"missing in coeus: {len(missing_in_coeus)}")
+    print(f"extra in coeus: {len(extra_in_coeus)}")
+
+    def group_by_root(modules):
+        grouped = {}
+        for module in modules:
+            root = module.split(".", 1)[0]
+            grouped.setdefault(root, []).append(module)
+        for root in grouped:
+            grouped[root].sort()
+        return dict(sorted(grouped.items(), key=lambda kv: (-len(kv[1]), kv[0])))
+
+    grouped_missing = group_by_root(missing_in_coeus)
+    grouped_extra = group_by_root(extra_in_coeus)
+
+    print("\nMissing modules in coeus (grouped):")
+    for root, items in grouped_missing.items():
+        head = items[:max_list]
+        suffix = "" if len(items) <= max_list else f" (+{len(items) - max_list} more)"
+        print(f"- {root}: {len(items)}{suffix}")
+        for module in head:
+            print(f"  - {module}")
+
+    if extra_in_coeus:
+        print("\nExtra modules in coeus (grouped):")
+        for root, items in grouped_extra.items():
+            head = items[:max_list]
+            suffix = "" if len(items) <= max_list else f" (+{len(items) - max_list} more)"
+            print(f"- {root}: {len(items)}{suffix}")
+            for module in head:
+                print(f"  - {module}")
+
+    return 0
 
 def test_basic_tensor_operations():
     """Test basic tensor creation and operations."""
@@ -218,4 +299,13 @@ def main():
         return 1
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--module-diff", action="store_true")
+    parser.add_argument("--include-private", action="store_true")
+    parser.add_argument("--max-list", type=int, default=50)
+    args = parser.parse_args()
+
+    if args.module_diff:
+        sys.exit(compare_torch_module_surface(args.include_private, args.max_list))
+
     sys.exit(main())
