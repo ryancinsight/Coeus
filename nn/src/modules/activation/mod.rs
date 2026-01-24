@@ -74,7 +74,7 @@ where
 impl<B, S, T> ActivationFactory<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType
         + FloatExt
         + std::ops::Neg<Output = T>

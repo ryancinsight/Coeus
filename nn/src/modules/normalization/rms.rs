@@ -58,7 +58,7 @@ where
 impl<B, S, T> RMSNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType
         + 'static
         + FloatExt
@@ -251,7 +251,7 @@ where
 impl<B, S, T> Module<B, S, T> for RMSNorm<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType
         + FloatExt
         + num_traits::Bounded

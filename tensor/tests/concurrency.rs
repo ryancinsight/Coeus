@@ -132,7 +132,7 @@ fn test_concurrent_chunking() {
     });
 
     let handle2 = thread::spawn(move || {
-        let _view = tensor_clone2.view();
+        let _view = tensor_clone2.backend_clone();
     });
 
     handle1.join().unwrap();

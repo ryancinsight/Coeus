@@ -72,7 +72,7 @@ pub fn mse_loss<B, S, T>(
 ) -> crate::Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + FromPrimitive + Copy + Send + Sync + 'static,
 {
     // Compute (predictions - targets)
@@ -232,7 +232,7 @@ pub fn nll_loss<B, S, T>(
 ) -> crate::Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + FromPrimitive + ToPrimitive + Copy + Send + Sync + 'static,
 {
     let (batch_size, num_classes) = validate_nll_shapes(log_probs, targets)?;
@@ -346,7 +346,7 @@ pub fn cross_entropy_loss<B, S, T>(
 ) -> crate::Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + FromPrimitive + ToPrimitive + Copy + Send + Sync + 'static,
 {
     // Validate input dimensions

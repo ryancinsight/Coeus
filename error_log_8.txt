@@ -1,0 +1,614 @@
+﻿cargo :     Checking tensor 
+v0.2.1 (D:\coeus\tensor)
+At line:1 char:1
++ cargo check -p tensor 2>&1 | 
+Out-File -Encoding utf8 
+error_log_8.txt
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : 
+NotSpec    ified: (    Checking 
+te...:\coeus    \tensor):String) 
+[], RemoteExcept    ion
+    + FullyQualifiedErrorId : 
+NativeC    ommandError
+ 
+warning: unused imports: 
+`Backend` and `DataType`
+ --> tensor\src\ops\shape\broadcas
+t.rs:1:15
+  |
+1 | use backend::{Backend, 
+DataType};
+  |               ^^^^^^^  
+^^^^^^^^
+  |
+  = note: 
+`#[warn(unused_imports)]` (part 
+of `#[warn(unused)]`) on by 
+default
+
+warning: unused import: 
+`StorageFromVec`
+ --> tensor\src\ops\shape\broadcas
+t.rs:2:24
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |                        
+^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `S: 
+TensorStorageOps<T>` is not 
+satisfied
+  --> 
+tensor\src\ops\math\acos.rs:29:32
+   |
+29 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`TensorStorageOps<T>` is not 
+implemented for `S`
+   |
+note: required for 
+`AcosFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\ac
+os.rs:36:15
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AcosFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^^
+...
+39 |     S: Storage<T> + 
+StorageFromVec<T> + 
+StorageToDense<T> + Clone + 
+'static + crate::ops::dispatch::Te
+nsorStorageOps<T>,
+   |                              
+                                  
+               -------------------
+---------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<AcosFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `S` 
+with trait `TensorStorageOps`
+   |
+18 |     S: Storage<T> + Clone + 
+Send + Sync + StorageFromVec<T> + 
+storage::StorageToDense<T> + 
+'static + ops::dispatch::traits::T
+ensorStorageOps<T>,
+   |                              
+                                  
+                                  
+  ++++++++++++++++++++++++++++++++
+++++++++++++
+
+error[E0277]: the trait bound `T: 
+FromPrimitive` is not satisfied
+  --> 
+tensor\src\ops\math\acos.rs:29:32
+   |
+29 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`FromPrimitive` is not 
+implemented for `T`
+   |
+note: required for 
+`AcosFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\ac
+os.rs:36:15
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AcosFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^^
+...
+40 |     T: DataType + FloatExt + 
+num_traits::One + 'static + 
+num_traits::Float + 
+num_traits::FromPrimitive,
+   |                              
+                                  
+              
+------------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<AcosFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `T` 
+with trait `FromPrimitive`
+   |
+16 |     T: DataType + Float + 
+dtype::traits::FloatExt + 
+num_traits::FromPrimitive,
+   |                              
+                     
++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: 
+TensorStorageOps<T>` is not 
+satisfied
+  --> 
+tensor\src\ops\math\asin.rs:29:32
+   |
+29 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`TensorStorageOps<T>` is not 
+implemented for `S`
+   |
+note: required for 
+`AsinFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\as
+in.rs:36:15
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AsinFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^^
+...
+39 |     S: Storage<T> + 
+StorageFromVec<T> + 
+StorageToDense<T> + Clone + 
+'static + crate::ops::dispatch::Te
+nsorStorageOps<T>,
+   |                              
+                                  
+               -------------------
+---------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<AsinFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `S` 
+with trait `TensorStorageOps`
+   |
+18 |     S: Storage<T> + Clone + 
+Send + Sync + StorageFromVec<T> + 
+storage::StorageToDense<T> + 
+'static + ops::dispatch::traits::T
+ensorStorageOps<T>,
+   |                              
+                                  
+                                  
+  ++++++++++++++++++++++++++++++++
+++++++++++++
+
+error[E0277]: the trait bound `T: 
+FromPrimitive` is not satisfied
+  --> 
+tensor\src\ops\math\asin.rs:29:32
+   |
+29 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`FromPrimitive` is not 
+implemented for `T`
+   |
+note: required for 
+`AsinFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\as
+in.rs:36:15
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AsinFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^^
+...
+40 |     T: DataType + FloatExt + 
+num_traits::One + 'static + 
+num_traits::Float + 
+num_traits::FromPrimitive,
+   |                              
+                                  
+              
+------------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<AsinFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `T` 
+with trait `FromPrimitive`
+   |
+16 |     T: DataType + Float + 
+dtype::traits::FloatExt + 
+num_traits::FromPrimitive,
+   |                              
+                     
++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: 
+TensorStorageOps<T>` is not 
+satisfied
+  --> 
+tensor\src\ops\math\atan.rs:28:32
+   |
+28 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`TensorStorageOps<T>` is not 
+implemented for `S`
+   |
+note: required for 
+`AtanFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\at
+an.rs:36:15
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AtanFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^^
+...
+39 |     S: Storage<T> + 
+StorageFromVec<T> + 
+StorageToDense<T> + Clone + 
+'static + crate::ops::dispatch::Te
+nsorStorageOps<T>,
+   |                              
+                                  
+               -------------------
+---------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<AtanFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `S` 
+with trait `TensorStorageOps`
+   |
+17 |     S: Storage<T> + Clone + 
+Send + Sync + StorageFromVec<T> + 
+storage::StorageToDense<T> + 
+'static + ops::dispatch::traits::T
+ensorStorageOps<T>,
+   |                              
+                                  
+                                  
+  ++++++++++++++++++++++++++++++++
+++++++++++++
+
+error[E0277]: the trait bound `T: 
+FromPrimitive` is not satisfied
+  --> 
+tensor\src\ops\math\atan.rs:28:32
+   |
+28 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`FromPrimitive` is not 
+implemented for `T`
+   |
+note: required for 
+`AtanFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\at
+an.rs:36:15
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AtanFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^^
+...
+40 |     T: DataType + FloatExt + 
+num_traits::One + 'static + 
+num_traits::Float + 
+num_traits::FromPrimitive,
+   |                              
+                                  
+              
+------------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<AtanFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `T` 
+with trait `FromPrimitive`
+   |
+15 |     T: DataType + Float + 
+dtype::traits::FloatExt + 
+num_traits::FromPrimitive,
+   |                              
+                     
++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: 
+TensorStorageOps<T>` is not 
+satisfied
+  --> 
+tensor\src\ops\math\tan.rs:26:32
+   |
+26 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`TensorStorageOps<T>` is not 
+implemented for `S`
+   |
+note: required for 
+`TanFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\ta
+n.rs:38:15
+   |
+38 | impl<B, S, T> Function<B, S, 
+T> for TanFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^
+...
+41 |     S: Storage<T> + 
+StorageFromVec<T> + 
+StorageToDense<T> + Clone + 
+'static + crate::ops::dispatch::Te
+nsorStorageOps<T>,
+   |                              
+                                  
+               -------------------
+---------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<TanFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `S` 
+with trait `TensorStorageOps`
+   |
+15 |     S: Storage<T> + Clone + 
+Send + Sync + StorageFromVec<T> + 
+storage::StorageToDense<T> + 
+'static + ops::dispatch::traits::T
+ensorStorageOps<T>,
+   |                              
+                                  
+                                  
+  ++++++++++++++++++++++++++++++++
+++++++++++++
+
+error[E0277]: the trait bound `T: 
+FromPrimitive` is not satisfied
+  --> 
+tensor\src\ops\math\tan.rs:26:32
+   |
+26 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`FromPrimitive` is not 
+implemented for `T`
+   |
+note: required for 
+`TanFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\ta
+n.rs:38:15
+   |
+38 | impl<B, S, T> Function<B, S, 
+T> for TanFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^
+...
+42 |     T: DataType + FloatExt + 
+num_traits::One + 'static + 
+num_traits::Float + 
+num_traits::FromPrimitive,
+   |                              
+                                  
+              
+------------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<TanFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `T` 
+with trait `FromPrimitive`
+   |
+13 |     T: DataType + Float + 
+dtype::traits::FloatExt + 
+num_traits::FromPrimitive,
+   |                              
+                     
++++++++++++++++++++++++++++
+
+error[E0308]: mismatched types
+  --> tensor\src\functions\math\as
+in.rs:54:43
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AsinFunction<B, S, T>
+   |            - found this type 
+parameter
+...
+54 |         let x_sq = 
+crate::ops::pow(input, 
+T::from_f64(2.0).unwrap())?;
+   |                    
+---------------        
+^^^^^^^^^^^^^^^^^^^^^^^^^ 
+expected `&Tensor<B, S, T>`, 
+found type parameter `T`
+   |                    |
+   |                    arguments 
+to this function are incorrect
+   |
+   = note:   expected reference 
+`&Tensor<B, S, T>`
+           found type parameter 
+`T`
+note: function defined here
+  --> 
+tensor\src\ops\math\pow.rs:11:8
+   |
+11 | pub fn pow<
+   |        ^^^
+...
+17 |     exponent: &Tensor<B, S, 
+T>,
+   |     
+--------------------------
+
+error[E0308]: mismatched types
+  --> tensor\src\functions\math\ac
+os.rs:55:43
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AcosFunction<B, S, T>
+   |            - found this type 
+parameter
+...
+55 |         let x_sq = 
+crate::ops::pow(input, 
+T::from_f64(2.0).unwrap())?;
+   |                    
+---------------        
+^^^^^^^^^^^^^^^^^^^^^^^^^ 
+expected `&Tensor<B, S, T>`, 
+found type parameter `T`
+   |                    |
+   |                    arguments 
+to this function are incorrect
+   |
+   = note:   expected reference 
+`&Tensor<B, S, T>`
+           found type parameter 
+`T`
+note: function defined here
+  --> 
+tensor\src\ops\math\pow.rs:11:8
+   |
+11 | pub fn pow<
+   |        ^^^
+...
+17 |     exponent: &Tensor<B, S, 
+T>,
+   |     
+--------------------------
+
+error[E0308]: mismatched types
+  --> tensor\src\functions\math\at
+an.rs:54:43
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AtanFunction<B, S, T>
+   |            - found this type 
+parameter
+...
+54 |         let x_sq = 
+crate::ops::pow(input, 
+T::from_f64(2.0).unwrap())?;
+   |                    
+---------------        
+^^^^^^^^^^^^^^^^^^^^^^^^^ 
+expected `&Tensor<B, S, T>`, 
+found type parameter `T`
+   |                    |
+   |                    arguments 
+to this function are incorrect
+   |
+   = note:   expected reference 
+`&Tensor<B, S, T>`
+           found type parameter 
+`T`
+note: function defined here
+  --> 
+tensor\src\ops\math\pow.rs:11:8
+   |
+11 | pub fn pow<
+   |        ^^^
+...
+17 |     exponent: &Tensor<B, S, 
+T>,
+   |     
+--------------------------
+
+error[E0308]: mismatched types
+  --> tensor\src\functions\math\ta
+n.rs:56:39
+   |
+38 | impl<B, S, T> Function<B, S, 
+T> for TanFunction<B, S, T>
+   |            - found this type 
+parameter
+...
+56 |         let y_sq = 
+crate::ops::pow(y, 
+T::from_f64(2.0).unwrap())?; // 
+or y * y
+   |                    
+---------------    
+^^^^^^^^^^^^^^^^^^^^^^^^^ 
+expected `&Tensor<B, S, T>`, 
+found type parameter `T`
+   |                    |
+   |                    arguments 
+to this function are incorrect
+   |
+   = note:   expected reference 
+`&Tensor<B, S, T>`
+           found type parameter 
+`T`
+note: function defined here
+  --> 
+tensor\src\ops\math\pow.rs:11:8
+   |
+11 | pub fn pow<
+   |        ^^^
+...
+17 |     exponent: &Tensor<B, S, 
+T>,
+   |     
+--------------------------
+
+warning: unused import: `Storage`
+ --> tensor\src\ops\shape\broadcas
+t.rs:2:15
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |               ^^^^^^^
+
+Some errors have detailed 
+explanations: E0277, E0308.
+For more information about an 
+error, try `rustc --explain 
+E0277`.
+warning: `tensor` (lib) generated 
+3 warnings
+error: could not compile `tensor` 
+(lib) due to 12 previous errors; 
+3 warnings emitted

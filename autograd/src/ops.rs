@@ -210,7 +210,7 @@ where
         + StorageToDense<T>
         + StorageFromVec<T>
         + Clone
-        + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+        + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + num_traits::One + num_traits::Zero + Copy + std::ops::Neg<Output = T>,
 {
     // 1. Ensure inputs require grad by cloning and setting the flag
@@ -269,7 +269,7 @@ where
         + StorageToDense<T>
         + StorageFromVec<T>
         + Clone
-        + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+        + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + num_traits::One + num_traits::Zero + Copy + std::ops::Neg<Output = T>,
 {
     // 1. Ensure inputs require grad

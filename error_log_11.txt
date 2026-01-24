@@ -1,0 +1,2226 @@
+﻿cargo :     Checking tensor 
+v0.2.1 (D:\coeus\tensor)
+At line:1 char:1
++ cargo check -p tensor 2>&1 | 
+Out-File -Encoding utf8 
+error_log_11.txt
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : Not 
+   Specified: (    Checking te..  
+  .:\coeus\tensor):String) [],    
+ RemoteException
+    + FullyQualifiedErrorId : Nat 
+   iveCommandError
+ 
+warning: unused imports: 
+`Backend` and `DataType`
+ --> tensor\src\ops\shape\broadcas
+t.rs:1:15
+  |
+1 | use backend::{Backend, 
+DataType};
+  |               ^^^^^^^  
+^^^^^^^^
+  |
+  = note: 
+`#[warn(unused_imports)]` (part 
+of `#[warn(unused)]`) on by 
+default
+
+warning: unused import: 
+`StorageFromVec`
+ --> tensor\src\ops\shape\broadcas
+t.rs:2:24
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |                        
+^^^^^^^^^^^^^^
+
+warning: unused import: 
+`FromPrimitive`
+ --> 
+tensor\src\ops\inplace.rs:7:25
+  |
+7 | use num_traits::{Float, 
+FromPrimitive, Zero};
+  |                         
+^^^^^^^^^^^^^
+
+error[E0592]: duplicate 
+definitions with name 
+`as_mut_slice`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+duplicate definitions for 
+`as_mut_slice`
+    |
+   ::: tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ------------------------
+------------------ other 
+definition for `as_mut_slice`
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:38:18
+    |
+ 38 |     match 
+tensor.as_mut_slice() {
+    |                  
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+  --> 
+tensor\src\ops\inplace.rs:46:57
+   |
+46 |             return Err(crate:
+:TensorError::BackendError(backend
+::BackendError::UnsupportedOperati
+on(
+   |                              
+                           ^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^ not a value
+   |
+help: you might have meant to 
+create a new value of the struct
+   |
+46 -             return Err(crate:
+:TensorError::BackendError(backend
+::BackendError::UnsupportedOperati
+on(
+47 -                 "fill_: 
+storage does not support mutable 
+slice access".to_string()
+48 -             )));
+46 +             return Err(crate:
+:TensorError::BackendError(backend
+::BackendError::UnsupportedOperati
+on { operation: /* value */, 
+backend: /* value */ }));
+   |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:71:18
+    |
+ 71 |     match 
+tensor.as_mut_slice() {
+    |                  
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+  --> 
+tensor\src\ops\inplace.rs:78:58
+   |
+78 |              return Err(crate
+::TensorError::BackendError(backen
+d::BackendError::UnsupportedOperat
+ion(
+   |                              
+                            ^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^ not a value
+   |
+help: you might have meant to 
+create a new value of the struct
+   |
+78 -              return Err(crate
+::TensorError::BackendError(backen
+d::BackendError::UnsupportedOperat
+ion(
+79 -                 "add_: 
+storage does not support mutable 
+slice access".to_string()
+80 -             )));
+78 +              return Err(crate
+::TensorError::BackendError(backen
+d::BackendError::UnsupportedOperat
+ion { operation: /* value */, 
+backend: /* value */ }));
+   |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:93:18
+    |
+ 93 |     match 
+tensor.as_mut_slice() {
+    |                  
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:100:58
+    |
+100 |              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion(
+    |                             
+                             ^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^ not a value
+    |
+help: you might have meant to 
+create a new value of the struct
+    |
+100 -              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion(
+101 -                 "sub_: 
+storage does not support mutable 
+slice access".to_string()
+102 -             )));
+100 +              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion { operation: /* value */, 
+backend: /* value */ }));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:115:18
+    |
+115 |     match 
+tensor.as_mut_slice() {
+    |                  
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:122:58
+    |
+122 |              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion(
+    |                             
+                             ^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^ not a value
+    |
+help: you might have meant to 
+create a new value of the struct
+    |
+122 -              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion(
+123 -                 "mul_: 
+storage does not support mutable 
+slice access".to_string()
+124 -             )));
+122 +              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion { operation: /* value */, 
+backend: /* value */ }));
+    |
+
+error[E0599]: no variant or 
+associated item named `MathError` 
+found for enum `TensorError` in 
+the current scope
+   --> 
+tensor\src\ops\inplace.rs:138:40
+    |
+138 |         return Err(crate::Te
+nsorError::MathError("Division by 
+zero".to_string()));
+    |                             
+           ^^^^^^^^^ variant or 
+associated item not found in 
+`TensorError`
+    |
+   ::: tensor\src\error.rs:8:1
+    |
+  8 | pub enum TensorError {
+    | -------------------- 
+variant or associated item 
+`MathError` not found for this 
+enum
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:140:18
+    |
+140 |     match 
+tensor.as_mut_slice() {
+    |                  
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:147:58
+    |
+147 |              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion(
+    |                             
+                             ^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^ not a value
+    |
+help: you might have meant to 
+create a new value of the struct
+    |
+147 -              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion(
+148 -                 "div_: 
+storage does not support mutable 
+slice access".to_string()
+149 -             )));
+147 +              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion { operation: /* value */, 
+backend: /* value */ }));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:161:18
+    |
+161 |     match 
+tensor.as_mut_slice() {
+    |                  
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:171:58
+    |
+171 |              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion(
+    |                             
+                             ^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^ not a value
+    |
+help: you might have meant to 
+create a new value of the struct
+    |
+171 -              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion(
+172 -                 "abs_: 
+storage does not support mutable 
+slice access".to_string()
+173 -             )));
+171 +              return Err(crat
+e::TensorError::BackendError(backe
+nd::BackendError::UnsupportedOpera
+tion { operation: /* value */, 
+backend: /* value */ }));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+207 | impl_unary_inplace!(sin_, 
+sin);
+    | 
+------------------------------ in 
+this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+207 | impl_unary_inplace!(sin_, 
+sin);
+    | 
+------------------------------ in 
+this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+208 | impl_unary_inplace!(cos_, 
+cos);
+    | 
+------------------------------ in 
+this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+208 | impl_unary_inplace!(cos_, 
+cos);
+    | 
+------------------------------ in 
+this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+209 | impl_unary_inplace!(tan_, 
+tan);
+    | 
+------------------------------ in 
+this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+209 | impl_unary_inplace!(tan_, 
+tan);
+    | 
+------------------------------ in 
+this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+210 | impl_unary_inplace!(asin_, 
+asin);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+210 | impl_unary_inplace!(asin_, 
+asin);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+211 | impl_unary_inplace!(acos_, 
+acos);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+211 | impl_unary_inplace!(acos_, 
+acos);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+212 | impl_unary_inplace!(atan_, 
+atan);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+212 | impl_unary_inplace!(atan_, 
+atan);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+213 | impl_unary_inplace!(sinh_, 
+sinh);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+213 | impl_unary_inplace!(sinh_, 
+sinh);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+214 | impl_unary_inplace!(cosh_, 
+cosh);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+214 | impl_unary_inplace!(cosh_, 
+cosh);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+215 | impl_unary_inplace!(tanh_, 
+tanh);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+215 | impl_unary_inplace!(tanh_, 
+tanh);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+216 | impl_unary_inplace!(exp_, 
+exp);
+    | 
+------------------------------ in 
+this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+216 | impl_unary_inplace!(exp_, 
+exp);
+    | 
+------------------------------ in 
+this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+217 | impl_unary_inplace!(log_, 
+ln); // log is ln in rust traits 
+usually
+    | 
+----------------------------- in 
+this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+217 | impl_unary_inplace!(log_, 
+ln); // log is ln in rust traits 
+usually
+    | 
+----------------------------- in 
+this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+218 | impl_unary_inplace!(sqrt_, 
+sqrt);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+218 | impl_unary_inplace!(sqrt_, 
+sqrt);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+219 | 
+impl_unary_inplace!(abs_float_, 
+abs); 
+    | ----------------------------
+-------- in this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+219 | 
+impl_unary_inplace!(abs_float_, 
+abs); 
+    | ----------------------------
+-------- in this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+220 | impl_unary_inplace!(ceil_, 
+ceil);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+220 | impl_unary_inplace!(ceil_, 
+ceil);
+    | 
+-------------------------------- 
+in this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+221 | impl_unary_inplace!(floor_, 
+floor);
+    | ----------------------------
+------ in this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+221 | impl_unary_inplace!(floor_, 
+floor);
+    | ----------------------------
+------ in this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+222 | impl_unary_inplace!(round_, 
+round);
+    | ----------------------------
+------ in this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+222 | impl_unary_inplace!(round_, 
+round);
+    | ----------------------------
+------ in this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\ops\inplace.rs:190:26
+    |
+190 |             match 
+tensor.as_mut_slice() {
+    |                          
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+...
+223 | impl_unary_inplace!(neg_, 
+neg); // neg() -> -self
+    | 
+------------------------------ in 
+this macro invocation
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+
+error[E0533]: expected value, 
+found struct variant `backend::Bac
+kendError::UnsupportedOperation`
+   --> 
+tensor\src\ops\inplace.rs:197:66
+    |
+197 |                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+    |                             
+                                  
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^ not a value
+...
+223 | impl_unary_inplace!(neg_, 
+neg); // neg() -> -self
+    | 
+------------------------------ in 
+this macro invocation
+    |
+    = note: this error originates 
+in the macro `impl_unary_inplace` 
+(in Nightly builds, run with -Z 
+macro-backtrace for more info)
+help: you might have meant to 
+create a new value of the struct
+    |
+197 -                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation(
+198 -                         
+format!("{}: storage does not 
+support mutable slice access", 
+stringify!($name))
+199 -                     )));
+197 +                      return 
+Err(crate::TensorError::BackendErr
+or(backend::BackendError::Unsuppor
+tedOperation { operation: /* 
+value */, backend: /* value */ 
+}));
+    |
+
+error[E0308]: mismatched types
+   --> 
+tensor\src\tensor_core.rs:255:9
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |                             
+          ---------------- 
+expected `Option<&mut [T]>` 
+because of return type
+255 |         
+self.storage.as_mut_slice()
+    |         
+^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+expected `Option<&mut [T]>`, 
+found `&mut [T]`
+    |
+    = note:           expected 
+enum `Option<&mut [T]>`
+            found mutable 
+reference `&mut [T]`
+help: try wrapping the expression 
+in `Some`
+    |
+255 |         
+Some(self.storage.as_mut_slice())
+    |         +++++               
+            +
+
+error[E0034]: multiple applicable 
+items in scope
+   --> tensor\src\implementations\
+math.rs:145:25
+    |
+145 |         let data = 
+self.as_mut_slice();
+    |                         
+^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\indexing.rs:139:31
+    |
+139 |         let self_slice = 
+self.as_mut_slice();
+    |                             
+  ^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\indexing.rs:226:31
+    |
+226 |         let self_slice = 
+self.as_mut_slice();
+    |                             
+  ^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable 
+items in scope
+   --> 
+tensor\src\indexing.rs:416:31
+    |
+416 |         let self_slice = 
+self.as_mut_slice();
+    |                             
+  ^^^^^^^^^^^^ multiple 
+`as_mut_slice` found
+    |
+note: candidate #1 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> 
+tensor\src\tensor_core.rs:254:5
+    |
+254 |     pub fn 
+as_mut_slice(&mut self) -> 
+Option<&mut [T]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in 
+an impl for the type `Tensor<B, 
+S, T>`
+   --> tensor\src\implementations\
+manipulation.rs:29:5
+    |
+ 29 |     pub fn 
+as_mut_slice(&mut self) -> &mut 
+[T] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
+
+warning: unused import: 
+`num_traits::FromPrimitive`
+ --> tensor\src\functions\math\tan
+.rs:8:5
+  |
+8 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: 
+`num_traits::FromPrimitive`
+ --> tensor\src\functions\math\asi
+n.rs:8:5
+  |
+8 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: 
+`num_traits::FromPrimitive`
+ --> tensor\src\functions\math\ata
+n.rs:8:5
+  |
+8 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: 
+`num_traits::FromPrimitive`
+ --> tensor\src\functions\math\aco
+s.rs:8:5
+  |
+8 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\ops\shape\broadcas
+t.rs:2:15
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |               ^^^^^^^
+
+Some errors have detailed 
+explanations: E0034, E0308, 
+E0533, E0592, E0599.
+For more information about an 
+error, try `rustc --explain 
+E0034`.
+warning: `tensor` (lib) generated 
+8 warnings
+error: could not compile `tensor` 
+(lib) due to 53 previous errors; 
+8 warnings emitted

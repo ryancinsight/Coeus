@@ -21,7 +21,7 @@ where
 impl<B, S, T> Default for Mish<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::FromPrimitive,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::FromPrimitive,
 {
@@ -33,7 +33,7 @@ where
 impl<B, S, T> Mish<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::FromPrimitive,
 {
     pub fn new() -> Self {
@@ -46,7 +46,7 @@ where
 impl<B, S, T> Activation<B, S, T> for Mish<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::FromPrimitive,
 {
     fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
@@ -61,7 +61,7 @@ where
 impl<B, S, T> Module<B, S, T> for Mish<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::FromPrimitive,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {

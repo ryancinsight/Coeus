@@ -53,7 +53,9 @@ pub trait TensorStorageOps<T: DataType>: storage::Storage<T> + Sized {
     // ================== Activation Functions ==================
 
     /// ReLU activation: max(0, x)
-    fn storage_relu<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>;
+    fn storage_relu<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + Default;
 
     /// Sigmoid activation: 1 / (1 + exp(-x))
     fn storage_sigmoid<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
@@ -81,10 +83,14 @@ pub trait TensorStorageOps<T: DataType>: storage::Storage<T> + Sized {
         T: num_traits::FromPrimitive;
 
     /// Maximum element
-    fn storage_max<B: Backend<Data = T>>(&self, backend: &B) -> Result<T>;
+    fn storage_max<B: Backend<Data = T>>(&self, backend: &B) -> Result<T>
+    where
+        T: PartialOrd;
 
     /// Minimum element
-    fn storage_min<B: Backend<Data = T>>(&self, backend: &B) -> Result<T>;
+    fn storage_min<B: Backend<Data = T>>(&self, backend: &B) -> Result<T>
+    where
+        T: PartialOrd;
 
     // ================== Transcendental Operations ==================
 

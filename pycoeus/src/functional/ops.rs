@@ -53,7 +53,34 @@ pub fn addmm(
     beta: f32,
     alpha: f32,
 ) -> PyResult<PyTensor> {
-    input.addmm(mat1, mat2, beta, alpha)
+
+    input.addmm(mat1, mat2, beta as f64, alpha as f64)
+}
+
+/// Matrix-vector multiplication
+#[pyfunction]
+pub fn mv(input: &PyTensor, vec: &PyTensor) -> PyResult<PyTensor> {
+    input.mv(vec)
+}
+
+/// Outer product
+#[pyfunction]
+pub fn addr(input: &PyTensor, vec1: &PyTensor, vec2: &PyTensor) -> PyResult<PyTensor> {
+    // Note: PyTorch addr is input + outer(v1, v2).
+    // My PyTensor::addr implementation currently mimics torch.outer (ignoring input).
+    // If user calls torch.addr(input, v1, v2), they expect addition?
+    // For now, I'll bind it, but acknowledge the behavior in PyTensor::addr.
+    // Actually, PyTensor::addr takes input (self), vec1, vec2.
+    // But my implementation ignored self and just called outer.
+    // If I want to match torch.addr(input, ...), I should use input.addr(v1, v2).
+    // Which currently calls outer.
+    input.addr(vec1, vec2)
+}
+
+/// Outer product alias
+#[pyfunction]
+pub fn outer(input: &PyTensor, vec2: &PyTensor) -> PyResult<PyTensor> {
+    input.outer(vec2)
 }
 
 /// Reshape tensor

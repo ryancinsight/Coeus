@@ -10,15 +10,15 @@ use std::sync::Arc;
 /// Element-wise subtraction with broadcasting.
 pub fn sub<
     T: DataType + std::ops::Sub<Output = T> + std::ops::Neg<Output = T> + Clone + Copy,
-    B: Backend<Data = T> + Clone + Send + Sync + Default + 'static,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + super::traits::TensorStorageArithmetic<T> + 'static,
+    B: Backend<Data = T> + Clone + Send + Sync + Default + crate::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
     b: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let mut result = if a.shape() == b.shape() {
         // Delegate to storage implementation
-        let result_storage = a.storage.tensor_sub(&b.storage, &a.backend)?;
+        let result_storage = a.storage.storage_sub(&b.storage, &a.backend)?;
         Tensor::from_storage(result_storage, a.backend.clone())
     } else {
         super::broadcast_binary_op(a, b, |x, y| x - y)?

@@ -14,7 +14,7 @@ use crate::core::parameter::Parameter;
 impl<B, S, T> RNNForward<B, S, T> for RNN<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + std::cmp::PartialOrd,
 {
     fn forward_layer(
@@ -87,7 +87,7 @@ where
 impl<B, S, T> RNN<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + std::cmp::PartialOrd,
 {
     pub fn forward_with_hidden(

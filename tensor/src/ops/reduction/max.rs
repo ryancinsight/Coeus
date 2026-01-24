@@ -34,7 +34,7 @@ where
         };
         
         let target_shape = tensor.shape().dims();
-        let res_expanded = crate::shape_ops::broadcast_tensor_data(res_broadcast.as_slice(), res_broadcast.shape().dims(), target_shape)?;
+        let res_expanded = crate::ops::shape::broadcast_tensor_data(res_broadcast.as_slice(), res_broadcast.shape().dims(), target_shape)?;
         
         let mask_data: Vec<T> = tensor.as_slice().iter().zip(res_expanded).map(|(&x, m)| if x == m { T::one() } else { T::zero() }).collect();
         let mask = Tensor::from_vec_with_backend(mask_data, target_shape, tensor.backend().clone())?;

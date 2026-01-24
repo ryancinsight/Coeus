@@ -1,17 +1,15 @@
-//! Transpose operation
-
-use crate::{Result, Tensor, TensorError};
-use backend::Backend;
-use dtype::DataType;
-use std::sync::Arc;
+use backend::{Backend, DataType};
 use storage::{Storage, StorageFromVec, StorageToDense};
+use crate::{Tensor, TensorError};
+use std::sync::Arc;
+use crate::functions::layout::TransposeFunction;
 
-/// Returns a tensor that is a transposed version of the input.
+/// Standalone transpose logic with Autograd integration
 pub fn transpose<B, T, S>(
     tensor: &Tensor<B, S, T>,
     dim0: usize,
     dim1: usize,
-) -> Result<Tensor<B, S, T>>
+) -> crate::Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     T: DataType + 'static,
@@ -28,6 +26,16 @@ where
         });
     }
 
+    // If transposing the same dimension, return a copy (identity operation)
+    // BUT we still need to track gradients if required?
+    // Identity transpose is just a copy. If we want to track it as an op, we can, 
+    // but usually identity doesn't need a grad fn other than identity. 
+    // However, if we return early here, we might break the graph if downstream expects a node.
+    // For now, let's treat it as a real op or just clone. If we clone, we need to manually propagate requires_grad 
+    // and maybe add an Identity function... or just use TransposeFunction with same dims (it should handle it).
+    
+    // Let's proceed with implementation.
+    
     let mut new_shape = shape.to_vec();
     new_shape.swap(dim0, dim1);
 
@@ -67,7 +75,7 @@ where
     let mut result = Tensor::from_vec_with_backend(result_data, &new_shape, tensor.backend.clone())?;
 
     if crate::tensor_core::grad_enabled() && tensor.requires_grad() {
-        let grad_fn = crate::functions::layout::TransposeFunction::new(Arc::new(tensor.clone()), dim0, dim1);
+        let grad_fn = TransposeFunction::new(Arc::new(tensor.clone()), dim0, dim1);
         result = result
             .requires_grad_(true)
             .with_grad_fn(Some(Arc::new(grad_fn)));
@@ -76,3 +84,14 @@ where
     Ok(result)
 }
 
+impl<B, S, T> Tensor<B, S, T>
+where
+    B: Backend<Data = T> + Default + Clone + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    T: DataType + Clone + 'static,
+{
+    /// Transposes dimensions of the tensor.
+    pub fn transpose(&self, dim0: usize, dim1: usize) -> crate::Result<Self> {
+        transpose(self, dim0, dim1)
+    }
+}

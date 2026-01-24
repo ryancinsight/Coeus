@@ -20,7 +20,7 @@ use dtype::{traits::FloatExt, DataType};
 use num_traits::FromPrimitive;
 use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
-use tensor::ops::arithmetic::traits::TensorStorageArithmetic;
+
 
 // Function to create proper Function objects for gradient computation
 fn create_add_function<B, S, T>(
@@ -98,7 +98,7 @@ fn create_mul_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + 'static + std::ops::Neg<Output = T>,
 {
     Arc::new(MulFunction::new(
@@ -247,7 +247,7 @@ where
 pub fn add<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + TensorStorageArithmetic<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T> + Clone + Send + Sync + 'static,
     T: DataType + std::ops::Add<Output = T> + Copy + 'static,
 {
     // Perform the addition operation using the arithmetic module directly to avoid trait ambiguity
@@ -315,7 +315,7 @@ where
 pub fn mul<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + TensorStorageArithmetic<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T> + Clone + Send + Sync + 'static,
     T: DataType + std::ops::Mul<Output = T> + Copy + 'static + std::ops::Neg<Output = T>,
 {
     // Perform the multiplication operation using the arithmetic module directly
@@ -335,7 +335,7 @@ where
 pub fn sub<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + TensorStorageArithmetic<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T> + Clone + Send + Sync + 'static,
     T: DataType + std::ops::Sub<Output = T> + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform the subtraction operation using the arithmetic module directly
@@ -513,7 +513,7 @@ where
 pub fn div<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + TensorStorageArithmetic<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T> + Clone + Send + Sync + 'static,
     T: DataType + std::ops::Div<Output = T> + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform the division operation using the arithmetic module directly
@@ -533,7 +533,7 @@ where
 pub fn neg<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + std::ops::Neg<Output = T> + Copy + 'static + dtype::traits::FloatExt,
 {
     let result = tensor::ops::arithmetic::neg(input).map_err(crate::AutogradError::TensorError)?;

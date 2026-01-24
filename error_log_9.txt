@@ -1,0 +1,467 @@
+﻿cargo :     Checking tensor 
+v0.2.1 (D:\coeus\tensor)
+At line:1 char:1
++ cargo check -p tensor 2>&1 | 
+Out-File -Encoding utf8 
+error_log_9.txt
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : Not 
+   Specified: (    Checking te..  
+  .:\coeus\tensor):String) [],    
+ RemoteException
+    + FullyQualifiedErrorId : Nat 
+   iveCommandError
+ 
+error[E0425]: cannot find 
+function `pow_scalar` in module 
+`crate::ops`
+  --> tensor\src\functions\math\as
+in.rs:55:32
+   |
+55 |         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+   |                              
+  ^^^^^^^^^^ not found in 
+`crate::ops`
+   |
+help: consider importing this 
+function through its public 
+re-export
+   |
+ 3 + use 
+crate::ops::math::pow_scalar;
+   |
+help: if you import `pow_scalar`, 
+refer to it directly
+   |
+55 -         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+55 +         let x_sq = 
+pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+   |
+
+error[E0425]: cannot find 
+function `pow_scalar` in module 
+`crate::ops`
+  --> tensor\src\functions\math\ac
+os.rs:56:32
+   |
+56 |         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+   |                              
+  ^^^^^^^^^^ not found in 
+`crate::ops`
+   |
+help: consider importing this 
+function through its public 
+re-export
+   |
+ 3 + use 
+crate::ops::math::pow_scalar;
+   |
+help: if you import `pow_scalar`, 
+refer to it directly
+   |
+56 -         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+56 +         let x_sq = 
+pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+   |
+
+error[E0425]: cannot find 
+function `pow_scalar` in module 
+`crate::ops`
+  --> tensor\src\functions\math\at
+an.rs:55:32
+   |
+55 |         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+   |                              
+  ^^^^^^^^^^ not found in 
+`crate::ops`
+   |
+help: consider importing this 
+function through its public 
+re-export
+   |
+ 3 + use 
+crate::ops::math::pow_scalar;
+   |
+help: if you import `pow_scalar`, 
+refer to it directly
+   |
+55 -         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+55 +         let x_sq = 
+pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+   |
+
+error[E0425]: cannot find 
+function `pow_scalar` in module 
+`crate::ops`
+  --> tensor\src\functions\math\ta
+n.rs:57:32
+   |
+57 |         let y_sq = 
+crate::ops::pow_scalar(&y_dense, 
+T::from_f64(2.0).unwrap())?; // 
+or y * y
+   |                              
+  ^^^^^^^^^^ not found in 
+`crate::ops`
+   |
+help: consider importing this 
+function through its public 
+re-export
+   |
+ 3 + use 
+crate::ops::math::pow_scalar;
+   |
+help: if you import `pow_scalar`, 
+refer to it directly
+   |
+57 -         let y_sq = 
+crate::ops::pow_scalar(&y_dense, 
+T::from_f64(2.0).unwrap())?; // 
+or y * y
+57 +         let y_sq = 
+pow_scalar(&y_dense, 
+T::from_f64(2.0).unwrap())?; // 
+or y * y
+   |
+
+warning: unused imports: 
+`Backend` and `DataType`
+ --> tensor\src\ops\shape\broadcas
+t.rs:1:15
+  |
+1 | use backend::{Backend, 
+DataType};
+  |               ^^^^^^^  
+^^^^^^^^
+  |
+  = note: 
+`#[warn(unused_imports)]` (part 
+of `#[warn(unused)]`) on by 
+default
+
+warning: unused import: 
+`StorageFromVec`
+ --> tensor\src\ops\shape\broadcas
+t.rs:2:24
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |                        
+^^^^^^^^^^^^^^
+
+error[E0599]: no function or 
+associated item named `from_f64` 
+found for type parameter `T` in 
+the current scope
+  --> tensor\src\functions\math\as
+in.rs:55:60
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AsinFunction<B, S, T>
+   |            - function or 
+associated item `from_f64` not 
+found for this type parameter
+...
+55 |         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+   |                              
+                              
+^^^^^^^^ function or associated 
+item not found in `T`
+   |
+   = help: items from traits can 
+only be used if the type 
+parameter is bounded by the trait
+help: the following trait defines 
+an item `from_f64`, perhaps you 
+need to restrict type parameter 
+`T` with it:
+   |
+40 |     T: DataType + FloatExt + 
+num_traits::One + 
+num_traits::Float + 'static + 
+FromPrimitive,
+   |                              
+                                  
+            +++++++++++++++
+help: there is an associated 
+function `from` with a similar 
+name
+   |
+55 -         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+55 +         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from(2.0).unwrap())?;
+   |
+
+error[E0277]: the trait bound `T: 
+FromPrimitive` is not satisfied
+  --> tensor\src\functions\math\as
+in.rs:57:42
+   |
+57 |         let sqrt_term = crate
+::ops::sqrt(&one_minus_x_sq)?;
+   |                         
+---------------- ^^^^^^^^^^^^^^^ 
+the trait `FromPrimitive` is not 
+implemented for `T`
+   |                         |
+   |                         
+required by a bound introduced by 
+this call
+   |
+note: required by a bound in 
+`ops::math::sqrt::sqrt`
+  --> 
+tensor\src\ops\math\sqrt.rs:13:53
+   |
+12 | pub fn sqrt<
+   |        ---- required by a 
+bound in this function
+13 |     T: DataType + Float + 
+dtype::traits::FloatExt + 
+num_traits::FromPrimitive,
+   |                              
+                       
+^^^^^^^^^^^^^^^^^^^^^^^^^ 
+required by this bound in `sqrt`
+help: consider further 
+restricting type parameter `T` 
+with trait `FromPrimitive`
+   |
+40 |     T: DataType + FloatExt + 
+num_traits::One + 
+num_traits::Float + 'static + 
+num_traits::FromPrimitive,
+   |                              
+                                  
+            
++++++++++++++++++++++++++++
+
+error[E0599]: no function or 
+associated item named `from_f64` 
+found for type parameter `T` in 
+the current scope
+  --> tensor\src\functions\math\ac
+os.rs:56:60
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AcosFunction<B, S, T>
+   |            - function or 
+associated item `from_f64` not 
+found for this type parameter
+...
+56 |         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+   |                              
+                              
+^^^^^^^^ function or associated 
+item not found in `T`
+   |
+   = help: items from traits can 
+only be used if the type 
+parameter is bounded by the trait
+help: the following trait defines 
+an item `from_f64`, perhaps you 
+need to restrict type parameter 
+`T` with it:
+   |
+40 |     T: DataType + FloatExt + 
+num_traits::One + 
+num_traits::Float + 'static + 
+FromPrimitive,
+   |                              
+                                  
+            +++++++++++++++
+help: there is an associated 
+function `from` with a similar 
+name
+   |
+56 -         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+56 +         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from(2.0).unwrap())?;
+   |
+
+error[E0277]: the trait bound `T: 
+FromPrimitive` is not satisfied
+  --> tensor\src\functions\math\ac
+os.rs:58:42
+   |
+58 |         let sqrt_term = crate
+::ops::sqrt(&one_minus_x_sq)?;
+   |                         
+---------------- ^^^^^^^^^^^^^^^ 
+the trait `FromPrimitive` is not 
+implemented for `T`
+   |                         |
+   |                         
+required by a bound introduced by 
+this call
+   |
+note: required by a bound in 
+`ops::math::sqrt::sqrt`
+  --> 
+tensor\src\ops\math\sqrt.rs:13:53
+   |
+12 | pub fn sqrt<
+   |        ---- required by a 
+bound in this function
+13 |     T: DataType + Float + 
+dtype::traits::FloatExt + 
+num_traits::FromPrimitive,
+   |                              
+                       
+^^^^^^^^^^^^^^^^^^^^^^^^^ 
+required by this bound in `sqrt`
+help: consider further 
+restricting type parameter `T` 
+with trait `FromPrimitive`
+   |
+40 |     T: DataType + FloatExt + 
+num_traits::One + 
+num_traits::Float + 'static + 
+num_traits::FromPrimitive,
+   |                              
+                                  
+            
++++++++++++++++++++++++++++
+
+error[E0599]: no function or 
+associated item named `from_f64` 
+found for type parameter `T` in 
+the current scope
+  --> tensor\src\functions\math\at
+an.rs:55:60
+   |
+36 | impl<B, S, T> Function<B, S, 
+T> for AtanFunction<B, S, T>
+   |            - function or 
+associated item `from_f64` not 
+found for this type parameter
+...
+55 |         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+   |                              
+                              
+^^^^^^^^ function or associated 
+item not found in `T`
+   |
+   = help: items from traits can 
+only be used if the type 
+parameter is bounded by the trait
+help: the following trait defines 
+an item `from_f64`, perhaps you 
+need to restrict type parameter 
+`T` with it:
+   |
+40 |     T: DataType + FloatExt + 
+num_traits::One + 
+num_traits::Float + 'static + 
+FromPrimitive,
+   |                              
+                                  
+            +++++++++++++++
+help: there is an associated 
+function `from` with a similar 
+name
+   |
+55 -         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from_f64(2.0).unwrap())?;
+55 +         let x_sq = crate::ops
+::pow_scalar(&input_dense, 
+T::from(2.0).unwrap())?;
+   |
+
+error[E0599]: no function or 
+associated item named `from_f64` 
+found for type parameter `T` in 
+the current scope
+  --> tensor\src\functions\math\ta
+n.rs:57:56
+   |
+38 | impl<B, S, T> Function<B, S, 
+T> for TanFunction<B, S, T>
+   |            - function or 
+associated item `from_f64` not 
+found for this type parameter
+...
+57 |         let y_sq = 
+crate::ops::pow_scalar(&y_dense, 
+T::from_f64(2.0).unwrap())?; // 
+or y * y
+   |                              
+                          
+^^^^^^^^ function or associated 
+item not found in `T`
+   |
+   = help: items from traits can 
+only be used if the type 
+parameter is bounded by the trait
+help: the following trait defines 
+an item `from_f64`, perhaps you 
+need to restrict type parameter 
+`T` with it:
+   |
+42 |     T: DataType + FloatExt + 
+num_traits::One + 
+num_traits::Float + 'static + 
+FromPrimitive,
+   |                              
+                                  
+            +++++++++++++++
+help: there is an associated 
+function `from` with a similar 
+name
+   |
+57 -         let y_sq = 
+crate::ops::pow_scalar(&y_dense, 
+T::from_f64(2.0).unwrap())?; // 
+or y * y
+57 +         let y_sq = 
+crate::ops::pow_scalar(&y_dense, 
+T::from(2.0).unwrap())?; // or y 
+* y
+   |
+
+warning: unused import: `Storage`
+ --> tensor\src\ops\shape\broadcas
+t.rs:2:15
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |               ^^^^^^^
+
+Some errors have detailed 
+explanations: E0277, E0425, E0599.
+For more information about an 
+error, try `rustc --explain 
+E0277`.
+warning: `tensor` (lib) generated 
+3 warnings
+error: could not compile `tensor` 
+(lib) due to 10 previous errors; 
+3 warnings emitted

@@ -1,0 +1,143 @@
+﻿cargo :     Checking tensor 
+v0.2.1 (D:\coeus\tensor)
+At line:1 char:1
++ cargo check -p tensor 2>&1 | 
+Out-File -Encoding utf8 
+error_log_6.txt
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : Not 
+   Specified: (    Checking te..  
+  .:\coeus\tensor):String) [],    
+ RemoteException
+    + FullyQualifiedErrorId : Nat 
+   iveCommandError
+ 
+error[E0412]: cannot find type 
+`DenseStorage` in this scope
+  --> tensor\src\ops\linalg\addr.r
+s:14:23
+   |
+14 | ) -> Result<Tensor<B, 
+DenseStorage<T>, T>>
+   |                       
+^^^^^^^^^^^^ not found in this 
+scope
+   |
+help: consider importing one of 
+these structs
+   |
+ 3 + use crate::DenseStorage;
+   |
+ 3 + use dense::DenseStorage;
+   |
+ 3 + use storage::DenseStorage;
+   |
+
+error[E0412]: cannot find type 
+`DenseStorage` in this scope
+  --> 
+tensor\src\ops\linalg\mv.rs:15:23
+   |
+15 | ) -> Result<Tensor<B, 
+DenseStorage<T>, T>>
+   |                       
+^^^^^^^^^^^^ not found in this 
+scope
+   |
+help: consider importing one of 
+these structs
+   |
+ 3 + use crate::DenseStorage;
+   |
+ 3 + use dense::DenseStorage;
+   |
+ 3 + use storage::DenseStorage;
+   |
+
+error[E0425]: cannot find value 
+`rhs_t` in this scope
+  --> tensor\src\functions\linalg\
+bmm.rs:70:65
+   |
+70 |         let grad_lhs = crate:
+:ops::linalg::bmm(&grad_output_s, 
+&rhs_t)?;
+   |                              
+                                  
+ ^^^^^ not found in this scope
+
+warning: unused imports: 
+`Backend` and `DataType`
+ --> tensor\src\ops\shape\broadcas
+t.rs:1:15
+  |
+1 | use backend::{Backend, 
+DataType};
+  |               ^^^^^^^  
+^^^^^^^^
+  |
+  = note: 
+`#[warn(unused_imports)]` (part 
+of `#[warn(unused)]`) on by 
+default
+
+warning: unused import: 
+`StorageFromVec`
+ --> tensor\src\ops\shape\broadcas
+t.rs:2:24
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |                        
+^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+  --> 
+tensor\src\ops\linalg\mv.rs:38:28
+   |
+12 | pub fn mv<B, T, S>(
+   |                 - expected 
+this type parameter
+...
+38 |     let prod = matmul(mat, 
+&vec_col)?;
+   |                ------      
+^^^^^^^^ expected `&Tensor<B, S, 
+T>`, found `&Tensor<B, 
+DenseStorage<T>, T>`
+   |                |
+   |                arguments to 
+this function are incorrect
+   |
+   = note: expected reference 
+`&Tensor<_, S, _>`
+              found reference 
+`&Tensor<_, DenseStorage<T>, _>`
+note: function defined here
+  --> tensor\src\ops\linalg\matmul
+.rs:10:8
+   |
+10 | pub fn matmul<B, T, S>(
+   |        ^^^^^^
+11 |     lhs: &Tensor<B, S, T>,
+12 |     rhs: &Tensor<B, S, T>,
+   |     ---------------------
+
+warning: unused import: `Storage`
+ --> tensor\src\ops\shape\broadcas
+t.rs:2:15
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |               ^^^^^^^
+
+Some errors have detailed 
+explanations: E0308, E0412, E0425.
+For more information about an 
+error, try `rustc --explain 
+E0308`.
+warning: `tensor` (lib) generated 
+3 warnings
+error: could not compile `tensor` 
+(lib) due to 4 previous errors; 3 
+warnings emitted

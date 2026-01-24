@@ -64,7 +64,7 @@ impl MSELoss {
     ) -> Result<Tensor<B, S, T>>
     where
         B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
         T: DataType + FloatExt + num_traits::FromPrimitive + Copy + Send + Sync + 'static,
     {
         mse_loss(predictions, targets)
@@ -97,7 +97,7 @@ pub fn mse_loss<B, S, T>(
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::FromPrimitive + Copy + Send + Sync + 'static,
 {
     crate::ops::loss::mse_loss(predictions, targets)

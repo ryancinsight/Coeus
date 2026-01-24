@@ -37,7 +37,7 @@ where
 impl<B, S, T> Function<B, S, T> for MulFunction<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     T: DataType + Clone + Copy + num_traits::Zero + std::ops::Mul<Output = T> + std::ops::Add<Output = T> + std::ops::Sub<Output = T> + std::ops::Div<Output = T> + std::ops::Neg<Output = T>,
 {
     fn inputs(&self) -> &[Arc<Tensor<B, S, T>>] {

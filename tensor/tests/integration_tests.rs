@@ -314,7 +314,7 @@ fn test_memory_safety() {
             .unwrap();
 
     // Test that view operations work correctly
-    let view_result = tensor.view();
+    let view_result = tensor.backend_clone();
     assert_eq!(view_result.shape().dims(), tensor.shape().dims());
 
     // Test that invalid operations are caught

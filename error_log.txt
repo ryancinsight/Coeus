@@ -1,0 +1,332 @@
+﻿cargo :     Checking tensor v0.2.1 
+(D:\coeus\tensor)
+At line:1 char:1
++ cargo check -p tensor 2>&1 | 
+Out-File -Encoding utf8 
+error_log.txt
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSp 
+   ecified: (    Checking te...:\c  
+  oeus\tensor):String) [], Remote   
+ Exception
+    + FullyQualifiedErrorId : Nativ 
+   eCommandError
+ 
+error[E0432]: unresolved import 
+`shape::unsqueeze`
+  --> tensor\src\ops\mod.rs:33:60
+   |
+33 | pub use shape::{cat, flatten, 
+reshape, squeeze, transpose, 
+unsqueeze};
+   |                                
+                            
+^^^^^^^^^
+   |                                
+                            |
+   |                                
+                            no 
+`unsqueeze` in `ops::shape`
+   |                                
+                            help: a 
+similar name exists in the module: 
+`squeeze`
+
+error[E0432]: unresolved import 
+`crate::shape_ops`
+  --> tensor\src\ops\arithmetic\mod.
+rs:46:16
+   |
+46 | pub use crate::shape_ops::broad
+cast_tensor_data;
+   |                ^^^^^^^^^ could 
+not find `shape_ops` in the crate 
+root
+
+error[E0433]: failed to resolve: 
+could not find `shape_ops` in the 
+crate root
+  --> tensor\src\ops\arithmetic\mod.
+rs:36:28
+   |
+36 |     let out_shape = crate::shap
+e_ops::broadcast_shapes(a.shape().di
+ms(), b.shape().dims())?;
+   |                            
+^^^^^^^^^ could not find 
+`shape_ops` in the crate root
+
+error[E0433]: failed to resolve: 
+could not find `shape_ops` in the 
+crate root
+  --> tensor\src\ops\arithmetic\mod.
+rs:38:25
+   |
+38 |     let a_data = crate::shape_o
+ps::broadcast_tensor_data(a.as_slice
+(), a.shape().dims(), &out_shape)?;
+   |                         
+^^^^^^^^^ could not find 
+`shape_ops` in the crate root
+
+error[E0433]: failed to resolve: 
+could not find `shape_ops` in the 
+crate root
+  --> tensor\src\ops\arithmetic\mod.
+rs:39:25
+   |
+39 |     let b_data = crate::shape_o
+ps::broadcast_tensor_data(b.as_slice
+(), b.shape().dims(), &out_shape)?;
+   |                         
+^^^^^^^^^ could not find 
+`shape_ops` in the crate root
+
+error[E0433]: failed to resolve: 
+could not find `shape_ops` in the 
+crate root
+  --> tensor\src\ops\arithmetic\mod.
+rs:55:23
+   |
+55 |     let data = crate::shape_ops
+::broadcast_tensor_data(tensor.as_sl
+ice(), tensor.shape().dims(), 
+shape)?;
+   |                       
+^^^^^^^^^ could not find 
+`shape_ops` in the crate root
+
+error[E0433]: failed to resolve: 
+could not find `shape_ops` in the 
+crate root
+  --> tensor\src\ops\reduction\max.r
+s:37:35
+   |
+37 |         let res_expanded = crat
+e::shape_ops::broadcast_tensor_data(
+res_broadcast.as_slice(), 
+res_broadcast.shape().dims(), 
+target_shape)?;
+   |                                
+   ^^^^^^^^^ could not find 
+`shape_ops` in the crate root
+
+error[E0433]: failed to resolve: 
+could not find `shape_ops` in the 
+crate root
+  --> tensor\src\ops\reduction\min.r
+s:37:35
+   |
+37 |         let res_expanded = crat
+e::shape_ops::broadcast_tensor_data(
+res_broadcast.as_slice(), 
+res_broadcast.shape().dims(), 
+target_shape)?;
+   |                                
+   ^^^^^^^^^ could not find 
+`shape_ops` in the crate root
+
+error[E0423]: expected function, 
+found module `crate::ops::transpose`
+  --> tensor\src\functions\linalg\ma
+tmul.rs:52:21
+   |
+52 |         let rhs_t = 
+crate::ops::transpose(rhs, 
+rhs.shape().dims().len() - 2, 
+rhs.shape().dims().len() - 1)?;
+   |                     
+^^^^^^^^^^^^^^^^^^^^^ not a function
+   |
+help: consider importing one of 
+these functions instead
+   |
+ 3 + use 
+crate::dense::layout::transpose;
+   |
+ 3 + use 
+crate::ops::transpose::transpose;
+   |
+ 3 + use dense::layout::transpose;
+   |
+help: if you import `transpose`, 
+refer to it directly
+   |
+52 -         let rhs_t = 
+crate::ops::transpose(rhs, 
+rhs.shape().dims().len() - 2, 
+rhs.shape().dims().len() - 1)?;
+52 +         let rhs_t = 
+transpose(rhs, 
+rhs.shape().dims().len() - 2, 
+rhs.shape().dims().len() - 1)?;
+   |
+
+error[E0423]: expected function, 
+found module `crate::ops::transpose`
+  --> tensor\src\functions\linalg\ma
+tmul.rs:53:21
+   |
+53 |         let lhs_t = 
+crate::ops::transpose(lhs, 
+lhs.shape().dims().len() - 2, 
+lhs.shape().dims().len() - 1)?;
+   |                     
+^^^^^^^^^^^^^^^^^^^^^ not a function
+   |
+help: consider importing one of 
+these functions instead
+   |
+ 3 + use 
+crate::dense::layout::transpose;
+   |
+ 3 + use 
+crate::ops::transpose::transpose;
+   |
+ 3 + use dense::layout::transpose;
+   |
+help: if you import `transpose`, 
+refer to it directly
+   |
+53 -         let lhs_t = 
+crate::ops::transpose(lhs, 
+lhs.shape().dims().len() - 2, 
+lhs.shape().dims().len() - 1)?;
+53 +         let lhs_t = 
+transpose(lhs, 
+lhs.shape().dims().len() - 2, 
+lhs.shape().dims().len() - 1)?;
+   |
+
+warning: unused imports: `Backend` 
+and `DataType`
+ --> tensor\src\ops\shape\broadcast.
+rs:1:15
+  |
+1 | use backend::{Backend, 
+DataType};
+  |               ^^^^^^^  ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` 
+(part of `#[warn(unused)]`) on by 
+default
+
+warning: unused import: 
+`StorageFromVec`
+ --> tensor\src\ops\shape\broadcast.
+rs:2:24
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |                        
+^^^^^^^^^^^^^^
+
+warning: unused imports: 
+`StorageFromVec` and 
+`StorageToDense`
+ --> 
+tensor\src\ops\shape\squeeze.rs:2:24
+  |
+2 | use storage::{Storage, 
+StorageFromVec, StorageToDense, 
+DenseStorage};
+  |                        
+^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+error[E0592]: duplicate definitions 
+with name `view`
+   --> 
+tensor\src\ops\shape\view.rs:28:5
+    |
+ 28 | /     pub fn view(
+ 29 | |         &self,
+ 30 | |         dims: &[isize],
+ 31 | |     ) -> 
+crate::Result<Tensor<B, 
+crate::DenseStorage<T>, T>> {
+    | |_____________________________
+_______________________________^ 
+duplicate definitions for `view`
+    |
+   ::: tensor\src\implementations\ma
+nipulation.rs:116:5
+    |
+116 | /     pub fn view(&self) -> 
+Tensor<B, S, T>
+117 | |     where
+118 | |         S: Clone,
+119 | |         B: Clone,
+    | |_________________- other 
+definition for `view`
+
+error[E0277]: the trait bound `funct
+ions::layout::reshape::ReshapeFuncti
+on<B, S, T>: Function<B, 
+DenseStorage<T>, T>` is not 
+satisfied
+  --> tensor\src\ops\shape\reshape.r
+s:49:33
+   |
+49 |              .with_grad_fn(Some
+(Arc::new(grad_fn)));
+   |                                
+ ^^^^^^^^^^^^^^^^^ unsatisfied 
+trait bound
+   |
+help: the trait `Function<B, 
+DenseStorage<T>, T>` is not 
+implemented for `functions::layout::
+reshape::ReshapeFunction<B, S, T>`
+  --> tensor\src\functions\layout\re
+shape.rs:12:1
+   |
+12 | pub struct ReshapeFunction<B, 
+S, T>
+   | 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for the cast 
+from `Arc<functions::layout::reshape
+::ReshapeFunction<B, S, T>>` to 
+`Arc<dyn Function<B, 
+DenseStorage<T>, T>>`
+help: consider extending the 
+`where` clause, but there might be 
+an alternative better way to 
+express this requirement
+   |
+15 |     T: DataType + Clone + 
+'static, functions::layout::reshape:
+:ReshapeFunction<B, S, T>: 
+Function<B, DenseStorage<T>, T>
+   |                                
+    ++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++
++++++++++++++++++
+
+warning: unused import: `Storage`
+ --> tensor\src\ops\shape\broadcast.
+rs:2:15
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |               ^^^^^^^
+
+warning: unused import: `Storage`
+ --> 
+tensor\src\ops\shape\squeeze.rs:2:15
+  |
+2 | use storage::{Storage, 
+StorageFromVec, StorageToDense, 
+DenseStorage};
+  |               ^^^^^^^
+
+Some errors have detailed 
+explanations: E0277, E0423, E0432, 
+E0433, E0592.
+For more information about an 
+error, try `rustc --explain E0277`.
+warning: `tensor` (lib) generated 5 
+warnings
+error: could not compile `tensor` 
+(lib) due to 12 previous errors; 5 
+warnings emitted

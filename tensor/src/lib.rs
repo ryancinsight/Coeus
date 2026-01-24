@@ -64,7 +64,7 @@ pub mod implementations;
 pub mod elementwise;
 pub mod error;
 pub mod indexing;
-pub mod shape_ops;
+
 
 // Re-export full tensor implementation
 pub use tensor_core::{AsAny, DifferentiableFunction, Function, OperationName, Tensor};

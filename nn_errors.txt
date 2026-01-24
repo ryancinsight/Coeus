@@ -1,0 +1,1111 @@
+    Checking tensor v0.2.1 (D:\coeus\tensor)
+    Checking autograd v0.2.1 (D:\coeus\autograd)
+warning: function `canonical_reduce_dims` is never used
+  --> autograd\src\functions\mod.rs:52:15
+   |
+52 | pub(crate) fn canonical_reduce_dims(
+   |               ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `kept_shape_for_reduction` is never used
+  --> autograd\src\functions\mod.rs:74:15
+   |
+74 | pub(crate) fn kept_shape_for_reduction(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `unbroadcast_dense` is never used
+   --> autograd\src\functions\mod.rs:117:15
+    |
+117 | pub(crate) fn unbroadcast_dense<B, T>(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `to_storage_preserving_graph` is never used
+   --> autograd\src\functions\mod.rs:160:15
+    |
+160 | pub(crate) fn to_storage_preserving_graph<B, S, T>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `to_dense_preserving_graph_identity` is never used
+   --> autograd\src\functions\mod.rs:174:15
+    |
+174 | pub(crate) fn to_dense_preserving_graph_identity<B, S, T>(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `autograd` (lib) generated 5 warnings
+    Checking optim v0.2.1 (D:\coeus\optim)
+    Checking nn v0.2.1 (D:\coeus\nn)
+warning: unused import: `DenseStorage`
+ --> nn\src\modules\activation\gelu.rs:5:15
+  |
+5 | use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+  |               ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `DenseStorage`
+ --> nn\src\modules\activation\silu.rs:5:15
+  |
+5 | use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+  |               ^^^^^^^^^^^^
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\core\parameter.rs:104:22
+    |
+104 |         let update = arithmetic::mul(gradient, &lr_tensor)?;
+    |                      ^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::mul`
+   --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+    |
+ 11 | ...fn mul<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+ 69 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                           ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\core\parameter.rs:107:21
+    |
+107 |         self.data = arithmetic::sub(&self.data, &update)?;
+    |                     ^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::sub`
+   --> D:\coeus\tensor\src\ops\arithmetic\sub.rs:14:92
+    |
+ 11 | ...fn sub<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `sub`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+ 69 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                           ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\gelu.rs:45:25
+   |
+45 |         let x_squared = mul(x, x)?;
+   |                         ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::mul`
+  --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+29 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
+   |                                                                                           ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\gelu.rs:46:23
+   |
+46 |         let x_cubed = mul(&x_squared, x)?;
+   |                       ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::mul`
+  --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+29 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
+   |                                                                                           ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\gelu.rs:53:26
+   |
+53 |         let inner_term = add(x, &scaled_cubed)?;
+   |                          ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::add`
+  --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+   |
+11 | ...fn add<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+29 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
+   |                                                                                           ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\gelu.rs:70:29
+   |
+70 |         let tanh_plus_one = add(&one, &tanh_result)?;
+   |                             ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::add`
+  --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+   |
+11 | ...fn add<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+29 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
+   |                                                                                           ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\gelu.rs:74:24
+   |
+74 |         let x_scaled = mul(x, &tanh_plus_one)?;
+   |                        ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::mul`
+  --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+29 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
+   |                                                                                           ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\hardsigmoid.rs:59:24
+   |
+59 |         let x_plus_3 = add(x, &three)?;
+   |                        ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::add`
+  --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+   |
+11 | ...fn add<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+48 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
+   |                                                                                           ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\hardsigmoid.rs:60:21
+   |
+60 |         let div_6 = div(&x_plus_3, &six)?;
+   |                     ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::div`
+  --> D:\coeus\tensor\src\ops\arithmetic\div.rs:14:92
+   |
+11 | ...fn div<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `div`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+48 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
+   |                                                                                           ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\hardswish.rs:54:12
+   |
+54 |         Ok(mul(x, &hs)?)
+   |            ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::mul`
+  --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+48 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
+   |                                                                                           ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\logsigmoid.rs:57:25
+   |
+57 |         let neg_x = neg(x)?;
+   |                     --- ^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |                     |
+   |                     required by a bound introduced by this call
+   |
+note: required by a bound in `tensor::ops::neg`
+  --> D:\coeus\tensor\src\ops\arithmetic\neg.rs:14:92
+   |
+11 | ...fn neg<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `neg`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+48 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\logsigmoid.rs:61:28
+   |
+61 |         let one_plus_exp = add(&one, &exp_neg_x)?;
+   |                            ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::add`
+  --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+   |
+11 | ...fn add<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+48 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\logsigmoid.rs:64:16
+   |
+64 |         Ok(neg(&softplus_neg_x)?)
+   |            --- ^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |            |
+   |            required by a bound introduced by this call
+   |
+note: required by a bound in `tensor::ops::neg`
+  --> D:\coeus\tensor\src\ops\arithmetic\neg.rs:14:92
+   |
+11 | ...fn neg<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `neg`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+48 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\mish.rs:57:12
+   |
+57 |         Ok(mul(x, &tsp)?)
+   |            ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::mul`
+  --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+49 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\prelu.rs:65:16
+   |
+65 |             Ok(add(&pos, &neg_scaled)?)
+   |                ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::add`
+  --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+   |
+11 | ...fn add<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+29 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                   ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\prelu.rs:90:34
+   |
+90 |                 let neg_scaled = mul(&neg, &w_reshaped)?;
+   |                                  ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::mul`
+  --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+29 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                   ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\prelu.rs:91:20
+   |
+91 |                 Ok(add(&pos, &neg_scaled)?)
+   |                    ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::add`
+  --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+   |
+11 | ...fn add<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+29 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                   ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\selu.rs:65:27
+   |
+65 |         let exp_minus_1 = sub(&exp_x, &one)?;
+   |                           ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::sub`
+  --> D:\coeus\tensor\src\ops\arithmetic\sub.rs:14:92
+   |
+11 | ...fn sub<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `sub`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+48 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\selu.rs:66:26
+   |
+66 |         let scaled_exp = mul(&alpha_t, &exp_minus_1)?;
+   |                          ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::mul`
+  --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+48 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\selu.rs:69:19
+   |
+69 |         let sum = add(&pos, &neg)?;
+   |                   ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::add`
+  --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+   |
+11 | ...fn add<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+48 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\selu.rs:70:12
+   |
+70 |         Ok(mul(&scale_t, &sum)?)
+   |            ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::mul`
+  --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+48 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\soft_plus.rs:59:18
+   |
+59 |         let bx = mul(x, &beta_t)?;
+   |                  ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::mul`
+  --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+52 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\soft_plus.rs:63:28
+   |
+63 |         let one_plus_exp = add(&one, &exp_bx)?;
+   |                            ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::add`
+  --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+   |
+11 | ...fn add<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+52 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\soft_plus.rs:69:12
+   |
+69 |         Ok(mul(&inv_beta, &log_res)?)
+   |            ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::mul`
+  --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+52 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\swiglu.rs:57:22
+   |
+57 |         let result = mul(x, &sigmoid_y)?;
+   |                      ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::mul`
+  --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+28 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                 ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\swiglu.rs:67:25
+   |
+67 |         let neg_x = neg(x)?;
+   |                     --- ^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |                     |
+   |                     required by a bound introduced by this call
+   |
+note: required by a bound in `tensor::ops::neg`
+  --> D:\coeus\tensor\src\ops\arithmetic\neg.rs:14:92
+   |
+11 | ...fn neg<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `neg`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+28 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                 ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\swiglu.rs:73:27
+   |
+73 |         let denominator = add(&one, &exp_neg_x)?;
+   |                           ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::add`
+  --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+   |
+11 | ...fn add<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+28 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                 ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> nn\src\modules\activation\swiglu.rs:76:22
+   |
+76 |         let result = div(&one, &denominator)?;
+   |                      ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `tensor::ops::div`
+  --> D:\coeus\tensor\src\ops\arithmetic\div.rs:14:92
+   |
+11 | ...fn div<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `div`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+28 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+   |                                                                                                                                 ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\modules\linear\dense.rs:413:26
+    |
+413 |             let result = autograd::ops::add(&output, bias)?;
+    |                          ^^^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `autograd::ops::add`
+   --> D:\coeus\autograd\src\tensor_ops.rs:250:61
+    |
+247 | pub fn add<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
+    |        --- required by a bound in this function
+...
+250 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T> + Clone + Send + Sync + 'static,
+    |                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+329 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                           ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\modules\normalization\rms.rs:121:16
+    |
+121 |             Ok(mul(&normalized, self.weight.data())?)
+    |                ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::mul`
+   --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+    |
+ 11 | ...fn mul<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+ 61 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                               ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\modules\normalization\rms.rs:132:23
+    |
+132 |         let squared = mul(input, input)?;
+    |                       ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::mul`
+   --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+    |
+ 11 | ...fn mul<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+ 61 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                               ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\modules\normalization\rms.rs:139:24
+    |
+139 |         let variance = add(&mean_squared, &eps_tensor)?;
+    |                        ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::add`
+   --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+    |
+ 11 | ...fn add<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+ 61 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                               ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\modules\normalization\rms.rs:148:12
+    |
+148 |         Ok(div(input, &rms_broadcast)?)
+    |            ^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::div`
+   --> D:\coeus\tensor\src\ops\arithmetic\div.rs:14:92
+    |
+ 11 | ...fn div<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `div`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+ 61 |     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                               ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:416:12
+    |
+416 |         Ok(autograd::loss::mse_loss(input, target)?)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `autograd::loss::mse_loss`
+   --> D:\coeus\autograd\src\loss.rs:75:93
+    |
+ 69 | pub fn mse_loss<B, S, T>(
+    |        -------- required by a bound in this function
+...
+ 75 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
+    |                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mse_loss`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+399 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:511:23
+    |
+511 |             return Ok(autograd::loss::cross_entropy_loss(input, target)?);
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `autograd::loss::cross_entropy_loss`
+   --> D:\coeus\autograd\src\loss.rs:349:93
+    |
+343 | pub fn cross_entropy_loss<B, S, T>(
+    |        ------------------ required by a bound in this function
+...
+349 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
+    |                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `cross_entropy_loss`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+473 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:644:15
+    |
+644 |     let x_y = tensor::ops::mul(input, target)?;
+    |               ^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::mul`
+   --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+    |
+ 11 | ...fn mul<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+623 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:646:38
+    |
+646 |     let neg_abs_x = tensor::ops::neg(&abs_x)?;
+    |                     ---------------- ^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |                     |
+    |                     required by a bound introduced by this call
+    |
+note: required by a bound in `tensor::ops::neg`
+   --> D:\coeus\tensor\src\ops\arithmetic\neg.rs:14:92
+    |
+ 11 | ...fn neg<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `neg`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+623 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:649:24
+    |
+649 |     let one_plus_exp = tensor::ops::add(&exp_neg_abs_x, &one_t)?;
+    |                        ^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::add`
+   --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+    |
+ 11 | ...fn add<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+623 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:652:40
+    |
+652 |     let loss_terms = tensor::ops::add(&tensor::ops::sub(&max_x_0, &x_y)?, &log_term)?;
+    |                                        ^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::sub`
+   --> D:\coeus\tensor\src\ops\arithmetic\sub.rs:14:92
+    |
+ 11 | ...fn sub<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `sub`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+623 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:652:22
+    |
+652 |     let loss_terms = tensor::ops::add(&tensor::ops::sub(&max_x_0, &x_y)?, &log_term)?;
+    |                      ^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::add`
+   --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+    |
+ 11 | ...fn add<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+623 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:770:24
+    |
+770 |         let weighted = arithmetic::mul(target, input)?;
+    |                        ^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::mul`
+   --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+    |
+ 11 | ...fn mul<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+681 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:771:44
+    |
+771 |         let neg_weighted = arithmetic::neg(&weighted)?;
+    |                            --------------- ^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |                            |
+    |                            required by a bound introduced by this call
+    |
+note: required by a bound in `tensor::ops::neg`
+   --> D:\coeus\tensor\src\ops\arithmetic\neg.rs:14:92
+    |
+ 11 | ...fn neg<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `neg`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+681 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:826:16
+    |
+826 |     let diff = tensor::ops::sub(input, target)?;
+    |                ^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::sub`
+   --> D:\coeus\tensor\src\ops\arithmetic\sub.rs:14:92
+    |
+ 11 | ...fn sub<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `sub`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+814 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:861:17
+    |
+861 |     let term1 = tensor::ops::mul(target, &log_x)?;
+    |                 ^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::mul`
+   --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+    |
+ 11 | ...fn mul<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+847 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:863:23
+    |
+863 |     let one_minus_y = tensor::ops::sub(&Tensor::full_like(target, one)?, target)?;
+    |                       ^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::sub`
+   --> D:\coeus\tensor\src\ops\arithmetic\sub.rs:14:92
+    |
+ 11 | ...fn sub<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `sub`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+847 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:864:23
+    |
+864 |     let one_minus_x = tensor::ops::sub(&Tensor::full_like(input, one)?, input)?;
+    |                       ^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::sub`
+   --> D:\coeus\tensor\src\ops\arithmetic\sub.rs:14:92
+    |
+ 11 | ...fn sub<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `sub`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+847 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:866:17
+    |
+866 |     let term2 = tensor::ops::mul(&one_minus_y, &log_one_minus_x)?;
+    |                 ^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::mul`
+   --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+    |
+ 11 | ...fn mul<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+847 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:868:21
+    |
+868 |     let sum_terms = tensor::ops::add(&term1, &term2)?;
+    |                     ^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::add`
+   --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+    |
+ 11 | ...fn add<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+847 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\ops\loss.rs:869:57
+    |
+869 |     let mean_loss = tensor::ops::mean(&tensor::ops::neg(&sum_terms)?.to_dense_generic()?, None, false)?;
+    |                                        ---------------- ^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |                                        |
+    |                                        required by a bound introduced by this call
+    |
+note: required by a bound in `tensor::ops::neg`
+   --> D:\coeus\tensor\src\ops\arithmetic\neg.rs:14:92
+    |
+ 11 | ...fn neg<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `neg`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+847 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\meta\maml.rs:248:24
+    |
+248 |             let diff = arithmetic::sub(&output, target)?;
+    |                        ^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::sub`
+   --> D:\coeus\tensor\src\ops\arithmetic\sub.rs:14:92
+    |
+ 11 | ...fn sub<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `sub`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+106 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\meta\maml.rs:249:32
+    |
+249 |             let squared_diff = arithmetic::mul(&diff, &diff)?;
+    |                                ^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::mul`
+   --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+    |
+ 11 | ...fn mul<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+106 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\meta\maml.rs:398:40
+    |
+398 |                         *current_sum = arithmetic::add(current_sum, grad_data).unwrap();
+    |                                        ^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::add`
+   --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+    |
+ 11 | ...fn add<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+106 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\meta\maml.rs:411:32
+    |
+411 |                 let avg_grad = arithmetic::mul(&sum, &scale_tensor)?;
+    |                                ^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::mul`
+   --> D:\coeus\tensor\src\ops\arithmetic\mul.rs:14:92
+    |
+ 11 | ...fn mul<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+106 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                                                                                                         ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\meta\prototypical.rs:272:29
+    |
+272 |                 prototype = arithmetic::add(&prototype, features)?;
+    |                             ^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::add`
+   --> D:\coeus\tensor\src\ops\arithmetic\add.rs:14:92
+    |
+ 11 | ...fn add<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `add`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+158 |         + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                       ++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> nn\src\meta\prototypical.rs:278:25
+    |
+278 |             prototype = arithmetic::div(&prototype, &count_t)?;
+    |                         ^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |
+note: required by a bound in `tensor::ops::div`
+   --> D:\coeus\tensor\src\ops\arithmetic\div.rs:14:92
+    |
+ 11 | ...fn div<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `div`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+158 |         + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T> + tensor::ops::TensorStorageOps<T>,
+    |                                                                       ++++++++++++++++++++++++++++++++++
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `nn` (lib) generated 2 warnings
+error: could not compile `nn` (lib) due to 55 previous errors; 2 warnings emitted

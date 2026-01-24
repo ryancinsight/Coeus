@@ -1,0 +1,281 @@
+﻿cargo :     Blocking waiting for 
+file lock on package cache
+At line:1 char:1
++ cargo check -p tensor 2>&1 | 
+Out-File -Encoding utf8 
+error_log_10.txt
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : Not 
+   Specified: (    Blocking wa..  
+  .n package cache:String) [],    
+ RemoteException
+    + FullyQualifiedErrorId : Nat 
+   iveCommandError
+ 
+    Checking tensor v0.2.1 
+(D:\coeus\tensor)
+warning: unused imports: 
+`Backend` and `DataType`
+ --> tensor\src\ops\shape\broadcas
+t.rs:1:15
+  |
+1 | use backend::{Backend, 
+DataType};
+  |               ^^^^^^^  
+^^^^^^^^
+  |
+  = note: 
+`#[warn(unused_imports)]` (part 
+of `#[warn(unused)]`) on by 
+default
+
+warning: unused import: 
+`StorageFromVec`
+ --> tensor\src\ops\shape\broadcas
+t.rs:2:24
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |                        
+^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `T: 
+FromPrimitive` is not satisfied
+  --> 
+tensor\src\ops\math\acos.rs:29:32
+   |
+29 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`FromPrimitive` is not 
+implemented for `T`
+   |
+note: required for 
+`AcosFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\ac
+os.rs:37:15
+   |
+37 | impl<B, S, T> Function<B, S, 
+T> for AcosFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^^
+...
+41 |     T: DataType + FloatExt + 
+num_traits::One + 
+num_traits::Float + 
+num_traits::FromPrimitive + 
+'static,
+   |                              
+                                  
+    ------------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<AcosFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `T` 
+with trait `FromPrimitive`
+   |
+16 |     T: DataType + Float + 
+dtype::traits::FloatExt + 
+num_traits::FromPrimitive,
+   |                              
+                     
++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `T: 
+FromPrimitive` is not satisfied
+  --> 
+tensor\src\ops\math\asin.rs:29:32
+   |
+29 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`FromPrimitive` is not 
+implemented for `T`
+   |
+note: required for 
+`AsinFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\as
+in.rs:37:15
+   |
+37 | impl<B, S, T> Function<B, S, 
+T> for AsinFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^^
+...
+41 |     T: DataType + FloatExt + 
+num_traits::One + 
+num_traits::Float + 
+num_traits::FromPrimitive + 
+'static,
+   |                              
+                                  
+    ------------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<AsinFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `T` 
+with trait `FromPrimitive`
+   |
+16 |     T: DataType + Float + 
+dtype::traits::FloatExt + 
+num_traits::FromPrimitive,
+   |                              
+                     
++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `T: 
+FromPrimitive` is not satisfied
+  --> 
+tensor\src\ops\math\atan.rs:28:32
+   |
+28 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`FromPrimitive` is not 
+implemented for `T`
+   |
+note: required for 
+`AtanFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\at
+an.rs:37:15
+   |
+37 | impl<B, S, T> Function<B, S, 
+T> for AtanFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^^
+...
+41 |     T: DataType + FloatExt + 
+num_traits::One + 
+num_traits::Float + 
+num_traits::FromPrimitive + 
+'static,
+   |                              
+                                  
+    ------------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<AtanFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `T` 
+with trait `FromPrimitive`
+   |
+15 |     T: DataType + Float + 
+dtype::traits::FloatExt + 
+num_traits::FromPrimitive,
+   |                              
+                     
++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `T: 
+FromPrimitive` is not satisfied
+  --> 
+tensor\src\ops\math\tan.rs:26:32
+   |
+26 |             .with_grad_fn(Som
+e(Arc::new(grad_fn)));
+   |                              
+  ^^^^^^^^^^^^^^^^^ the trait 
+`FromPrimitive` is not 
+implemented for `T`
+   |
+note: required for 
+`TanFunction<B, S, T>` to 
+implement `Function<B, S, T>`
+  --> tensor\src\functions\math\ta
+n.rs:39:15
+   |
+39 | impl<B, S, T> Function<B, S, 
+T> for TanFunction<B, S, T>
+   |               
+^^^^^^^^^^^^^^^^^     
+^^^^^^^^^^^^^^^^^^^^
+...
+43 |     T: DataType + FloatExt + 
+num_traits::One + 
+num_traits::Float + 
+num_traits::FromPrimitive + 
+'static,
+   |                              
+                                  
+    ------------------------- 
+unsatisfied trait bound 
+introduced here
+   = note: required for the cast 
+from `Arc<TanFunction<B, S, T>>` 
+to `Arc<dyn Function<B, S, T>>`
+help: consider further 
+restricting type parameter `T` 
+with trait `FromPrimitive`
+   |
+13 |     T: DataType + Float + 
+dtype::traits::FloatExt + 
+num_traits::FromPrimitive,
+   |                              
+                     
++++++++++++++++++++++++++++
+
+warning: unused import: 
+`num_traits::FromPrimitive`
+ --> tensor\src\functions\math\tan
+.rs:8:5
+  |
+8 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: 
+`num_traits::FromPrimitive`
+ --> tensor\src\functions\math\asi
+n.rs:8:5
+  |
+8 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: 
+`num_traits::FromPrimitive`
+ --> tensor\src\functions\math\ata
+n.rs:8:5
+  |
+8 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: 
+`num_traits::FromPrimitive`
+ --> tensor\src\functions\math\aco
+s.rs:8:5
+  |
+8 | use num_traits::FromPrimitive;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Storage`
+ --> tensor\src\ops\shape\broadcas
+t.rs:2:15
+  |
+2 | use storage::{Storage, 
+StorageFromVec};
+  |               ^^^^^^^
+
+For more information about this 
+error, try `rustc --explain 
+E0277`.
+warning: `tensor` (lib) generated 
+7 warnings
+error: could not compile `tensor` 
+(lib) due to 4 previous errors; 7 
+warnings emitted

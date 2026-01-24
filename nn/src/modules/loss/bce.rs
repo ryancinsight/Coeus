@@ -65,7 +65,7 @@ impl BCEWithLogitsLoss {
     ) -> Result<Tensor<B, S, T>>
     where
         B: Backend<Data = T> + Clone + Default,
-        S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+        S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
         T: DataType + FloatExt + num_traits::Zero + num_traits::One + num_traits::FromPrimitive
             + PartialOrd
             + Copy

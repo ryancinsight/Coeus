@@ -35,7 +35,7 @@ where
 impl<B, S, T> LazyLinear<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive + num_traits::One,
 {
     /// Create a new LazyLinear layer.
@@ -89,7 +89,7 @@ where
 impl<B, S, T> Module<B, S, T> for LazyLinear<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive + num_traits::One,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {

@@ -160,11 +160,7 @@ impl PyTensor {
     }
     pub fn add_scalar_f64(&self, value: f64) -> PyResult<PyTensor> { self.add_scalar(value) }
     
-    pub fn addmm(&self, mat1: &PyTensor, mat2: &PyTensor, _beta: f32, _alpha: f32) -> PyResult<PyTensor> {
-        let mm = mat1.matmul(mat2)?;
-        // Simplified addmm: self + mm (ignoring alpha/beta for now to fix build)
-        self.add(&mm)
-    }
+
 
     /// Returns True if the tensor dtype is a floating point type.
     pub fn is_floating_point(&self) -> bool {

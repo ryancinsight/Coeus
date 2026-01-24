@@ -112,14 +112,7 @@ where
         T::dtype()
     }
 
-    /// Returns a view of the tensor (alias for backend_clone in tests).
-    pub fn view(&self) -> Tensor<B, S, T>
-    where
-        S: Clone,
-        B: Clone,
-    {
-        self.backend_clone()
-    }
+
 
     /// Broadcasts the tensor to the specified shape.
     pub fn broadcast_to(&self, shape: &[usize]) -> Result<Tensor<B, S, T>>
@@ -260,7 +253,7 @@ where
     where
         T: std::ops::Add<Output = T> + Copy,
         B: Clone + Send + Sync + Default,
-        S: Clone + Send + Sync + crate::StorageToDense<T> + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static,
+        S: Clone + Send + Sync + crate::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     {
         crate::ops::arithmetic::add(self, other)
     }

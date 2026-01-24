@@ -63,28 +63,52 @@
     pub fn atan2(&self, other: &PyTensor) -> PyResult<PyTensor> {
         match (&self.inner, &other.inner) {
             (TensorWrapper::CpuDenseF32(a), TensorWrapper::CpuDenseF32(b)) => {
-                let res = tensor::ops::atan2(a, b).map_err(to_py_err)?;
+                let res = tensor::ops::math::atan2::atan2(a, b).map_err(to_py_err)?;
                 Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
             }
             (TensorWrapper::CpuDenseF64(a), TensorWrapper::CpuDenseF64(b)) => {
-                let res = tensor::ops::atan2(a, b).map_err(to_py_err)?;
+                let res = tensor::ops::math::atan2::atan2(a, b).map_err(to_py_err)?;
                 Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
             }
             #[cfg(feature = "gpu")]
             (TensorWrapper::GpuDenseF32(a), TensorWrapper::GpuDenseF32(b)) => {
-                let res = tensor::ops::atan2(a, b).map_err(to_py_err)?;
+                let res = tensor::ops::math::atan2::atan2(a, b).map_err(to_py_err)?;
                 Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
             }
             (TensorWrapper::CpuSparseF32(a), TensorWrapper::CpuSparseF32(b)) => {
-                let res = tensor::ops::atan2(a, b).map_err(to_py_err)?;
+                let res = tensor::ops::math::atan2::atan2(a, b).map_err(to_py_err)?;
                  Ok(PyTensor { inner: TensorWrapper::CpuSparseF32(res) })
             }
             (TensorWrapper::CpuSparseF64(a), TensorWrapper::CpuSparseF64(b)) => {
-                let res = tensor::ops::atan2(a, b).map_err(to_py_err)?;
+                let res = tensor::ops::math::atan2::atan2(a, b).map_err(to_py_err)?;
                 Ok(PyTensor { inner: TensorWrapper::CpuSparseF64(res) })
             }
             _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
                 "atan2 not implemented for this tensor type combination (integers not supported)",
             )),
         }
+    }
+
+    pub fn sin(&self) -> PyResult<PyTensor> {
+        dispatch_tensor!(self, inner => tensor::ops::sin(inner).map_err(to_py_err))
+    }
+
+    pub fn cos(&self) -> PyResult<PyTensor> {
+        dispatch_tensor!(self, inner => tensor::ops::cos(inner).map_err(to_py_err))
+    }
+
+    pub fn tan(&self) -> PyResult<PyTensor> {
+        dispatch_tensor!(self, inner => tensor::ops::math::tan::tan(inner).map_err(to_py_err))
+    }
+
+    pub fn asin(&self) -> PyResult<PyTensor> {
+        dispatch_tensor!(self, inner => tensor::ops::math::asin::asin(inner).map_err(to_py_err))
+    }
+
+    pub fn acos(&self) -> PyResult<PyTensor> {
+        dispatch_tensor!(self, inner => tensor::ops::math::acos::acos(inner).map_err(to_py_err))
+    }
+
+    pub fn atan(&self) -> PyResult<PyTensor> {
+        dispatch_tensor!(self, inner => tensor::ops::math::atan::atan(inner).map_err(to_py_err))
     }

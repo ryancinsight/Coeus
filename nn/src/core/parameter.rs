@@ -66,7 +66,7 @@ where
 impl<B, S, T> Parameter<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + std::ops::Neg<Output = T>,
 {
     /// Update parameter data using gradient descent.

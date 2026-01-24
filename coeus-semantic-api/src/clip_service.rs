@@ -12,7 +12,7 @@ use crate::state::CLIPService;
 // Import core crates
 use backend::Backend;
 use backend::gpu::GpuBackend;
-use tensor::ops::arithmetic::traits::TensorStorageArithmetic;
+use tensor::ops::dispatch::TensorStorageOps;
 use dtype::{float::Float32, traits::FloatExt, DataType};
 use nn::clip::ClipModel;
 use storage::{Storage, StorageFromVec};
@@ -21,7 +21,7 @@ use storage::{Storage, StorageFromVec};
 pub struct RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageArithmetic<T>,
+    S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageOps<T>,
     T: DataType + FloatExt + backend::num_traits::FromPrimitive + backend::num_traits::Bounded,
 {
     /// CLIP model instance
@@ -37,7 +37,7 @@ where
 impl<B, S, T> RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
-    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageArithmetic<T> + Send + Sync + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageOps<T> + Send + Sync + 'static,
     T: DataType
         + FloatExt
         + std::ops::Neg<Output = T>
@@ -156,7 +156,7 @@ impl<B, S, T> CLIPService for RealCLIPService<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
     B: Backend<Data = T> + Clone + Default + Send + Sync,
-    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageArithmetic<T> + Send + Sync + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageOps<T> + Send + Sync + 'static,
     T: DataType
         + FloatExt
         + std::ops::Neg<Output = T>

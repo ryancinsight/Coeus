@@ -11,7 +11,7 @@ use crate::Parameter;
 pub struct NAdam<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     param_states: Vec<ParamState<B, S, T>>,
@@ -29,7 +29,7 @@ where
 impl<B, S, T> NAdam<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     pub fn new(params: Vec<tensor::Tensor<B, S, T>>, lr: f64) -> Self {
@@ -89,7 +89,7 @@ where
 impl<B, S, T> BaseOptimizer<B, S, T> for NAdam<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     fn step(&mut self) -> Result<usize, crate::OptimError> {
@@ -352,7 +352,7 @@ where
 impl<B, S, T> Optimizer<B, S, T> for NAdam<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     fn name(&self) -> &str {

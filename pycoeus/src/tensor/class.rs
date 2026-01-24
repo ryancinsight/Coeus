@@ -421,6 +421,25 @@ macro_rules! dispatch_tensor_mut {
     };
 }
 
+#[macro_export]
+macro_rules! dispatch_float_tensor_mut {
+    ($tensor:expr, $inner:ident => $expr:expr) => {
+        match &mut $tensor.inner {
+            TensorWrapper::CpuDenseF32($inner) => $expr,
+            TensorWrapper::CpuDenseF64($inner) => $expr,
+            #[cfg(feature = "gpu")]
+            TensorWrapper::GpuDenseF32($inner) => $expr,
+            TensorWrapper::CpuSparseF32($inner) => $expr,
+            TensorWrapper::CpuSparseF64($inner) => $expr,
+            TensorWrapper::CpuDenseI64(_) => {
+                Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                    "Operation not implemented for integer tensors"
+                ))
+            }
+        }
+    };
+}
+
 
 #[macro_export]
 macro_rules! dispatch_binary {

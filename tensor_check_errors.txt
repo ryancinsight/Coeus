@@ -1,405 +1,239 @@
-warning: unused imports: `Result` and `StorageError`
- --> storage\src\dense\core.rs:3:23
-  |
-3 | use crate::{DataType, Result, Shape, StorageError};
-  |                       ^^^^^^         ^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `vec::Vec`
- --> storage\src\sparse\coo\conversion.rs:5:18
-  |
-5 | use alloc::{vec, vec::Vec};
-  |                  ^^^^^^^^
-
-warning: unused import: `vec`
- --> storage\src\sparse\csc\core.rs:4:13
-  |
-4 | use alloc::{vec, vec::Vec};
-  |             ^^^
-
-warning: unused import: `vec`
- --> storage\src\sparse\csr\core.rs:6:13
-  |
-6 | use alloc::{vec, vec::Vec};
-  |             ^^^
-
-warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
-   --> storage\src\traits.rs:174:21
-    |
-174 |     StorageOps<T> + MatMulOps<T> + LayoutOps<T> + ArithmeticOps<T> + ReductionOps<T>
-    |                     ^^^^^^^^^
-    |
-    = note: `#[warn(deprecated)]` on by default
-
-warning: use of deprecated trait `traits::MatMulOps`: Use dense::DenseMatMul or sparse::SparseMatMul instead. Matrix multiplication is a complex operation that belongs in specialized crates, not the storage foundation.
-   --> storage\src\traits.rs:182:24
-    |
-182 |     S: StorageOps<T> + MatMulOps<T> + LayoutOps<T> + ArithmeticOps<T> + ReductionOps<T>,
-    |                        ^^^^^^^^^
-
-warning: unused variable: `rows`
-   --> storage\src\sparse\coo\traits.rs:127:13
-    |
-127 |         let rows = dims[0];
-    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_rows`
-    |
-    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: `storage` (lib) generated 7 warnings (run `cargo fix --lib -p storage` to apply 5 suggestions)
-warning: unused import: `StorageError`
- --> backend\src\gpu\sparse\arithmetic.rs:6:35
-  |
-6 | ...esult, StorageError};
-  |           ^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `CsrStorage`
- --> backend\src\gpu\sparse\mod.rs:9:15
-  |
-9 | use storage::{CsrStorage, Den...
-  |               ^^^^^^^^^^
-
-warning: unused variable: `input`
-   --> backend\src\cpu\backend.rs:517:9
-    |
-517 |         input: &DenseStorag...
-    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_input`
-    |
-    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `image_embeddings`
-   --> backend\src\cpu\backend.rs:656:9
-    |
-656 | ...   image_embeddings: &De...
-    |       ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_image_embeddings`
-
-warning: unused variable: `text_embeddings`
-   --> backend\src\cpu\backend.rs:657:9
-    |
-657 | ...   text_embeddings: &Den...
-    |       ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_text_embeddings`
-
-warning: unused variable: `temperature`
-   --> backend\src\cpu\backend.rs:658:9
-    |
-658 |         temperature: f32,
-    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_temperature`
-
-warning: unused variable: `keys`
-   --> backend\src\cpu\backend.rs:667:9
-    |
-667 |         keys: &DenseStorage...
-    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_keys`
-
-warning: unused variable: `values`
-   --> backend\src\cpu\backend.rs:668:9
-    |
-668 |         values: &DenseStora...
-    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_values`
-
-warning: unused variable: `num_heads`
-   --> backend\src\cpu\backend.rs:669:9
-    |
-669 |         num_heads: usize,
-    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_num_heads`
-
-warning: `backend` (lib) generated 9 warnings (run `cargo fix --lib -p backend` to apply 9 suggestions)
-warning: unexpected `cfg` condition value: `std`
-  --> sparse\src\lib.rs:30:7
-   |
-30 | #[cfg(feature = "std")]
-   |       ^^^^^^^^^^^^^^^
-   |
-   = note: expected values for `feature` are: `default` and `gpu`
-   = help: consider adding `std` as a feature in `Cargo.toml`
-   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
-   = note: `#[warn(unexpected_cfgs)]` on by default
-
-warning: unused import: `crate::Result`
-  --> sparse\src\arithmetic\mod.rs:39:5
-   |
-39 | use crate::Result;
-   |     ^^^^^^^^^^^^^
-   |
-   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `storage::CsrStorage`
-  --> sparse\src\arithmetic\mod.rs:41:5
-   |
-41 | use storage::CsrStorage;
-   |     ^^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `alloc::vec::Vec`
- --> sparse\src\activation\sigmoid.rs:6:5
-  |
-6 | use alloc::vec::Vec;
-  |     ^^^^^^^^^^^^^^^
-
-warning: unused import: `StorageError`
-  --> sparse\src\activation\mod.rs:17:35
-   |
-17 | ...ult, StorageError};
-   |         ^^^^^^^^^^^^
-
-warning: unused import: `alloc::vec`
- --> sparse\src\creation\zeros.rs:6:5
-  |
-6 | use alloc::vec;
-  |     ^^^^^^^^^^
-
-warning: unused import: `alloc::vec::Vec`
- --> sparse\src\layout\transpose.rs:7:5
-  |
-7 | use alloc::vec::Vec;
-  |     ^^^^^^^^^^^^^^^
-
-warning: unused imports: `CooStorage`, `CscStorage`, and `Result`
-  --> sparse\src\reduction\mod.rs:16:27
-   |
-16 | ...e, CscStorage, CooStorage, Result};
-   |       ^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^
-
-warning: unused import: `Storage`
- --> sparse\src\linear_algebra\matmul.rs:9:37
-  |
-9 | ...taType, Storage, Storage...
-  |            ^^^^^^^
-
-warning: unused import: `Storage`
- --> sparse\src\layout\transpose.rs:8:37
-  |
-8 | ...taType, Storage};
-  |            ^^^^^^^
-
-warning: unexpected `cfg` condition value: `std`
-  --> dense\src\lib.rs:32:7
-   |
-32 | #[cfg(feature = "std")]
-   |       ^^^^^^^^^^^^^^^ help: remove the condition
-   |
-   = note: no expected values for `feature`
-   = help: consider adding `std` as a feature in `Cargo.toml`
-   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
-   = note: `#[warn(unexpected_cfgs)]` on by default
-
-warning: unused imports: `StorageError` and `Storage`
- --> dense\src\activation\relu.rs:5:29
-  |
-5 | ...e, Storage, StorageError};
-  |       ^^^^^^^  ^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `alloc::vec::Vec`
- --> dense\src\activation\relu.rs:6:5
-  |
-6 | use alloc::vec::Vec;
-  |     ^^^^^^^^^^^^^^^
-
-warning: unused import: `Storage`
- --> dense\src\activation\sigmoid.rs:5:29
-  |
-5 | ...Storage, Storage};
-  |             ^^^^^^^
-
-warning: unused import: `alloc::vec::Vec`
- --> dense\src\activation\sigmoid.rs:6:5
-  |
-6 | use alloc::vec::Vec;
-  |     ^^^^^^^^^^^^^^^
-
-warning: unused import: `Storage`
- --> dense\src\activation\tanh.rs:5:29
-  |
-5 | ...Storage, Storage};
-  |             ^^^^^^^
-
-warning: unused import: `alloc::vec::Vec`
- --> dense\src\activation\tanh.rs:6:5
-  |
-6 | use alloc::vec::Vec;
-  |     ^^^^^^^^^^^^^^^
-
-warning: unused import: `Storage`
- --> dense\src\activation\gelu.rs:5:29
-  |
-5 | ...Storage, Storage};
-  |             ^^^^^^^
-
-warning: unused import: `alloc::vec::Vec`
- --> dense\src\activation\gelu.rs:6:5
-  |
-6 | use alloc::vec::Vec;
-  |     ^^^^^^^^^^^^^^^
-
-warning: unused import: `Storage`
-  --> dense\src\layout\mod.rs:16:37
-   |
-16 | ... Result, Storage};
-   |             ^^^^^^^
-
-warning: unused import: `Shape`
- --> dense\src\creation\zeros.rs:3:37
-  |
-3 | ..., Result, Shape, Storage};
-  |              ^^^^^
-
-warning: unused import: `Storage`
-  --> dense\src\creation\mod.rs:16:37
-   |
-16 | ... Result, Storage};
-   |             ^^^^^^^
-
-warning: unused variable: `new_shape`
-   --> dense\src\layout\transpose.rs:194:5
-    |
-194 |     new_shape: &[usize],
-    |     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_shape`
-    |
-    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: `coeus-sparse` (lib) generated 10 warnings (run `cargo fix --lib -p coeus-sparse` to apply 7 suggestions)
-warning: `dense` (lib) generated 13 warnings (run `cargo fix --lib -p dense` to apply 12 suggestions)
     Checking tensor v0.2.1 (D:\coeus\tensor)
-error[E0407]: method `storage_tanh` is not a member of trait `TensorStorageOps`
-   --> tensor\src\ops\dispatch\sparse_dispatch.rs:140:5
+error: expected one of `!` or `::`, found `:`
+  --> tensor\src\ops\arithmetic\add.rs:11:6
+   |
+11 |     T: DataType + std::ops::Add<Output = T> + Clone + Copy,
+   |      ^ expected one of `!` or `::`
+
+error: expected one of `!` or `::`, found `:`
+  --> tensor\src\ops\arithmetic\sub.rs:11:6
+   |
+11 |     T: DataType + std::ops::Sub<Output = T> + std::ops::Neg<Output = T> + Clone + Copy,
+   |      ^ expected one of `!` or `::`
+
+error[E0603]: module `add` is private
+  --> tensor\src\ops\mod.rs:30:22
+   |
+30 | pub use arithmetic::{add, div, mul, neg, sub};
+   |                      ^^^ private module
+   |
+note: the module `add` is defined here
+  --> tensor\src\ops\arithmetic\mod.rs:5:1
+   |
+ 5 | mod add;
+   | ^^^^^^^^
+
+error[E0603]: module `sub` is private
+  --> tensor\src\ops\mod.rs:30:42
+   |
+30 | pub use arithmetic::{add, div, mul, neg, sub};
+   |                                          ^^^ private module
+   |
+note: the module `sub` is defined here
+  --> tensor\src\ops\arithmetic\mod.rs:11:1
+   |
+11 | mod sub;
+   | ^^^^^^^^
+
+error[E0277]: the trait bound `S: TensorStorageArithmetic<T>` is not satisfied
+  --> tensor\src\ops\arithmetic\mul.rs:31:32
+   |
+31 |             .with_grad_fn(Some(Arc::new(grad_fn)));
+   |                                ^^^^^^^^^^^^^^^^^ the trait `TensorStorageArithmetic<T>` is not implemented for `S`
+   |
+note: required for `functions::arithmetic::mul::MulFunction<B, S, T>` to implement `Function<B, S, T>`
+  --> tensor\src\functions\arithmetic\mul.rs:37:15
+   |
+37 | ...T> Function<B, S, T> for MulFunction<B, S, T>
+   |       ^^^^^^^^^^^^^^^^^     ^^^^^^^^^^^^^^^^^^^^
+...
+40 | ...age<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 's...
+   |                                                                           ---------------------------------------------------------- unsatisfied trait bound introduced here
+   = note: required for the cast from `Arc<functions::arithmetic::mul::MulFunction<B, S, T>>` to `Arc<dyn Function<B, S, T>>`
+help: consider further restricting type parameter `S` with trait `TensorStorageArithmetic`
+   |
+14 |     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'static + ops::arithmetic::traits::TensorStorageArithmetic<T>,
+   |                                                                                                                                                +++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> tensor\src\ops\linalg\matrix_ops.rs:91:23
+   |
+91 |     let scaled_prod = crate::ops::arithmetic::mul(
+   |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `ops::arithmetic::mul::mul`
+  --> tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+87 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static + ops::dispatch::traits::TensorStorageOps<T>,
+   |                                                                                                                                                        ++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+  --> tensor\src\ops\linalg\matrix_ops.rs:96:24
+   |
+96 |     let scaled_input = crate::ops::arithmetic::mul(
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+   |
+note: required by a bound in `ops::arithmetic::mul::mul`
+  --> tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+   |
+87 |     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static + ops::dispatch::traits::TensorStorageOps<T>,
+   |                                                                                                                                                        ++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0277]: can't compare `T` with `T`
+  --> tensor\src\functions\arithmetic\mul.rs:59:28
+   |
+59 |         let grad_lhs_out = crate::ops::arithmetic::mul(grad_output, &rhs_dense)?;
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ no implementation for `T < T` and `T > T`
+   |
+note: required for `DenseStorage<T>` to implement `TensorStorageOps<T>`
+  --> tensor\src\ops\dispatch\dense_dispatch.rs:13:19
+   |
+13 | impl<T: DataType> TensorStorageOps<T> for DenseStorage<T>
+   |                   ^^^^^^^^^^^^^^^^^^^     ^^^^^^^^^^^^^^^
+...
+22 |         + PartialOrd
+   |           ---------- unsatisfied trait bound introduced here
+note: required by a bound in `ops::arithmetic::mul::mul`
+  --> tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `T` with trait `PartialOrd`
+   |
+41 |     T: DataType + Clone + Copy + num_traits::Zero + std::ops::Mul<Output = T> + std::ops::Add<Output = T> + std::ops::Sub<Output = T> + std::ops::Div<Output = T> + std::ops::Neg<Output = T> + std::cmp::PartialOrd,
+   |                                                                                                                                                                                               ++++++++++++++++++++++
+
+error[E0277]: can't compare `T` with `T`
+  --> tensor\src\functions\arithmetic\mul.rs:63:28
+   |
+63 |         let grad_rhs_out = crate::ops::arithmetic::mul(grad_output, &lhs_dense)?;
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ no implementation for `T < T` and `T > T`
+   |
+note: required for `DenseStorage<T>` to implement `TensorStorageOps<T>`
+  --> tensor\src\ops\dispatch\dense_dispatch.rs:13:19
+   |
+13 | impl<T: DataType> TensorStorageOps<T> for DenseStorage<T>
+   |                   ^^^^^^^^^^^^^^^^^^^     ^^^^^^^^^^^^^^^
+...
+22 |         + PartialOrd
+   |           ---------- unsatisfied trait bound introduced here
+note: required by a bound in `ops::arithmetic::mul::mul`
+  --> tensor\src\ops\arithmetic\mul.rs:14:92
+   |
+11 | ...fn mul<
+   |       --- required by a bound in this function
+...
+14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+   |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `mul`
+help: consider further restricting type parameter `T` with trait `PartialOrd`
+   |
+41 |     T: DataType + Clone + Copy + num_traits::Zero + std::ops::Mul<Output = T> + std::ops::Add<Output = T> + std::ops::Sub<Output = T> + std::ops::Div<Output = T> + std::ops::Neg<Output = T> + std::cmp::PartialOrd,
+   |                                                                                                                                                                                               ++++++++++++++++++++++
+
+error[E0369]: cannot divide `&Tensor<B, DenseStorage<T>, T>` by `&Tensor<B, DenseStorage<T>, T>`
+  --> tensor\src\functions\arithmetic\div.rs:57:40
+   |
+57 |         let grad_lhs_out = grad_output / &rhs_dense;
+   |                            ----------- ^ ---------- &Tensor<B, DenseStorage<T>, T>
+   |                            |
+   |                            &Tensor<B, DenseStorage<T>, T>
+   |
+help: consider further restricting type parameter `T` with trait `PartialOrd`
+   |
+40 |     T: DataType + Clone + Copy + num_traits::Zero + std::ops::Sub<Output = T> + std::ops::Mul<Output = T> + std::ops::Div<Output = T> + std::ops::Neg<Output = T> + std::cmp::PartialOrd,
+   |                                                                                                                                                                   ++++++++++++++++++++++
+
+error[E0369]: cannot divide `&Tensor<B, DenseStorage<T>, T>` by `&Tensor<B, DenseStorage<T>, T>`
+  --> tensor\src\functions\arithmetic\div.rs:62:46
+   |
+62 |         let neg_lhs_div_rhs = &(-&lhs_dense) / &rhs_dense;
+   |                               -------------- ^ ---------- &Tensor<B, DenseStorage<T>, T>
+   |                               |
+   |                               &Tensor<B, DenseStorage<T>, T>
+   |
+help: consider further restricting type parameter `T` with trait `PartialOrd`
+   |
+40 |     T: DataType + Clone + Copy + num_traits::Zero + std::ops::Sub<Output = T> + std::ops::Mul<Output = T> + std::ops::Div<Output = T> + std::ops::Neg<Output = T> + std::cmp::PartialOrd,
+   |                                                                                                                                                                   ++++++++++++++++++++++
+
+error[E0277]: the trait bound `S: StorageToDense<T>` is not satisfied
+   --> tensor\src\tensor_backend_dispatch.rs:117:16
     |
-140 |       fn storage_tanh<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
-    |       ^  ------------ help: there is an associated function with a similar name: `storage_add`
-    |  _____|
-    | |
-141 | |     where
-142 | |         T: num_traits::Float,
-...   |
-145 | |     }
-    | |_____^ not a member of trait `TensorStorageOps`
+117 |         tensor.to_backend(target_backend)
+    |                ^^^^^^^^^^ the trait `StorageToDense<T>` is not implemented for `S`
+    |
+note: required by a bound in `manipulation::<impl Tensor<B, S, T>>::to_backend`
+   --> tensor\src\implementations\manipulation.rs:85:12
+    |
+ 82 |     pub fn to_backend<NewB>(&self, new_backend: NewB) -> Result<Tensor<NewB, DenseStorage<T>, T>>
+    |            ---------- required by a bound in this associated function
+...
+ 85 |         S: StorageToDense<T> + 'static,
+    |            ^^^^^^^^^^^^^^^^^ required by this bound in `manipulation::<impl Tensor<B, S, T>>::to_backend`
+help: consider further restricting type parameter `S` with trait `StorageToDense`
+    |
+ 58 |     S: Storage<T> + StorageFromVec<T> + Clone + TensorStorageOps<T> + 'static + storage::StorageToDense<T>,
+    |                                                                               ++++++++++++++++++++++++++++
 
-warning: unused imports: `SparseDiv`, `SparseMul`, and `SparseSub`
-  --> tensor\src\ops\arithmetic\dispatch.rs:30:31
-   |
-30 | use coeus_sparse::{SparseAdd, SparseSub, SparseMul, SparseDiv};
-   |                               ^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^
-   |
-   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> tensor\src\implementations\arithmetic.rs:122:37
+    |
+122 |         crate::ops::arithmetic::neg(&self).unwrap()
+    |         --------------------------- ^^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |         |
+    |         required by a bound introduced by this call
+    |
+note: required by a bound in `ops::arithmetic::neg::neg`
+   --> tensor\src\ops\arithmetic\neg.rs:14:92
+    |
+ 11 | ...fn neg<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `neg`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+116 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + ops::dispatch::traits::TensorStorageOps<T>,
+    |                                                                                           ++++++++++++++++++++++++++++++++++++++++++++
 
-warning: unused import: `Tensor`
- --> tensor\src\ops\sparse\traits.rs:6:21
-  |
-6 | use crate::{Result, Tensor, TensorError};
-  |                     ^^^^^^
+error[E0277]: the trait bound `S: TensorStorageOps<T>` is not satisfied
+   --> tensor\src\implementations\arithmetic.rs:135:37
+    |
+135 |         crate::ops::arithmetic::neg(self).unwrap()
+    |         --------------------------- ^^^^ the trait `TensorStorageOps<T>` is not implemented for `S`
+    |         |
+    |         required by a bound introduced by this call
+    |
+note: required by a bound in `ops::arithmetic::neg::neg`
+   --> tensor\src\ops\arithmetic\neg.rs:14:92
+    |
+ 11 | ...fn neg<
+    |       --- required by a bound in this function
+...
+ 14 | ...S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + 'st...
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `neg`
+help: consider further restricting type parameter `S` with trait `TensorStorageOps`
+    |
+129 |     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + ops::dispatch::traits::TensorStorageOps<T>,
+    |                                                                                           ++++++++++++++++++++++++++++++++++++++++++++
 
-warning: unused imports: `Backend`, `DataType`, and `TensorError`
- --> tensor\src\ops\sparse\mod.rs:8:13
-  |
-8 | use crate::{Backend, DataType, Result, Tensor, TensorError};
-  |             ^^^^^^^  ^^^^^^^^                  ^^^^^^^^^^^
-
-warning: unused imports: `SparseAdd` and `SparseMatMul`
-  --> tensor\src\ops\sparse\mod.rs:10:20
-   |
-10 | use coeus_sparse::{SparseMatMul, SparseAdd};
-   |                    ^^^^^^^^^^^^  ^^^^^^^^^
-
-warning: unused import: `SparseFormat`
-  --> tensor\src\ops\sparse\mod.rs:11:27
-   |
-11 | use storage::{CsrStorage, SparseFormat};
-   |                           ^^^^^^^^^^^^
-
-warning: unused import: `alloc::vec::Vec`
-  --> tensor\src\ops\sparse\mod.rs:12:5
-   |
-12 | use alloc::vec::Vec;
-   |     ^^^^^^^^^^^^^^^
-
-warning: unused imports: `DenseStorage` and `Storage`
- --> tensor\src\sparse\coo.rs:1:32
-  |
-1 | use crate::{Backend, DataType, DenseStorage, Result, Storage, Tensor};
-  |                                ^^^^^^^^^^^^          ^^^^^^^
-
-warning: unused import: `DenseStorage`
- --> tensor\src\sparse\csc.rs:1:32
-  |
-1 | use crate::{Backend, DataType, DenseStorage, Result, Storage, Tensor};
-  |                                ^^^^^^^^^^^^
-
-warning: unused import: `crate::ops::sparse::TensorSparseOps`
-  --> tensor\src\sparse\csr.rs:51:13
-   |
-51 |         use crate::ops::sparse::TensorSparseOps;
-   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `Storage`
- --> tensor\src\sparse\csr.rs:1:74
-  |
-1 | use crate::{error::TensorError, Backend, DataType, DenseStorage, Result, Storage, Tensor};
-  |                                                                          ^^^^^^^
-
-warning: unused import: `Storage`
- --> tensor\src\sparse\csc.rs:1:54
-  |
-1 | use crate::{Backend, DataType, DenseStorage, Result, Storage, Tensor};
-  |                                                      ^^^^^^^
-
-warning: unused import: `num_traits::FromPrimitive`
- --> tensor\src\ops\classification\cross_entropy.rs:6:5
-  |
-6 | use num_traits::FromPrimitive;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `num_traits::FromPrimitive`
- --> tensor\src\ops\reduction\mean.rs:7:5
-  |
-7 | use num_traits::FromPrimitive;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `StorageToDense`
-  --> tensor\src\ops\dispatch\sparse_dispatch.rs:13:36
-   |
-13 | use storage::{CsrStorage, Storage, StorageToDense};
-   |                                    ^^^^^^^^^^^^^^
-
-warning: unused variable: `i`
-  --> tensor\src\ops\layout\cat.rs:36:10
-   |
-36 |     for (i, t) in tensors.iter().enumerate() {
-   |          ^ help: if this is intentional, prefix it with an underscore: `_i`
-   |
-   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `weight_ih`
-  --> tensor\src\ops\rnn\rnn.rs:36:13
-   |
-36 |         let weight_ih = input.clone(); // Dummy
-   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_ih`
-
-warning: unused variable: `weight_hh`
-  --> tensor\src\ops\rnn\rnn.rs:37:13
-   |
-37 |         let weight_hh = input.clone(); // Dummy
-   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_weight_hh`
-
-warning: unused variable: `bias_ih`
-  --> tensor\src\ops\rnn\rnn.rs:38:13
-   |
-38 |         let bias_ih: Option<Tensor<B, S, T>> = None; // Dummy
-   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_ih`
-
-warning: unused variable: `bias_hh`
-  --> tensor\src\ops\rnn\rnn.rs:39:13
-   |
-39 |         let bias_hh: Option<Tensor<B, S, T>> = None; // Dummy
-   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bias_hh`
-
-warning: unused variable: `sqrt2`
-  --> tensor\src\functions\activation\gelu.rs:59:13
-   |
-59 |         let sqrt2 = T::from_f64(std::f64::consts::SQRT_2).unwrap();
-   |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_sqrt2`
-
-For more information about this error, try `rustc --explain E0407`.
-warning: `tensor` (lib) generated 20 warnings
-error: could not compile `tensor` (lib) due to 1 previous error; 20 warnings emitted
+Some errors have detailed explanations: E0277, E0369, E0603.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `tensor` (lib) due to 14 previous errors

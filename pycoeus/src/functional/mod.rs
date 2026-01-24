@@ -52,5 +52,8 @@ pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::unsqueeze, m)?)?;
     m.add_function(wrap_pyfunction!(ops::transpose, m)?)?;
     m.add_function(wrap_pyfunction!(ops::permute, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::mv, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::addr, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::outer, m)?)?;
     Ok(())
 }

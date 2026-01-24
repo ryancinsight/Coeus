@@ -71,7 +71,7 @@ impl CrossEntropyLoss {
             + Clone
             + Send
             + Sync
-            + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+            + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
         T: DataType
             + FloatExt
             + std::ops::Neg<Output = T>
@@ -118,7 +118,7 @@ where
         + Clone
         + Send
         + Sync
-        + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+        + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType
         + FloatExt
         + std::ops::Neg<Output = T>

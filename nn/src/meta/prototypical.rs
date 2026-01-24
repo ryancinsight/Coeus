@@ -155,7 +155,7 @@ where
         + Send
         + Sync
         + 'static
-        + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+        + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType
         + FloatExt
         + num_traits::FromPrimitive
@@ -680,7 +680,7 @@ pub fn check_meta_learning<M, B, S, T>(
 where
     M: Clone + Module<B, S, T>,
     B: Backend<Data = T> + Default,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType
         + FloatExt
         + num_traits::FromPrimitive

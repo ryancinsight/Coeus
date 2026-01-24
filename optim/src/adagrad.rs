@@ -26,7 +26,7 @@ use crate::Parameter;
 pub struct Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     param_states: Vec<ParamState<B, S, T>>,
@@ -41,7 +41,7 @@ where
 impl<B, S, T> Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     /// Create Adagrad optimizer with default hyperparameters
@@ -112,7 +112,7 @@ where
 impl<B, S, T> BaseOptimizer<B, S, T> for Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     fn step(&mut self) -> Result<usize, crate::OptimError> {
@@ -323,7 +323,7 @@ where
 impl<B, S, T> Optimizer<B, S, T> for Adagrad<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + storage::StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
 {
     fn name(&self) -> &str {

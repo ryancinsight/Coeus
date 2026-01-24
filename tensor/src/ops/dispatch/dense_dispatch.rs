@@ -19,7 +19,6 @@ where
         + core::ops::Neg<Output = T>
         + num_traits::Zero
         + num_traits::One
-        + PartialOrd
         + Clone,
 {
     // ================== Arithmetic ==================
@@ -79,7 +78,10 @@ where
 
     // ================== Activation Functions ==================
 
-    fn storage_relu<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self> {
+    fn storage_relu<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + Default,
+    {
         backend
             .relu_dense(self)
             .map_err(Into::into)
@@ -127,11 +129,17 @@ where
         Ok(sum / n)
     }
 
-    fn storage_max<B: Backend<Data = T>>(&self, backend: &B) -> Result<T> {
+    fn storage_max<B: Backend<Data = T>>(&self, backend: &B) -> Result<T>
+    where
+        T: PartialOrd,
+    {
         backend.max_dense(self).map_err(Into::into)
     }
 
-    fn storage_min<B: Backend<Data = T>>(&self, backend: &B) -> Result<T> {
+    fn storage_min<B: Backend<Data = T>>(&self, backend: &B) -> Result<T>
+    where
+        T: PartialOrd,
+    {
         backend.min_dense(self).map_err(Into::into)
     }
 

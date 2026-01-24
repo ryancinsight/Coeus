@@ -169,7 +169,7 @@ pub struct ClipBatch {
 impl<B, S, T> EnhancedClipTrainer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType
         + FloatExt
         + std::ops::Neg<Output = T>

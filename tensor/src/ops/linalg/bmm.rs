@@ -1,11 +1,11 @@
-//! Additional matrix operations
+//! Batch matrix multiplication.
 
 use crate::{Result, Tensor, TensorError};
 use backend::Backend;
-use dtype::{DataType, traits::FloatExt};
-use num_traits::FromPrimitive;
+use dtype::{DataType};
 use storage::{Storage, StorageFromVec, StorageToDense};
-use super::matmul;
+use alloc::sync::Arc;
+use crate::functions::linalg::BMMFunction;
 
 /// Batch matrix multiplication.
 pub fn bmm<B, T, S>(
@@ -15,7 +15,7 @@ pub fn bmm<B, T, S>(
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T> + 'static,
-    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
 {
     let lhs_shape = lhs.shape().dims();
     let rhs_shape = rhs.shape().dims();
@@ -55,6 +55,7 @@ where
     let rhs_data = rhs_dense.as_slice();
     let mut result_data = Vec::with_capacity(b * m * p);
 
+    // Naive implementation for now, should delegate to optimized backend in future
     for i in 0..b {
         let lhs_offset = i * m * n;
         let rhs_offset = i * n * p;
@@ -70,33 +71,14 @@ where
         }
     }
 
-    Tensor::from_vec_with_backend(result_data, &[b, m, p], lhs.backend.clone())
-}
+    let mut result = Tensor::from_vec_with_backend(result_data, &[b, m, p], lhs.backend.clone())?;
 
-/// Add matrix multiplication: beta * self + alpha * (mat1 @ mat2)
-pub fn addmm<B, T, S>(
-    input: &Tensor<B, S, T>,
-    mat1: &Tensor<B, S, T>,
-    mat2: &Tensor<B, S, T>,
-    beta: T,
-    alpha: T,
-) -> Result<Tensor<B, S, T>>
-where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    T: DataType + FloatExt + FromPrimitive + Clone + Copy + 'static,
-    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static,
-{
-    // C = beta * input + alpha * (mat1 @ mat2)
-    let prod = matmul(mat1, mat2)?;
-    let scaled_prod = crate::ops::arithmetic::mul(
-        &prod,
-        &Tensor::full_like(&prod, alpha)?
-    )?;
-    
-    let scaled_input = crate::ops::arithmetic::mul(
-        input,
-        &Tensor::full_like(input, beta)?
-    )?;
-    
-    crate::ops::arithmetic::add(&scaled_input, &scaled_prod)
+    if crate::tensor_core::grad_enabled() && (lhs.requires_grad() || rhs.requires_grad()) {
+        let grad_fn = BMMFunction::new(Arc::new(lhs.clone()), Arc::new(rhs.clone()));
+        result = result
+            .requires_grad_(true)
+            .with_grad_fn(Some(Arc::new(grad_fn)));
+    }
+
+    Ok(result)
 }

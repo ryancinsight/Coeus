@@ -1,7 +1,6 @@
 //! Arithmetic operations module
 
-pub mod traits;
-mod dispatch; // Implementation details
+
 mod add;
 mod div;
 mod maximum;
@@ -34,17 +33,17 @@ pub fn broadcast_binary_op<
     b: &Tensor<B, S, T>,
     op: F,
 ) -> Result<Tensor<B, S, T>> {
-    let out_shape = crate::shape_ops::broadcast_shapes(a.shape().dims(), b.shape().dims())?;
+    let out_shape = crate::ops::shape::broadcast_shapes(a.shape().dims(), b.shape().dims())?;
     
-    let a_data = crate::shape_ops::broadcast_tensor_data(a.as_slice(), a.shape().dims(), &out_shape)?;
-    let b_data = crate::shape_ops::broadcast_tensor_data(b.as_slice(), b.shape().dims(), &out_shape)?;
+    let a_data = crate::ops::shape::broadcast_tensor_data(a.as_slice(), a.shape().dims(), &out_shape)?;
+    let b_data = crate::ops::shape::broadcast_tensor_data(b.as_slice(), b.shape().dims(), &out_shape)?;
     
     let data = a_data.into_iter().zip(b_data).map(|(x, y)| op(x, y)).collect();
     Tensor::from_vec_with_backend(data, &out_shape, a.backend.clone())
 }
 
 /// Helper to broadcast tensor data to a target shape
-pub use crate::shape_ops::broadcast_tensor_data;
+pub use crate::ops::shape::broadcast_tensor_data;
 
 /// Helper to broadcast a tensor to a specific shape
 pub fn broadcast_to<T, B, S>(tensor: &Tensor<B, S, T>, shape: &[usize]) -> Result<Tensor<B, S, T>>
@@ -53,7 +52,7 @@ where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T>,
 {
-    let data = crate::shape_ops::broadcast_tensor_data(tensor.as_slice(), tensor.shape().dims(), shape)?;
+    let data = crate::ops::shape::broadcast_tensor_data(tensor.as_slice(), tensor.shape().dims(), shape)?;
     Tensor::from_vec_with_backend(data, shape, tensor.backend.clone())
 }
 

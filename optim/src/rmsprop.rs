@@ -67,7 +67,7 @@ use crate::Parameter;
 pub struct RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     /// Parameter states
@@ -96,7 +96,7 @@ where
 impl<B, S, T> RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     /// Create a new RMSprop optimizer.
@@ -346,7 +346,7 @@ where
 impl<B, S, T> BaseOptimizer<B, S, T> for RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     fn step(&mut self) -> Result<usize, crate::OptimError> {
@@ -424,7 +424,7 @@ where
 impl<B, S, T> Optimizer<B, S, T> for RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     fn name(&self) -> &str {
@@ -748,7 +748,7 @@ where
 impl<B, S, T> Default for RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     fn default() -> Self {
@@ -760,7 +760,7 @@ where
 impl<B, S, T> GpuAcceleratedOptimizer for RMSprop<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + dtype::num_traits::Float + num_traits::FromPrimitive,
 {
     fn gpu_available(&self) -> bool {

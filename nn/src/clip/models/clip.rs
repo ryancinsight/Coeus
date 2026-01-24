@@ -81,7 +81,7 @@ where
 impl<B, S, T> VisionEncoder<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + 'static,
 {
     /// Create new vision encoder
@@ -145,7 +145,7 @@ where
 impl<B, S, T> VisionTransformer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + num_traits::FromPrimitive + 'static,
 {
     /// Create new Vision Transformer
@@ -283,7 +283,7 @@ where
 impl<B, S, T> VisionTransformerLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + num_traits::FromPrimitive + 'static,
 {
     pub fn new(embed_dim: usize, num_heads: usize, mlp_dim: usize) -> Result<Self> {
@@ -388,7 +388,7 @@ where
 impl<B, S, T> TextEncoder<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + num_traits::FromPrimitive + 'static,
 {
     /// Create new text encoder
@@ -499,7 +499,7 @@ where
 impl<B, S, T> TextTransformer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + num_traits::FromPrimitive + 'static,
 {
     /// Create new Text Transformer
@@ -570,7 +570,7 @@ where
 impl<B, S, T> TextTransformerLayer<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + num_traits::FromPrimitive + 'static,
 {
     pub fn new(embed_dim: usize, num_heads: usize, mlp_dim: usize) -> Result<Self> {
@@ -638,7 +638,7 @@ where
 impl<B, S, T> ClipModel<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType
         + FloatExt
         + num_traits::FromPrimitive
@@ -799,7 +799,7 @@ where
 impl<B, S, T> TextEncoder<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + 'static,
 {
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
@@ -813,7 +813,7 @@ where
 impl<B, S, T> ClipEncoder<B, T> for ClipModel<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::arithmetic::traits::TensorStorageArithmetic<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::FromPrimitive + num_traits::Bounded + 'static,
 {
     fn encode_text(&self, texts: &[&str]) -> Result<Tensor<B, DenseStorage<T>, T>> {

@@ -4,8 +4,8 @@ use storage::{StorageFromVec, StorageToDense};
 // Add
 impl<B, S, T> std::ops::Add<Tensor<B, S, T>> for Tensor<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + crate::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     T: DataType + std::ops::Add<Output = T> + Copy + 'static,
 {
     type Output = Tensor<B, S, T>;
@@ -17,8 +17,8 @@ where
 
 impl<'a, B, S, T> std::ops::Add<&'a Tensor<B, S, T>> for &'a Tensor<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + crate::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     T: DataType + std::ops::Add<Output = T> + Copy + 'static,
 {
     type Output = Tensor<B, S, T>;
@@ -31,8 +31,8 @@ where
 // Sub
 impl<B, S, T> std::ops::Sub<Tensor<B, S, T>> for Tensor<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + crate::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     T: DataType + std::ops::Sub<Output = T> + std::ops::Neg<Output = T> + Copy + 'static,
 {
     type Output = Tensor<B, S, T>;
@@ -44,8 +44,8 @@ where
 
 impl<'a, B, S, T> std::ops::Sub<&'a Tensor<B, S, T>> for &'a Tensor<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + crate::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     T: DataType + std::ops::Sub<Output = T> + std::ops::Neg<Output = T> + Copy + 'static,
 {
     type Output = Tensor<B, S, T>;
@@ -58,8 +58,8 @@ where
 // Mul
 impl<B, S, T> std::ops::Mul<Tensor<B, S, T>> for Tensor<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + crate::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     T: DataType + std::ops::Mul<Output = T> + std::ops::Add<Output = T> + std::ops::Sub<Output = T> + std::ops::Div<Output = T> + std::ops::Neg<Output = T> + Copy + Default + num_traits::Zero + 'static,
 {
     type Output = Tensor<B, S, T>;
@@ -71,8 +71,8 @@ where
 
 impl<'a, B, S, T> std::ops::Mul<&'a Tensor<B, S, T>> for &'a Tensor<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + crate::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     T: DataType + std::ops::Mul<Output = T> + std::ops::Add<Output = T> + std::ops::Sub<Output = T> + std::ops::Div<Output = T> + std::ops::Neg<Output = T> + Copy + Default + num_traits::Zero + 'static,
 {
     type Output = Tensor<B, S, T>;
@@ -85,8 +85,8 @@ where
 // Div
 impl<B, S, T> std::ops::Div<Tensor<B, S, T>> for Tensor<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + crate::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     T: DataType + std::ops::Div<Output = T> + Copy + 'static + std::ops::Neg<Output = T>,
 {
     type Output = Tensor<B, S, T>;
@@ -98,8 +98,8 @@ where
 
 impl<'a, B, S, T> std::ops::Div<&'a Tensor<B, S, T>> for &'a Tensor<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::arithmetic::traits::TensorStorageArithmetic<T> + 'static,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + crate::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     T: DataType + std::ops::Div<Output = T> + Copy + 'static + std::ops::Neg<Output = T>,
 {
     type Output = Tensor<B, S, T>;
@@ -112,8 +112,8 @@ where
 // Neg
 impl<B, S, T> std::ops::Neg for Tensor<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + crate::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     T: DataType + std::ops::Neg<Output = T> + Copy + 'static,
 {
     type Output = Tensor<B, S, T>;
@@ -125,8 +125,8 @@ where
 
 impl<'a, B, S, T> std::ops::Neg for &'a Tensor<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + crate::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
     T: DataType + std::ops::Neg<Output = T> + Copy + 'static,
 {
     type Output = Tensor<B, S, T>;
