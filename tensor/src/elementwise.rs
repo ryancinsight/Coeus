@@ -45,7 +45,7 @@ where
     pub fn exp(&self) -> Self 
     where
         T: FloatExt,
-        S: StorageToDense<T>,
+        S: StorageToDense<T> + crate::ops::TensorStorageOps<T>,
     {
         crate::ops::exp(self)
             .expect("exp operation failed: this is a bug in the tensor implementation")
@@ -75,7 +75,7 @@ where
     pub fn log(&self) -> Self 
     where
         T: FloatExt,
-        S: StorageToDense<T>,
+        S: StorageToDense<T> + crate::ops::TensorStorageOps<T>,
     {
         crate::ops::log(self)
             .expect("log operation failed: this is a bug in the tensor implementation")
@@ -105,7 +105,7 @@ where
     pub fn sin(&self) -> Self 
     where
         T: FloatExt,
-        S: StorageToDense<T>,
+        S: StorageToDense<T> + crate::ops::TensorStorageOps<T>,
     {
         crate::ops::sin(self)
             .expect("sin operation failed: this is a bug in the tensor implementation")
@@ -134,7 +134,7 @@ where
     pub fn cos(&self) -> Self 
     where
         T: FloatExt,
-        S: StorageToDense<T>,
+        S: StorageToDense<T> + crate::ops::TensorStorageOps<T>,
     {
         crate::ops::cos(self)
             .expect("cos operation failed: this is a bug in the tensor implementation")
@@ -168,7 +168,7 @@ where
     pub fn powf(&self, exp: T) -> Self
     where
         T: num_traits::Num + FloatExt,
-        S: StorageToDense<T>,
+        S: StorageToDense<T> + crate::ops::TensorStorageOps<T>,
     {
         crate::ops::math::pow_scalar(self, exp)
             .expect("powf operation failed: this is a bug in the tensor implementation")
@@ -198,7 +198,7 @@ where
     pub fn square(&self) -> Self
     where
         T: num_traits::Num + num_traits::FromPrimitive + FloatExt,
-        S: StorageToDense<T>,
+        S: StorageToDense<T> + crate::ops::TensorStorageOps<T>,
     {
         let two = T::from_f64(2.0).expect("Failed to convert 2.0 to target type");
         crate::ops::math::pow_scalar(self, two)
@@ -229,7 +229,7 @@ where
     pub fn sqrt(&self) -> Self 
     where
         T: FloatExt + num_traits::FromPrimitive,
-        S: StorageToDense<T>,
+        S: StorageToDense<T> + crate::ops::TensorStorageOps<T>,
     {
         crate::ops::sqrt(self)
             .expect("sqrt operation failed: this is a bug in the tensor implementation")

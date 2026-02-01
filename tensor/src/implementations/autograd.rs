@@ -39,7 +39,7 @@ where
     pub fn grad(&self) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         B: Clone,
-        S: Clone + StorageToDense<T>,
+        S: Clone + StorageToDense<T> + crate::ops::TensorStorageOps<T>,
         T: Clone,
     {
         #[cfg(feature = "std")]
@@ -98,7 +98,7 @@ where
     /// Set the gradient tensor.
     pub fn set_grad<GS>(&self, gradient: Tensor<B, GS, T>) -> Result<()>
     where
-        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
+        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T> + crate::ops::TensorStorageOps<T> + 'static,
         S: StorageFromVec<T> + 'static,
         B: Clone + 'static,
         T: DataType + 'static,
@@ -158,8 +158,8 @@ where
     /// Accumulate gradient by adding to existing gradient.
     pub fn accumulate_grad<GS>(&self, gradient: &Tensor<B, GS, T>) -> Result<()>
     where
-        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T>,
-        S: Storage<T> + StorageToDense<T> + StorageFromVec<T>,
+        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T> + crate::ops::TensorStorageOps<T>,
+        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + crate::ops::TensorStorageOps<T>,
         B: Clone + Default,
         T: std::ops::Add<Output = T> + Clone + Copy,
     {
@@ -266,7 +266,7 @@ where
     pub fn backward(&self) -> Result<()>
     where
         B: Backend<Data = T> + Clone,
-        S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+        S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
     {
         if self.shape().ndim() == 0 || (self.shape().ndim() == 1 && self.shape().dims()[0] == 1) {
             let grad_output: Tensor<B, S, T> =
@@ -286,8 +286,8 @@ where
     pub fn backward_with_grad<GS>(&self, grad_output: &Tensor<B, GS, T>) -> Result<()>
     where
         B: Backend<Data = T> + Clone + 'static,
-        S: Storage<T> + Clone + 'static + StorageToDense<T> + StorageFromVec<T>,
-        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T>,
+        S: Storage<T> + Clone + 'static + StorageToDense<T> + StorageFromVec<T> + crate::ops::TensorStorageOps<T>,
+        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T> + crate::ops::TensorStorageOps<T>,
         T: std::ops::Add<Output = T> + Clone + Copy,
     {
         if let Some(func) = &self.grad_fn {

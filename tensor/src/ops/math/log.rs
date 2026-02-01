@@ -1,26 +1,20 @@
 //! Element-wise natural logarithm
 
+use crate::functions::LogFunction;
 use crate::{Result, Tensor};
 use backend::Backend;
+use dtype::traits::FloatExt;
 use dtype::DataType;
 use num_traits::Float;
 use std::sync::Arc;
 use storage::{Storage, StorageFromVec, StorageToDense};
-use crate::functions::LogFunction;
-use dtype::traits::FloatExt;
 
 /// Element-wise natural logarithm
-pub fn log<
-    T,
-    B,
-    S,
->(
-    tensor: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn log<T, B, S>(tensor: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     T: DataType + Float + FloatExt + 'static,
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
 {
     let data = tensor.as_slice().iter().map(|&x| x.ln()).collect();
     let mut result =

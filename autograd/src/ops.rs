@@ -37,7 +37,8 @@ where
         + 'static
         + StorageToDense<T>
         + StorageFromVec<T>
-        + Clone,
+        + Clone
+        + tensor::ops::TensorStorageOps<T>,
     T: DataType + num_traits::One + num_traits::Zero + std::ops::Neg<Output = T>,
 {
     let grad = if let Some(g) = grad_tensor {
@@ -68,7 +69,8 @@ where
         + Sync
         + 'static
         + StorageToDense<T>
-        + StorageFromVec<T>,
+        + StorageFromVec<T>
+        + tensor::ops::TensorStorageOps<T>,
     T: DataType + num_traits::One + std::ops::Neg<Output = T>,
 {
     backward(tensor, Some(grad), false, false)
@@ -90,7 +92,8 @@ where
         + Sync
         + 'static
         + StorageToDense<T>
-        + StorageFromVec<T>,
+        + StorageFromVec<T>
+        + tensor::ops::TensorStorageOps<T>,
     T: DataType + num_traits::One + std::ops::Neg<Output = T>,
 {
     backward(tensor, Some(grad), retain_graph, create_graph)
@@ -122,7 +125,8 @@ where
         + Sync
         + 'static
         + StorageToDense<T>
-        + StorageFromVec<T>,
+        + StorageFromVec<T>
+        + tensor::ops::TensorStorageOps<T>,
     T: DataType + num_traits::One + num_traits::Zero + Copy + std::ops::Neg<Output = T>,
 {
     if let Some(grads) = &grad_outputs {

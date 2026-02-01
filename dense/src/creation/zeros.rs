@@ -51,7 +51,7 @@ where
 /// use storage::DenseStorage;
 /// use dtype::float::Float32;
 ///
-/// let original = DenseStorage::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
+/// let original: DenseStorage<Float32> = DenseStorage::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 /// let zeros_storage = zeros_like(&original).unwrap();
 /// assert_eq!(zeros_storage.shape().dims(), original.shape().dims());
 /// ```
@@ -91,13 +91,15 @@ mod tests {
     use super::*;
     use dtype::float::{Float32, Float64};
     use dtype::int::Int32;
+    use num_traits::Zero;
+    use alloc::vec;
 
     #[test]
     fn test_zeros_1d() {
         let storage = zeros::<Float32>(&[5]).unwrap();
         assert_eq!(storage.shape().dims(), &[5]);
         assert_eq!(storage.len(), 5);
-        
+
         // Check all elements are zero
         for &val in storage.as_slice() {
             assert!(val.is_zero());
@@ -109,7 +111,7 @@ mod tests {
         let storage = zeros::<Float64>(&[3, 4]).unwrap();
         assert_eq!(storage.shape().dims(), &[3, 4]);
         assert_eq!(storage.len(), 12);
-        
+
         // Check all elements are zero
         for &val in storage.as_slice() {
             assert!(val.is_zero());
@@ -118,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_zeros_like() {
-        let original = DenseStorage::from_vec(
+        let original: DenseStorage<Float32> = DenseStorage::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
             &[2, 2],
         ).unwrap();
@@ -126,7 +128,7 @@ mod tests {
         let zeros_storage = zeros_like(&original).unwrap();
         assert_eq!(zeros_storage.shape().dims(), &[2, 2]);
         assert_eq!(zeros_storage.len(), 4);
-        
+
         // Check all elements are zero
         for &val in zeros_storage.as_slice() {
             assert!(val.is_zero());

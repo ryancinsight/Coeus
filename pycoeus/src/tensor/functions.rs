@@ -9,7 +9,22 @@ pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(stack, m)?)?;
     m.add_function(wrap_pyfunction!(argmax, m)?)?;
     m.add_function(wrap_pyfunction!(argmin, m)?)?;
+    m.add_function(wrap_pyfunction!(masked_select, m)?)?;
+    // where is keyword so we use alias
+    m.add_function(wrap_pyfunction!(where_, m)?)?;
     Ok(())
+}
+
+#[pyfunction]
+#[pyo3(signature = (input, mask))]
+pub fn masked_select(input: &PyTensor, mask: &PyTensor) -> PyResult<PyTensor> {
+    crate::tensor::ops::indexing::masked_select(input, mask)
+}
+
+#[pyfunction(name = "where")]
+#[pyo3(signature = (condition, input, other))]
+pub fn where_(condition: &PyTensor, input: &PyTensor, other: &PyTensor) -> PyResult<PyTensor> {
+    crate::tensor::ops::comparison::where_(condition, input, other)
 }
 
 /// Concatenate tensors along an existing dimension
@@ -110,14 +125,18 @@ pub fn stack(tensors: Vec<PyTensor>, dim: usize) -> PyResult<PyTensor> {
 
 #[pyfunction]
 #[pyo3(signature = (input, dim=None, keepdim=false))]
-pub fn argmax(input: &PyTensor, dim: Option<i64>, keepdim: bool) -> PyResult<PyTensor> {
-    let dim_usize = dim.map(|d| d as usize);
+pub fn argmax(input: &PyTensor, dim: Option<isize>, keepdim: bool) -> PyResult<PyTensor> {
+    let dim_usize = dim.map(|d| {
+         if d < 0 { (input.shape().len() as isize + d) as usize } else { d as usize }
+    });
     input.argmax(dim_usize, keepdim)
 }
 
 #[pyfunction]
 #[pyo3(signature = (input, dim=None, keepdim=false))]
-pub fn argmin(input: &PyTensor, dim: Option<i64>, keepdim: bool) -> PyResult<PyTensor> {
-    let dim_usize = dim.map(|d| d as usize);
+pub fn argmin(input: &PyTensor, dim: Option<isize>, keepdim: bool) -> PyResult<PyTensor> {
+    let dim_usize = dim.map(|d| {
+         if d < 0 { (input.shape().len() as isize + d) as usize } else { d as usize }
+    });
     input.argmin(dim_usize, keepdim)
 }

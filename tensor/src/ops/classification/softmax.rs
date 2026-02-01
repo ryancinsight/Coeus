@@ -1,24 +1,21 @@
 //! Softmax activation function
 
+use crate::functions::SoftmaxFunction;
 use crate::{Result, Tensor};
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 use std::sync::Arc;
 use storage::{DenseStorage, StorageFromVec, StorageToDense};
-use crate::functions::SoftmaxFunction;
 
 /// Applies the Softmax function to an n-dimensional input Tensor.
 ///
 /// Softmax is defined as:
 /// `f_i(x) = exp(x_i) / Σ_j exp(x_j)`
-pub fn softmax<B, T, S>(
-    input: &Tensor<B, S, T>,
-    dim: i64,
-) -> Result<Tensor<B, DenseStorage<T>, T>>
+pub fn softmax<B, T, S>(input: &Tensor<B, S, T>, dim: i64) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     T: DataType + FloatExt + PartialOrd + Clone + 'static,
-    S: StorageToDense<T> + StorageFromVec<T> + 'static,
+    S: StorageToDense<T> + StorageFromVec<T> + crate::ops::TensorStorageOps<T> + 'static,
 {
     let input_dense = input.to_dense_generic()?;
     let dims = input_dense.shape().dims();
@@ -48,7 +45,7 @@ where
     for outer in 0..outer_size {
         for inner in 0..inner_size {
             let offset = outer * dim_size * inner_size + inner;
-            
+
             // Find max for numerical stability
             let mut max_val = T::neg_infinity();
             for d in 0..dim_size {
@@ -75,14 +72,15 @@ where
         }
     }
 
-    let mut result = Tensor::from_vec_with_backend(
-        result_data,
-        dims,
-        input_dense.backend().clone(),
-    )?;
+    let mut result =
+        Tensor::from_vec_with_backend(result_data, dims, input_dense.backend().clone())?;
 
     if crate::tensor_core::grad_enabled() && input_dense.requires_grad() {
-        let grad_fn = SoftmaxFunction::new(Arc::new(input_dense.clone()), Arc::new(result.clone()), actual_dim);
+        let grad_fn = SoftmaxFunction::new(
+            Arc::new(input_dense.clone()),
+            Arc::new(result.clone()),
+            actual_dim,
+        );
         result = result
             .requires_grad_(true)
             .with_grad_fn(Some(Arc::new(grad_fn)));
@@ -90,4 +88,3 @@ where
 
     Ok(result)
 }
-

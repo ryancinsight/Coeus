@@ -139,9 +139,12 @@ where
 mod tests {
     use super::*;
     use dtype::float::Float32;
+    use alloc::vec;
+    use backend::cpu::CpuBackend;
 
     #[test]
     fn test_sub_same_shape() {
+        let backend = CpuBackend::<Float32>::default();
         let a = DenseStorage::from_vec(
             vec![Float32::new(5.0), Float32::new(3.0), Float32::new(7.0)],
             &[3],
@@ -151,19 +154,20 @@ mod tests {
             &[3],
         ).unwrap();
 
-        let result = sub(&a, &b).unwrap();
+        let result = sub(&a, &b, &backend).unwrap();
         let expected = vec![Float32::new(3.0), Float32::new(2.0), Float32::new(4.0)];
-        
+
         assert_eq!(result.as_slice(), expected.as_slice());
         assert_eq!(result.shape().dims(), &[3]);
     }
 
     #[test]
     fn test_sub_different_shapes() {
+        let backend = CpuBackend::<Float32>::default();
         let a = DenseStorage::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
         let b = DenseStorage::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
-        let result = sub(&a, &b);
+        let result = sub(&a, &b, &backend);
         assert!(result.is_err());
     }
 
@@ -176,7 +180,7 @@ mod tests {
 
         let result = sub_scalar(&a, Float32::new(1.0)).unwrap();
         let expected = vec![Float32::new(4.0), Float32::new(2.0)];
-        
+
         assert_eq!(result.as_slice(), expected.as_slice());
     }
 
@@ -189,12 +193,13 @@ mod tests {
 
         let result = scalar_sub(Float32::new(5.0), &a).unwrap();
         let expected = vec![Float32::new(4.0), Float32::new(3.0)];
-        
+
         assert_eq!(result.as_slice(), expected.as_slice());
     }
 
     #[test]
     fn test_sub_2d() {
+        let backend = CpuBackend::<Float32>::default();
         let a = DenseStorage::from_vec(
             vec![Float32::new(5.0), Float32::new(6.0), Float32::new(7.0), Float32::new(8.0)],
             &[2, 2],
@@ -204,9 +209,9 @@ mod tests {
             &[2, 2],
         ).unwrap();
 
-        let result = sub(&a, &b).unwrap();
+        let result = sub(&a, &b, &backend).unwrap();
         let expected = vec![Float32::new(4.0), Float32::new(4.0), Float32::new(4.0), Float32::new(4.0)];
-        
+
         assert_eq!(result.as_slice(), expected.as_slice());
         assert_eq!(result.shape().dims(), &[2, 2]);
     }

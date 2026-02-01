@@ -15,16 +15,18 @@ pub struct PyAvgPool1d {
 #[pymethods]
 impl PyAvgPool1d {
     #[new]
-    #[pyo3(signature = (kernel_size, stride=None, padding=None, dtype="float32", device="cpu"))]
+    #[pyo3(signature = (kernel_size, stride=None, padding=None, ceil_mode=false, count_include_pad=true, dtype="float32", device="cpu"))]
     fn new(
         kernel_size: usize,
         stride: Option<usize>,
         padding: Option<usize>,
+        ceil_mode: bool,
+        count_include_pad: bool,
         dtype: Option<&str>,
         device: Option<&str>,
     ) -> PyResult<Self> {
         let p = padding.unwrap_or(0);
-        let pool = AvgPool1d::new(kernel_size, stride, p);
+        let pool = AvgPool1d::new(kernel_size, stride, p, count_include_pad, ceil_mode);
         Ok(PyAvgPool1d {
             inner: pool,
             dtype: dtype.unwrap_or("float32").to_string(),
@@ -79,11 +81,13 @@ pub struct PyAvgPool2d {
 #[pymethods]
 impl PyAvgPool2d {
     #[new]
-    #[pyo3(signature = (kernel_size, stride=None, padding=None, dtype="float32", device="cpu"))]
+    #[pyo3(signature = (kernel_size, stride=None, padding=None, ceil_mode=false, count_include_pad=true, dtype="float32", device="cpu"))]
     fn new(
         kernel_size: Bound<'_, PyAny>,
         stride: Option<Bound<'_, PyAny>>,
         padding: Option<Bound<'_, PyAny>>,
+        ceil_mode: bool,
+        count_include_pad: bool,
         dtype: Option<&str>,
         device: Option<&str>,
     ) -> PyResult<Self> {
@@ -113,7 +117,7 @@ impl PyAvgPool2d {
             (0, 0)
         };
 
-        let pool = AvgPool2d::new(k, s, p);
+        let pool = AvgPool2d::new(k, s, p, count_include_pad, ceil_mode);
         Ok(PyAvgPool2d {
             inner: pool,
             dtype: dtype.unwrap_or("float32").to_string(),
@@ -168,11 +172,13 @@ pub struct PyAvgPool3d {
 #[pymethods]
 impl PyAvgPool3d {
     #[new]
-    #[pyo3(signature = (kernel_size, stride=None, padding=None, dtype="float32", device="cpu"))]
+    #[pyo3(signature = (kernel_size, stride=None, padding=None, ceil_mode=false, count_include_pad=true, dtype="float32", device="cpu"))]
     fn new(
         kernel_size: Bound<'_, PyAny>,
         stride: Option<Bound<'_, PyAny>>,
         padding: Option<Bound<'_, PyAny>>,
+        ceil_mode: bool,
+        count_include_pad: bool,
         dtype: Option<&str>,
         device: Option<&str>,
     ) -> PyResult<Self> {
@@ -202,7 +208,7 @@ impl PyAvgPool3d {
             (0, 0, 0)
         };
 
-        let pool = AvgPool3d::new(k, s, p);
+        let pool = AvgPool3d::new(k, s, p, count_include_pad, ceil_mode);
         Ok(PyAvgPool3d {
             inner: pool,
             dtype: dtype.unwrap_or("float32").to_string(),

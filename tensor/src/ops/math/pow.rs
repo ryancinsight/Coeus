@@ -11,7 +11,7 @@ use storage::{Storage, StorageFromVec};
 pub fn pow<
     T: DataType + Float + Num + Clone + dtype::traits::FloatExt,
     B: Backend<Data = T> + Clone + Send + Sync + Default + 'static,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
 >(
     base: &Tensor<B, S, T>,
     exponent: &Tensor<B, S, T>,
@@ -43,7 +43,10 @@ pub fn pow<
         Tensor::from_vec_with_backend(data, base.shape().dims(), base.backend.clone())?;
 
     if crate::tensor_core::grad_enabled() && (base.requires_grad() || exponent.requires_grad()) {
-        let grad_fn = crate::functions::math::PowBinaryFunction::new(Arc::new(base.clone()), Arc::new(exponent.clone()));
+        let grad_fn = crate::functions::math::PowBinaryFunction::new(
+            Arc::new(base.clone()),
+            Arc::new(exponent.clone()),
+        );
         result = result
             .requires_grad_(true)
             .with_grad_fn(Some(Arc::new(grad_fn)));
@@ -56,7 +59,7 @@ pub fn pow<
 pub fn pow_scalar<
     T: DataType + Float + Num + Clone + dtype::traits::FloatExt,
     B: Backend<Data = T> + Clone + Send + Sync + Default + 'static,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
     exponent: T,
@@ -87,4 +90,3 @@ pub fn pow_scalar<
 
     Ok(result)
 }
-

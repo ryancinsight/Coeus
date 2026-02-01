@@ -1,16 +1,16 @@
+use crate::Tensor;
 use backend::{Backend, DataType};
 use storage::{Storage, StorageFromVec, StorageToDense};
-use crate::Tensor;
 
 /// Flattens the tensor by contiguous dimensions between `start_dim` and `end_dim`.
 pub fn flatten<B, S, T>(
     tensor: &Tensor<B, S, T>,
     start_dim: usize,
     end_dim: isize,
-) -> crate::Result<Tensor<B, crate::DenseStorage<T>, T>> 
+) -> crate::Result<Tensor<B, crate::DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Default + Clone + 'static,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
     T: DataType + Clone + 'static,
 {
     let current_dims = tensor.shape().dims();
@@ -50,9 +50,7 @@ where
         return Err(crate::TensorError::ShapeError {
             expected: 0,
             actual: 0,
-            message: format!(
-                "flatten: start_dim {start_dim} must be <= end_dim_idx {end_dim_idx}"
-            ),
+            message: format!("flatten: start_dim {start_dim} must be <= end_dim_idx {end_dim_idx}"),
         });
     }
 
@@ -76,7 +74,7 @@ where
 impl<B, S, T> Tensor<B, S, T>
 where
     B: Backend<Data = T> + Default + Clone + 'static,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
     T: DataType + Clone + 'static,
 {
     /// Flattens the tensor by contiguous dimensions between `start_dim` and `end_dim`.

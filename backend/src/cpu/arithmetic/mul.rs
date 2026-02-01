@@ -3,6 +3,7 @@
 //! Provides SIMD-ready element-wise multiplication for CPU execution.
 
 use crate::DataType;
+use crate::binary_strided_primitive;
 
 /// Element-wise multiplication primitive for CPU backend
 ///
@@ -36,6 +37,9 @@ where
 
     Ok(())
 }
+
+// Re-implement mul_strided_primitive using macro
+binary_strided_primitive!(mul_strided_primitive, Mul, mul);
 
 #[cfg(test)]
 mod tests {

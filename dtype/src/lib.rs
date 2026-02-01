@@ -37,6 +37,7 @@ pub mod traits;
 pub mod complex;
 pub mod float;
 pub mod int;
+pub use int::*;
 
 // Half-precision types (feature-gated)
 #[cfg(feature = "half")]

@@ -37,7 +37,7 @@ use crate::core::error::{NNError, Result};
 /// assert_eq!(output.shape().dims(), &[1, 64, 16, 16]);
 /// ```
 pub fn max_pool2d<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static + tensor::ops::TensorStorageOps<T>, T>,
     kernel_size: (usize, usize),
     stride: Option<(usize, usize)>,
     padding: (usize, usize),
@@ -174,7 +174,7 @@ where
 /// assert_eq!(output.shape().dims(), &[1, 64, 16, 16]);
 /// ```
 pub fn avg_pool2d<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static + tensor::ops::TensorStorageOps<T>, T>,
     kernel_size: (usize, usize),
     stride: Option<(usize, usize)>,
     padding: (usize, usize),

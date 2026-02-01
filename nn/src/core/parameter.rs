@@ -535,7 +535,7 @@ where
 impl<B, S, T> Module<B, S, T> for Parameter<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + dtype::traits::FloatExt,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {

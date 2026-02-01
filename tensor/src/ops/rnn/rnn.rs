@@ -1,11 +1,11 @@
 //! RNN recurrent operations
 
+use crate::functions::RNNFunction;
 use crate::{Result, Tensor};
 use backend::Backend;
 use dtype::DataType;
 use std::sync::Arc;
 use storage::{Storage, StorageFromVec};
-use crate::functions::RNNFunction;
 
 /// Performs a recurrent neural network forward pass.
 ///
@@ -23,7 +23,7 @@ where
 {
     // Simplified placeholder implementation
     // In a real implementation, this would perform the recurrence
-    let output = input.clone(); 
+    let output = input.clone();
     let final_hidden = initial_hidden.clone();
 
     let mut result_output = output;
@@ -41,14 +41,14 @@ where
         let grad_fn = RNNFunction::new(
             Arc::new(input.clone()),
             Some(Arc::new(initial_hidden.clone())),
-            batch_first
+            batch_first,
         );
         let grad_fn_arc = Arc::new(grad_fn);
-        
+
         result_output = result_output // Changed from `result` to `result_output` to match existing variable
             .requires_grad_(true)
             .with_grad_fn(Some(grad_fn_arc.clone()));
-            
+
         result_hidden = result_hidden
             .requires_grad_(true)
             .with_grad_fn(Some(grad_fn_arc));

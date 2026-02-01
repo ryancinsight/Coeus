@@ -2,6 +2,7 @@ use crate::tensor::class::{PyTensor, TensorWrapper, to_py_err};
 use crate::dispatch_binary;
 use pyo3::prelude::*;
 use tensor::ops::comparison;
+use dtype::num_traits::Zero;
 
 #[pymethods]
 impl PyTensor {
@@ -28,4 +29,8 @@ impl PyTensor {
     pub fn le(&self, other: &PyTensor) -> PyResult<PyTensor> {
         dispatch_binary!(self, other, a, b => comparison::le(a, b).map_err(to_py_err)?)
     }
+}
+
+pub fn where_(_condition: &PyTensor, _input: &PyTensor, _other: &PyTensor) -> PyResult<PyTensor> {
+    Err(to_py_err("where not fully implemented (requires tensor cast op)"))
 }

@@ -1,15 +1,15 @@
-use backend::{Backend, DataType};
-use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
 use crate::Tensor;
+use backend::{Backend, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 
 /// Permutes dimensions of the tensor.
 pub fn permute<B, S, T>(
     tensor: &Tensor<B, S, T>,
-    dims: &[usize]
+    dims: &[usize],
 ) -> crate::Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Default + Clone,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T>,
     T: DataType + Clone,
 {
     let source_dims = tensor.shape().dims();
@@ -51,9 +51,11 @@ where
     for i in 0..ndim {
         target_dims[i] = source_dims[dims[i]];
     }
-    
+
     // Convert to dense to access data
-    let dense_tensor = tensor.to_dense_generic().map_err(|e| crate::TensorError::BackendError(format!("{:?}", e)))?;
+    let dense_tensor = tensor
+        .to_dense_generic()
+        .map_err(|e| crate::TensorError::BackendError(format!("{:?}", e)))?;
 
     let mut permuted_data = Vec::with_capacity(dense_tensor.len());
     let mut coords = vec![0; ndim]; // coordinates in the target tensor
@@ -99,7 +101,7 @@ where
 impl<B, T> Tensor<B, DenseStorage<T>, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    T: DataType + Clone,
+    T: DataType + Clone + std::ops::Neg<Output = T>,
 {
     /// Permutes dimensions of the tensor.
     pub fn permute(&self, dims: &[usize]) -> crate::Result<Self> {

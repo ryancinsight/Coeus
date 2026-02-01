@@ -176,6 +176,7 @@ pub fn scalar<T: DataType>(value: T) -> Result<DenseStorage<T>> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec;
     use super::*;
     use dtype::float::Float32;
 
@@ -234,6 +235,6 @@ mod tests {
     fn test_scalar() {
         let scalar = scalar(Float32::new(42.0)).unwrap();
         assert_eq!(scalar.as_slice(), &[Float32::new(42.0)]);
-        assert_eq!(scalar.shape().dims(), &[]);
+        assert_eq!(scalar.shape().dims(), &[] as &[usize]);
     }
 }

@@ -1,6 +1,5 @@
-use backend::CpuBackend;
-use dtype::{traits::FloatExt, DataType};
-use storage::DenseStorage;
+use backend::Backend;
+use dtype::{DataType};
 use tensor::Tensor;
 
 use crate::core::error::Result;
@@ -45,19 +44,20 @@ pub struct AvgPool2d {
     pub stride: Option<(usize, usize)>,
     /// Padding (height, width)
     pub padding: (usize, usize),
+    /// Whether to include padding in average calculation
+    pub count_include_pad: bool,
+    /// Ceil mode
+    pub ceil_mode: bool,
 }
 
 impl AvgPool2d {
     /// Create a new AvgPool2d layer.
-    ///
-    /// # Arguments
-    /// * `kernel_size` - Kernel size (height, width)
-    /// * `stride` - Stride (height, width). If None, defaults to kernel_size
-    /// * `padding` - Padding (height, width)
     pub fn new(
         kernel_size: (usize, usize),
         stride: Option<(usize, usize)>,
         padding: (usize, usize),
+        count_include_pad: bool,
+        ceil_mode: bool,
     ) -> Self {
         assert!(
             kernel_size.0 > 0 && kernel_size.1 > 0,
@@ -71,82 +71,34 @@ impl AvgPool2d {
             kernel_size,
             stride,
             padding,
+            count_include_pad,
+            ceil_mode,
         }
-    }
-
-    /// Compute output spatial dimensions.
-    fn output_size(&self, input_h: usize, input_w: usize) -> (usize, usize) {
-        let stride = self.stride.unwrap_or(self.kernel_size);
-        let h_out = (input_h + 2 * self.padding.0 - self.kernel_size.0) / stride.0 + 1;
-        let w_out = (input_w + 2 * self.padding.1 - self.kernel_size.1) / stride.1 + 1;
-        (h_out, w_out)
     }
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for AvgPool2d {
+impl<B, S, T> Module<B, S, T> for AvgPool2d
+where
+    B: Backend<Data = T> + Clone + Default + tensor::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T>,
+    S:  storage::Storage<T> + storage::StorageFromVec<T> + Clone + tensor::ops::TensorStorageOps<T> + 'static + storage::StorageToDense<T>,
+    T: DataType + dtype::traits::FloatExt + num_traits::FromPrimitive + num_traits::Zero + PartialOrd + std::fmt::Debug,
+{
     fn forward(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
-        // Input: [N, C, H_in, W_in]
-        let input_shape = input.shape().dims();
-        assert_eq!(input_shape.len(), 4, "Input must be 4D [N, C, H_in, W_in]");
-
-        let batch_size = input_shape[0];
-        let channels = input_shape[1];
-        let input_h = input_shape[2];
-        let input_w = input_shape[3];
-
-        let (output_h, output_w) = self.output_size(input_h, input_w);
+        input: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, S, T>> {
         let stride = self.stride.unwrap_or(self.kernel_size);
-
-        let input_data = input.as_slice();
-        let mut output_data = Vec::with_capacity(batch_size * channels * output_h * output_w);
-
-        let kernel_area = T::from((self.kernel_size.0 * self.kernel_size.1) as f64).unwrap();
-
-        for n in 0..batch_size {
-            for c in 0..channels {
-                for out_h in 0..output_h {
-                    for out_w in 0..output_w {
-                        let mut sum = T::zero();
-
-                        // Compute average in pooling window
-                        for kh in 0..self.kernel_size.0 {
-                            for kw in 0..self.kernel_size.1 {
-                                let h_in = out_h * stride.0 + kh;
-                                let w_in = out_w * stride.1 + kw;
-
-                                // Handle padding (treat as 0 for average pooling)
-                                if h_in >= self.padding.0
-                                    && h_in < input_h + self.padding.0
-                                    && w_in >= self.padding.1
-                                    && w_in < input_w + self.padding.1
-                                {
-                                    let h_actual = h_in - self.padding.0;
-                                    let w_actual = w_in - self.padding.1;
-
-                                    if h_actual < input_h && w_actual < input_w {
-                                        let input_idx = ((n * channels + c) * input_h + h_actual)
-                                            * input_w
-                                            + w_actual;
-                                        sum = sum + input_data[input_idx];
-                                    }
-                                }
-                            }
-                        }
-
-                        output_data.push(sum / kernel_area);
-                    }
-                }
-            }
-        }
-
-        Tensor::from_vec(output_data, &[batch_size, channels, output_h, output_w])
-            .map_err(Into::into)
+        tensor::ops::pooling::avg_pool::avg_pool2d(
+            input,
+            self.kernel_size,
+            stride,
+            self.padding,
+            self.ceil_mode,
+            self.count_include_pad
+        ).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         vec![] // No learnable parameters
     }
 
@@ -162,7 +114,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for AvgPo
         "AvgPool2d"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
         Box::new(self.clone())
     }
 }

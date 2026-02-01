@@ -50,7 +50,7 @@ pub fn linear<B, S, T>(
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt,
 {
     let input_shape = input.shape().dims();
@@ -149,7 +149,7 @@ where
 /// The current approach is a valid fallback that works correctly but may not be optimal for all use cases.
 pub fn sparse_linear<
     B: Backend<Data = T> + Default,
-    S: Storage<T> + StorageToDense<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + StorageToDense<T> + Clone + StorageFromVec<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T,
 >(
     input: &Tensor<B, S, T>,

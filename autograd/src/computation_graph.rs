@@ -76,6 +76,7 @@ impl GradientEngine {
             + Sync
             + 'static
             + StorageToDense<T>
+            + tensor::ops::TensorStorageOps<T>
             + StorageFromVec<T>,
         T: DataType,
     {
@@ -106,6 +107,7 @@ impl GradientEngine {
             + Sync
             + 'static
             + StorageToDense<T>
+            + tensor::ops::TensorStorageOps<T>
             + StorageFromVec<T>,
         T: DataType,
     {
@@ -216,6 +218,7 @@ impl GradientEngine {
             + Sync
             + 'static
             + StorageToDense<T>
+            + tensor::ops::TensorStorageOps<T>
             + StorageFromVec<T>
             + Clone,
         T: DataType + num_traits::Zero + Clone + 'static + std::ops::Neg<Output = T>,
@@ -338,6 +341,7 @@ impl GradientEngine {
             + Sync
             + 'static
             + StorageToDense<T>
+            + tensor::ops::TensorStorageOps<T>
             + StorageFromVec<T>
             + Clone,
         T: DataType + num_traits::Zero + Clone + 'static + std::ops::Neg<Output = T>,
@@ -377,8 +381,9 @@ impl GradientEngine {
             + Clone
             + 'static
             + StorageFromVec<T>
-            + StorageToDense<T>,
-        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
+            + StorageToDense<T>
+            + tensor::ops::TensorStorageOps<T>,
+        GS: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static + tensor::ops::TensorStorageOps<T>,
         T: DataType + Clone + std::ops::Neg<Output = T>,
     {
         if create_graph {
@@ -414,7 +419,8 @@ impl GradientEngine {
             + 'static
             + Clone
             + StorageFromVec<T>
-            + StorageToDense<T>,
+            + StorageToDense<T>
+            + tensor::ops::TensorStorageOps<T>,
         T: DataType,
     {
         tensor.grad().map_err(AutogradError::TensorError)
@@ -438,6 +444,7 @@ where
         + Clone
         + 'static
         + StorageToDense<T>
+        + tensor::ops::TensorStorageOps<T>
         + storage::StorageFromVec<T>,
     T: DataType + std::ops::Neg<Output = T>,
 {

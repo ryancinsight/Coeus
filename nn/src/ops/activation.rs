@@ -16,7 +16,7 @@ use crate::core::error::Result;
 pub fn relu<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T>, // Added bounds
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static, // Added bounds
     T: DataType + FloatExt + PartialOrd + Clone + num_traits::Zero,
 {
     // tensor::ops::relu usually preserves storage, but let's check or handle it safe
@@ -30,7 +30,7 @@ where
 pub fn sigmoid<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::TensorStorageOps<T> + 'static,
     T: DataType + FloatExt + Clone + std::ops::Neg<Output = T>,
 {
     Ok(tensor::ops::sigmoid(input)?)
@@ -40,7 +40,7 @@ where
 pub fn tanh<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::TensorStorageOps<T> + 'static,
     T: DataType + FloatExt + Clone,
 {
     Ok(tensor::ops::tanh(input)?)
@@ -50,7 +50,7 @@ where
 pub fn gelu<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::TensorStorageOps<T> + 'static,
     T: DataType + FloatExt + Clone + num_traits::FromPrimitive, // Added FromPrimitive
 {
     Ok(tensor::ops::gelu(input)?)
@@ -60,7 +60,7 @@ where
 pub fn leaky_relu<B, S, T>(input: &Tensor<B, S, T>, negative_slope: T) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::TensorStorageOps<T> + 'static,
     T: DataType + FloatExt + PartialOrd + Clone + num_traits::FromPrimitive,
 {
     // tensor::ops::leaky_relu expects f64 slope
@@ -75,7 +75,7 @@ where
 pub fn softmax<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + StorageFromVec<T> + StorageToDense<T> + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + Clone + PartialOrd + 'static,
 {
     Ok(tensor::ops::softmax(input, -1)?)
@@ -88,7 +88,7 @@ pub fn softmax_dim<B, S, T>(
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + 'static + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + 'static + StorageFromVec<T> + StorageToDense<T> + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + Clone + PartialOrd + 'static,
 {
     Ok(tensor::ops::softmax(input, dim as i64)?)
@@ -103,7 +103,7 @@ pub fn log_softmax<B, S, T>(
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + Clone + 'static + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    S: Storage<T> + Clone + 'static + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + Clone + num_traits::FromPrimitive + Copy + Send + Sync + 'static,
 {
     let probs = tensor::ops::softmax(input, dim as i64)?;
@@ -115,7 +115,7 @@ where
 pub fn dropout<B, S, T>(input: &Tensor<B, S, T>, p: f64, training: bool) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static + StorageToDense<T>,
+    S: Storage<T> + StorageFromVec<T> + Clone + 'static + StorageToDense<T> + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + Clone + num_traits::FromPrimitive,
 {
     if !training || p <= 0.0 {
@@ -155,7 +155,7 @@ where
 
 /// Applies ELU activation.
 pub fn elu<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static + tensor::ops::TensorStorageOps<T>, T>,
     alpha: T,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
@@ -182,7 +182,7 @@ where
 
 /// Applies SiLU (Swish) activation.
 pub fn silu<B, T>(
-    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static, T>,
+    input: &Tensor<B, impl StorageToDense<T> + StorageFromVec<T> + 'static + tensor::ops::TensorStorageOps<T>, T>,
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default,

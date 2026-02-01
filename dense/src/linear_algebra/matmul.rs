@@ -170,6 +170,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec;
     use super::*;
     use dtype::float::Float32;
     use backend::CpuBackend;

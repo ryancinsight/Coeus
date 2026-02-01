@@ -1,46 +1,72 @@
-use crate::tensor::class::{PyTensor, TensorWrapper, to_py_err};
-use crate::dispatch_binary;
+use crate::tensor::class::{PyTensor, to_py_err, TensorWrapper};
+pub use crate::tensor::wrapper::WrapTensor;
+use crate::{dispatch_binary, dispatch_tensor};
 use pyo3::prelude::*;
+use dtype::float::{Float32, Float64};
 
 #[pymethods]
 impl PyTensor {
-    // Binary Arithmetic Ops
-    pub fn __add__(&self, other: &PyTensor) -> PyResult<PyTensor> {
-        dispatch_binary!(self, other, a, b => a + b)
+    pub fn add(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        dispatch_binary!(self, other, a, b => {
+            let res = a.clone() + b.clone();
+            Ok(PyTensor { inner: res.wrap() })
+        })
     }
-    pub fn __sub__(&self, other: &PyTensor) -> PyResult<PyTensor> {
-        dispatch_binary!(self, other, a, b => a - b)
+
+    pub fn sub(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        dispatch_binary!(self, other, a, b => {
+            let res = a.clone() - b.clone();
+            Ok(PyTensor { inner: res.wrap() })
+        })
     }
-    pub fn __mul__(&self, other: &PyTensor) -> PyResult<PyTensor> {
-        dispatch_binary!(self, other, a, b => a * b)
+
+    pub fn mul(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        dispatch_binary!(self, other, a, b => {
+            let res = a.clone() * b.clone();
+            Ok(PyTensor { inner: res.wrap() })
+        })
     }
-    pub fn __truediv__(&self, other: &PyTensor) -> PyResult<PyTensor> {
-        dispatch_binary!(self, other, a, b => a / b)
+
+    pub fn div(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        dispatch_binary!(self, other, a, b => {
+            let res = a.clone() / b.clone();
+            Ok(PyTensor { inner: res.wrap() })
+        })
     }
-    
-    pub fn add(&self, other: &PyTensor) -> PyResult<PyTensor> { self.__add__(other) }
-    pub fn sub(&self, other: &PyTensor) -> PyResult<PyTensor> { self.__sub__(other) }
-    pub fn mul(&self, other: &PyTensor) -> PyResult<PyTensor> { self.__mul__(other) }
-    pub fn div(&self, other: &PyTensor) -> PyResult<PyTensor> { self.__truediv__(other) }
-    
-    pub fn pow(&self, exponent: &PyTensor) -> PyResult<PyTensor> {
-        match (&self.inner, &exponent.inner) {
-            (TensorWrapper::CpuDenseF32(a), TensorWrapper::CpuDenseF32(b)) => {
-                let res = tensor::ops::pow(a, b).map_err(to_py_err)?;
-                Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
-            }
-            (TensorWrapper::CpuDenseF64(a), TensorWrapper::CpuDenseF64(b)) => {
-                let res = tensor::ops::pow(a, b).map_err(to_py_err)?;
-                Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
-            }
-            #[cfg(feature = "gpu")]
-            (TensorWrapper::GpuDenseF32(a), TensorWrapper::GpuDenseF32(b)) => {
-                let res = tensor::ops::pow(a, b).map_err(to_py_err)?;
-                Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
-            }
-            _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-                "pow not implemented for these types",
-            )),
+
+    pub fn add_scalar(&self, value: f64) -> PyResult<PyTensor> {
+        match &self.inner {
+            TensorWrapper::CpuDenseF32(t) => Ok(PyTensor { inner: (t.add_scalar(Float32(value as f32)).map_err(to_py_err)?).wrap() }),
+            TensorWrapper::CpuDenseF64(t) => Ok(PyTensor { inner: (t.add_scalar(Float64(value)).map_err(to_py_err)?).wrap() }),
+            _ => Err(to_py_err("Add scalar not implemented for this storage")),
+        }
+    }
+
+    pub fn add_scalar_f64(&self, value: f64) -> PyResult<PyTensor> {
+        self.add_scalar(value)
+    }
+
+    pub fn sub_scalar(&self, value: f64) -> PyResult<PyTensor> {
+        match &self.inner {
+            TensorWrapper::CpuDenseF32(t) => Ok(PyTensor { inner: (t.sub_scalar(Float32(value as f32)).map_err(to_py_err)?).wrap() }),
+            TensorWrapper::CpuDenseF64(t) => Ok(PyTensor { inner: (t.sub_scalar(Float64(value)).map_err(to_py_err)?).wrap() }),
+            _ => Err(to_py_err("Sub scalar not implemented for this storage")),
+        }
+    }
+
+    pub fn mul_scalar(&self, value: f64) -> PyResult<PyTensor> {
+        match &self.inner {
+            TensorWrapper::CpuDenseF32(t) => Ok(PyTensor { inner: (t.mul_scalar(Float32(value as f32)).map_err(to_py_err)?).wrap() }),
+            TensorWrapper::CpuDenseF64(t) => Ok(PyTensor { inner: (t.mul_scalar(Float64(value)).map_err(to_py_err)?).wrap() }),
+            _ => Err(to_py_err("Mul scalar not implemented for this storage")),
+        }
+    }
+
+    pub fn div_scalar(&self, value: f64) -> PyResult<PyTensor> {
+        match &self.inner {
+            TensorWrapper::CpuDenseF32(t) => Ok(PyTensor { inner: (t.div_scalar(Float32(value as f32)).map_err(to_py_err)?).wrap() }),
+            TensorWrapper::CpuDenseF64(t) => Ok(PyTensor { inner: (t.div_scalar(Float64(value)).map_err(to_py_err)?).wrap() }),
+            _ => Err(to_py_err("Div scalar not implemented for this storage")),
         }
     }
 }

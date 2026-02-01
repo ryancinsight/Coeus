@@ -146,6 +146,7 @@ where
 mod tests {
     use super::*;
     use dtype::float::Float32;
+    use alloc::vec;
 
     #[test]
     fn test_div_same_shape() {

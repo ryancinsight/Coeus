@@ -5,7 +5,6 @@ use alloc::vec::Vec;
 use backend::Backend;
 use dtype::traits::FloatExt;
 use dtype::DataType;
-use num_traits::FromPrimitive;
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use crate::{DifferentiableFunction, Function, Tensor};
 
@@ -37,7 +36,7 @@ where
 impl<B, S, T> Function<B, S, T> for AtanFunction<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + Clone + 'static,
     T: DataType + FloatExt + num_traits::One + num_traits::Float + num_traits::FromPrimitive + 'static,
 {
     fn inputs(&self) -> &[Arc<Tensor<B, S, T>>] {

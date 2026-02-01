@@ -64,8 +64,12 @@ mod tests {
     fn test_transpose_primitive() {
         // Test 2×3 matrix transpose
         let input = [
-            Float32::new(1.0), Float32::new(2.0), Float32::new(3.0),  // [1, 2, 3]
-            Float32::new(4.0), Float32::new(5.0), Float32::new(6.0),  // [4, 5, 6]
+            Float32::new(1.0),
+            Float32::new(2.0),
+            Float32::new(3.0), // [1, 2, 3]
+            Float32::new(4.0),
+            Float32::new(5.0),
+            Float32::new(6.0), // [4, 5, 6]
         ];
         let mut result = [Float32::new(0.0); 6];
 
@@ -75,9 +79,12 @@ mod tests {
         //           [2, 5]
         //           [3, 6]
         let expected = [
-            Float32::new(1.0), Float32::new(4.0),
-            Float32::new(2.0), Float32::new(5.0),
-            Float32::new(3.0), Float32::new(6.0),
+            Float32::new(1.0),
+            Float32::new(4.0),
+            Float32::new(2.0),
+            Float32::new(5.0),
+            Float32::new(3.0),
+            Float32::new(6.0),
         ];
         assert_eq!(result, expected);
     }

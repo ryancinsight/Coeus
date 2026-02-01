@@ -15,9 +15,10 @@ authors.workspace = true
 rust-version.workspace = true
 
 [features]
-default = ["std"]
+default = ["std", "cpu"]
 std = ["storage/std"]
 gpu = ["backend/gpu"]
+cpu = ["backend/cpu"]
 
 [dependencies]
 dtype.workspace = true

@@ -1,5 +1,3 @@
-use backend::{Backend, DataType};
-use storage::{Storage, StorageFromVec};
 
 /// Helper to broadcast tensor data to a target shape
 pub fn broadcast_tensor_data<T: Clone>(
@@ -27,12 +25,16 @@ pub fn broadcast_tensor_data<T: Clone>(
             // Mapping target coord to source coord
             // If target_dim > current_dim and current_dim == 1, we use coord 0 (broadcast)
             // We need to handle padding of current_shape with 1s at the front
-            let current_dim_idx = d as i32 - (target_shape.len() as i32 - current_shape.len() as i32);
+            let current_dim_idx =
+                d as i32 - (target_shape.len() as i32 - current_shape.len() as i32);
             if current_dim_idx >= 0 {
                 let current_dim = current_shape[current_dim_idx as usize];
                 if current_dim > 1 {
                     // Calculate current stride
-                    let current_stride: usize = current_shape.iter().skip(current_dim_idx as usize + 1).product();
+                    let current_stride: usize = current_shape
+                        .iter()
+                        .skip(current_dim_idx as usize + 1)
+                        .product();
                     current_idx += target_coord * current_stride;
                 }
             }

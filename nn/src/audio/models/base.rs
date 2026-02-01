@@ -14,12 +14,16 @@ where
     T: DataType + FloatExt,
 {
     /// Feature encoder (CNN layers)
+    #[allow(dead_code)]
     feature_encoder: Vec<Conv1D<B, S, T>>,
     /// Quantizer for discrete representations
+    #[allow(dead_code)]
     quantizer: Option<ProductQuantizer<B, S, T>>,
     /// Transformer layers for contextual representations
+    #[allow(dead_code)]
     transformer_layers: Vec<TransformerLayer<B, S, T>>,
     /// Configuration
+    #[allow(dead_code)]
     config: Wav2VecConfig,
 }
 
@@ -32,10 +36,13 @@ where
     T: DataType + FloatExt,
 {
     /// Wav2Vec encoder
+    #[allow(dead_code)]
     wav2vec_encoder: Wav2VecModel<B, S, T>,
     /// Clustering head for unit discovery
+    #[allow(dead_code)]
     clustering_head: Linear<B, S, T>,
     /// Configuration
+    #[allow(dead_code)]
     config: HubertConfig,
 }
 
@@ -48,12 +55,16 @@ where
     T: DataType + FloatExt,
 {
     /// Audio encoder (similar to Wav2Vec)
+    #[allow(dead_code)]
     encoder: Vec<TransformerLayer<B, S, T>>,
     /// Text decoder for autoregressive generation
+    #[allow(dead_code)]
     decoder: Vec<TransformerLayer<B, S, T>>,
     /// Language model head
+    #[allow(dead_code)]
     lm_head: Linear<B, S, T>,
     /// Configuration
+    #[allow(dead_code)]
     config: WhisperConfig,
 }
 
@@ -66,12 +77,16 @@ where
     T: DataType + FloatExt,
 {
     /// Text encoder
+    #[allow(dead_code)]
     encoder: Vec<TransformerLayer<B, S, T>>,
     /// Decoder with attention
+    #[allow(dead_code)]
     decoder: Vec<TacotronDecoderLayer<B, S, T>>,
     /// Post-net for spectrogram refinement
+    #[allow(dead_code)]
     postnet: Vec<Conv1D<B, S, T>>,
     /// Configuration
+    #[allow(dead_code)]
     config: TacotronConfig,
 }
 
@@ -84,18 +99,25 @@ where
     T: DataType + FloatExt,
 {
     /// Phoneme encoder
+    #[allow(dead_code)]
     encoder: Vec<TransformerLayer<B, S, T>>,
     /// Duration predictor
+    #[allow(dead_code)]
     duration_predictor: DurationPredictor<B, S, T>,
     /// Pitch predictor
+    #[allow(dead_code)]
     pitch_predictor: PitchPredictor<B, S, T>,
     /// Energy predictor
+    #[allow(dead_code)]
     energy_predictor: EnergyPredictor<B, S, T>,
     /// Decoder
+    #[allow(dead_code)]
     decoder: Vec<TransformerLayer<B, S, T>>,
     /// Post-net
+    #[allow(dead_code)]
     postnet: Vec<Conv1D<B, S, T>>,
     /// Configuration
+    #[allow(dead_code)]
     config: FastSpeechConfig,
 }
 

@@ -1,6 +1,5 @@
 //! Arithmetic operations module
 
-
 mod add;
 mod div;
 mod maximum;
@@ -16,6 +15,8 @@ pub use minimum::minimum;
 pub use mul::mul;
 pub use neg::neg;
 pub use sub::sub;
+pub mod scalar;
+pub use scalar::*;
 
 use crate::{Result, Tensor};
 use backend::Backend;
@@ -25,20 +26,31 @@ use storage::{Storage, StorageFromVec};
 /// Broadcasting binary operation helper
 pub fn broadcast_binary_op<
     T: DataType,
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T>,
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + StorageFromVec<T>, // Return storage type S (usually S1 or Default)
+    S1: Storage<T> + StorageFromVec<T> + crate::ops::TensorStorageOps<T> + Clone + 'static,
+    S2: Storage<T> + StorageFromVec<T> + crate::ops::TensorStorageOps<T> + Clone + 'static,
     F: Fn(T, T) -> T,
 >(
-    a: &Tensor<B, S, T>,
-    b: &Tensor<B, S, T>,
+    a: &Tensor<B, S1, T>,
+    b: &Tensor<B, S2, T>,
     op: F,
 ) -> Result<Tensor<B, S, T>> {
-    let out_shape = crate::ops::shape::broadcast_shapes(a.shape().dims(), b.shape().dims())?;
+    let a_dense = a.to_dense_generic()?;
+    let b_dense = b.to_dense_generic()?;
     
-    let a_data = crate::ops::shape::broadcast_tensor_data(a.as_slice(), a.shape().dims(), &out_shape)?;
-    let b_data = crate::ops::shape::broadcast_tensor_data(b.as_slice(), b.shape().dims(), &out_shape)?;
-    
-    let data = a_data.into_iter().zip(b_data).map(|(x, y)| op(x, y)).collect();
+    let out_shape = crate::ops::shape::broadcast_shapes(a_dense.shape().dims(), b_dense.shape().dims())?;
+
+    let a_data =
+        crate::ops::shape::broadcast_tensor_data(a_dense.as_slice(), a_dense.shape().dims(), &out_shape)?;
+    let b_data =
+        crate::ops::shape::broadcast_tensor_data(b_dense.as_slice(), b_dense.shape().dims(), &out_shape)?;
+
+    let data = a_data
+        .into_iter()
+        .zip(b_data)
+        .map(|(x, y)| op(x, y))
+        .collect();
     Tensor::from_vec_with_backend(data, &out_shape, a.backend.clone())
 }
 
@@ -52,7 +64,7 @@ where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + StorageFromVec<T>,
 {
-    let data = crate::ops::shape::broadcast_tensor_data(tensor.as_slice(), tensor.shape().dims(), shape)?;
+    let data =
+        crate::ops::shape::broadcast_tensor_data(tensor.as_slice(), tensor.shape().dims(), shape)?;
     Tensor::from_vec_with_backend(data, shape, tensor.backend.clone())
 }
-

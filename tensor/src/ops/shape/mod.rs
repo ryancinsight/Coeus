@@ -8,6 +8,7 @@ pub mod reshape;
 pub mod squeeze;
 pub mod transpose;
 pub mod view;
+pub mod select;
 
 pub mod unsqueeze;
 
@@ -19,5 +20,5 @@ pub use permute::permute;
 pub use reshape::reshape;
 pub use squeeze::squeeze;
 pub use transpose::transpose;
-pub use view::view;
 pub use unsqueeze::unsqueeze;
+pub use view::view;

@@ -717,4 +717,104 @@ impl<T: DataType + GpuFloat> Backend for GpuBackend<T> {
         DenseStorage::from_vec(vec![T::default(); queries.as_slice().len()], queries.shape().dims())
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
+
+    fn add_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "add_strided".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn mul_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "mul_strided".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn sub_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "sub_strided".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn cholesky_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float,
+    {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "cholesky_dense".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn qr_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<(storage::DenseStorage<Self::Data>, storage::DenseStorage<Self::Data>)>
+    where
+        Self::Data: num_traits::Float,
+    {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "qr_dense".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn svd_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<(
+        storage::DenseStorage<Self::Data>,
+        storage::DenseStorage<Self::Data>,
+        storage::DenseStorage<Self::Data>,
+    )>
+    where
+        Self::Data: num_traits::Float,
+    {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "svd_dense".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn take_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+        _indices: &storage::DenseStorage<dtype::int::Int64>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "take_dense".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn put_dense(
+        &self,
+        _input: &mut storage::DenseStorage<Self::Data>,
+        _indices: &storage::DenseStorage<dtype::int::Int64>,
+        _values: &storage::DenseStorage<Self::Data>,
+        _accumulate: bool,
+    ) -> Result<()> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "put_dense".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
 }

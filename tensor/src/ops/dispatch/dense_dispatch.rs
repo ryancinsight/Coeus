@@ -50,9 +50,7 @@ where
     // ================== Linear Algebra ==================
 
     fn storage_matmul<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self> {
-        backend
-            .matmul_dense(self, other)
-            .map_err(Into::into)
+        backend.matmul_dense(self, other).map_err(Into::into)
     }
 
     fn storage_transpose<B: Backend<Data = T>>(&self, _backend: &B) -> Result<Self> {
@@ -82,36 +80,28 @@ where
     where
         T: PartialOrd + Default,
     {
-        backend
-            .relu_dense(self)
-            .map_err(Into::into)
+        backend.relu_dense(self).map_err(Into::into)
     }
 
     fn storage_sigmoid<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
     where
         T: num_traits::Float,
     {
-        backend
-            .sigmoid_dense(self)
-            .map_err(Into::into)
+        backend.sigmoid_dense(self).map_err(Into::into)
     }
 
     fn storage_tanh<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
     where
         T: num_traits::Float,
     {
-        backend
-            .tanh_dense(self)
-            .map_err(Into::into)
+        backend.tanh_dense(self).map_err(Into::into)
     }
 
     fn storage_gelu<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
     where
         T: num_traits::Float,
     {
-        backend
-            .gelu_dense(self)
-            .map_err(Into::into)
+        backend.gelu_dense(self).map_err(Into::into)
     }
 
     // ================== Reductions ==================

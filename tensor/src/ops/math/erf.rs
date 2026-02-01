@@ -16,12 +16,16 @@ fn erf_approx<T: Float>(x: T) -> T {
     let a5 = T::from(1.061405429).unwrap();
     let p = T::from(0.3275911).unwrap();
 
-    let sign = if x < T::zero() { T::from(-1.0).unwrap() } else { T::one() };
+    let sign = if x < T::zero() {
+        T::from(-1.0).unwrap()
+    } else {
+        T::one()
+    };
     let x = x.abs();
-    
+
     let t = T::one() / (T::one() + p * x);
     let y = T::one() - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * (-x * x).exp();
-    
+
     sign * y
 }
 

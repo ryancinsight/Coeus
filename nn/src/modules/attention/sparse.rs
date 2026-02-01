@@ -68,7 +68,7 @@ where
 impl<B, S, T> SparseAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::Zero,
 {
     /// Create a new sparse attention layer.
@@ -411,7 +411,7 @@ where
 impl<B, S, T> Module<B, S, T> for SparseAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
@@ -591,7 +591,7 @@ where
 impl<B, S, T> SparseAttention<B, S, T>
 where
     B: Backend<Data = T>,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     /// Reshape tensor for attention computation.

@@ -10,7 +10,6 @@ use coeus_sparse::{SparseAdd, SparseTranspose};
 use dtype::DataType;
 use storage::{CsrStorage, DenseStorage};
 
-
 /// Trait for sparse storage operations using CSR format
 ///
 /// All sparse operations in Coeus use the CSR (Compressed Sparse Row) format
@@ -26,11 +25,7 @@ pub trait TensorSparseOps<T: DataType>: Sized {
         T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy;
 
     /// Sparse matrix-matrix multiplication: C = A * B
-    fn sparse_matmul<B: Backend<Data = T>>(
-        &self,
-        other: &Self,
-        backend: &B,
-    ) -> Result<Self>
+    fn sparse_matmul<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
     where
         T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy;
 
@@ -58,7 +53,7 @@ impl<T: DataType + Default + 'static> TensorSparseOps<T> for CsrStorage<T> {
         use storage::Storage;
         let (rows, cols) = self.dims();
         let vector_data = vector.as_slice();
-        
+
         if vector_data.len() != cols {
             return Err(TensorError::ShapeMismatch {
                 expected: vec![cols],
@@ -66,7 +61,7 @@ impl<T: DataType + Default + 'static> TensorSparseOps<T> for CsrStorage<T> {
                 operation: "sparse_matvec_mul",
             });
         }
-        
+
         // Inline SpMV: y = A * x
         let mut result = vec![T::zero(); rows];
         for row in 0..rows {
@@ -79,22 +74,17 @@ impl<T: DataType + Default + 'static> TensorSparseOps<T> for CsrStorage<T> {
             }
             result[row] = sum;
         }
-        
-        DenseStorage::from_vec(result, &[rows])
-            .map_err(|e| TensorError::StorageError(e))
+
+        DenseStorage::from_vec(result, &[rows]).map_err(|e| TensorError::StorageError(e))
     }
 
-    fn sparse_matmul<B: Backend<Data = T>>(
-        &self,
-        other: &Self,
-        _backend: &B,
-    ) -> Result<Self>
+    fn sparse_matmul<B: Backend<Data = T>>(&self, other: &Self, _backend: &B) -> Result<Self>
     where
         T: core::ops::Add<Output = T> + core::ops::Mul<Output = T> + num_traits::Zero + Copy,
     {
         let (self_rows, self_cols) = self.dims();
         let (other_rows, other_cols) = other.dims();
-        
+
         if self_cols != other_rows {
             return Err(TensorError::ShapeMismatch {
                 expected: vec![self_cols],
@@ -102,34 +92,36 @@ impl<T: DataType + Default + 'static> TensorSparseOps<T> for CsrStorage<T> {
                 operation: "sparse_matmul",
             });
         }
-        
+
         // Transpose other matrix for efficient column access
-        let other_t = SparseTranspose::transpose_sparse(other).map_err(|e| TensorError::StorageError(e))?;
-        
+        let other_t =
+            SparseTranspose::transpose_sparse(other).map_err(|e| TensorError::StorageError(e))?;
+
         let mut result_data = Vec::new();
         let mut result_indices = Vec::new();
         let mut result_indptr = vec![0];
-        
+
         for row in 0..self_rows {
             let self_start = self.indptr()[row];
             let self_end = self.indptr()[row + 1];
-            
+
             for col in 0..other_cols {
                 let other_start = other_t.indptr()[col];
                 let other_end = other_t.indptr()[col + 1];
-                
+
                 let mut dot_product = T::zero();
                 let mut self_idx = self_start;
                 let mut other_idx = other_start;
-                
+
                 // Compute dot product of sparse vectors
                 while self_idx < self_end && other_idx < other_end {
                     let self_col = self.indices()[self_idx];
                     let other_row = other_t.indices()[other_idx];
-                    
+
                     match self_col.cmp(&other_row) {
                         core::cmp::Ordering::Equal => {
-                            dot_product = dot_product + self.data()[self_idx] * other_t.data()[other_idx];
+                            dot_product =
+                                dot_product + self.data()[self_idx] * other_t.data()[other_idx];
                             self_idx += 1;
                             other_idx += 1;
                         }
@@ -137,18 +129,23 @@ impl<T: DataType + Default + 'static> TensorSparseOps<T> for CsrStorage<T> {
                         core::cmp::Ordering::Greater => other_idx += 1,
                     }
                 }
-                
+
                 if dot_product != T::zero() {
                     result_data.push(dot_product);
                     result_indices.push(col);
                 }
             }
-            
+
             result_indptr.push(result_data.len());
         }
-        
-        CsrStorage::new(result_data, result_indices, result_indptr, &[self_rows, other_cols])
-            .map_err(|e| TensorError::StorageError(e))
+
+        CsrStorage::new(
+            result_data,
+            result_indices,
+            result_indptr,
+            &[self_rows, other_cols],
+        )
+        .map_err(|e| TensorError::StorageError(e))
     }
 
     fn sparse_add(&self, other: &Self) -> Result<Self>
@@ -167,10 +164,10 @@ impl<T: DataType + Default + 'static> TensorSparseOps<T> for CsrStorage<T> {
         // For now, convert to dense, multiply, then back to sparse
         let self_dense = self.to_dense().map_err(|e| TensorError::StorageError(e))?;
         let other_dense = other.to_dense().map_err(|e| TensorError::StorageError(e))?;
-        
+
         let self_data = self_dense.as_slice();
         let other_data = other_dense.as_slice();
-        
+
         if self_data.len() != other_data.len() {
             return Err(TensorError::ShapeMismatch {
                 expected: vec![self_data.len()],
@@ -178,16 +175,17 @@ impl<T: DataType + Default + 'static> TensorSparseOps<T> for CsrStorage<T> {
                 operation: "sparse_mul",
             });
         }
-        
+
         let dims = self.shape_ref().dims();
-        let result_data: Vec<T> = self_data.iter()
+        let result_data: Vec<T> = self_data
+            .iter()
             .zip(other_data.iter())
             .map(|(&a, &b)| a * b)
             .collect();
-        
-        let result_dense = DenseStorage::from_vec(result_data, dims)
-            .map_err(|e| TensorError::StorageError(e))?;
-        
+
+        let result_dense =
+            DenseStorage::from_vec(result_data, dims).map_err(|e| TensorError::StorageError(e))?;
+
         CsrStorage::from_dense(&result_dense).map_err(|e| TensorError::StorageError(e))
     }
 }

@@ -102,14 +102,27 @@ impl PyRNN {
         }
     }
 
-    fn __call__(&self, input: &PyTensor) -> PyResult<(PyTensor, PyTensor)> {
-        self.forward(input)
+    #[pyo3(signature = (input, hx=None))]
+    fn __call__(&self, input: &PyTensor, hx: Option<&PyTensor>) -> PyResult<(PyTensor, PyTensor)> {
+        self.forward(input, hx)
     }
 
-    fn forward(&self, input: &PyTensor) -> PyResult<(PyTensor, PyTensor)> {
+    #[pyo3(signature = (input, hx=None))]
+    fn forward(&self, input: &PyTensor, hx: Option<&PyTensor>) -> PyResult<(PyTensor, PyTensor)> {
         match (&self.inner, &input.inner) {
             (RNNWrapper::CpuF32(s), TensorWrapper::CpuDenseF32(i)) => {
-                let (output, hidden) = s.forward_with_hidden(i, None).map_err(to_py_err)?;
+                let h_val = if let Some(h) = hx {
+                    if let TensorWrapper::CpuDenseF32(h_inner) = &h.inner {
+                        Some(h_inner)
+                    } else {
+                        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                            "RNN hidden state dtype/device mismatch with module (expected CPU F32)",
+                        ));
+                    }
+                } else {
+                    None
+                };
+                let (output, hidden) = s.forward_with_hidden(i, h_val).map_err(to_py_err)?;
                 Ok((
                     PyTensor {
                         inner: TensorWrapper::CpuDenseF32(output),
@@ -120,7 +133,18 @@ impl PyRNN {
                 ))
             }
             (RNNWrapper::CpuF64(s), TensorWrapper::CpuDenseF64(i)) => {
-                let (output, hidden) = s.forward_with_hidden(i, None).map_err(to_py_err)?;
+                let h_val = if let Some(h) = hx {
+                    if let TensorWrapper::CpuDenseF64(h_inner) = &h.inner {
+                        Some(h_inner)
+                    } else {
+                        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                            "RNN hidden state dtype/device mismatch with module (expected CPU F64)",
+                        ));
+                    }
+                } else {
+                    None
+                };
+                let (output, hidden) = s.forward_with_hidden(i, h_val).map_err(to_py_err)?;
                 Ok((
                     PyTensor {
                         inner: TensorWrapper::CpuDenseF64(output),
@@ -132,7 +156,18 @@ impl PyRNN {
             }
             #[cfg(feature = "gpu")]
             (RNNWrapper::GpuF32(s), TensorWrapper::GpuDenseF32(i)) => {
-                let (output, hidden) = s.forward_with_hidden(i, None).map_err(to_py_err)?;
+                let h_val = if let Some(h) = hx {
+                    if let TensorWrapper::GpuDenseF32(h_inner) = &h.inner {
+                        Some(h_inner)
+                    } else {
+                        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                            "RNN hidden state dtype/device mismatch with module (expected GPU F32)",
+                        ));
+                    }
+                } else {
+                    None
+                };
+                let (output, hidden) = s.forward_with_hidden(i, h_val).map_err(to_py_err)?;
                 Ok((
                     PyTensor {
                         inner: TensorWrapper::GpuDenseF32(output),

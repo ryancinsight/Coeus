@@ -1,18 +1,18 @@
 //! Element-wise square root
 
+use crate::functions::SqrtFunction;
 use crate::{Result, Tensor};
 use backend::Backend;
 use dtype::DataType;
 use num_traits::Float;
 use std::sync::Arc;
 use storage::{Storage, StorageFromVec};
-use crate::functions::SqrtFunction;
 
 /// Element-wise square root
 pub fn sqrt<
     T: DataType + Float + dtype::traits::FloatExt + num_traits::FromPrimitive,
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {

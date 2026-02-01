@@ -2,21 +2,25 @@
 
 mod all;
 mod any;
+mod argminmax;
 mod max;
 mod mean;
 mod min;
 mod std;
 mod sum;
 mod var;
+mod topk;
 
+pub use self::std::std;
 pub use all::all;
 pub use any::any;
+pub use argminmax::{argmax, argmin};
 pub use max::max;
 pub use mean::mean;
 pub use min::min;
-pub use self::std::std;
 pub use sum::sum;
 pub use var::var;
+pub use topk::topk;
 
 use crate::{Result, Tensor};
 use backend::Backend;

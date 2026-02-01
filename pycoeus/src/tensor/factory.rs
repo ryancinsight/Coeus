@@ -143,6 +143,7 @@ impl PyTensor {
             TensorWrapper::CpuDenseI64(t) => {
                 TensorWrapper::CpuDenseI64(Tensor::zeros_like(t).map_err(to_py_err)?)
             }
+            _ => return Err(to_py_err("zeros_like not implemented for this storage/dtype")),
         };
 
         Ok(PyTensor { inner })
@@ -169,6 +170,7 @@ impl PyTensor {
             TensorWrapper::CpuDenseI64(t) => {
                 TensorWrapper::CpuDenseI64(Tensor::ones_like(t).map_err(to_py_err)?)
             }
+            _ => return Err(to_py_err("ones_like not implemented for this storage/dtype")),
         };
 
         Ok(PyTensor { inner })
@@ -195,6 +197,7 @@ impl PyTensor {
             TensorWrapper::CpuDenseI64(t) => TensorWrapper::CpuDenseI64(
                 Tensor::full_like(t, Int64(fill_value as i64)).map_err(to_py_err)?,
             ),
+            _ => return Err(to_py_err("full_like not implemented for this storage/dtype")),
         };
 
         Ok(PyTensor { inner })
@@ -273,6 +276,25 @@ impl PyTensor {
 
         Ok(PyTensor { inner: wrapper })
     }
+
+    pub fn from_data(data: Vec<f32>, shape: Vec<usize>) -> PyResult<PyTensor> {
+        let t = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::from_vec(
+            data.into_iter().map(Float32).collect(),
+            &shape
+        ).map_err(to_py_err)?;
+        Ok(PyTensor {
+             inner: TensorWrapper::CpuDenseF32(t)
+        })
+    }
+
+    pub fn logspace(start: f32, end: f32, steps: usize, base: f64) -> PyResult<PyTensor> {
+        let tensor = Tensor::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::logspace(
+            Float32(start), Float32(end), steps, Float32(base as f32)
+        ).map_err(to_py_err)?;
+        Ok(PyTensor {
+            inner: TensorWrapper::CpuDenseF32(tensor),
+        })
+    }
 }
 
 #[pyfunction]
@@ -311,8 +333,43 @@ pub fn tensor_ones_like(input: &PyTensor) -> PyResult<PyTensor> {
 }
 
 #[pyfunction]
+pub fn tensor_logspace(start: f32, end: f32, steps: usize, base: f64) -> PyResult<PyTensor> {
+    PyTensor::logspace(start, end, steps, base)
+}
+
+#[pyfunction]
 pub fn tensor_full_like(input: &PyTensor, fill_value: f32) -> PyResult<PyTensor> {
     PyTensor::full_like(input, fill_value)
+}
+
+#[pyfunction]
+pub fn tensor_arange(start: f32, end: Option<f32>, step: f32) -> PyResult<PyTensor> {
+    PyTensor::arange(start, end, step)
+}
+
+#[pyfunction]
+pub fn tensor_linspace(start: f32, end: f32, steps: usize) -> PyResult<PyTensor> {
+    PyTensor::linspace(start, end, steps)
+}
+
+#[pyfunction]
+pub fn tensor_eye(n: usize, m: Option<usize>) -> PyResult<PyTensor> {
+    PyTensor::eye(n, m)
+}
+
+#[pyfunction]
+pub fn tensor_full(
+    shape: Vec<usize>,
+    fill_value: f64,
+    dtype: Option<&str>,
+    device: Option<&str>,
+) -> PyResult<PyTensor> {
+    PyTensor::full(shape, fill_value, dtype, device)
+}
+
+#[pyfunction]
+pub fn tensor_from_data(data: Vec<f32>, shape: Vec<usize>) -> PyResult<PyTensor> {
+    PyTensor::from_data(data, shape)
 }
 
 use pyo3::{wrap_pyfunction, Bound, PyResult, Python};
@@ -326,5 +383,11 @@ pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(tensor_zeros_like, m)?)?;
     m.add_function(wrap_pyfunction!(tensor_ones_like, m)?)?;
     m.add_function(wrap_pyfunction!(tensor_full_like, m)?)?;
+    m.add_function(wrap_pyfunction!(tensor_logspace, m)?)?;
+    m.add_function(wrap_pyfunction!(tensor_arange, m)?)?;
+    m.add_function(wrap_pyfunction!(tensor_linspace, m)?)?;
+    m.add_function(wrap_pyfunction!(tensor_eye, m)?)?;
+    m.add_function(wrap_pyfunction!(tensor_full, m)?)?;
+    m.add_function(wrap_pyfunction!(tensor_from_data, m)?)?;
     Ok(())
 }

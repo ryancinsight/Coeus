@@ -147,7 +147,7 @@ where
             // Apply weight decay if specified (L2 regularization)
             // Apply weight decay if specified (L2 regularization)
             let effective_grad = if self.weight_decay > 0.0 {
-                let weight_decay_t = Tensor::from_vec_with_backend(vec![weight_decay], &[], param_state.param.backend().clone())
+                let weight_decay_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![weight_decay], &[], param_state.param.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let weight_decay_term = mul(&param_state.param, &weight_decay_t)?;
                 add(&grad, &weight_decay_term)?
@@ -168,7 +168,7 @@ where
             let accumulator_val = add(accumulator, &grad_squared)?;
 
             // Update the stored accumulator
-            let initial_accum_t = Tensor::from_vec_with_backend(vec![initial_accum_val], &[], effective_grad.backend().clone())
+            let initial_accum_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![initial_accum_val], &[], effective_grad.backend().clone())
                  .map_err(|e| crate::OptimError::TensorError { source: e })?;
             *accumulator = add(&accumulator_val, &initial_accum_t)?;
 
@@ -182,12 +182,12 @@ where
             };
 
             // Compute adaptive learning rate: lr / sqrt(state_sum + eps)
-            let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+            let eps_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
                  .map_err(|e| crate::OptimError::TensorError { source: e })?;
             let accumulator_with_eps = add(&accumulator_val, &eps_t)?;
             let sqrt_accum = sqrt(&accumulator_with_eps)?;
             // Create tensor filled with effective_lr for element-wise division
-            let lr_tensor = Tensor::from_vec_with_backend(
+            let lr_tensor: Tensor<B, S, T> = Tensor::from_vec_with_backend(
                 vec![effective_lr; sqrt_accum.as_slice().len()],
                 sqrt_accum.shape().dims(),
                 sqrt_accum.backend().clone(),

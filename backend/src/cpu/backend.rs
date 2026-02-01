@@ -1,9 +1,9 @@
 //! CPU backend implementation using hierarchical primitives
 
 use crate::{Backend, Device, DeviceInfo, Result};
-use dtype::{DataType, num_traits};
-use storage::{DenseStorage, Storage};
+use dtype::{num_traits, DataType};
 use std::marker::PhantomData;
+use storage::{DenseStorage, Storage};
 
 /// CPU backend implementation using hierarchical primitive operations
 #[derive(Debug, Clone)]
@@ -40,10 +40,30 @@ impl<T: DataType> Backend for CpuBackend<T> {
         // CPU backend supports all operations
         matches!(
             operation,
-            "add" | "sub" | "mul" | "div" | "matmul" | "relu" | "sigmoid" | "tanh" 
-            | "sum" | "mean" | "max" | "min" | "argmax" | "argmin" | "exp" | "log" 
-            | "sin" | "cos" | "conv2d" | "spmm_csr" | "spmv_csr" | "quantize"
-            | "clip_info_nce_loss" | "clip_attention"
+            "add"
+                | "sub"
+                | "mul"
+                | "div"
+                | "matmul"
+                | "relu"
+                | "sigmoid"
+                | "tanh"
+                | "sum"
+                | "mean"
+                | "max"
+                | "min"
+                | "argmax"
+                | "argmin"
+                | "exp"
+                | "log"
+                | "sin"
+                | "cos"
+                | "conv2d"
+                | "spmm_csr"
+                | "spmv_csr"
+                | "quantize"
+                | "clip_info_nce_loss"
+                | "clip_attention"
         )
     }
 
@@ -64,9 +84,9 @@ impl<T: DataType> Backend for CpuBackend<T> {
         let lhs_slice = lhs.as_slice();
         let rhs_slice = rhs.as_slice();
         let mut result = vec![T::default(); lhs_slice.len()];
-        
+
         super::arithmetic::add_primitive(lhs_slice, rhs_slice, &mut result)?;
-        
+
         DenseStorage::from_vec(result, lhs.shape().dims())
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
@@ -80,9 +100,9 @@ impl<T: DataType> Backend for CpuBackend<T> {
         let lhs_slice = lhs.as_slice();
         let rhs_slice = rhs.as_slice();
         let mut result = vec![T::default(); lhs_slice.len()];
-        
+
         super::arithmetic::mul_primitive(lhs_slice, rhs_slice, &mut result)?;
-        
+
         DenseStorage::from_vec(result, lhs.shape().dims())
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
@@ -96,9 +116,9 @@ impl<T: DataType> Backend for CpuBackend<T> {
         let lhs_slice = lhs.as_slice();
         let rhs_slice = rhs.as_slice();
         let mut result = vec![T::default(); lhs_slice.len()];
-        
+
         super::arithmetic::sub_primitive(lhs_slice, rhs_slice, &mut result)?;
-        
+
         DenseStorage::from_vec(result, lhs.shape().dims())
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
@@ -111,45 +131,42 @@ impl<T: DataType> Backend for CpuBackend<T> {
         // Use hierarchical primitive
         let lhs_shape = lhs.shape().dims();
         let rhs_shape = rhs.shape().dims();
-        
+
         if lhs_shape.len() != 2 || rhs_shape.len() != 2 {
             return Err(crate::BackendError::InvalidInput(
                 "Matrix multiplication requires 2D tensors".to_string(),
             ));
         }
-        
+
         let (m, k) = (lhs_shape[0], lhs_shape[1]);
         let (k2, n) = (rhs_shape[0], rhs_shape[1]);
-        
+
         if k != k2 {
             return Err(crate::BackendError::InvalidInput(
                 "Matrix dimensions don't match for multiplication".to_string(),
             ));
         }
-        
+
         let lhs_slice = lhs.as_slice();
         let rhs_slice = rhs.as_slice();
         let mut result = vec![T::default(); m * n];
-        
+
         super::linear_algebra::matmul_primitive(lhs_slice, rhs_slice, &mut result, m, k, n)?;
-        
+
         DenseStorage::from_vec(result, &[m, n])
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn relu_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn relu_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: PartialOrd + Default,
     {
         // Use hierarchical primitive
         let input_slice = input.as_slice();
         let mut result = vec![T::default(); input_slice.len()];
-        
+
         super::activation::relu_primitive(input_slice, &mut result)?;
-        
+
         DenseStorage::from_vec(result, input.shape().dims())
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
@@ -164,9 +181,9 @@ impl<T: DataType> Backend for CpuBackend<T> {
         // Use hierarchical primitive
         let input_slice = input.as_slice();
         let mut result = vec![T::default(); input_slice.len()];
-        
+
         super::activation::sigmoid_primitive(input_slice, &mut result)?;
-        
+
         DenseStorage::from_vec(result, input.shape().dims())
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
@@ -190,7 +207,8 @@ impl<T: DataType> Backend for CpuBackend<T> {
         Self::Data: PartialOrd,
     {
         // Use hierarchical primitive - implement min_primitive
-        input.as_slice()
+        input
+            .as_slice()
             .iter()
             .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .cloned()
@@ -202,7 +220,8 @@ impl<T: DataType> Backend for CpuBackend<T> {
         Self::Data: PartialOrd,
     {
         // Use hierarchical primitive - implement argmax_primitive
-        input.as_slice()
+        input
+            .as_slice()
             .iter()
             .enumerate()
             .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
@@ -215,7 +234,8 @@ impl<T: DataType> Backend for CpuBackend<T> {
         Self::Data: PartialOrd,
     {
         // Use hierarchical primitive - implement argmin_primitive
-        input.as_slice()
+        input
+            .as_slice()
             .iter()
             .enumerate()
             .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
@@ -223,82 +243,67 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .ok_or_else(|| crate::BackendError::InvalidInput("Empty tensor".to_string()))
     }
 
-    fn exp_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn exp_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
         let input_slice = input.as_slice();
         let mut result = vec![T::default(); input_slice.len()];
-        
+
         for (i, &x) in input_slice.iter().enumerate() {
             result[i] = x.exp();
         }
-        
+
         DenseStorage::from_vec(result, input.shape().dims())
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn log_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn log_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
         let input_slice = input.as_slice();
         let mut result = vec![T::default(); input_slice.len()];
-        
+
         for (i, &x) in input_slice.iter().enumerate() {
             result[i] = x.ln();
         }
-        
+
         DenseStorage::from_vec(result, input.shape().dims())
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn sin_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn sin_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
         let input_slice = input.as_slice();
         let mut result = vec![T::default(); input_slice.len()];
-        
+
         for (i, &x) in input_slice.iter().enumerate() {
             result[i] = x.sin();
         }
-        
+
         DenseStorage::from_vec(result, input.shape().dims())
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn cos_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn cos_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
         let input_slice = input.as_slice();
         let mut result = vec![T::default(); input_slice.len()];
-        
+
         for (i, &x) in input_slice.iter().enumerate() {
             result[i] = x.cos();
         }
-        
+
         DenseStorage::from_vec(result, input.shape().dims())
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn tan_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn tan_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
@@ -311,10 +316,7 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn asin_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn asin_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
@@ -327,10 +329,7 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn acos_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn acos_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
@@ -343,10 +342,7 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn atan_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn atan_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
@@ -359,10 +355,7 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn sinh_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn sinh_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
@@ -375,10 +368,7 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn cosh_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn cosh_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
@@ -391,10 +381,7 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn tanh_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn tanh_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
@@ -407,20 +394,17 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn gelu_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn gelu_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
         let sqrt_2_over_pi = num_traits::NumCast::from(0.7978845608028654).unwrap_or(T::one());
         let coeff = num_traits::NumCast::from(0.044715).unwrap_or(T::zero());
         let half = num_traits::NumCast::from(0.5).unwrap_or(T::one());
-        
+
         let input_slice = input.as_slice();
         let mut result = vec![T::default(); input_slice.len()];
-        
+
         // Approximate GELU: x * 0.5 * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
         for (i, &x) in input_slice.iter().enumerate() {
             let x3 = x * x * x;
@@ -432,10 +416,7 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn sqrt_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn sqrt_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
@@ -448,10 +429,7 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn abs_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn abs_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Signed,
     {
@@ -464,10 +442,7 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn floor_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn floor_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
@@ -480,10 +455,7 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn ceil_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn ceil_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
@@ -496,10 +468,7 @@ impl<T: DataType> Backend for CpuBackend<T> {
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
     }
 
-    fn round_dense(
-        &self,
-        input: &DenseStorage<Self::Data>,
-    ) -> Result<DenseStorage<Self::Data>>
+    fn round_dense(&self, input: &DenseStorage<Self::Data>) -> Result<DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float,
     {
@@ -532,10 +501,103 @@ impl<T: DataType> Backend for CpuBackend<T> {
     ) -> Result<DenseStorage<Self::Data>> {
         // Use hierarchical primitive
         let mean_val = super::reduction::mean_primitive(input.as_slice());
-        
+
         // For now, return scalar result
         DenseStorage::from_vec(vec![mean_val], &[])
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
+    }
+
+    fn cholesky_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float,
+    {
+        let shape = input.shape().dims();
+        if shape.len() != 2 || shape[0] != shape[1] {
+            return Err(crate::BackendError::InvalidInput(
+                "Cholesky requires a square matrix".to_string(),
+            ));
+        }
+
+        let n = shape[0];
+        let mut result = vec![T::default(); n * n];
+        super::linear_algebra::cholesky_decomposition_primitive(input.as_slice(), &mut result, n)?;
+
+        DenseStorage::from_vec(result, &[n, n])
+            .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
+    }
+
+    fn qr_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<(storage::DenseStorage<Self::Data>, storage::DenseStorage<Self::Data>)>
+    where
+        Self::Data: num_traits::Float,
+    {
+        let shape = input.shape().dims();
+        if shape.len() != 2 {
+            return Err(crate::BackendError::InvalidInput(
+                "QR requires a 2D matrix".to_string(),
+            ));
+        }
+
+        let (m, n) = (shape[0], shape[1]);
+        let mut q = vec![T::default(); m * m];
+        let mut r = vec![T::default(); m * n];
+
+        super::linear_algebra::qr_decomposition_primitive(input.as_slice(), &mut q, &mut r, m, n)?;
+
+        let q_storage = DenseStorage::from_vec(q, &[m, m])
+            .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))?;
+        let r_storage = DenseStorage::from_vec(r, &[m, n])
+            .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))?;
+
+        Ok((q_storage, r_storage))
+    }
+
+    fn svd_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<(
+        storage::DenseStorage<Self::Data>,
+        storage::DenseStorage<Self::Data>,
+        storage::DenseStorage<Self::Data>,
+    )>
+    where
+        Self::Data: num_traits::Float,
+    {
+        let shape = input.shape().dims();
+        if shape.len() != 2 {
+            return Err(crate::BackendError::InvalidInput(
+                "SVD requires a 2D matrix".to_string(),
+            ));
+        }
+
+        let (m, n) = (shape[0], shape[1]);
+        let mut u = vec![T::default(); m * m];
+        let mut s = vec![T::default(); m.min(n)];
+        let mut vt = vec![T::default(); n * n];
+
+        super::linear_algebra::svd_decomposition_primitive(
+            input.as_slice(),
+            &mut u,
+            &mut s,
+            &mut vt,
+            m,
+            n,
+        )?;
+
+        let u_storage = DenseStorage::from_vec(u, &[m, m])
+            .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))?;
+        // S is usually returned as a 1D vector of singular values
+        let s_storage = DenseStorage::from_vec(s, &[m.min(n)])
+            .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))?;
+        let vt_storage = DenseStorage::from_vec(vt, &[n, n])
+            .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))?;
+
+        Ok((u_storage, s_storage, vt_storage))
     }
 
     fn spmv_csr(
@@ -549,7 +611,14 @@ impl<T: DataType> Backend for CpuBackend<T> {
     ) -> Result<Vec<Self::Data>> {
         // Use optimized sparse kernel
         let mut result = vec![T::default(); num_rows];
-        super::sparse_kernels::spmv_csr_kernel(data, indices, indptr, vector, &mut result, num_rows)?;
+        super::sparse_kernels::spmv_csr_kernel(
+            data,
+            indices,
+            indptr,
+            vector,
+            &mut result,
+            num_rows,
+        )?;
         Ok(result)
     }
 
@@ -566,7 +635,13 @@ impl<T: DataType> Backend for CpuBackend<T> {
         let dense_cols = other.shape().dims().get(1).copied().unwrap_or(1);
         let mut result = vec![T::default(); num_rows * dense_cols];
         super::sparse_kernels::spmm_csr_dense_kernel(
-            data, indices, indptr, other.as_slice(), dense_cols, &mut result, num_rows
+            data,
+            indices,
+            indptr,
+            other.as_slice(),
+            dense_cols,
+            &mut result,
+            num_rows,
         )?;
         Ok(result)
     }
@@ -663,13 +738,170 @@ impl<T: DataType> Backend for CpuBackend<T> {
 
     fn clip_attention(
         &self,
-        queries: &DenseStorage<Self::Data>,
-        _keys: &DenseStorage<Self::Data>,
-        _values: &DenseStorage<Self::Data>,
-        _num_heads: usize,
-    ) -> Result<DenseStorage<Self::Data>> {
+        queries: &storage::DenseStorage<Self::Data>,
+        keys: &storage::DenseStorage<Self::Data>,
+        values: &storage::DenseStorage<Self::Data>,
+        num_heads: usize,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
         // Placeholder implementation - would use hierarchical primitive
-        DenseStorage::from_vec(vec![T::default(); queries.as_slice().len()], queries.shape().dims())
+        DenseStorage::from_vec(
+            vec![T::default(); queries.as_slice().len()],
+            queries.shape().dims(),
+        )
+        .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
+    }
+
+    fn add_strided(
+        &self,
+        lhs: &storage::StridedStorage<Self::Data>,
+        rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        let mut result_data = vec![T::default(); lhs.shape().size()];
+        super::arithmetic::add_strided_primitive(
+            lhs.as_slice(),
+            lhs.shape().dims(),
+            lhs.strides(),
+            lhs.offset(),
+            rhs.as_slice(),
+            rhs.shape().dims(),
+            rhs.strides(),
+            rhs.offset(),
+            &mut result_data,
+        )?;
+
+        storage::StridedStorage::new(result_data, lhs.shape().dims())
             .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
+    }
+
+    fn mul_strided(
+        &self,
+        lhs: &storage::StridedStorage<Self::Data>,
+        rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        let mut result_data = vec![T::default(); lhs.shape().size()];
+        super::arithmetic::mul_strided_primitive(
+            lhs.as_slice(),
+            lhs.shape().dims(),
+            lhs.strides(),
+            lhs.offset(),
+            rhs.as_slice(),
+            rhs.shape().dims(),
+            rhs.strides(),
+            rhs.offset(),
+            &mut result_data,
+        )?;
+
+        storage::StridedStorage::new(result_data, lhs.shape().dims())
+            .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
+    }
+
+    fn sub_strided(
+        &self,
+        lhs: &storage::StridedStorage<Self::Data>,
+        rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        let mut result_data = vec![T::default(); lhs.shape().size()];
+        super::arithmetic::sub_strided_primitive(
+            lhs.as_slice(),
+            lhs.shape().dims(),
+            lhs.strides(),
+            lhs.offset(),
+            rhs.as_slice(),
+            rhs.shape().dims(),
+            rhs.strides(),
+            rhs.offset(),
+            &mut result_data,
+        )?;
+
+        storage::StridedStorage::new(result_data, lhs.shape().dims())
+            .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
+    }
+
+    fn take_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+        indices: &storage::DenseStorage<dtype::int::Int64>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        let input_slice = input.as_slice();
+        let indices_slice = indices.as_slice();
+        let num_elements = input_slice.len();
+        
+        // Output shape matches indices shape
+        let output_shape = indices.shape().dims();
+        let mut output_data = Vec::with_capacity(indices_slice.len());
+
+        for &idx in indices_slice {
+            let idx_val = idx.0; // Assuming Int64 is a newtype wrapper
+            let i = if idx_val < 0 {
+                (num_elements as i64 + idx_val) as usize
+            } else {
+                idx_val as usize
+            };
+
+            if i >= num_elements {
+                return Err(crate::BackendError::InvalidInput(format!(
+                    "Index {} out of bounds for tensor with {} elements",
+                    idx_val, num_elements
+                )));
+            }
+            output_data.push(input_slice[i]);
+        }
+
+        storage::DenseStorage::from_vec(output_data, output_shape)
+            .map_err(|e| crate::BackendError::StorageError { source: e })
+    }
+
+    fn put_dense(
+        &self,
+        input: &mut storage::DenseStorage<Self::Data>,
+        indices: &storage::DenseStorage<dtype::int::Int64>,
+        values: &storage::DenseStorage<Self::Data>,
+        accumulate: bool,
+    ) -> Result<()> {
+        let indices_slice = indices.as_slice();
+        let values_slice = values.as_slice();
+        
+        let num_elements = input.as_slice().len();
+        
+        // DenseStorage::as_mut_slice returns &mut [T] directly
+        let input_data = input.as_mut_slice();
+
+        let scalar_value = if values_slice.len() == 1 {
+            Some(values_slice[0])
+        } else {
+            None
+        };
+
+        if scalar_value.is_none() && values_slice.len() != indices_slice.len() {
+             return Err(crate::BackendError::InvalidInput(format!(
+                "Values and indices must have same length (or values is scalar), got {} and {}",
+                values_slice.len(), indices_slice.len()
+            )));
+        }
+
+        for (i, &idx) in indices_slice.iter().enumerate() {
+            let idx_val = idx.0;
+            let flat_idx = if idx_val < 0 {
+                 (num_elements as i64 + idx_val) as usize
+            } else {
+                 idx_val as usize
+            };
+
+            if flat_idx >= num_elements {
+                return Err(crate::BackendError::InvalidInput(format!(
+                    "Index {} out of bounds for tensor with {} elements",
+                    idx_val, num_elements
+                )));
+            }
+
+            let value = scalar_value.unwrap_or(values_slice[i]);
+
+            if accumulate {
+                input_data[flat_idx] = input_data[flat_idx] + value;
+            } else {
+                input_data[flat_idx] = value;
+            }
+        }
+        Ok(())
     }
 }

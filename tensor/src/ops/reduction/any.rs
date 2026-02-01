@@ -25,7 +25,7 @@ where
 {
     let data = tensor.as_slice();
     let shape = tensor.shape().dims();
-    
+
     match dims {
         None => {
             // Reduce all dimensions
@@ -34,7 +34,11 @@ where
             } else {
                 T::zero()
             };
-            let out_shape = if keepdim { vec![1; shape.len()] } else { vec![1] };
+            let out_shape = if keepdim {
+                vec![1; shape.len()]
+            } else {
+                vec![1]
+            };
             Tensor::from_vec_with_backend(vec![result], &out_shape, tensor.backend.clone())
         }
         Some(dims_arr) => {
@@ -45,7 +49,11 @@ where
                 } else {
                     T::zero()
                 };
-                let out_shape = if keepdim { vec![1; shape.len()] } else { vec![1] };
+                let out_shape = if keepdim {
+                    vec![1; shape.len()]
+                } else {
+                    vec![1]
+                };
                 Tensor::from_vec_with_backend(vec![result], &out_shape, tensor.backend.clone())
             } else {
                 Err(TensorError::UnsupportedOperation {

@@ -237,6 +237,36 @@ where
         Ok(Self::from_storage(storage, B::default()))
     }
 
+    /// Creates a 1D tensor with logarithmically spaced values.
+    pub fn logspace(start: T, end: T, steps: usize, base: T) -> crate::Result<Self>
+    where
+        B: Default,
+        T: num_traits::Float,
+    {
+        if steps == 0 {
+             return Err(TensorError::InvalidOperation {
+                 operation: "logspace",
+                 dtype: T::dtype(),
+                 reason: "steps must be positive",
+             });
+        }
+        
+        let start_f = start.to_f64().unwrap();
+        let end_f = end.to_f64().unwrap();
+        let base_f = base.to_f64().unwrap();
+        let step_f = if steps > 1 { (end_f - start_f) / (steps - 1) as f64 } else { 0.0 };
+        
+        let mut values = Vec::with_capacity(steps);
+        for i in 0..steps {
+             let exp = start_f + step_f * i as f64;
+             let val = base_f.powf(exp);
+             values.push(T::from(val).unwrap());
+        }
+        
+        let storage = S::from_vec(values, &[steps]).map_err(TensorError::StorageError)?;
+        Ok(Self::from_storage(storage, B::default()))
+    }
+
     /// Creates a tensor filled with ones using any Storage implementation.
     pub fn ones(dims: &[usize]) -> crate::Result<Self>
     where

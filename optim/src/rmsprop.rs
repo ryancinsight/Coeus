@@ -243,7 +243,7 @@ where
             // Apply weight decay if specified (L2 regularization)
             let effective_grad = if self.weight_decay > 0.0 {
                 let grad_clone = grad.clone();
-                let weight_decay_t = Tensor::from_vec_with_backend(vec![weight_decay], &[], grad.backend().clone())
+                let weight_decay_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![weight_decay], &[], grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let weight_decay_term = mul(&param_state.param, &weight_decay_t)?;
                 add(&grad_clone, &weight_decay_term)?
@@ -267,11 +267,11 @@ where
 
                 let grad_squared = mul(&effective_grad, &effective_grad)?;
                 
-                let alpha_t = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
+                let alpha_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let square_avg_alpha = mul(&*square_avg, &alpha_t)?;
                 
-                let one_minus_alpha_t = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
+                let one_minus_alpha_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let grad_squared_alpha = mul(&grad_squared, &one_minus_alpha_t)?;
                 *square_avg = add(&square_avg_alpha, &grad_squared_alpha)?;
@@ -288,11 +288,11 @@ where
                     }
                 })?;
                 
-                let alpha_t = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
+                let alpha_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let grad_avg_alpha = mul(&*grad_avg, &alpha_t)?;
                 
-                let one_minus_alpha_t = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
+                let one_minus_alpha_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let grad_alpha = mul(&effective_grad, &one_minus_alpha_t)?;
                 
@@ -304,7 +304,7 @@ where
                 let square_avg_ref = param_state.get_state("square_avg").unwrap();
                 let square_avg_minus_grad_avg_sq = sub(square_avg_ref, &grad_avg_squared)?;
                 
-                let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+                let eps_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let denom_inner = add(&square_avg_minus_grad_avg_sq, &eps_t)?;
                 sqrt(&denom_inner)?
@@ -312,13 +312,13 @@ where
                 // Basic RMSprop: denom = sqrt(square_avg + eps)
                 let square_avg_ref = param_state.get_state("square_avg").unwrap();
                 let square_avg_sqrt = sqrt(square_avg_ref)?;
-                let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+                let eps_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 add(&square_avg_sqrt, &eps_t)?
             };
 
             // Basic RMSprop: param = param - lr * grad / denom
-            let lr_t = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
+            let lr_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
             let grad_scaled = mul(&effective_grad, &lr_t)?;
             let update = div(&grad_scaled, &denom)?;
@@ -583,7 +583,7 @@ where
             // Apply weight decay if specified (L2 regularization)
             let effective_grad = if self.weight_decay > 0.0 {
                 let grad_clone = grad.clone();
-                let weight_decay_t = Tensor::from_vec_with_backend(vec![weight_decay], &[], grad.backend().clone())
+                let weight_decay_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![weight_decay], &[], grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let weight_decay_term = mul(&param_state.param, &weight_decay_t)?;
                 add(&grad_clone, &weight_decay_term)?
@@ -607,11 +607,11 @@ where
 
                 let grad_squared = mul(&effective_grad, &effective_grad)?;
                 
-                let alpha_t = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
+                let alpha_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let square_avg_alpha = mul(&*square_avg, &alpha_t)?;
                 
-                let one_minus_alpha_t = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
+                let one_minus_alpha_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let grad_squared_alpha = mul(&grad_squared, &one_minus_alpha_t)?;
                 *square_avg = add(&square_avg_alpha, &grad_squared_alpha)?;
@@ -628,11 +628,11 @@ where
                     }
                 })?;
                 
-                let alpha_t = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
+                let alpha_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![alpha], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let grad_avg_alpha = mul(&*grad_avg, &alpha_t)?;
                 
-                let one_minus_alpha_t = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
+                let one_minus_alpha_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![one_minus_alpha], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let grad_alpha = mul(&effective_grad, &one_minus_alpha_t)?;
                 
@@ -644,7 +644,7 @@ where
                 let square_avg_ref = param_state.get_state("square_avg").unwrap();
                 let square_avg_minus_grad_avg_sq = sub(square_avg_ref, &grad_avg_squared)?;
                 
-                let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+                let eps_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let denom_inner = add(&square_avg_minus_grad_avg_sq, &eps_t)?;
                 sqrt(&denom_inner)?
@@ -653,13 +653,13 @@ where
                 let square_avg_ref = param_state.get_state("square_avg").unwrap();
                 let square_avg_sqrt = sqrt(square_avg_ref)?;
                 
-                let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+                let eps_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 add(&square_avg_sqrt, &eps_t)?
             };
 
             // Basic RMSprop: param = param - lr * grad / denom
-            let lr_t = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
+            let lr_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
                  .map_err(|e| crate::OptimError::TensorError { source: e })?;
             let grad_scaled = mul(&effective_grad, &lr_t)?;
             let update = div(&grad_scaled, &denom)?;

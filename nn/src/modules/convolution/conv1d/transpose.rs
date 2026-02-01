@@ -5,9 +5,9 @@ use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 use std::marker::PhantomData;
 use storage::{Storage, StorageFromVec, StorageToDense};
-use tensor::Tensor;
 
-use super::kernels::conv_transpose_1d_cpu_dense;
+use tensor::{ops::TensorStorageOps, tensor_backend_dispatch::TensorBackendDispatcher, Tensor};
+
 
 /// 1D Transposed Convolutional layer (Deconvolution).
 #[derive(Debug, Clone)]
@@ -31,6 +31,10 @@ where
     pub padding: usize,
     /// Output padding
     pub output_padding: usize,
+    /// Dilation
+    pub dilation: usize,
+    /// Groups
+    pub groups: usize,
     pub(crate) _phantom: PhantomData<(B, S, T)>,
 }
 
@@ -47,15 +51,38 @@ where
         stride: Option<usize>,
         padding: Option<usize>,
         output_padding: Option<usize>,
+        groups: Option<usize>,
+        dilation: Option<usize>,
         bias: Option<bool>,
     ) -> Result<Self> {
         let stride = stride.unwrap_or(1);
         let padding = padding.unwrap_or(0);
         let output_padding = output_padding.unwrap_or(0);
+        let groups = groups.unwrap_or(1);
+        let dilation = dilation.unwrap_or(1);
         let use_bias = bias.unwrap_or(true);
 
+        if in_channels % groups != 0 {
+            return Err(crate::core::error::NNError::InvalidInput {
+                message: format!(
+                    "In channels {} must be divisible by groups {}",
+                    in_channels, groups
+                ),
+            });
+        }
+        if out_channels % groups != 0 {
+            return Err(crate::core::error::NNError::InvalidInput {
+                message: format!(
+                    "Out channels {} must be divisible by groups {}",
+                    out_channels, groups
+                ),
+            });
+        }
+
         // Initialize weights with Xavier uniform initialization
-        let weight_data = Self::xavier_uniform_init(in_channels, out_channels, kernel_size);
+        // Weight shape for Transposed Conv: [in_channels, out_channels / groups, kernel_size]
+        let out_channels_per_group = out_channels / groups;
+        let weight_data = Self::xavier_uniform_init(in_channels, out_channels_per_group, kernel_size);
         let weight = Parameter::new(weight_data.requires_grad_(true), "weight".to_string());
 
         let bias_param = if use_bias {
@@ -77,23 +104,25 @@ where
             stride,
             padding,
             output_padding,
+            dilation,
+            groups,
             _phantom: PhantomData,
         })
     }
 
     fn xavier_uniform_init(
         in_channels: usize,
-        out_channels: usize,
+        out_channels_per_group: usize,
         kernel_size: usize,
     ) -> Tensor<B, S, T>
     where
         T: num_traits::Float + num_traits::FromPrimitive,
     {
         use rand::distributions::{Distribution, Uniform};
-        let shape = [in_channels, out_channels, kernel_size];
+        let shape = [in_channels, out_channels_per_group, kernel_size];
         let total_elements = shape.iter().product();
-        let fan_in = total_elements / out_channels;
-        let bound = (6.0 / (fan_in + out_channels) as f64).sqrt();
+        let fan_in = total_elements / out_channels_per_group;
+        let bound = (6.0 / (fan_in + out_channels_per_group) as f64).sqrt();
         let dist = Uniform::new(-bound, bound);
         let mut rng = rand::thread_rng();
         let data: Vec<T> = (0..total_elements)
@@ -103,7 +132,7 @@ where
     }
 
     pub fn output_size(&self, input_length: usize) -> usize {
-        (input_length - 1) * self.stride - 2 * self.padding + self.kernel_size + self.output_padding
+        (input_length - 1) * self.stride - 2 * self.padding + (self.kernel_size - 1) * self.dilation + 1 + self.output_padding
     }
 
     pub fn weight(&self) -> &Parameter<B, S, T> {
@@ -117,8 +146,8 @@ where
 
 impl<B, S, T> Module<B, S, T> for ConvTranspose1d<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    B: Backend<Data = T> + Clone + Default + TensorBackendDispatcher<B, S, T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + TensorStorageOps<T> + 'static,
     T: DataType + FloatExt + PartialOrd + num_traits::Float + num_traits::FromPrimitive + 'static,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
@@ -140,27 +169,18 @@ where
             });
         }
 
-        let input_cpu = input.to_cpu_dense()?;
-        let weight_cpu = self.weight.data().to_cpu_dense()?;
-        let bias_cpu = self
-            .bias
-            .as_ref()
-            .map(|b| b.data().to_cpu_dense())
-            .transpose()?;
-
-        let output_cpu = conv_transpose_1d_cpu_dense(
-            &input_cpu,
-            &weight_cpu,
-            bias_cpu.as_ref(),
+        let output = tensor::ops::conv::conv_transpose1d(
+            input,
+            self.weight.data(),
+            self.bias.as_ref().map(|b| b.data()),
             self.stride,
             self.padding,
             self.output_padding,
+            self.groups,
+            self.dilation,
         )?;
 
-        let output_shape = output_cpu.shape().dims();
-        let output_data = output_cpu.as_slice().to_vec();
-
-        Ok(Tensor::from_vec(output_data, output_shape)?)
+        Ok(output)
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {

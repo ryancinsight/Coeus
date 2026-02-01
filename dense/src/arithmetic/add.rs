@@ -9,7 +9,7 @@ use alloc::{format, vec::Vec};
 ///
 /// Performs element-wise addition: result[i] = lhs[i] + rhs[i]
 /// Both storages must have the same shape.
-/// 
+///
 /// This operation delegates to the backend for hardware-optimized execution.
 ///
 /// # Arguments
@@ -58,8 +58,8 @@ where
 /// Element-wise addition with scalar
 ///
 /// Performs element-wise addition with scalar: result[i] = storage[i] + scalar
-/// 
-/// This operation uses direct computation as backends typically don't have 
+///
+/// This operation uses direct computation as backends typically don't have
 /// specialized scalar addition primitives.
 ///
 /// # Arguments
@@ -99,9 +99,12 @@ where
 mod tests {
     use super::*;
     use dtype::float::Float32;
+    use alloc::vec;
+    use backend::cpu::CpuBackend;
 
     #[test]
     fn test_add_same_shape() {
+        let backend = CpuBackend::<Float32>::default();
         let a = DenseStorage::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0)],
             &[3],
@@ -111,19 +114,20 @@ mod tests {
             &[3],
         ).unwrap();
 
-        let result = add(&a, &b).unwrap();
+        let result = add(&a, &b, &backend).unwrap();
         let expected = vec![Float32::new(5.0), Float32::new(7.0), Float32::new(9.0)];
-        
+
         assert_eq!(result.as_slice(), expected.as_slice());
         assert_eq!(result.shape().dims(), &[3]);
     }
 
     #[test]
     fn test_add_different_shapes() {
+        let backend = CpuBackend::<Float32>::default();
         let a = DenseStorage::from_vec(vec![Float32::new(1.0)], &[1]).unwrap();
         let b = DenseStorage::from_vec(vec![Float32::new(1.0), Float32::new(2.0)], &[2]).unwrap();
 
-        let result = add(&a, &b);
+        let result = add(&a, &b, &backend);
         assert!(result.is_err());
     }
 
@@ -136,12 +140,13 @@ mod tests {
 
         let result = add_scalar(&a, Float32::new(10.0)).unwrap();
         let expected = vec![Float32::new(11.0), Float32::new(12.0)];
-        
+
         assert_eq!(result.as_slice(), expected.as_slice());
     }
 
     #[test]
     fn test_add_2d() {
+        let backend = CpuBackend::<Float32>::default();
         let a = DenseStorage::from_vec(
             vec![Float32::new(1.0), Float32::new(2.0), Float32::new(3.0), Float32::new(4.0)],
             &[2, 2],
@@ -151,9 +156,9 @@ mod tests {
             &[2, 2],
         ).unwrap();
 
-        let result = add(&a, &b).unwrap();
+        let result = add(&a, &b, &backend).unwrap();
         let expected = vec![Float32::new(6.0), Float32::new(8.0), Float32::new(10.0), Float32::new(12.0)];
-        
+
         assert_eq!(result.as_slice(), expected.as_slice());
         assert_eq!(result.shape().dims(), &[2, 2]);
     }

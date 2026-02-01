@@ -96,12 +96,16 @@ mod tests {
     fn test_matmul_primitive_2x2() {
         // Test 2×2 matrix multiplication
         let lhs = [
-            Float32::new(1.0), Float32::new(2.0),  // [1, 2]
-            Float32::new(3.0), Float32::new(4.0),  // [3, 4]
+            Float32::new(1.0),
+            Float32::new(2.0), // [1, 2]
+            Float32::new(3.0),
+            Float32::new(4.0), // [3, 4]
         ];
         let rhs = [
-            Float32::new(5.0), Float32::new(6.0),  // [5, 6]
-            Float32::new(7.0), Float32::new(8.0),  // [7, 8]
+            Float32::new(5.0),
+            Float32::new(6.0), // [5, 6]
+            Float32::new(7.0),
+            Float32::new(8.0), // [7, 8]
         ];
         let mut result = [Float32::new(0.0); 4];
 
@@ -110,8 +114,10 @@ mod tests {
         // Expected: [1*5+2*7, 1*6+2*8] = [19, 22]
         //           [3*5+4*7, 3*6+4*8] = [43, 50]
         let expected = [
-            Float32::new(19.0), Float32::new(22.0),
-            Float32::new(43.0), Float32::new(50.0),
+            Float32::new(19.0),
+            Float32::new(22.0),
+            Float32::new(43.0),
+            Float32::new(50.0),
         ];
         assert_eq!(result, expected);
     }

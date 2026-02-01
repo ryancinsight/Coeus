@@ -21,15 +21,18 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
 {
     let data = tensor.as_slice();
-    let result: alloc::vec::Vec<T> = data.iter().map(|&x| {
-        if x > T::zero() {
-            T::one()
-        } else if x < T::zero() {
-            -T::one()
-        } else {
-            T::zero()
-        }
-    }).collect();
+    let result: alloc::vec::Vec<T> = data
+        .iter()
+        .map(|&x| {
+            if x > T::zero() {
+                T::one()
+            } else if x < T::zero() {
+                -T::one()
+            } else {
+                T::zero()
+            }
+        })
+        .collect();
 
     Tensor::from_vec_with_backend(result, tensor.shape().dims(), tensor.backend.clone())
 }
@@ -44,13 +47,16 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
 {
     let data = tensor.as_slice();
-    let result: alloc::vec::Vec<T> = data.iter().map(|&x| {
-        if x.is_sign_negative() {
-            T::one()
-        } else {
-            T::zero()
-        }
-    }).collect();
+    let result: alloc::vec::Vec<T> = data
+        .iter()
+        .map(|&x| {
+            if x.is_sign_negative() {
+                T::one()
+            } else {
+                T::zero()
+            }
+        })
+        .collect();
 
     Tensor::from_vec_with_backend(result, tensor.shape().dims(), tensor.backend.clone())
 }

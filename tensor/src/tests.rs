@@ -1,7 +1,6 @@
 use super::*;
 use crate::ops::arithmetic::*;
 use crate::ops::{pow, abs};
-use crate::ops::reduction::mean;
 use backend::CpuBackend;
 use dtype::float::Float32;
 use storage::DenseStorage;

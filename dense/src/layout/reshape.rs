@@ -144,6 +144,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec;
     use super::*;
     use crate::creation::from_vec;
     use dtype::float::Float32;

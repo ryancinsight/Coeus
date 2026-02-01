@@ -14,6 +14,10 @@ pub fn log1p<
 >(
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
-    let data = tensor.as_slice().iter().map(|x| (*x + T::one()).ln()).collect();
+    let data = tensor
+        .as_slice()
+        .iter()
+        .map(|x| (*x + T::one()).ln())
+        .collect();
     Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend.clone())
 }

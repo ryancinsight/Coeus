@@ -11,7 +11,7 @@ use storage::DenseStorage;
 use coeus_nn::containers::sequential::Sequential;
 use coeus_nn::modules::activation::{GeLU, Hardtanh, LeakyReLU, Mish, ReLU, SiLU, Softplus, ELU};
 use coeus_nn::modules::linear::Linear;
-use coeus_nn::modules::pooling::MaxPool2d;
+
 use coeus_nn::modules::regularization::dropout::Dropout;
 
 use coeus_nn::core::module::Module;
@@ -28,7 +28,7 @@ use crate::nn::normalization::{
     PyBatchNorm1d, PyBatchNorm2d, PyBatchNorm3d, PyGroupNorm, PyLayerNorm, PyRMSNorm,
     RMSNormWrapper,
 };
-use crate::nn::pooling::PyMaxPool2d;
+use crate::nn::pooling::{MaxPool2dWrapper, PyMaxPool2d};
 
 #[derive(Clone)]
 pub enum SequentialWrapper {
@@ -201,10 +201,13 @@ impl PySequential {
                             Mish::<CpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(),
                         );
                     } else if let Ok(m) = arg.extract::<PyMaxPool2d>() {
-                        seq.add_module(
-                            name,
-                            MaxPool2d::new(m.inner.kernel_size, m.inner.stride, m.inner.padding),
-                        );
+                        if let MaxPool2dWrapper::CpuF32(inner) = &m.inner {
+                            seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f32)",
+                            ));
+                        }
                     } else if let Ok(m) = arg.extract::<PyDropout>() {
                         seq.add_module(name, Dropout::new(m.inner.p));
                     } else if let Ok(m) = arg.extract::<PySequential>() {
@@ -257,10 +260,13 @@ impl PySequential {
                             ));
                         }
                     } else if let Ok(m) = arg.extract::<PyMaxPool2d>() {
-                        seq.add_module(
-                            name,
-                            MaxPool2d::new(m.inner.kernel_size, m.inner.stride, m.inner.padding),
-                        );
+                        if let MaxPool2dWrapper::CpuF64(inner) = &m.inner {
+                             seq.add_module(name, inner.clone());
+                        } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(cpu, f64)",
+                            ));
+                        }
                     }
                     // Add more mappings as needed for F64
                     else {
@@ -291,14 +297,13 @@ impl PySequential {
                             ));
                         }
                     } else if let Ok(m) = arg.extract::<PyMaxPool2d>() {
-                        seq.add_module(
-                            name,
-                            MaxPool2d::<GpuBackend<Float32>, DenseStorage<Float32>, Float32>::new(
-                                m.kernel_size,
-                                m.stride,
-                                m.padding,
-                            ),
-                        );
+                         if let MaxPool2dWrapper::GpuF32(inner) = &m.inner {
+                             seq.add_module(name, inner.clone());
+                         } else {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Module variant mismatch for Sequential(gpu, f32)",
+                            ));
+                         }
                     }
                     // Add more mappings as needed for GPU F32
                     else {

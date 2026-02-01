@@ -1,5 +1,6 @@
 pub mod activation;
 pub mod conv;
+pub mod linalg;
 pub mod linear;
 pub mod loss;
 pub mod normalization;
@@ -8,6 +9,7 @@ pub mod pooling;
 
 pub use activation::*;
 pub use conv::*;
+pub use linalg::*;
 pub use linear::*;
 pub use loss::*;
 pub use normalization::*;
@@ -55,5 +57,14 @@ pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::mv, m)?)?;
     m.add_function(wrap_pyfunction!(ops::addr, m)?)?;
     m.add_function(wrap_pyfunction!(ops::outer, m)?)?;
+    m.add_function(wrap_pyfunction!(linalg::eig, m)?)?;
+    m.add_function(wrap_pyfunction!(linalg::eigh, m)?)?;
+    m.add_function(wrap_pyfunction!(linalg::matrix_exp, m)?)?;
+    m.add_function(wrap_pyfunction!(linalg::matrix_power, m)?)?;
+    m.add_function(wrap_pyfunction!(linalg::cholesky, m)?)?;
+    m.add_function(wrap_pyfunction!(linalg::qr, m)?)?;
+    m.add_function(wrap_pyfunction!(linalg::svd, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::cat, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::stack, m)?)?;
     Ok(())
 }

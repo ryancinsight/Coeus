@@ -1,11 +1,11 @@
 //! Sum reduction operation
 
+use crate::functions::SumFunction;
 use crate::{Result, Tensor};
 use backend::Backend;
 use dtype::DataType;
 use std::sync::Arc;
 use storage::{Storage, StorageFromVec, StorageToDense};
-use crate::functions::SumFunction;
 
 /// Computes the sum of elements along specified dimensions.
 pub fn sum<B, T, S>(
@@ -29,4 +29,3 @@ where
 
     Ok(result)
 }
-

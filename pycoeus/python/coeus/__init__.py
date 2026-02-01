@@ -25,7 +25,9 @@ import numpy as np
 try:
     from ._coeus import (
         # Core tensor operations
-        tensor_zeros, tensor_ones,
+        tensor_zeros, tensor_ones, tensor_randn, tensor_rand, tensor_randint,
+        tensor_zeros_like, tensor_ones_like, tensor_full_like,
+        tensor_arange, tensor_linspace, tensor_eye, tensor_full, tensor_from_data, tensor_logspace,
         matmul, bmm, addmm,
         reshape, view, flatten, squeeze, unsqueeze, transpose, permute,
         # Classes
@@ -56,7 +58,9 @@ except ImportError as e:
         Tensor, Device,
         grad_enabled as _grad_enabled,
         set_grad_enabled as _set_grad_enabled,
-        tensor_zeros, tensor_ones,
+        tensor_zeros, tensor_ones, tensor_randn, tensor_rand, tensor_randint,
+        tensor_zeros_like, tensor_ones_like, tensor_full_like,
+        tensor_arange, tensor_linspace, tensor_eye, tensor_full, tensor_from_data, tensor_logspace,
         matmul, bmm, addmm,
         reshape, view, flatten, squeeze, unsqueeze, transpose, permute,
         cat as _cat, stack as _stack,
@@ -99,7 +103,7 @@ def tensor(data, dtype=None, device=None, requires_grad=False):
         arr = np.array(data, dtype=np.float32)
         shape = list(arr.shape)
         flat_data = arr.flatten().tolist()
-        t = Tensor(flat_data, shape)
+        t = tensor_from_data(flat_data, shape)
         if requires_grad:
             t.requires_grad_(True)
         return t
@@ -112,7 +116,7 @@ def zeros(*size, **kwargs):
         shape = list(size[0])
     else:
         shape = list(size)
-    return Tensor.zeros(shape)
+    return tensor_zeros(shape)
 
 def ones(*size, **kwargs):
     """Create a tensor filled with ones."""
@@ -120,7 +124,7 @@ def ones(*size, **kwargs):
         shape = list(size[0])
     else:
         shape = list(size)
-    return Tensor.ones(shape)
+    return tensor_ones(shape)
 
 def empty(*size, **kwargs):
     """Create an uninitialized tensor."""
@@ -136,23 +140,20 @@ def full(size, fill_value, **kwargs):
         shape = list(size)
     else:
         shape = [size]
-    return Tensor.full(shape, fill_value)
+    return tensor_full(shape, fill_value, None, None)
 
 def eye(n, m=None, **kwargs):
     """Create an identity matrix."""
-    return Tensor.eye(n, m)
+    return tensor_eye(n, m)
 
 def arange(start, end=None, step=1.0, **kwargs):
-    return Tensor.arange(start, end, step)
+    return tensor_arange(start, end, step)
 
 def linspace(start, end, steps=100, **kwargs):
-    return Tensor.linspace(start, end, steps)
-
-def linspace(start, end, steps=100, **kwargs):
-    return Tensor.linspace(start, end, steps)
+    return tensor_linspace(start, end, steps)
 
 def logspace(start, end, steps=100, base=10.0, **kwargs):
-    return Tensor.logspace(start, end, steps, base)
+    return tensor_logspace(start, end, steps, base)
 
 def cat(tensors, dim=0, **kwargs):
     return _cat(list(tensors), dim)
@@ -204,6 +205,13 @@ def relu_func(input): return relu(input)
 def fix(input): return input.trunc()
 def neg(input): return -input
 def negative(input): return -input
+def cholesky(input): return linalg.cholesky(input)
+def qr(input): return linalg.qr(input)
+def svd(input, full_matrices=False): return linalg.svd(input, full_matrices)
+def outer(input, other): return input.outer(other)
+def addr(input, vec1, vec2): return input.addr(vec1, vec2)
+def mv(input, vec): return input.mv(vec)
+def dot(input, other): return input.dot(other)
 
 # Reduction operations
 def max(input, dim=None, keepdim=False):
@@ -361,7 +369,7 @@ __all__ = [
 
     # Utility functions
     "cat", "stack",
-    "matmul", "bmm", "addmm",
+    "matmul", "bmm", "addmm", "mv", "dot", "addr", "outer",
     "reshape", "view", "flatten", "squeeze", "unsqueeze", "transpose", "permute",
 
     # Functional activations
@@ -402,7 +410,7 @@ __all__ = [
     "FFT", "IFFT",
 
     # Linear algebra
-    "linalg",
+    "linalg", "cholesky", "qr", "svd",
     
     # Exception hierarchy
     "CoeusError",

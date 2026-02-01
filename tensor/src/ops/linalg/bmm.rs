@@ -1,21 +1,32 @@
 //! Batch matrix multiplication.
 
-use crate::{Result, Tensor, TensorError};
-use backend::Backend;
-use dtype::{DataType};
-use storage::{Storage, StorageFromVec, StorageToDense};
-use alloc::sync::Arc;
 use crate::functions::linalg::BMMFunction;
+use crate::{Result, Tensor, TensorError};
+use alloc::sync::Arc;
+use backend::Backend;
+use dtype::DataType;
+use storage::{Storage, StorageFromVec, StorageToDense};
 
 /// Batch matrix multiplication.
-pub fn bmm<B, T, S>(
-    lhs: &Tensor<B, S, T>,
-    rhs: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn bmm<B, T, S>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T> + 'static,
-    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + crate::ops::dispatch::TensorStorageOps<T> + 'static,
+    T: DataType
+        + Clone
+        + Copy
+        + num_traits::Zero
+        + std::ops::Add<Output = T>
+        + std::ops::Mul<Output = T>
+        + std::ops::Neg<Output = T>
+        + 'static,
+    S: Storage<T>
+        + StorageToDense<T>
+        + StorageFromVec<T>
+        + Clone
+        + Send
+        + Sync
+        + crate::ops::dispatch::TensorStorageOps<T>
+        + 'static,
 {
     let lhs_shape = lhs.shape().dims();
     let rhs_shape = rhs.shape().dims();
@@ -24,7 +35,10 @@ where
         return Err(TensorError::ShapeError {
             expected: 3,
             actual: lhs_shape.len(),
-            message: format!("bmm: both tensors must be 3D, got lhs={:?}, rhs={:?}", lhs_shape, rhs_shape),
+            message: format!(
+                "bmm: both tensors must be 3D, got lhs={:?}, rhs={:?}",
+                lhs_shape, rhs_shape
+            ),
         });
     }
 
@@ -32,7 +46,10 @@ where
         return Err(TensorError::ShapeError {
             expected: lhs_shape[0],
             actual: rhs_shape[0],
-            message: format!("bmm: batch dimensions must match: {} != {}", lhs_shape[0], rhs_shape[0]),
+            message: format!(
+                "bmm: batch dimensions must match: {} != {}",
+                lhs_shape[0], rhs_shape[0]
+            ),
         });
     }
 
@@ -45,7 +62,10 @@ where
         return Err(TensorError::ShapeError {
             expected: n,
             actual: rhs_shape[1],
-            message: format!("bmm: matrix inner dimensions must match: {} != {}", n, rhs_shape[1]),
+            message: format!(
+                "bmm: matrix inner dimensions must match: {} != {}",
+                n, rhs_shape[1]
+            ),
         });
     }
 
@@ -64,7 +84,8 @@ where
             for col in 0..p {
                 let mut sum = T::zero();
                 for k in 0..n {
-                    sum = sum + lhs_data[lhs_offset + row * n + k] * rhs_data[rhs_offset + k * p + col];
+                    sum = sum
+                        + lhs_data[lhs_offset + row * n + k] * rhs_data[rhs_offset + k * p + col];
                 }
                 result_data.push(sum);
             }

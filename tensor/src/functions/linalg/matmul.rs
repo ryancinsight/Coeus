@@ -33,8 +33,8 @@ where
 impl<B, S, T> Function<B, S, T> for MatMulFunction<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
-    T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + Clone + 'static,
+    T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T> + std::ops::Neg<Output = T>,
 {
     fn inputs(&self) -> &[Arc<Tensor<B, S, T>>] {
         &self.inputs

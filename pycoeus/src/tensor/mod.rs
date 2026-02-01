@@ -1,9 +1,12 @@
 pub mod class;
 pub mod factory;
 pub mod functions;
+pub mod macros;
 pub mod ops;
+pub mod wrapper;
 
-pub use class::{to_py_err, Device, PyTensor, TensorWrapper};
+pub use class::{to_py_err, Device, PyTensor};
+pub use wrapper::TensorWrapper;
 
 use pyo3::prelude::*;
 

@@ -3,12 +3,11 @@
 use crate::{Result, Tensor, TensorError};
 use backend::Backend;
 use dtype::DataType;
-use num_traits::Float;
 use storage::{Storage, StorageFromVec};
 
 /// Cumulative sum along a dimension.
 pub fn cumsum<
-    T: DataType + Float,
+    T: DataType + num_traits::Num + Clone,
     B: Backend<Data = T> + Clone + Send + Sync + Default,
     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
 >(
@@ -17,7 +16,10 @@ pub fn cumsum<
 ) -> Result<Tensor<B, S, T>> {
     let shape = tensor.shape().dims();
     if dim >= shape.len() {
-        return Err(TensorError::InvalidDimension { dim, ndim: shape.len() });
+        return Err(TensorError::InvalidDimension {
+            dim,
+            ndim: shape.len(),
+        });
     }
 
     let mut data = tensor.as_slice().to_vec();

@@ -176,7 +176,7 @@ pub(crate) fn to_dense_preserving_graph_identity<B, S, T>(
 ) -> anyhow::Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + 'static,
-    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + Clone + 'static,
 {
     tensor

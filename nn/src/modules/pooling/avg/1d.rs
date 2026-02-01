@@ -1,9 +1,8 @@
-use backend::CpuBackend;
-use dtype::{traits::FloatExt, DataType};
-use storage::DenseStorage;
+use backend::Backend;
+use dtype::{DataType};
 use tensor::Tensor;
 
-use crate::core::error::{NNError, Result};
+use crate::core::error::{Result};
 use crate::core::module::Module;
 use crate::core::parameter::Parameter;
 
@@ -36,80 +35,54 @@ pub struct AvgPool1d {
     pub stride: Option<usize>,
     /// Padding
     pub padding: usize,
+    /// Whether to include padding in average calculation
+    pub count_include_pad: bool,
+    /// Ciel mode
+    pub ceil_mode: bool,
 }
 
 impl AvgPool1d {
     /// Create a new AvgPool1d layer.
-    pub fn new(kernel_size: usize, stride: Option<usize>, padding: usize) -> Self {
+    pub fn new(
+        kernel_size: usize,
+        stride: Option<usize>,
+        padding: usize,
+        count_include_pad: bool,
+        ceil_mode: bool,
+    ) -> Self {
         assert!(kernel_size > 0, "kernel_size must be > 0");
         Self {
             kernel_size,
             stride,
             padding,
+            count_include_pad,
+            ceil_mode
         }
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T> for AvgPool1d {
+impl<B, S, T> Module<B, S, T> for AvgPool1d
+where
+    B: Backend<Data = T> + Clone + Default + tensor::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T>,
+    S:  storage::Storage<T> + storage::StorageFromVec<T> + Clone + tensor::ops::TensorStorageOps<T> + 'static + storage::StorageToDense<T>,
+    T: DataType + dtype::traits::FloatExt + num_traits::FromPrimitive + num_traits::Zero + PartialOrd + std::fmt::Debug,
+{
     fn forward(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
-        let input_shape = input.shape().dims();
-
-        if input_shape.len() != 3usize {
-            return Err(NNError::InvalidInput {
-                message: format!(
-                    "Expected 3D input (batch, channels, length), got {}D",
-                    input_shape.len()
-                ),
-            });
-        }
-
-        let batch_size = input_shape[0];
-        let channels = input_shape[1];
-        let input_length = input_shape[2];
-
-        let stride = self.stride.unwrap_or(self.kernel_size);
-        let output_length = (input_length + 2 * self.padding - self.kernel_size) / stride + 1;
-        let output_shape = vec![batch_size, channels, output_length];
-
-        let mut output_data = Vec::with_capacity(batch_size * channels * output_length);
-        let input_data = input.as_slice();
-
-        for b in 0..batch_size {
-            for c in 0..channels {
-                for ol in 0..output_length {
-                    let mut sum = T::zero();
-                    let mut count = 0;
-
-                    for k in 0..self.kernel_size {
-                        let input_pos = (ol * stride + k) as isize - self.padding as isize;
-
-                        if input_pos >= 0 && input_pos < input_length as isize {
-                            let idx = b * (channels * input_length)
-                                + c * input_length
-                                + input_pos as usize;
-                            sum = sum + input_data[idx];
-                            count += 1;
-                        }
-                    }
-
-                    let avg = if count > 0 {
-                        sum / T::from(count as f64).unwrap()
-                    } else {
-                        T::zero()
-                    };
-
-                    output_data.push(avg);
-                }
-            }
-        }
-
-        Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
+        input: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, S, T>> {
+         let stride = self.stride.unwrap_or(self.kernel_size);
+         tensor::ops::pooling::avg_pool::avg_pool1d(
+             input,
+             self.kernel_size,
+             stride,
+             self.padding,
+             self.ceil_mode,
+             self.count_include_pad
+         ).map_err(Into::into)
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         Vec::new()
     }
 
@@ -125,7 +98,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
         "AvgPool1d"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
         Box::new(self.clone())
     }
 }

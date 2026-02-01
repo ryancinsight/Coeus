@@ -525,7 +525,7 @@ where
 impl<B, S, T> tensor::Function<B, S, T> for CrossEntropyFunction<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + FromPrimitive + ToPrimitive + Copy + Send + Sync + 'static,
 {
     fn inputs(&self) -> &[Arc<Tensor<B, S, T>>] {
@@ -621,7 +621,7 @@ where
 pub fn log_softmax_stable<B, S, T>(input: &Tensor<B, S, T>) -> crate::Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + FromPrimitive + Copy + Send + Sync + 'static,
 {
     let shape = input.shape().dims();

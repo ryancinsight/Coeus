@@ -209,4 +209,66 @@ impl PyTensor {
             )),
         }
     }
+
+    pub fn cholesky(&self) -> PyResult<PyTensor> {
+        match &self.inner {
+            TensorWrapper::CpuDenseF32(t) => {
+                let res = tensor::ops::cholesky(t).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            }
+            TensorWrapper::CpuDenseF64(t) => {
+                let res = tensor::ops::cholesky(t).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            }
+            _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "cholesky not implemented for this tensor type",
+            )),
+        }
+    }
+
+    pub fn qr(&self) -> PyResult<(PyTensor, PyTensor)> {
+        match &self.inner {
+            TensorWrapper::CpuDenseF32(t) => {
+                let (q, r) = tensor::ops::qr(t).map_err(to_py_err)?;
+                Ok((
+                    PyTensor { inner: TensorWrapper::CpuDenseF32(q) },
+                    PyTensor { inner: TensorWrapper::CpuDenseF32(r) },
+                ))
+            }
+            TensorWrapper::CpuDenseF64(t) => {
+                let (q, r) = tensor::ops::qr(t).map_err(to_py_err)?;
+                Ok((
+                    PyTensor { inner: TensorWrapper::CpuDenseF64(q) },
+                    PyTensor { inner: TensorWrapper::CpuDenseF64(r) },
+                ))
+            }
+            _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "qr not implemented for this tensor type",
+            )),
+        }
+    }
+
+    pub fn svd(&self) -> PyResult<(PyTensor, PyTensor, PyTensor)> {
+        match &self.inner {
+            TensorWrapper::CpuDenseF32(t) => {
+                let (u, s, v) = tensor::ops::svd(t).map_err(to_py_err)?;
+                Ok((
+                    PyTensor { inner: TensorWrapper::CpuDenseF32(u) },
+                    PyTensor { inner: TensorWrapper::CpuDenseF32(s) },
+                    PyTensor { inner: TensorWrapper::CpuDenseF32(v) },
+                ))
+            }
+            TensorWrapper::CpuDenseF64(t) => {
+                let (u, s, v) = tensor::ops::svd(t).map_err(to_py_err)?;
+                Ok((
+                    PyTensor { inner: TensorWrapper::CpuDenseF64(u) },
+                    PyTensor { inner: TensorWrapper::CpuDenseF64(s) },
+                    PyTensor { inner: TensorWrapper::CpuDenseF64(v) },
+                ))
+            }
+            _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "svd not implemented for this tensor type",
+            )),
+        }
+    }
 }

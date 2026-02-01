@@ -103,14 +103,37 @@ impl PyLSTM {
         }
     }
 
-    fn __call__(&self, input: &PyTensor) -> PyResult<(PyTensor, (PyTensor, PyTensor))> {
-        self.forward(input)
+    #[pyo3(signature = (input, hx=None))]
+    fn __call__(
+        &self,
+        input: &PyTensor,
+        hx: Option<(PyTensor, PyTensor)>,
+    ) -> PyResult<(PyTensor, (PyTensor, PyTensor))> {
+        self.forward(input, hx)
     }
 
-    fn forward(&self, input: &PyTensor) -> PyResult<(PyTensor, (PyTensor, PyTensor))> {
+    #[pyo3(signature = (input, hx=None))]
+    fn forward(
+        &self,
+        input: &PyTensor,
+        hx: Option<(PyTensor, PyTensor)>,
+    ) -> PyResult<(PyTensor, (PyTensor, PyTensor))> {
         match (&self.inner, &input.inner) {
             (LSTMWrapper::CpuF32(s), TensorWrapper::CpuDenseF32(i)) => {
-                let (output, (hn, cn)) = s.forward(i, None).map_err(to_py_err)?;
+                let state_ref = if let Some((ref h, ref c)) = hx {
+                    match (&h.inner, &c.inner) {
+                        (TensorWrapper::CpuDenseF32(h_inner), TensorWrapper::CpuDenseF32(c_inner)) => {
+                            Some((h_inner, c_inner))
+                        }
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                            "LSTM hidden state dtype/device mismatch with module (expected CPU F32)",
+                        )),
+                    }
+                } else {
+                    None
+                };
+
+                let (output, (hn, cn)) = s.forward(i, state_ref).map_err(to_py_err)?;
                 Ok((
                     PyTensor {
                         inner: TensorWrapper::CpuDenseF32(output),
@@ -126,7 +149,20 @@ impl PyLSTM {
                 ))
             }
             (LSTMWrapper::CpuF64(s), TensorWrapper::CpuDenseF64(i)) => {
-                let (output, (hn, cn)) = s.forward(i, None).map_err(to_py_err)?;
+                let state_ref = if let Some((ref h, ref c)) = hx {
+                    match (&h.inner, &c.inner) {
+                        (TensorWrapper::CpuDenseF64(h_inner), TensorWrapper::CpuDenseF64(c_inner)) => {
+                            Some((h_inner, c_inner))
+                        }
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                            "LSTM hidden state dtype/device mismatch with module (expected CPU F64)",
+                        )),
+                    }
+                } else {
+                    None
+                };
+
+                let (output, (hn, cn)) = s.forward(i, state_ref).map_err(to_py_err)?;
                 Ok((
                     PyTensor {
                         inner: TensorWrapper::CpuDenseF64(output),
@@ -143,7 +179,20 @@ impl PyLSTM {
             }
             #[cfg(feature = "gpu")]
             (LSTMWrapper::GpuF32(s), TensorWrapper::GpuDenseF32(i)) => {
-                let (output, (hn, cn)) = s.forward(i, None).map_err(to_py_err)?;
+                let state_ref = if let Some((ref h, ref c)) = hx {
+                    match (&h.inner, &c.inner) {
+                        (TensorWrapper::GpuDenseF32(h_inner), TensorWrapper::GpuDenseF32(c_inner)) => {
+                            Some((h_inner, c_inner))
+                        }
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                            "LSTM hidden state dtype/device mismatch with module (expected GPU F32)",
+                        )),
+                    }
+                } else {
+                    None
+                };
+
+                let (output, (hn, cn)) = s.forward(i, state_ref).map_err(to_py_err)?;
                 Ok((
                     PyTensor {
                         inner: TensorWrapper::GpuDenseF32(output),

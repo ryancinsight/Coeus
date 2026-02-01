@@ -29,7 +29,7 @@ fn create_add_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + 'static,
 {
     Arc::new(AddFunction::new(
@@ -44,7 +44,7 @@ fn create_sub_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + 'static,
 {
     Arc::new(SubFunction::new(
@@ -59,8 +59,8 @@ fn create_matmul_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
+    T: DataType + 'static + std::ops::Neg<Output = T>,
 {
     Arc::new(MatMulFunction::new(
         Arc::new(lhs.clone()),
@@ -73,7 +73,7 @@ fn create_mean_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + 'static + num_traits::FromPrimitive,
 {
     let input_shape = input.shape().dims().to_vec();
@@ -85,7 +85,7 @@ fn create_sum_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + 'static,
 {
     let input_shape = input.shape().dims().to_vec();
@@ -113,7 +113,7 @@ fn create_reshape_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + 'static,
 {
     Arc::new(ReshapeFunction::new(Arc::new(input.clone()), input_shape))
@@ -126,8 +126,8 @@ fn create_transpose_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
+    T: DataType + 'static + std::ops::Neg<Output = T>,
 {
     Arc::new(TransposeFunction::new(Arc::new(input.clone()), dim0, dim1))
 }
@@ -138,7 +138,7 @@ fn create_div_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + 'static,
 {
     Arc::new(DivFunction::new(
@@ -150,7 +150,7 @@ where
 fn create_neg_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + 'static,
 {
     Arc::new(NegFunction::new(Arc::new(input.clone())))
@@ -162,7 +162,7 @@ fn create_pow_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::FromPrimitive + 'static,
 {
     let exp_t = T::from_f64(exponent).expect("Failed to convert exponent to tensor data type");
@@ -175,7 +175,7 @@ fn create_sqrt_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::FromPrimitive + 'static,
 {
     Arc::new(SqrtFunction::new(Arc::new(input.clone()), Arc::new(output.clone())))
@@ -186,7 +186,7 @@ where
 pub fn sqrt<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + Copy + 'static + dtype::traits::FloatExt + num_traits::FromPrimitive,
 {
     // Perform sqrt operation via dense fallback
@@ -271,8 +271,8 @@ pub fn transpose<B, S, T>(
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
-    T: DataType + Clone + Copy + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
+    T: DataType + Clone + Copy + 'static + std::ops::Neg<Output = T>,
 {
     // Convert to dense for operation
     let input_dense = input
@@ -365,13 +365,14 @@ where
 pub fn matmul<B, S, T>(lhs: &Tensor<B, S, T>, rhs: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType
         + Clone
         + Copy
         + num_traits::Zero
         + std::ops::Add<Output = T>
         + std::ops::Mul<Output = T>
+        + std::ops::Neg<Output = T>
         + 'static,
 {
     // Convert to dense for operation
@@ -422,7 +423,7 @@ pub fn mean<B, S, T>(
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
 
     T: DataType
         + Clone
@@ -480,7 +481,7 @@ pub fn sum<B, S, T>(
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + 'static,
 {
     // Convert to dense for operation
@@ -551,7 +552,7 @@ where
 pub fn pow<B, S, T>(input: &Tensor<B, S, T>, exponent: f64) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + Copy + 'static + FloatExt + FromPrimitive,
 {
     // Perform power operation via dense fallback
@@ -593,7 +594,7 @@ fn create_exp_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + 'static,
 {
     Arc::new(ExpFunction::new(Arc::new(input.clone()), Arc::new(output.clone())))
@@ -602,7 +603,7 @@ where
 fn create_log_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + 'static,
 {
     Arc::new(LogFunction::new(Arc::new(input.clone())))
@@ -613,7 +614,7 @@ where
 pub fn exp<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform exp operation via dense fallback
@@ -644,7 +645,7 @@ where
 pub fn log<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform log operation via dense fallback
@@ -672,7 +673,7 @@ where
 fn create_sin_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + 'static,
 {
     Arc::new(SinFunction::new(Arc::new(input.clone())))
@@ -681,7 +682,7 @@ where
 fn create_cos_function<B, S, T>(input: &Tensor<B, S, T>) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + 'static,
 {
     Arc::new(CosFunction::new(Arc::new(input.clone())))
@@ -692,7 +693,7 @@ where
 pub fn sin<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform sin operation via dense fallback
@@ -722,7 +723,7 @@ where
 pub fn cos<B, S, T>(input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + Copy + 'static + dtype::traits::FloatExt,
 {
     // Perform cos operation via dense fallback
@@ -755,7 +756,7 @@ fn create_max_function<B, S, T>(
 ) -> Arc<dyn tensor::Function<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + dtype::traits::FloatExt + Copy + 'static,
 {
     Arc::new(MaxFunction::new(
@@ -771,7 +772,7 @@ where
 pub fn max<B, S, T>(input: &Tensor<B, S, T>, dim: usize, keepdim: bool) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + Copy + 'static + dtype::traits::FloatExt + PartialOrd,
 {
     let input_dense = input
@@ -900,7 +901,7 @@ where
 pub fn reshape<B, S, T>(input: &Tensor<B, S, T>, shape: &[usize]) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + Copy + 'static,
 {
     let input_dense = input

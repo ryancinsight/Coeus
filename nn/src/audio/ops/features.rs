@@ -586,6 +586,7 @@ impl BaseFeatureExtractor for ChromagramExtractor {
 pub struct WaveletExtractor {
     config: AudioFeatureConfig,
     /// Wavelet type (e.g., "haar", "db4", "morlet")
+    #[allow(dead_code)]
     wavelet_type: String,
     /// Number of decomposition levels
     levels: usize,

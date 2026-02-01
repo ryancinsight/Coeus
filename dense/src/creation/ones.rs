@@ -130,6 +130,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec;
     use super::*;
     use dtype::float::Float32;
 
@@ -163,7 +164,7 @@ mod tests {
     fn test_scalar_one() {
         let scalar = scalar_one::<Float32>().unwrap();
         assert_eq!(scalar.as_slice(), &[Float32::new(1.0)]);
-        assert_eq!(scalar.shape().dims(), &[]);
+        assert_eq!(scalar.shape().dims(), &[] as &[usize]);
     }
 
     #[test]

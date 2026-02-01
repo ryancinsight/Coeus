@@ -90,14 +90,18 @@ where
             return Err(TensorError::ShapeError {
                 expected: input_shape[dim],
                 actual: scatter_idx,
-                message: format!("Index {} out of bounds for dimension {} with size {}", 
-                    scatter_idx, dim, input_shape[dim]),
+                message: format!(
+                    "Index {} out of bounds for dimension {} with size {}",
+                    scatter_idx, dim, input_shape[dim]
+                ),
             });
         }
         coords[dim] = scatter_idx;
 
         // Compute flat output index
-        let output_flat_idx: usize = coords.iter().zip(input_strides.iter())
+        let output_flat_idx: usize = coords
+            .iter()
+            .zip(input_strides.iter())
             .map(|(&c, &s)| c * s)
             .sum();
 

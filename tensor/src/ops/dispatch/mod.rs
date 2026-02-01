@@ -38,8 +38,9 @@
 //! - `StorageFormat::Csr/Csc/Coo` → Sparse arithmetic path
 //! - `StorageFormat::Quantized` → Dequantize-operate-quantize path
 
-pub mod traits;
 pub mod dense_dispatch;
 pub mod sparse_dispatch;
+pub mod strided_dispatch;
+pub mod traits;
 
 pub use traits::TensorStorageOps;

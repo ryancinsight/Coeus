@@ -1,12 +1,12 @@
 //! Negative log likelihood loss operation
 
+use crate::functions::NLLLossFunction;
 use crate::{Result, Tensor};
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 use num_traits::{FromPrimitive, ToPrimitive};
 use std::sync::Arc;
 use storage::{Storage, StorageFromVec, StorageToDense};
-use crate::functions::NLLLossFunction;
 
 /// Computes negative log likelihood (NLL) loss.
 pub fn nll_loss<B, S, T>(
@@ -15,13 +15,21 @@ pub fn nll_loss<B, S, T>(
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + Clone + FromPrimitive + ToPrimitive + Send + Sync + 'static,
-    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static,
+    T: DataType
+        + FloatExt
+        + std::ops::Neg<Output = T>
+        + Clone
+        + FromPrimitive
+        + ToPrimitive
+        + Send
+        + Sync
+        + 'static,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + crate::ops::TensorStorageOps<T> + Clone + Send + Sync + 'static,
 {
     let input_shape = input.shape().dims();
     let target_shape = target.shape().dims();
     let num_classes = *input_shape.last().unwrap();
-    
+
     let is_indices = target_shape.len() + 1 == input_shape.len()
         && target_shape == &input_shape[..input_shape.len() - 1];
 
@@ -29,7 +37,7 @@ where
     let target_dense = target.to_dense_generic()?;
     let input_data = input_dense.as_slice();
     let target_data = target_dense.as_slice();
-    
+
     let batch_elems = input_data.len() / num_classes;
     let mut total_loss = T::zero();
 
@@ -57,4 +65,3 @@ where
 
     Ok(result)
 }
-

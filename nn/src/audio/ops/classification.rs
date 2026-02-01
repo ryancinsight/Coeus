@@ -25,6 +25,7 @@ pub struct AudioClassifier {
 #[derive(Debug)]
 pub struct MusicGenreClassifier {
     /// Specialized model for music genre recognition
+    #[allow(dead_code)]
     model: MusicClassificationModel,
     /// Music genres
     genres: Vec<String>,
@@ -49,10 +50,13 @@ pub enum ClassificationModel {
 #[derive(Debug)]
 pub struct MusicClassificationModel {
     /// Model architecture
+    #[allow(dead_code)]
     architecture: MusicModelArchitecture,
     /// Training dataset used
+    #[allow(dead_code)]
     dataset: String,
     /// Model parameters
+    #[allow(dead_code)]
     parameters: usize,
 }
 
@@ -88,6 +92,7 @@ pub struct MusicFeatureExtractor {
     /// Feature types to extract
     feature_types: Vec<MusicFeatureType>,
     /// Feature parameters
+    #[allow(dead_code)]
     params: MusicFeatureParams,
 }
 

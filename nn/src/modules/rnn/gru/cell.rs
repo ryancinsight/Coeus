@@ -39,7 +39,7 @@ where
 impl<B, S, T> GRUCell<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     /// Create a new GRUCell.
@@ -177,7 +177,7 @@ where
 impl<B, S, T> Module<B, S, T> for GRUCell<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {

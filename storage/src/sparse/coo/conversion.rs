@@ -76,6 +76,7 @@ impl<T: DataType> CooStorage<T> {
         crate::sparse::CsrStorage::new(csr_data, csr_indices, indptr, self.shape.dims())
     }
 
+
     /// Convert to CSC format
     pub fn to_csc(&self) -> Result<crate::sparse::CscStorage<T>>
     where
@@ -85,3 +86,6 @@ impl<T: DataType> CooStorage<T> {
         self.to_csr()?.to_csc()
     }
 }
+
+
+

@@ -3,11 +3,13 @@
 //! Linear algebra primitives optimized for CPU execution.
 //! These operations handle matrix operations and decompositions.
 
-pub mod matmul;
-pub mod transpose;
 pub mod decomposition;
+pub mod matmul;
+pub mod matrix_exp;
+pub mod transpose;
 
 // Re-export operations for convenience
-pub use matmul::matmul_primitive;
-pub use transpose::transpose_primitive;
 pub use decomposition::*;
+pub use matmul::matmul_primitive;
+pub use matrix_exp::*;
+pub use transpose::transpose_primitive;

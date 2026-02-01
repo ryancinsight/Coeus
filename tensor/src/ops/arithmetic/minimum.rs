@@ -9,7 +9,7 @@ use storage::{Storage, StorageFromVec};
 pub fn minimum<
     T: DataType + PartialOrd + Clone + Copy,
     B: Backend<Data = T> + Clone + Send + Sync + Default + 'static,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + crate::ops::TensorStorageOps<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
     b: &Tensor<B, S, T>,

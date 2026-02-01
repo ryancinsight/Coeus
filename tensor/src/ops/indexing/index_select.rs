@@ -37,8 +37,10 @@ where
             return Err(TensorError::ShapeError {
                 expected: input_shape[dim],
                 actual: idx,
-                message: format!("Index {} out of bounds for dimension {} with size {}", 
-                    idx, dim, input_shape[dim]),
+                message: format!(
+                    "Index {} out of bounds for dimension {} with size {}",
+                    idx, dim, input_shape[dim]
+                ),
             });
         }
     }
@@ -76,7 +78,9 @@ where
         coords[dim] = index[coords[dim]];
 
         // Compute flat input index
-        let input_flat_idx: usize = coords.iter().zip(input_strides.iter())
+        let input_flat_idx: usize = coords
+            .iter()
+            .zip(input_strides.iter())
             .map(|(&c, &s)| c * s)
             .sum();
 

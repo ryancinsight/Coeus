@@ -17,21 +17,23 @@ pub fn softmax(
     let dim = dim.unwrap_or(-1);
     let result = match &input.inner {
         TensorWrapper::CpuDenseF32(i) => {
-           let res = coeus_nn::functional_api::softmax_dim(i, dim).map_err(to_py_err)?;
-           TensorWrapper::CpuDenseF32(res)
+            let res = coeus_nn::functional_api::softmax_dim(i, dim).map_err(to_py_err)?;
+            TensorWrapper::CpuDenseF32(res)
         }
         TensorWrapper::CpuDenseF64(i) => {
-           let res = coeus_nn::functional_api::softmax_dim(i, dim).map_err(to_py_err)?;
-           TensorWrapper::CpuDenseF64(res)
+            let res = coeus_nn::functional_api::softmax_dim(i, dim).map_err(to_py_err)?;
+            TensorWrapper::CpuDenseF64(res)
         }
         #[cfg(feature = "gpu")]
         TensorWrapper::GpuDenseF32(i) => {
-           let res = coeus_nn::functional_api::softmax_dim(i, dim).map_err(to_py_err)?;
-           TensorWrapper::GpuDenseF32(res)
+            let res = coeus_nn::functional_api::softmax_dim(i, dim).map_err(to_py_err)?;
+            TensorWrapper::GpuDenseF32(res)
         }
-        _ => return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "softmax not implemented for this tensor type (requires float dense)",
-        )),
+        _ => {
+            return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "softmax not implemented for this tensor type (requires float dense)",
+            ))
+        }
     };
     Ok(PyTensor { inner: result })
 }

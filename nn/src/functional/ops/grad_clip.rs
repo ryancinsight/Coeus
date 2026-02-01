@@ -120,8 +120,8 @@ where
         let clip_coef = max_norm / (total_norm + error_tol);
         let clip_coef_t = T::from(clip_coef).unwrap();
 
-        for _grad in gradients {
-            _grad.mul_scalar_(clip_coef_t)?;
+        for grad in gradients {
+            (**grad).mul_scalar_(clip_coef_t)?;
         }
     }
 
@@ -255,8 +255,8 @@ where
         let clip_coef = adaptive_threshold / total_norm;
         let clip_coef_t = T::from(clip_coef).unwrap();
 
-        for _grad in gradients {
-            _grad.mul_scalar_(clip_coef_t)?;
+        for grad in gradients {
+            (**grad).mul_scalar_(clip_coef_t)?;
         }
     }
 

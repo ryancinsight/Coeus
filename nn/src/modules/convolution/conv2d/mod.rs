@@ -1,5 +1,4 @@
 pub mod core;
-pub mod kernels;
 pub mod transpose;
 
 pub use core::Conv2D;

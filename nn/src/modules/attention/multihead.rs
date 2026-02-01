@@ -97,7 +97,7 @@ where
 impl<B, S, T> MultiHeadAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     /// Create a new multi-head attention layer.
@@ -344,7 +344,7 @@ where
 impl<B, S, T> Module<B, S, T> for MultiHeadAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
@@ -504,7 +504,7 @@ where
 impl<B, S, T> MultiHeadAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
     /// Forward pass for cross-attention with separate query, key, and value tensors.

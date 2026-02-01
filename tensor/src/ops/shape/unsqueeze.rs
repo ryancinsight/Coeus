@@ -1,15 +1,15 @@
-use backend::{Backend, DataType};
-use storage::{Storage, StorageFromVec, StorageToDense, DenseStorage};
 use crate::Tensor;
+use backend::{Backend, DataType};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 
 /// Unsqueezes the tensor by inserting a dimension of size 1 at the specified position.
 pub fn unsqueeze<B, S, T>(
     tensor: &Tensor<B, S, T>,
-    dim: usize
+    dim: usize,
 ) -> crate::Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Default + Clone + 'static,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
     T: DataType + Clone + 'static,
 {
     let current_dims = tensor.shape().dims();
@@ -35,7 +35,7 @@ where
 impl<B, T> Tensor<B, DenseStorage<T>, T>
 where
     B: Backend<Data = T> + Default + Clone + 'static,
-    T: DataType + Clone + 'static,
+    T: DataType + Clone + std::ops::Neg<Output = T> + 'static,
 {
     /// Unsqueezes the tensor by inserting a dimension of size 1 at the specified position.
     pub fn unsqueeze(&self, dim: usize) -> crate::Result<Self> {

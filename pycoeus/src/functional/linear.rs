@@ -45,5 +45,3 @@ pub fn linear(input: &PyTensor, weight: &PyTensor, bias: Option<&PyTensor>) -> P
         )),
     }
 }
-
-

@@ -123,7 +123,7 @@ where
             };
 
             let effective_grad = if self.weight_decay > 0.0 {
-                let weight_decay_t = Tensor::from_vec_with_backend(vec![weight_decay], &[], param_state.param.backend().clone())
+                let weight_decay_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![weight_decay], &[], param_state.param.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let wd = mul(&param_state.param, &weight_decay_t)?;
                 add(&grad, &wd)?
@@ -141,12 +141,12 @@ where
                     }
                 })?;
 
-                let beta1_t = Tensor::from_vec_with_backend(vec![beta1], &[], effective_grad.backend().clone())
+                let beta1_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![beta1], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let beta1_m = mul(m, &beta1_t)?;
                 
                 let one_minus_beta1 = one - beta1;
-                let one_minus_beta1_t = Tensor::from_vec_with_backend(vec![one_minus_beta1], &[], effective_grad.backend().clone())
+                let one_minus_beta1_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![one_minus_beta1], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let one_minus_beta1_grad = mul(&effective_grad, &one_minus_beta1_t)?;
                 *m = add(&beta1_m, &one_minus_beta1_grad)?;
@@ -161,7 +161,7 @@ where
                     }
                 })?;
 
-                let beta2_t = Tensor::from_vec_with_backend(vec![beta2], &[], effective_grad.backend().clone())
+                let beta2_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![beta2], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let beta2_u = mul(u, &beta2_t)?;
                 let grad_abs = abs(&effective_grad)?;
@@ -169,15 +169,15 @@ where
                 u.clone()
             };
 
-            let eps_t = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
+            let eps_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![eps], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
 
-            let bc1_t = Tensor::from_vec_with_backend(vec![bias_correction], &[], effective_grad.backend().clone())
+            let bc1_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![bias_correction], &[], effective_grad.backend().clone())
                  .map_err(|e| crate::OptimError::TensorError { source: e })?;
             let denom = add(&u_new, &eps_t)?;
             let update_ratio = div(&m_new, &denom)?;
             
-            let lr_t = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
+            let lr_t: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
                  .map_err(|e| crate::OptimError::TensorError { source: e })?;
             let step_size_t = mul(&lr_t, &bc1_t)?;
             let scaled_update = mul(&update_ratio, &step_size_t)?;

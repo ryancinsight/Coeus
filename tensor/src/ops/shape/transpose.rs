@@ -1,8 +1,8 @@
-use backend::{Backend, DataType};
-use storage::{Storage, StorageFromVec, StorageToDense};
-use crate::{Tensor, TensorError};
-use std::sync::Arc;
 use crate::functions::layout::TransposeFunction;
+use crate::{Tensor, TensorError};
+use backend::{Backend, DataType};
+use std::sync::Arc;
+use storage::{Storage, StorageFromVec, StorageToDense};
 
 /// Standalone transpose logic with Autograd integration
 pub fn transpose<B, T, S>(
@@ -12,8 +12,8 @@ pub fn transpose<B, T, S>(
 ) -> crate::Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    T: DataType + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + std::ops::Neg<Output = T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + Clone + 'static,
 {
     let shape = tensor.shape().dims();
     let ndim = shape.len();
@@ -22,20 +22,23 @@ where
         return Err(TensorError::ShapeError {
             expected: ndim,
             actual: std::cmp::max(dim0, dim1),
-            message: format!("Dimension out of range for transpose: dim0={}, dim1={}", dim0, dim1),
+            message: format!(
+                "Dimension out of range for transpose: dim0={}, dim1={}",
+                dim0, dim1
+            ),
         });
     }
 
     // If transposing the same dimension, return a copy (identity operation)
     // BUT we still need to track gradients if required?
-    // Identity transpose is just a copy. If we want to track it as an op, we can, 
-    // but usually identity doesn't need a grad fn other than identity. 
+    // Identity transpose is just a copy. If we want to track it as an op, we can,
+    // but usually identity doesn't need a grad fn other than identity.
     // However, if we return early here, we might break the graph if downstream expects a node.
-    // For now, let's treat it as a real op or just clone. If we clone, we need to manually propagate requires_grad 
+    // For now, let's treat it as a real op or just clone. If we clone, we need to manually propagate requires_grad
     // and maybe add an Identity function... or just use TransposeFunction with same dims (it should handle it).
-    
+
     // Let's proceed with implementation.
-    
+
     let mut new_shape = shape.to_vec();
     new_shape.swap(dim0, dim1);
 
@@ -72,7 +75,8 @@ where
         result_data[out_idx] = input_data[i];
     }
 
-    let mut result = Tensor::from_vec_with_backend(result_data, &new_shape, tensor.backend.clone())?;
+    let mut result =
+        Tensor::from_vec_with_backend(result_data, &new_shape, tensor.backend.clone())?;
 
     if crate::tensor_core::grad_enabled() && tensor.requires_grad() {
         let grad_fn = TransposeFunction::new(Arc::new(tensor.clone()), dim0, dim1);
@@ -87,8 +91,8 @@ where
 impl<B, S, T> Tensor<B, S, T>
 where
     B: Backend<Data = T> + Default + Clone + 'static,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + Clone + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
+    T: DataType + Clone + std::ops::Neg<Output = T> + 'static,
 {
     /// Transposes dimensions of the tensor.
     pub fn transpose(&self, dim0: usize, dim1: usize) -> crate::Result<Self> {

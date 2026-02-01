@@ -84,7 +84,7 @@ where
         shape,
         &new_shape,
         &old_strides,
-        &new_strides,
+        &compute_strides(&new_shape), &perm,
     );
     
     DenseStorage::from_vec(result_data, &new_shape)
@@ -194,9 +194,10 @@ fn transpose_copy<T: Clone>(
     _new_shape: &[usize],
     old_strides: &[usize],
     new_strides: &[usize],
+    perm: &[usize],
 ) {
     let total_size = old_shape.iter().product();
-    
+
     for flat_idx in 0..total_size {
         // Convert flat index to multi-dimensional indices in old layout
         let mut old_indices = vec![0; old_shape.len()];
@@ -205,19 +206,27 @@ fn transpose_copy<T: Clone>(
             old_indices[i] = remaining / stride;
             remaining %= stride;
         }
-        
-        // Convert multi-dimensional indices to flat index in new layout
+
+        // Permute indices according to transpose
+        let mut new_indices = vec![0; perm.len()];
+        for (new_i, &old_i) in perm.iter().enumerate() {
+            new_indices[new_i] = old_indices[old_i];
+        }
+
+        // Convert new multi-dimensional indices to flat index in new layout
         let mut new_flat_idx = 0;
-        for (i, &idx) in old_indices.iter().enumerate() {
+        for (i, &idx) in new_indices.iter().enumerate() {
             new_flat_idx += idx * new_strides[i];
         }
-        
+
         dst[new_flat_idx] = src[flat_idx].clone();
     }
 }
 
+
 #[cfg(test)]
 mod tests {
+    use alloc::vec;
     use super::*;
     use crate::creation::from_vec;
     use dtype::float::Float32;
@@ -294,6 +303,6 @@ mod tests {
         let transposed = transpose(&storage, None).unwrap();
         
         assert_eq!(transposed.as_slice(), data.as_slice());
-        assert_eq!(transposed.shape().dims(), &[]);
+        assert_eq!(transposed.shape().dims(), &[] as &[usize]);
     }
 }

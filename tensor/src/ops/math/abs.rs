@@ -22,8 +22,9 @@ pub fn abs<
         .iter()
         .map(|&x| if x < zero { zero - x } else { x })
         .collect();
-    
-    let mut result = Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend.clone())?;
+
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend.clone())?;
 
     if crate::tensor_core::grad_enabled() && tensor.requires_grad() {
         result = result.requires_grad_(true);

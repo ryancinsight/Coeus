@@ -33,7 +33,7 @@ where
     /// Converts this tensor to dense storage format if supported.
     pub fn to_dense_generic(&self) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
-        S: StorageToDense<T> + 'static,
+        S: crate::ops::TensorStorageOps<T> + 'static,
         B: Clone + 'static,
         T: Clone + 'static,
     {
@@ -44,7 +44,7 @@ where
             return Ok(dense_self.clone());
         }
 
-        let dense_storage = self.storage.to_dense()?;
+        let dense_storage = self.storage.storage_to_dense()?;
         let mut result = Tensor::from_storage(dense_storage, self.backend.clone());
         result.requires_grad = self.requires_grad;
 
@@ -53,7 +53,7 @@ where
 
     pub fn to_dense_preserving_identity(&self) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
-        S: StorageToDense<T> + 'static,
+        S: crate::ops::TensorStorageOps<T> + 'static,
         B: Clone + 'static,
         T: Clone + 'static,
     {
@@ -70,10 +70,10 @@ where
     /// Convert this tensor to CPU backend with dense storage.
     pub fn to_cpu_dense(&self) -> Result<Tensor<crate::CpuBackend<T>, DenseStorage<T>, T>>
     where
-        S: StorageToDense<T>,
+        S: crate::ops::TensorStorageOps<T>,
         B: Default,
     {
-        let dense_storage = self.storage.to_dense()?;
+        let dense_storage = self.storage.storage_to_dense()?;
         let cpu_backend = crate::CpuBackend::default();
         Ok(Tensor::from_storage(dense_storage, cpu_backend))
     }
@@ -82,7 +82,7 @@ where
     pub fn to_backend<NewB>(&self, new_backend: NewB) -> Result<Tensor<NewB, DenseStorage<T>, T>>
     where
         NewB: Backend<Data = T>,
-        S: StorageToDense<T> + 'static,
+        S: crate::ops::TensorStorageOps<T> + 'static,
         B: Clone + 'static,
         T: Clone + 'static,
     {
@@ -142,65 +142,26 @@ where
         }
     }
 
-    /// Returns a view of the input with at least two dimensions.
-    /// 1-D tensors become 2-D with shape [1, N].
-    pub fn atleast_2d(&self) -> Result<Tensor<B, S, T>>
+
+// ...
+
+
+    /// Selects a slice along a dimension.
+    pub fn select(&self, dim: usize, index: usize) -> Result<Tensor<B, crate::DenseStorage<T>, T>>
     where
-        T: Copy,
-        S: Clone + Send + Sync + 'static,
-        B: Clone + Default,
+        S: crate::ops::TensorStorageOps<T> + 'static,
+        B: Clone + Default + 'static,
+        T: Clone + core::ops::Neg<Output = T> + 'static,
     {
-        let dims = self.shape().dims();
-        if dims.is_empty() {
-            // Scalar, reshape to [1, 1]
-            let data = self.as_slice().to_vec();
-            Tensor::from_vec_with_backend(data, &[1, 1], self.backend.clone())
-        } else if dims.len() == 1 {
-            // 1-D, reshape to [1, N]
-            let data = self.as_slice().to_vec();
-            Tensor::from_vec_with_backend(data, &[1, dims[0]], self.backend.clone())
-        } else {
-            Ok(self.clone())
-        }
+        crate::ops::shape::select::select(self, dim, index)
     }
 
-    /// Returns a view of the input with at least three dimensions.
-    /// 1-D tensors become 3-D with shape [1, N, 1].
-    /// 2-D tensors become 3-D with shape [1, M, N].
-    pub fn atleast_3d(&self) -> Result<Tensor<B, S, T>>
-    where
-        T: Copy,
-        S: Clone + Send + Sync + 'static,
-        B: Clone + Default,
-    {
-        let dims = self.shape().dims();
-        if dims.is_empty() {
-            // Scalar, reshape to [1, 1, 1]
-            let data = self.as_slice().to_vec();
-            Tensor::from_vec_with_backend(data, &[1, 1, 1], self.backend.clone())
-        } else if dims.len() == 1 {
-            // 1-D, reshape to [1, N, 1]
-            let data = self.as_slice().to_vec();
-            Tensor::from_vec_with_backend(data, &[1, dims[0], 1], self.backend.clone())
-        } else if dims.len() == 2 {
-            // 2-D, reshape to [1, M, N]
-            let data = self.as_slice().to_vec();
-            Tensor::from_vec_with_backend(data, &[1, dims[0], dims[1]], self.backend.clone())
-        } else {
-            Ok(self.clone())
-        }
-    }
 
-    /// Returns a narrowed version of the tensor along the specified dimension.
-    /// The narrowed tensor is a view from `start` to `start + length`.
-    ///
-    /// # Arguments
-    /// * `dim` - The dimension along which to narrow
-    /// * `start` - Starting index
-    /// * `length` - Number of elements to include
+
+
     pub fn narrow(&self, dim: usize, start: usize, length: usize) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
-        S: StorageToDense<T> + 'static,
+        S: crate::ops::TensorStorageOps<T> + 'static,
         B: Clone + Default + 'static,
         T: Clone + 'static,
     {
@@ -260,7 +221,7 @@ where
 
     pub fn sum_simd(&self) -> Result<Self>
     where
-        S: crate::StorageToDense<T> + 'static,
+        S: crate::StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
         B: Clone + Default + 'static,
         T: Clone + num_traits::Num + 'static, // Num required for sum
     {
@@ -280,7 +241,7 @@ where
     where
         T: num_traits::Float + num_traits::Num + Clone + Copy,
         B: Clone + Send + Sync + Default,
-        S: crate::StorageToDense<T> + storage::StorageFromVec<T> + 'static,
+        S: crate::StorageToDense<T> + storage::StorageFromVec<T> + crate::ops::TensorStorageOps<T> + 'static,
     {
         let dense_self = self.to_dense_generic()?;
         // Create zeros with same storage type as dense_self (DenseStorage)
@@ -310,9 +271,9 @@ where
         chunks: usize,
     ) -> std::vec::IntoIter<Tensor<B, crate::DenseStorage<T>, T>>
     where
-        S: StorageToDense<T> + 'static,
+        S: StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
         B: Clone + Default + 'static,
-        T: Clone + 'static,
+        T: Clone + std::ops::Neg<Output = T> + 'static,
     {
         if chunks == 0 {
             return vec![].into_iter();

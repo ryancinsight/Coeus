@@ -52,7 +52,7 @@ pub fn scaled_dot_product_attention<B, S, T>(
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + Neg<Output = T> + PartialOrd + FromPrimitive,
 {
     let query_shape = query.shape().dims();

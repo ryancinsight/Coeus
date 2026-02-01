@@ -6,7 +6,7 @@
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 use std::fmt;
-use std::ops::Mul;
+
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::{Tensor, ops::linalg::matmul};
 

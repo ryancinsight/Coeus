@@ -1,0 +1,27 @@
+    Checking storage v0.2.1 (D:\coeus\storage)
+error[E0119]: conflicting implementations of trait `StorageFromVec<_>` for type `CooStorage<_>`
+   --> storage\src\sparse\coo\traits.rs:127:1
+    |
+127 | impl<T: DataType> crate::StorageFromVec<T> for CooStorage<T> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `CooStorage<_>`
+    |
+   ::: storage\src\sparse\coo\creation.rs:78:1
+    |
+ 78 | impl<T: DataType + crate::num_traits::Zero + PartialEq> crate::StorageFromVec<T> for CooStorage<T> {
+    | -------------------------------------------------------------------------------------------------- first implementation here
+
+error[E0119]: conflicting implementations of trait `StorageToDense<_>` for type `CooStorage<_>`
+  --> storage\src\sparse\coo\traits.rs:92:1
+   |
+92 | / impl<T: DataType> crate::StorageToDense<T> for CooStorage<T>
+93 | | where
+94 | |     T: num_traits::Zero,
+   | |________________________^ conflicting implementation for `CooStorage<_>`
+   |
+  ::: storage\src\sparse\coo\conversion.rs:90:1
+   |
+90 |   impl<T: DataType + crate::num_traits::Zero> crate::StorageToDense<T> for CooStorage<T> {
+   |   -------------------------------------------------------------------------------------- first implementation here
+
+For more information about this error, try `rustc --explain E0119`.
+error: could not compile `storage` (lib) due to 2 previous errors

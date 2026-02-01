@@ -2,7 +2,7 @@ use crate::core::error::Result;
 use crate::core::module::Module;
 use backend::Backend;
 use dtype::DataType;
-use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::{FloatExt, Tensor};
 
 use super::Activation;

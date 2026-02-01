@@ -1,6 +1,5 @@
 //! Mathematical methods for Tensor
 
-use std::vec::Vec;
 
 use crate::{Backend, DataType, Result, Storage, Tensor};
 use storage::StorageFromVec;
@@ -112,30 +111,6 @@ where
         Ok(result)
     }
 
-
-    /// Multiplies tensor by a scalar value.
-    pub fn mul_scalar(&self, scalar: T) -> Result<Tensor<B, S, T>>
-    where
-        T: std::ops::Mul<Output = T> + Copy,
-        B: Backend<Data = T>,
-        S: Storage<T> + StorageFromVec<T>,
-    {
-        let data: Vec<T> = self.as_slice().iter().map(|&x| x * scalar).collect();
-        Tensor::from_vec_with_backend(data, self.shape().dims(), self.backend.clone())
-    }
-
-    /// Multiplies tensor by a scalar value in place.
-    pub fn mul_scalar_(&mut self, scalar: T) -> Result<()>
-    where
-        T: std::ops::Mul<Output = T> + Copy,
-        S: Storage<T>,
-    {
-        let data = self.storage.as_mut_slice();
-        for x in data {
-            *x = *x * scalar;
-        }
-        Ok(())
-    }
 
     /// Zeros all elements of this tensor in-place.
     pub fn zero_(&mut self)

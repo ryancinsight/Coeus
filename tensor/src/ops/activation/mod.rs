@@ -1,13 +1,13 @@
 //! Activation functions module
 
-mod sigmoid;
-mod relu;
-mod tanh;
-mod leaky_relu;
 mod gelu;
+mod leaky_relu;
+mod relu;
+mod sigmoid;
+mod tanh;
 
-pub use sigmoid::sigmoid;
-pub use relu::relu;
-pub use tanh::tanh;
-pub use leaky_relu::leaky_relu;
 pub use gelu::gelu;
+pub use leaky_relu::leaky_relu;
+pub use relu::relu;
+pub use sigmoid::sigmoid;
+pub use tanh::tanh;

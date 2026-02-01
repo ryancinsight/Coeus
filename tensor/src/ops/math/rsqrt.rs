@@ -14,6 +14,10 @@ pub fn rsqrt<
 >(
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
-    let data = tensor.as_slice().iter().map(|&x| x.sqrt().recip()).collect();
+    let data = tensor
+        .as_slice()
+        .iter()
+        .map(|&x| x.sqrt().recip())
+        .collect();
     Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend.clone())
 }

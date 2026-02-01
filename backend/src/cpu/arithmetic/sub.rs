@@ -3,6 +3,7 @@
 //! Provides SIMD-ready element-wise subtraction for CPU execution.
 
 use crate::DataType;
+use crate::binary_strided_primitive;
 
 /// Element-wise subtraction primitive for CPU backend
 ///
@@ -36,6 +37,9 @@ where
 
     Ok(())
 }
+
+// Re-implement sub_strided_primitive using macro
+binary_strided_primitive!(sub_strided_primitive, Sub, sub);
 
 #[cfg(test)]
 mod tests {

@@ -1,26 +1,27 @@
 //! Element-wise arccosine (inverse cosine)
 
+use crate::functions::math::AcosFunction;
 use crate::{Result, Tensor};
 use backend::Backend;
 use dtype::DataType;
 use num_traits::{Float, FromPrimitive};
-use storage::{Storage, StorageFromVec};
 use std::sync::Arc;
-use crate::functions::math::AcosFunction;
+use storage::{Storage, StorageFromVec};
 
 /// Element-wise arccosine (inverse cosine)
-/// 
+///
 /// Input values should be in the range [-1, 1].
 /// Returns values in radians in the range [0, π].
 pub fn acos<
     T: DataType + Float + dtype::traits::FloatExt + FromPrimitive,
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + storage::StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
 >(
     tensor: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
     let data: Vec<T> = tensor.as_slice().iter().map(|&x| x.acos()).collect();
-    let mut result = Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend.clone())?;
+    let mut result =
+        Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend.clone())?;
 
     if crate::tensor_core::grad_enabled() && tensor.requires_grad {
         let grad_fn = AcosFunction::new(Arc::new(tensor.clone()));

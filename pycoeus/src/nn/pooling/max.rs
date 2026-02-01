@@ -3,11 +3,22 @@ use crate::tensor::{PyTensor, TensorWrapper};
 use coeus_nn::core::module::Module;
 use coeus_nn::modules::pooling::{MaxPool1d, MaxPool2d, MaxPool3d};
 use pyo3::prelude::*;
+use backend::{CpuBackend, Backend};
+use storage::DenseStorage;
+use dtype::float::{Float32, Float64};
+
+#[derive(Clone)]
+pub enum MaxPool1dWrapper {
+    CpuF32(MaxPool1d<CpuBackend<Float32>, DenseStorage<Float32>, Float32>),
+    CpuF64(MaxPool1d<CpuBackend<Float64>, DenseStorage<Float64>, Float64>),
+    #[cfg(feature = "gpu")]
+    GpuF32(MaxPool1d<backend::WgpuBackend<Float32>, DenseStorage<Float32>, Float32>),
+}
 
 #[pyclass(name = "MaxPool1d", module = "coeus.nn", subclass, unsendable)]
 #[derive(Clone)]
 pub struct PyMaxPool1d {
-    pub inner: MaxPool1d,
+    pub inner: MaxPool1dWrapper,
     pub dtype: String,
     pub device: String,
 }
@@ -15,20 +26,45 @@ pub struct PyMaxPool1d {
 #[pymethods]
 impl PyMaxPool1d {
     #[new]
-    #[pyo3(signature = (kernel_size, stride=None, padding=None, dtype="float32", device="cpu"))]
+    #[pyo3(signature = (kernel_size, stride=None, padding=None, dilation=None, ceil_mode=None, dtype="float32", device="cpu"))]
     fn new(
         kernel_size: usize,
         stride: Option<usize>,
         padding: Option<usize>,
+        dilation: Option<usize>,
+        ceil_mode: Option<bool>,
         dtype: Option<&str>,
         device: Option<&str>,
     ) -> PyResult<Self> {
         let p = padding.unwrap_or(0);
-        let pool = MaxPool1d::new(kernel_size, stride, p);
+        let dt = dtype.unwrap_or("float32");
+        let dev = device.unwrap_or("cpu");
+        let dil = dilation; // Passed as Option implicitly
+        let cm = ceil_mode.unwrap_or(false);
+
+        let wrapper = match (dev, dt) {
+             ("cpu", "float32") => {
+                 let m = MaxPool1d::new(kernel_size, stride, p, dil, cm);
+                 MaxPool1dWrapper::CpuF32(m)
+             }
+             ("cpu", "float64") => {
+                 let m = MaxPool1d::new(kernel_size, stride, p, dil, cm);
+                 MaxPool1dWrapper::CpuF64(m)
+             }
+             #[cfg(feature = "gpu")]
+             ("cuda" | "gpu", "float32") => {
+                 let m = MaxPool1d::new(kernel_size, stride, p, dil, cm);
+                 MaxPool1dWrapper::GpuF32(m)
+             }
+             _ => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                 format!("Unsupported device/dtype combination: {}/{}", dev, dt)
+             )),
+        };
+
         Ok(PyMaxPool1d {
-            inner: pool,
-            dtype: dtype.unwrap_or("float32").to_string(),
-            device: device.unwrap_or("cpu").to_string(),
+            inner: wrapper,
+            dtype: dt.to_string(),
+            device: dev.to_string(),
         })
     }
 
@@ -37,41 +73,48 @@ impl PyMaxPool1d {
     }
 
     fn forward(&self, input: &PyTensor) -> PyResult<PyTensor> {
-        match &input.inner {
-            TensorWrapper::CpuDenseF32(i) => {
-                let res = self.inner.forward(i).map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF32(res),
-                })
+        match (&self.inner, &input.inner) {
+            (MaxPool1dWrapper::CpuF32(m), TensorWrapper::CpuDenseF32(i)) => {
+                let res = m.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
             }
-            TensorWrapper::CpuDenseF64(i) => {
-                let res = self.inner.forward(i).map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF64(res),
-                })
+            (MaxPool1dWrapper::CpuF64(m), TensorWrapper::CpuDenseF64(i)) => {
+                let res = m.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
             }
             #[cfg(feature = "gpu")]
-            TensorWrapper::GpuDenseF32(i) => {
-                let res = self.inner.forward(i).map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::GpuDenseF32(res),
-                })
+            (MaxPool1dWrapper::GpuF32(m), TensorWrapper::GpuDenseF32(i)) => {
+                let res = m.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
             }
             _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Input backend/dtype not supported for MaxPool1d",
+                "Input backend/dtype mismatch with MaxPool1d module configuration",
             )),
         }
     }
+}
 
-    fn parameters(&self) -> Vec<PyTensor> {
-        vec![]
-    }
+
+#[derive(Clone)]
+pub enum MaxPool2dWrapper {
+    CpuF32(MaxPool2d<CpuBackend<Float32>, DenseStorage<Float32>, Float32>),
+    CpuF64(MaxPool2d<CpuBackend<Float64>, DenseStorage<Float64>, Float64>),
+    #[cfg(feature = "gpu")]
+    GpuF32(MaxPool2d<backend::WgpuBackend<Float32>, DenseStorage<Float32>, Float32>),
+}
+
+#[derive(Clone)]
+pub enum MaxPool3dWrapper {
+    CpuF32(MaxPool3d<CpuBackend<Float32>, DenseStorage<Float32>, Float32>),
+    CpuF64(MaxPool3d<CpuBackend<Float64>, DenseStorage<Float64>, Float64>),
+    #[cfg(feature = "gpu")]
+    GpuF32(MaxPool3d<backend::WgpuBackend<Float32>, DenseStorage<Float32>, Float32>),
 }
 
 #[pyclass(name = "MaxPool2d", module = "coeus.nn", subclass, unsendable)]
 #[derive(Clone)]
 pub struct PyMaxPool2d {
-    pub inner: MaxPool2d,
+    pub inner: MaxPool2dWrapper,
     pub dtype: String,
     pub device: String,
 }
@@ -79,11 +122,13 @@ pub struct PyMaxPool2d {
 #[pymethods]
 impl PyMaxPool2d {
     #[new]
-    #[pyo3(signature = (kernel_size, stride=None, padding=None, dtype="float32", device="cpu"))]
+    #[pyo3(signature = (kernel_size, stride=None, padding=None, dilation=None, ceil_mode=None, dtype="float32", device="cpu"))]
     fn new(
         kernel_size: Bound<'_, PyAny>,
         stride: Option<Bound<'_, PyAny>>,
         padding: Option<Bound<'_, PyAny>>,
+        dilation: Option<Bound<'_, PyAny>>,
+        ceil_mode: Option<bool>,
         dtype: Option<&str>,
         device: Option<&str>,
     ) -> PyResult<Self> {
@@ -113,11 +158,43 @@ impl PyMaxPool2d {
             (0, 0)
         };
 
-        let pool = MaxPool2d::new(k, s, p);
+        let d = if let Some(dil) = dilation {
+             if let Ok(d_val) = dil.extract::<usize>() {
+                Some((d_val, d_val))
+            } else {
+                Some(dil.extract::<(usize, usize)>()?)
+            }
+        } else {
+            None
+        };
+
+        let cm = ceil_mode.unwrap_or(false);
+        let dt = dtype.unwrap_or("float32");
+        let dev = device.unwrap_or("cpu");
+
+        let wrapper = match (dev, dt) {
+             ("cpu", "float32") => {
+                 let m = MaxPool2d::new(k, s, p, d, cm);
+                 MaxPool2dWrapper::CpuF32(m)
+             }
+             ("cpu", "float64") => {
+                 let m = MaxPool2d::new(k, s, p, d, cm);
+                 MaxPool2dWrapper::CpuF64(m)
+             }
+             #[cfg(feature = "gpu")]
+             ("cuda" | "gpu", "float32") => {
+                 let m = MaxPool2d::new(k, s, p, d, cm);
+                 MaxPool2dWrapper::GpuF32(m)
+             }
+             _ => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                 format!("Unsupported device/dtype combination: {}/{}", dev, dt)
+             )),
+        };
+
         Ok(PyMaxPool2d {
-            inner: pool,
-            dtype: dtype.unwrap_or("float32").to_string(),
-            device: device.unwrap_or("cpu").to_string(),
+            inner: wrapper,
+            dtype: dt.to_string(),
+            device: dev.to_string(),
         })
     }
 
@@ -126,28 +203,22 @@ impl PyMaxPool2d {
     }
 
     fn forward(&self, input: &PyTensor) -> PyResult<PyTensor> {
-        match &input.inner {
-            TensorWrapper::CpuDenseF32(i) => {
-                let res = self.inner.forward(i).map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF32(res),
-                })
+        match (&self.inner, &input.inner) {
+            (MaxPool2dWrapper::CpuF32(m), TensorWrapper::CpuDenseF32(i)) => {
+                let res = m.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
             }
-            TensorWrapper::CpuDenseF64(i) => {
-                let res = self.inner.forward(i).map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF64(res),
-                })
+            (MaxPool2dWrapper::CpuF64(m), TensorWrapper::CpuDenseF64(i)) => {
+                let res = m.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
             }
             #[cfg(feature = "gpu")]
-            TensorWrapper::GpuDenseF32(i) => {
-                let res = self.inner.forward(i).map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::GpuDenseF32(res),
-                })
+            (MaxPool2dWrapper::GpuF32(m), TensorWrapper::GpuDenseF32(i)) => {
+                let res = m.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
             }
             _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Input backend/dtype not supported for MaxPool2d",
+                "Input backend/dtype mismatch with MaxPool2d module configuration",
             )),
         }
     }
@@ -160,7 +231,7 @@ impl PyMaxPool2d {
 #[pyclass(name = "MaxPool3d", module = "coeus.nn", subclass, unsendable)]
 #[derive(Clone)]
 pub struct PyMaxPool3d {
-    pub inner: MaxPool3d,
+    pub inner: MaxPool3dWrapper,
     pub dtype: String,
     pub device: String,
 }
@@ -168,11 +239,13 @@ pub struct PyMaxPool3d {
 #[pymethods]
 impl PyMaxPool3d {
     #[new]
-    #[pyo3(signature = (kernel_size, stride=None, padding=None, dtype="float32", device="cpu"))]
+    #[pyo3(signature = (kernel_size, stride=None, padding=None, dilation=None, ceil_mode=None, dtype="float32", device="cpu"))]
     fn new(
         kernel_size: Bound<'_, PyAny>,
         stride: Option<Bound<'_, PyAny>>,
         padding: Option<Bound<'_, PyAny>>,
+        dilation: Option<Bound<'_, PyAny>>,
+        ceil_mode: Option<bool>,
         dtype: Option<&str>,
         device: Option<&str>,
     ) -> PyResult<Self> {
@@ -202,11 +275,43 @@ impl PyMaxPool3d {
             (0, 0, 0)
         };
 
-        let pool = MaxPool3d::new(k, s, p);
+        let d = if let Some(dil) = dilation {
+             if let Ok(d_val) = dil.extract::<usize>() {
+                Some((d_val, d_val, d_val))
+            } else {
+                Some(dil.extract::<(usize, usize, usize)>()?)
+            }
+        } else {
+            None
+        };
+
+        let cm = ceil_mode.unwrap_or(false);
+        let dt = dtype.unwrap_or("float32");
+        let dev = device.unwrap_or("cpu");
+
+        let wrapper = match (dev, dt) {
+             ("cpu", "float32") => {
+                 let m = MaxPool3d::new(k, s, p, d, cm);
+                 MaxPool3dWrapper::CpuF32(m)
+             }
+             ("cpu", "float64") => {
+                 let m = MaxPool3d::new(k, s, p, d, cm);
+                 MaxPool3dWrapper::CpuF64(m)
+             }
+             #[cfg(feature = "gpu")]
+             ("cuda" | "gpu", "float32") => {
+                 let m = MaxPool3d::new(k, s, p, d, cm);
+                 MaxPool3dWrapper::GpuF32(m)
+             }
+             _ => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                 format!("Unsupported device/dtype combination: {}/{}", dev, dt)
+             )),
+        };
+
         Ok(PyMaxPool3d {
-            inner: pool,
-            dtype: dtype.unwrap_or("float32").to_string(),
-            device: device.unwrap_or("cpu").to_string(),
+            inner: wrapper,
+            dtype: dt.to_string(),
+            device: dev.to_string(),
         })
     }
 
@@ -215,28 +320,22 @@ impl PyMaxPool3d {
     }
 
     fn forward(&self, input: &PyTensor) -> PyResult<PyTensor> {
-        match &input.inner {
-            TensorWrapper::CpuDenseF32(i) => {
-                let res = self.inner.forward(i).map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF32(res),
-                })
+        match (&self.inner, &input.inner) {
+            (MaxPool3dWrapper::CpuF32(m), TensorWrapper::CpuDenseF32(i)) => {
+                let res = m.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
             }
-            TensorWrapper::CpuDenseF64(i) => {
-                let res = self.inner.forward(i).map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF64(res),
-                })
+            (MaxPool3dWrapper::CpuF64(m), TensorWrapper::CpuDenseF64(i)) => {
+                let res = m.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
             }
             #[cfg(feature = "gpu")]
-            TensorWrapper::GpuDenseF32(i) => {
-                let res = self.inner.forward(i).map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::GpuDenseF32(res),
-                })
+            (MaxPool3dWrapper::GpuF32(m), TensorWrapper::GpuDenseF32(i)) => {
+                let res = m.forward(i).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
             }
             _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Input backend/dtype not supported for MaxPool3d",
+                "Input backend/dtype mismatch with MaxPool3d module configuration",
             )),
         }
     }

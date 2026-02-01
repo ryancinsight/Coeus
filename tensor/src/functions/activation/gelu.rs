@@ -36,7 +36,7 @@ where
 impl<B, S, T> Function<B, S, T> for GeluFunction<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + Clone + 'static,
     T: DataType + FloatExt + num_traits::FromPrimitive,
 {
     fn inputs(&self) -> &[Arc<Tensor<B, S, T>>] {

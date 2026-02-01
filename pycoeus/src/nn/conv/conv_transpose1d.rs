@@ -23,7 +23,7 @@ pub struct PyConvTranspose1d {
 #[pymethods]
 impl PyConvTranspose1d {
     #[new]
-    #[pyo3(signature = (in_channels, out_channels, kernel_size, stride=None, padding=None, output_padding=None, bias=None, dtype="float32", device="cpu"))]
+    #[pyo3(signature = (in_channels, out_channels, kernel_size, stride=None, padding=None, output_padding=None, groups=None, dilation=None, bias=None, dtype="float32", device="cpu"))]
     fn new(
         in_channels: usize,
         out_channels: usize,
@@ -31,6 +31,8 @@ impl PyConvTranspose1d {
         stride: Option<usize>,
         padding: Option<usize>,
         output_padding: Option<usize>,
+        groups: Option<usize>,
+        dilation: Option<usize>,
         bias: Option<bool>,
         dtype: Option<&str>,
         device: Option<&str>,
@@ -48,6 +50,8 @@ impl PyConvTranspose1d {
                         stride,
                         padding,
                         output_padding,
+                        groups,
+                        dilation,
                         bias,
                     )
                     .map_err(to_py_err)?;
@@ -62,6 +66,8 @@ impl PyConvTranspose1d {
                         stride,
                         padding,
                         output_padding,
+                        groups,
+                        dilation,
                         bias,
                     )
                     .map_err(to_py_err)?;
@@ -77,6 +83,8 @@ impl PyConvTranspose1d {
                         stride,
                         padding,
                         output_padding,
+                        groups,
+                        dilation,
                         bias,
                     )
                     .map_err(to_py_err)?;

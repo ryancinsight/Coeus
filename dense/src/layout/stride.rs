@@ -154,13 +154,14 @@ fn increment_indices(indices: &mut [usize], shape: &[usize]) {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec;
     use super::*;
     use crate::creation::from_vec;
     use dtype::float::Float32;
 
     #[test]
     fn test_compute_strides() {
-        assert_eq!(compute_strides(&[]), vec![]);
+        assert_eq!(compute_strides(&[]), Vec::<usize>::new());
         assert_eq!(compute_strides(&[5]), vec![1]);
         assert_eq!(compute_strides(&[2, 3]), vec![3, 1]);
         assert_eq!(compute_strides(&[2, 3, 4]), vec![12, 4, 1]);

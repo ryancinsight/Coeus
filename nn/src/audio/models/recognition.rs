@@ -18,6 +18,7 @@ pub struct SpeechRecognizer {
     /// Language identification model
     lang_id_model: Option<LanguageIdModel>,
     /// Decoder configuration
+    #[allow(dead_code)]
     decoder_config: DecoderConfig,
     /// Supported languages
     supported_languages: Vec<String>,
@@ -38,10 +39,13 @@ pub enum AcousticModel {
 #[derive(Debug)]
 pub struct LanguageModel {
     /// Language model type
+    #[allow(dead_code)]
     model_type: LanguageModelType,
     /// Vocabulary size
+    #[allow(dead_code)]
     vocab_size: usize,
     /// Language model weight
+    #[allow(dead_code)]
     weight: f32,
 }
 
@@ -62,6 +66,7 @@ pub struct LanguageIdModel {
     /// Supported languages
     languages: Vec<String>,
     /// Model confidence threshold
+    #[allow(dead_code)]
     confidence_threshold: f32,
 }
 

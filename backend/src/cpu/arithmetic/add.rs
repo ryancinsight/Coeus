@@ -4,6 +4,7 @@
 //! This is the foundation primitive that storage operations delegate to.
 
 use crate::DataType;
+use crate::binary_strided_primitive;
 
 /// Element-wise addition primitive for CPU backend
 ///
@@ -89,6 +90,9 @@ where
 
     Ok(())
 }
+
+// Re-implement add_strided_primitive using macro
+binary_strided_primitive!(add_strided_primitive, Add, add);
 
 #[cfg(test)]
 mod tests {

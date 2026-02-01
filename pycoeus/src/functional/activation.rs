@@ -7,27 +7,37 @@ pub fn relu(input: &PyTensor) -> PyResult<PyTensor> {
     match &input.inner {
         TensorWrapper::CpuDenseF32(t) => {
             let res = coeus_nn::functional_api::relu(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuDenseF64(t) => {
             let res = coeus_nn::functional_api::relu(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
         #[cfg(feature = "gpu")]
         TensorWrapper::GpuDenseF32(t) => {
             let res = coeus_nn::functional_api::relu(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuSparseF32(t) => {
-             // relu currently returns sparse, convert to dense
-             let sparse_res = coeus_nn::functional_api::relu(t).map_err(to_py_err)?;
-             let res = sparse_res.to_dense_generic().map_err(to_py_err)?;
-             Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            // relu currently returns sparse, convert to dense
+            let sparse_res = coeus_nn::functional_api::relu(t).map_err(to_py_err)?;
+            let res = sparse_res.to_dense_generic().map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuSparseF64(t) => {
-             let sparse_res = coeus_nn::functional_api::relu(t).map_err(to_py_err)?;
-             let res = sparse_res.to_dense_generic().map_err(to_py_err)?;
-             Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            let sparse_res = coeus_nn::functional_api::relu(t).map_err(to_py_err)?;
+            let res = sparse_res.to_dense_generic().map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
             "relu not implemented for integer tensors",
@@ -40,27 +50,37 @@ pub fn sigmoid(input: &PyTensor) -> PyResult<PyTensor> {
     match &input.inner {
         TensorWrapper::CpuDenseF32(t) => {
             let res = coeus_nn::functional_api::sigmoid(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuDenseF64(t) => {
             let res = coeus_nn::functional_api::sigmoid(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
         #[cfg(feature = "gpu")]
         TensorWrapper::GpuDenseF32(t) => {
             let res = coeus_nn::functional_api::sigmoid(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuSparseF32(t) => {
-             // sigmoid returns dense (sigmoid(0)!=0)
-             let sparse_res = coeus_nn::functional_api::sigmoid(t).map_err(to_py_err)?;
-             let res = sparse_res.to_dense_generic().map_err(to_py_err)?;
-             Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            // sigmoid returns dense (sigmoid(0)!=0)
+            let sparse_res = coeus_nn::functional_api::sigmoid(t).map_err(to_py_err)?;
+            let res = sparse_res.to_dense_generic().map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuSparseF64(t) => {
-             let sparse_res = coeus_nn::functional_api::sigmoid(t).map_err(to_py_err)?;
-             let res = sparse_res.to_dense_generic().map_err(to_py_err)?;
-             Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            let sparse_res = coeus_nn::functional_api::sigmoid(t).map_err(to_py_err)?;
+            let res = sparse_res.to_dense_generic().map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
             "sigmoid not implemented for integer tensors",
@@ -73,26 +93,36 @@ pub fn tanh(input: &PyTensor) -> PyResult<PyTensor> {
     match &input.inner {
         TensorWrapper::CpuDenseF32(t) => {
             let res = coeus_nn::functional_api::tanh(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuDenseF64(t) => {
             let res = coeus_nn::functional_api::tanh(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
         #[cfg(feature = "gpu")]
         TensorWrapper::GpuDenseF32(t) => {
             let res = coeus_nn::functional_api::tanh(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuSparseF32(t) => {
-             let res = coeus_nn::functional_api::tanh(t).map_err(to_py_err)?;
-             let dense = res.to_dense_generic().map_err(to_py_err)?;
-             Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(dense) })
+            let res = coeus_nn::functional_api::tanh(t).map_err(to_py_err)?;
+            let dense = res.to_dense_generic().map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(dense),
+            })
         }
         TensorWrapper::CpuSparseF64(t) => {
-             let res = coeus_nn::functional_api::tanh(t).map_err(to_py_err)?;
-             let dense = res.to_dense_generic().map_err(to_py_err)?;
-             Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(dense) })
+            let res = coeus_nn::functional_api::tanh(t).map_err(to_py_err)?;
+            let dense = res.to_dense_generic().map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(dense),
+            })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
             "tanh not implemented for integer tensors",
@@ -105,26 +135,36 @@ pub fn gelu(input: &PyTensor) -> PyResult<PyTensor> {
     match &input.inner {
         TensorWrapper::CpuDenseF32(t) => {
             let res = coeus_nn::functional_api::gelu(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuDenseF64(t) => {
             let res = coeus_nn::functional_api::gelu(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
         #[cfg(feature = "gpu")]
         TensorWrapper::GpuDenseF32(t) => {
             let res = coeus_nn::functional_api::gelu(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuSparseF32(t) => {
-             let res = coeus_nn::functional_api::gelu(t).map_err(to_py_err)?;
-             let dense = res.to_dense_generic().map_err(to_py_err)?;
-             Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(dense) })
+            let res = coeus_nn::functional_api::gelu(t).map_err(to_py_err)?;
+            let dense = res.to_dense_generic().map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(dense),
+            })
         }
         TensorWrapper::CpuSparseF64(t) => {
-             let res = coeus_nn::functional_api::gelu(t).map_err(to_py_err)?;
-             let dense = res.to_dense_generic().map_err(to_py_err)?;
-             Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(dense) })
+            let res = coeus_nn::functional_api::gelu(t).map_err(to_py_err)?;
+            let dense = res.to_dense_generic().map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(dense),
+            })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
             "gelu not implemented for this tensor type",
@@ -137,26 +177,36 @@ pub fn silu(input: &PyTensor) -> PyResult<PyTensor> {
     match &input.inner {
         TensorWrapper::CpuDenseF32(t) => {
             let res = coeus_nn::functional_api::silu(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuDenseF64(t) => {
             let res = coeus_nn::functional_api::silu(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
         #[cfg(feature = "gpu")]
         TensorWrapper::GpuDenseF32(t) => {
             let res = coeus_nn::functional_api::silu(t).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
         }
         TensorWrapper::CpuSparseF32(t) => {
-             let res = coeus_nn::functional_api::silu(t).map_err(to_py_err)?;
-             let dense = res.to_dense_generic().map_err(to_py_err)?;
-             Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(dense) })
+            let res = coeus_nn::functional_api::silu(t).map_err(to_py_err)?;
+            let dense = res.to_dense_generic().map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(dense),
+            })
         }
         TensorWrapper::CpuSparseF64(t) => {
-             let res = coeus_nn::functional_api::silu(t).map_err(to_py_err)?;
-             let dense = res.to_dense_generic().map_err(to_py_err)?;
-             Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(dense) })
+            let res = coeus_nn::functional_api::silu(t).map_err(to_py_err)?;
+            let dense = res.to_dense_generic().map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(dense),
+            })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
             "silu not implemented for this tensor type",

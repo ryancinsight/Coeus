@@ -51,7 +51,7 @@ use crate::core::error::{NNError, Result};
 #[allow(clippy::multiple_bound_locations)]
 pub fn layer_norm<
     B: Backend<Data = T>,
-    S: StorageToDense<T> + StorageFromVec<T> + 'static,
+    S: StorageToDense<T> + StorageFromVec<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt,
 >(
     input: &Tensor<B, S, T>,
@@ -199,7 +199,7 @@ where
 #[allow(clippy::multiple_bound_locations)]
 pub fn batch_norm<
     B: Backend<Data = T>,
-    S: StorageToDense<T> + StorageFromVec<T> + 'static,
+    S: StorageToDense<T> + StorageFromVec<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt,
 >(
     input: &Tensor<B, S, T>,

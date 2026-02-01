@@ -35,7 +35,7 @@ impl<B, S, T> Function<B, S, T> for BMMFunction<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + crate::ops::dispatch::TensorStorageOps<T>,
-    T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T> + 'static,
+    T: DataType + Clone + Copy + num_traits::Zero + std::ops::Add<Output = T> + std::ops::Mul<Output = T> + std::ops::Neg<Output = T> + 'static,
 {
     fn inputs(&self) -> &[Arc<Tensor<B, S, T>>] {
         &self.inputs

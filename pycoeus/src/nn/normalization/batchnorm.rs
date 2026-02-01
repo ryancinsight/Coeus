@@ -104,16 +104,16 @@ impl PyBatchNorm1d {
             let unsqueezed = input.unsqueeze(2)?;
             let result = match (&self.inner, &unsqueezed.inner) {
                 (BatchNorm1DWrapper::CpuF32(m), TensorWrapper::CpuDenseF32(i)) => m
-                    .forward(i)
+                    .forward(&i)
                     .map_err(to_py_err)
                     .map(TensorWrapper::CpuDenseF32)?,
                 (BatchNorm1DWrapper::CpuF64(m), TensorWrapper::CpuDenseF64(i)) => m
-                    .forward(i)
+                    .forward(&i)
                     .map_err(to_py_err)
                     .map(TensorWrapper::CpuDenseF64)?,
                 #[cfg(feature = "gpu")]
                 (BatchNorm1DWrapper::GpuF32(m), TensorWrapper::GpuDenseF32(i)) => m
-                    .forward(i)
+                    .forward(&i)
                     .map_err(to_py_err)
                     .map(TensorWrapper::GpuDenseF32)?,
                 _ => {
@@ -126,16 +126,16 @@ impl PyBatchNorm1d {
         } else {
             let result = match (&self.inner, &input.inner) {
                 (BatchNorm1DWrapper::CpuF32(m), TensorWrapper::CpuDenseF32(i)) => m
-                    .forward(i)
+                    .forward(&i)
                     .map_err(to_py_err)
                     .map(TensorWrapper::CpuDenseF32)?,
                 (BatchNorm1DWrapper::CpuF64(m), TensorWrapper::CpuDenseF64(i)) => m
-                    .forward(i)
+                    .forward(&i)
                     .map_err(to_py_err)
                     .map(TensorWrapper::CpuDenseF64)?,
                 #[cfg(feature = "gpu")]
                 (BatchNorm1DWrapper::GpuF32(m), TensorWrapper::GpuDenseF32(i)) => m
-                    .forward(i)
+                    .forward(&i)
                     .map_err(to_py_err)
                     .map(TensorWrapper::GpuDenseF32)?,
                 _ => {

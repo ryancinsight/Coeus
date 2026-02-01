@@ -60,7 +60,7 @@ where
         grad: &tensor::Tensor<B, S, T>,
     ) -> Result<()>
     where
-        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + crate::AsAny,
+        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + crate::AsAny + tensor::ops::TensorStorageOps<T>,
     {
         let key = (tensor as *const tensor::Tensor<B, S, T>).cast::<()>();
 
@@ -82,7 +82,7 @@ where
     #[allow(clippy::missing_errors_doc)]
     pub fn apply_sparse_gradients<S>(&mut self) -> Result<()>
     where
-        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+        S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::TensorStorageOps<T>,
     {
         for (tensor_ptr, grad_coo) in self.gradients.drain() {
             unsafe {
@@ -106,7 +106,7 @@ where
     /// Convert tensor to COO format for sparse accumulation
     fn tensor_to_coo<S>(tensor: &tensor::Tensor<B, S, T>) -> Result<storage::CooStorage<T>>
     where
-        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + crate::AsAny,
+        S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + crate::AsAny + tensor::ops::TensorStorageOps<T>,
     {
         use storage::{CooStorage, CscStorage, CsrStorage};
 

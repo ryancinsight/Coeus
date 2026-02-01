@@ -81,6 +81,15 @@ pub enum TensorError {
         /// Size of dimension
         size: usize,
     },
+
+    /// Feature not implemented
+    NotImplemented(std::string::String),
+
+    /// Invalid input provided
+    InvalidInput {
+        /// Error message
+        message: std::string::String,
+    },
 }
 
 #[cfg(feature = "std")]
@@ -139,6 +148,12 @@ impl fmt::Display for TensorError {
             }
             Self::InvalidRange { start, end, size } => {
                 write!(f, "Invalid range [{start}, {end}) for dimension of size {size}")
+            }
+            Self::InvalidInput { message } => {
+                write!(f, "Invalid input: {message}")
+            }
+            Self::NotImplemented(msg) => {
+                write!(f, "Not implemented: {msg}")
             }
         }
     }

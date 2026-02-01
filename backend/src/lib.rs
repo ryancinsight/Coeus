@@ -945,12 +945,26 @@ pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
         rhs: &storage::DenseStorage<Self::Data>,
     ) -> Result<storage::DenseStorage<Self::Data>>;
 
+    /// Add strided storage element-wise
+    fn add_strided(
+        &self,
+        lhs: &storage::StridedStorage<Self::Data>,
+        rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>>;
+
     /// Multiply dense storage element-wise
     fn mul_dense(
         &self,
         lhs: &storage::DenseStorage<Self::Data>,
         rhs: &storage::DenseStorage<Self::Data>,
     ) -> Result<storage::DenseStorage<Self::Data>>;
+
+    /// Multiply strided storage element-wise
+    fn mul_strided(
+        &self,
+        lhs: &storage::StridedStorage<Self::Data>,
+        rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>>;
 
     /// Matrix multiplication for dense storage
     fn matmul_dense(
@@ -1004,6 +1018,13 @@ pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
         lhs: &storage::DenseStorage<Self::Data>,
         rhs: &storage::DenseStorage<Self::Data>,
     ) -> Result<storage::DenseStorage<Self::Data>>;
+
+    /// Subtract strided storages element-wise
+    fn sub_strided(
+        &self,
+        lhs: &storage::StridedStorage<Self::Data>,
+        rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>>;
 
     /// Apply exponential function element-wise
     fn exp_dense(
@@ -1140,6 +1161,50 @@ pub trait Backend: Send + Sync + Clone + fmt::Debug + Default + 'static {
     ) -> Result<storage::DenseStorage<Self::Data>>
     where
         Self::Data: num_traits::Float;
+
+    /// Cholesky decomposition: A = L L^T (for symmetric positive-definite A)
+    fn cholesky_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float;
+
+    /// QR decomposition: A = QR (Q orthogonal, R upper triangular)
+    fn qr_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<(storage::DenseStorage<Self::Data>, storage::DenseStorage<Self::Data>)>
+    where
+        Self::Data: num_traits::Float;
+
+    /// SVD decomposition: A = U S V^T
+    fn svd_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<(
+        storage::DenseStorage<Self::Data>,
+        storage::DenseStorage<Self::Data>,
+        storage::DenseStorage<Self::Data>,
+    )>
+    where
+        Self::Data: num_traits::Float;
+
+    /// Select values from the input tensor using the given indices.
+    fn take_dense(
+        &self,
+        input: &storage::DenseStorage<Self::Data>,
+        indices: &storage::DenseStorage<dtype::int::Int64>,
+    ) -> Result<storage::DenseStorage<Self::Data>>;
+
+    /// Place values into the input tensor at the given indices.
+    fn put_dense(
+        &self,
+        input: &mut storage::DenseStorage<Self::Data>,
+        indices: &storage::DenseStorage<dtype::int::Int64>,
+        values: &storage::DenseStorage<Self::Data>,
+        accumulate: bool,
+    ) -> Result<()>;
 
     /// Apply 2D convolution
     fn conv2d_dense(
@@ -1319,6 +1384,28 @@ impl<D: DataType> Backend for StubBackend<D> {
         })
     }
 
+    fn add_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "add_strided".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn mul_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "mul_strided".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
     fn matmul_dense(
         &self,
         _lhs: &storage::DenseStorage<Self::Data>,
@@ -1410,6 +1497,17 @@ impl<D: DataType> Backend for StubBackend<D> {
     ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "sub_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn sub_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "sub_strided".to_string(),
             backend: "stub".to_string(),
         })
     }
@@ -1583,6 +1681,73 @@ impl<D: DataType> Backend for StubBackend<D> {
     ) -> Result<storage::DenseStorage<Self::Data>> {
         Err(BackendError::UnsupportedOperation {
             operation: "round_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn cholesky_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: num_traits::Float,
+    {
+        Err(BackendError::UnsupportedOperation {
+            operation: "cholesky_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn qr_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<(storage::DenseStorage<Self::Data>, storage::DenseStorage<Self::Data>)>
+    where
+        Self::Data: num_traits::Float,
+    {
+        Err(BackendError::UnsupportedOperation {
+            operation: "qr_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn svd_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+    ) -> Result<(
+        storage::DenseStorage<Self::Data>,
+        storage::DenseStorage<Self::Data>,
+        storage::DenseStorage<Self::Data>,
+    )>
+    where
+        Self::Data: num_traits::Float,
+    {
+        Err(BackendError::UnsupportedOperation {
+            operation: "svd_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn take_dense(
+        &self,
+        _input: &storage::DenseStorage<Self::Data>,
+        _indices: &storage::DenseStorage<dtype::int::Int64>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "take_dense".to_string(),
+            backend: "stub".to_string(),
+        })
+    }
+
+    fn put_dense(
+        &self,
+        _input: &mut storage::DenseStorage<Self::Data>,
+        _indices: &storage::DenseStorage<dtype::int::Int64>,
+        _values: &storage::DenseStorage<Self::Data>,
+        _accumulate: bool,
+    ) -> Result<()> {
+        Err(BackendError::UnsupportedOperation {
+            operation: "put_dense".to_string(),
             backend: "stub".to_string(),
         })
     }

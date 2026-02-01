@@ -335,7 +335,7 @@ where
 
             // Apply weight decay if specified
             let effective_grad = if self.weight_decay > 0.0 {
-                let weight_decay_t = Tensor::from_vec_with_backend(vec![weight_decay], &[], param_state.param.backend().clone())
+                let weight_decay_t: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec_with_backend(vec![weight_decay], &[], param_state.param.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let weight_decay_term = mul(&param_state.param, &weight_decay_t)?;
                 add(&grad, &weight_decay_term)?
@@ -354,10 +354,10 @@ where
                     }
                 })?;
 
-                let momentum_t = Tensor::from_vec_with_backend(vec![momentum], &[], effective_grad.backend().clone())
+                let momentum_t: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec_with_backend(vec![momentum], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                      
-                let one_minus_dampening_t = Tensor::from_vec_with_backend(vec![one - dampening], &[], effective_grad.backend().clone())
+                let one_minus_dampening_t: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec_with_backend(vec![one - dampening], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
 
                 let new_velocity = add(
@@ -374,7 +374,7 @@ where
                     velocity.clone()
                 };
 
-                let lr_t = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
+                let lr_t: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let param_update = mul(&update_dir, &lr_t)?;
                 if param_state.param.as_slice().len() != param_update.as_slice().len() {
@@ -394,7 +394,7 @@ where
                 }
             } else {
                 // Standard SGD: p = p - lr * g
-                let lr_t = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
+                let lr_t: Tensor<B, DenseStorage<T>, T> = Tensor::from_vec_with_backend(vec![lr], &[], effective_grad.backend().clone())
                      .map_err(|e| crate::OptimError::TensorError { source: e })?;
                 let param_update = mul(&effective_grad, &lr_t)?;
                 if param_state.param.as_slice().len() != param_update.as_slice().len() {

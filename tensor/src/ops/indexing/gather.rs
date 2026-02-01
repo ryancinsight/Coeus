@@ -4,6 +4,7 @@
 
 use crate::{Result, Tensor, TensorError};
 use backend::Backend;
+use dtype::int::I64;
 use dtype::DataType;
 use storage::{Storage, StorageFromVec, StorageToDense};
 
@@ -20,34 +21,40 @@ use storage::{Storage, StorageFromVec, StorageToDense};
 /// * `input` - The source tensor
 /// * `dim` - The axis along which to index
 /// * `index` - The indices of elements to gather
-pub fn gather<B, T, S>(
+pub fn gather<B, BI, T, S, SI>(
     input: &Tensor<B, S, T>,
     dim: usize,
-    index: &[usize],
-    index_shape: &[usize],
+    index: &Tensor<BI, SI, I64>,
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
+    BI: Backend<Data = I64> + Clone + Default + 'static,
     T: DataType + Copy + Default + 'static,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    SI: Storage<I64> + StorageFromVec<I64> + StorageToDense<I64> + Clone + 'static,
 {
-    let input_shape = input.shape().dims();
-    let ndim = input_shape.len();
+    let input_shape_dims = input.shape().dims();
+    let index_shape_dims = index.shape().dims();
+    let ndim = input_shape_dims.len();
 
     if dim >= ndim {
         return Err(TensorError::InvalidDimension { dim, ndim });
     }
 
     // Validate index shape matches input shape except for gathered dimension
-    if index_shape.len() != ndim {
+    if index_shape_dims.len() != ndim {
         return Err(TensorError::ShapeError {
             expected: ndim,
-            actual: index_shape.len(),
+            actual: index_shape_dims.len(),
             message: "Index must have same number of dimensions as input".to_string(),
         });
     }
 
-    for (i, (&idx_dim, &inp_dim)) in index_shape.iter().zip(input_shape.iter()).enumerate() {
+    for (i, (&idx_dim, &inp_dim)) in index_shape_dims
+        .iter()
+        .zip(input_shape_dims.iter())
+        .enumerate()
+    {
         if i != dim && idx_dim != inp_dim {
             return Err(TensorError::ShapeError {
                 expected: inp_dim,
@@ -58,19 +65,20 @@ where
     }
 
     let input_data = input.as_slice();
-    let output_numel: usize = index_shape.iter().product();
+    let index_data = index.as_slice();
+    let output_numel: usize = index_shape_dims.iter().product();
     let mut output_data = alloc::vec![T::default(); output_numel];
 
     // Compute strides for input tensor
     let mut input_strides = alloc::vec![1usize; ndim];
     for i in (0..ndim - 1).rev() {
-        input_strides[i] = input_strides[i + 1] * input_shape[i + 1];
+        input_strides[i] = input_strides[i + 1] * input_shape_dims[i + 1];
     }
 
     // Compute strides for index/output tensor
     let mut output_strides = alloc::vec![1usize; ndim];
     for i in (0..ndim - 1).rev() {
-        output_strides[i] = output_strides[i + 1] * index_shape[i + 1];
+        output_strides[i] = output_strides[i + 1] * index_shape_dims[i + 1];
     }
 
     // Iterate over all output positions
@@ -84,24 +92,28 @@ where
         }
 
         // Replace coordinate at dim with the index value
-        let gather_idx = index[out_idx];
-        if gather_idx >= input_shape[dim] {
+        let gather_idx = index_data[out_idx].get() as usize;
+        if gather_idx >= input_shape_dims[dim] {
             return Err(TensorError::ShapeError {
-                expected: input_shape[dim],
+                expected: input_shape_dims[dim],
                 actual: gather_idx,
-                message: format!("Index {} out of bounds for dimension {} with size {}", 
-                    gather_idx, dim, input_shape[dim]),
+                message: format!(
+                    "Index {} out of bounds for dimension {} with size {}",
+                    gather_idx, dim, input_shape_dims[dim]
+                ),
             });
         }
         coords[dim] = gather_idx;
 
         // Compute flat input index
-        let input_flat_idx: usize = coords.iter().zip(input_strides.iter())
+        let input_flat_idx: usize = coords
+            .iter()
+            .zip(input_strides.iter())
             .map(|(&c, &s)| c * s)
             .sum();
 
         output_data[out_idx] = input_data[input_flat_idx];
     }
 
-    Tensor::from_vec_with_backend(output_data, index_shape, input.backend.clone())
+    Tensor::from_vec_with_backend(output_data, index_shape_dims, input.backend.clone())
 }

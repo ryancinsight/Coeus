@@ -5,9 +5,9 @@ use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 use std::marker::PhantomData;
 use storage::{Storage, StorageFromVec, StorageToDense};
-use tensor::Tensor;
 
-use super::kernels::conv_transpose_3d_cpu_dense;
+use tensor::{ops::TensorStorageOps, tensor_backend_dispatch::TensorBackendDispatcher, Tensor};
+
 
 /// 3D Transposed Convolutional layer (Deconvolution).
 #[derive(Debug, Clone)]
@@ -173,8 +173,8 @@ where
 
 impl<B, S, T> Module<B, S, T> for ConvTranspose3d<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    B: Backend<Data = T> + Clone + Default + TensorBackendDispatcher<B, S, T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + TensorStorageOps<T> + 'static,
     T: DataType + FloatExt + PartialOrd + num_traits::Float + num_traits::FromPrimitive + 'static,
 {
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
@@ -199,18 +199,10 @@ where
             });
         }
 
-        let input_cpu = input.to_cpu_dense()?;
-        let weight_cpu = self.weight.data().to_cpu_dense()?;
-        let bias_cpu = self
-            .bias
-            .as_ref()
-            .map(|b| b.data().to_cpu_dense())
-            .transpose()?;
-
-        let output_cpu = conv_transpose_3d_cpu_dense(
-            &input_cpu,
-            &weight_cpu,
-            bias_cpu.as_ref(),
+        let output = tensor::ops::conv::conv_transpose3d(
+            input,
+            self.weight.data(),
+            self.bias.as_ref().map(|b| b.data()),
             (self.stride_d, self.stride_h, self.stride_w),
             (self.padding_d, self.padding_h, self.padding_w),
             (
@@ -220,10 +212,7 @@ where
             ),
         )?;
 
-        let output_shape = output_cpu.shape().dims();
-        let output_data = output_cpu.as_slice().to_vec();
-
-        Ok(Tensor::from_vec(output_data, output_shape)?)
+        Ok(output)
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {

@@ -29,6 +29,7 @@ pub struct TTSModel {
     /// Voice characteristics
     voice_characteristics: VoiceCharacteristics,
     /// Sample rate
+    #[allow(dead_code)]
     sample_rate: usize,
 }
 

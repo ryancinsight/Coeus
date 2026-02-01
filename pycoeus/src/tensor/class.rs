@@ -1,585 +1,298 @@
-use backend::CpuBackend;
-#[cfg(feature = "gpu")]
-use backend::GpuBackend;
-use coeus_linalg::qr::QRResult;
-use coeus_linalg::svd::SVDResult;
-use coeus_linalg::{Cholesky, Det, Inverse, Norm, Solve, QR, SVD};
-use dtype::float::{Float32, Float64};
-use dtype::int::Int64;
+pub use crate::tensor::wrapper::TensorWrapper;
 use pyo3::prelude::*;
-use storage::{CsrStorage, DenseStorage};
-use tensor::tensor_core::Tensor;
-use tensor::TensorError;
+use crate::tensor::wrapper::WrapTensor;
+use crate::{dispatch_tensor, dispatch_binary, dispatch_dense_tensor, dispatch_float_dense_tensor};
+use pyo3::types::PyAnyMethods; // For into_pyobject? or just pyo3 prelude covers it.
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[pyclass(name = "Tensor", subclass)]
+#[derive(Clone, Debug)]
+pub struct PyTensor {
+    pub inner: TensorWrapper,
+}
+
+#[derive(Clone, Debug)]
 #[pyclass(name = "Device")]
 pub enum Device {
     CPU,
-    CUDA,
+    GPU,
 }
 
-#[derive(Clone)]
-pub enum TensorWrapper {
-    CpuDenseF32(Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>),
-    CpuDenseF64(Tensor<CpuBackend<Float64>, DenseStorage<Float64>, Float64>),
-    #[cfg(feature = "gpu")]
-    GpuDenseF32(Tensor<GpuBackend<Float32>, DenseStorage<Float32>, Float32>),
-    CpuSparseF32(Tensor<CpuBackend<Float32>, CsrStorage<Float32>, Float32>),
-    CpuSparseF64(Tensor<CpuBackend<Float64>, CsrStorage<Float64>, Float64>),
-    CpuDenseI64(Tensor<CpuBackend<Int64>, DenseStorage<Int64>, Int64>),
+pub fn to_py_err(err: impl std::fmt::Display) -> PyErr {
+    pyo3::exceptions::PyRuntimeError::new_err(err.to_string())
 }
 
-impl TensorWrapper {
-    pub fn shape(&self) -> &::tensor::Shape {
-        match self {
-            Self::CpuDenseF32(t) => t.shape(),
-            Self::CpuDenseF64(t) => t.shape(),
-            Self::CpuSparseF32(t) => t.shape(),
-            Self::CpuSparseF64(t) => t.shape(),
-            Self::CpuDenseI64(t) => t.shape(),
+#[pymethods]
+impl PyTensor {
+    #[getter]
+    pub fn shape(&self) -> Vec<usize> {
+        self.inner.shape().dims().to_vec()
+    }
+
+    #[getter]
+    pub fn ndim(&self) -> usize {
+        self.inner.shape().dims().len()
+    }
+
+    pub fn clone(&self) -> PyTensor {
+        PyTensor {
+            inner: self.inner.clone(),
+        }
+    }
+
+    pub fn __repr__(&self) -> String {
+        format!("Tensor(shape={:?}, dtype={:?})", self.shape(), self.dtype_name())
+    }
+
+
+    pub fn __getitem__(&self, index: &Bound<'_, PyAny>) -> PyResult<PyTensor> {
+        crate::tensor::ops::indexing::getitem(self, index)
+    }
+
+    #[getter]
+    pub fn device(&self) -> Device {
+        match &self.inner {
             #[cfg(feature = "gpu")]
-            Self::GpuDenseF32(t) => t.shape(),
+            TensorWrapper::GpuDenseF32(_) | TensorWrapper::GpuStridedF32(_) |
+            TensorWrapper::GpuDenseF64(_) | TensorWrapper::GpuStridedF64(_) => Device::GPU,
+            _ => Device::CPU,
         }
     }
 
-    pub fn requires_grad_(self, requires_grad: bool) -> Self {
-        match self {
-            Self::CpuDenseF32(t) => Self::CpuDenseF32(t.requires_grad_(requires_grad)),
-            Self::CpuDenseF64(t) => Self::CpuDenseF64(t.requires_grad_(requires_grad)),
-            Self::CpuSparseF32(t) => Self::CpuSparseF32(t.requires_grad_(requires_grad)),
-            Self::CpuSparseF64(t) => Self::CpuSparseF64(t.requires_grad_(requires_grad)),
-            Self::CpuDenseI64(t) => Self::CpuDenseI64(t.requires_grad_(requires_grad)),
+    #[getter]
+    pub fn dtype_name(&self) -> String {
+        match &self.inner {
+            TensorWrapper::CpuDenseF32(_) | TensorWrapper::CpuStridedF32(_) => "float32".to_string(),
+            TensorWrapper::CpuDenseF64(_) | TensorWrapper::CpuStridedF64(_) => "float64".to_string(),
             #[cfg(feature = "gpu")]
-            Self::GpuDenseF32(t) => Self::GpuDenseF32(t.requires_grad_(requires_grad)),
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.shape().size()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn as_slice(&self) -> &[Float32] {
-        match self {
-            Self::CpuDenseF32(t) => t.as_slice(),
-            _ => panic!("as_slice only supported for CpuDenseF32 in current FFT impl"),
-        }
-    }
-
-    pub fn storage_ref(&self) -> &DenseStorage<Float32> {
-        match self {
-            Self::CpuDenseF32(t) => t.storage(),
-            _ => panic!("storage_ref only supported for CpuDenseF32 in current FFT impl"),
-        }
-    }
-
-    pub fn inv(&self) -> Result<Self, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = t
-                    .inv()
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF32(res))
-            }
-            Self::CpuDenseF64(t) => {
-                let res = t
-                    .inv()
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF64(res))
-            }
-            _ => panic!("inv not implemented for this tensor type"),
-        }
-    }
-
-    pub fn norm(&self) -> Result<Float32, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = t
-                    .norm()
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(res)
-            }
-            _ => panic!("norm only implemented for F32"),
-        }
-    }
-
-    pub fn norm_p(&self, p: Float32) -> Result<Float32, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = t
-                    .norm_p(p)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(res)
-            }
-            _ => panic!("norm_p only implemented for F32"),
-        }
-    }
-
-    pub fn det(&self) -> Result<Float32, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = t
-                    .det()
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(res)
-            }
-            _ => panic!("det only implemented for F32"),
-        }
-    }
-
-    pub fn solve(&self, other: &Self) -> Result<Self, TensorError> {
-        match (self, other) {
-            (Self::CpuDenseF32(a), Self::CpuDenseF32(b)) => {
-                let res = a
-                    .solve(b)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF32(res))
-            }
-            _ => panic!("solve only implemented for F32"),
-        }
-    }
-
-    pub fn cholesky(&self) -> Result<Self, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = t
-                    .cholesky()
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF32(res))
-            }
-            _ => panic!("cholesky only implemented for F32"),
-        }
-    }
-
-    pub fn qr(&self) -> Result<QRResult<CpuBackend<Float32>, Float32>, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = t
-                    .qr()
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(res)
-            }
-            _ => panic!("qr only implemented for F32"),
-        }
-    }
-
-    pub fn svd(
-        &self,
-        full_matrices: bool,
-    ) -> Result<SVDResult<CpuBackend<Float32>, Float32>, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = t
-                    .svd(full_matrices)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(res)
-            }
-            _ => panic!("svd only implemented for F32"),
-        }
-    }
-
-    pub fn permute(&self, dims: &[usize]) -> Result<Self, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = t
-                    .permute(dims)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF32(res))
-            }
-            Self::CpuDenseF64(t) => {
-                let res = t
-                    .permute(dims)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF64(res))
-            }
+            TensorWrapper::GpuDenseF32(_) | TensorWrapper::GpuStridedF32(_) => "float32".to_string(),
             #[cfg(feature = "gpu")]
-            Self::GpuDenseF32(t) => {
-                let res = t
-                    .permute(dims)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::GpuDenseF32(res))
-            }
-            Self::CpuSparseF32(_) | Self::CpuSparseF64(_) | Self::CpuDenseI64(_) => Err(TensorError::BackendError(
-                "permute not implemented for sparse tensors".to_string(),
-            )),
+            TensorWrapper::GpuDenseF64(_) | TensorWrapper::GpuStridedF64(_) => "float64".to_string(),
+            TensorWrapper::CpuDenseI64(_) | TensorWrapper::CpuStridedI64(_) => "int64".to_string(),
+            TensorWrapper::CpuDenseC32(_) | TensorWrapper::CpuStridedC32(_) => "complex32".to_string(),
+            _ => "unknown".to_string(),
         }
     }
 
-    /// Element-wise reciprocal (1/x)
-    pub fn reciprocal(&self) -> Result<Self, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = tensor::ops::reciprocal(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF32(res))
+    #[getter]
+    pub fn grad(&self) -> PyResult<Option<PyTensor>> {
+        match &self.inner {
+            TensorWrapper::CpuDenseF32(inner) => {
+                if let Ok(grad_tensor) = inner.grad() {
+                     Ok(Some(PyTensor { inner: TensorWrapper::CpuDenseF32(grad_tensor) }))
+                } else {
+                     Ok(None)
+                }
             }
-            Self::CpuDenseF64(t) => {
-                let res = tensor::ops::reciprocal(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF64(res))
+            TensorWrapper::CpuDenseF64(inner) => {
+                if let Ok(grad_tensor) = inner.grad() {
+                     Ok(Some(PyTensor { inner: TensorWrapper::CpuDenseF64(grad_tensor) }))
+                } else {
+                     Ok(None)
+                }
             }
-            #[cfg(feature = "gpu")]
-            Self::GpuDenseF32(t) => {
-                let res = tensor::ops::reciprocal(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::GpuDenseF32(res))
-            }
-            Self::CpuSparseF32(_) | Self::CpuSparseF64(_) | Self::CpuDenseI64(_) => Err(TensorError::BackendError(
-                "reciprocal not implemented for sparse tensors".to_string(),
-            )),
+            _ => Ok(None),
         }
     }
 
-    /// Element-wise exp(x) - 1
-    pub fn expm1(&self) -> Result<Self, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = tensor::ops::expm1(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF32(res))
+    pub fn size(&self, dim: Option<usize>) -> PyResult<Py<PyAny>> {
+        Python::with_gil(|py| {
+            let dims = self.inner.shape().dims();
+            if let Some(d) = dim {
+                if d >= dims.len() {
+                    return Err(to_py_err(format!("Dimension out of range: {}", d)));
+                }
+                Ok(dims[d].into_pyobject(py).map_err(|e| to_py_err(format!("PyO3 error: {}", e)))?.into_any().unbind())
+            } else {
+                Ok(dims.to_vec().into_pyobject(py).map_err(|e| to_py_err(format!("PyO3 error: {}", e)))?.into_any().unbind())
             }
-            Self::CpuDenseF64(t) => {
-                let res = tensor::ops::expm1(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF64(res))
+        })
+    }
+
+    pub fn squeeze(&self, dim: Option<usize>) -> PyResult<PyTensor> {
+        let dense = self.contiguous()?;
+        dispatch_dense_tensor!(dense, t => {
+            let res = if let Some(d) = dim {
+                ::tensor::ops::squeeze(t, d).map_err(to_py_err)?.wrap()
+            } else {
+                t.clone().wrap()
+            };
+            Ok(PyTensor { inner: res })
+        })
+    }
+
+    pub fn unsqueeze(&self, dim: usize) -> PyResult<PyTensor> {
+        let dense = self.contiguous()?;
+        dispatch_dense_tensor!(dense, t => {
+            let res = ::tensor::ops::unsqueeze(t, dim).map_err(to_py_err)?;
+            Ok(PyTensor { inner: res.wrap() })
+        })
+    }
+
+    pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+        dispatch_tensor!(self, t => {
+            let res = ::tensor::ops::reshape(t, &shape).map_err(to_py_err)?;
+            Ok(PyTensor { inner: res.wrap() })
+        })
+    }
+
+    pub fn view(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
+        dispatch_tensor!(self, t => {
+            let res = ::tensor::ops::reshape(t, &shape).map_err(to_py_err)?;
+            Ok(PyTensor { inner: res.wrap() })
+        })
+    }
+
+    pub fn flatten(&self, start_dim: usize, end_dim: isize) -> PyResult<PyTensor> {
+        dispatch_tensor!(self, t => {
+            let res = ::tensor::ops::flatten(t, start_dim, end_dim).map_err(to_py_err)?;
+            Ok(PyTensor { inner: res.wrap() })
+        })
+    }
+
+    pub fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<PyTensor> {
+        dispatch_tensor!(self, t => {
+            let res = ::tensor::ops::transpose(t, dim0, dim1).map_err(to_py_err)?;
+            Ok(PyTensor { inner: res.wrap() })
+        })
+    }
+
+    pub fn permute(&self, dims: Vec<usize>) -> PyResult<PyTensor> {
+        let res = self.inner.permute(&dims).map_err(to_py_err)?;
+        Ok(PyTensor { inner: res })
+    }
+
+    pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        let a = self.contiguous()?;
+        let b = other.contiguous()?;
+        dispatch_binary!(a, b, a_inner, b_inner => {
+            let res = ::tensor::ops::matmul(a_inner, b_inner).map_err(to_py_err)?;
+            Ok(PyTensor { inner: res.wrap() })
+        })
+    }
+
+    pub fn bmm(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        self.matmul(other)
+    }
+
+    pub fn addmm(&self, mat1: &PyTensor, mat2: &PyTensor, beta: f64, alpha: f64) -> PyResult<PyTensor> {
+        let m12 = mat1.matmul(mat2)?;
+        let scaled_m12 = m12.mul_scalar(alpha)?;
+        let scaled_self = self.mul_scalar(beta)?;
+        scaled_self.add(&scaled_m12)
+    }
+
+    pub fn mv(&self, vec: &PyTensor) -> PyResult<PyTensor> {
+        self.matmul(vec)
+    }
+
+    pub fn addr(&self, vec1: &PyTensor, vec2: &PyTensor) -> PyResult<PyTensor> {
+        let m = vec1.unsqueeze(1)?.matmul(&vec2.unsqueeze(0)?)?;
+        self.add(&m)
+    }
+
+    pub fn outer(&self, other: &PyTensor) -> PyResult<PyTensor> {
+        self.unsqueeze(1)?.matmul(&other.unsqueeze(0)?)
+    }
+
+    pub fn abs(&self) -> PyResult<PyTensor> {
+        match &self.inner {
+            TensorWrapper::CpuDenseC32(_) | TensorWrapper::CpuStridedC32(_) => {
+                Err(to_py_err("Abs for complex not supported yet"))
             }
-            #[cfg(feature = "gpu")]
-            Self::GpuDenseF32(t) => {
-                let res = tensor::ops::expm1(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::GpuDenseF32(res))
+            _ => {
+                let dense = self.contiguous()?;
+                match &dense.inner {
+                     TensorWrapper::CpuDenseF32(t) => {
+                         let res = ::tensor::ops::abs(t).map_err(to_py_err)?;
+                         Ok(PyTensor { inner: res.wrap() })
+                     }
+                     TensorWrapper::CpuDenseF64(t) => {
+                         let res = ::tensor::ops::abs(t).map_err(to_py_err)?;
+                         Ok(PyTensor { inner: res.wrap() })
+                     }
+                     TensorWrapper::CpuDenseI64(t) => {
+                         let res = ::tensor::ops::abs(t).map_err(to_py_err)?;
+                         Ok(PyTensor { inner: res.wrap() })
+                     }
+                     _ => Err(to_py_err("Abs requires dense storage")),
+                }
             }
-            Self::CpuSparseF32(_) | Self::CpuSparseF64(_) | Self::CpuDenseI64(_) => Err(TensorError::BackendError(
-                "expm1 not implemented for sparse tensors".to_string(),
-            )),
         }
     }
 
-    /// Element-wise log(1 + x)
-    pub fn log1p(&self) -> Result<Self, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = tensor::ops::log1p(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF32(res))
+    pub fn neg(&self) -> PyResult<PyTensor> {
+        let dense = self.contiguous()?;
+        dispatch_dense_tensor!(dense, t => {
+            let res = ::tensor::ops::neg(t).map_err(to_py_err)?;
+            Ok(PyTensor { inner: res.wrap() })
+        })
+    }
+
+    pub fn sigmoid(&self) -> PyResult<PyTensor> {
+        let dense = self.contiguous()?;
+        dispatch_float_dense_tensor!(dense, t => {
+            let res = ::tensor::ops::sigmoid(t).map_err(to_py_err)?;
+            Ok(PyTensor { inner: res.wrap() })
+        })
+    }
+
+    pub fn tanh(&self) -> PyResult<PyTensor> {
+        let dense = self.contiguous()?;
+        dispatch_float_dense_tensor!(dense, t => {
+            let res = ::tensor::ops::tanh(t).map_err(to_py_err)?;
+            Ok(PyTensor { inner: res.wrap() })
+        })
+    }
+
+    pub fn clamp(&self, min: f64, max: f64) -> PyResult<PyTensor> {
+        let dense = self.contiguous()?;
+        match &dense.inner {
+            TensorWrapper::CpuDenseF32(t) => {
+                let min_t = dtype::float::Float32(min as f32);
+                let max_t = dtype::float::Float32(max as f32);
+                let res = t.clamp(min_t, max_t).map_err(to_py_err)?;
+                Ok(PyTensor { inner: res.wrap() })
             }
-            Self::CpuDenseF64(t) => {
-                let res = tensor::ops::log1p(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF64(res))
+            TensorWrapper::CpuDenseF64(t) => {
+                let min_t = dtype::float::Float64(min);
+                let max_t = dtype::float::Float64(max);
+                let res = t.clamp(min_t, max_t).map_err(to_py_err)?;
+                Ok(PyTensor { inner: res.wrap() })
             }
-            #[cfg(feature = "gpu")]
-            Self::GpuDenseF32(t) => {
-                let res = tensor::ops::log1p(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::GpuDenseF32(res))
-            }
-            Self::CpuSparseF32(_) | Self::CpuSparseF64(_) | Self::CpuDenseI64(_) => Err(TensorError::BackendError(
-                "log1p not implemented for sparse tensors".to_string(),
-            )),
+            _ => Err(to_py_err("Clamp not implemented for this storage")),
         }
     }
 
-    /// Cumulative sum along a dimension
-    pub fn cumsum(&self, dim: usize) -> Result<Self, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = tensor::ops::cumsum(t, dim)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF32(res))
-            }
-            Self::CpuDenseF64(t) => {
-                let res = tensor::ops::cumsum(t, dim)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF64(res))
-            }
-            #[cfg(feature = "gpu")]
-            Self::GpuDenseF32(t) => {
-                let res = tensor::ops::cumsum(t, dim)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::GpuDenseF32(res))
-            }
-            Self::CpuSparseF32(_) | Self::CpuSparseF64(_) | Self::CpuDenseI64(_) => Err(TensorError::BackendError(
-                "cumsum not implemented for sparse tensors".to_string(),
-            )),
-        }
+    pub fn argmax(&self, dim: Option<usize>, keepdim: bool) -> PyResult<PyTensor> {
+        crate::tensor::ops::reduction::argmax(self, dim, keepdim)
     }
 
-    /// Cumulative product along a dimension
-    pub fn cumprod(&self, dim: usize) -> Result<Self, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = tensor::ops::cumprod(t, dim)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF32(res))
-            }
-            Self::CpuDenseF64(t) => {
-                let res = tensor::ops::cumprod(t, dim)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF64(res))
-            }
-            #[cfg(feature = "gpu")]
-            Self::GpuDenseF32(t) => {
-                let res = tensor::ops::cumprod(t, dim)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::GpuDenseF32(res))
-            }
-            Self::CpuSparseF32(_) | Self::CpuSparseF64(_) | Self::CpuDenseI64(_) => Err(TensorError::BackendError(
-                "cumprod not implemented for sparse tensors".to_string(),
-            )),
-        }
+    pub fn argmin(&self, dim: Option<usize>, keepdim: bool) -> PyResult<PyTensor> {
+        crate::tensor::ops::reduction::argmin(self, dim, keepdim)
     }
 
-    /// Degrees to radians
-    pub fn deg2rad(&self) -> Result<Self, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = tensor::ops::deg2rad(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF32(res))
-            }
-            Self::CpuDenseF64(t) => {
-                let res = tensor::ops::deg2rad(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF64(res))
-            }
-            #[cfg(feature = "gpu")]
-            Self::GpuDenseF32(t) => {
-                let res = tensor::ops::deg2rad(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::GpuDenseF32(res))
-            }
-            Self::CpuSparseF32(_) | Self::CpuSparseF64(_) | Self::CpuDenseI64(_) => Err(TensorError::BackendError(
-                "deg2rad not implemented for sparse or integer tensors".to_string(),
-            )),
-        }
-
+    pub fn gather(&self, dim: usize, index: &PyTensor) -> PyResult<PyTensor> {
+        crate::tensor::ops::indexing::gather(self, dim, index)
     }
 
-    /// Radians to degrees
-    pub fn rad2deg(&self) -> Result<Self, TensorError> {
-        match self {
-            Self::CpuDenseF32(t) => {
-                let res = tensor::ops::rad2deg(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF32(res))
-            }
-            Self::CpuDenseF64(t) => {
-                let res = tensor::ops::rad2deg(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::CpuDenseF64(res))
-            }
-            #[cfg(feature = "gpu")]
-            Self::GpuDenseF32(t) => {
-                let res = tensor::ops::rad2deg(t)
-                    .map_err(|e| TensorError::BackendError(format!("{}", e)))?;
-                Ok(Self::GpuDenseF32(res))
-            }
-            Self::CpuSparseF32(_) | Self::CpuSparseF64(_) | Self::CpuDenseI64(_) => Err(TensorError::BackendError(
-                "rad2deg not implemented for sparse or integer tensors".to_string(),
-            )),
-        }
-
+    pub fn take(&self, indices: &PyTensor) -> PyResult<PyTensor> {
+        crate::tensor::ops::indexing::take(self, indices)
     }
-}
 
-pub fn to_py_err<E: std::fmt::Display>(e: E) -> PyErr {
-    crate::error::convert_error(format!("Tensor error: {}", e))
-}
+    pub fn put(&self, indices: &PyTensor, values: &PyTensor, accumulate: Option<bool>) -> PyResult<PyTensor> {
+        crate::tensor::ops::indexing::put(self, indices, values, accumulate.unwrap_or(false))
+    }
 
-#[macro_export]
-macro_rules! dispatch_tensor {
-    ($tensor:expr, $inner:ident => $expr:expr) => {
-        match &$tensor.inner {
-            TensorWrapper::CpuDenseF32($inner) => $expr,
-            TensorWrapper::CpuDenseF64($inner) => $expr,
-            #[cfg(feature = "gpu")]
-            TensorWrapper::GpuDenseF32($inner) => $expr,
-            TensorWrapper::CpuSparseF32($inner) => $expr,
-            TensorWrapper::CpuSparseF64($inner) => $expr,
-            TensorWrapper::CpuDenseI64($inner) => $expr,
-        }
-    };
-}
+    pub fn masked_select(&self, mask: &PyTensor) -> PyResult<PyTensor> {
+        crate::tensor::ops::indexing::masked_select(self, mask)
+    }
 
+    pub fn masked_fill(&self, mask: &PyTensor, value: f64) -> PyResult<PyTensor> {
+        crate::tensor::ops::indexing::masked_fill(self, mask, value)
+    }
 
-#[macro_export]
-macro_rules! dispatch_tensor_mut {
-    ($tensor:expr, $inner:ident => $expr:expr) => {
-        match &mut $tensor.inner {
-            TensorWrapper::CpuDenseF32($inner) => $expr,
-            TensorWrapper::CpuDenseF64($inner) => $expr,
-            #[cfg(feature = "gpu")]
-            TensorWrapper::GpuDenseF32($inner) => $expr,
-            TensorWrapper::CpuSparseF32($inner) => $expr,
-            TensorWrapper::CpuSparseF64($inner) => $expr,
-            TensorWrapper::CpuDenseI64($inner) => $expr,
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! dispatch_float_tensor_mut {
-    ($tensor:expr, $inner:ident => $expr:expr) => {
-        match &mut $tensor.inner {
-            TensorWrapper::CpuDenseF32($inner) => $expr,
-            TensorWrapper::CpuDenseF64($inner) => $expr,
-            #[cfg(feature = "gpu")]
-            TensorWrapper::GpuDenseF32($inner) => $expr,
-            TensorWrapper::CpuSparseF32($inner) => $expr,
-            TensorWrapper::CpuSparseF64($inner) => $expr,
-            TensorWrapper::CpuDenseI64(_) => {
-                Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-                    "Operation not implemented for integer tensors"
-                ))
-            }
-        }
-    };
-}
-
-
-#[macro_export]
-macro_rules! dispatch_binary {
-    ($lhs:expr, $rhs:expr, $a:ident, $b:ident => $expr:expr) => {
-        match (&$lhs.inner, &$rhs.inner) {
-            (TensorWrapper::CpuDenseF32($a), TensorWrapper::CpuDenseF32($b)) => {
-                let res = $expr;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF32(res),
-                })
-            }
-            (TensorWrapper::CpuDenseF64($a), TensorWrapper::CpuDenseF64($b)) => {
-                let res = $expr;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF64(res),
-                })
-            }
-            #[cfg(feature = "gpu")]
-            (TensorWrapper::GpuDenseF32($a), TensorWrapper::GpuDenseF32($b)) => {
-                let res = $expr;
-                Ok(PyTensor {
-                    inner: TensorWrapper::GpuDenseF32(res),
-                })
-            }
-            (TensorWrapper::CpuSparseF32($a), TensorWrapper::CpuSparseF32($b)) => {
-                let res = $expr;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuSparseF32(res),
-                })
-            }
-            (TensorWrapper::CpuSparseF64($a), TensorWrapper::CpuSparseF64($b)) => {
-                let res = $expr;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuSparseF64(res),
-                })
-            }
-            (TensorWrapper::CpuDenseI64($a), TensorWrapper::CpuDenseI64($b)) => {
-                let res = $expr;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseI64(res),
-                })
-            }
-            _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Tensor backend/dtype/storage mismatch",
-            )),
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! dispatch_unary {
-    ($self:expr, $inner:ident => $expr:expr) => {
-        match &$self.inner {
-            TensorWrapper::CpuDenseF32($inner) => {
-                let res = $expr.map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF32(res),
-                })
-            }
-            TensorWrapper::CpuDenseF64($inner) => {
-                let res = $expr.map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF64(res),
-                })
-            }
-            #[cfg(feature = "gpu")]
-            TensorWrapper::GpuDenseF32($inner) => {
-                let res = $expr.map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::GpuDenseF32(res),
-                })
-            }
-            TensorWrapper::CpuSparseF32($inner) => {
-                let res = $expr.map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuSparseF32(res),
-                })
-            }
-            TensorWrapper::CpuSparseF64($inner) => {
-                let res = $expr.map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuSparseF64(res),
-                })
-            }
-            TensorWrapper::CpuDenseI64($inner) => {
-                let res = $expr.map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseI64(res),
-                })
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! dispatch_float_unary {
-    ($self:expr, $inner:ident => $expr:expr) => {
-        match &$self.inner {
-            TensorWrapper::CpuDenseF32($inner) => {
-                let res = $expr.map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF32(res),
-                })
-            }
-            TensorWrapper::CpuDenseF64($inner) => {
-                let res = $expr.map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuDenseF64(res),
-                })
-            }
-            #[cfg(feature = "gpu")]
-            TensorWrapper::GpuDenseF32($inner) => {
-                let res = $expr.map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::GpuDenseF32(res),
-                })
-            }
-            TensorWrapper::CpuSparseF32($inner) => {
-                let res = $expr.map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuSparseF32(res),
-                })
-            }
-            TensorWrapper::CpuSparseF64($inner) => {
-                let res = $expr.map_err(to_py_err)?;
-                Ok(PyTensor {
-                    inner: TensorWrapper::CpuSparseF64(res),
-                })
-            }
-            TensorWrapper::CpuDenseI64(_) => {
-                Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-                    "Operation not implemented for integer tensors"
-                ))
-            }
-        }
-    };
-}
-
-#[pyclass(name = "Tensor", module = "coeus", subclass)]
-#[derive(Clone)]
-pub struct PyTensor {
-    pub inner: TensorWrapper,
+    #[pyo3(name = "where")]
+    pub fn where_(&self, condition: &PyTensor, other: &PyTensor) -> PyResult<PyTensor> {
+         crate::tensor::ops::comparison::where_(condition, self, other)
+    }
 }

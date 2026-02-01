@@ -20,16 +20,19 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
 {
     let sum_t = tensor.sum_generic(dims, keepdim)?;
-    
+
     let numel: usize = tensor.shape().dims().iter().product();
     let out_numel: usize = sum_t.shape().dims().iter().product();
     let n = numel / out_numel;
     let factor = T::from_f64(1.0 / n as f64).unwrap();
-    
+
     let mut result = sum_t.mul_scalar(factor)?;
 
     if crate::tensor_core::grad_enabled() && tensor.requires_grad() {
-        let grad_fn = crate::functions::MeanFunction::new(Arc::new(tensor.clone()), tensor.shape().dims().to_vec());
+        let grad_fn = crate::functions::MeanFunction::new(
+            Arc::new(tensor.clone()),
+            tensor.shape().dims().to_vec(),
+        );
         result = result
             .requires_grad_(true)
             .with_grad_fn(Some(Arc::new(grad_fn)));

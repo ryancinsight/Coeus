@@ -44,7 +44,6 @@ impl<T: DataType> CooStorage<T> {
         Self::new(data, row_indices, col_indices, shape_dims)
     }
 
-    /// Create filled with constant value
     pub fn full_value(dims: &[usize], value: T) -> Result<Self> {
         if dims.len() != 2 {
             return Err(StorageError::InvalidShape {
@@ -75,3 +74,6 @@ impl<T: DataType> CooStorage<T> {
         }
     }
 }
+
+
+

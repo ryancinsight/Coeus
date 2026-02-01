@@ -1,15 +1,15 @@
+use crate::Tensor;
 use backend::{Backend, DataType};
 use storage::{Storage, StorageFromVec, StorageToDense};
-use crate::Tensor;
 
 /// Returns a new tensor with the same data but a different shape.
 pub fn view<B, S, T>(
     tensor: &Tensor<B, S, T>,
     dims: &[isize],
-) -> crate::Result<Tensor<B, crate::DenseStorage<T>, T>> 
+) -> crate::Result<Tensor<B, crate::DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Default + Clone + 'static,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
     T: DataType + Clone + 'static,
 {
     crate::ops::shape::reshape::reshape(tensor, dims)
@@ -18,7 +18,7 @@ where
 impl<B, S, T> Tensor<B, S, T>
 where
     B: Backend<Data = T> + Default + Clone + 'static,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
     T: DataType + Clone + 'static,
 {
     /// Returns a new tensor with the same data but a different shape.
@@ -38,10 +38,7 @@ where
     ///
     /// # Returns
     /// Tensor with new shape.
-    pub fn view(
-        &self,
-        dims: &[isize],
-    ) -> crate::Result<Tensor<B, crate::DenseStorage<T>, T>> {
+    pub fn view(&self, dims: &[isize]) -> crate::Result<Tensor<B, crate::DenseStorage<T>, T>> {
         view(self, dims)
     }
 }

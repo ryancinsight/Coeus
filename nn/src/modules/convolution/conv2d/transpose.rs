@@ -6,9 +6,9 @@ use dtype::{traits::FloatExt, DataType};
 use std::marker::PhantomData;
 use std::ops::Neg;
 use storage::{Storage, StorageFromVec, StorageToDense};
-use tensor::Tensor;
 
-use super::kernels::conv_transpose_2d_cpu_dense;
+use tensor::{ops::TensorStorageOps, tensor_backend_dispatch::TensorBackendDispatcher, Tensor};
+
 
 /// 2D Transposed Convolutional layer (Deconvolution).
 #[derive(Debug, Clone)]
@@ -144,8 +144,8 @@ where
 
 impl<B, S, T> Module<B, S, T> for ConvTranspose2d<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    B: Backend<Data = T> + Clone + Default + TensorBackendDispatcher<B, S, T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + TensorStorageOps<T> + 'static,
     T: DataType
         + FloatExt
         + Neg<Output = T>
@@ -173,18 +173,10 @@ where
             });
         }
 
-        let input_cpu = input.to_cpu_dense()?;
-        let weight_cpu = self.weight.data().to_cpu_dense()?;
-        let bias_cpu = self
-            .bias
-            .as_ref()
-            .map(|b| b.data().to_cpu_dense())
-            .transpose()?;
-
-        let output_cpu = conv_transpose_2d_cpu_dense(
-            &input_cpu,
-            &weight_cpu,
-            bias_cpu.as_ref(),
+        let output = tensor::ops::conv::conv_transpose2d(
+            input,
+            self.weight.data(),
+            self.bias.as_ref().map(|b| b.data()),
             self.stride_h,
             self.stride_w,
             self.padding_h,
@@ -193,10 +185,7 @@ where
             self.output_padding_w,
         )?;
 
-        let output_shape = output_cpu.shape().dims();
-        let output_data = output_cpu.as_slice().to_vec();
-
-        Ok(Tensor::from_vec(output_data, output_shape)?)
+        Ok(output)
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {

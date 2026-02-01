@@ -1,25 +1,19 @@
 //! Element-wise exponential
 
+use crate::functions::ExpFunction;
 use crate::{Result, Tensor};
 use backend::Backend;
 use dtype::DataType;
 use num_traits::Float;
 use std::sync::Arc;
 use storage::{Storage, StorageFromVec, StorageToDense};
-use crate::functions::ExpFunction;
 
 /// Element-wise exponential
-pub fn exp<
-    T,
-    B,
-    S,
->(
-    tensor: &Tensor<B, S, T>,
-) -> Result<Tensor<B, S, T>>
+pub fn exp<T, B, S>(tensor: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
     T: DataType + Float + dtype::traits::FloatExt + 'static,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + StorageToDense<T> + crate::ops::TensorStorageOps<T> + 'static,
 {
     let data = tensor.as_slice().iter().map(|&x| x.exp()).collect();
     let mut result =

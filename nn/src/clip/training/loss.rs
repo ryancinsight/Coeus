@@ -6,7 +6,7 @@
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
 use std::fmt;
-use std::ops::Mul;
+
 use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::{Tensor, ops::linalg::matmul};
 
@@ -67,7 +67,7 @@ pub fn info_nce_loss<B, S, T>(
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageToDense<T> + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + StorageToDense<T> + StorageFromVec<T> + 'static,+ tensor::ops::TensorStorageOps<T>
     T: DataType
         + FloatExt
         + std::ops::Neg<Output = T>

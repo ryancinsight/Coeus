@@ -7,16 +7,22 @@ pub fn mse_loss(input: &PyTensor, target: &PyTensor) -> PyResult<PyTensor> {
     match (&input.inner, &target.inner) {
         (TensorWrapper::CpuDenseF32(a), TensorWrapper::CpuDenseF32(b)) => {
             let res = coeus_nn::functional_api::mse_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         (TensorWrapper::CpuDenseF64(a), TensorWrapper::CpuDenseF64(b)) => {
             let res = coeus_nn::functional_api::mse_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
         #[cfg(feature = "gpu")]
         (TensorWrapper::GpuDenseF32(a), TensorWrapper::GpuDenseF32(b)) => {
-             let res = coeus_nn::functional_api::mse_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
+            let res = coeus_nn::functional_api::mse_loss(a, b).map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
             "mse_loss not implemented for these types (requires float)",
@@ -29,16 +35,22 @@ pub fn l1_loss(input: &PyTensor, target: &PyTensor) -> PyResult<PyTensor> {
     match (&input.inner, &target.inner) {
         (TensorWrapper::CpuDenseF32(a), TensorWrapper::CpuDenseF32(b)) => {
             let res = coeus_nn::functional_api::l1_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         (TensorWrapper::CpuDenseF64(a), TensorWrapper::CpuDenseF64(b)) => {
             let res = coeus_nn::functional_api::l1_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
         #[cfg(feature = "gpu")]
         (TensorWrapper::GpuDenseF32(a), TensorWrapper::GpuDenseF32(b)) => {
-             let res = coeus_nn::functional_api::l1_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
+            let res = coeus_nn::functional_api::l1_loss(a, b).map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
             "l1_loss not implemented for these types (requires float)",
@@ -68,16 +80,22 @@ pub fn binary_cross_entropy(input: &PyTensor, target: &PyTensor) -> PyResult<PyT
     match (&input.inner, &target.inner) {
         (TensorWrapper::CpuDenseF32(a), TensorWrapper::CpuDenseF32(b)) => {
             let res = coeus_nn::functional_api::binary_cross_entropy(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         (TensorWrapper::CpuDenseF64(a), TensorWrapper::CpuDenseF64(b)) => {
             let res = coeus_nn::functional_api::binary_cross_entropy(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
-         #[cfg(feature = "gpu")]
+        #[cfg(feature = "gpu")]
         (TensorWrapper::GpuDenseF32(a), TensorWrapper::GpuDenseF32(b)) => {
-             let res = coeus_nn::functional_api::binary_cross_entropy(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
+            let res = coeus_nn::functional_api::binary_cross_entropy(a, b).map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
             "binary_cross_entropy not implemented for these types (requires float)",
@@ -145,16 +163,22 @@ pub fn bce_with_logits_loss(input: &PyTensor, target: &PyTensor) -> PyResult<PyT
     let result = match (&input.inner, &target.inner) {
         (TensorWrapper::CpuDenseF32(a), TensorWrapper::CpuDenseF32(b)) => {
             let res = coeus_nn::functional_api::bce_with_logits_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         (TensorWrapper::CpuDenseF64(a), TensorWrapper::CpuDenseF64(b)) => {
             let res = coeus_nn::functional_api::bce_with_logits_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
-         #[cfg(feature = "gpu")]
+        #[cfg(feature = "gpu")]
         (TensorWrapper::GpuDenseF32(a), TensorWrapper::GpuDenseF32(b)) => {
-             let res = coeus_nn::functional_api::bce_with_logits_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
+            let res = coeus_nn::functional_api::bce_with_logits_loss(a, b).map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
             "bce_with_logits_loss not implemented for these types (requires float)",
@@ -193,16 +217,22 @@ pub fn nll_loss(
     let result = match (&input.inner, &target.inner) {
         (TensorWrapper::CpuDenseF32(a), TensorWrapper::CpuDenseF32(b)) => {
             let res = coeus_nn::functional_api::nll_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
         }
         (TensorWrapper::CpuDenseF64(a), TensorWrapper::CpuDenseF64(b)) => {
             let res = coeus_nn::functional_api::nll_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
         }
-         #[cfg(feature = "gpu")]
+        #[cfg(feature = "gpu")]
         (TensorWrapper::GpuDenseF32(a), TensorWrapper::GpuDenseF32(b)) => {
-             let res = coeus_nn::functional_api::nll_loss(a, b).map_err(to_py_err)?;
-            Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
+            let res = coeus_nn::functional_api::nll_loss(a, b).map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
             "nll_loss not implemented for these types (requires same float dtype)",
