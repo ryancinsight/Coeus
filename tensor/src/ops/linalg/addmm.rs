@@ -27,6 +27,21 @@ where
         + crate::ops::dispatch::TensorStorageOps<T>
         + 'static,
 {
+    // Try optimized dispatch first
+    match input.storage().storage_addmm(
+        mat1.storage(),
+        mat2.storage(),
+        beta,
+        alpha,
+        input.backend(),
+    ) {
+        Ok(storage) => return Ok(Tensor::from_storage(storage, input.backend().clone())),
+        // Fallback if not supported by storage or backend
+        Err(crate::TensorError::UnsupportedOperation { .. })
+        | Err(crate::TensorError::BackendUnsupported { .. }) => {}
+        Err(e) => return Err(e),
+    }
+
     // C = beta * input + alpha * (mat1 @ mat2)
     // Implicitly supports autograd via composition
     let prod = matmul(mat1, mat2)?;

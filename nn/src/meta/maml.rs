@@ -101,7 +101,7 @@ where
 
 impl<M, B, S, T> MAML<M, B, S, T>
 where
-    M: Module<B, S, T> + Clone,
+    M: Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>> + Clone,
     B: Backend<Data = T> + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType

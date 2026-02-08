@@ -49,6 +49,10 @@ path = "tests/proptest.rs"
 name = "concurrency"
 path = "tests/concurrency.rs"
 
+[[test]]
+name = "dispatch_verification"
+path = "tests/dispatch_verification.rs"
+
 [[bench]]
 name = "conditional_unsafe"
 path = "benches/conditional_unsafe.rs"

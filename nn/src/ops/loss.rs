@@ -880,15 +880,73 @@ where
 pub fn smooth_l1_loss<B, S, T>(
     input: &Tensor<B, S, T>,
     target: &Tensor<B, S, T>,
-    _beta: T,
+    beta: f64,
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + FromPrimitive + Copy + Send + Sync + 'static,
 {
-    // Fallback to L1 loss
-    l1_loss(input, target)
+    let input_shape = input.shape().dims();
+    let target_shape = target.shape().dims();
+    if input_shape != target_shape {
+        return Err(NNError::InvalidInput {
+            message: format!("Shape mismatch: {:?} vs {:?}", input_shape, target_shape),
+        });
+    }
+
+    let diff = tensor::ops::abs(&tensor::ops::sub(input, target)?)?;
+    let beta_t = T::from_f64(beta).unwrap();
+    let half = T::from_f64(0.5).unwrap();
+
+    // if diff < beta: 0.5 * diff^2 / beta
+    // else: diff - 0.5 * beta
+    
+    // We'll use a functional approach with mask
+    let mask = tensor::ops::cast::cast::<dtype::UInt8, B, S, T>(&tensor::ops::comparison::lt_scalar(&diff, beta_t)?)?;
+    
+    let term1 = tensor::ops::mul_scalar(&tensor::ops::mul(&diff, &diff)?, half / beta_t)?;
+    let term2 = tensor::ops::sub_scalar(&diff, half * beta_t)?;
+    
+    let loss_terms = tensor::ops::comparison::where_cond(&mask, &term1, &term2)?;
+    let mean_loss = tensor::ops::mean(&loss_terms.to_dense_generic()?, None, false)?;
+
+    let result_data = mean_loss.as_slice().to_vec();
+    let result_storage = S::from_vec(result_data, &[1])?;
+    Ok(Tensor::from_storage(result_storage, input.backend().clone()))
+}
+
+/// Computes Kullback-Leibler divergence loss.
+pub fn kl_div_loss<B, S, T>(
+    input: &Tensor<B, S, T>,
+    target: &Tensor<B, S, T>,
+) -> Result<Tensor<B, S, T>>
+where
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
+    T: DataType + FloatExt + FromPrimitive + Copy + Send + Sync + 'static,
+{
+    let input_shape = input.shape().dims();
+    let target_shape = target.shape().dims();
+    if input_shape != target_shape {
+        return Err(NNError::InvalidInput {
+            message: format!("Shape mismatch: {:?} vs {:?}", input_shape, target_shape),
+        });
+    }
+
+    // KL(y || x) = y * (log(y) - x) where x is log-prob
+    let log_y = tensor::ops::log(target)?;
+    let diff = tensor::ops::sub(&log_y, input)?;
+    let kl_terms = tensor::ops::mul(target, &diff)?;
+    
+    // Replace NaNs (from target=0) with 0
+    let kl_clean = tensor::ops::nan_to_num(&kl_terms.to_dense_generic()?, Some(T::zero()), None, None)?;
+    
+    let mean_loss = tensor::ops::mean(&kl_clean, None, false)?;
+
+    let result_data = mean_loss.as_slice().to_vec();
+    let result_storage = S::from_vec(result_data, &[1])?;
+    Ok(Tensor::from_storage(result_storage, input.backend().clone()))
 }
 
 // Additional loss functions needed for compatibility

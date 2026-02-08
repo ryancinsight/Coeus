@@ -12,7 +12,7 @@ pub struct Adamax<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
-    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Signed,
 {
     param_states: Vec<ParamState<B, S, T>>,
     param_groups: Vec<crate::optimizer::ParamGroup<B, S, T>>,
@@ -28,7 +28,7 @@ impl<B, S, T> Adamax<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
-    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Signed,
 {
     pub fn new(params: Vec<tensor::Tensor<B, S, T>>, lr: f64) -> Self {
         assert!(lr > 0.0, "Learning rate must be positive, got {}", lr);
@@ -80,7 +80,7 @@ impl<B, S, T> BaseOptimizer<B, S, T> for Adamax<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
-    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Signed,
 {
     fn step(&mut self) -> Result<usize, crate::OptimError> {
         self.step_cpu()
@@ -289,7 +289,7 @@ impl<B, S, T> Optimizer<B, S, T> for Adamax<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + 'static + StorageToDense<T> + tensor::ops::dispatch::TensorStorageOps<T>,
-    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Signed,
 {
     fn name(&self) -> &str {
         "Adamax"

@@ -10,7 +10,7 @@ use crate::core::error::Result;
 pub trait LSTMForward<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     #[allow(clippy::type_complexity)]

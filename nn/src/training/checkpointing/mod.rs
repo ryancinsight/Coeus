@@ -53,7 +53,7 @@ struct CheckpointSegment {
 
 impl<M, B, T> Checkpointed<M, B, T>
 where
-    M: Module<B, DenseStorage<T>, T>,
+    M: Module<B, DenseStorage<T>, T, Input = Tensor<B, DenseStorage<T>, T>, Output = Tensor<B, DenseStorage<T>, T>>,
     B: Backend<Data = T> + Default + Clone,
     T: DataType + FloatExt + Clone,
 {
@@ -155,10 +155,13 @@ where
 
 impl<M, B, T> Module<B, DenseStorage<T>, T> for Checkpointed<M, B, T>
 where
-    M: Module<B, DenseStorage<T>, T> + Clone,
+    M: Module<B, DenseStorage<T>, T, Input = Tensor<B, DenseStorage<T>, T>, Output = Tensor<B, DenseStorage<T>, T>> + Clone,
     B: Backend<Data = T> + Default + Clone,
     T: DataType + FloatExt + Clone,
 {
+    type Input = Tensor<B, DenseStorage<T>, T>;
+    type Output = Tensor<B, DenseStorage<T>, T>;
+
     fn forward(
         &self,
         input: &Tensor<B, DenseStorage<T>, T>,
@@ -182,7 +185,7 @@ where
         "Checkpointed"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, DenseStorage<T>, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, DenseStorage<T>, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

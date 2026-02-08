@@ -1,7 +1,6 @@
 use backend::CpuBackend;
 use dtype::float::Float32;
 use optim::RMSprop as RustRMSprop;
-use optim::BaseOptimizer;
 use pyo3::prelude::*;
 use storage::DenseStorage;
 

@@ -21,7 +21,6 @@ where
         + core::ops::Sub<Output = T>
         + core::ops::Mul<Output = T>
         + core::ops::Div<Output = T>
-        + core::ops::Neg<Output = T>
         + num_traits::Zero
         + num_traits::One
         + num_traits::FromPrimitive
@@ -32,116 +31,130 @@ where
 {
     // ========== Arithmetic Operations ==========
 
-    fn storage_add<B: Backend<Data = T>>(&self, other: &Self, _backend: &B) -> Result<Self> {
-        SparseAdd::add_sparse(self, other).map_err(TensorError::StorageError)
+    fn storage_add<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self> {
+        backend.add_csr(self, other).map_err(TensorError::from)
     }
 
-    fn storage_sub<B: Backend<Data = T>>(&self, other: &Self, _backend: &B) -> Result<Self> {
-        SparseSub::sub_sparse(self, other).map_err(TensorError::StorageError)
+    fn storage_sub<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self> {
+        backend.sub_csr(self, other).map_err(TensorError::from)
     }
 
-    fn storage_mul<B: Backend<Data = T>>(&self, other: &Self, _backend: &B) -> Result<Self> {
-        SparseMul::mul_sparse(self, other).map_err(TensorError::StorageError)
+    fn storage_mul<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self> {
+        backend.mul_csr(self, other).map_err(TensorError::from)
     }
 
     fn storage_div<B: Backend<Data = T>>(&self, other: &Self, _backend: &B) -> Result<Self> {
+        // Fallback for now if not in backend, but div is tricky for sparse (0/0 etc)
         SparseDiv::div_sparse(self, other).map_err(TensorError::StorageError)
     }
 
-    fn storage_neg<B: Backend<Data = T>>(&self, _backend: &B) -> Result<Self> {
-        // Negate all non-zero values directly in CSR format
-        let mut new_data = self.data().to_vec();
-        for value in &mut new_data {
-            *value = -*value;
-        }
+    fn storage_neg<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: core::ops::Neg<Output = T> {
+        backend.neg_csr(self).map_err(Into::into)
+    }
 
-        Self::new(
-            new_data,
-            self.indices().to_vec(),
-            self.indptr().to_vec(),
-            self.shape().dims(),
-        )
-        .map_err(TensorError::StorageError)
+    // ========== Comparison Operations (via dense) ==========
+
+    fn storage_eq<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.storage_to_dense()?;
+        let dense_other = other.storage_to_dense()?;
+        let res = dense_self.storage_eq(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_ne<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.storage_to_dense()?;
+        let dense_other = other.storage_to_dense()?;
+        let res = dense_self.storage_ne(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_gt<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.storage_to_dense()?;
+        let dense_other = other.storage_to_dense()?;
+        let res = dense_self.storage_gt(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_ge<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.storage_to_dense()?;
+        let dense_other = other.storage_to_dense()?;
+        let res = dense_self.storage_ge(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_lt<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.storage_to_dense()?;
+        let dense_other = other.storage_to_dense()?;
+        let res = dense_self.storage_lt(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_le<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.storage_to_dense()?;
+        let dense_other = other.storage_to_dense()?;
+        let res = dense_self.storage_le(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
     }
 
     // ========== Matrix Operations ==========
 
-    fn storage_matmul<B: Backend<Data = T>>(&self, other: &Self, _backend: &B) -> Result<Self> {
-        // Use optimized sparse matrix multiplication
-        let (self_rows, self_cols) = self.dims();
-        let (other_rows, other_cols) = other.dims();
-
-        if self_cols != other_rows {
-            return Err(TensorError::ShapeMismatch {
-                expected: vec![self_cols],
-                actual: vec![other_rows],
-                operation: "matmul",
-            });
-        }
-
-        // Transpose other matrix for efficient access
-        let other_t =
-            SparseTranspose::transpose_sparse(other).map_err(TensorError::StorageError)?;
-
-        let mut result_data = alloc::vec::Vec::new();
-        let mut result_indices = alloc::vec::Vec::new();
-        let mut result_indptr = alloc::vec![0];
-
-        for row in 0..self_rows {
-            let self_start = self.indptr()[row];
-            let self_end = self.indptr()[row + 1];
-
-            for col in 0..other_cols {
-                let other_start = other_t.indptr()[col];
-                let other_end = other_t.indptr()[col + 1];
-
-                let mut dot_product = T::zero();
-                let mut self_idx = self_start;
-                let mut other_idx = other_start;
-
-                while self_idx < self_end && other_idx < other_end {
-                    let self_col = self.indices()[self_idx];
-                    let other_row = other_t.indices()[other_idx];
-
-                    match self_col.cmp(&other_row) {
-                        core::cmp::Ordering::Equal => {
-                            dot_product =
-                                dot_product + self.data()[self_idx] * other_t.data()[other_idx];
-                            self_idx += 1;
-                            other_idx += 1;
-                        }
-                        core::cmp::Ordering::Less => self_idx += 1,
-                        core::cmp::Ordering::Greater => other_idx += 1,
-                    }
-                }
-
-                if dot_product != T::zero() {
-                    result_data.push(dot_product);
-                    result_indices.push(col);
-                }
-            }
-
-            result_indptr.push(result_data.len());
-        }
-
-        Self::new(
-            result_data,
-            result_indices,
-            result_indptr,
-            &[self_rows, other_cols],
-        )
-        .map_err(TensorError::StorageError)
+    fn storage_matmul<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self> {
+        backend.matmul_csr(self, other).map_err(TensorError::from)
     }
 
     fn storage_transpose<B: Backend<Data = T>>(&self, _backend: &B) -> Result<Self> {
         SparseTranspose::transpose_sparse(self).map_err(TensorError::StorageError)
     }
 
+    fn storage_addmm<B: Backend<Data = T>>(
+        &self,
+        mat1: &Self,
+        mat2: &Self,
+        beta: T,
+        alpha: T,
+        backend: &B,
+    ) -> Result<Self> {
+        backend.addmm_csr(self, mat1, mat2, beta, alpha).map_err(TensorError::from)
+    }
+
+    fn storage_addmv<B: Backend<Data = T>>(
+        &self,
+        mat: &Self,
+        vec: &Self,
+        beta: T,
+        alpha: T,
+        backend: &B,
+    ) -> Result<Self> {
+        backend.addmv_csr(self, mat, vec, beta, alpha).map_err(TensorError::from)
+    }
+
     // ========== Activation Functions (Native Sparse) ==========
 
-    fn storage_relu<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self> {
-        self.activation_relu(backend)
-            .map_err(TensorError::StorageError)
+    fn storage_relu<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + Default,
+    {
+        backend.relu_csr(self).map_err(Into::into)
     }
 
     fn storage_sigmoid<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
@@ -159,11 +172,11 @@ where
         Self::from_dense(&result_dense).map_err(TensorError::StorageError)
     }
 
-    fn storage_tanh<B: Backend<Data = T>>(&self, _backend: &B) -> Result<Self>
+    fn storage_tanh<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
     where
         T: num_traits::Float,
     {
-        self.tanh_sparse().map_err(TensorError::StorageError)
+        backend.tanh_csr(self).map_err(Into::into)
     }
 
     fn storage_gelu<B: Backend<Data = T>>(&self, _backend: &B) -> Result<Self>
@@ -221,11 +234,11 @@ where
         Self::from_dense(&result_dense).map_err(TensorError::StorageError)
     }
 
-    fn storage_abs<B: Backend<Data = T>>(&self, _backend: &B) -> Result<Self>
+    fn storage_abs<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
     where
         T: num_traits::Signed,
     {
-        self.abs_sparse().map_err(TensorError::StorageError)
+        backend.abs_csr(self).map_err(Into::into)
     }
 
     fn storage_ceil<B: Backend<Data = T>>(&self, _backend: &B) -> Result<Self>
@@ -332,6 +345,198 @@ where
     {
         self.to_dense().map_err(TensorError::StorageError)
     }
+
+    fn storage_sqrt<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.sqrt_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_rsqrt<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.rsqrt_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_erf<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.erf_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_erfc<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.erfc_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_erfinv<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.erfinv_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_atan2<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.atan2_dense(&dense_self, &dense_other).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_log1p<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.log1p_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_expm1<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.expm1_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_reciprocal<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.reciprocal_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_isnan<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float + num_traits::One + num_traits::Zero,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.isnan_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_isinf<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float + num_traits::One + num_traits::Zero,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.isinf_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_isfinite<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float + num_traits::One + num_traits::Zero,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.isfinite_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_logical_and<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.logical_and_dense(&dense_self, &dense_other).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_logical_or<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.logical_or_dense(&dense_self, &dense_other).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_logical_xor<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.logical_xor_dense(&dense_self, &dense_other).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_logical_not<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.logical_not_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+}
+
+impl<T: DataType + Default + 'static> super::traits::StorageBinaryOps<storage::DenseStorage<T>, T> for CsrStorage<T>
+where
+    T: core::ops::Add<Output = T>
+        + core::ops::Sub<Output = T>
+        + core::ops::Mul<Output = T>
+        + core::ops::Div<Output = T>
+        + num_traits::Zero
+        + num_traits::One
+        + num_traits::FromPrimitive
+        + core::ops::Neg<Output = T>
+        + PartialEq
+        + PartialOrd
+        + Copy
+        + Default,
+{
+    type Output = storage::DenseStorage<T>;
+
+    fn storage_add_mixed<B: Backend<Data = T>>(&self, other: &storage::DenseStorage<T>, backend: &B) -> Result<Self::Output> {
+        backend.add_csr_dense(self, other).map_err(Into::into)
+    }
+
+    fn storage_sub_mixed<B: Backend<Data = T>>(&self, other: &storage::DenseStorage<T>, backend: &B) -> Result<Self::Output> {
+        // self - other = (-other) + self
+        let mut neg_other = other.clone();
+        for val in neg_other.as_mut_slice() {
+            *val = T::zero() - *val;
+        }
+        backend.add_dense_csr(&neg_other, self).map_err(Into::into)
+    }
+
+    fn storage_mul_mixed<B: Backend<Data = T>>(&self, other: &storage::DenseStorage<T>, backend: &B) -> Result<Self::Output> {
+        backend.mul_csr_dense(self, other).map_err(Into::into)
+    }
+
+    fn storage_div_mixed<B: Backend<Data = T>>(&self, other: &storage::DenseStorage<T>, backend: &B) -> Result<Self::Output> {
+        let dense_self = self.storage_to_dense()?;
+        dense_self.storage_div(other, backend)
+    }
+
+    fn storage_matmul_mixed<B: Backend<Data = T>>(&self, other: &storage::DenseStorage<T>, backend: &B) -> Result<Self::Output> {
+        backend.matmul_csr_dense(self, other).map_err(Into::into)
+    }
 }
 
 // ================== CooStorage Implementation ==================
@@ -355,25 +560,30 @@ where
     // Operations that are O(nnz) natively (transpose, sum, neg) are implemented directly.
 
     fn storage_add<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self> {
-        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
-        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
-        // Delegate to DenseStorage implementation
-        let res_dense = dense_self.storage_add(&dense_other, backend)?;
-        Self::from_dense(&res_dense).map_err(TensorError::StorageError)
+        let res_csr = backend.coo_add_sparse(
+            self.data(), self.row_indices(), self.col_indices(),
+            other.data(), other.row_indices(), other.col_indices(),
+            self.shape().dims()[0], self.shape().dims()[1]
+        ).map_err(TensorError::from)?;
+        res_csr.to_coo().map_err(TensorError::StorageError)
     }
 
     fn storage_sub<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self> {
-        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
-        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
-        let res_dense = dense_self.storage_sub(&dense_other, backend)?;
-        Self::from_dense(&res_dense).map_err(TensorError::StorageError)
+        let res_csr = backend.coo_sub_sparse(
+            self.data(), self.row_indices(), self.col_indices(),
+            other.data(), other.row_indices(), other.col_indices(),
+            self.shape().dims()[0], self.shape().dims()[1]
+        ).map_err(TensorError::from)?;
+        res_csr.to_coo().map_err(TensorError::StorageError)
     }
 
     fn storage_mul<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self> {
-        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
-        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
-        let res_dense = dense_self.storage_mul(&dense_other, backend)?;
-        Self::from_dense(&res_dense).map_err(TensorError::StorageError)
+        let res_csr = backend.coo_mul_sparse(
+            self.data(), self.row_indices(), self.col_indices(),
+            other.data(), other.row_indices(), other.col_indices(),
+            self.shape().dims()[0], self.shape().dims()[1]
+        ).map_err(TensorError::from)?;
+        res_csr.to_coo().map_err(TensorError::StorageError)
     }
 
     fn storage_div<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self> {
@@ -393,10 +603,104 @@ where
             .map_err(TensorError::StorageError)
     }
 
+    // ========== Comparison Operations (via dense) ==========
+
+    fn storage_eq<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = dense_self.storage_eq(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_ne<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = dense_self.storage_ne(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_gt<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = dense_self.storage_gt(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_ge<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = dense_self.storage_ge(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_lt<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = dense_self.storage_lt(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_le<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = dense_self.storage_le(&dense_other, backend)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
     fn storage_matmul<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self> {
         let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
         let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
         let res_dense = dense_self.storage_matmul(&dense_other, backend)?;
+        Self::from_dense(&res_dense).map_err(TensorError::StorageError)
+    }
+
+    fn storage_addmm<B: Backend<Data = T>>(
+        &self,
+        mat1: &Self,
+        mat2: &Self,
+        beta: T,
+        alpha: T,
+        backend: &B,
+    ) -> Result<Self> {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_mat1 = mat1.to_dense().map_err(TensorError::StorageError)?;
+        let dense_mat2 = mat2.to_dense().map_err(TensorError::StorageError)?;
+        
+        let res_dense = dense_self.storage_addmm(&dense_mat1, &dense_mat2, beta, alpha, backend)?;
+        Self::from_dense(&res_dense).map_err(TensorError::StorageError)
+    }
+
+    fn storage_addmv<B: Backend<Data = T>>(
+        &self,
+        mat: &Self,
+        vec: &Self,
+        beta: T,
+        alpha: T,
+        backend: &B,
+    ) -> Result<Self> {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_mat = mat.to_dense().map_err(TensorError::StorageError)?;
+        let dense_vec = vec.to_dense().map_err(TensorError::StorageError)?;
+        
+        let res_dense = dense_self.storage_addmv(&dense_mat, &dense_vec, beta, alpha, backend)?;
         Self::from_dense(&res_dense).map_err(TensorError::StorageError)
     }
 
@@ -543,6 +847,154 @@ where
 
     fn storage_to_dense(&self) -> Result<storage::DenseStorage<T>> where T: num_traits::Zero + Clone {
         self.to_dense().map_err(TensorError::StorageError)
+    }
+
+    fn storage_sqrt<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.sqrt_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_rsqrt<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.rsqrt_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_erf<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.erf_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_erfc<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.erfc_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_erfinv<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.erfinv_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_atan2<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.atan2_dense(&dense_self, &dense_other).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_log1p<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.log1p_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_expm1<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.expm1_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_reciprocal<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.reciprocal_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_isnan<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float + num_traits::One + num_traits::Zero,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.isnan_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_isinf<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float + num_traits::One + num_traits::Zero,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.isinf_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_isfinite<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float + num_traits::One + num_traits::Zero,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.isfinite_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_logical_and<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.logical_and_dense(&dense_self, &dense_other).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_logical_or<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.logical_or_dense(&dense_self, &dense_other).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_logical_xor<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense_self = self.to_dense().map_err(TensorError::StorageError)?;
+        let dense_other = other.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.logical_xor_dense(&dense_self, &dense_other).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
+    }
+
+    fn storage_logical_not<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero,
+    {
+        let dense = self.to_dense().map_err(TensorError::StorageError)?;
+        let res = backend.logical_not_dense(&dense).map_err(TensorError::from)?;
+        Self::from_dense(&res).map_err(TensorError::StorageError)
     }
 }
 

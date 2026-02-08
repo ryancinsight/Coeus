@@ -50,7 +50,7 @@ where
     T: DataType + FloatExt,
 {
     /// Vector of modules in sequential order
-    modules: Vec<Box<dyn Module<B, S, T>>>,
+    modules: Vec<Box<dyn Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>>>>,
     /// Names for each module (for serialization and introspection)
     names: Vec<String>,
     /// Training mode flag
@@ -94,7 +94,7 @@ where
     #[allow(clippy::missing_docs_in_private_items)]
     pub fn add_module<M>(&mut self, name: impl Into<String>, module: M)
     where
-        M: Module<B, S, T> + 'static,
+        M: Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>> + 'static,
     {
         let name = name.into();
         self.names.push(name);
@@ -124,7 +124,7 @@ where
     ///
     /// # Returns
     /// Option containing the module reference, or None if index is out of bounds.
-    pub fn get(&self, index: usize) -> Option<&dyn Module<B, S, T>> {
+    pub fn get(&self, index: usize) -> Option<&dyn Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>>> {
         self.modules.get(index).map(|m| m.as_ref())
     }
 
@@ -135,7 +135,7 @@ where
     ///
     /// # Returns
     /// Option containing the mutable module reference, or None if index is out of bounds.
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut dyn Module<B, S, T>> {
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut dyn Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>>> {
         self.modules.get_mut(index).map(|m| m.as_mut())
     }
 
@@ -299,6 +299,9 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let mut output = input.clone();
 
@@ -339,7 +342,7 @@ where
         all_params
     }
 
-    fn modules(&self) -> Vec<&dyn Module<B, S, T>> {
+    fn modules(&self) -> Vec<&dyn Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>>> {
         self.modules.iter().map(|m| m.as_ref()).collect()
     }
 
@@ -410,7 +413,7 @@ where
         self
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

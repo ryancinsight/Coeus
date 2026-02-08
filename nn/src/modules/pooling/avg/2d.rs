@@ -1,6 +1,7 @@
 use backend::Backend;
-use dtype::{DataType};
-use tensor::Tensor;
+use dtype::{traits::FloatExt, DataType};
+use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::{Tensor, ops::TensorStorageOps};
 
 use crate::core::error::Result;
 use crate::core::module::Module;
@@ -79,23 +80,26 @@ impl AvgPool2d {
 
 impl<B, S, T> Module<B, S, T> for AvgPool2d
 where
-    B: Backend<Data = T> + Clone + Default + tensor::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T>,
-    S:  storage::Storage<T> + storage::StorageFromVec<T> + Clone + tensor::ops::TensorStorageOps<T> + 'static + storage::StorageToDense<T>,
-    T: DataType + dtype::traits::FloatExt + num_traits::FromPrimitive + num_traits::Zero + PartialOrd + std::fmt::Debug,
+    B: Backend<Data = T> + Clone + Default,
+    S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageOps<T> + Clone + 'static,
+    T: DataType + FloatExt + Clone,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(
         &self,
         input: &Tensor<B, S, T>,
     ) -> Result<Tensor<B, S, T>> {
-        let stride = self.stride.unwrap_or(self.kernel_size);
-        tensor::ops::pooling::avg_pool::avg_pool2d(
+        let output = crate::functional::ops::pooling::avg_pool2d(
             input,
             self.kernel_size,
-            stride,
+            self.stride,
             self.padding,
-            self.ceil_mode,
-            self.count_include_pad
-        ).map_err(Into::into)
+        )?;
+        let dense = output.to_dense_generic()?;
+        let storage = S::from_vec(dense.as_slice().to_vec(), dense.shape().dims())?;
+        Ok(Tensor::from_storage(storage, input.backend().clone()))
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
@@ -114,7 +118,7 @@ where
         "AvgPool2d"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

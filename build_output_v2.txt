@@ -1,0 +1,708 @@
+≡ƒì╣ Building a mixed python/rust project
+≡ƒöù Found pyo3 bindings with abi3 support
+≡ƒôí Using build options features from pyproject.toml
+Requirement already satisfied: numpy>=1.20.0 in d:\coeus\.venv\lib\site-packages (2.4.1)
+warning: unused variable: `ndim`
+   --> storage\src\strided.rs:411:13
+    |
+411 | ...   let ndim = self.sha...
+    |           ^^^^ help: if this is intentional, prefix it with an underscore: `_ndim`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: missing documentation for an associated function
+  --> storage\src\sparse\coo\creation.rs:47:5
+   |
+47 |     pub ...> Result<Self> {
+   |     ^^^^...^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> storage\src\lib.rs:53:9
+   |
+53 | #![warn(missing_docs, clip...
+   |         ^^^^^^^^^^^^
+
+warning: `storage` (lib) generated 2 warnings (run `cargo fix --lib -p storage` to apply 1 suggestion)
+warning: unused import: `std::collections::HashMap`
+ --> backend\src\selection\mod.rs:3:5
+  |
+3 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::DataType`
+ --> backend\src\cpu\activation\math_ops.rs:5:5
+  |
+5 | use crate::DataType;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `dtype::num_traits`
+ --> backend\src\cpu\activation\math_ops.rs:6:5
+  |
+6 | use dtype::num_traits;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `num_traits`
+ --> backend\src\cpu\implementations\arithmetic.rs:2:13
+  |
+2 | use dtype::{num_traits, Dat...
+  |             ^^^^^^^^^^
+
+warning: unused import: `StorageToDense`
+ --> backend\src\cpu\backend.rs:6:38
+  |
+6 | ...age, StorageToDense};
+  |         ^^^^^^^^^^^^^^
+
+warning: unused variable: `lhs_data`
+   --> backend\src\core\mod.rs:606:9
+    |
+606 |         lhs_data: &[Self:...
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_lhs_data`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `lhs_row`
+   --> backend\src\core\mod.rs:607:9
+    |
+607 |         lhs_row: &[usize],
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_lhs_row`
+
+warning: unused variable: `lhs_col`
+   --> backend\src\core\mod.rs:608:9
+    |
+608 |         lhs_col: &[usize],
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_lhs_col`
+
+warning: unused variable: `rhs_data`
+   --> backend\src\core\mod.rs:609:9
+    |
+609 |         rhs_data: &[Self:...
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rhs_data`
+
+warning: unused variable: `rhs_row`
+   --> backend\src\core\mod.rs:610:9
+    |
+610 |         rhs_row: &[usize],
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rhs_row`
+
+warning: unused variable: `rhs_col`
+   --> backend\src\core\mod.rs:611:9
+    |
+611 |         rhs_col: &[usize],
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rhs_col`
+
+warning: unused variable: `m`
+   --> backend\src\core\mod.rs:612:9
+    |
+612 |         m: usize,
+    |         ^ help: if this is intentional, prefix it with an underscore: `_m`
+
+warning: unused variable: `n`
+   --> backend\src\core\mod.rs:613:9
+    |
+613 |         n: usize,
+    |         ^ help: if this is intentional, prefix it with an underscore: `_n`
+
+warning: unused variable: `lhs`
+   --> backend\src\core\mod.rs:813:9
+    |
+813 |         lhs: &storage::Cs...
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_lhs`
+
+warning: unused variable: `rhs`
+   --> backend\src\core\mod.rs:814:9
+    |
+814 |         rhs: &storage::Cs...
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_rhs`
+
+warning: unused variable: `backend`
+   --> backend\src\selection\mod.rs:149:40
+    |
+149 | ...elf, backend: BackendT...
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_backend`
+
+warning: unused variable: `workload`
+   --> backend\src\selection\mod.rs:149:62
+    |
+149 | ...ype, workload: &Worklo...
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_workload`
+
+warning: unused variable: `lambda`
+   --> backend\src\cpu\linear_algebra\decomposition.rs:386:9
+    |
+386 |     let lambda = if denom...
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_lambda`
+
+warning: unused variable: `vip`
+   --> backend\src\cpu\linear_algebra\decomposition.rs:519:17
+    |
+519 | ...   let vip = v_temp[i ...
+    |           ^^^ help: if this is intentional, prefix it with an underscore: `_vip`
+
+warning: unused variable: `viq`
+   --> backend\src\cpu\linear_algebra\decomposition.rs:520:17
+    |
+520 | ...   let viq = v_temp[i ...
+    |           ^^^ help: if this is intentional, prefix it with an underscore: `_viq`
+
+warning: unused variable: `input_shape`
+  --> backend\src\cpu\arithmetic\macros.rs:64:13
+   |
+64 |   ...   input_shape: &[usi...
+   |         ^^^^^^^^^^^
+   |
+  ::: backend\src\cpu\activation\relu.rs:47:1
+   |
+47 | / crate::unary_csr_primitive!...
+48 | |     let zero = T::default();
+49 | |     if x_val > zero { x_val...
+50 | | }, std::cmp::PartialOrd);
+   | |________________________- in this macro invocation
+   |
+help: `input_shape` is captured in macro and introduced a unused variable
+  --> backend\src\cpu\arithmetic\macros.rs:64:13
+   |
+64 |   ...   input_shape: &[usi...
+   |         ^^^^^^^^^^^
+   |
+  ::: backend\src\cpu\activation\relu.rs:47:1
+   |
+47 | / crate::unary_csr_primitive!...
+48 | |     let zero = T::default();
+49 | |     if x_val > zero { x_val...
+50 | | }, std::cmp::PartialOrd);
+   | |________________________- in this macro invocation
+   = note: this warning originates in the macro `crate::unary_csr_primitive` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `input_shape`
+  --> backend\src\cpu\arithmetic\macros.rs:64:13
+   |
+64 |   ...   input_shape: &[usi...
+   |         ^^^^^^^^^^^
+   |
+  ::: backend\src\cpu\activation\tanh.rs:48:1
+   |
+48 | / crate::unary_csr_primiti...
+49 | |     let x_f64 = x_val.to...
+50 | |     T::from(x_f64.tanh()...
+51 | | });
+   | |__- in this macro invocation
+   |
+help: `input_shape` is captured in macro and introduced a unused variable
+  --> backend\src\cpu\arithmetic\macros.rs:64:13
+   |
+64 |   ...   input_shape: &[usi...
+   |         ^^^^^^^^^^^
+   |
+  ::: backend\src\cpu\activation\tanh.rs:48:1
+   |
+48 | / crate::unary_csr_primiti...
+49 | |     let x_f64 = x_val.to...
+50 | |     T::from(x_f64.tanh()...
+51 | | });
+   | |__- in this macro invocation
+   = note: this warning originates in the macro `crate::unary_csr_primitive` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `input_shape`
+  --> backend\src\cpu\arithmetic\macros.rs:64:13
+   |
+64 | ...   input_shape: &[usize],
+   |       ^^^^^^^^^^^
+   |
+  ::: backend\src\cpu\activation\math_ops.rs:11:1
+   |
+11 | crat...g<Output = T>);
+   | ----...-------------- in this macro invocation
+   |
+help: `input_shape` is captured in macro and introduced a unused variable
+  --> backend\src\cpu\arithmetic\macros.rs:64:13
+   |
+64 | ...   input_shape: &[usize],
+   |       ^^^^^^^^^^^
+   |
+  ::: backend\src\cpu\activation\math_ops.rs:11:1
+   |
+11 | crat...g<Output = T>);
+   | ----...-------------- in this macro invocation
+   = note: this warning originates in the macro `crate::unary_csr_primitive` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `input_shape`
+  --> backend\src\cpu\arithmetic\macros.rs:64:13
+   |
+64 |   ...   input_shape: &[usi...
+   |         ^^^^^^^^^^^
+   |
+  ::: backend\src\cpu\activation\math_ops.rs:29:1
+   |
+29 | / crate::unary_csr_primiti...
+30 | |     let x_f64 = x_val.to...
+31 | |     T::from(x_f64.abs())...
+32 | | });
+   | |__- in this macro invocation
+   |
+help: `input_shape` is captured in macro and introduced a unused variable
+  --> backend\src\cpu\arithmetic\macros.rs:64:13
+   |
+64 |   ...   input_shape: &[usi...
+   |         ^^^^^^^^^^^
+   |
+  ::: backend\src\cpu\activation\math_ops.rs:29:1
+   |
+29 | / crate::unary_csr_primiti...
+30 | |     let x_f64 = x_val.to...
+31 | |     T::from(x_f64.abs())...
+32 | | });
+   | |__- in this macro invocation
+   = note: this warning originates in the macro `crate::unary_csr_primitive` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `op`
+  --> backend\src\cpu\implementations\comparison.rs:41:5
+   |
+41 |     op: F,
+   |     ^^ help: if this is intentional, prefix it with an underscore: `_op`
+
+warning: fields `backend`, `workload`, `actual_time_us`, and `timestamp` are never read
+  --> backend\src\selection\mod.rs:58:5
+   |
+57 | struct PerformanceRecord {
+   |        ----------------- fields in this struct
+58 |     backend: BackendType,
+   |     ^^^^^^^
+59 |     workload: WorkloadChara...
+   |     ^^^^^^^^
+60 |     actual_time_us: f64,
+   |     ^^^^^^^^^^^^^^
+61 |     timestamp: u64,
+   |     ^^^^^^^^^
+   |
+   = note: `PerformanceRecord` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `performance_history` and `memory_manager` are never read
+  --> backend\src\selection\mod.rs:70:5
+   |
+66 | pub struct BackendSelector {
+   |            --------------- fields in this struct
+...
+70 |     performance_history: Vec<...
+   |     ^^^^^^^^^^^^^^^^^^^
+71 |     /// Integrated memory man...
+72 |     memory_manager: Option<()>, 
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `BackendSelector` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `gpu_memory_usage`, `gpu_utilization`, `operation_latencies`, `target_overhead_percent`, and `current_step` are never read
+  --> backend\src\monitoring\mod.rs:4:5
+   |
+ 2 | pub struct PerformanceMonitor {
+   |            ------------------ fields in this struct
+ 3 |     /// GPU memory usage tracking
+ 4 |     gpu_memory_usage: Vec<f64>,
+   |     ^^^^^^^^^^^^^^^^
+ 5 |     /// GPU utilization tracking
+ 6 |     gpu_utilization: Vec<f32>,
+   |     ^^^^^^^^^^^^^^^
+ 7 |     /// Operation latency tracking
+ 8 |     operation_latencies: std::co...
+   |     ^^^^^^^^^^^^^^^^^^^
+ 9 |     /// Target overhead percent
+10 |     target_overhead_percent: f32,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+11 |     /// Current training step
+12 |     current_step: u64,
+   |     ^^^^^^^^^^^^
+
+warning: `backend` (lib) generated 28 warnings (run `cargo fix --lib -p backend` to apply 20 suggestions)
+warning: unused variable: `new_strides`
+  --> dense\src\layout\transpose.rs:74:9
+   |
+74 |     let new_strides: Vec<u...
+   |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_strides`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dense` (lib) generated 1 warning (run `cargo fix --lib -p dense` to apply 1 suggestion)
+   Compiling tensor v0.2.1 (D:\coeus\tensor)
+error[E0583]: file not found for module `basic`
+ --> tensor\src\ops\math\mod.rs:3:1
+  |
+3 | pub mod basic;
+  | ^^^^^^^^^^^^^^
+  |
+  = help: to create the module `basic`, create file "tensor\src\ops\math\basic.rs" or "tensor\src\ops\math\basic\mod.rs"
+  = note: if there is a `mod basic` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `deg2rad`
+ --> tensor\src\ops\math\trigonometric\mod.rs:3:1
+  |
+3 | pub mod deg2rad;
+  | ^^^^^^^^^^^^^^^^
+  |
+  = help: to create the module `deg2rad`, create file "tensor\src\ops\math\trigonometric\deg2rad.rs" or "tensor\src\ops\math\trigonometric\deg2rad\mod.rs"
+  = note: if there is a `mod deg2rad` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `exp`
+ --> tensor\src\ops\math\exponential\mod.rs:1:1
+  |
+1 | pub mod exp;
+  | ^^^^^^^^^^^^
+  |
+  = help: to create the module `exp`, create file "tensor\src\ops\math\exponential\exp.rs" or "tensor\src\ops\math\exponential\exp\mod.rs"
+  = note: if there is a `mod exp` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `ceil`
+ --> tensor\src\ops\math\rounding\mod.rs:1:1
+  |
+1 | pub mod ceil;
+  | ^^^^^^^^^^^^^
+  |
+  = help: to create the module `ceil`, create file "tensor\src\ops\math\rounding\ceil.rs" or "tensor\src\ops\math\rounding\ceil\mod.rs"
+  = note: if there is a `mod ceil` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `erf`
+ --> tensor\src\ops\math\special\mod.rs:1:1
+  |
+1 | pub mod erf;
+  | ^^^^^^^^^^^^
+  |
+  = help: to create the module `erf`, create file "tensor\src\ops\math\special\erf.rs" or "tensor\src\ops\math\special\erf\mod.rs"
+  = note: if there is a `mod erf` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `norm`
+ --> tensor\src\ops\math\statistical\mod.rs:1:1
+  |
+1 | pub mod norm;
+  | ^^^^^^^^^^^^^
+  |
+  = help: to create the module `norm`, create file "tensor\src\ops\math\statistical\norm.rs" or "tensor\src\ops\math\statistical\norm\mod.rs"
+  = note: if there is a `mod norm` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `clamp`
+ --> tensor\src\ops\math\selection\mod.rs:1:1
+  |
+1 | pub mod clamp;
+  | ^^^^^^^^^^^^^^
+  |
+  = help: to create the module `clamp`, create file "tensor\src\ops\math\selection\clamp.rs" or "tensor\src\ops\math\selection\clamp\mod.rs"
+  = note: if there is a `mod clamp` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `cumprod`
+ --> tensor\src\ops\math\reduction\mod.rs:1:1
+  |
+1 | pub mod cumprod;
+  | ^^^^^^^^^^^^^^^^
+  |
+  = help: to create the module `cumprod`, create file "tensor\src\ops\math\reduction\cumprod.rs" or "tensor\src\ops\math\reduction\cumprod\mod.rs"
+  = note: if there is a `mod cumprod` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0432]: unresolved imports `math::abs`, `math::atan2`, `math::copysign`, `math::fmod`, `math::hypot`, `math::ldexp`, `math::pow`, `math::reciprocal`, `math::remainder`, `math::rsqrt`, `math::sign`, `math::signbit`, `math::sqrt`, `math::square`
+  --> tensor\src\ops\mod.rs:41:5
+   |
+41 |     abs, acos, acosh, asin, asinh, atan, atan2, atanh, ceil, clamp_, clamp_max_, clamp_min_,
+   |     ^^^                                  ^^^^^
+   |     |                                    |
+   |     |                                    no `atan2` in `ops::math`
+   |     no `abs` in `ops::math`              help: a similar name exists in the module: `atan`
+42 |     copysign, cos, cosh, erf, erfc, erfinv, exp, exp2, expm1, floor, fmod, frac, hypot, ldexp,
+   |     ^^^^^^^^                                                         ^^^^        ^^^^^  ^^^^^ no `ldexp` in `ops::math`
+   |     |                                                                |           |
+   |     |                                                                |           no `hypot` in `ops::math`
+   |     no `copysign` in `ops::math`                                     no `fmod` in `ops::math`
+43 |     lerp, lerp_scalar, log, log10, log1p, log2, nan_to_num, norm, pairwise_distance, pow,
+   |                                                                                      ^^^ no `pow` in `ops::math`
+44 |     rad2deg, reciprocal, remainder, renorm, round, rsqrt, sign, signbit, sin, sinh, sort,
+   |              ^^^^^^^^^^  ^^^^^^^^^                 ^^^^^  ^^^^  ^^^^^^^
+   |              |           |                         |
+   |              |           |                         no `rsqrt` in `ops::math`
+   |              |           no `remainder` in `ops::math`
+   |              no `reciprocal` in `ops::math`
+45 |     sqrt, square, tan, topk, trunc, unique, cosine_similarity, deg2rad, cumsum, cumprod,
+   |     ^^^^  ^^^^^^
+   |
+   = help: consider importing this module instead:
+           num_traits::pow
+note: module `crate::functions::math::pow` exists but is inaccessible
+  --> tensor\src\functions\math\mod.rs:6:1
+   |
+ 6 | mod pow;
+   | ^^^^^^^^ not accessible
+
+error[E0425]: cannot find function `abs` in module `crate::ops::math`
+  --> tensor\src\ops\comparison\isclose.rs:28:38
+   |
+28 |     let diff_abs = crate::ops::math::abs(&diff)?;
+   |                                      ^^^ not found in `crate::ops::math`
+   |
+help: consider importing this function
+   |
+ 1 + use num_traits::abs;
+   |
+help: if you import `abs`, refer to it directly
+   |
+28 -     let diff_abs = crate::ops::math::abs(&diff)?;
+28 +     let diff_abs = abs(&diff)?;
+   |
+
+error[E0425]: cannot find function `abs` in module `crate::ops::math`
+  --> tensor\src\ops\comparison\isclose.rs:30:39
+   |
+30 |     let other_abs = crate::ops::math::abs(other)?;
+   |                                       ^^^ not found in `crate::ops::math`
+   |
+help: consider importing this function
+   |
+ 1 + use num_traits::abs;
+   |
+help: if you import `abs`, refer to it directly
+   |
+30 -     let other_abs = crate::ops::math::abs(other)?;
+30 +     let other_abs = abs(other)?;
+   |
+
+error[E0425]: cannot find function `abs` in module `crate::ops::math`
+  --> tensor\src\ops\math\statistical\distance.rs:35:38
+   |
+35 |     let abs_diff = crate::ops::math::abs(&diff)?;
+   |                                      ^^^ not found in `crate::ops::math`
+   |
+help: consider importing this function
+   |
+ 5 + use num_traits::abs;
+   |
+help: if you import `abs`, refer to it directly
+   |
+35 -     let abs_diff = crate::ops::math::abs(&diff)?;
+35 +     let abs_diff = abs(&diff)?;
+   |
+
+error[E0425]: cannot find function `square` in module `crate::ops::math`
+  --> tensor\src\ops\math\statistical\distance.rs:38:41
+   |
+38 |         let squared = crate::ops::math::square(&abs_diff)?;
+   |                                         ^^^^^^ not found in `crate::ops::math`
+
+error[E0425]: cannot find function `sqrt` in module `crate::ops::math`
+  --> tensor\src\ops\math\statistical\distance.rs:47:27
+   |
+47 |           crate::ops::math::sqrt(&stabilized)
+   |                             ^^^^
+   |
+  ::: tensor\src\ops\math\selection\sort.rs:13:1
+   |
+13 | / pub fn sort<
+14 | |     T: DataType + PartialOrd,
+15 | |     B: Backend<Data = T> + Clone + Default + 'static,
+16 | |     S: Storage<T>
+...  |
+60 | |     Ok((values_tensor, sorted_indices))
+61 | | }
+   | |_- similarly named function `sort` defined here
+   |
+help: a function with a similar name exists
+   |
+47 -         crate::ops::math::sqrt(&stabilized)
+47 +         crate::ops::math::sort(&stabilized)
+   |
+help: consider importing one of these functions
+   |
+ 5 + use core::f32::math::sqrt;
+   |
+ 5 + use core::f64::math::sqrt;
+   |
+help: if you import `sqrt`, refer to it directly
+   |
+47 -         crate::ops::math::sqrt(&stabilized)
+47 +         sqrt(&stabilized)
+   |
+
+error[E0425]: cannot find function `pow_scalar` in module `crate::ops::math`
+  --> tensor\src\ops\math\statistical\distance.rs:51:41
+   |
+51 |         let powered = crate::ops::math::pow_scalar(&abs_diff, p_t)?;
+   |                                         ^^^^^^^^^^ not found in `crate::ops::math`
+
+error[E0425]: cannot find function `pow_scalar` in module `crate::ops::math`
+  --> tensor\src\ops\math\statistical\distance.rs:59:27
+   |
+59 |         crate::ops::math::pow_scalar(&stabilized, inv_p)
+   |                           ^^^^^^^^^^ not found in `crate::ops::math`
+
+error[E0425]: cannot find function `pow_scalar` in module `crate::ops::math`
+  --> tensor\src\functions\math\asin.rs:55:38
+   |
+55 |         let x_sq = crate::ops::math::pow_scalar(&input_dense, T::from_f64(2.0).unwrap())?;
+   |                                      ^^^^^^^^^^ not found in `crate::ops::math`
+
+error[E0425]: cannot find function `pow_scalar` in module `crate::ops::math`
+  --> tensor\src\functions\math\acos.rs:56:38
+   |
+56 |         let x_sq = crate::ops::math::pow_scalar(&input_dense, T::from_f64(2.0).unwrap())?;
+   |                                      ^^^^^^^^^^ not found in `crate::ops::math`
+
+error[E0425]: cannot find function `pow_scalar` in module `crate::ops::math`
+  --> tensor\src\functions\math\atan.rs:55:38
+   |
+55 |         let x_sq = crate::ops::math::pow_scalar(&input_dense, T::from_f64(2.0).unwrap())?;
+   |                                      ^^^^^^^^^^ not found in `crate::ops::math`
+
+error[E0425]: cannot find function `pow_scalar` in module `crate::ops::math`
+  --> tensor\src\functions\math\tan.rs:57:38
+   |
+57 |         let y_sq = crate::ops::math::pow_scalar(&y_dense, T::from_f64(2.0).unwrap())?; // or y * y
+   |                                      ^^^^^^^^^^ not found in `crate::ops::math`
+
+error[E0423]: expected function, found module `crate::ops::exp`
+  --> tensor\src\elementwise.rs:50:9
+   |
+50 |           crate::ops::exp(self)
+   |           ^^^^^^^^^^^^---
+   |                       |
+   |                       help: a function with a similar name exists: `exp2`
+   |
+  ::: tensor\src\ops\math\exponential\exp2.rs:10:1
+   |
+10 | / pub fn exp2<
+11 | |     T: DataType + Float + dtype::traits::FloatExt + 'static,
+12 | |     B: Backend<Data = T> + Clone + Default + 'static,
+13 | |     S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + StorageToDense<T> + 'static,
+...  |
+18 | |     Tensor::from_vec_with_backend(data, tensor.shape().dims(), tensor.backend.clone())
+19 | | }
+   | |_- similarly named function `exp2` defined here
+
+error[E0425]: cannot find function `pow_scalar` in module `crate::ops::math`
+   --> tensor\src\elementwise.rs:173:27
+    |
+173 |         crate::ops::math::pow_scalar(self, exp)
+    |                           ^^^^^^^^^^ not found in `crate::ops::math`
+
+error[E0425]: cannot find function `pow_scalar` in module `crate::ops::math`
+   --> tensor\src\elementwise.rs:204:27
+    |
+204 |         crate::ops::math::pow_scalar(self, two)
+    |                           ^^^^^^^^^^ not found in `crate::ops::math`
+
+warning: unused import: `TensorError`
+  --> tensor\src\ops\comparison\mod.rs:11:29
+   |
+11 | use crate::{Result, Tensor, TensorError};
+   |                             ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `StorageFromVec`
+  --> tensor\src\ops\comparison\mod.rs:14:24
+   |
+14 | use storage::{Storage, StorageFromVec};
+   |                        ^^^^^^^^^^^^^^
+
+warning: unused import: `Result`
+ --> tensor\src\ops\comparison\isnan.rs:3:13
+  |
+3 | use crate::{Result, Tensor, Backend, DataType, Storage};
+  |             ^^^^^^
+
+warning: unused import: `Result`
+ --> tensor\src\ops\comparison\isinf.rs:3:13
+  |
+3 | use crate::{Result, Tensor, Backend, DataType, Storage};
+  |             ^^^^^^
+
+warning: unused import: `Result`
+ --> tensor\src\ops\comparison\isfinite.rs:3:13
+  |
+3 | use crate::{Result, Tensor, Backend, DataType, Storage};
+  |             ^^^^^^
+
+warning: unused imports: `SparseAdd`, `SparseMul`, and `SparseSub`
+  --> tensor\src\ops\dispatch\sparse_dispatch.rs:10:23
+   |
+10 |     SparseActivation, SparseAdd, SparseDiv, SparseElementWise, SparseMul, SparseSub,
+   |                       ^^^^^^^^^                                ^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `matmul`
+ --> tensor\src\ops\linalg\addmv.rs:3:30
+  |
+3 | use crate::ops::linalg::{mv, matmul}; // Fallback uses mv or matmul? mv.
+  |                              ^^^^^^
+
+warning: unused import: `StorageFromVec`
+ --> tensor\src\ops\math\exponential\expm1.rs:7:24
+  |
+7 | use storage::{Storage, StorageFromVec};
+  |                        ^^^^^^^^^^^^^^
+
+warning: unused import: `StorageFromVec`
+ --> tensor\src\ops\math\exponential\log1p.rs:7:24
+  |
+7 | use storage::{Storage, StorageFromVec};
+  |                        ^^^^^^^^^^^^^^
+
+warning: unused imports: `FromPrimitive` and `ToPrimitive`
+ --> tensor\src\ops\math\special\erfc.rs:6:18
+  |
+6 | use num_traits::{FromPrimitive, ToPrimitive};
+  |                  ^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `StorageFromVec`
+ --> tensor\src\ops\math\special\erfc.rs:7:24
+  |
+7 | use storage::{Storage, StorageFromVec};
+  |                        ^^^^^^^^^^^^^^
+
+warning: unused imports: `FromPrimitive` and `ToPrimitive`
+ --> tensor\src\ops\math\special\erfinv.rs:6:18
+  |
+6 | use num_traits::{FromPrimitive, ToPrimitive};
+  |                  ^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `StorageFromVec`
+ --> tensor\src\ops\math\special\erfinv.rs:7:24
+  |
+7 | use storage::{Storage, StorageFromVec};
+  |                        ^^^^^^^^^^^^^^
+
+warning: unused import: `basic::*`
+  --> tensor\src\ops\math\mod.rs:13:9
+   |
+13 | pub use basic::*;
+   |         ^^^^^^^^
+
+warning: unused import: `dtype::traits::FloatExt`
+ --> tensor\src\ops\reduction\mean.rs:5:5
+  |
+5 | use dtype::traits::FloatExt;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0282]: type annotations needed for `Tensor<_, _, _>`
+  --> tensor\src\ops\math\statistical\distance.rs:84:9
+   |
+84 | ...et norms = crate::ops::arithmetic::mul(&norm1, &norm2)?;
+   |       ^^^^^
+...
+88 | ...et eps_tensor: Tensor<B, S, T> = Tensor::from_vec_with_backend(vec![eps_t; norms.shape().size()], norms.shape().dims(), norms.backend().cl...
+   |                                                                                                                            --------------- type must be known at this point
+   |
+help: consider giving `norms` an explicit type, where the placeholders `_` are specified
+   |
+84 |     let norms: Tensor<B, S1, T> = crate::ops::arithmetic::mul(&norm1, &norm2)?;
+   |              ++++++++++++++++++
+
+warning: unused variable: `result`
+  --> tensor\src\ops\comparison\allclose.rs:21:9
+   |
+21 |     let result = crate::ops::reduction::all(&close, Some(&[]), false)?;
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_result`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0282, E0423, E0425, E0432, E0583.
+For more information about an error, try `rustc --explain E0282`.
+warning: `tensor` (lib) generated 16 warnings
+error: could not compile `tensor` (lib) due to 24 previous errors; 16 warnings emitted
+≡ƒÆÑ maturin failed
+  Caused by: Failed to build a native library through cargo
+  Caused by: Cargo build finished with "exit code: 101": `"cargo" "rustc" "--features" "pyo3/extension-module" "--message-format" "json-render-diagnostics" "--manifest-path" "D:\\coeus\\pycoeus\\Cargo.toml" "--lib"`

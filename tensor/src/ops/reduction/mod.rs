@@ -31,7 +31,7 @@ use storage::{Storage, StorageFromVec};
 pub fn reduce_dims<
     T: DataType,
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T>,
+    S: Storage<T> + StorageFromVec<T> + crate::ops::dispatch::TensorStorageOps<T>,
     F: Fn(T, T) -> T,
 >(
     tensor: &Tensor<B, S, T>,

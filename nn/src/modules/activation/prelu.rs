@@ -116,10 +116,12 @@ where
 impl<B, S, T> Module<B, S, T> for PReLU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Copy,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::Num + Copy,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.forward(input)
     }
@@ -132,7 +134,7 @@ where
         "PReLU"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

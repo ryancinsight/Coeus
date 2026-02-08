@@ -38,6 +38,18 @@ where
     Ok(())
 }
 
+// Implement tanh_strided_primitive using macro
+crate::unary_strided_primitive!(tanh_strided_primitive, |x_val: T| {
+    let x_f64 = x_val.to_f64().unwrap_or(0.0);
+    T::from(x_f64.tanh()).unwrap_or(x_val)
+});
+
+// Implement tanh_csr_primitive using macro
+crate::unary_csr_primitive!(tanh_csr_primitive, |x_val: T| {
+    let x_f64 = x_val.to_f64().unwrap_or(0.0);
+    T::from(x_f64.tanh()).unwrap_or(x_val)
+});
+
 #[cfg(test)]
 mod tests {
     use super::*;

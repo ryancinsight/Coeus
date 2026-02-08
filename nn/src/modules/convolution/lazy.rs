@@ -101,6 +101,9 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive + num_traits::One,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.initialize_if_needed(input)?;
         let guard = self.inner.lock().unwrap();
@@ -140,7 +143,7 @@ where
         "LazyConv1d"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }
@@ -228,6 +231,9 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive + num_traits::One,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.initialize_if_needed(input)?;
         let guard = self.inner.lock().unwrap();
@@ -267,7 +273,7 @@ where
         "LazyConv2d"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }
@@ -355,6 +361,9 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive + num_traits::One,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.initialize_if_needed(input)?;
         let guard = self.inner.lock().unwrap();
@@ -394,7 +403,7 @@ where
         "LazyConv3d"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

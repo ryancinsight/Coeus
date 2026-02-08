@@ -13,4 +13,4 @@ pub mod div;
 pub use add::{add_primitive, add_strided_primitive};
 pub use sub::{sub_primitive, sub_strided_primitive};
 pub use mul::{mul_primitive, mul_strided_primitive};
-pub use div::div_primitive;
+pub use div::{div_primitive, div_strided_primitive};

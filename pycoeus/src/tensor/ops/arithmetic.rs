@@ -1,8 +1,12 @@
 use crate::tensor::class::{PyTensor, to_py_err, TensorWrapper};
 pub use crate::tensor::wrapper::WrapTensor;
-use crate::{dispatch_binary, dispatch_tensor};
+use crate::dispatch_binary;
 use pyo3::prelude::*;
 use dtype::float::{Float32, Float64};
+
+pub fn register(_py: Python<'_>, _m: &Bound<'_, PyModule>) -> PyResult<()> {
+    Ok(())
+}
 
 #[pymethods]
 impl PyTensor {

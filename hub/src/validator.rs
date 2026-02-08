@@ -58,7 +58,7 @@ impl ModelValidator {
         expected_output_shape: Option<&[usize]>,
     ) -> Result<ValidationResult>
     where
-        M: Module<B, S, T>,
+        M: Module<B, S, T, Input = tensor::Tensor<B, S, T>, Output = tensor::Tensor<B, S, T>>,
         B: Backend<Data = T>,
         S: storage::Storage<T>
             + Clone

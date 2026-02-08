@@ -37,6 +37,7 @@ futures-intrusive = { version = "0.5", optional = true }
 bytemuck = { workspace = true, optional = true }
 tokio = { version = "1.0", features = ["sync", "rt"], optional = true }
 futures = { version = "0.3", optional = true }
+statrs = "0.17"
 
 [dev-dependencies]
 proptest.workspace = true

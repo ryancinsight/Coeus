@@ -55,7 +55,11 @@ pub mod ops;
 pub mod functions;
 pub mod minimal_tensor;
 
-pub mod tensor_backend_dispatch;
+pub mod tensor_backend_dispatch {
+    pub use crate::ops::dispatch::backend::{
+        activation::*, arithmetic::*, linalg::*, neural::*, TensorBackendDispatcher, TensorDispatcher,
+    };
+}
 pub mod tensor_core;
 pub use implementations::*;
 pub mod implementations;

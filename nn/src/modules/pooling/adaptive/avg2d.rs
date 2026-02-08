@@ -1,11 +1,10 @@
-use backend::CpuBackend;
+use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
 use storage::DenseStorage;
-use tensor::Tensor;
+use tensor::{Tensor, ops::TensorStorageOps};
 
 use crate::core::error::{NNError, Result};
-use crate::core::module::Module;
-use crate::core::parameter::Parameter;
+use crate::{Module, Parameter};
 
 /// Adaptive Average Pooling 2D layer.
 ///
@@ -62,83 +61,29 @@ impl AdaptiveAvgPool2d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T>
-    for AdaptiveAvgPool2d
+impl<B, S, T> Module<B, S, T> for AdaptiveAvgPool2d
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageOps<T> + Clone + 'static,
+    T: DataType + FloatExt + Clone,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
-        let input_shape = input.shape().dims();
-
-        // Handle both 3D (C, H, W) and 4D (N, C, H, W) inputs
-        let (batch_size, channels, height, width) = match input_shape.len() {
-            3 => (1, input_shape[0], input_shape[1], input_shape[2]),
-            4 => (
-                input_shape[0],
-                input_shape[1],
-                input_shape[2],
-                input_shape[3],
-            ),
-            _ => {
-                return Err(NNError::InvalidInput {
-                    message: format!("Expected 3D or 4D input, got {}D", input_shape.len()),
-                })
-            }
-        };
-
-        let (out_height, out_width) = self.output_size;
-        let output_shape = if input_shape.len() == 3usize {
-            vec![channels, out_height, out_width]
-        } else {
-            vec![batch_size, channels, out_height, out_width]
-        };
-
-        let mut output_data = Vec::with_capacity(batch_size * channels * out_height * out_width);
-
-        // Reshape input to 4D for uniform processing
-        let input_data = input.as_slice();
-
-        for b in 0..batch_size {
-            for c in 0..channels {
-                for oh in 0..out_height {
-                    for ow in 0..out_width {
-                        // Compute adaptive pooling window
-                        let (h_start, h_end) =
-                            Self::compute_adaptive_params(height, out_height, oh);
-                        let (w_start, w_end) = Self::compute_adaptive_params(width, out_width, ow);
-
-                        // Compute average over the window
-                        let mut sum = T::zero();
-                        let mut count = 0;
-
-                        for h in h_start..h_end {
-                            for w in w_start..w_end {
-                                let idx = b * (channels * height * width)
-                                    + c * (height * width)
-                                    + h * width
-                                    + w;
-                                sum = sum + input_data[idx];
-                                count += 1;
-                            }
-                        }
-
-                        let avg = if count > 0 {
-                            sum / T::from(count as f64).unwrap()
-                        } else {
-                            T::zero()
-                        };
-
-                        output_data.push(avg);
-                    }
-                }
-            }
-        }
-
-        Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
+        input: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, S, T>> {
+        let output = crate::functional::ops::pooling::adaptive_avg_pool2d(
+            input,
+            self.output_size,
+        )?;
+        let dense = output.to_dense_generic()?;
+        let storage = S::from_vec(dense.as_slice().to_vec(), dense.shape().dims())?;
+        Ok(Tensor::from_storage(storage, input.backend().clone()))
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         Vec::new() // No learnable parameters
     }
 
@@ -154,7 +99,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
         "AdaptiveAvgPool2d"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

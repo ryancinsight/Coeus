@@ -4,10 +4,14 @@ use crate::tensor::wrapper::{TensorWrapper};
 use dtype::float::{Float32, Float64};
 use pyo3::prelude::*;
 
+pub fn register(_py: Python<'_>, _m: &Bound<'_, PyModule>) -> PyResult<()> {
+    Ok(())
+}
+
 #[pymethods]
 impl PyTensor {
     pub fn zero_(&mut self) -> PyResult<PyTensor> {
-        dispatch_tensor_mut!(self, inner => tensor::ops::inplace::zero_(inner).map_err(to_py_err));
+        let _ = dispatch_tensor_mut!(self, inner => tensor::ops::inplace::zero_(inner).map_err(to_py_err));
         Ok(self.clone())
     }
 

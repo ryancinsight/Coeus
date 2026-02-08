@@ -1,0 +1,664 @@
+warning: missing documentation for an associated function
+  --> storage\src\sparse\coo\creation.rs:47:5
+   |
+47 |     pub ...> Result<Self> {
+   |     ^^^^...^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> storage\src\lib.rs:53:9
+   |
+53 | #![warn(missing_docs, clip...
+   |         ^^^^^^^^^^^^
+
+warning: `storage` (lib) generated 1 warning
+warning: unused import: `std::collections::HashMap`
+ --> backend\src\selection\mod.rs:3:5
+  |
+3 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `num_traits`
+ --> backend\src\cpu\implementations\arithmetic.rs:2:13
+  |
+2 | use dtype::{num_traits, Dat...
+  |             ^^^^^^^^^^
+
+warning: unused variable: `backend`
+   --> backend\src\selection\mod.rs:149:40
+    |
+149 | ...elf, backend: BackendT...
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_backend`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `workload`
+   --> backend\src\selection\mod.rs:149:62
+    |
+149 | ...ype, workload: &Worklo...
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_workload`
+
+warning: unused variable: `lambda`
+   --> backend\src\cpu\linear_algebra\decomposition.rs:386:9
+    |
+386 |     let lambda = if denom...
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_lambda`
+
+warning: unused variable: `vip`
+   --> backend\src\cpu\linear_algebra\decomposition.rs:519:17
+    |
+519 | ...   let vip = v_temp[i ...
+    |           ^^^ help: if this is intentional, prefix it with an underscore: `_vip`
+
+warning: unused variable: `viq`
+   --> backend\src\cpu\linear_algebra\decomposition.rs:520:17
+    |
+520 | ...   let viq = v_temp[i ...
+    |           ^^^ help: if this is intentional, prefix it with an underscore: `_viq`
+
+warning: unused variable: `op`
+  --> backend\src\cpu\implementations\comparison.rs:41:5
+   |
+41 |     op: F,
+   |     ^^ help: if this is intentional, prefix it with an underscore: `_op`
+
+warning: fields `backend`, `workload`, `actual_time_us`, and `timestamp` are never read
+  --> backend\src\selection\mod.rs:58:5
+   |
+57 | struct PerformanceRecord {
+   |        ----------------- fields in this struct
+58 |     backend: BackendType,
+   |     ^^^^^^^
+59 |     workload: WorkloadChara...
+   |     ^^^^^^^^
+60 |     actual_time_us: f64,
+   |     ^^^^^^^^^^^^^^
+61 |     timestamp: u64,
+   |     ^^^^^^^^^
+   |
+   = note: `PerformanceRecord` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `performance_history` and `memory_manager` are never read
+  --> backend\src\selection\mod.rs:70:5
+   |
+66 | pub struct BackendSelector {
+   |            --------------- fields in this struct
+...
+70 |     performance_history: Vec<...
+   |     ^^^^^^^^^^^^^^^^^^^
+71 |     /// Integrated memory man...
+72 |     memory_manager: Option<()>, 
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `BackendSelector` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `gpu_memory_usage`, `gpu_utilization`, `operation_latencies`, `target_overhead_percent`, and `current_step` are never read
+  --> backend\src\monitoring\mod.rs:4:5
+   |
+ 2 | pub struct PerformanceMonitor {
+   |            ------------------ fields in this struct
+ 3 |     /// GPU memory usage tracking
+ 4 |     gpu_memory_usage: Vec<f64>,
+   |     ^^^^^^^^^^^^^^^^
+ 5 |     /// GPU utilization tracking
+ 6 |     gpu_utilization: Vec<f32>,
+   |     ^^^^^^^^^^^^^^^
+ 7 |     /// Operation latency tracking
+ 8 |     operation_latencies: std::co...
+   |     ^^^^^^^^^^^^^^^^^^^
+ 9 |     /// Target overhead percent
+10 |     target_overhead_percent: f32,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+11 |     /// Current training step
+12 |     current_step: u64,
+   |     ^^^^^^^^^^^^
+
+warning: `backend` (lib) generated 11 warnings (run `cargo fix --lib -p backend` to apply 8 suggestions)
+warning: unused variable: `new_strides`
+  --> dense\src\layout\transpose.rs:74:9
+   |
+74 |     let new_strides: Vec<u...
+   |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_strides`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dense` (lib) generated 1 warning (run `cargo fix --lib -p dense` to apply 1 suggestion)
+warning: unused import: `TensorError`
+  --> tensor\src\ops\comparison\mod.rs:11:29
+   |
+11 | ...nsor, TensorError};
+   |          ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `StorageFromVec`
+  --> tensor\src\ops\comparison\mod.rs:14:24
+   |
+14 | ...ge, StorageFromVec};
+   |        ^^^^^^^^^^^^^^
+
+warning: unused imports: `SparseAdd`, `SparseMul`, and `SparseSub`
+  --> tensor\src\ops\dispatch\sparse_dispatch.rs:10:23
+   |
+10 | ...n, SparseAdd, SparseDiv, SparseElementWise, SparseMul, SparseSub,
+   |       ^^^^^^^^^                                ^^^^^^^^^  ^^^^^^^^^
+
+warning: `tensor` (lib) generated 3 warnings (run `cargo fix --lib -p tensor` to apply 3 suggestions)
+warning: function `canonical_reduce_dims` is never used
+  --> autograd\src\functions\mod.rs:52:15
+   |
+52 | ...fn canonical_reduce_dims(
+   |       ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `kept_shape_for_reduction` is never used
+  --> autograd\src\functions\mod.rs:74:15
+   |
+74 | ...fn kept_shape_for_reduction(
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `unbroadcast_dense` is never used
+   --> autograd\src\functions\mod.rs:117:15
+    |
+117 | ...fn unbroadcast_dense<B,...
+    |       ^^^^^^^^^^^^^^^^^
+
+warning: function `to_storage_preserving_graph` is never used
+   --> autograd\src\functions\mod.rs:160:15
+    |
+160 | ...fn to_storage_preserving_graph<B,...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `to_dense_preserving_graph_identity` is never used
+   --> autograd\src\functions\mod.rs:174:15
+    |
+174 | ...fn to_dense_preserving_graph_identity<B,...
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `autograd` (lib) generated 5 warnings
+    Checking pycoeus v0.2.1 (D:\coeus\pycoeus)
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `linalg`
+  --> pycoeus\src\tensor\ops\mod.rs:18:5
+   |
+18 |     linalg::register(py, m)?;
+   |     ^^^^^^ use of unresolved module or unlinked crate `linalg`
+   |
+help: to make use of source file pycoeus\src\tensor\ops\linalg.rs, use `mod linalg` in this file to declare the module
+  --> pycoeus\src\lib.rs:1:1
+   |
+ 1 + mod linalg;
+   |
+help: consider importing this module
+   |
+ 7 + use crate::linalg;
+   |
+
+warning: unused imports: `dispatch_binary`, `dispatch_dense_tensor`, `dispatch_float_dense_tensor`, and `dispatch_tensor`
+ --> pycoeus\src\tensor\class.rs:4:13
+  |
+4 | use crate::{dispatch_tensor, dispatch_binary, dispatch_dense_tensor, dispatch_float_dense_tensor};
+  |             ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `dispatch_tensor`
+ --> pycoeus\src\tensor\ops\arithmetic.rs:3:30
+  |
+3 | use crate::{dispatch_binary, dispatch_tensor};
+  |                              ^^^^^^^^^^^^^^^
+
+warning: unused import: `dtype::num_traits::Zero`
+ --> pycoeus\src\tensor\ops\indexing.rs:9:5
+  |
+9 | use dtype::num_traits::Zero;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `dtype::num_traits::Zero`
+ --> pycoeus\src\tensor\ops\comparison.rs:9:5
+  |
+9 | use dtype::num_traits::Zero;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `squeeze` found for struct `PyTensor` in the current scope
+   --> pycoeus\src\functional\loss.rs:157:32
+    |
+157 |     PyTensor { inner: result }.squeeze(None)
+    |                                ^^^^^^^ method not found in `PyTensor`
+    |
+   ::: pycoeus\src\tensor\class.rs:9:1
+    |
+  9 | pub struct PyTensor {
+    | ------------------- method `squeeze` not found for this struct
+
+error[E0599]: no method named `squeeze` found for struct `PyTensor` in the current scope
+   --> pycoeus\src\functional\loss.rs:241:12
+    |
+241 |     result.squeeze(None)
+    |            ^^^^^^^ method not found in `PyTensor`
+    |
+   ::: pycoeus\src\tensor\class.rs:9:1
+    |
+  9 | pub struct PyTensor {
+    | ------------------- method `squeeze` not found for this struct
+
+error[E0599]: no method named `matmul` found for reference `&PyTensor` in the current scope
+ --> pycoeus\src\functional\ops.rs:6:11
+  |
+6 |     input.matmul(other)
+  |           ^^^^^^
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following traits define an item `matmul`, perhaps you need to implement one of them:
+          candidate #1: `DenseMatMul`
+          candidate #2: `pyo3::types::PyAnyMethods`
+help: there is a method `mul` with a similar name
+  |
+6 -     input.matmul(other)
+6 +     input.mul(other)
+  |
+
+error[E0599]: no method named `bmm` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\functional\ops.rs:11:11
+   |
+11 |     input.bmm(other)
+   |           ^^^ method not found in `&PyTensor`
+
+error[E0599]: no method named `addmm` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\functional\ops.rs:22:11
+   |
+22 |     input.addmm(mat1, mat2, beta as f64, alpha as f64)
+   |           ^^^^^
+   |
+help: there is a method `add` with a similar name, but with different arguments
+  --> pycoeus\src\tensor\ops\arithmetic.rs:13:5
+   |
+13 |     pub fn add(&self, other: &PyTensor) -> PyResult<PyTensor> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `mv` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\functional\ops.rs:27:11
+   |
+27 |     input.mv(vec)
+   |           ^^ method not found in `&PyTensor`
+
+error[E0599]: no method named `addr` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\functional\ops.rs:32:11
+   |
+32 |     input.addr(vec1, vec2)
+   |           ^^^^
+   |
+help: there is a method `add` with a similar name, but with different arguments
+  --> pycoeus\src\tensor\ops\arithmetic.rs:13:5
+   |
+13 |     pub fn add(&self, other: &PyTensor) -> PyResult<PyTensor> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `outer` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\functional\ops.rs:37:11
+   |
+37 |     input.outer(vec2)
+   |           ^^^^^ method not found in `&PyTensor`
+
+error[E0599]: no method named `reshape` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\functional\ops.rs:42:11
+   |
+42 |     input.reshape(shape)
+   |           ^^^^^^^
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following traits define an item `reshape`, perhaps you need to implement one of them:
+           candidate #1: `DenseLayout`
+           candidate #2: `LayoutOps`
+           candidate #3: `coeus_sparse::layout::SparseLayout`
+           candidate #4: `numpy::PyArrayMethods`
+help: there is a method `shape` with a similar name, but with different arguments
+  --> pycoeus\src\tensor\class.rs:27:5
+   |
+27 |     pub fn shape(&self) -> Vec<usize> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `view` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\functional\ops.rs:47:11
+   |
+47 |     input.view(shape)
+   |           ^^^^ method not found in `&PyTensor`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following trait defines an item `view`, perhaps you need to implement it:
+           candidate #1: `image::image::GenericImageView`
+
+error[E0599]: `&PyTensor` is not an iterator
+  --> pycoeus\src\functional\ops.rs:52:11
+   |
+52 |     input.flatten(start_dim, end_dim)
+   |           ^^^^^^^ `&PyTensor` is not an iterator
+   |
+  ::: pycoeus\src\tensor\class.rs:9:1
+   |
+ 9 | pub struct PyTensor {
+   | ------------------- doesn't satisfy `PyTensor: Iterator`
+   |
+   = note: the following trait bounds were not satisfied:
+           `&PyTensor: Iterator`
+           which is required by `&mut &PyTensor: Iterator`
+           `PyTensor: Iterator`
+           which is required by `&mut PyTensor: Iterator`
+note: the trait `Iterator` must be implemented
+  --> C:\Users\RyanClanton\.rustup\toolchains\nightly-x86_64-pc-windows-gnu\lib/rustlib/src/rust\library\core\src\iter\traits\iterator.rs:40:1
+   |
+40 | pub trait Iterator {
+   | ^^^^^^^^^^^^^^^^^^
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following traits define an item `flatten`, perhaps you need to implement one of them:
+           candidate #1: `DenseLayout`
+           candidate #2: `futures_util::future::future::FutureExt`
+           candidate #3: `futures_util::stream::stream::StreamExt`
+           candidate #4: `rayon::iter::ParallelIterator`
+   = note: the trait `Iterator` defines an item `flatten`, but is explicitly unimplemented
+
+error[E0599]: no method named `squeeze` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\functional\ops.rs:57:11
+   |
+57 |     input.squeeze(dim)
+   |           ^^^^^^^ method not found in `&PyTensor`
+
+error[E0599]: no method named `unsqueeze` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\functional\ops.rs:62:11
+   |
+62 |     input.unsqueeze(dim)
+   |           ^^^^^^^^^ method not found in `&PyTensor`
+
+error[E0599]: no method named `transpose` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\functional\ops.rs:67:11
+   |
+67 |     input.transpose(dim0, dim1)
+   |           ^^^^^^^^^ method not found in `&PyTensor`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following traits define an item `transpose`, perhaps you need to implement one of them:
+           candidate #1: `DenseLayout`
+           candidate #2: `LayoutOps`
+           candidate #3: `coeus_sparse::layout::SparseLayout`
+           candidate #4: `numpy::PyArrayMethods`
+
+error[E0599]: no method named `permute` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\functional\ops.rs:72:11
+   |
+72 |     input.permute(dims)
+   |           ^^^^^^^ method not found in `&PyTensor`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following traits define an item `permute`, perhaps you need to implement one of them:
+           candidate #1: `LayoutOps`
+           candidate #2: `numpy::PyArrayMethods`
+
+error[E0599]: no method named `sigmoid` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\nn\activations\sigmoid.rs:26:15
+   |
+26 |         input.sigmoid()
+   |               ^^^^^^^ method not found in `&PyTensor`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following trait defines an item `sigmoid`, perhaps you need to implement it:
+           candidate #1: `DenseSigmoid`
+
+error[E0599]: the method `clamp` exists for struct `PyTensor`, but its trait bounds were not satisfied
+  --> pycoeus\src\nn\activations\sigmoid.rs:65:16
+   |
+65 |         scaled.clamp(0.0, 1.0)
+   |                ^^^^^ method cannot be called on `PyTensor` due to unsatisfied trait bounds
+   |
+  ::: pycoeus\src\tensor\class.rs:9:1
+   |
+ 9 | pub struct PyTensor {
+   | ------------------- method `clamp` not found for this struct because it doesn't satisfy `PyTensor: Ord`
+   |
+   = note: the following trait bounds were not satisfied:
+           `PyTensor: Ord`
+           which is required by `&PyTensor: Ord`
+           `PyTensor: Ord`
+           which is required by `&mut PyTensor: Ord`
+help: consider annotating `PyTensor` with `#[derive(Eq, Ord, PartialEq, PartialOrd)]`
+  --> pycoeus\src\tensor\class.rs:9:1
+   |
+ 9 + #[derive(Eq, Ord, PartialEq, PartialOrd)]
+10 | pub struct PyTensor {
+   |
+
+error[E0599]: no method named `abs` found for reference `&PyTensor` in the current scope
+   --> pycoeus\src\nn\activations\sigmoid.rs:174:31
+    |
+174 |         let abs_input = input.abs()?;
+    |                               ^^^ method not found in `&PyTensor`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `abs`, perhaps you need to implement one of them:
+            candidate #1: `FloatCore`
+            candidate #2: `Real`
+            candidate #3: `Signed`
+            candidate #4: `backend::num_traits::Float`
+            candidate #5: `libm::math::support::float_traits::Float`
+            candidate #6: `libm::math::support::int_traits::Int`
+            candidate #7: `num_complex::complex_float::ComplexFloat`
+            candidate #8: `pyo3::types::PyAnyMethods`
+            candidate #9: `simba::scalar::complex::ComplexField`
+
+error[E0599]: no method named `neg` found for reference `&PyTensor` in the current scope
+   --> pycoeus\src\nn\activations\softmax.rs:129:31
+    |
+129 |         let neg_input = input.neg()?;
+    |                               ^^^
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `neg`, perhaps you need to implement one of them:
+            candidate #1: `Neg`
+            candidate #2: `pyo3::types::PyAnyMethods`
+            candidate #3: `rustfft::avx::avx_vector::AvxVector`
+            candidate #4: `rustfft::sse::sse_vector::SseVector`
+help: there is a method `ne` with a similar name, but with different arguments
+   --> pycoeus\src\tensor\ops\comparison.rs:22:5
+    |
+ 22 |     pub fn ne(&self, other: &PyTensor) -> PyResult<PyTensor> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `tanh` found for reference `&PyTensor` in the current scope
+  --> pycoeus\src\nn\activations\tanh.rs:28:15
+   |
+28 |         input.tanh()
+   |               ^^^^ method not found in `&PyTensor`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following traits define an item `tanh`, perhaps you need to implement one of them:
+           candidate #1: `Real`
+           candidate #2: `backend::num_traits::Float`
+           candidate #3: `num_complex::complex_float::ComplexFloat`
+           candidate #4: `simba::scalar::complex::ComplexField`
+
+error[E0599]: no method named `tanh` found for reference `&PyTensor` in the current scope
+   --> pycoeus\src\nn\activations\tanh.rs:110:33
+    |
+110 |         let tanh_result = input.tanh()?;
+    |                                 ^^^^ method not found in `&PyTensor`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `tanh`, perhaps you need to implement one of them:
+            candidate #1: `Real`
+            candidate #2: `backend::num_traits::Float`
+            candidate #3: `num_complex::complex_float::ComplexFloat`
+            candidate #4: `simba::scalar::complex::ComplexField`
+
+error[E0599]: `&PyTensor` is not an iterator
+  --> pycoeus\src\nn\common.rs:46:15
+   |
+46 |         input.flatten(self.start_dim as usize, self.end_dim)
+   |               ^^^^^^^ `&PyTensor` is not an iterator
+   |
+  ::: pycoeus\src\tensor\class.rs:9:1
+   |
+ 9 | pub struct PyTensor {
+   | ------------------- doesn't satisfy `PyTensor: Iterator`
+   |
+   = note: the following trait bounds were not satisfied:
+           `&PyTensor: Iterator`
+           which is required by `&mut &PyTensor: Iterator`
+           `PyTensor: Iterator`
+           which is required by `&mut PyTensor: Iterator`
+note: the trait `Iterator` must be implemented
+  --> C:\Users\RyanClanton\.rustup\toolchains\nightly-x86_64-pc-windows-gnu\lib/rustlib/src/rust\library\core\src\iter\traits\iterator.rs:40:1
+   |
+40 | pub trait Iterator {
+   | ^^^^^^^^^^^^^^^^^^
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following traits define an item `flatten`, perhaps you need to implement one of them:
+           candidate #1: `DenseLayout`
+           candidate #2: `futures_util::future::future::FutureExt`
+           candidate #3: `futures_util::stream::stream::StreamExt`
+           candidate #4: `rayon::iter::ParallelIterator`
+   = note: the trait `Iterator` defines an item `flatten`, but is explicitly unimplemented
+
+error[E0599]: no method named `unsqueeze` found for reference `&PyTensor` in the current scope
+   --> pycoeus\src\nn\normalization\batchnorm.rs:104:36
+    |
+104 |             let unsqueezed = input.unsqueeze(2)?;
+    |                                    ^^^^^^^^^ method not found in `&PyTensor`
+
+error[E0599]: no method named `squeeze` found for struct `PyTensor` in the current scope
+   --> pycoeus\src\nn\normalization\batchnorm.rs:151:40
+    |
+151 |             PyTensor { inner: output }.squeeze(Some(2))
+    |                                        ^^^^^^^ method not found in `PyTensor`
+    |
+   ::: pycoeus\src\tensor\class.rs:9:1
+    |
+  9 | pub struct PyTensor {
+    | ------------------- method `squeeze` not found for this struct
+
+warning: use of deprecated associated function `pyo3::Python::<'_>::with_gil`: use `Python::attach` instead
+  --> pycoeus\src\tensor\class.rs:97:17
+   |
+97 |         Python::with_gil(|py| {
+   |                 ^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+error[E0599]: no method named `argmax` found for reference `&PyTensor` in the current scope
+   --> pycoeus\src\tensor\functions.rs:132:11
+    |
+132 |     input.argmax(dim_usize, keepdim)
+    |           ^^^^^^ method not found in `&PyTensor`
+
+error[E0599]: no method named `argmin` found for reference `&PyTensor` in the current scope
+   --> pycoeus\src\tensor\functions.rs:141:11
+    |
+141 |     input.argmin(dim_usize, keepdim)
+    |           ^^^^^^ method not found in `&PyTensor`
+
+warning: use of deprecated associated function `pyo3::Python::<'_>::with_gil`: use `Python::attach` instead
+  --> pycoeus\src\tensor\ops\conversion.rs:20:18
+   |
+20 |          Python::with_gil(|py| {
+   |                  ^^^^^^^^
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `activation`
+  --> pycoeus\src\tensor\ops\mod.rs:16:5
+   |
+16 |     activation::register(py, m)?;
+   |     ^^^^^^^^^^ use of unresolved module or unlinked crate `activation`
+   |
+help: to make use of source file pycoeus\src\tensor\ops\activation.rs, use `mod activation` in this file to declare the module
+  --> pycoeus\src\lib.rs:1:1
+   |
+ 1 + mod activation;
+   |
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `inplace`
+  --> pycoeus\src\tensor\ops\mod.rs:17:5
+   |
+17 |     inplace::register(py, m)?;
+   |     ^^^^^^^ use of unresolved module or unlinked crate `inplace`
+   |
+help: to make use of source file pycoeus\src\tensor\ops\inplace.rs, use `mod inplace` in this file to declare the module
+  --> pycoeus\src\lib.rs:1:1
+   |
+ 1 + mod inplace;
+   |
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `math`
+  --> pycoeus\src\tensor\ops\mod.rs:19:5
+   |
+19 |     math::register(py, m)?;
+   |     ^^^^ use of unresolved module or unlinked crate `math`
+   |
+help: to make use of source file pycoeus\src\tensor\ops\math.rs, use `mod math` in this file to declare the module
+  --> pycoeus\src\lib.rs:1:1
+   |
+ 1 + mod math;
+   |
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `shape`
+  --> pycoeus\src\tensor\ops\mod.rs:20:5
+   |
+20 |     shape::register(py, m)?;
+   |     ^^^^^ use of unresolved module or unlinked crate `shape`
+   |
+help: to make use of source file pycoeus\src\tensor\ops\shape.rs, use `mod shape` in this file to declare the module
+  --> pycoeus\src\lib.rs:1:1
+   |
+ 1 + mod shape;
+   |
+
+warning: unused import: `SVD`
+ --> pycoeus\src\tensor\wrapper\linalg.rs:5:61
+  |
+5 | use coeus_linalg::{Cholesky, Det, Inverse, Norm, Solve, QR, SVD};
+  |                                                             ^^^
+
+warning: unused import: `QR`
+ --> pycoeus\src\tensor\wrapper\linalg.rs:5:57
+  |
+5 | use coeus_linalg::{Cholesky, Det, Inverse, Norm, Solve, QR, SVD};
+  |                                                         ^^
+
+warning: unused import: `Cholesky`
+ --> pycoeus\src\tensor\wrapper\linalg.rs:5:20
+  |
+5 | use coeus_linalg::{Cholesky, Det, Inverse, Norm, Solve, QR, SVD};
+  |                    ^^^^^^^^
+
+warning: unused import: `optim::BaseOptimizer`
+ --> pycoeus\src\optim\sgd.rs:4:5
+  |
+4 | use optim::BaseOptimizer; // Need BaseOptimizer import for add_param_group on SGD?
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Backend`
+ --> pycoeus\src\nn\pooling\max.rs:6:27
+  |
+6 | use backend::{CpuBackend, Backend};
+  |                           ^^^^^^^
+
+warning: unused import: `crate::tensor::wrapper::WrapTensor`
+ --> pycoeus\src\tensor\class.rs:3:5
+  |
+3 | use crate::tensor::wrapper::WrapTensor;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `pyo3::types::PyAnyMethods`
+ --> pycoeus\src\tensor\class.rs:5:5
+  |
+5 | use pyo3::types::PyAnyMethods; // For into_pyobject? or just pyo3 prelude covers it.
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `optim::BaseOptimizer`
+ --> pycoeus\src\optim\rmsprop.rs:4:5
+  |
+4 | use optim::BaseOptimizer;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0433, E0599.
+For more information about an error, try `rustc --explain E0433`.
+warning: `pycoeus` (lib) generated 14 warnings
+error: could not compile `pycoeus` (lib) due to 31 previous errors; 14 warnings emitted

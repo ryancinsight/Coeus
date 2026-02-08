@@ -85,8 +85,8 @@ proptest! {
         let output = relu(&input).unwrap();
 
         // All output values must be >= 0
-        for &val in output.as_slice() {
-            prop_assert!(val.get() >= 0.0, "ReLU output must be non-negative, got {}", val.get());
+        for val in output.as_slice().iter() {
+            prop_assert!(val.get() as f32 >= 0.0, "ReLU output must be non-negative, got {}", val.get() as f32);
         }
     }
 
@@ -102,8 +102,8 @@ proptest! {
         let output = sigmoid(&input).unwrap();
 
         // All output values must be in [0, 1] (within float tolerance)
-        for &val in output.as_slice() {
-            let v = val.get();
+        for val in output.as_slice().iter() {
+            let v = val.get() as f32;
             prop_assert!(
                 v >= -1e-6 && v <= 1.0 + 1e-6,
                 "Sigmoid output must be in [0, 1] within tolerance, got {}",
@@ -124,8 +124,8 @@ proptest! {
         let output = tanh(&input).unwrap();
 
         // All output values must be in [-1, 1] (within float tolerance)
-        for &val in output.as_slice() {
-            let v = val.get();
+        for val in output.as_slice().iter() {
+            let v = val.get() as f32;
             prop_assert!(
                 v >= -1.0 - 1e-6 && v <= 1.0 + 1e-6,
                 "Tanh output must be in [-1, 1] within tolerance, got {}",
@@ -152,7 +152,7 @@ proptest! {
         let loss = mse_loss(&predictions, &targets).unwrap();
 
         // Loss must be >= 0
-        let loss_value = loss.as_slice()[0].get();
+        let loss_value = loss.as_slice()[0].get() as f32;
         prop_assert!(loss_value >= 0.0,
             "MSE loss must be non-negative, got {}", loss_value);
     }
@@ -174,7 +174,7 @@ proptest! {
         let loss = l1_loss(&predictions, &targets).unwrap();
 
         // Loss must be >= 0
-        let loss_value = loss.as_slice()[0].get();
+        let loss_value = loss.as_slice()[0].get() as f32;
         prop_assert!(loss_value >= 0.0,
             "L1 loss must be non-negative, got {}", loss_value);
     }
@@ -193,8 +193,8 @@ proptest! {
         // For large positive values, GELU should be positive
         // For large negative values, GELU should be close to 0
         for (i, &val) in output.as_slice().iter().enumerate() {
-            let input_val = float_values[i].get();
-            let output_val = val.get();
+            let input_val = float_values[i].get() as f32;
+            let output_val = val.get() as f32;
 
             if input_val > 3.0 {
                 prop_assert!(output_val > 0.0,
@@ -219,9 +219,9 @@ proptest! {
         let output = silu(&input).unwrap();
 
         // SiLU of positive values should be positive
-        for &val in output.as_slice() {
-            prop_assert!(val.get() >= 0.0,
-                "SiLU of positive input should be non-negative, got {}", val.get());
+        for val in output.as_slice().iter() {
+            prop_assert!(val.get() as f32 >= 0.0,
+                "SiLU of positive input should be non-negative, got {}", val.get() as f32);
         }
     }
 
@@ -242,7 +242,7 @@ proptest! {
 
         // Output should also be monotonic (non-decreasing)
         for i in 1..output_slice.len() {
-            prop_assert!(output_slice[i].get() >= output_slice[i-1].get(),
+            prop_assert!(output_slice[i].get() as f32 >= output_slice[i-1].get() as f32,
                 "LeakyReLU should preserve monotonicity");
         }
     }
@@ -263,12 +263,12 @@ proptest! {
 
         // ELU should be continuous at 0
         // For x=0, ELU(0) = 0
-        prop_assert!((output_slice[1].get() - 0.0).abs() < 1e-5,
+        prop_assert!((output_slice[1].get() as f32 - 0.0).abs() < 1e-5,
             "ELU(0) should be 0");
 
         // Values near 0 should be close
-        let diff_left = (output_slice[0].get() - output_slice[1].get()).abs();
-        let diff_right = (output_slice[2].get() - output_slice[1].get()).abs();
+        let diff_left = (output_slice[0].get() as f32 - output_slice[1].get() as f32).abs();
+        let diff_right = (output_slice[2].get() as f32 - output_slice[1].get() as f32).abs();
         prop_assert!(diff_left < 0.01 && diff_right < 0.01,
             "ELU should be continuous at 0");
     }
@@ -285,7 +285,7 @@ proptest! {
         let output = softmax(&input).unwrap();
 
         // Sum of softmax outputs should be 1
-        let sum: f32 = output.as_slice().iter().map(|v| v.get()).sum();
+        let sum: f32 = output.as_slice().iter().map(|v| v.get() as f32).sum();
         prop_assert!((sum - 1.0).abs() < 1e-5,
             "Softmax outputs should sum to 1, got {}", sum);
     }
@@ -302,9 +302,9 @@ proptest! {
         let output = softmax(&input).unwrap();
 
         // All softmax outputs should be positive
-        for &val in output.as_slice() {
-            prop_assert!(val.get() > 0.0,
-                "Softmax output should be positive, got {}", val.get());
+        for val in output.as_slice().iter() {
+            prop_assert!(val.get() as f32 > 0.0,
+                "Softmax output should be positive, got {}", val.get() as f32);
         }
     }
 }
@@ -318,7 +318,7 @@ fn test_relu_zero_at_zero() {
     // ReLU(0) = 0
     let input = TestTensor::from_vec(vec![Float32::new(0.0)], &[1]).unwrap();
     let output = relu(&input).unwrap();
-    assert_eq!(output.as_slice()[0].get(), 0.0);
+    assert_eq!(output.as_slice()[0].get() as f32, 0.0);
 }
 
 #[test]
@@ -326,7 +326,7 @@ fn test_sigmoid_half_at_zero() {
     // sigmoid(0) = 0.5
     let input = TestTensor::from_vec(vec![Float32::new(0.0)], &[1]).unwrap();
     let output = sigmoid(&input).unwrap();
-    assert!((output.as_slice()[0].get() - 0.5).abs() < 1e-6);
+    assert!((output.as_slice()[0].get() as f32 - 0.5).abs() < 1e-6);
 }
 
 #[test]
@@ -334,7 +334,7 @@ fn test_tanh_zero_at_zero() {
     // tanh(0) = 0
     let input = TestTensor::from_vec(vec![Float32::new(0.0)], &[1]).unwrap();
     let output = tanh(&input).unwrap();
-    assert!((output.as_slice()[0].get() - 0.0).abs() < 1e-6);
+    assert!((output.as_slice()[0].get() as f32 - 0.0).abs() < 1e-6);
 }
 
 #[test]
@@ -345,7 +345,7 @@ fn test_mse_loss_zero_for_identical() {
     let targets = TestTensor::from_vec(values, &[3]).unwrap();
 
     let loss = mse_loss(&predictions, &targets).unwrap();
-    assert!((loss.as_slice()[0].get() - 0.0).abs() < 1e-6);
+    assert!((loss.as_slice()[0].get() as f32 - 0.0).abs() < 1e-6);
 }
 
 #[test]
@@ -356,5 +356,5 @@ fn test_l1_loss_zero_for_identical() {
     let targets = TestTensor::from_vec(values, &[3]).unwrap();
 
     let loss = l1_loss(&predictions, &targets).unwrap();
-    assert!((loss.as_slice()[0].get() - 0.0).abs() < 1e-6);
+    assert!((loss.as_slice()[0].get() as f32 - 0.0).abs() < 1e-6);
 }

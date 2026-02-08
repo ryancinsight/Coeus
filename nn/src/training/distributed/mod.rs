@@ -34,7 +34,7 @@ pub struct Distributed<M, B, T> {
 
 impl<M, B, T> Distributed<M, B, T>
 where
-    M: Module<B, DenseStorage<T>, T> + Send + Sync,
+    M: Module<B, DenseStorage<T>, T, Input = Tensor<B, DenseStorage<T>, T>, Output = Tensor<B, DenseStorage<T>, T>> + Send + Sync,
     B: Backend<Data = T> + Send + Sync + Default + Clone,
     T: DataType + dtype::traits::FloatExt + Send + Sync,
 {

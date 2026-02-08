@@ -146,7 +146,7 @@ pub enum DistanceMetric {
 
 impl<M, B, S, T> PrototypicalNetwork<M, B, S, T>
 where
-    M: Clone + Module<B, S, T>,
+    M: Clone + Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>>,
     B: Backend<Data = T> + Default,
     S: Storage<T>
         + StorageFromVec<T>
@@ -678,7 +678,7 @@ pub fn check_meta_learning<M, B, S, T>(
     adaptation_lr: f64,
 ) -> Result<Vec<f64>>
 where
-    M: Clone + Module<B, S, T>,
+    M: Clone + Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>>,
     B: Backend<Data = T> + Default,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType

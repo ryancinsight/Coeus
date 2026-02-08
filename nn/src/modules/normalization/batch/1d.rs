@@ -132,99 +132,107 @@ where
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
-        let requires_grad = input.requires_grad();
-        let input_dense = input.to_dense_generic()?;
-        let input_shape = input_dense.shape().dims();
-
-        if input_shape.len() != 3usize {
-            return Err(NNError::InvalidInput {
-                message: format!("Expected 3D input [N, C, L], got {}D", input_shape.len()),
-            });
-        }
-        if input_shape[1] != self.num_features {
-            return Err(NNError::InvalidInput {
-                message: format!(
-                    "Input channels ({}) must match num_features ({})",
-                    input_shape[1], self.num_features
-                ),
+        let input_shape = input.shape().dims();
+        if input_shape.len() < 2 || input_shape.len() > 3 {
+            return Err(NNError::ShapeMismatch {
+                operation: "BatchNorm1d forward".to_string(),
+                expected: vec![0, 0], // N, C or N, C, L
+                actual: input_shape.to_vec(),
             });
         }
 
-        let batch_size = input_shape[0];
         let channels = input_shape[1];
-        let length = input_shape[2];
+        if channels != self.num_features {
+             return Err(NNError::ShapeMismatch {
+                operation: "BatchNorm1d features".to_string(),
+                expected: vec![0, self.num_features],
+                actual: input_shape.to_vec(),
+            });
+        }
 
-        let input_data = input_dense.as_slice();
-        let weight_data = self.weight.data().as_slice();
-        let bias_data = self.bias.data().as_slice();
-        let eps = T::from(self.eps).unwrap();
+        let requires_grad = input.requires_grad();
 
-        let (batch_mean, batch_var) = if self.training {
-            let n_elements = (batch_size * length) as f64;
-            let n_elements_inv = T::from(1.0 / n_elements).unwrap();
+        let output = if self.training {
+            let input_dense = input.to_dense_generic()?;
+            let input_data = input_dense.as_slice();
+            let batch_size = input_shape[0];
+            let spatial_size = if input_shape.len() == 3 { input_shape[2] } else { 1 };
 
-            let mut means = Vec::with_capacity(channels);
-            let mut vars = Vec::with_capacity(channels);
+            let mut batch_means = Vec::with_capacity(channels);
+            let mut batch_vars = Vec::with_capacity(channels);
 
             for c in 0..channels {
                 let mut sum = T::zero();
-                for n in 0..batch_size {
-                    for l in 0..length {
-                        sum = sum + input_data[(n * channels + c) * length + l];
-                    }
-                }
-                let mean = sum * n_elements_inv;
-                means.push(mean);
+                let mut sq_sum = T::zero();
+                let count = batch_size * spatial_size;
 
-                let mut var_sum = T::zero();
                 for n in 0..batch_size {
-                    for l in 0..length {
-                        let diff = input_data[(n * channels + c) * length + l] - mean;
-                        var_sum = var_sum + diff * diff;
+                    for s in 0..spatial_size {
+                        let idx = (n * channels + c) * spatial_size + s;
+                        let val = input_data[idx];
+                        sum = sum + val;
+                        sq_sum = sq_sum + val * val;
                     }
                 }
-                vars.push(var_sum * n_elements_inv);
+
+                let mean = sum / T::from(count as f64).unwrap();
+                let var = sq_sum / T::from(count as f64).unwrap() - mean * mean;
+
+                batch_means.push(mean);
+                batch_vars.push(var);
             }
 
-            self.update_running_stats(&means, &vars)?;
-            (means, vars)
+            if self.track_running_stats {
+                self.update_running_stats(&batch_means, &batch_vars)?;
+            }
+
+            crate::functional::batch_norm(
+                input,
+                Some(self.weight.data()),
+                Some(self.bias.data()),
+                self.eps,
+            )?
         } else {
+            // Evaluation mode
+            let input_dense = input.to_dense_generic()?;
+            let input_data = input_dense.as_slice();
+            let batch_size = input_shape[0];
+            let spatial_size = if input_shape.len() == 3 { input_shape[2] } else { 1 };
+            
             let running_mean = self.running_mean.borrow();
             let running_var = self.running_var.borrow();
-            (
-                running_mean.as_slice().to_vec(),
-                running_var.as_slice().to_vec(),
-            )
-        };
+            let mean_slice = running_mean.as_slice();
+            let var_slice = running_var.as_slice();
+            
+            let weight_slice = self.weight.data().as_slice();
+            let bias_slice = self.bias.data().as_slice();
+            let eps_t = T::from(self.eps).unwrap();
 
-        let mut output_data = Vec::with_capacity(input_data.len());
-        for n in 0..batch_size {
-            for c in 0..channels {
-                let mean = batch_mean[c];
-                let std = (batch_var[c] + eps).sqrt();
-                let gamma = weight_data[c];
-                let beta = bias_data[c];
-                for l in 0..length {
-                    let val = input_data[(n * channels + c) * length + l];
-                    output_data.push(gamma * ((val - mean) / std) + beta);
+            let mut output_data = Vec::with_capacity(input_data.len());
+            for n in 0..batch_size {
+                for c in 0..channels {
+                    let mean = mean_slice[c];
+                    let var = var_slice[c];
+                    let std = (var + eps_t).sqrt();
+                    let w = weight_slice[c];
+                    let b = bias_slice[c];
+
+                    for s in 0..spatial_size {
+                        let idx = (n * channels + c) * spatial_size + s;
+                        let val = input_data[idx];
+                        let normalized = (val - mean) / std;
+                        output_data.push(normalized * w + b);
+                    }
                 }
             }
-        }
+            Tensor::from_vec_with_backend(output_data, input_shape, input.backend().clone())?
+        };
 
-        let output_dense = Tensor::<B, DenseStorage<T>, T>::from_vec_with_backend(
-            output_data,
-            &[batch_size, channels, length],
-            input.backend().clone(),
-        )?;
-
-        let result_data = output_dense.as_slice().to_vec();
-        let result_shape = output_dense.shape().dims();
-        let result_storage = S::from_vec(result_data, result_shape)?;
-        Ok(
-            Tensor::from_storage(result_storage, input.backend().clone())
-                .requires_grad_(requires_grad),
-        )
+        Ok(output.requires_grad_(requires_grad))
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
@@ -244,7 +252,7 @@ where
         self.bias.zero_grad();
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

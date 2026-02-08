@@ -10,6 +10,6 @@ pub mod transpose;
 
 // Re-export operations for convenience
 pub use decomposition::*;
-pub use matmul::matmul_primitive;
+pub use matmul::{matmul_primitive, gemm_primitive};
 pub use matrix_exp::*;
 pub use transpose::transpose_primitive;

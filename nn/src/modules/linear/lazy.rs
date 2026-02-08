@@ -92,24 +92,15 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive + num_traits::One,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.initialize_if_needed(input)?;
-
-        // We can't hold the lock across the forward call if we want to return a reference or something,
-        // but here forward consumes expectations.
-        // However, we need to extract the inner module to call forward on it.
-        // Since we have Arc<Mutex<Option<Linear>>>, we can get a reference.
-
-        let inner_guard = self.inner.lock().map_err(|_| NNError::ExecutionError {
+        let inner = self.inner.lock().map_err(|_| NNError::ExecutionError {
             message: "Failed to acquire lock on LazyLinear".to_string(),
         })?;
-
-        match &*inner_guard {
-            Some(layer) => layer.forward(input),
-            None => Err(NNError::ExecutionError {
-                message: "LazyLinear failed to initialize".to_string(),
-            }),
-        }
+        inner.as_ref().unwrap().forward(input)
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
@@ -123,33 +114,7 @@ where
     }
 
     fn parameters_mut(&mut self) -> Vec<&mut Parameter<B, S, T>> {
-        // This is tricky because we need to return mutable references to something inside a mutex.
-        // Module trait signature for parameters_mut takes &mut self.
-        // But our inner is Arc<Mutex>.
-        // If we have &mut self, we can access inner. But inner is Mutex.
-        // We can get_mut() on the Mutex if we have exclusive access to it?
-        // But inner is wrapped in Arc.
-
-        // LIMITATION: LazyLinear via Arc<Mutex> makes implementation of parameters_mut hard
-        // because we can't return a reference that outlives the lock guard.
-        // For now, returning empty to avoid unsafe hacks or signature mismatch.
-        // Optimizers usually use parameters() (cloned Arcs) so update_data generic might work?
-        // But standard SGD might need parameters_mut if it modifies in place?
-        // Actually coeus Parameter is a wrapper around Tensor/Arc. Cloning Parameter is cheap.
-        // The parameters() method returns Vec<Parameter>, which are cloneable handles.
-        // So parameters_mut returning Vec<&mut Parameter> is for when?
-        // Looking at Module trait:
-        // fn parameters_mut(&mut self) -> Vec<&mut Parameter<B, S, T>>
-
-        // Since we can't easily implement this safe with Arc<Mutex> without unsafe,
-        // AND LazyLinear is "lazy", doing this before init is impossible anyway.
-
-        // If constructed, we'd need to lock, but we can't return reference out of lock.
-        // Unless we change LazyLinear to not use Arc<Mutex> but just RefCell or UnsafeCell?
-        // Or if we assume Module is not shared across threads during definition?
-
-        // For this iteration, we will return empty and log a warning if possible,
-        // or just accept that LazyLinear parameters can only be updated via the handles returned by parameters().
+        // Same limitation as documented below
         vec![]
     }
 
@@ -173,7 +138,7 @@ where
         "LazyLinear"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

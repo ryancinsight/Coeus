@@ -297,67 +297,67 @@ impl PyTensor {
     }
 }
 
-#[pyfunction]
+#[pyfunction(name = "zeros")]
 pub fn tensor_zeros(shape: Vec<usize>) -> PyResult<PyTensor> {
     PyTensor::zeros(shape, None)
 }
 
-#[pyfunction]
+#[pyfunction(name = "ones")]
 pub fn tensor_ones(shape: Vec<usize>) -> PyResult<PyTensor> {
     PyTensor::ones(shape, None)
 }
 
-#[pyfunction]
+#[pyfunction(name = "randn")]
 pub fn tensor_randn(shape: Vec<usize>) -> PyResult<PyTensor> {
     PyTensor::randn(shape, None)
 }
 
-#[pyfunction]
+#[pyfunction(name = "rand")]
 pub fn tensor_rand(shape: Vec<usize>) -> PyResult<PyTensor> {
     PyTensor::rand(shape, None)
 }
 
-#[pyfunction]
+#[pyfunction(name = "randint")]
 pub fn tensor_randint(low: i64, high: i64, shape: Vec<usize>) -> PyResult<PyTensor> {
     PyTensor::randint(low, high, shape)
 }
 
-#[pyfunction]
+#[pyfunction(name = "zeros_like")]
 pub fn tensor_zeros_like(input: &PyTensor) -> PyResult<PyTensor> {
     PyTensor::zeros_like(input)
 }
 
-#[pyfunction]
+#[pyfunction(name = "ones_like")]
 pub fn tensor_ones_like(input: &PyTensor) -> PyResult<PyTensor> {
     PyTensor::ones_like(input)
 }
 
-#[pyfunction]
+#[pyfunction(name = "logspace")]
 pub fn tensor_logspace(start: f32, end: f32, steps: usize, base: f64) -> PyResult<PyTensor> {
     PyTensor::logspace(start, end, steps, base)
 }
 
-#[pyfunction]
+#[pyfunction(name = "full_like")]
 pub fn tensor_full_like(input: &PyTensor, fill_value: f32) -> PyResult<PyTensor> {
     PyTensor::full_like(input, fill_value)
 }
 
-#[pyfunction]
+#[pyfunction(name = "arange")]
 pub fn tensor_arange(start: f32, end: Option<f32>, step: f32) -> PyResult<PyTensor> {
     PyTensor::arange(start, end, step)
 }
 
-#[pyfunction]
+#[pyfunction(name = "linspace")]
 pub fn tensor_linspace(start: f32, end: f32, steps: usize) -> PyResult<PyTensor> {
     PyTensor::linspace(start, end, steps)
 }
 
-#[pyfunction]
+#[pyfunction(name = "eye")]
 pub fn tensor_eye(n: usize, m: Option<usize>) -> PyResult<PyTensor> {
     PyTensor::eye(n, m)
 }
 
-#[pyfunction]
+#[pyfunction(name = "full")]
 pub fn tensor_full(
     shape: Vec<usize>,
     fill_value: f64,
@@ -367,7 +367,7 @@ pub fn tensor_full(
     PyTensor::full(shape, fill_value, dtype, device)
 }
 
-#[pyfunction]
+#[pyfunction(name = "from_data")]
 pub fn tensor_from_data(data: Vec<f32>, shape: Vec<usize>) -> PyResult<PyTensor> {
     PyTensor::from_data(data, shape)
 }

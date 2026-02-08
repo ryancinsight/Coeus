@@ -1,42 +1,6 @@
 use crate::tensor::{to_py_err, PyTensor, TensorWrapper};
 use pyo3::prelude::*;
 
-#[pyfunction]
-#[pyo3(signature = (input, dim=None, dtype=None))]
-pub fn softmax(
-    input: &PyTensor,
-    dim: Option<isize>,
-    dtype: Option<&Bound<'_, PyAny>>,
-) -> PyResult<PyTensor> {
-    if dtype.is_some() {
-        return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "softmax(dtype=...) is not implemented",
-        ));
-    }
-
-    let dim = dim.unwrap_or(-1);
-    let result = match &input.inner {
-        TensorWrapper::CpuDenseF32(i) => {
-            let res = coeus_nn::functional_api::softmax_dim(i, dim).map_err(to_py_err)?;
-            TensorWrapper::CpuDenseF32(res)
-        }
-        TensorWrapper::CpuDenseF64(i) => {
-            let res = coeus_nn::functional_api::softmax_dim(i, dim).map_err(to_py_err)?;
-            TensorWrapper::CpuDenseF64(res)
-        }
-        #[cfg(feature = "gpu")]
-        TensorWrapper::GpuDenseF32(i) => {
-            let res = coeus_nn::functional_api::softmax_dim(i, dim).map_err(to_py_err)?;
-            TensorWrapper::GpuDenseF32(res)
-        }
-        _ => {
-            return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-                "softmax not implemented for this tensor type (requires float dense)",
-            ))
-        }
-    };
-    Ok(PyTensor { inner: result })
-}
 
 /// Layer normalization function
 #[pyfunction]

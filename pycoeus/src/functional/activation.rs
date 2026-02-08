@@ -243,8 +243,88 @@ pub fn elu(input: &PyTensor, alpha: f64) -> PyResult<PyTensor> {
                 inner: TensorWrapper::CpuDenseF32(res),
             })
         }
-        _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+        _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
             "elu only implemented for F32",
+        )),
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (input, dim=None, dtype=None))]
+pub fn softmax(
+    input: &PyTensor,
+    dim: Option<isize>,
+    dtype: Option<&Bound<'_, PyAny>>,
+) -> PyResult<PyTensor> {
+    if dtype.is_some() {
+        return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+            "softmax(dtype=...) is not implemented",
+        ));
+    }
+
+    let dim = dim.unwrap_or(-1);
+    match &input.inner {
+        TensorWrapper::CpuDenseF32(t) => {
+            let res = coeus_nn::functional_api::softmax_dim(t, dim).map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
+        }
+        TensorWrapper::CpuDenseF64(t) => {
+            let res = coeus_nn::functional_api::softmax_dim(t, dim).map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
+        }
+        #[cfg(feature = "gpu")]
+        TensorWrapper::GpuDenseF32(t) => {
+            let res = coeus_nn::functional_api::softmax_dim(t, dim).map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
+        }
+        _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+            "softmax only implemented for dense float tensors",
+        )),
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (input, dim=None, dtype=None))]
+pub fn log_softmax(
+    input: &PyTensor,
+    dim: Option<isize>,
+    dtype: Option<&Bound<'_, PyAny>>,
+) -> PyResult<PyTensor> {
+    if dtype.is_some() {
+        return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+            "log_softmax(dtype=...) is not implemented",
+        ));
+    }
+
+    let dim = dim.unwrap_or(-1);
+    match &input.inner {
+        TensorWrapper::CpuDenseF32(t) => {
+            let res = coeus_nn::functional_api::log_softmax(t, dim).map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF32(res),
+            })
+        }
+        TensorWrapper::CpuDenseF64(t) => {
+            let res = coeus_nn::functional_api::log_softmax(t, dim).map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::CpuDenseF64(res),
+            })
+        }
+        #[cfg(feature = "gpu")]
+        TensorWrapper::GpuDenseF32(t) => {
+            let res = coeus_nn::functional_api::log_softmax(t, dim).map_err(to_py_err)?;
+            Ok(PyTensor {
+                inner: TensorWrapper::GpuDenseF32(res),
+            })
+        }
+        _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+            "log_softmax only implemented for dense float tensors",
         )),
     }
 }

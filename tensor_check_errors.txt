@@ -1,0 +1,2 @@
+    Checking tensor v0.2.1 (D:\coeus\tensor)
+    Finished `dev` profile [unoptimized] target(s) in 1.53s

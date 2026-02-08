@@ -21,8 +21,8 @@ pub type LstmOutput<B, S, T> = (Tensor<B, S, T>, (Tensor<B, S, T>, Tensor<B, S, 
 pub struct LSTM<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + FloatExt,
 {
     /// Input-to-hidden weights for each gate (i, f, g, o) and layer
     pub weight_ih: Vec<Parameter<B, S, T>>,

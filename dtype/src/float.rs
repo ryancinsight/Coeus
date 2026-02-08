@@ -407,12 +407,30 @@ impl Float for Float32 {
         Self(f32::EPSILON)
     }
 
-    fn to_degrees(self) -> Self {
-        Self(self.0.to_degrees())
-    }
-
     fn to_radians(self) -> Self {
         Self(self.0.to_radians())
+    }
+}
+
+impl num_traits::Signed for Float32 {
+    fn abs(&self) -> Self {
+        Self(self.0.abs())
+    }
+
+    fn abs_sub(&self, other: &Self) -> Self {
+        Self((self.0 - other.0).abs())
+    }
+
+    fn signum(&self) -> Self {
+        Self(self.0.signum())
+    }
+
+    fn is_positive(&self) -> bool {
+        self.0.is_sign_positive()
+    }
+
+    fn is_negative(&self) -> bool {
+        self.0.is_sign_negative()
     }
 }
 
@@ -655,12 +673,30 @@ impl Float for Float64 {
         Self(f64::EPSILON)
     }
 
-    fn to_degrees(self) -> Self {
-        Self(self.0.to_degrees())
-    }
-
     fn to_radians(self) -> Self {
         Self(self.0.to_radians())
+    }
+}
+
+impl num_traits::Signed for Float64 {
+    fn abs(&self) -> Self {
+        Self(self.0.abs())
+    }
+
+    fn abs_sub(&self, other: &Self) -> Self {
+        Self((self.0 - other.0).abs())
+    }
+
+    fn signum(&self) -> Self {
+        Self(self.0.signum())
+    }
+
+    fn is_positive(&self) -> bool {
+        self.0.is_sign_positive()
+    }
+
+    fn is_negative(&self) -> bool {
+        self.0.is_sign_negative()
     }
 }
 

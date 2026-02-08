@@ -155,7 +155,7 @@ where
 impl<B, S, T> Module<B, S, T> for Conv3D<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + TensorBackendDispatcher<B, S, T>,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + TensorStorageOps<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType
         + FloatExt
         + PartialOrd
@@ -164,38 +164,27 @@ where
         + num_traits::Zero
         + 'static,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let input_shape = input.shape().dims();
-
-        if input_shape.len() != 5usize {
-            return Err(NNError::InvalidInput {
-                message: format!(
-                    "Expected 5D input (N, C, D, H, W), got {}D",
-                    input_shape.len()
-                ),
+        if input_shape.len() != 5 {
+             return Err(NNError::ShapeMismatch {
+                operation: "Conv3D forward".to_string(),
+                expected: vec![0, 0, 0, 0, 0],
+                actual: input_shape.to_vec(),
             });
         }
 
-        let in_channels = input_shape[1];
-        if in_channels != self.in_channels {
-            return Err(NNError::InvalidInput {
-                message: format!(
-                    "Expected {} input channels, got {}",
-                    self.in_channels, in_channels
-                ),
-            });
-        }
-
-        let output = tensor::ops::conv::conv3d(
+        let output = crate::functional::convolution::conv3d(
             input,
             self.weight.data(),
             self.bias.as_ref().map(|b| b.data()),
-            self.stride_d,
-            self.stride_h,
-            self.stride_w,
-            self.padding_d,
-            self.padding_h,
-            self.padding_w,
+            (self.stride_d, self.stride_h, self.stride_w),
+            (self.padding_d, self.padding_h, self.padding_w),
+            Some((1, 1, 1)), // dilation
+            1, // groups
         )?;
 
         Ok(output)
@@ -209,7 +198,7 @@ where
         params
     }
 
-    fn modules(&self) -> Vec<&dyn Module<B, S, T>> {
+    fn modules(&self) -> Vec<&dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         vec![]
     }
 
@@ -226,7 +215,7 @@ where
         "Conv3D"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

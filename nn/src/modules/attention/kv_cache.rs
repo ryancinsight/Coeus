@@ -20,6 +20,8 @@ use crate::quantization::{
 
 #[cfg(feature = "quantized")]
 use std::collections::HashMap;
+/// Key-Value Cache for efficient transformer inference.
+#[derive(Debug)]
 pub struct KVCache<B, S, T>
 where
     B: Backend<Data = T> + Clone,

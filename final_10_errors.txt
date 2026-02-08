@@ -1,0 +1,100 @@
+    Checking tensor v0.2.1 (D:\coeus\tensor)
+error[E0283]: type annotations needed for `Tensor<CpuBackend<Float32>, _, Float32>`
+   --> tensor\tests\pytorch_parity_verification.rs:14:9
+    |
+ 14 |     let x = Tensor::from_vec_with_backend(data, &[5], backend.clone())?;
+    |         ^   ------ type must be known at this point
+    |
+    = note: cannot satisfy `_: tensor::Storage<Float32>`
+    = help: the following types implement trait `tensor::Storage<T>`:
+              CooStorage<T>
+              CscStorage<T>
+              CsrStorage<T>
+              DenseStorage<T>
+              storage::distributed::DistributedStorage<T>
+              storage::distributed::ShardedStorage<T>
+              storage::quantized::QuantizedStorage<T, BITS>
+              storage::strided::StridedStorage<T>
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:218:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+218 |     S: Storage<T>,
+    |        ^^^^^^^^^^ required by this bound in `Tensor`
+help: consider giving `x` an explicit type, where the type for type parameter `S` is specified
+    |
+ 14 |     let x: Tensor<_, S, _> = Tensor::from_vec_with_backend(data, &[5], backend.clone())?;
+    |          +++++++++++++++++
+
+error[E0283]: type annotations needed for `Tensor<CpuBackend<Float32>, _, Float32>`
+  --> tensor\tests\pytorch_parity_verification.rs:14:9
+   |
+14 |     let x = Tensor::from_vec_with_backend(data, &[5], backend.clone())?;
+   |         ^
+15 |
+16 |     let isnan = ops::isnan(&x)?;
+   |                 ---------- -- type must be known at this point
+   |                 |
+   |                 required by a bound introduced by this call
+   |
+   = note: multiple `impl`s satisfying `_: TensorStorageOps<Float32>` found in the `tensor` crate:
+           - impl<T> TensorStorageOps<T> for CooStorage<T>
+             where <T as Add>::Output == T, <T as Sub>::Output == T, <T as Mul>::Output == T, <T as Div>::Output == T, <T as Neg>::Output == T, T: Sub, T: DataType, T: Mul, T: Default, T: Div, T: 'static, T: Neg, T: Add, T: num_traits::identities::Zero, T: num_traits::identities::One, T: num_traits::cast::FromPrimitive, T: PartialEq, T: PartialOrd, T: Copy, T: Default;
+           - impl<T> TensorStorageOps<T> for CsrStorage<T>
+             where <T as Add>::Output == T, <T as Sub>::Output == T, <T as Mul>::Output == T, <T as Div>::Output == T, <T as Neg>::Output == T, T: Sub, T: DataType, T: Mul, T: Default, T: Div, T: 'static, T: Neg, T: Add, T: num_traits::identities::Zero, T: num_traits::identities::One, T: num_traits::cast::FromPrimitive, T: PartialEq, T: PartialOrd, T: Copy, T: Default;
+           - impl<T> TensorStorageOps<T> for DenseStorage<T>
+             where <T as Add>::Output == T, <T as Sub>::Output == T, <T as Mul>::Output == T, <T as Div>::Output == T, <T as Neg>::Output == T, T: DataType, T: Mul, T: Add, T: Div, T: Neg, T: Sub, T: num_traits::identities::Zero, T: num_traits::identities::One, T: Clone;
+           - impl<T> TensorStorageOps<T> for storage::strided::StridedStorage<T>
+             where <T as Add>::Output == T, <T as Sub>::Output == T, <T as Mul>::Output == T, <T as Div>::Output == T, <T as Neg>::Output == T, T: DataType, T: Mul, T: Add, T: Div, T: Neg, T: Sub, T: num_traits::identities::Zero, T: num_traits::identities::One, T: Clone, T: Default;
+note: required by a bound in `isnan`
+  --> D:\coeus\tensor\src\ops\comparison\isnan.rs:10:43
+   |
+ 7 | pub fn isnan<
+   |        ----- required by a bound in this function
+...
+10 |     S: Storage<T> + Clone + Send + Sync + TensorStorageOps<T> + 'static,
+   |                                           ^^^^^^^^^^^^^^^^^^^ required by this bound in `isnan`
+help: consider giving `x` an explicit type, where the type for type parameter `S` is specified
+   |
+14 |     let x: Tensor<_, S, _> = Tensor::from_vec_with_backend(data, &[5], backend.clone())?;
+   |          +++++++++++++++++
+
+error[E0283]: type annotations needed for `Tensor<CpuBackend<Float32>, _, Float32>`
+  --> tensor\tests\pytorch_parity_verification.rs:14:9
+   |
+14 |     let x = Tensor::from_vec_with_backend(data, &[5], backend.clone())?;
+   |         ^
+...
+24 |     let isinf = ops::isinf(&x)?;
+   |                 ---------- -- type must be known at this point
+   |                 |
+   |                 required by a bound introduced by this call
+   |
+   = note: multiple `impl`s satisfying `_: TensorStorageOps<Float32>` found in the `tensor` crate:
+           - impl<T> TensorStorageOps<T> for CooStorage<T>
+             where <T as Add>::Output == T, <T as Sub>::Output == T, <T as Mul>::Output == T, <T as Div>::Output == T, <T as Neg>::Output == T, T: Sub, T: DataType, T: Mul, T: Default, T: Div, T: 'static, T: Neg, T: Add, T: num_traits::identities::Zero, T: num_traits::identities::One, T: num_traits::cast::FromPrimitive, T: PartialEq, T: PartialOrd, T: Copy, T: Default;
+           - impl<T> TensorStorageOps<T> for CsrStorage<T>
+             where <T as Add>::Output == T, <T as Sub>::Output == T, <T as Mul>::Output == T, <T as Div>::Output == T, <T as Neg>::Output == T, T: Sub, T: DataType, T: Mul, T: Default, T: Div, T: 'static, T: Neg, T: Add, T: num_traits::identities::Zero, T: num_traits::identities::One, T: num_traits::cast::FromPrimitive, T: PartialEq, T: PartialOrd, T: Copy, T: Default;
+           - impl<T> TensorStorageOps<T> for DenseStorage<T>
+             where <T as Add>::Output == T, <T as Sub>::Output == T, <T as Mul>::Output == T, <T as Div>::Output == T, <T as Neg>::Output == T, T: DataType, T: Mul, T: Add, T: Div, T: Neg, T: Sub, T: num_traits::identities::Zero, T: num_traits::identities::One, T: Clone;
+           - impl<T> TensorStorageOps<T> for storage::strided::StridedStorage<T>
+             where <T as Add>::Output == T, <T as Sub>::Output == T, <T as Mul>::Output == T, <T as Div>::Output == T, <T as Neg>::Output == T, T: DataType, T: Mul, T: Add, T: Div, T: Neg, T: Sub, T: num_traits::identities::Zero, T: num_traits::identities::One, T: Clone, T: Default;
+note: required by a bound in `isinf`
+  --> D:\coeus\tensor\src\ops\comparison\isinf.rs:10:43
+   |
+ 7 | pub fn isinf<
+   |        ----- required by a bound in this function
+...
+10 |     S: Storage<T> + Clone + Send + Sync + TensorStorageOps<T> + 'static,
+   |                                           ^^^^^^^^^^^^^^^^^^^ required by this bound in `isinf`
+help: consider giving `x` an explicit type, where the type for type parameter `S` is specified
+   |
+14 |     let x: Tensor<_, S, _> = Tensor::from_vec_with_backend(data, &[5], backend.clone())?;
+   |          +++++++++++++++++
+
+error[E0283]: type annotations needed for `Tensor<CpuBackend<Float32>, _, Float32>`
+  --> tensor\tests\pytorch_parity_verification.rs:14:9
+   |
+14 |     let x = Tensor::from_vec_with_backend(data, &[5], backend.clone())?;

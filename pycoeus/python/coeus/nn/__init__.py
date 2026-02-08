@@ -186,6 +186,11 @@ class GRU(Module):
         Module.__init__(self)
         raise NotImplementedError("GRU not available - Pycoeus needs rebuild")
 
+class Bilinear(Module):
+    def __init__(self, in1_features, in2_features, out_features, bias=True):
+        Module.__init__(self)
+        raise NotImplementedError("Bilinear not available - Pycoeus needs rebuild")
+
 # Activations
 class ReLU(Module):
     def __init__(self):
@@ -393,7 +398,7 @@ class SmoothL1Loss(Module):
         raise NotImplementedError("SmoothL1Loss not available - Pycoeus needs rebuild")
 
 try:
-    from .._coeus import Linear as _Linear, LazyLinear as _LazyLinear
+    from .._coeus import Linear as _Linear, LazyLinear as _LazyLinear, Bilinear as _Bilinear
     from .._coeus import ReLU as _ReLU, Sequential as _Sequential
     # Normalization layers
     from .._coeus import BatchNorm1d as _BatchNorm1d, BatchNorm2d as _BatchNorm2d, BatchNorm3d as _BatchNorm3d
@@ -405,6 +410,7 @@ try:
     # Loss functions
     from .._coeus import MSELoss as _MSELoss, CrossEntropyLoss as _CrossEntropyLoss
     from .._coeus import NLLLoss as _NLLLoss, BCEWithLogitsLoss as _BCEWithLogitsLoss
+    from .._coeus import L1Loss as _L1Loss, SmoothL1Loss as _SmoothL1Loss, KLDivLoss as _KLDivLoss
     # Embedding
     from .._coeus import Embedding as _Embedding
     # Conv layers
@@ -412,9 +418,22 @@ try:
     from .._coeus import ConvTranspose1d as _ConvTranspose1d, ConvTranspose2d as _ConvTranspose2d, ConvTranspose3d as _ConvTranspose3d
     from .._coeus import LazyConv1d as _LazyConv1d, LazyConv2d as _LazyConv2d, LazyConv3d as _LazyConv3d
     
+    # Utilities
+    from .._coeus import Flatten as _Flatten, Identity as _Identity, Bilinear as _Bilinear
+
+    # Activations 
+    from .._coeus import Softmax as _Softmax, LogSoftmax as _LogSoftmax
+    from .._coeus import GELU as _GELU, SiLU as _SiLU, LeakyReLU as _LeakyReLU, ELU as _ELU
+    from .._coeus import PReLU as _PReLU, Hardtanh as _Hardtanh, Softplus as _Softplus, Mish as _Mish
+    from .._coeus import ReLU6 as _ReLU6, SELU as _SELU, Hardsigmoid as _Hardsigmoid, Hardswish as _Hardswish
+    from .._coeus import LogSigmoid as _LogSigmoid, Softsign as _Softsign, Tanhshrink as _Tanhshrink
+    from .._coeus import Threshold as _Threshold, CELU as _CELU, Softmin as _Softmin, Softshrink as _Softshrink
+    from .._coeus import Hardshrink as _Hardshrink, GLU as _GLU, RReLU as _RReLU
+    
     # Apply to module namespace
     Linear = _Linear
     LazyLinear = _LazyLinear
+    Bilinear = _Bilinear
     ReLU = _ReLU
     Sequential = _Sequential
     BatchNorm1d = _BatchNorm1d
@@ -435,6 +454,9 @@ try:
     CrossEntropyLoss = _CrossEntropyLoss
     NLLLoss = _NLLLoss
     BCEWithLogitsLoss = _BCEWithLogitsLoss
+    L1Loss = _L1Loss
+    SmoothL1Loss = _SmoothL1Loss
+    KLDivLoss = _KLDivLoss
     Embedding = _Embedding
     Conv1d = _Conv1d
     Conv2d = _Conv2d
@@ -445,6 +467,32 @@ try:
     LazyConv1d = _LazyConv1d
     LazyConv2d = _LazyConv2d
     LazyConv3d = _LazyConv3d
+    Flatten = _Flatten
+    Identity = _Identity
+    Softmax = _Softmax
+    LogSoftmax = _LogSoftmax
+    GELU = _GELU
+    SiLU = _SiLU
+    LeakyReLU = _LeakyReLU
+    ELU = _ELU
+    PReLU = _PReLU
+    Hardtanh = _Hardtanh
+    Softplus = _Softplus
+    Mish = _Mish
+    ReLU6 = _ReLU6
+    SELU = _SELU
+    Hardsigmoid = _Hardsigmoid
+    Hardswish = _Hardswish
+    LogSigmoid = _LogSigmoid
+    Softsign = _Softsign
+    Tanhshrink = _Tanhshrink
+    Threshold = _Threshold
+    CELU = _CELU
+    Softmin = _Softmin
+    Softshrink = _Softshrink
+    Hardshrink = _Hardshrink
+    GLU = _GLU
+    RReLU = _RReLU
 except ImportError:
     pass  # Keep placeholder classes
 
@@ -459,6 +507,7 @@ __all__ = [
     "Sequential",
     "Linear",
     "LazyLinear",
+    "Bilinear",
     "Conv1d",
     "Conv2d",
     "Conv3d",

@@ -42,5 +42,23 @@ pub fn div<
     a: &Tensor<B, S1, T>,
     b: &Tensor<B, S2, T>,
 ) -> Result<Tensor<B, S1, T>> {
-    super::broadcast_binary_op(a, b, |x, y| x / y)
+    let mut result = super::broadcast_binary_op(a, b, |x, y| x / y)?;
+
+    if crate::tensor_core::grad_enabled() && (a.requires_grad() || b.requires_grad()) {
+        use crate::functions::DivFunction;
+        use std::sync::Arc;
+
+        let a_arc = Arc::new(a.clone());
+        let b_dense = b.to_dense_generic()?;
+        let b_s1 = Tensor::<B, S1, T>::from_vec_with_backend(
+            b_dense.as_slice().to_vec(),
+            b.shape().dims(),
+            b.backend().clone()
+        )?;
+        
+        let grad_fn = DivFunction::new(a_arc, Arc::new(b_s1));
+        result = result.requires_grad_(true).with_grad_fn(Some(Arc::new(grad_fn)));
+    }
+
+    Ok(result)
 }

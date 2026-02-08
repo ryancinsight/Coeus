@@ -1,6 +1,10 @@
 use crate::tensor::class::{PyTensor, TensorWrapper, to_py_err};
 use pyo3::prelude::*;
 
+pub fn register(_py: Python<'_>, _m: &Bound<'_, PyModule>) -> PyResult<()> {
+    Ok(())
+}
+
 #[pymethods]
 impl PyTensor {
     pub fn reshape(&self, shape: Vec<isize>) -> PyResult<PyTensor> {
@@ -32,6 +36,7 @@ impl PyTensor {
         self.reshape(shape)
     }
 
+    #[pyo3(signature = (*dims))]
     pub fn permute(&self, dims: &Bound<'_, pyo3::types::PyTuple>) -> PyResult<PyTensor> {
         let perm: Vec<usize> = if dims.len() == 1 {
             if let Ok(list) = dims.get_item(0).and_then(|i| i.extract::<Vec<usize>>()) {
@@ -42,23 +47,26 @@ impl PyTensor {
         } else {
             dims.extract::<Vec<usize>>()?
         };
-        
+        self.permute_internal(perm)
+    }
+
+    pub fn permute_internal(&self, dims: Vec<usize>) -> PyResult<PyTensor> {
         match &self.inner {
             TensorWrapper::CpuDenseF32(t) => {
-                let res = t.permute(&perm).map_err(to_py_err)?;
+                let res = t.permute(&dims).map_err(to_py_err)?;
                 Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
             }
             TensorWrapper::CpuDenseF64(t) => {
-                let res = t.permute(&perm).map_err(to_py_err)?;
+                let res = t.permute(&dims).map_err(to_py_err)?;
                 Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
             }
             TensorWrapper::CpuDenseI64(t) => {
-                let res = t.permute(&perm).map_err(to_py_err)?;
+                let res = t.permute(&dims).map_err(to_py_err)?;
                 Ok(PyTensor { inner: TensorWrapper::CpuDenseI64(res) })
             }
             #[cfg(feature = "gpu")]
             TensorWrapper::GpuDenseF32(t) => {
-                let res = t.permute(&perm).map_err(to_py_err)?;
+                let res = t.permute(&dims).map_err(to_py_err)?;
                 Ok(PyTensor { inner: TensorWrapper::GpuDenseF32(res) })
             }
             _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(

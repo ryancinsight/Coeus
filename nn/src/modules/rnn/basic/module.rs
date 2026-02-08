@@ -14,7 +14,7 @@ use crate::core::parameter::Parameter;
 impl<B, S, T> RNNForward<B, S, T> for RNN<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
+    S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + std::cmp::PartialOrd,
 {
     fn forward_layer(
@@ -87,7 +87,7 @@ where
 impl<B, S, T> RNN<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + storage::StorageToDense<T> + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
+    S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + std::cmp::PartialOrd,
 {
     pub fn forward_with_hidden(
@@ -201,8 +201,11 @@ where
 
 impl<T> Module<CpuBackend<T>, DenseStorage<T>, T> for RNN<CpuBackend<T>, DenseStorage<T>, T>
 where
-    T: DataType + FloatExt + std::cmp::PartialOrd + num_traits::Float,
+    T: DataType + FloatExt,
 {
+    type Input = CpuTensor<T>;
+    type Output = CpuTensor<T>;
+
     fn forward(&self, input: &CpuTensor<T>) -> Result<CpuTensor<T>> {
         let (output, _) = self.forward_with_hidden(input, None)?;
         Ok(output)
@@ -233,7 +236,8 @@ where
     fn name(&self) -> &str {
         "RNN"
     }
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+
+    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

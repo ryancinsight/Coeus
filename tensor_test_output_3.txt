@@ -1,0 +1,153 @@
+
+running 35 tests
+test indexing::tests::test_boolean_index_basic ... ok
+test indexing::tests::test_advanced_slice_2d ... ok
+test indexing::tests::test_advanced_slice_1d_basic ... ok
+test indexing::tests::test_advanced_slice_defaults ... ok
+test indexing::tests::test_advanced_slice_1d_reverse ... ok
+test indexing::tests::test_boolean_index_empty ... ok
+test indexing::tests::test_boolean_assign ... ok
+test indexing::tests::test_boolean_index_length_mismatch ... ok
+test indexing::tests::test_fancy_assign ... ok
+test indexing::tests::test_fancy_index_basic ... ok
+test indexing::tests::test_fancy_index_negative ... ok
+test indexing::tests::test_fancy_index_out_of_bounds ... ok
+test tests::test_tensor_arithmetic_abs ... ok
+test tests::test_tensor_arithmetic_add ... ok
+test tests::test_tensor_arithmetic_div ... ok
+test tests::test_tensor_arithmetic_minimum ... ok
+test tests::test_tensor_arithmetic_maximum ... ok
+test tests::test_tensor_arithmetic_mul ... ok
+test tests::test_tensor_arithmetic_neg ... ok
+test tests::test_tensor_arithmetic_pow ... ok
+test tests::test_tensor_arithmetic_sub ... ok
+test indexing::tests::test_advanced_slice_dimension_mismatch ... ok
+test tests::test_tensor_autograd_creation ... ok
+test indexing::tests::test_fancy_assign_length_mismatch ... ok
+test tests::test_tensor_creation_from_slice ... ok
+test tests::test_tensor_creation_from_vec ... ok
+test tests::test_tensor_creation_from_vec_with_backend ... ok
+test tests::test_tensor_creation_ones ... ok
+test tests::test_tensor_creation_zeros ... ok
+test tests::test_tensor_empty_creation ... ok
+test tests::test_tensor_gradient_accumulation ... ok
+test tests::test_tensor_matrix_multiplication ... ok
+test tests::test_tensor_large_dimensions ... ok
+test tests::test_tensor_single_element ... ok
+test tests::test_tensor_zero_grad ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 17 tests
+test backend_optimization_tests::test_backend_associated_types ... ok
+test backend_optimization_tests::test_backend_device_capabilities ... ok
+test to_backend_tests::test_tensor_to_same_backend ... ok
+test performance_tests::test_dispatcher_static_dispatch ... ok
+test clone_tests::test_tensor_backend_clone_independence ... ok
+test dispatcher_tests::test_tensor_dispatcher_add ... ok
+test dispatcher_tests::test_tensor_dispatcher_mul ... ok
+test dispatcher_tests::test_tensor_dispatcher_sum ... ok
+test dispatcher_tests::test_tensor_dispatcher_to_backend ... ok
+test distributed_sharing_tests::test_tensor_sharing_with_gradients ... ok
+test performance_tests::test_clone_performance_bounds ... ok
+test clone_tests::test_tensor_backend_clone ... ok
+test to_backend_tests::test_tensor_device_info_access ... ok
+test to_backend_tests::test_tensor_to_backend_data_integrity ... ok
+test backend_optimization_tests::test_tensor_backend_interoperability ... ok
+test distributed_sharing_tests::test_distributed_tensor_clone ... ok
+test to_backend_tests::test_tensor_backend_support_check ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+test test_concurrent_arithmetic_separate_tensors ... ok
+test test_concurrent_broadcasting ... ok
+test test_concurrent_chunking ... ok
+test test_concurrent_simd_operations ... ok
+test test_concurrent_operations_cloned_tensors ... ok
+test test_concurrent_tensor_reads ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 47 tests
+test test_reshape_1d_to_2d ... ok
+test test_div_1d_float ... ok
+test test_add_1d_float ... ok
+test test_div_negative_values ... ok
+test test_add_2d_float ... ok
+test test_div_2d_int ... ok
+test test_mul_1d_int ... ok
+test test_reshape_multiple_inference_dimensions ... ok
+test test_mul_negative_values ... ok
+test test_chained_operations ... ok
+test test_mul_2d_float ... ok
+test test_operations_preserve_shape ... ok
+test test_add_negative_values ... ok
+test test_reshape_3d_to_2d ... ok
+test test_reshape_2d_to_1d ... ok
+test test_reshape_dimension_inference ... ok
+test test_reshape_dimension_inference_complex ... ok
+test test_reshape_inference_not_divisible ... ok
+test test_reshape_invalid_dimension ... ok
+test test_reshape_invalid_total_size ... ok
+test test_scoped_grad_enabled_restores_previous_state ... ok
+test test_no_grad_disables_autograd_graph_construction ... ok
+test test_reshape_and_transpose_chain ... ok
+test test_sub_1d_float ... ok
+test test_sub_negative_result ... ok
+test test_add_shape_mismatch - should panic ... ok
+test test_tensor_device_name ... ok
+test test_sub_shape_mismatch - should panic ... ok
+test test_tensor_empty ... ok
+test test_tensor_from_slice ... ok
+test test_tensor_from_vec_float32 ... ok
+test test_tensor_from_vec_float64 ... ok
+test test_tensor_from_vec_int32 ... ok
+test test_tensor_large_shape ... ok
+test test_tensor_mut_slice ... ok
+test test_tensor_ones_1d ... ok
+test test_tensor_ones_2d ... ok
+test test_tensor_scalar ... ok
+test test_tensor_shape_mismatch ... ok
+test test_tensor_zeros_1d ... ok
+test test_tensor_zeros_2d ... ok
+test test_transpose_2d_matrix ... ok
+test test_transpose_invalid_dimension ... ok
+test test_transpose_preserves_dtype ... ok
+test test_transpose_same_dimension ... ok
+test test_transpose_square_matrix ... ok
+test test_tensor_zeros_3d ... ok
+
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 11 tests
+test test_tensor_creation ... ok
+test test_edge_cases ... ok
+test test_broadcasting ... ok
+test test_numerical_stability ... ok
+test test_simd_operations ... ok
+test test_tensor_arithmetic ... ok
+test test_zero_copy_operations ... ok
+test test_memory_safety ... FAILED
+test test_performance_baseline ... ok
+test test_multithreaded_operations ... ok
+test test_concurrent_access ... ok
+
+failures:
+
+---- test_memory_safety stdout ----
+
+thread 'test_memory_safety' (68960) panicked at tensor\tests\integration_tests.rs:322:5:
+assertion failed: invalid_broadcast.is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    test_memory_safety
+
+test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -35,22 +35,21 @@ fn set_grad_enabled(enabled: bool) -> PyResult<()> {
 
 /// Set the number of threads for CPU operations
 #[pyfunction]
-fn set_num_threads(_num_threads: usize) -> PyResult<()> {
-    // Future enhancement: Implement when backend supports it
+fn set_num_threads(num_threads: usize) -> PyResult<()> {
+    ::backend::set_num_threads(num_threads);
     Ok(())
 }
 
 /// Get the current number of threads for CPU operations
 #[pyfunction]
 fn get_num_threads() -> PyResult<usize> {
-    // Future enhancement: Implement when backend supports it
-    Ok(1)
+    Ok(::backend::get_num_threads())
 }
 
 /// Set the random seed for reproducible results
 #[pyfunction]
-fn manual_seed(_seed: u64) -> PyResult<()> {
-    // Future enhancement: Implement when backend supports it
+fn manual_seed(seed: u64) -> PyResult<()> {
+    ::backend::set_manual_seed(seed);
     Ok(())
 }
 

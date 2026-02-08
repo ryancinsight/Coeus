@@ -61,6 +61,23 @@ where
     pub fn new(data: Tensor<B, S, T>, name: String) -> Self {
         Self { data, name }
     }
+
+    /// Transpose the parameter tensor.
+    ///
+    /// # Arguments
+    /// * `dim0` - First dimension to transpose
+    /// * `dim1` - Second dimension to transpose
+    ///
+    /// # Returns
+    /// A new tensor with dimensions transposed
+    pub fn transpose(&self, dim0: usize, dim1: usize) -> Result<Tensor<B, S, T>>
+    where
+        B: Clone + Default + 'static,
+        S: tensor::ops::dispatch::TensorStorageOps<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+        T: DataType + Clone + std::ops::Neg<Output = T>,
+    {
+        Ok(self.data.transpose(dim0, dim1)?)
+    }
 }
 
 impl<B, S, T> Parameter<B, S, T>
@@ -127,6 +144,15 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType,
 {
+    /// Get a reference to the parameter tensor data.
+    ///
+    /// # Returns
+    /// Reference to the parameter tensor
+    pub fn tensor(&self) -> &Tensor<B, S, T> {
+        &self.data
+    }
+
+    /// Get a mutable reference to the parameter tensor data.
     ///
     /// This is used by optimizers and other components that need to modify
     /// parameter values directly.
@@ -538,6 +564,9 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + dtype::traits::FloatExt,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // Parameter doesn't transform input - just return input unchanged
         // This is unusual but allows Parameter to be used as a module
@@ -581,7 +610,7 @@ where
         "Parameter"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

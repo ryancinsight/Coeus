@@ -29,6 +29,16 @@ pub fn broadcast_tensor_data<T: Clone>(
                 d as i32 - (target_shape.len() as i32 - current_shape.len() as i32);
             if current_dim_idx >= 0 {
                 let current_dim = current_shape[current_dim_idx as usize];
+                if current_dim != target_dim && current_dim != 1 {
+                    return Err(crate::TensorError::ShapeError {
+                        expected: current_dim,
+                        actual: target_dim,
+                        message: format!(
+                            "Cannot broadcast dimension {} from {} to {}",
+                            d, current_dim, target_dim
+                        ),
+                    });
+                }
                 if current_dim > 1 {
                     // Calculate current stride
                     let current_stride: usize = current_shape

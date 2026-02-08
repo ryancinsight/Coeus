@@ -236,6 +236,9 @@ where
         + Clone
         + PartialOrd,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.forward(input)
     }

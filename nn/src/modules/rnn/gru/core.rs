@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
-use storage::{DenseStorage, Storage, StorageFromVec};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::core::error::Result;
@@ -20,8 +20,8 @@ use crate::core::parameter::Parameter;
 pub struct GRU<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + std::cmp::PartialOrd,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     /// Input-to-hidden weights for each gate (r, z, n) and layer
     pub weight_ih: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,
@@ -53,7 +53,7 @@ where
 impl<B, S, T> GRU<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     /// Create a new GRU layer.

@@ -1,11 +1,10 @@
-use backend::CpuBackend;
+use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
 use storage::DenseStorage;
-use tensor::Tensor;
+use tensor::{Tensor, ops::TensorStorageOps};
 
 use crate::core::error::{NNError, Result};
-use crate::core::module::Module;
-use crate::core::parameter::Parameter;
+use crate::{Module, Parameter};
 
 /// Adaptive Average Pooling 1D layer.
 ///
@@ -53,62 +52,29 @@ impl AdaptiveAvgPool1d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T>
-    for AdaptiveAvgPool1d
+impl<B, S, T> Module<B, S, T> for AdaptiveAvgPool1d
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageOps<T> + Clone + 'static,
+    T: DataType + FloatExt + Clone,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
-        let input_shape = input.shape().dims();
-
-        if input_shape.len() != 3usize {
-            return Err(NNError::InvalidInput {
-                message: format!(
-                    "Expected 3D input (batch, channels, length), got {}D",
-                    input_shape.len()
-                ),
-            });
-        }
-
-        let batch_size = input_shape[0];
-        let channels = input_shape[1];
-        let input_length = input_shape[2];
-
-        let output_shape = vec![batch_size, channels, self.output_size];
-        let mut output_data = Vec::with_capacity(batch_size * channels * self.output_size);
-        let input_data = input.as_slice();
-
-        for b in 0..batch_size {
-            for c in 0..channels {
-                for ol in 0..self.output_size {
-                    let (start, end) =
-                        Self::compute_adaptive_params(input_length, self.output_size, ol);
-
-                    let mut sum = T::zero();
-                    let mut count = 0;
-
-                    for pos in start..end {
-                        let idx = b * (channels * input_length) + c * input_length + pos;
-                        sum = sum + input_data[idx];
-                        count += 1;
-                    }
-
-                    let avg = if count > 0 {
-                        sum / T::from(count as f64).unwrap()
-                    } else {
-                        T::zero()
-                    };
-
-                    output_data.push(avg);
-                }
-            }
-        }
-
-        Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
+        input: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, S, T>> {
+        let output = crate::functional::ops::pooling::adaptive_avg_pool1d(
+            input,
+            self.output_size,
+        )?;
+        let dense = output.to_dense_generic()?;
+        let storage = S::from_vec(dense.as_slice().to_vec(), dense.shape().dims())?;
+        Ok(Tensor::from_storage(storage, input.backend().clone()))
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         Vec::new()
     }
 
@@ -124,7 +90,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
         "AdaptiveAvgPool1d"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

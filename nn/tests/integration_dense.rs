@@ -5,10 +5,10 @@
 //! Validates Requirements 15.2
 
 use backend::CpuBackend;
-use dense::{DenseCreation, DenseLayout};
 use dtype::float::Float32;
 use storage::{DenseStorage, Storage};
 use tensor::Tensor;
+use tensor::dense::{DenseArithmetic, DenseCreation, DenseLayout};
 
 type TestBackend = CpuBackend<Float32>;
 type TestStorage = DenseStorage<Float32>;
@@ -105,7 +105,7 @@ fn test_dense_arithmetic_operations() {
 
     // Test addition
     {
-        let result = dense::arithmetic::add(&a, &b, &backend).unwrap();
+        let result = tensor::dense::arithmetic::add(&a, &b, &backend).unwrap();
         assert_eq!(result.as_slice()[0].get(), 3.0); // 1 + 2
         assert_eq!(result.as_slice()[1].get(), 5.0); // 2 + 3
         assert_eq!(result.as_slice()[2].get(), 7.0); // 3 + 4
@@ -114,7 +114,7 @@ fn test_dense_arithmetic_operations() {
 
     // Test subtraction
     {
-        let result = dense::arithmetic::sub(&b, &a, &backend).unwrap();
+        let result = tensor::dense::arithmetic::sub(&b, &a, &backend).unwrap();
         assert_eq!(result.as_slice()[0].get(), 1.0); // 2 - 1
         assert_eq!(result.as_slice()[1].get(), 1.0); // 3 - 2
         assert_eq!(result.as_slice()[2].get(), 1.0); // 4 - 3
@@ -123,7 +123,7 @@ fn test_dense_arithmetic_operations() {
 
     // Test multiplication
     {
-        let result = dense::arithmetic::mul(&a, &b, &backend).unwrap();
+        let result = tensor::dense::arithmetic::mul(&a, &b, &backend).unwrap();
         assert_eq!(result.as_slice()[0].get(), 2.0); // 1 * 2
         assert_eq!(result.as_slice()[1].get(), 6.0); // 2 * 3
         assert_eq!(result.as_slice()[2].get(), 12.0); // 3 * 4
@@ -132,7 +132,7 @@ fn test_dense_arithmetic_operations() {
 
     // Test division
     {
-        let result = dense::arithmetic::div(&b, &a).unwrap();
+        let result = tensor::dense::arithmetic::div(&b, &a).unwrap();
         assert_eq!(result.as_slice()[0].get(), 2.0); // 2 / 1
         assert_eq!(result.as_slice()[1].get(), 1.5); // 3 / 2
         assert!((result.as_slice()[2].get() - 1.333333).abs() < 0.001); // 4 / 3
@@ -156,7 +156,7 @@ fn test_dense_scalar_operations() {
 
     // Test scalar addition
     {
-        let result = dense::arithmetic::add_scalar(&storage, Float32::new(10.0)).unwrap();
+        let result = tensor::dense::arithmetic::add_scalar(&storage, Float32::new(10.0)).unwrap();
         assert_eq!(result.as_slice()[0].get(), 11.0);
         assert_eq!(result.as_slice()[1].get(), 12.0);
         assert_eq!(result.as_slice()[2].get(), 13.0);
@@ -165,7 +165,7 @@ fn test_dense_scalar_operations() {
 
     // Test scalar multiplication
     {
-        let result = dense::arithmetic::mul_scalar(&storage, Float32::new(2.0)).unwrap();
+        let result = tensor::dense::arithmetic::mul_scalar(&storage, Float32::new(2.0)).unwrap();
         assert_eq!(result.as_slice()[0].get(), 2.0);
         assert_eq!(result.as_slice()[1].get(), 4.0);
         assert_eq!(result.as_slice()[2].get(), 6.0);
@@ -191,7 +191,7 @@ fn test_dense_layout_operations() {
         )
         .unwrap();
 
-        let reshaped = dense::layout::reshape(&storage, &[3, 2]).unwrap();
+        let reshaped = tensor::dense::layout::reshape(&storage, &[3, 2]).unwrap();
         assert_eq!(reshaped.shape().dims(), &[3, 2]);
         assert_eq!(reshaped.len(), 6);
     }
@@ -209,7 +209,7 @@ fn test_dense_layout_operations() {
         )
         .unwrap();
 
-        let flattened = dense::layout::flatten(&storage).unwrap();
+        let flattened = tensor::dense::layout::flatten(&storage).unwrap();
         assert_eq!(flattened.shape().dims(), &[4]);
         assert_eq!(flattened.len(), 4);
     }
@@ -229,7 +229,7 @@ fn test_dense_layout_operations() {
         )
         .unwrap();
 
-        let transposed = dense::layout::transpose_2d(&storage).unwrap();
+        let transposed = tensor::dense::layout::transpose_2d(&storage).unwrap();
         assert_eq!(transposed.shape().dims(), &[3, 2]);
         assert_eq!(transposed.len(), 6);
     }
@@ -237,7 +237,7 @@ fn test_dense_layout_operations() {
     // Test is_contiguous
     {
         let storage = TestStorage::ones(&[3, 4]).unwrap();
-        assert!(dense::layout::is_contiguous(&storage));
+        assert!(tensor::dense::layout::is_contiguous(&storage));
     }
 }
 

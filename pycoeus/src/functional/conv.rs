@@ -38,6 +38,8 @@ pub fn conv1d(
                     b,
                     stride.unwrap_or(1),
                     padding.unwrap_or(0),
+                    1, // dilation
+                    1, // groups
                 )
                 .map_err(to_py_err)?,
             )
@@ -45,6 +47,62 @@ pub fn conv1d(
         _ => {
             return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
                 "conv1d only implemented for F32",
+            ))
+        }
+    };
+    Ok(PyTensor { inner: result })
+}
+
+/// 1D transposed convolution
+#[pyfunction]
+#[pyo3(signature = (input, weight, bias=None, stride=1, padding=0, output_padding=0, groups=1, dilation=1))]
+pub fn conv_transpose1d(
+    input: &PyTensor,
+    weight: &PyTensor,
+    bias: Option<&PyTensor>,
+    stride: usize,
+    padding: usize,
+    output_padding: usize,
+    groups: usize,
+    dilation: usize,
+) -> PyResult<PyTensor> {
+    let result = match &input.inner {
+        TensorWrapper::CpuDenseF32(i) => {
+            let w = if let TensorWrapper::CpuDenseF32(inner) = &weight.inner {
+                inner
+            } else {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Weight must be F32",
+                ));
+            };
+            let b = bias
+                .map(|t| {
+                    if let TensorWrapper::CpuDenseF32(inner) = &t.inner {
+                        Ok(inner)
+                    } else {
+                        Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                            "Bias must be F32",
+                        ))
+                    }
+                })
+                .transpose()?;
+            TensorWrapper::CpuDenseF32(
+                coeus_nn::functional_api::conv1d_transpose(
+                    i,
+                    w,
+                    b,
+                    stride,
+                    padding,
+                    output_padding,
+                    groups,
+                    dilation,
+                )
+                .map_err(to_py_err)?,
+            )
+        }
+        _ => {
+            return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "conv_transpose1d only implemented for F32",
             ))
         }
     };
@@ -95,7 +153,7 @@ pub fn conv2d(
                 })
                 .transpose()?;
             TensorWrapper::CpuDenseF32(
-                coeus_nn::functional_api::conv2d(i, w, b, stride, padding).map_err(to_py_err)?,
+                coeus_nn::functional_api::conv2d(i, w, b, stride, padding, dilation, groups).map_err(to_py_err)?,
             )
         }
         _ => {
@@ -209,6 +267,8 @@ pub fn conv3d(
                     b,
                     stride.unwrap_or((1, 1, 1)),
                     padding.unwrap_or((0, 0, 0)),
+                    None, // dilation
+                    1, // groups
                 )
                 .map_err(to_py_err)?,
             )
@@ -216,6 +276,58 @@ pub fn conv3d(
         _ => {
             return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
                 "conv3d only implemented for F32",
+            ))
+        }
+    };
+    Ok(PyTensor { inner: result })
+}
+
+/// 3D transposed convolution
+#[pyfunction]
+#[pyo3(signature = (input, weight, bias=None, stride=None, padding=None, output_padding=None))]
+pub fn conv_transpose3d(
+    input: &PyTensor,
+    weight: &PyTensor,
+    bias: Option<&PyTensor>,
+    stride: Option<(usize, usize, usize)>,
+    padding: Option<(usize, usize, usize)>,
+    output_padding: Option<(usize, usize, usize)>,
+) -> PyResult<PyTensor> {
+    let result = match &input.inner {
+        TensorWrapper::CpuDenseF32(i) => {
+            let w = if let TensorWrapper::CpuDenseF32(inner) = &weight.inner {
+                inner
+            } else {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Weight must be F32",
+                ));
+            };
+            let b = bias
+                .map(|t| {
+                    if let TensorWrapper::CpuDenseF32(inner) = &t.inner {
+                        Ok(inner)
+                    } else {
+                        Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                            "Bias must be F32",
+                        ))
+                    }
+                })
+                .transpose()?;
+            TensorWrapper::CpuDenseF32(
+                coeus_nn::functional_api::conv3d_transpose(
+                    i,
+                    w,
+                    b,
+                    stride.unwrap_or((1, 1, 1)),
+                    padding.unwrap_or((0, 0, 0)),
+                    output_padding.unwrap_or((0, 0, 0)),
+                )
+                .map_err(to_py_err)?,
+            )
+        }
+        _ => {
+            return Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "conv_transpose3d only implemented for F32",
             ))
         }
     };

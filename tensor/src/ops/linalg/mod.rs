@@ -2,6 +2,11 @@
 
 mod addmm;
 mod addr;
+mod outer;
+mod addmv;
+mod baddbmm;
+mod bilinear;
+mod addbmm;
 mod bmm;
 mod eig;
 mod matmul;
@@ -14,6 +19,11 @@ mod svd;
 
 pub use addmm::addmm;
 pub use addr::addr;
+pub use outer::outer;
+pub use addmv::addmv;
+pub use baddbmm::baddbmm;
+pub use bilinear::bilinear;
+pub use addbmm::addbmm;
 pub use bmm::bmm;
 pub use eig::{eig, eigh};
 pub use matmul::matmul;

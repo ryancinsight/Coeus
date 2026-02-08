@@ -152,21 +152,26 @@ impl MFCCExtractor {
         fft_size: usize,
         sample_rate: f32,
     ) -> Vec<f32> {
-        let mut filter = vec![0.0; fft_size / 2 + 1];
+        let filter_len = fft_size / 2 + 1;
+        let mut filter = vec![0.0; filter_len];
         let f_low_bin = (f_low * fft_size as f32 / sample_rate).floor() as usize;
         let f_center_bin = (f_center * fft_size as f32 / sample_rate).round() as usize;
         let f_high_bin = (f_high * fft_size as f32 / sample_rate).ceil() as usize;
 
-        for i in f_low_bin..=f_center_bin {
-            if f_center_bin > f_low_bin {
-                let rise = (i - f_low_bin) as f32 / (f_center_bin - f_low_bin) as f32;
+        // Clamp indices to filter bounds
+        let f_center_clamped = f_center_bin.min(filter_len - 1);
+        let f_high_clamped = f_high_bin.min(filter_len - 1);
+
+        for i in f_low_bin..=f_center_clamped {
+            if f_center_clamped > f_low_bin {
+                let rise = (i - f_low_bin) as f32 / (f_center_clamped - f_low_bin) as f32;
                 filter[i] = rise;
             }
         }
 
-        for i in f_center_bin..=f_high_bin {
-            if f_high_bin > f_center_bin {
-                let fall = (f_high_bin - i) as f32 / (f_high_bin - f_center_bin) as f32;
+        for i in f_center_clamped..=f_high_clamped {
+            if f_high_clamped > f_center_clamped {
+                let fall = (f_high_clamped - i) as f32 / (f_high_clamped - f_center_clamped) as f32;
                 filter[i] = fall;
             }
         }

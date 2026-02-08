@@ -2,7 +2,50 @@ use crate::tensor::class::{PyTensor, to_py_err, TensorWrapper};
 pub use crate::tensor::wrapper::WrapTensor;
 use crate::dispatch_tensor;
 use pyo3::prelude::*;
-use dtype::num_traits::Zero;
+
+pub fn register(_py: Python<'_>, _m: &Bound<'_, PyModule>) -> PyResult<()> {
+    Ok(())
+}
+
+#[pymethods]
+impl PyTensor {
+    pub fn gather(&self, dim: usize, index: &PyTensor) -> PyResult<PyTensor> {
+        gather(self, dim, index)
+    }
+
+    pub fn index_select(&self, dim: usize, index: &PyTensor) -> PyResult<PyTensor> {
+        index_select(self, dim, index)
+    }
+
+    pub fn take(&self, indices: &PyTensor) -> PyResult<PyTensor> {
+        take(self, indices)
+    }
+
+    pub fn put(&mut self, indices: &PyTensor, values: &PyTensor, accumulate: bool) -> PyResult<PyTensor> {
+        put(self, indices, values, accumulate)
+    }
+
+    pub fn masked_select(&self, mask: &PyTensor) -> PyResult<PyTensor> {
+        masked_select(self, mask)
+    }
+
+    pub fn masked_fill(&self, mask: &PyTensor, value: f64) -> PyResult<PyTensor> {
+        masked_fill(self, mask, value)
+    }
+
+    pub fn nonzero(&self) -> PyResult<PyTensor> {
+        nonzero(self)
+    }
+
+    pub fn index_add(&self, dim: usize, index: &PyTensor, source: &PyTensor, alpha: Option<f64>) -> PyResult<PyTensor> {
+        index_add(self, dim, index, source, alpha.unwrap_or(1.0))
+    }
+
+    pub fn index_add_(&mut self, dim: usize, index: &PyTensor, source: &PyTensor, alpha: Option<f64>) -> PyResult<PyTensor> {
+        index_add_(self, dim, index, source, alpha.unwrap_or(1.0))?;
+        Ok(self.clone())
+    }
+}
 
 pub fn gather(tensor: &PyTensor, dim: usize, index: &PyTensor) -> PyResult<PyTensor> {
     dispatch_tensor!(tensor, t => {
@@ -105,21 +148,83 @@ pub fn getitem(tensor: &PyTensor, index: &Bound<'_, PyAny>) -> PyResult<PyTensor
     Err(to_py_err("Only Integer and Tensor indices are currently supported for __getitem__"))
 }
 
-pub fn masked_select(_tensor: &PyTensor, _mask: &PyTensor) -> PyResult<PyTensor> {
-    Err(to_py_err("masked_select not fully implemented (requires tensor cast op)"))
+pub fn masked_select(tensor: &PyTensor, mask: &PyTensor) -> PyResult<PyTensor> {
+    dispatch_tensor!(tensor, t => {
+        dispatch_tensor!(mask, m => {
+             // Cast to U8 specifically for mask
+             let m_u8 = ::tensor::ops::cast::cast::<dtype::int::UInt8, _, _, _>(m).map_err(to_py_err)?;
+             let res = ::tensor::ops::indexing::masked::masked_select(t, &m_u8).map_err(to_py_err)?;
+             Ok(PyTensor { inner: res.wrap() })
+        })
+    })
 }
 
 trait FromF64 {
     fn from_f64(v: f64) -> Self;
 }
-// Keep trait to avoid touching too much code or imports? 
-// Actually if I remove usage, I can remove trait.
-// But I'll leave trait as stub or remove it. Better remove.
 
-pub fn masked_fill(_tensor: &PyTensor, _mask: &PyTensor, _value: f64) -> PyResult<PyTensor> {
-    Err(to_py_err("masked_fill not fully implemented (requires tensor cast op)"))
+impl FromF64 for dtype::float::Float32 { fn from_f64(v: f64) -> Self { Self::new(v as f32) } }
+impl FromF64 for dtype::float::Float64 { fn from_f64(v: f64) -> Self { Self::new(v) } }
+impl FromF64 for dtype::int::Int64 { fn from_f64(v: f64) -> Self { Self::new(v as i64) } }
+impl FromF64 for dtype::complex::Complex32 { fn from_f64(v: f64) -> Self { Self::new(v as f32, 0.0) } }
+
+pub fn masked_fill(tensor: &PyTensor, mask: &PyTensor, value: f64) -> PyResult<PyTensor> {
+    let dense = tensor.contiguous()?;
+    dispatch_tensor!(dense, t => {
+        dispatch_tensor!(mask, m => {
+             let m_u8 = ::tensor::ops::cast::cast::<dtype::int::UInt8, _, _, _>(m).map_err(to_py_err)?;
+             let val_t = FromF64::from_f64(value);
+             let res = ::tensor::ops::indexing::masked::masked_fill(t, &m_u8, val_t).map_err(to_py_err)?;
+             Ok(PyTensor { inner: res.wrap() })
+        })
+    })
 }
 
-// Remove _cast_to_u8
+pub fn nonzero(tensor: &PyTensor) -> PyResult<PyTensor> {
+    dispatch_tensor!(tensor, t => {
+        let res = ::tensor::ops::indexing::nonzero(t).map_err(to_py_err)?;
+        Ok(PyTensor { inner: TensorWrapper::CpuDenseI64(res) })
+    })
+}
+
+pub fn index_add(tensor: &PyTensor, dim: usize, index: &PyTensor, source: &PyTensor, alpha: f64) -> PyResult<PyTensor> {
+    let mut cloned = tensor.clone();
+    index_add_(&mut cloned, dim, index, source, alpha)?;
+    Ok(cloned)
+}
+
+pub fn index_add_(tensor: &mut PyTensor, dim: usize, index: &PyTensor, source: &PyTensor, alpha: f64) -> PyResult<()> {
+    // Extract index as I64 tensor
+    let idx = match &index.inner {
+        TensorWrapper::CpuDenseI64(i) => i,
+        TensorWrapper::CpuStridedI64(i) => {
+            // If strided, index_add implementation needs to handle it or we cast to dense
+            // index_add currently uses to_dense_generic internally if needed.
+            // But the signature requires S2: StorageToDense<I64> + StorageFromVec<I64>.
+            // StridedStorage implements StorageToDense but NOT StorageFromVec (creation).
+            // Actually, index_add signature has S2: StorageFromVec<I64>.
+            // I'll cast index to dense if it's strided.
+            return Err(to_py_err("index_add: index must be dense I64 (strided indices not yet supported for index_add)"));
+        }
+        _ => return Err(to_py_err("index_add: index must be I64")),
+    };
+
+    match (&mut tensor.inner, &source.inner) {
+        (TensorWrapper::CpuDenseF32(t), TensorWrapper::CpuDenseF32(s)) => {
+            ::tensor::ops::indexing::index_add(t, dim, idx, s, dtype::float::Float32::new(alpha as f32)).map_err(to_py_err)?;
+        },
+        (TensorWrapper::CpuDenseF64(t), TensorWrapper::CpuDenseF64(s)) => {
+            ::tensor::ops::indexing::index_add(t, dim, idx, s, dtype::float::Float64::new(alpha)).map_err(to_py_err)?;
+        },
+        (TensorWrapper::CpuStridedF32(t), TensorWrapper::CpuStridedF32(s)) => {
+            ::tensor::ops::indexing::index_add(t, dim, idx, s, dtype::float::Float32::new(alpha as f32)).map_err(to_py_err)?;
+        },
+        (TensorWrapper::CpuStridedF64(t), TensorWrapper::CpuStridedF64(s)) => {
+            ::tensor::ops::indexing::index_add(t, dim, idx, s, dtype::float::Float64::new(alpha)).map_err(to_py_err)?;
+        },
+        _ => return Err(to_py_err("index_add: type/storage mismatch or unsupported")),
+    }
+    Ok(())
+}
 
 

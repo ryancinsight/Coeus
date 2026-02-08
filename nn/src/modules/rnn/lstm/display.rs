@@ -1,7 +1,7 @@
 //! LSTM Display trait implementation.
 
 use backend::Backend;
-use dtype::DataType;
+use dtype::{traits::FloatExt, DataType};
 use std::fmt;
 use storage::{Storage, StorageFromVec, StorageToDense};
 
@@ -10,8 +10,8 @@ use super::core::LSTM;
 impl<B, S, T> fmt::Display for LSTM<B, S, T>
 where
     B: Backend<Data = T>,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
-    T: DataType,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + FloatExt,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

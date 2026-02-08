@@ -38,6 +38,12 @@ where
     Ok(())
 }
 
+// Implement sigmoid_strided_primitive using macro
+crate::unary_strided_primitive!(sigmoid_strided_primitive, |x_val: T| {
+    let x_f64 = x_val.to_f64().unwrap_or(0.0);
+    T::from(1.0 / (1.0 + (-x_f64).exp())).unwrap_or(x_val)
+});
+
 #[cfg(test)]
 mod tests {
     use super::*;

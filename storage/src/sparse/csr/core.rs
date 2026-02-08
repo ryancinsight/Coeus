@@ -109,6 +109,11 @@ impl<T: DataType> CsrStorage<T> {
         &self.indptr
     }
 
+    /// Get mutable reference to non-zero values
+    pub fn data_mut(&mut self) -> &mut [T] {
+        &mut self.data
+    }
+
     /// Get value at (row, col), returns zero if not stored
     pub fn get(&self, row: usize, col: usize) -> T
     where
@@ -147,6 +152,23 @@ impl<T: DataType> CsrStorage<T> {
             0.0
         } else {
             self.nnz() as f64 / total as f64
+        }
+    }
+}
+
+impl<T: DataType + core::ops::Neg<Output = T>> core::ops::Neg for CsrStorage<T> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        let mut data = self.data;
+        for val in &mut data {
+            *val = -*val;
+        }
+        Self {
+            data,
+            indices: self.indices,
+            indptr: self.indptr,
+            shape: self.shape,
         }
     }
 }

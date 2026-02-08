@@ -1,9 +1,33 @@
 
+use pyo3::prelude::*;
+use crate::tensor::class::{PyTensor, TensorWrapper, to_py_err};
 
 #[macro_export]
 macro_rules! dispatch_tensor {
     ($tensor:expr, $inner:ident => $expr:expr) => {
         match &$tensor.inner {
+            TensorWrapper::CpuDenseF32($inner) => $expr,
+            TensorWrapper::CpuDenseF64($inner) => $expr,
+            #[cfg(feature = "gpu")]
+            TensorWrapper::GpuDenseF32($inner) => $expr,
+            TensorWrapper::CpuSparseF32($inner) => $expr,
+            TensorWrapper::CpuSparseF64($inner) => $expr,
+            TensorWrapper::CpuDenseI64($inner) => $expr,
+            TensorWrapper::CpuDenseC32($inner) => $expr,
+            TensorWrapper::CpuStridedF32($inner) => $expr,
+            TensorWrapper::CpuStridedF64($inner) => $expr,
+            TensorWrapper::CpuStridedI64($inner) => $expr,
+            #[cfg(feature = "gpu")]
+            TensorWrapper::GpuStridedF32($inner) => $expr,
+            TensorWrapper::CpuStridedC32($inner) => $expr,
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! dispatch_tensor_mut {
+    ($tensor:expr, $inner:ident => $expr:expr) => {
+        match &mut $tensor.inner {
             TensorWrapper::CpuDenseF32($inner) => $expr,
             TensorWrapper::CpuDenseF64($inner) => $expr,
             #[cfg(feature = "gpu")]
@@ -41,6 +65,31 @@ macro_rules! dispatch_dense_tensor {
 macro_rules! dispatch_ord_tensor {
     ($tensor:expr, $inner:ident => $expr:expr) => {
         match &$tensor.inner {
+            TensorWrapper::CpuDenseF32($inner) => $expr,
+            TensorWrapper::CpuDenseF64($inner) => $expr,
+            #[cfg(feature = "gpu")]
+            TensorWrapper::GpuDenseF32($inner) => $expr,
+            TensorWrapper::CpuSparseF32($inner) => $expr,
+            TensorWrapper::CpuSparseF64($inner) => $expr,
+            TensorWrapper::CpuDenseI64($inner) => $expr,
+            TensorWrapper::CpuStridedF32($inner) => $expr,
+            TensorWrapper::CpuStridedF64($inner) => $expr,
+            TensorWrapper::CpuStridedI64($inner) => $expr,
+            #[cfg(feature = "gpu")]
+            TensorWrapper::GpuStridedF32($inner) => $expr,
+            _ => {
+                Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                    "Operation not implemented for complex/unsupported tensors (no PartialOrd)"
+                ))
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! dispatch_ord_tensor_mut {
+    ($tensor:expr, $inner:ident => $expr:expr) => {
+        match &mut $tensor.inner {
             TensorWrapper::CpuDenseF32($inner) => $expr,
             TensorWrapper::CpuDenseF64($inner) => $expr,
             #[cfg(feature = "gpu")]
@@ -135,14 +184,140 @@ macro_rules! dispatch_binary {
 #[macro_export]
 macro_rules! dispatch_unary {
     ($self:expr, $inner:ident => $expr:expr) => {
-        match &$self.inner {
-            TensorWrapper::CpuDenseF32($inner) => $expr,
-            TensorWrapper::CpuDenseF64($inner) => $expr,
+        {
+            use crate::tensor::wrapper::WrapTensor;
+            match &$self.inner {
+                TensorWrapper::CpuDenseF32($inner) => {
+                    let res = $expr.map_err(to_py_err)?;
+                    Ok(PyTensor { inner: res.wrap() })
+                }
+                TensorWrapper::CpuDenseF64($inner) => {
+                    let res = $expr.map_err(to_py_err)?;
+                    Ok(PyTensor { inner: res.wrap() })
+                }
+                #[cfg(feature = "gpu")]
+                TensorWrapper::GpuDenseF32($inner) => {
+                    let res = $expr.map_err(to_py_err)?;
+                    Ok(PyTensor { inner: res.wrap() })
+                }
+                TensorWrapper::CpuStridedF32($inner) => {
+                    let res = $expr.map_err(to_py_err)?;
+                    Ok(PyTensor { inner: res.wrap() })
+                }
+                TensorWrapper::CpuStridedF64($inner) => {
+                    let res = $expr.map_err(to_py_err)?;
+                    Ok(PyTensor { inner: res.wrap() })
+                }
+                _ => Err(to_py_err("Unsupported unary operation")),
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! dispatch_float_unary {
+    ($self:expr, $inner:ident => $expr:expr) => {
+        {
+            use crate::tensor::wrapper::WrapTensor;
+            match &$self.inner {
+                TensorWrapper::CpuDenseF32($inner) => {
+                    let res = $expr.map_err(to_py_err)?;
+                    Ok(PyTensor { inner: res.wrap() })
+                }
+                TensorWrapper::CpuDenseF64($inner) => {
+                    let res = $expr.map_err(to_py_err)?;
+                    Ok(PyTensor { inner: res.wrap() })
+                }
+                #[cfg(feature = "gpu")]
+                TensorWrapper::GpuDenseF32($inner) => {
+                    let res = $expr.map_err(to_py_err)?;
+                    Ok(PyTensor { inner: res.wrap() })
+                }
+                TensorWrapper::CpuStridedF32($inner) => {
+                    let res = $expr.map_err(to_py_err)?;
+                    Ok(PyTensor { inner: res.wrap() })
+                }
+                TensorWrapper::CpuStridedF64($inner) => {
+                    let res = $expr.map_err(to_py_err)?;
+                    Ok(PyTensor { inner: res.wrap() })
+                }
+                _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                    "Operation not implemented for non-float tensors"
+                )),
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! dispatch_float_binary {
+    ($lhs:expr, $rhs:expr, $a:ident, $b:ident => $expr:expr) => {
+        {
+            use crate::tensor::wrapper::WrapTensor;
+            match (&$lhs.inner, &$rhs.inner) {
+                (TensorWrapper::CpuDenseF32($a), TensorWrapper::CpuDenseF32($b)) => $expr,
+                (TensorWrapper::CpuDenseF32($a), TensorWrapper::CpuStridedF32($b)) => $expr,
+                (TensorWrapper::CpuStridedF32($a), TensorWrapper::CpuDenseF32($b)) => $expr,
+                (TensorWrapper::CpuStridedF32($a), TensorWrapper::CpuStridedF32($b)) => $expr,
+
+                (TensorWrapper::CpuDenseF64($a), TensorWrapper::CpuDenseF64($b)) => $expr,
+                (TensorWrapper::CpuDenseF64($a), TensorWrapper::CpuStridedF64($b)) => $expr,
+                (TensorWrapper::CpuStridedF64($a), TensorWrapper::CpuDenseF64($b)) => $expr,
+                (TensorWrapper::CpuStridedF64($a), TensorWrapper::CpuStridedF64($b)) => $expr,
+                
+                #[cfg(feature = "gpu")]
+                (TensorWrapper::GpuDenseF32($a), TensorWrapper::GpuDenseF32($b)) => $expr,
+                #[cfg(feature = "gpu")]
+                (TensorWrapper::GpuStridedF32($a), TensorWrapper::GpuStridedF32($b)) => $expr,
+
+                _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Operation requires float tensors (or mixed backend/types not supported)"
+                )),
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! dispatch_unary_inplace {
+    ($tensor:expr, $inner:ident => $expr:expr) => {
+        match &mut $tensor.inner {
+            TensorWrapper::CpuDenseF32($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuDenseF64($inner) => $expr.map_err(to_py_err),
             #[cfg(feature = "gpu")]
-            TensorWrapper::GpuDenseF32($inner) => $expr,
-            TensorWrapper::CpuStridedF32($inner) => $expr,
-            TensorWrapper::CpuStridedF64($inner) => $expr,
-            _ => Err(to_py_err("Unsupported unary operation")),
+            TensorWrapper::GpuDenseF32($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuSparseF32($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuSparseF64($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuDenseI64($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuDenseC32($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuStridedF32($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuStridedF64($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuStridedI64($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuStridedC32($inner) => $expr.map_err(to_py_err),
+            #[cfg(feature = "gpu")]
+            TensorWrapper::GpuStridedF32($inner) => $expr.map_err(to_py_err),
+            _ => Err(to_py_err("Unsupported unary inplace operation")),
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! dispatch_float_unary_inplace {
+    ($tensor:expr, $inner:ident => $expr:expr) => {
+        match &mut $tensor.inner {
+            TensorWrapper::CpuDenseF32($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuDenseF64($inner) => $expr.map_err(to_py_err),
+            #[cfg(feature = "gpu")]
+            TensorWrapper::GpuDenseF32($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuSparseF32($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuSparseF64($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuStridedF32($inner) => $expr.map_err(to_py_err),
+            TensorWrapper::CpuStridedF64($inner) => $expr.map_err(to_py_err),
+            #[cfg(feature = "gpu")]
+            TensorWrapper::GpuStridedF32($inner) => $expr.map_err(to_py_err),
+            _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "Operation not implemented for non-float tensors"
+            )),
         }
     };
 }

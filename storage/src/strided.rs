@@ -23,6 +23,16 @@ pub struct StridedStorage<T: crate::DataType> {
 }
 
 impl<T: crate::DataType> StridedStorage<T> {
+    /// Creates a new strided storage from dense storage (zero-copy)
+    pub fn from_dense(dense: crate::DenseStorage<T>) -> Self {
+        Self {
+            data: dense.data,
+            shape: dense.shape,
+            strides: dense.strides,
+            offset: 0,
+        }
+    }
+
     /// Creates a new strided storage from contiguous data
     ///
     /// # Arguments
@@ -396,9 +406,19 @@ impl<T: crate::DataType> crate::StorageFromVec<T> for StridedStorage<T> {
 
 impl<T: crate::DataType> crate::StorageToDense<T> for StridedStorage<T> {
     fn to_dense(&self) -> crate::Result<crate::DenseStorage<T>> {
-        // Convert strided storage to dense by copying data in row-major order
-        let data = self.as_slice().to_vec();
-        crate::DenseStorage::from_vec(data, self.shape().dims())
+        // Convert strided storage to dense by copying data in logical row-major order
+        let mut data = vec![T::default(); self.shape.size()];
+        let ndim = self.shape.ndim();
+        let dims = self.shape.dims();
+        let strides = &self.strides;
+        let offset = self.offset;
+        let input_data = &self.data;
+
+        for i in 0..data.len() {
+            let idx = offset + crate::iter::compute_strided_index_fast(i, dims, strides);
+            data[i] = input_data[idx];
+        }
+        crate::DenseStorage::from_vec(data, dims)
     }
 }
 

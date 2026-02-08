@@ -98,6 +98,8 @@ pub fn conv3d<B, S, T>(
     bias: Option<&Tensor<B, S, T>>,
     stride: (usize, usize, usize),
     padding: (usize, usize, usize),
+    dilation: Option<(usize, usize, usize)>,
+    groups: usize,
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + tensor::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T>,
@@ -106,6 +108,18 @@ where
 {
     let (stride_d, stride_h, stride_w) = stride;
     let (padding_d, padding_h, padding_w) = padding;
+    let (dilation_d, dilation_h, dilation_w) = dilation.unwrap_or((1, 1, 1));
+    
+    if dilation_d != 1 || dilation_h != 1 || dilation_w != 1 {
+        return Err(crate::core::error::NNError::NotImplemented {
+            operation: "Dilation != 1 not supported in functional conv3d yet".to_string(),
+        });
+    }
+    if groups != 1 {
+        return Err(crate::core::error::NNError::NotImplemented {
+            operation: "Groups != 1 not supported in functional conv3d yet".to_string(),
+        });
+    }
 
     Ok(tensor::ops::conv::conv3d(
         input,
@@ -117,5 +131,29 @@ where
         padding_d,
         padding_h,
         padding_w,
+    )?)
+}
+
+/// Perform 3D transposed convolution using functional API.
+pub fn conv3d_transpose<B, S, T>(
+    input: &Tensor<B, S, T>,
+    weight: &Tensor<B, S, T>,
+    bias: Option<&Tensor<B, S, T>>,
+    stride: (usize, usize, usize),
+    padding: (usize, usize, usize),
+    output_padding: (usize, usize, usize),
+) -> Result<Tensor<B, S, T>>
+where
+    B: Backend<Data = T> + Clone + Default + tensor::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T>,
+    S: Storage<T> + Clone + StorageFromVec<T> + tensor::ops::TensorStorageOps<T> + 'static,
+    T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Zero,
+{
+    Ok(tensor::ops::conv::conv_transpose3d(
+        input,
+        weight,
+        bias,
+        stride,
+        padding,
+        output_padding,
     )?)
 }

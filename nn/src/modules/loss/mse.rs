@@ -11,6 +11,8 @@ use storage::{Storage, StorageFromVec};
 use tensor::Tensor;
 
 use crate::core::error::Result;
+use crate::core::module::Module;
+use crate::core::parameter::Parameter;
 pub use crate::ops::loss::mse_loss;
 
 /// Mean Squared Error (MSE) Loss function.
@@ -57,17 +59,48 @@ impl MSELoss {
     ///
     /// # Returns
     /// Scalar tensor containing the MSE loss value.
-    pub fn forward<B, S, T>(
-        &self,
-        predictions: &Tensor<B, S, T>,
-        targets: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>>
+    pub fn forward<B, S, T>(&self, predictions: &Tensor<B, S, T>, targets: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
     where
         B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
         S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
         T: DataType + FloatExt + num_traits::FromPrimitive + Copy + Send + Sync + 'static,
     {
         mse_loss(predictions, targets)
+    }
+}
+
+impl<B, S, T> Module<B, S, T> for MSELoss
+where
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
+    T: DataType + FloatExt + num_traits::FromPrimitive + Copy + Send + Sync + 'static,
+{
+    type Input = (Tensor<B, S, T>, Tensor<B, S, T>);
+    type Output = Tensor<B, S, T>;
+
+    fn forward(&self, input: &(Tensor<B, S, T>, Tensor<B, S, T>)) -> Result<Tensor<B, S, T>> {
+        let (predictions, targets) = input;
+        mse_loss(predictions, targets)
+    }
+
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
+        vec![]
+    }
+
+    fn parameters_mut(&mut self) -> Vec<&mut Parameter<B, S, T>> {
+        vec![]
+    }
+
+    fn zero_grad(&mut self) {}
+
+    fn train(&mut self, _mode: bool) {}
+
+    fn name(&self) -> &str {
+        "MSELoss"
+    }
+
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
+        Box::new(self.clone())
     }
 }
 

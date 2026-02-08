@@ -33,7 +33,7 @@ where
     /// Converts this tensor to dense storage format if supported.
     pub fn to_dense_generic(&self) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
-        S: crate::ops::TensorStorageOps<T> + 'static,
+        S: storage::StorageToDense<T> + 'static,
         B: Clone + 'static,
         T: Clone + 'static,
     {
@@ -44,8 +44,36 @@ where
             return Ok(dense_self.clone());
         }
 
-        let dense_storage = self.storage.storage_to_dense()?;
+        let dense_storage = self.storage.to_dense()?;
         let mut result = Tensor::from_storage(dense_storage, self.backend.clone());
+        result.requires_grad = self.requires_grad;
+
+        Ok(result)
+    }
+
+    /// Converts this tensor to strided storage format.
+    ///
+    /// If the tensor is already strided, returns a clone.
+    /// If the tensor is dense, converts to strided zero-copy.
+    /// For other storages, converts to dense and then to strided.
+    pub fn to_strided(&self) -> Result<Tensor<B, storage::StridedStorage<T>, T>>
+    where
+        S: storage::StorageToDense<T> + 'static,
+        B: Clone + 'static,
+        T: Clone + 'static,
+    {
+        if let Some(strided) = self
+            .as_any()
+            .downcast_ref::<Tensor<B, storage::StridedStorage<T>, T>>()
+        {
+            let mut result = strided.clone();
+            result.requires_grad = self.requires_grad;
+            return Ok(result);
+        }
+
+        let dense = self.to_dense_generic()?;
+        let strided_storage = storage::StridedStorage::from_dense(dense.storage);
+        let mut result = Tensor::from_storage(strided_storage, self.backend.clone());
         result.requires_grad = self.requires_grad;
 
         Ok(result)
@@ -73,7 +101,7 @@ where
         S: crate::ops::TensorStorageOps<T>,
         B: Default,
     {
-        let dense_storage = self.storage.storage_to_dense()?;
+        let dense_storage = self.storage.to_dense()?;
         let cpu_backend = crate::CpuBackend::default();
         Ok(Tensor::from_storage(dense_storage, cpu_backend))
     }

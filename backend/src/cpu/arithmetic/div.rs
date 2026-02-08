@@ -40,6 +40,9 @@ where
     Ok(())
 }
 
+// Re-implement div_strided_primitive using macro
+crate::binary_strided_primitive!(div_strided_primitive, Div, div);
+
 #[cfg(test)]
 mod tests {
     use super::*;

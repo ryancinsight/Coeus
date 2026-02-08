@@ -14,12 +14,14 @@ pub mod hardsigmoid;
 pub mod hardswish;
 pub mod leaky_relu;
 pub mod logsigmoid;
+pub mod log_softmax;
 pub mod mish;
 pub mod prelu;
 pub mod relu;
 pub mod relu6;
 pub mod selu;
 pub mod silu;
+pub mod softmax;
 pub mod soft_plus;
 pub mod softshrink;
 pub mod swiglu;
@@ -32,12 +34,14 @@ pub use hardsigmoid::Hardsigmoid;
 pub use hardswish::Hardswish;
 pub use leaky_relu::LeakyReLU;
 pub use logsigmoid::LogSigmoid;
+pub use log_softmax::LogSoftmax;
 pub use mish::Mish;
 pub use prelu::PReLU;
 pub use relu::ReLU;
 pub use relu6::ReLU6;
 pub use selu::SELU;
 pub use silu::SiLU;
+pub use softmax::Softmax;
 pub use soft_plus::Softplus;
 pub use softshrink::Softshrink;
 pub use swiglu::SwiGLU;
@@ -58,6 +62,8 @@ pub enum ActivationType<T> {
     LeakyReLU(T),
     ELU(T),
     Hardtanh(T, T),
+    Softmax(Option<isize>),
+    LogSoftmax(Option<isize>),
     // Softplus(T, T),
     Mish,
 }
@@ -93,6 +99,8 @@ where
             ActivationType::LeakyReLU(slope) => Box::new(LeakyReLU::new(slope)),
             ActivationType::ELU(alpha) => Box::new(ELU::new(alpha)),
             ActivationType::Hardtanh(min, max) => Box::new(Hardtanh::new(min, max)),
+            ActivationType::Softmax(dim) => Box::new(Softmax::new(dim)),
+            ActivationType::LogSoftmax(dim) => Box::new(LogSoftmax::new(dim)),
             // ActivationType::Softplus(beta, threshold) => Box::new(Softplus::new(beta.clone(), threshold.clone())),
             ActivationType::Mish => Box::new(Mish::new()),
         }

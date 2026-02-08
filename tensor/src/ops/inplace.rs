@@ -116,6 +116,7 @@ where
 }
 
 /// In-place absolute value.
+// Absolute value implementation details
 pub fn abs_<
     B: Backend<Data = T> + Clone + Default + 'static,
     S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
@@ -129,6 +130,20 @@ pub fn abs_<
         if *x < zero {
             *x = zero - *x;
         }
+    }
+    Ok(())
+}
+
+/// In-place negation.
+pub fn neg_<B, S, T>(tensor: &mut Tensor<B, S, T>) -> Result<()>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
+    T: DataType + Copy + std::ops::Neg<Output = T> + 'static,
+{
+    let slice = tensor.as_mut_slice();
+    for x in slice {
+        *x = -*x;
     }
     Ok(())
 }
@@ -170,7 +185,39 @@ impl_unary_inplace!(abs_float_, abs);
 impl_unary_inplace!(ceil_, ceil);
 impl_unary_inplace!(floor_, floor);
 impl_unary_inplace!(round_, round);
-impl_unary_inplace!(neg_, neg); // neg() -> -self
+// impl_unary_inplace!(neg_, neg); // moved to manual implementation above
+impl_unary_inplace!(log2_, log2);
+impl_unary_inplace!(log10_, log10);
+impl_unary_inplace!(trunc_, trunc);
+
+/// In-place reciprocal square root.
+pub fn rsqrt_<B, S, T>(tensor: &mut Tensor<B, S, T>) -> Result<()>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
+    T: DataType + Float + 'static,
+{
+    let slice = tensor.as_mut_slice();
+    for x in slice {
+        *x = x.sqrt().recip();
+    }
+    Ok(())
+}
+
+/// In-place sigmoid.
+pub fn sigmoid_<B, S, T>(tensor: &mut Tensor<B, S, T>) -> Result<()>
+where
+    B: Backend<Data = T> + Clone + Default + 'static,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
+    T: DataType + Float + 'static,
+{
+    let slice = tensor.as_mut_slice();
+    let one = T::one();
+    for x in slice {
+        *x = one / (one + x.neg().exp());
+    }
+    Ok(())
+}
 
 // Special handling for sigmoid, etc methods not in Float trait directly?
 // Actually sigmoid is not in Num::Float.

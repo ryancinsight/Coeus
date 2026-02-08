@@ -75,6 +75,8 @@ fn test_conv_transpose_1d_creation() {
         Some(2),
         Some(1),
         Some(0),
+        Some(1),
+        Some(1),
         Some(true),
     )
     .unwrap();
@@ -98,6 +100,8 @@ fn test_conv_transpose_1d_forward() {
         Some(2),
         Some(1),
         Some(0),
+        Some(1),
+        Some(1),
         Some(false),
     )
     .unwrap();
@@ -135,6 +139,8 @@ fn test_conv_transpose_1d_output_size() {
         Some(2),
         Some(1),
         Some(0),
+        Some(1),
+        Some(1),
         Some(true),
     )
     .unwrap();

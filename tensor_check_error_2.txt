@@ -1,0 +1,190 @@
+warning: missing documentation for an associated function
+  --> storage\src\sparse\coo\creation.rs:47:5
+   |
+47 |     pub fn full_value(dims: &[usize], value: T) -> Result<Self> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> storage\src\lib.rs:53:9
+   |
+53 | #![warn(missing_docs, clippy::all, clippy::pedantic)]
+   |         ^^^^^^^^^^^^
+
+warning: `storage` (lib) generated 1 warning
+warning: unused import: `std::collections::HashMap`
+ --> backend\src\selection\mod.rs:3:5
+  |
+3 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `num_traits`
+ --> backend\src\cpu\implementations\arithmetic.rs:2:13
+  |
+2 | use dtype::{num_traits, DataType};
+  |             ^^^^^^^^^^
+
+warning: unused variable: `backend`
+   --> backend\src\selection\mod.rs:149:40
+    |
+149 |     pub(crate) fn score_backend(&self, backend: BackendType, workload: &WorkloadCharacteristics) -> f32 {
+    |                                        ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_backend`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `workload`
+   --> backend\src\selection\mod.rs:149:62
+    |
+149 |     pub(crate) fn score_backend(&self, backend: BackendType, workload: &WorkloadCharacteristics) -> f32 {
+    |                                                              ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_workload`
+
+warning: unused variable: `lambda`
+   --> backend\src\cpu\linear_algebra\decomposition.rs:386:9
+    |
+386 |     let lambda = if denominator > 1e-10 {
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_lambda`
+
+warning: unused variable: `vip`
+   --> backend\src\cpu\linear_algebra\decomposition.rs:519:17
+    |
+519 |             let vip = v_temp[i * n + p];
+    |                 ^^^ help: if this is intentional, prefix it with an underscore: `_vip`
+
+warning: unused variable: `viq`
+   --> backend\src\cpu\linear_algebra\decomposition.rs:520:17
+    |
+520 |             let viq = v_temp[i * n + q];
+    |                 ^^^ help: if this is intentional, prefix it with an underscore: `_viq`
+
+warning: unused variable: `op`
+  --> backend\src\cpu\implementations\comparison.rs:41:5
+   |
+41 |     op: F,
+   |     ^^ help: if this is intentional, prefix it with an underscore: `_op`
+
+warning: fields `backend`, `workload`, `actual_time_us`, and `timestamp` are never read
+  --> backend\src\selection\mod.rs:58:5
+   |
+57 | struct PerformanceRecord {
+   |        ----------------- fields in this struct
+58 |     backend: BackendType,
+   |     ^^^^^^^
+59 |     workload: WorkloadCharacteristics,
+   |     ^^^^^^^^
+60 |     actual_time_us: f64,
+   |     ^^^^^^^^^^^^^^
+61 |     timestamp: u64,
+   |     ^^^^^^^^^
+   |
+   = note: `PerformanceRecord` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `performance_history` and `memory_manager` are never read
+  --> backend\src\selection\mod.rs:70:5
+   |
+66 | pub struct BackendSelector {
+   |            --------------- fields in this struct
+...
+70 |     performance_history: Vec<PerformanceRecord>,
+   |     ^^^^^^^^^^^^^^^^^^^
+71 |     /// Integrated memory manager (placeholder for now)
+72 |     memory_manager: Option<()>, 
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `BackendSelector` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `gpu_memory_usage`, `gpu_utilization`, `operation_latencies`, `target_overhead_percent`, and `current_step` are never read
+  --> backend\src\monitoring\mod.rs:4:5
+   |
+ 2 | pub struct PerformanceMonitor {
+   |            ------------------ fields in this struct
+ 3 |     /// GPU memory usage tracking
+ 4 |     gpu_memory_usage: Vec<f64>,
+   |     ^^^^^^^^^^^^^^^^
+ 5 |     /// GPU utilization tracking
+ 6 |     gpu_utilization: Vec<f32>,
+   |     ^^^^^^^^^^^^^^^
+ 7 |     /// Operation latency tracking
+ 8 |     operation_latencies: std::collections::HashMap<String, Vec<f64>>,
+   |     ^^^^^^^^^^^^^^^^^^^
+ 9 |     /// Target overhead percent
+10 |     target_overhead_percent: f32,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+11 |     /// Current training step
+12 |     current_step: u64,
+   |     ^^^^^^^^^^^^
+
+warning: `backend` (lib) generated 11 warnings (run `cargo fix --lib -p backend` to apply 8 suggestions)
+warning: unused variable: `new_strides`
+  --> dense\src\layout\transpose.rs:74:9
+   |
+74 |     let new_strides: Vec<usize> = perm.iter().map(|&i| old_strides[i]).collect();
+   |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_strides`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dense` (lib) generated 1 warning (run `cargo fix --lib -p dense` to apply 1 suggestion)
+    Checking tensor v0.2.1 (D:\coeus\tensor)
+error[E0603]: module `sum` is private
+  --> tensor\src\ops\linalg\addbmm.rs:35:46
+   |
+35 |     let summed_prod = crate::ops::reduction::sum::sum(&prod, Some(&[0]), false)?; // keepdim=false
+   |                                              ^^^ private module
+   |
+note: the module `sum` is defined here
+  --> tensor\src\ops\reduction\mod.rs:10:1
+   |
+10 | mod sum;
+   | ^^^^^^^^
+help: consider importing this function through its public re-export instead
+   |
+35 -     let summed_prod = crate::ops::reduction::sum::sum(&prod, Some(&[0]), false)?; // keepdim=false
+35 +     let summed_prod = crate::ops::sum(&prod, Some(&[0]), false)?; // keepdim=false
+   |
+
+warning: unused import: `TensorError`
+  --> tensor\src\ops\comparison\mod.rs:11:29
+   |
+11 | use crate::{Result, Tensor, TensorError};
+   |                             ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `StorageFromVec`
+  --> tensor\src\ops\comparison\mod.rs:14:24
+   |
+14 | use storage::{Storage, StorageFromVec};
+   |                        ^^^^^^^^^^^^^^
+
+warning: unused imports: `SparseAdd`, `SparseMul`, and `SparseSub`
+  --> tensor\src\ops\dispatch\sparse_dispatch.rs:10:23
+   |
+10 |     SparseActivation, SparseAdd, SparseDiv, SparseElementWise, SparseMul, SparseSub,
+   |                       ^^^^^^^^^                                ^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `crate::ops::linalg::matmul`
+ --> tensor\src\ops\linalg\addr.rs:3:5
+  |
+3 | use crate::ops::linalg::matmul;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DenseStorage`
+ --> tensor\src\ops\linalg\addr.rs:7:15
+  |
+7 | use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+  |               ^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+  --> tensor\src\ops\comparison\isclose.rs:46:9
+   |
+46 |     let mut result = crate::ops::comparison::le(&diff_abs, &tol)?;
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0603`.
+warning: `tensor` (lib) generated 6 warnings
+error: could not compile `tensor` (lib) due to 1 previous error; 6 warnings emitted

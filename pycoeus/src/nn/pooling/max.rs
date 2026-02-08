@@ -3,7 +3,7 @@ use crate::tensor::{PyTensor, TensorWrapper};
 use coeus_nn::core::module::Module;
 use coeus_nn::modules::pooling::{MaxPool1d, MaxPool2d, MaxPool3d};
 use pyo3::prelude::*;
-use backend::{CpuBackend, Backend};
+use backend::CpuBackend;
 use storage::DenseStorage;
 use dtype::float::{Float32, Float64};
 

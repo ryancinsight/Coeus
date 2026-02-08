@@ -21,7 +21,7 @@ pub struct DataParallel<M, B, S, T> {
 
 impl<M, B, S, T> DataParallel<M, B, S, T>
 where
-    M: Module<B, S, T> + Send + Sync,
+    M: Module<B, S, T, Input = tensor::Tensor<B, S, T>, Output = tensor::Tensor<B, S, T>> + Send + Sync,
     B: Send + Sync + backend::Backend<Data = T>,
     S: Send
         + Sync

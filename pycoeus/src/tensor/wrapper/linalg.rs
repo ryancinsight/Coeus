@@ -2,7 +2,7 @@ use super::TensorWrapper;
 use backend::CpuBackend;
 use coeus_linalg::qr::QRResult;
 use coeus_linalg::svd::SVDResult;
-use coeus_linalg::{Cholesky, Det, Inverse, Norm, Solve, QR, SVD};
+use coeus_linalg::{Det, Inverse, Norm, Solve};
 use dtype::float::Float32;
 use tensor::TensorError;
 

@@ -54,7 +54,7 @@ fn test_simple_network_training() {
     // Compute loss (simple MSE)
     let diff = &output - &target;
     let squared = &diff * &diff;
-    let initial_loss = squared.mean(None, false).unwrap();
+    let initial_loss = squared.mean_dims(None, false).unwrap();
 
     // Verify loss is a scalar-like tensor (either rank-0 or a single element)
     let loss_dims = initial_loss.shape().dims();
@@ -151,7 +151,7 @@ fn test_multi_iteration_training() {
             // Compute loss
             let diff = &output - target;
             let squared = &diff * &diff;
-            let loss = squared.mean(None, false).unwrap();
+            let loss = squared.mean_dims(None, false).unwrap();
 
             let loss_value = loss.as_slice()[0].get();
             epoch_loss += loss_value;
@@ -221,7 +221,7 @@ fn test_batch_training() {
     // Compute loss
     let diff = &output - &batch_target;
     let squared = &diff * &diff;
-    let loss = squared.mean(None, false).unwrap();
+    let loss = squared.mean_dims(None, false).unwrap();
 
     // Verify loss is scalar-like tensor (either rank-0 or a single element)
     let loss_dims = loss.shape().dims();

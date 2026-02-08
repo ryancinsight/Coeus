@@ -15,8 +15,8 @@ pub fn sum<B, T, S>(
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    T: DataType + 'static + core::ops::Add<Output = T>,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + core::ops::Add<Output = T> + Clone,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + Clone + 'static,
 {
     let mut result = tensor.sum_generic(dims, keepdim)?;
 

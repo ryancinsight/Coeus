@@ -58,7 +58,7 @@ proptest! {
         ).unwrap();
 
         let loss = mse_loss(&pred, &target).unwrap();
-        let loss_val = loss.as_slice()[0].get();
+        let loss_val = loss.as_slice()[0].get() as f32;
 
         // Property: MSE loss must be >= 0
         prop_assert!(
@@ -83,7 +83,7 @@ proptest! {
         let target = TestTensor::from_vec(float_data, &shape).unwrap();
 
         let loss = mse_loss(&pred, &target).unwrap();
-        let loss_val = loss.as_slice()[0].get();
+        let loss_val = loss.as_slice()[0].get() as f32;
 
         // Property: MSE loss = 0 when pred = target
         prop_assert!(
@@ -120,8 +120,8 @@ proptest! {
         let loss1 = mse_loss(&pred, &target).unwrap();
         let loss2 = mse_loss(&target, &pred).unwrap();
 
-        let loss1_val = loss1.as_slice()[0].get();
-        let loss2_val = loss2.as_slice()[0].get();
+        let loss1_val = loss1.as_slice()[0].get() as f32;
+        let loss2_val = loss2.as_slice()[0].get() as f32;
 
         // Property: MSE is symmetric
         prop_assert!(
@@ -150,8 +150,8 @@ proptest! {
         let loss1 = mse_loss(&pred1, &target).unwrap();
         let loss2 = mse_loss(&pred2, &target).unwrap();
 
-        let loss1_val = loss1.as_slice()[0].get();
-        let loss2_val = loss2.as_slice()[0].get();
+        let loss1_val = loss1.as_slice()[0].get() as f32;
+        let loss2_val = loss2.as_slice()[0].get() as f32;
 
         // Property: Larger error => larger loss
         prop_assert!(
@@ -199,7 +199,7 @@ proptest! {
         ).unwrap();
 
         let loss = cross_entropy(&logits, &target).unwrap();
-        let loss_val = loss.as_slice()[0].get();
+        let loss_val = loss.as_slice()[0].get() as f32;
 
         // Property: Cross-entropy loss must be >= 0
         prop_assert!(
@@ -240,8 +240,8 @@ proptest! {
         let loss_low = cross_entropy(&logits_low, &target).unwrap();
         let loss_high = cross_entropy(&logits_high, &target).unwrap();
 
-        let loss_low_val = loss_low.as_slice()[0].get();
-        let loss_high_val = loss_high.as_slice()[0].get();
+        let loss_low_val = loss_low.as_slice()[0].get() as f32;
+        let loss_high_val = loss_high.as_slice()[0].get() as f32;
 
         // Property: Higher confidence => lower loss
         prop_assert!(
@@ -283,7 +283,7 @@ proptest! {
         ).unwrap();
 
         let loss = l1_loss(&pred, &target).unwrap();
-        let loss_val = loss.as_slice()[0].get();
+        let loss_val = loss.as_slice()[0].get() as f32;
 
         // Property: L1 loss must be >= 0
         prop_assert!(
@@ -308,7 +308,7 @@ proptest! {
         let target = TestTensor::from_vec(float_data, &shape).unwrap();
 
         let loss = l1_loss(&pred, &target).unwrap();
-        let loss_val = loss.as_slice()[0].get();
+        let loss_val = loss.as_slice()[0].get() as f32;
 
         // Property: L1 loss = 0 when pred = target
         prop_assert!(
@@ -345,8 +345,8 @@ proptest! {
         let loss1 = l1_loss(&pred, &target).unwrap();
         let loss2 = l1_loss(&target, &pred).unwrap();
 
-        let loss1_val = loss1.as_slice()[0].get();
-        let loss2_val = loss2.as_slice()[0].get();
+        let loss1_val = loss1.as_slice()[0].get() as f32;
+        let loss2_val = loss2.as_slice()[0].get() as f32;
 
         // Property: L1 is symmetric
         prop_assert!(
@@ -374,8 +374,8 @@ proptest! {
         let loss1 = l1_loss(&pred1, &target).unwrap();
         let loss2 = l1_loss(&pred2, &target).unwrap();
 
-        let loss1_val = loss1.as_slice()[0].get();
-        let loss2_val = loss2.as_slice()[0].get();
+        let loss1_val = loss1.as_slice()[0].get() as f32;
+        let loss2_val = loss2.as_slice()[0].get() as f32;
 
         // Property: L1 loss scales linearly (loss2 ≈ 2 * loss1)
         let ratio = loss2_val / loss1_val;
@@ -415,7 +415,7 @@ proptest! {
         ).unwrap();
 
         let loss = bce_with_logits_loss(&logits, &target).unwrap();
-        let loss_val = loss.as_slice()[0].get();
+        let loss_val = loss.as_slice()[0].get() as f32;
 
         // Property: BCE with logits loss must be >= 0
         prop_assert!(
@@ -443,8 +443,8 @@ proptest! {
         let loss_low = bce_with_logits_loss(&logits_low, &target_one).unwrap();
         let loss_high = bce_with_logits_loss(&logits_high, &target_one).unwrap();
 
-        let loss_low_val = loss_low.as_slice()[0].get();
-        let loss_high_val = loss_high.as_slice()[0].get();
+        let loss_low_val = loss_low.as_slice()[0].get() as f32;
+        let loss_high_val = loss_high.as_slice()[0].get() as f32;
 
         // Property: For target=1, higher logit => lower loss
         prop_assert!(
@@ -492,7 +492,7 @@ proptest! {
         ).unwrap();
 
         let loss = nll_loss(&log_probs, &target).unwrap();
-        let loss_val = loss.as_slice()[0].get();
+        let loss_val = loss.as_slice()[0].get() as f32;
 
         // Property: NLL loss must be >= 0
         prop_assert!(
@@ -531,7 +531,7 @@ proptest! {
         ).unwrap();
 
         let loss = binary_cross_entropy(&pred, &target).unwrap();
-        let loss_val = loss.as_slice()[0].get();
+        let loss_val = loss.as_slice()[0].get() as f32;
 
         // Property: Binary cross-entropy loss must be >= 0
         prop_assert!(

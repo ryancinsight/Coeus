@@ -43,7 +43,7 @@ where
     };
 
     let current_shape = reduced.shape().dims();
-    if current_shape != input_shape {
+    if &current_shape[..] != &input_shape[..] {
         let data = reduced.as_slice().to_vec();
         reduced = Tensor::<B, DenseStorage<T>, T>::from_vec_with_backend(
             data,

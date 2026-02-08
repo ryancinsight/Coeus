@@ -1,0 +1,171 @@
+    Checking backend v0.2.1 (D:\coeus\backend)
+error[E0428]: the name `erf_dense` is defined multiple times
+   --> backend\src\cpu\implementations\activation.rs:367:1
+    |
+262 | / pub fn erf_dense<T: DataType + num_traits::Float>(
+263 | |     input: &DenseStorage<T>,
+264 | | ) -> Result<DenseStorage<T>> {
+265 | |     let input_slice = input.as_slice();
+...   |
+271 | |         .map_err(|e| crate::BackendError::InvalidInput(format!("Storage error: {}", e)))
+272 | | }
+    | |_- previous definition of the value `erf_dense` here
+...
+367 | / pub fn erf_dense<T: DataType + num_traits::Float>(
+368 | |     input: &DenseStorage<T>,
+369 | | ) -> Result<DenseStorage<T>> {
+...   |
+373 | |     Err(crate::BackendError::UnsupportedOperation { operation: "erf_dense".to_string(), backend: "cpu".to_string() })
+374 | | }
+    | |_^ `erf_dense` redefined here
+    |
+    = note: `erf_dense` must be defined only once in the value namespace of this module
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `statrs`
+   --> backend\src\cpu\implementations\activation.rs:281:24
+    |
+281 |         let erfc_f64 = statrs::function::erf::erfc(x_f64);
+    |                        ^^^^^^ use of unresolved module or unlinked crate `statrs`
+    |
+    = help: if you wanted to use a crate named `statrs`, use `cargo add statrs` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `statrs`
+   --> backend\src\cpu\implementations\activation.rs:295:26
+    |
+295 |         let erfinv_f64 = statrs::function::erf::erf_inv(x_f64);
+    |                          ^^^^^^ use of unresolved module or unlinked crate `statrs`
+    |
+    = help: if you wanted to use a crate named `statrs`, use `cargo add statrs` to add it to your `Cargo.toml`
+
+error[E0425]: cannot find function `round_dense` in module `super::implementations::activation`
+   --> backend\src\cpu\backend.rs:311:45
+    |
+311 |         super::implementations::activation::round_dense(input)
+    |                                             ^^^^^^^^^^^ not found in `super::implementations::activation`
+
+error[E0046]: not all trait items implemented, missing: `isnan_dense`, `isinf_dense`, `isfinite_dense`, `logical_and_dense`, `logical_or_dense`, `logical_xor_dense`, `logical_not_dense`, `log1p_dense`, `expm1_dense`, `reciprocal_dense`, `atan2_dense`, `rsqrt_dense`, `erf_dense`, `erfc_dense`, `erfinv_dense`
+   --> backend\src\gpu\backend.rs:80:1
+    |
+ 80 |   impl<T: DataType + GpuFloat> Backend for GpuBackend<T> {
+    |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `isnan_dense`, `isinf_dense`, `isfinite_dense`, `logical_and_dense`, `logical_or_dense`, `logical_xor_dense`, `logical_not_dense`, `log1p_dense`, `expm1_dense`, `reciprocal_dense`, `atan2_dense`, `rsqrt_dense`, `erf_dense`, `erfc_dense`, `erfinv_dense` in implementation
+    |
+   ::: backend\src\core\mod.rs:729:5
+    |
+729 | /     fn isnan_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+730 | |     where Self::Data: dtype::num_traits::Float + dtype::num_traits::One + dtype::num_traits::Zero;
+    | |__________________________________________________________________________________________________- `isnan_dense` from trait
+731 |
+732 | /     fn isinf_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+733 | |     where Self::Data: dtype::num_traits::Float + dtype::num_traits::One + dtype::num_traits::Zero;
+    | |__________________________________________________________________________________________________- `isinf_dense` from trait
+734 |
+735 | /     fn isfinite_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+736 | |     where Self::Data: dtype::num_traits::Float + dtype::num_traits::One + dtype::num_traits::Zero;
+    | |__________________________________________________________________________________________________- `isfinite_dense` from trait
+...
+740 | /     fn logical_and_dense(
+741 | |         &self,
+742 | |         lhs: &storage::DenseStorage<Self::Data>,
+743 | |         rhs: &storage::DenseStorage<Self::Data>,
+744 | |     ) -> Result<storage::DenseStorage<Self::Data>>
+745 | |     where Self::Data: dtype::num_traits::One + dtype::num_traits::Zero;
+    | |_______________________________________________________________________- `logical_and_dense` from trait
+746 |
+747 | /     fn logical_or_dense(
+748 | |         &self,
+749 | |         lhs: &storage::DenseStorage<Self::Data>,
+750 | |         rhs: &storage::DenseStorage<Self::Data>,
+751 | |     ) -> Result<storage::DenseStorage<Self::Data>>
+752 | |     where Self::Data: dtype::num_traits::One + dtype::num_traits::Zero;
+    | |_______________________________________________________________________- `logical_or_dense` from trait
+753 |
+754 | /     fn logical_xor_dense(
+755 | |         &self,
+756 | |         lhs: &storage::DenseStorage<Self::Data>,
+757 | |         rhs: &storage::DenseStorage<Self::Data>,
+758 | |     ) -> Result<storage::DenseStorage<Self::Data>>
+759 | |     where Self::Data: dtype::num_traits::One + dtype::num_traits::Zero;
+    | |_______________________________________________________________________- `logical_xor_dense` from trait
+760 |
+761 | /     fn logical_not_dense(
+762 | |         &self,
+763 | |         input: &storage::DenseStorage<Self::Data>,
+764 | |     ) -> Result<storage::DenseStorage<Self::Data>>
+765 | |     where Self::Data: dtype::num_traits::One + dtype::num_traits::Zero;
+    | |_______________________________________________________________________- `logical_not_dense` from trait
+...
+769 | /     fn log1p_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+770 | |     where Self::Data: dtype::num_traits::Float;
+    | |_______________________________________________- `log1p_dense` from trait
+771 |
+772 | /     fn expm1_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+773 | |     where Self::Data: dtype::num_traits::Float;
+    | |_______________________________________________- `expm1_dense` from trait
+774 |
+775 | /     fn reciprocal_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+776 | |     where Self::Data: dtype::num_traits::Float;
+    | |_______________________________________________- `reciprocal_dense` from trait
+777 |
+778 | /     fn atan2_dense(
+779 | |         &self,
+780 | |         y: &storage::DenseStorage<Self::Data>,
+781 | |         x: &storage::DenseStorage<Self::Data>,
+782 | |     ) -> Result<storage::DenseStorage<Self::Data>>
+783 | |     where Self::Data: dtype::num_traits::Float;
+    | |_______________________________________________- `atan2_dense` from trait
+784 |
+785 | /     fn rsqrt_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+786 | |     where Self::Data: dtype::num_traits::Float;
+    | |_______________________________________________- `rsqrt_dense` from trait
+787 |
+788 | /     fn erf_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+789 | |     where Self::Data: dtype::num_traits::Float;
+    | |_______________________________________________- `erf_dense` from trait
+790 |
+791 | /     fn erfc_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+792 | |     where Self::Data: dtype::num_traits::Float;
+    | |_______________________________________________- `erfc_dense` from trait
+793 |
+794 | /     fn erfinv_dense(&self, input: &storage::DenseStorage<Self::Data>) -> Result<storage::DenseStorage<Self::Data>>
+795 | |     where Self::Data: dtype::num_traits::Float;
+    | |_______________________________________________- `erfinv_dense` from trait
+
+error[E0277]: the trait bound `T: FromPrimitive` is not satisfied
+   --> backend\src\cpu\backend.rs:902:56
+    |
+902 |         super::implementations::activation::erfc_dense(input)
+    |         ---------------------------------------------- ^^^^^ the trait `FromPrimitive` is not implemented for `T`
+    |         |
+    |         required by a bound introduced by this call
+    |
+note: required by a bound in `erfc_dense`
+   --> backend\src\cpu\implementations\activation.rs:274:79
+    |
+274 | pub fn erfc_dense<T: DataType + num_traits::Float + num_traits::ToPrimitive + num_traits::FromPrimitive>(
+    |                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `erfc_dense`
+help: consider further restricting type parameter `T` with trait `FromPrimitive`
+    |
+ 31 | impl<T: DataType + storage::num_traits::FromPrimitive> Backend for CpuBackend<T> {
+    |                  ++++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `T: FromPrimitive` is not satisfied
+   --> backend\src\cpu\backend.rs:907:58
+    |
+907 |         super::implementations::activation::erfinv_dense(input)
+    |         ------------------------------------------------ ^^^^^ the trait `FromPrimitive` is not implemented for `T`
+    |         |
+    |         required by a bound introduced by this call
+    |
+note: required by a bound in `erfinv_dense`
+   --> backend\src\cpu\implementations\activation.rs:288:81
+    |
+288 | pub fn erfinv_dense<T: DataType + num_traits::Float + num_traits::ToPrimitive + num_traits::FromPrimitive>(
+    |                                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `erfinv_dense`
+help: consider further restricting type parameter `T` with trait `FromPrimitive`
+    |
+ 31 | impl<T: DataType + storage::num_traits::FromPrimitive> Backend for CpuBackend<T> {
+    |                  ++++++++++++++++++++++++++++++++++++
+
+Some errors have detailed explanations: E0046, E0277, E0425, E0428, E0433.
+For more information about an error, try `rustc --explain E0046`.
+error: could not compile `backend` (lib) due to 7 previous errors

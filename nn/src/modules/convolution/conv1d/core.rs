@@ -103,39 +103,31 @@ where
 impl<B, S, T> Module<B, S, T> for Conv1D<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default + TensorBackendDispatcher<B, S, T>,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + TensorStorageOps<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + PartialOrd + num_traits::Float + num_traits::FromPrimitive + 'static,
     T: Neg<Output = T>,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let input_shape = input.shape().dims();
-
-        if input_shape.len() != 3usize {
-            return Err(NNError::ShapeMismatch {
+        if input_shape.len() != 3 {
+             return Err(NNError::ShapeMismatch {
                 operation: "Conv1D forward".to_string(),
-                expected: vec![0, self.in_channels, 0],
+                expected: vec![0, 0, 0],
                 actual: input_shape.to_vec(),
             });
         }
 
-        let batch_size = input_shape[0];
-        let in_channels = input_shape[1];
-        let input_length = input_shape[2];
-
-        if in_channels != self.in_channels {
-            return Err(NNError::ShapeMismatch {
-                operation: "Conv1D forward".to_string(),
-                expected: vec![batch_size, self.in_channels, input_length],
-                actual: input_shape.to_vec(),
-            });
-        }
-
-        let output = tensor::ops::conv::conv1d(
+        let output = crate::functional::convolution::conv1d(
             input,
             self.weight.data(),
             self.bias.as_ref().map(|b| b.data()),
             self.stride,
             self.padding,
+            1, // dilation
+            1, // groups
         )?;
 
         Ok(output)
@@ -149,7 +141,7 @@ where
         params
     }
 
-    fn modules(&self) -> Vec<&dyn Module<B, S, T>> {
+    fn modules(&self) -> Vec<&dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         vec![]
     }
 
@@ -166,7 +158,7 @@ where
         "Conv1D"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

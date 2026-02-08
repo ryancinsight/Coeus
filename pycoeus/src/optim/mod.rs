@@ -8,11 +8,13 @@ pub mod adagrad;
 pub mod adam;
 pub mod adamax;
 pub mod adamw;
+pub mod asgd;
 pub mod base;
 pub mod lr_scheduler;
 pub mod nadam;
 pub mod radam;
 pub mod rmsprop;
+pub mod rprop;
 pub mod sgd;
 
 use pyo3::prelude::*;
@@ -29,7 +31,9 @@ pub use self::lr_scheduler::{
 pub use self::nadam::PyNAdam;
 pub use self::radam::PyRAdam;
 pub use self::rmsprop::PyRMSprop;
+pub use self::rprop::PyRprop;
 pub use self::sgd::PySGD;
+pub use self::asgd::PyASGD;
 
 pub use optim::BaseOptimizer;
 
@@ -43,6 +47,8 @@ pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<PyAdamax>()?;
     m.add_class::<PyNAdam>()?;
     m.add_class::<PyRAdam>()?;
+    m.add_class::<PyASGD>()?;
+    m.add_class::<PyRprop>()?;
     m.add_class::<PyStepLR>()?;
     m.add_class::<PyExponentialLR>()?;
     m.add_class::<PyCosineAnnealingLR>()?;

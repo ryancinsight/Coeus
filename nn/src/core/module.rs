@@ -71,34 +71,28 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt,
 {
+    /// Input type for the module's forward pass.
+    type Input;
+    /// Output type for the module's forward pass.
+    type Output;
+
     /// Perform forward pass through the module.
     ///
     /// # Arguments
-    /// * `input` - Input tensor to the module
+    /// * `input` - Input to the module
     ///
     /// # Returns
-    /// Result containing the output tensor, or an error if the forward pass fails.
-    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>;
+    /// Result containing the output, or an error if the forward pass fails.
+    fn forward(&self, input: &Self::Input) -> Result<Self::Output>;
 
     /// Perform forward pass with autograd support.
-    ///
-    /// This method should enable gradient tracking and create computation graph nodes
-    /// for automatic differentiation. The default implementation falls back to
-    /// regular forward pass.
-    ///
-    /// # Arguments
-    /// * `input` - Input tensor to the module (should have requires_grad set appropriately)
-    ///
-    /// # Returns
-    /// Result containing the output tensor with gradient tracking enabled.
-    fn forward_autograd(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
+    fn forward_autograd(&self, input: &Self::Input) -> Result<Self::Output>
     where
         T: FloatExt + From<f64>,
         B: Backend<Data = T> + Default + 'static,
         S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + 'static,
     {
         // Default implementation: just call regular forward
-        // Subclasses should override for autograd support
         self.forward(input)
     }
 
@@ -127,7 +121,8 @@ where
     ///
     /// # Returns
     /// Vector of references to child modules.
-    fn modules(&self) -> Vec<&dyn Module<B, S, T>> {
+    /// Note: Submodules must all have Tensor -> Tensor signature for object safety in this vector.
+    fn modules(&self) -> Vec<&dyn Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>>> {
         Vec::new() // Default implementation for leaf modules
     }
 
@@ -137,7 +132,7 @@ where
     ///
     /// # Returns
     /// Vector of mutable submodule references.
-    fn modules_mut(&mut self) -> Vec<&mut dyn Module<B, S, T>> {
+    fn modules_mut(&mut self) -> Vec<&mut dyn Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>>> {
         Vec::new() // Default: no mutable submodules
     }
 
@@ -233,13 +228,10 @@ where
     }
 
     /// Clone the module into a Box.
-    ///
-    /// This is used for dynamic dispatch cloning of modules,
-    /// particularly in Sequential and other container modules.
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>>;
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>>;
 }
 
-impl<B, S, T> Clone for Box<dyn Module<B, S, T>>
+impl<B, S, T> Clone for Box<dyn Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>>>
 where
     B: Backend<Data = T> + Clone,
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
@@ -661,6 +653,9 @@ mod tests {
     }
 
     impl Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32> for MockModule {
+        type Input = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
+        type Output = Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>;
+
         fn forward(
             &self,
             _input: &Tensor<CpuBackend<Float32>, DenseStorage<Float32>, Float32>,
@@ -705,7 +700,7 @@ mod tests {
 
         fn clone_box(
             &self,
-        ) -> Box<dyn Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32>> {
+        ) -> Box<dyn Module<CpuBackend<Float32>, DenseStorage<Float32>, Float32, Input = Self::Input, Output = Self::Output>> {
             // Re-create the mock module (since MockParameter isn't easily cloneable in this snippet,
             // but we can just make a new one or implement Clone for MockModule properly.
             // For testing, new is fine or we can clone fields if we derive Clone).

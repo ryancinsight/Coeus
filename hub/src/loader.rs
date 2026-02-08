@@ -403,7 +403,7 @@ impl<M, B: Backend<Data = T>, T: DataType + FloatExt> LoadedModel<M, B, T> {
             + 'static
             + storage::StorageFromVec<T>
             + storage::StorageToDense<T>,
-        M: Module<B, S, T>,
+        M: Module<B, S, T, Input = tensor::Tensor<B, S, T>, Output = tensor::Tensor<B, S, T>>,
     {
         self.model
             .forward(input)

@@ -1,13 +1,12 @@
 //! Upsampling layers for neural networks.
 
-use backend::CpuBackend;
+use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
 use storage::DenseStorage;
-use tensor::Tensor;
+use tensor::{Tensor, ops::TensorStorageOps};
 
 use crate::core::error::Result;
-use crate::core::module::Module;
-use crate::core::parameter::Parameter;
+use crate::{Module, Parameter};
 
 /// Interpolation mode for upsampling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,29 +102,34 @@ impl Upsample {
     }
 
     /// Nearest neighbor interpolation for 2D input.
-    fn nearest_2d<T: DataType + FloatExt>(
+    fn nearest_2d_generic<B, S, T>(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        input: &Tensor<B, S, T>,
         output_h: usize,
         output_w: usize,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
-        let input_shape = input.shape().dims();
+    ) -> Result<Tensor<B, storage::DenseStorage<T>, T>> 
+    where
+        B: Backend<Data = T> + Clone + Default,
+        S: storage::Storage<T> + storage::StorageToDense<T> + storage::StorageFromVec<T> + Clone + 'static,
+        T: DataType + FloatExt + Clone,
+    {
+        let input_dense = input.to_dense_generic()?;
+        let input_shape = input_dense.shape().dims();
         let batch_size = input_shape[0];
         let channels = input_shape[1];
         let input_h = input_shape[2];
         let input_w = input_shape[3];
 
-        let input_data = input.as_slice();
+        let input_data = input_dense.as_slice();
         let mut output_data = Vec::with_capacity(batch_size * channels * output_h * output_w);
 
-        let scale_h = input_h as f64 / output_h as f64;
-        let scale_w = input_w as f64 / output_w as f64;
+        let scale_h: f64 = input_h as f64 / output_h as f64;
+        let scale_w: f64 = input_w as f64 / output_w as f64;
 
         for n in 0..batch_size {
             for c in 0..channels {
                 for oh in 0..output_h {
                     for ow in 0..output_w {
-                        // Nearest neighbor: round to nearest input pixel
                         let ih = ((oh as f64 + 0.5) * scale_h).floor() as usize;
                         let iw = ((ow as f64 + 0.5) * scale_w).floor() as usize;
 
@@ -139,34 +143,38 @@ impl Upsample {
             }
         }
 
-        Tensor::from_vec(output_data, &[batch_size, channels, output_h, output_w])
-            .map_err(Into::into)
+        Ok(Tensor::from_vec_with_backend(output_data, &[batch_size, channels, output_h, output_w], input.backend().clone())?)
     }
 
     /// Bilinear interpolation for 2D input.
-    fn bilinear_2d<T: DataType + FloatExt>(
+    fn bilinear_2d_generic<B, S, T>(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
+        input: &Tensor<B, S, T>,
         output_h: usize,
         output_w: usize,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
-        let input_shape = input.shape().dims();
+    ) -> Result<Tensor<B, storage::DenseStorage<T>, T>> 
+    where
+        B: Backend<Data = T> + Clone + Default,
+        S: storage::Storage<T> + storage::StorageToDense<T> + storage::StorageFromVec<T> + Clone + 'static,
+        T: DataType + FloatExt + Clone,
+    {
+        let input_dense = input.to_dense_generic()?;
+        let input_shape = input_dense.shape().dims();
         let batch_size = input_shape[0];
         let channels = input_shape[1];
         let input_h = input_shape[2];
         let input_w = input_shape[3];
 
-        let input_data = input.as_slice();
+        let input_data = input_dense.as_slice();
         let mut output_data = Vec::with_capacity(batch_size * channels * output_h * output_w);
 
-        let scale_h = (input_h - 1) as f64 / (output_h - 1).max(1) as f64;
-        let scale_w = (input_w - 1) as f64 / (output_w - 1).max(1) as f64;
+        let scale_h: f64 = (input_h - 1) as f64 / (output_h - 1).max(1) as f64;
+        let scale_w: f64 = (input_w - 1) as f64 / (output_w - 1).max(1) as f64;
 
         for n in 0..batch_size {
             for c in 0..channels {
                 for oh in 0..output_h {
                     for ow in 0..output_w {
-                        // Bilinear interpolation
                         let h_float = oh as f64 * scale_h;
                         let w_float = ow as f64 * scale_w;
 
@@ -178,7 +186,6 @@ impl Upsample {
                         let h_weight = T::from(h_float - h0 as f64).unwrap();
                         let w_weight = T::from(w_float - w0 as f64).unwrap();
 
-                        // Get four corner values
                         let idx00 = ((n * channels + c) * input_h + h0) * input_w + w0;
                         let idx01 = ((n * channels + c) * input_h + h0) * input_w + w1;
                         let idx10 = ((n * channels + c) * input_h + h1) * input_w + w0;
@@ -189,7 +196,6 @@ impl Upsample {
                         let v10 = input_data[idx10];
                         let v11 = input_data[idx11];
 
-                        // Bilinear interpolation formula
                         let one = T::one();
                         let v0 = v00 * (one - w_weight) + v01 * w_weight;
                         let v1 = v10 * (one - w_weight) + v11 * w_weight;
@@ -201,48 +207,59 @@ impl Upsample {
             }
         }
 
-        Tensor::from_vec(output_data, &[batch_size, channels, output_h, output_w])
-            .map_err(Into::into)
+        Ok(Tensor::from_vec_with_backend(output_data, &[batch_size, channels, output_h, output_w], input.backend().clone())?)
     }
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Upsample {
+impl<B, S, T> Module<B, S, T> for Upsample
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageOps<T> + Clone + 'static,
+    T: DataType + FloatExt + Clone,
+{
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
+        input: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, S, T>> {
         let input_shape = input.shape().dims();
-
-        match input_shape.len() {
-            4 => {
-                // 2D input: [N, C, H, W]
-                let spatial_dims = &input_shape[2..];
-                let output_size = self.compute_output_size(spatial_dims);
-                let output_h = output_size[0];
-                let output_w = output_size[1];
-
-                match self.mode {
-                    InterpolationMode::Nearest => self.nearest_2d(input, output_h, output_w),
-                    InterpolationMode::Bilinear => self.bilinear_2d(input, output_h, output_w),
-                    InterpolationMode::Trilinear => {
-                        Err(crate::core::error::NNError::InvalidInput {
-                            message:
-                                "Trilinear interpolation requires 5D input (N, C, D, H, W), got 4D"
-                                    .to_string(),
-                        })
-                    }
-                }
-            }
-            _ => Err(crate::core::error::NNError::InvalidInput {
-                message: format!(
-                    "Unsupported input dimensions: {}D (expected 4D for 2D upsampling)",
-                    input_shape.len()
-                ),
-            }),
+        if input_shape.len() < 3 {
+            return Err(crate::core::error::NNError::InvalidInput {
+                message: format!("Upsample expects at least 3D input, got {}D", input_shape.len()),
+            });
         }
+
+        let spatial_dims = &input_shape[2..];
+        let output_spatial_dims = self.compute_output_size(spatial_dims);
+        
+        // Currently we only have CpuBackend implementation for nearest/bilinear internally
+        // To be elite, we should check if we can dispatch or just call our Cpu helpers
+        // For now, convert to Cpu if needed, or just assume input is compatible with our logic
+        // Actually our internal nearest_2d/bilinear_2d are currently tied to CpuBackend.
+        // I'll make THEM generic over B too.
+        
+        let output = match (self.mode, spatial_dims.len()) {
+            (InterpolationMode::Nearest, 2) => {
+                self.nearest_2d_generic(input, output_spatial_dims[0], output_spatial_dims[1])?
+            }
+            (InterpolationMode::Bilinear, 2) => {
+                self.bilinear_2d_generic(input, output_spatial_dims[0], output_spatial_dims[1])?
+            }
+            _ => {
+                return Err(crate::core::error::NNError::NotImplemented {
+                    operation: format!("Upsample mode {:?} for {}D not yet implemented", self.mode, spatial_dims.len()),
+                });
+            }
+        };
+
+        let dense = output.to_dense_generic()?;
+        let storage = S::from_vec(dense.as_slice().to_vec(), dense.shape().dims())?;
+        Ok(Tensor::from_storage(storage, input.backend().clone()))
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         Vec::new() // No learnable parameters
     }
 
@@ -258,7 +275,7 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Upsam
         "Upsample"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

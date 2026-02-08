@@ -1,17 +1,19 @@
 //! Outer product of two vectors.
 
-use crate::ops::linalg::matmul;
 use crate::{Result, Tensor};
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
-use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
+use storage::{Storage, StorageFromVec, StorageToDense};
 
-/// Outer product of vectors vec1 and vec2.
-/// If vec1 is (M) and vec2 is (N), result is (M, N).
+/// Add outer product of vectors to input.
+/// result = beta * input + alpha * (vec1 @ vec2)
 pub fn addr<B, T, S>(
+    input: &Tensor<B, S, T>,
     vec1: &Tensor<B, S, T>,
     vec2: &Tensor<B, S, T>,
-) -> Result<Tensor<B, DenseStorage<T>, T>>
+    beta: T,
+    alpha: T,
+) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     T: DataType
@@ -19,38 +21,34 @@ where
         + Clone
         + Copy
         + num_traits::Zero
+        + num_traits::FromPrimitive
         + std::ops::Add<Output = T>
         + std::ops::Mul<Output = T>
         + 'static,
-    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + crate::ops::TensorStorageOps<T> + Clone + 'static,
+    S: Storage<T> + StorageToDense<T> + StorageFromVec<T> + crate::ops::TensorStorageOps<T> + Clone + Send + Sync + 'static,
 {
-    // vec1: [M]
-    // vec2: [N]
-    // result: [M, N] = vec1.unsqueeze(1) @ vec2.unsqueeze(0)
+    // outer product
+    let outer_prod = super::outer::outer(vec1, vec2)?; 
 
-    let shape1 = vec1.shape().dims();
-    let shape2 = vec2.shape().dims();
+    // Implicitly supports autograd via composition
+    // We need to match S type. outer returns DenseStorage.
+    // Ideally we convert outer_prod to S if possible, or everything to Dense.
+    // For now let's rely on standard ops handling mixed storage or converting.
+    // Actually standard ops usually return S1 (left operand storage).
+    
+    // alpha * outer
+    let scaled_outer = crate::ops::arithmetic::mul(&outer_prod, &Tensor::full_like(&outer_prod, alpha)?)?;
+    
+    // beta * input
+    let scaled_input = crate::ops::arithmetic::mul(input, &Tensor::full_like(input, beta)?)?;
 
-    if shape1.len() != 1 || shape2.len() != 1 {
-        return Err(crate::TensorError::ShapeError {
-            expected: 1,
-            actual: if shape1.len() != 1 {
-                shape1.len()
-            } else {
-                shape2.len()
-            },
-            message: format!(
-                "addr: both inputs must be 1D, got {:?} and {:?}",
-                shape1, shape2
-            ),
-        });
-    }
-
-    // unsqueeze returns DenseStorage.
-    let v1 = crate::ops::shape::unsqueeze::unsqueeze(vec1, 1)?; // [M, 1]
-    let v2 = crate::ops::shape::unsqueeze::unsqueeze(vec2, 0)?; // [1, N]
-
-    // matmul expects same storage type. Both are DenseStorage.
-    // Explicitly call generic matmul.
-    matmul(&v1, &v2)
+    // result = scaled_input + scaled_outer
+    // This might require casting scaled_outer to S if S is not DenseStorage.
+    // But arithmetic ops usually handle this via delegation or conversion.
+    // Let's assume input's storage S is the target.
+    
+    // We need to make sure shapes match for add.
+    // input must bebroadcastable to [M, N].
+    
+    crate::ops::arithmetic::add(&scaled_input, &scaled_outer)
 }

@@ -1,11 +1,10 @@
 use backend::Backend;
-use dtype::{traits::FloatExt, DataType};
+use dtype::{traits, DataType};
 use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::{Tensor, tensor_backend_dispatch::TensorBackendDispatcher, ops::TensorStorageOps};
 
 use crate::core::error::{NNError, Result};
-use crate::core::module::Module;
-use crate::core::parameter::Parameter;
+use crate::{Module, Parameter};
 
 /// 3D Max Pooling layer.
 ///
@@ -84,32 +83,26 @@ impl<B, S, T> MaxPool3d<B, S, T> {
 
 impl<B, S, T> Module<B, S, T> for MaxPool3d<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default + TensorBackendDispatcher<B, S, T>,
-    S: Storage<T> + StorageFromVec<T> + Clone + TensorStorageOps<T> + StorageToDense<T> + 'static,
-    T: DataType + FloatExt + PartialOrd + num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + 'static,
+    B: Backend<Data = T> + Clone + Default,
+    S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageOps<T> + Clone + 'static,
+    T: DataType + traits::FloatExt + Clone,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(
         &self,
         input: &Tensor<B, S, T>,
     ) -> Result<Tensor<B, S, T>> {
-        // Input: [N, C, D_in, H_in, W_in]
-        let input_shape = input.shape().dims();
-        if input_shape.len() != 5 {
-             return Err(NNError::InvalidInput {
-                message: format!("Expected 5D input (N, C, D, H, W), got {}D", input_shape.len()),
-            });
-        }
-
-        let stride = self.stride.unwrap_or(self.kernel_size);
-        
-        tensor::ops::pooling::max_pool::max_pool3d(
+        let output = crate::functional::ops::pooling::max_pool3d(
             input,
             self.kernel_size,
-            stride,
+            self.stride,
             self.padding,
-            self.dilation,
-            self.ceil_mode
-        ).map_err(Into::into)
+        )?;
+        let dense = output.to_dense_generic()?;
+        let storage = S::from_vec(dense.as_slice().to_vec(), dense.shape().dims())?;
+        Ok(Tensor::from_storage(storage, input.backend().clone()))
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
@@ -128,7 +121,7 @@ where
         "MaxPool3d"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

@@ -30,6 +30,8 @@ pub fn conv2d<B, S, T>(
     bias: Option<&Tensor<B, S, T>>,
     stride: Option<(usize, usize)>,
     padding: Option<(usize, usize)>,
+    dilation: Option<(usize, usize)>,
+    groups: usize,
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + tensor::tensor_backend_dispatch::TensorBackendDispatcher<B, S, T>,
@@ -38,6 +40,18 @@ where
 {
     let (stride_h, stride_w) = stride.unwrap_or((1, 1));
     let (padding_h, padding_w) = padding.unwrap_or((0, 0));
+    let (dilation_h, dilation_w) = dilation.unwrap_or((1, 1));
+    
+    if dilation_h != 1 || dilation_w != 1 {
+        return Err(crate::core::error::NNError::NotImplemented {
+            operation: "Dilation != 1 not supported in functional conv2d yet".to_string(),
+        });
+    }
+    if groups != 1 {
+        return Err(crate::core::error::NNError::NotImplemented {
+            operation: "Groups != 1 not supported in functional conv2d yet".to_string(),
+        });
+    }
 
     Ok(tensor::ops::conv::conv2d(
         input, weight, bias, stride_h, stride_w, padding_h, padding_w,

@@ -63,7 +63,7 @@ pub fn l1_loss(input: &PyTensor, target: &PyTensor) -> PyResult<PyTensor> {
 pub fn smooth_l1_loss(input: &PyTensor, target: &PyTensor, beta: f32) -> PyResult<PyTensor> {
     match (&input.inner, &target.inner) {
         (TensorWrapper::CpuDenseF32(a), TensorWrapper::CpuDenseF32(b)) => {
-            let res = coeus_nn::functional_api::smooth_l1_loss(a, b, Float32::new(beta))
+            let res = coeus_nn::functional_api::smooth_l1_loss(a, b, beta.into())
                 .map_err(to_py_err)?;
             Ok(PyTensor {
                 inner: TensorWrapper::CpuDenseF32(res),

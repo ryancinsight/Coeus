@@ -412,147 +412,74 @@ impl<B, S, T> Module<B, S, T> for SparseAttention<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
-    T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
+    T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd + num_traits::Zero,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let input_shape = input.shape().dims();
-        let requires_grad = input.requires_grad();
-
-        // Expect [batch_size, seq_len, embed_dim]
-        if input_shape.len() != 3usize || input_shape[2] != self.embed_dim {
+        if input_shape.len() != 3 || input_shape[2] != self.embed_dim {
             return Err(NNError::ShapeMismatch {
-                operation: "sparse_attention".to_string(),
+                operation: "SparseAttention forward".to_string(),
                 expected: vec![0, 0, self.embed_dim],
                 actual: input_shape.to_vec(),
             });
         }
 
+        let requires_grad = input.requires_grad();
+
+        // Project Q, K, V
+        let q = tensor::ops::matmul(input, &self.query_proj.transpose(0, 1)?)?;
+        let k = tensor::ops::matmul(input, &self.key_proj.transpose(0, 1)?)?;
+        let v = tensor::ops::matmul(input, &self.value_proj.transpose(0, 1)?)?;
+
+        // Compute attention - handles batch sequentially if needed or via 2D reshape
+        let attention_weights = self.compute_sparse_attention(
+            &q.to_dense_generic()?,
+            &k.to_dense_generic()?,
+        )?;
+
+        // Apply attention weights to values
+        // Note: compute_sparse_attention returns [seq, seq], v_dense is [batch, seq, embed]
+        // If batch_size > 1, this needs careful handling or reshape
+        let v_dense = v.to_dense_generic()?;
         let batch_size = input_shape[0];
         let seq_len = input_shape[1];
 
-        // Reshape input for linear projections: [batch, seq, embed] -> [batch*seq, embed]
-        let flattened_shape = &[
-            isize::try_from(batch_size * seq_len).unwrap(),
-            isize::try_from(self.embed_dim).unwrap(),
-        ];
-        let input_2d = input.reshape(flattened_shape)?;
+        let result = if batch_size == 1 {
+            let v_2d = v_dense.reshape(&[seq_len as isize, self.embed_dim as isize])?;
+            let attended_2d = tensor::ops::matmul(&attention_weights, &v_2d)?;
+            attended_2d.reshape(&[1, seq_len as isize, self.embed_dim as isize])?
+        } else {
+            // Flatten batch for combined attention if pattern supports it, 
+            // otherwise loop or use batch_matmul if available
+            let v_flat = v_dense.reshape(&[(batch_size * seq_len) as isize, self.embed_dim as isize])?;
+            let (rows, cols) = (attention_weights.shape().dims()[0], attention_weights.shape().dims()[1]);
+            
+            // If attention_weights is [seq, seq], apply per batch
+            let mut attended_batches = Vec::with_capacity(batch_size);
+            for b in 0..batch_size {
+                let v_batch = tensor::ops::index_select(&v_dense, 0, &[b])?.reshape(&[seq_len as isize, self.embed_dim as isize])?;
+                attended_batches.push(tensor::ops::matmul(&attention_weights, &v_batch)?);
+            }
+            
+            // Concatenate results
+            let mut combined_data = Vec::with_capacity(batch_size * seq_len * self.embed_dim);
+            for b in attended_batches {
+                combined_data.extend_from_slice(b.as_slice());
+            }
+            Tensor::<B, DenseStorage<T>, T>::from_vec(combined_data, &[batch_size, seq_len, self.embed_dim])?
+        };
 
-        // Linear projections with sparse weights (converted to dense for computation)
-        let query_weights = self.query_proj.data().to_dense_generic()?;
-        let key_weights = self.key_proj.data().to_dense_generic()?;
-        let value_weights = self.value_proj.data().to_dense_generic()?;
-        let queries_2d = crate::functional_api::linear(&input_2d, &query_weights, None)?;
-        let keys_2d = crate::functional_api::linear(&input_2d, &key_weights, None)?;
-        let values_2d = crate::functional_api::linear(&input_2d, &value_weights, None)?;
-
-        // Reshape back to 3D: [batch*seq, embed] -> [batch, seq, embed]
-        let queries = queries_2d.reshape(&[
-            isize::try_from(batch_size).unwrap(),
-            isize::try_from(seq_len).unwrap(),
-            isize::try_from(self.embed_dim).unwrap(),
-        ])?;
-        let keys = keys_2d.reshape(&[
-            isize::try_from(batch_size).unwrap(),
-            isize::try_from(seq_len).unwrap(),
-            isize::try_from(self.embed_dim).unwrap(),
-        ])?;
-        let values = values_2d.reshape(&[
-            isize::try_from(batch_size).unwrap(),
-            isize::try_from(seq_len).unwrap(),
-            isize::try_from(self.embed_dim).unwrap(),
-        ])?;
-
-        // Process each batch separately for sparse attention
-        // Since Tensor doesn't have slice/concat, we'll process the full batch*seq tensors
-        // and extract results manually. This is a simplified implementation.
-
-        let total_seq = batch_size * seq_len;
-        let mut attended_data = Vec::with_capacity(total_seq * self.embed_dim);
-
-        for batch_idx in 0..batch_size {
-            let batch_start = batch_idx * seq_len * self.embed_dim;
-            let batch_end = (batch_idx + 1) * seq_len * self.embed_dim;
-
-            // Extract batch data manually from the flattened tensors
-            // This is inefficient but works for the test case
-            let queries_batch_data: Vec<T> = queries.as_slice()[batch_start..batch_end].to_vec();
-            let keys_batch_data: Vec<T> = keys.as_slice()[batch_start..batch_end].to_vec();
-            let values_batch_data: Vec<T> = values.as_slice()[batch_start..batch_end].to_vec();
-
-            // Create single-batch tensors (computation requires dense, but we work with any S)
-            let queries_batch = Tensor::<B, DenseStorage<T>, T>::from_vec(
-                queries_batch_data,
-                &[seq_len, self.embed_dim],
-            )?;
-            let keys_batch = Tensor::<B, DenseStorage<T>, T>::from_vec(
-                keys_batch_data,
-                &[seq_len, self.embed_dim],
-            )?;
-            let values_batch = Tensor::<B, DenseStorage<T>, T>::from_vec(
-                values_batch_data,
-                &[seq_len, self.embed_dim],
-            )?;
-
-            // Reshape for attention: [seq, embed] -> [1, seq, embed]
-            let queries_reshaped =
-                queries_batch.reshape(&[1, seq_len as isize, self.embed_dim as isize])?;
-            let keys_reshaped =
-                keys_batch.reshape(&[1, seq_len as isize, self.embed_dim as isize])?;
-            let values_reshaped =
-                values_batch.reshape(&[1, seq_len as isize, self.embed_dim as isize])?;
-
-            // Compute sparse attention weights: [seq, seq]
-            // Convert to dense for computation, then back to generic storage
-            let queries_dense = queries_reshaped.to_dense_generic()?;
-            let keys_dense = keys_reshaped.to_dense_generic()?;
-            let attention_weights_dense =
-                self.compute_sparse_attention(&queries_dense, &keys_dense)?;
-            let attention_weights = Tensor::<B, DenseStorage<T>, T>::from_vec(
-                attention_weights_dense.as_slice().to_vec(),
-                attention_weights_dense.shape().dims(),
-            )?;
-
-            // Apply attention: attention_weights @ values_reshaped
-            // attention_weights: [seq, seq], values_reshaped: [1, seq, embed] -> [seq, embed]
-            let values_2d =
-                values_reshaped.reshape(&[seq_len as isize, self.embed_dim as isize])?;
-            let attention_weights_dense_2 = attention_weights.to_dense_generic()?;
-            let values_2d_dense = values_2d.to_dense_generic()?;
-            let attended_batch_dense = tensor::ops::matmul(&attention_weights_dense_2, &values_2d_dense)?;
-            let attended_batch = Tensor::<B, DenseStorage<T>, T>::from_vec(
-                attended_batch_dense.as_slice().to_vec(),
-                attended_batch_dense.shape().dims(),
-            )?;
-
-            // Append to output
-            attended_data.extend_from_slice(attended_batch.as_slice());
-        }
-
-        // Create attended output tensor: [batch, seq, embed]
-        let attended_output = Tensor::<B, DenseStorage<T>, T>::from_vec(
-            attended_data,
-            &[batch_size, seq_len, self.embed_dim],
+        let result_generic = Tensor::<B, S, T>::from_vec(
+            result.as_slice().to_vec(),
+            result.shape().dims(),
         )?;
 
-        // Reshape for output projection: [batch, seq, embed] -> [batch*seq, embed]
-        let attended_2d = attended_output.reshape(&[
-            isize::try_from(batch_size * seq_len).unwrap(),
-            isize::try_from(self.embed_dim).unwrap(),
-        ])?;
-
-        // Final linear projection with sparse weights
-        let out_weights = self.out_proj.data().to_dense_generic()?;
-        let output_2d = crate::functional_api::linear(&attended_2d, &out_weights, None)?;
-
-        // Convert dense computation result back to target storage type S
-        // Note: Current implementation does dense computation, future versions may maintain sparsity
-        let output_data = output_2d.as_slice().to_vec();
-        let result =
-            Tensor::<B, S, T>::from_vec(output_data, &[batch_size, seq_len, self.embed_dim])
-                .map_err(NNError::from)?;
-
-        // Preserve gradient requirements from input
-        Ok(result.requires_grad_(requires_grad))
+        // Final output projection
+        let output = tensor::ops::matmul(&result_generic, &self.out_proj.transpose(0, 1)?)?;
+        Ok(output.requires_grad_(requires_grad))
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
@@ -564,7 +491,7 @@ where
         ]
     }
 
-    fn modules(&self) -> Vec<&dyn Module<B, S, T>> {
+    fn modules(&self) -> Vec<&dyn Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>>> {
         vec![]
     }
 
@@ -583,7 +510,7 @@ where
         "SparseAttention"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

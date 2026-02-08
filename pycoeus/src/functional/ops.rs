@@ -29,7 +29,7 @@ pub fn mv(input: &PyTensor, vec: &PyTensor) -> PyResult<PyTensor> {
 
 #[pyfunction]
 pub fn addr(input: &PyTensor, vec1: &PyTensor, vec2: &PyTensor) -> PyResult<PyTensor> {
-    input.addr(vec1, vec2)
+    input.addr(vec1, vec2, 1.0, 1.0)
 }
 
 #[pyfunction]
@@ -69,7 +69,7 @@ pub fn transpose(input: &PyTensor, dim0: usize, dim1: usize) -> PyResult<PyTenso
 
 #[pyfunction]
 pub fn permute(input: &PyTensor, dims: Vec<usize>) -> PyResult<PyTensor> {
-    input.permute(dims)
+    input.permute_internal(dims)
 }
 
 #[pyfunction]
@@ -81,12 +81,12 @@ pub fn dropout(_input: &PyTensor, _p: f32, _training: bool) -> PyResult<PyTensor
 
 #[pyfunction]
 pub fn argmax(input: &PyTensor, dim: Option<usize>, keepdim: bool) -> PyResult<PyTensor> {
-    crate::tensor::ops::reduction::argmax(input, dim, keepdim)
+    input.argmax(dim, keepdim)
 }
 
 #[pyfunction]
 pub fn argmin(input: &PyTensor, dim: Option<usize>, keepdim: bool) -> PyResult<PyTensor> {
-    crate::tensor::ops::reduction::argmin(input, dim, keepdim)
+    input.argmin(dim, keepdim)
 }
 
 pub fn register(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -106,5 +106,44 @@ pub fn register(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(dropout, m)?)?;
     m.add_function(wrap_pyfunction!(argmax, m)?)?;
     m.add_function(wrap_pyfunction!(argmin, m)?)?;
+    m.add_function(wrap_pyfunction!(gather, m)?)?;
+    m.add_function(wrap_pyfunction!(index_select, m)?)?;
+    m.add_function(wrap_pyfunction!(nonzero, m)?)?;
+    m.add_function(wrap_pyfunction!(index_add, m)?)?;
+    m.add_function(wrap_pyfunction!(pairwise_distance, m)?)?;
+    m.add_function(wrap_pyfunction!(cosine_similarity, m)?)?;
     Ok(())
+}
+
+#[pyfunction]
+pub fn gather(input: &PyTensor, dim: usize, index: &PyTensor) -> PyResult<PyTensor> {
+    crate::tensor::ops::indexing::gather(input, dim, index)
+}
+
+#[pyfunction]
+pub fn index_select(input: &PyTensor, dim: usize, index: &PyTensor) -> PyResult<PyTensor> {
+    crate::tensor::ops::indexing::index_select(input, dim, index)
+}
+
+#[pyfunction]
+pub fn nonzero(input: &PyTensor) -> PyResult<PyTensor> {
+    crate::tensor::ops::indexing::nonzero(input)
+}
+
+#[pyfunction]
+#[pyo3(signature = (input, dim, index, source, alpha=None))]
+pub fn index_add(input: &PyTensor, dim: usize, index: &PyTensor, source: &PyTensor, alpha: Option<f64>) -> PyResult<PyTensor> {
+    crate::tensor::ops::indexing::index_add(input, dim, index, source, alpha.unwrap_or(1.0))
+}
+
+#[pyfunction]
+#[pyo3(signature = (x1, x2, p=2.0))]
+pub fn pairwise_distance(x1: &PyTensor, x2: &PyTensor, p: f64) -> PyResult<PyTensor> {
+    crate::functional::distance::pairwise_distance(x1, x2, p, 1e-6, false)
+}
+
+#[pyfunction]
+#[pyo3(signature = (x1, x2, dim=1, eps=1e-8))]
+pub fn cosine_similarity(x1: &PyTensor, x2: &PyTensor, dim: usize, eps: f64) -> PyResult<PyTensor> {
+    crate::functional::distance::cosine_similarity(x1, x2, dim, eps)
 }

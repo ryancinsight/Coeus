@@ -35,6 +35,37 @@ where
     Ok(max_val)
 }
 
+/// Max reduction for strided storage
+pub fn max_strided_primitive<T: DataType>(
+    input_data: &[T],
+    input_shape: &[usize],
+    input_strides: &[usize],
+    input_offset: usize,
+) -> crate::Result<T>
+where
+    T: PartialOrd + Copy,
+{
+    let size = input_shape.iter().product();
+    if size == 0 {
+        return Err(crate::BackendError::InvalidInput(
+            "Cannot find max of empty strided storage".to_string(),
+        ));
+    }
+
+    let first_idx = input_offset + storage::iter::compute_strided_index_fast(0, input_shape, input_strides);
+    let mut max_val = input_data[first_idx];
+
+    for i in 1..size {
+        let idx = input_offset + storage::iter::compute_strided_index_fast(i, input_shape, input_strides);
+        let val = input_data[idx];
+        if val > max_val {
+            max_val = val;
+        }
+    }
+    
+    Ok(max_val)
+}
+
 /// Min reduction primitive for CPU backend
 ///
 /// Finds the minimum element in the input slice
@@ -58,6 +89,37 @@ where
     
     // TODO: Future SIMD optimization point
     for &val in input.iter().skip(1) {
+        if val < min_val {
+            min_val = val;
+        }
+    }
+    
+    Ok(min_val)
+}
+
+/// Min reduction for strided storage
+pub fn min_strided_primitive<T: DataType>(
+    input_data: &[T],
+    input_shape: &[usize],
+    input_strides: &[usize],
+    input_offset: usize,
+) -> crate::Result<T>
+where
+    T: PartialOrd + Copy,
+{
+    let size = input_shape.iter().product();
+    if size == 0 {
+        return Err(crate::BackendError::InvalidInput(
+            "Cannot find min of empty strided storage".to_string(),
+        ));
+    }
+
+    let first_idx = input_offset + storage::iter::compute_strided_index_fast(0, input_shape, input_strides);
+    let mut min_val = input_data[first_idx];
+
+    for i in 1..size {
+        let idx = input_offset + storage::iter::compute_strided_index_fast(i, input_shape, input_strides);
+        let val = input_data[idx];
         if val < min_val {
             min_val = val;
         }

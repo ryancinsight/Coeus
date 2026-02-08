@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 
 use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
-use storage::{DenseStorage, Storage, StorageFromVec};
+use storage::{DenseStorage, Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::core::error::Result;
@@ -20,8 +20,8 @@ pub type TensorPair<T> = (CpuTensor<T>, CpuTensor<T>);
 pub struct RNN<B, S, T>
 where
     B: Backend<Data = T> + Clone,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
-    T: DataType + std::cmp::PartialOrd,
+    S: Storage<T> + StorageFromVec<T> + storage::StorageToDense<T> + Clone + 'static,
+    T: DataType + FloatExt + std::cmp::PartialOrd,
 {
     /// Input-to-hidden weights for each layer
     pub weight_ih: Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>>,
@@ -50,7 +50,7 @@ where
 impl<B, S, T> RNN<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt,
 {
     /// Create a new RNN layer.

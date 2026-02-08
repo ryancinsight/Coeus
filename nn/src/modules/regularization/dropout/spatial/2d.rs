@@ -1,13 +1,13 @@
 //! Spatial 2D Dropout layer.
 
-use backend::CpuBackend;
+use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
 use storage::DenseStorage;
-use tensor::Tensor;
+use tensor::{Tensor, ops::TensorStorageOps};
 
 use crate::core::error::Result;
-use crate::core::module::Module;
-use crate::core::parameter::Parameter;
+use crate::{Module, Parameter};
+use std::ops::Mul;
 
 /// Dropout2d layer for spatial regularization in CNNs.
 #[derive(Debug, Clone)]
@@ -31,52 +31,63 @@ impl Dropout2d {
     }
 }
 
-impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropout2d {
+impl<B, S, T> Module<B, S, T> for Dropout2d
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageOps<T> + Clone + 'static,
+    T: DataType + FloatExt + Clone,
+{
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
-        let input_shape = input.shape().dims();
-        assert_eq!(input_shape.len(), 4, "Input must be 4D [N, C, H, W]");
-
+        input: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, S, T>> {
         if !self.training || self.p == 0.0 {
             return Ok(input.clone());
         }
 
-        if self.p == 1.0 {
-            return Ok(Tensor::zeros(input_shape)?);
+        let input_shape = input.shape().dims();
+        if input_shape.len() != 4 {
+             return Err(crate::core::error::NNError::InvalidInput {
+                message: format!("Dropout2d expects 4D input [N, C, H, W], got {}D", input_shape.len()),
+            });
         }
 
-        let batch_size = input_shape[0];
-        let channels = input_shape[1];
-        let height = input_shape[2];
-        let width = input_shape[3];
-        let spatial_size = height * width;
-
+        let [batch_size, channels, _, _] = [input_shape[0], input_shape[1], input_shape[2], input_shape[3]];
+        
+        // Generate mask of shape [N, C, 1, 1]
+        let mut rng = rand::thread_rng();
         let scale = T::from(1.0 / (1.0 - self.p)).unwrap();
-        let keep_prob = 1.0 - self.p;
-
-        let input_data = input.as_slice();
-        let mut output_data = Vec::with_capacity(input_data.len());
-
-        for n in 0..batch_size {
-            for c in 0..channels {
-                let keep_channel = rand::random::<f64>() < keep_prob;
-                for _spatial in 0..spatial_size {
-                    let idx = ((n * channels + c) * spatial_size) + _spatial;
-                    output_data.push(if keep_channel {
-                        input_data[idx] * scale
-                    } else {
-                        T::zero()
-                    });
-                }
-            }
+        let p_thresh = self.p;
+        
+        let mut mask_data = Vec::with_capacity(batch_size * channels);
+        for _ in 0..(batch_size * channels) {
+            let val = if rand::Rng::gen::<f64>(&mut rng) > p_thresh {
+                scale
+            } else {
+                T::zero()
+            };
+            mask_data.push(val);
         }
 
-        Ok(Tensor::from_vec(output_data, input_shape)?)
+        let mask = Tensor::<B, storage::DenseStorage<T>, T>::from_vec_with_backend(
+            mask_data,
+            &[batch_size, channels, 1, 1],
+            input.backend().clone(),
+        )?;
+
+        // Expand mask and multiply
+        // Expand mask implicitly via broadcasting in mul
+        let output = tensor::ops::mul(input, &mask)?;
+        
+        let dense = output.to_dense_generic()?;
+        let storage = S::from_vec(dense.as_slice().to_vec(), dense.shape().dims())?;
+        Ok(Tensor::from_storage(storage, input.backend().clone()))
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         vec![]
     }
     fn zero_grad(&mut self) {}
@@ -86,7 +97,8 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropo
     fn name(&self) -> &str {
         "Dropout2d"
     }
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

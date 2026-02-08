@@ -1,0 +1,634 @@
+    Checking tensor v0.2.1 (D:\coeus\tensor)
+error[E0277]: the trait bound `f32: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:6:19
+   |
+ 6 |     let backend = CpuBackend::<f32>::new();
+   |                   ^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `f32`
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `CpuBackend`
+  --> D:\coeus\backend\src\cpu\backend.rs:10:26
+   |
+10 | pub struct CpuBackend<T: DataType> {
+   |                          ^^^^^^^^ required by this bound in `CpuBackend`
+
+error[E0599]: the function or associated item `new` exists for struct `CpuBackend<f32>`, but its trait bounds were not satisfied
+ --> tensor\tests\pytorch_parity_verification.rs:6:38
+  |
+6 |     let backend = CpuBackend::<f32>::new();
+  |                                      ^^^ function or associated item cannot be called on `CpuBackend<f32>` due to unsatisfied trait bounds
+  |
+  = note: the following trait bounds were not satisfied:
+          `f32: DataType`
+
+error[E0277]: the trait bound `f32: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:8:43
+   |
+ 8 |     let x = Tensor::from_vec_with_backend(data, &[5], backend.clone());
+   |             ----------------------------- ^^^^ the trait `DataType` is not implemented for `f32`
+   |             |
+   |             required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+  --> D:\coeus\tensor\src\implementations\creation.rs:15:8
+   |
+15 |     T: DataType,
+   |        ^^^^^^^^ required by this bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+...
+18 |     pub fn from_vec_with_backend(data: Vec<T>, dims: &[usize], backend: B) -> crate::Result<Self>
+   |            --------------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `f32: DataType` is not satisfied
+   --> tensor\tests\pytorch_parity_verification.rs:8:13
+    |
+  8 |     let x = Tensor::from_vec_with_backend(data, &[5], backend.clone());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `f32`
+    |
+    = help: the following other types implement trait `DataType`:
+              Float32
+              dtype::float::BFloat16
+              dtype::float::Float64
+              dtype::float::Half
+              dtype::half::BFloat16
+              dtype::half::Half
+              dtype::int::Int16
+              dtype::int::Int32
+            and 8 others
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:219:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+219 |     T: DataType,
+    |        ^^^^^^^^ required by this bound in `Tensor`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:11:28
+   |
+11 |     let isnan_data = isnan.to_vec()?;
+   |                            ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:15:28
+   |
+15 |     let isinf_data = isinf.to_vec()?;
+   |                            ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:19:34
+   |
+19 |     let isfinite_data = isfinite.to_vec()?;
+   |                                  ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0277]: the trait bound `f32: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:27:19
+   |
+27 |     let backend = CpuBackend::<f32>::new();
+   |                   ^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `f32`
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `CpuBackend`
+  --> D:\coeus\backend\src\cpu\backend.rs:10:26
+   |
+10 | pub struct CpuBackend<T: DataType> {
+   |                          ^^^^^^^^ required by this bound in `CpuBackend`
+
+error[E0599]: the function or associated item `new` exists for struct `CpuBackend<f32>`, but its trait bounds were not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:27:38
+   |
+27 |     let backend = CpuBackend::<f32>::new();
+   |                                      ^^^ function or associated item cannot be called on `CpuBackend<f32>` due to unsatisfied trait bounds
+   |
+   = note: the following trait bounds were not satisfied:
+           `f32: DataType`
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:28:43
+   |
+28 |     let a = Tensor::from_vec_with_backend(vec![1.0, 1.0, 0.0, 0.0], &[4], backend.clone());
+   |             ----------------------------- ^^^^^^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+   |             |
+   |             required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+  --> D:\coeus\tensor\src\implementations\creation.rs:15:8
+   |
+15 |     T: DataType,
+   |        ^^^^^^^^ required by this bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+...
+18 |     pub fn from_vec_with_backend(data: Vec<T>, dims: &[usize], backend: B) -> crate::Result<Self>
+   |            --------------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+   --> tensor\tests\pytorch_parity_verification.rs:28:13
+    |
+ 28 |     let a = Tensor::from_vec_with_backend(vec![1.0, 1.0, 0.0, 0.0], &[4], backend.clone());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+    |
+    = help: the following other types implement trait `DataType`:
+              Float32
+              dtype::float::BFloat16
+              dtype::float::Float64
+              dtype::float::Half
+              dtype::half::BFloat16
+              dtype::half::Half
+              dtype::int::Int16
+              dtype::int::Int32
+            and 8 others
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:219:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+219 |     T: DataType,
+    |        ^^^^^^^^ required by this bound in `Tensor`
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:29:43
+   |
+29 |     let b = Tensor::from_vec_with_backend(vec![1.0, 0.0, 1.0, 0.0], &[4], backend.clone());
+   |             ----------------------------- ^^^^^^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+   |             |
+   |             required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+  --> D:\coeus\tensor\src\implementations\creation.rs:15:8
+   |
+15 |     T: DataType,
+   |        ^^^^^^^^ required by this bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+...
+18 |     pub fn from_vec_with_backend(data: Vec<T>, dims: &[usize], backend: B) -> crate::Result<Self>
+   |            --------------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+   --> tensor\tests\pytorch_parity_verification.rs:29:13
+    |
+ 29 |     let b = Tensor::from_vec_with_backend(vec![1.0, 0.0, 1.0, 0.0], &[4], backend.clone());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+    |
+    = help: the following other types implement trait `DataType`:
+              Float32
+              dtype::float::BFloat16
+              dtype::float::Float64
+              dtype::float::Half
+              dtype::half::BFloat16
+              dtype::half::Half
+              dtype::int::Int16
+              dtype::int::Int32
+            and 8 others
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:219:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+219 |     T: DataType,
+    |        ^^^^^^^^ required by this bound in `Tensor`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:32:20
+   |
+32 |     assert_eq!(and.to_vec()?, vec![1.0, 0.0, 0.0, 0.0]);
+   |                    ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:35:19
+   |
+35 |     assert_eq!(or.to_vec()?, vec![1.0, 1.0, 1.0, 0.0]);
+   |                   ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:38:20
+   |
+38 |     assert_eq!(xor.to_vec()?, vec![0.0, 1.0, 1.0, 0.0]);
+   |                    ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:41:20
+   |
+41 |     assert_eq!(not.to_vec()?, vec![0.0, 0.0, 1.0, 1.0]);
+   |                    ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0277]: the trait bound `f32: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:48:19
+   |
+48 |     let backend = CpuBackend::<f32>::new();
+   |                   ^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `f32`
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `CpuBackend`
+  --> D:\coeus\backend\src\cpu\backend.rs:10:26
+   |
+10 | pub struct CpuBackend<T: DataType> {
+   |                          ^^^^^^^^ required by this bound in `CpuBackend`
+
+error[E0599]: the function or associated item `new` exists for struct `CpuBackend<f32>`, but its trait bounds were not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:48:38
+   |
+48 |     let backend = CpuBackend::<f32>::new();
+   |                                      ^^^ function or associated item cannot be called on `CpuBackend<f32>` due to unsatisfied trait bounds
+   |
+   = note: the following trait bounds were not satisfied:
+           `f32: DataType`
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:49:43
+   |
+49 |     let x = Tensor::from_vec_with_backend(vec![0.0, 1.0, 2.0], &[3], backend.clone());
+   |             ----------------------------- ^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+   |             |
+   |             required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+  --> D:\coeus\tensor\src\implementations\creation.rs:15:8
+   |
+15 |     T: DataType,
+   |        ^^^^^^^^ required by this bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+...
+18 |     pub fn from_vec_with_backend(data: Vec<T>, dims: &[usize], backend: B) -> crate::Result<Self>
+   |            --------------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+   --> tensor\tests\pytorch_parity_verification.rs:49:13
+    |
+ 49 |     let x = Tensor::from_vec_with_backend(vec![0.0, 1.0, 2.0], &[3], backend.clone());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+    |
+    = help: the following other types implement trait `DataType`:
+              Float32
+              dtype::float::BFloat16
+              dtype::float::Float64
+              dtype::float::Half
+              dtype::half::BFloat16
+              dtype::half::Half
+              dtype::int::Int16
+              dtype::int::Int32
+            and 8 others
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:219:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+219 |     T: DataType,
+    |        ^^^^^^^^ required by this bound in `Tensor`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:54:25
+   |
+54 |     for (a, b) in log1p.to_vec()?.iter().zip(expected_log1p.iter()) {
+   |                         ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0282]: type annotations needed
+  --> tensor\tests\pytorch_parity_verification.rs:55:17
+   |
+55 |         assert!((a - b).abs() < 1e-6);
+   |                 ^^^^^^^ cannot infer type
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:61:25
+   |
+61 |     for (a, b) in expm1.to_vec()?.iter().zip(expected_expm1.iter()) {
+   |                         ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0282]: type annotations needed
+  --> tensor\tests\pytorch_parity_verification.rs:62:17
+   |
+62 |         assert!((a - b).abs() < 1e-6);
+   |                 ^^^^^^^ cannot infer type
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:66:43
+   |
+66 |     let y = Tensor::from_vec_with_backend(vec![1.0, 2.0, 4.0], &[3], backend.clone());
+   |             ----------------------------- ^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+   |             |
+   |             required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+  --> D:\coeus\tensor\src\implementations\creation.rs:15:8
+   |
+15 |     T: DataType,
+   |        ^^^^^^^^ required by this bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+...
+18 |     pub fn from_vec_with_backend(data: Vec<T>, dims: &[usize], backend: B) -> crate::Result<Self>
+   |            --------------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+   --> tensor\tests\pytorch_parity_verification.rs:66:13
+    |
+ 66 |     let y = Tensor::from_vec_with_backend(vec![1.0, 2.0, 4.0], &[3], backend.clone());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+    |
+    = help: the following other types implement trait `DataType`:
+              Float32
+              dtype::float::BFloat16
+              dtype::float::Float64
+              dtype::float::Half
+              dtype::half::BFloat16
+              dtype::half::Half
+              dtype::int::Int16
+              dtype::int::Int32
+            and 8 others
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:219:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+219 |     T: DataType,
+    |        ^^^^^^^^ required by this bound in `Tensor`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:68:20
+   |
+68 |     assert_eq!(rec.to_vec()?, vec![1.0, 0.5, 0.25]);
+   |                    ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:71:48
+   |
+71 |     let y_atan = Tensor::from_vec_with_backend(vec![1.0, 0.0], &[2], backend.clone());
+   |                  ----------------------------- ^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+   |                  |
+   |                  required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+  --> D:\coeus\tensor\src\implementations\creation.rs:15:8
+   |
+15 |     T: DataType,
+   |        ^^^^^^^^ required by this bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+...
+18 |     pub fn from_vec_with_backend(data: Vec<T>, dims: &[usize], backend: B) -> crate::Result<Self>
+   |            --------------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+   --> tensor\tests\pytorch_parity_verification.rs:71:18
+    |
+ 71 |     let y_atan = Tensor::from_vec_with_backend(vec![1.0, 0.0], &[2], backend.clone());
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+    |
+    = help: the following other types implement trait `DataType`:
+              Float32
+              dtype::float::BFloat16
+              dtype::float::Float64
+              dtype::float::Half
+              dtype::half::BFloat16
+              dtype::half::Half
+              dtype::int::Int16
+              dtype::int::Int32
+            and 8 others
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:219:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+219 |     T: DataType,
+    |        ^^^^^^^^ required by this bound in `Tensor`
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:72:48
+   |
+72 |     let x_atan = Tensor::from_vec_with_backend(vec![1.0, 1.0], &[2], backend.clone());
+   |                  ----------------------------- ^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+   |                  |
+   |                  required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+  --> D:\coeus\tensor\src\implementations\creation.rs:15:8
+   |
+15 |     T: DataType,
+   |        ^^^^^^^^ required by this bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+...
+18 |     pub fn from_vec_with_backend(data: Vec<T>, dims: &[usize], backend: B) -> crate::Result<Self>
+   |            --------------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+   --> tensor\tests\pytorch_parity_verification.rs:72:18
+    |
+ 72 |     let x_atan = Tensor::from_vec_with_backend(vec![1.0, 1.0], &[2], backend.clone());
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+    |
+    = help: the following other types implement trait `DataType`:
+              Float32
+              dtype::float::BFloat16
+              dtype::float::Float64
+              dtype::float::Half
+              dtype::half::BFloat16
+              dtype::half::Half
+              dtype::int::Int16
+              dtype::int::Int32
+            and 8 others
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:219:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+219 |     T: DataType,
+    |        ^^^^^^^^ required by this bound in `Tensor`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:75:22
+   |
+75 |     assert_eq!(atan2.to_vec()?, expected_atan2);
+   |                      ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0277]: the trait bound `f32: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:82:19
+   |
+82 |     let backend = CpuBackend::<f32>::new();
+   |                   ^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `f32`
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `CpuBackend`
+  --> D:\coeus\backend\src\cpu\backend.rs:10:26
+   |
+10 | pub struct CpuBackend<T: DataType> {
+   |                          ^^^^^^^^ required by this bound in `CpuBackend`
+
+error[E0599]: the function or associated item `new` exists for struct `CpuBackend<f32>`, but its trait bounds were not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:82:38
+   |
+82 |     let backend = CpuBackend::<f32>::new();
+   |                                      ^^^ function or associated item cannot be called on `CpuBackend<f32>` due to unsatisfied trait bounds
+   |
+   = note: the following trait bounds were not satisfied:
+           `f32: DataType`
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+  --> tensor\tests\pytorch_parity_verification.rs:83:43
+   |
+83 |     let x = Tensor::from_vec_with_backend(vec![0.0, 0.5, 1.0], &[3], backend.clone());
+   |             ----------------------------- ^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+   |             |
+   |             required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `DataType`:
+             Float32
+             dtype::float::BFloat16
+             dtype::float::Float64
+             dtype::float::Half
+             dtype::half::BFloat16
+             dtype::half::Half
+             dtype::int::Int16
+             dtype::int::Int32
+           and 8 others
+note: required by a bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+  --> D:\coeus\tensor\src\implementations\creation.rs:15:8
+   |
+15 |     T: DataType,
+   |        ^^^^^^^^ required by this bound in `tensor::creation::<impl Tensor<B, S, T>>::from_vec_with_backend`
+...
+18 |     pub fn from_vec_with_backend(data: Vec<T>, dims: &[usize], backend: B) -> crate::Result<Self>
+   |            --------------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `{float}: DataType` is not satisfied
+   --> tensor\tests\pytorch_parity_verification.rs:83:13
+    |
+ 83 |     let x = Tensor::from_vec_with_backend(vec![0.0, 0.5, 1.0], &[3], backend.clone());
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `DataType` is not implemented for `{float}`
+    |
+    = help: the following other types implement trait `DataType`:
+              Float32
+              dtype::float::BFloat16
+              dtype::float::Float64
+              dtype::float::Half
+              dtype::half::BFloat16
+              dtype::half::Half
+              dtype::int::Int16
+              dtype::int::Int32
+            and 8 others
+note: required by a bound in `Tensor`
+   --> D:\coeus\tensor\src\tensor_core.rs:219:8
+    |
+215 | pub struct Tensor<B, S, T>
+    |            ------ required by a bound in this struct
+...
+219 |     T: DataType,
+    |        ^^^^^^^^ required by this bound in `Tensor`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:87:24
+   |
+87 |     let erf_vals = erf.to_vec()?;
+   |                        ^^^^^^ method not found in `Tensor<_, _, _>`
+
+error[E0599]: no method named `to_vec` found for struct `Tensor<B, S, T>` in the current scope
+  --> tensor\tests\pytorch_parity_verification.rs:94:26
+   |
+94 |     let erfc_vals = erfc.to_vec()?;
+   |                          ^^^^^^ method not found in `Tensor<_, _, _>`
+
+Some errors have detailed explanations: E0277, E0282, E0599.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `tensor` (test "pytorch_parity_verification") due to 39 previous errors

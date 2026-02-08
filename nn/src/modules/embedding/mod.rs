@@ -149,40 +149,34 @@ where
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
     T: DataType + FloatExt + 'static,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
-        // Input: [batch_size, seq_len] or [seq_len] (integer token IDs)
-        // Output: [batch_size, seq_len, embedding_dim] or [seq_len, embedding_dim]
-
         let input_shape = input.shape().dims();
-        let weight_data = self.weight.data().as_slice();
-        let input_data = input.as_slice();
-
-        // Convert input to indices (assuming input contains integer values as floats)
-        let indices: Vec<usize> = input_data
-            .iter()
-            .map(|&x| {
-                let idx = x.to_f64().unwrap() as usize;
-                assert!(
-                    idx < self.num_embeddings,
-                    "Index {} out of bounds (num_embeddings={})",
-                    idx,
-                    self.num_embeddings
-                );
-                idx
-            })
-            .collect();
-
-        // Lookup embeddings
-        let mut output_data = Vec::with_capacity(indices.len() * self.embedding_dim);
-        for &idx in &indices {
-            let start = idx * self.embedding_dim;
-            let end = start + self.embedding_dim;
-            output_data.extend_from_slice(&weight_data[start..end]);
-        }
-
-        // Output shape: [...input_shape, embedding_dim]
         let mut output_shape = input_shape.to_vec();
         output_shape.push(self.embedding_dim);
+
+        // Convert input to indices (usize)
+        let input_dense = input.to_dense_generic()?;
+        let indices: Vec<usize> = input_dense
+            .as_slice()
+            .iter()
+            .map(|&x| x.to_f64().unwrap() as usize)
+            .collect();
+
+        let mut output_data = Vec::with_capacity(indices.len() * self.embedding_dim);
+        let weight_dense = self.weight.data().to_dense_generic()?;
+        let weight_slice = weight_dense.as_slice();
+
+        for &idx in &indices {
+            if idx >= self.num_embeddings {
+                panic!("Index {} out of bounds (num_embeddings={})", idx, self.num_embeddings);
+            }
+            let start = idx * self.embedding_dim;
+            let end = (idx + 1) * self.embedding_dim;
+            output_data.extend_from_slice(&weight_slice[start..end]);
+        }
 
         Tensor::from_vec(output_data, &output_shape).map_err(Into::into)
     }
@@ -203,7 +197,7 @@ where
         "Embedding"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

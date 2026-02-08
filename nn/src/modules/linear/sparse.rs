@@ -206,6 +206,9 @@ where
         + Copy
         + tensor::FloatExt,
 {
+    type Input = Tensor<B, DenseStorage<T>, T>;
+    type Output = Tensor<B, DenseStorage<T>, T>;
+
     fn forward(
         &self,
         input: &Tensor<B, DenseStorage<T>, T>,
@@ -307,7 +310,7 @@ where
         "SparseLinear"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, DenseStorage<T>, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, DenseStorage<T>, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

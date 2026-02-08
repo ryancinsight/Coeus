@@ -14,7 +14,7 @@ use crate::core::parameter::Parameter;
 impl<B, S, T> LSTMForward<B, S, T> for LSTM<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn forward_layer_unidirectional_lstm(
@@ -160,7 +160,7 @@ where
 impl<B, S, T> LSTM<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     pub fn forward(
@@ -326,8 +326,11 @@ where
 
 impl<T> Module<CpuBackend<T>, DenseStorage<T>, T> for LSTM<CpuBackend<T>, DenseStorage<T>, T>
 where
-    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+    T: DataType + FloatExt,
 {
+    type Input = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
+    type Output = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
+
     fn forward(
         &self,
         input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
@@ -361,7 +364,8 @@ where
     fn name(&self) -> &str {
         "LSTM"
     }
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+
+    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

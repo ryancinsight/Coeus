@@ -1,0 +1,30 @@
+≡ƒì╣ Building a mixed python/rust project
+≡ƒöù Found pyo3 bindings with abi3 support
+≡ƒôí Using build options features from pyproject.toml
+Requirement already satisfied: numpy>=1.20.0 in d:\coeus\.venv\lib\site-packages (2.4.1)
+   Compiling optim v0.2.1 (D:\coeus\optim)
+error[E0277]: the trait bound `T: Signed` is not satisfied
+   --> optim\src\adamax.rs:167:36
+    |
+167 |                 let grad_abs = abs(&effective_grad)?;
+    |                                --- ^^^^^^^^^^^^^^^ the trait `Signed` is not implemented for `T`
+    |                                |
+    |                                required by a bound introduced by this call
+    |
+note: required by a bound in `tensor::ops::abs`
+   --> D:\coeus\tensor\src\ops\math\abs.rs:13:19
+    |
+ 12 | pub fn abs<
+    |        --- required by a bound in this function
+ 13 |     T: DataType + num_traits::Signed,
+    |                   ^^^^^^^^^^^^^^^^^^ required by this bound in `abs`
+help: consider further restricting type parameter `T` with trait `Signed`
+    |
+ 83 |     T: DataType + FloatExt + num_traits::Float + num_traits::FromPrimitive + num_traits::Signed,
+    |                                                                            ++++++++++++++++++++
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `optim` (lib) due to 1 previous error
+≡ƒÆÑ maturin failed
+  Caused by: Failed to build a native library through cargo
+  Caused by: Cargo build finished with "exit code: 101": `"cargo" "rustc" "--features" "pyo3/extension-module" "--message-format" "json-render-diagnostics" "--manifest-path" "D:\\coeus\\pycoeus\\Cargo.toml" "--lib"`

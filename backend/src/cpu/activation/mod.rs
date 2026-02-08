@@ -6,8 +6,10 @@
 pub mod relu;
 pub mod sigmoid;
 pub mod tanh;
+pub mod math_ops;
 
 // Re-export operations for convenience
-pub use relu::relu_primitive;
-pub use sigmoid::sigmoid_primitive;
-pub use tanh::tanh_primitive;
+pub use relu::{relu_primitive, relu_strided_primitive, relu_csr_primitive};
+pub use sigmoid::{sigmoid_primitive, sigmoid_strided_primitive};
+pub use tanh::{tanh_primitive, tanh_strided_primitive, tanh_csr_primitive};
+pub use math_ops::*;

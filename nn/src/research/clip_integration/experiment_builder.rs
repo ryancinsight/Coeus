@@ -176,7 +176,7 @@ impl ClipExperimentRunner {
         })?;
 
         // Run training
-        let data_loader: fn() -> Option<crate::clip::training::enhanced_trainer::ClipBatch> = || None; // Placeholder - no data
+        let data_loader: fn() -> Option<crate::clip::training::enhanced_trainer::EnhancedClipBatch> = || None; // Placeholder - no data
         let training_result =
             trainer
                 .train(data_loader)

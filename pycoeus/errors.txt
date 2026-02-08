@@ -1,0 +1,90 @@
+    Checking pycoeus v0.2.1 (D:\coeus\pycoeus)
+error[E0616]: field `requires_grad` of struct `tensor::Tensor` is private
+  --> pycoeus\src\tensor\class.rs:42:50
+   |
+42 |             TensorWrapper::CpuDenseF32(t) => { t.requires_grad = false; t.grad_fn = None; }
+   |                                                  ^^^^^^^^^^^^^ private field
+
+error[E0616]: field `grad_fn` of struct `tensor::Tensor` is private
+  --> pycoeus\src\tensor\class.rs:42:75
+   |
+42 |             TensorWrapper::CpuDenseF32(t) => { t.requires_grad = false; t.grad_fn = None; }
+   |                                                                           ^^^^^^^ private field
+
+error[E0616]: field `requires_grad` of struct `tensor::Tensor` is private
+  --> pycoeus\src\tensor\class.rs:43:50
+   |
+43 |             TensorWrapper::CpuDenseF64(t) => { t.requires_grad = false; t.grad_fn = None; }
+   |                                                  ^^^^^^^^^^^^^ private field
+
+error[E0616]: field `grad_fn` of struct `tensor::Tensor` is private
+  --> pycoeus\src\tensor\class.rs:43:75
+   |
+43 |             TensorWrapper::CpuDenseF64(t) => { t.requires_grad = false; t.grad_fn = None; }
+   |                                                                           ^^^^^^^ private field
+
+error[E0616]: field `requires_grad` of struct `tensor::Tensor` is private
+  --> pycoeus\src\tensor\class.rs:44:50
+   |
+44 |             TensorWrapper::CpuDenseI64(t) => { t.requires_grad = false; t.grad_fn = None; }
+   |                                                  ^^^^^^^^^^^^^ private field
+
+error[E0616]: field `grad_fn` of struct `tensor::Tensor` is private
+  --> pycoeus\src\tensor\class.rs:44:75
+   |
+44 |             TensorWrapper::CpuDenseI64(t) => { t.requires_grad = false; t.grad_fn = None; }
+   |                                                                           ^^^^^^^ private field
+
+error[E0616]: field `requires_grad` of struct `tensor::Tensor` is private
+  --> pycoeus\src\tensor\class.rs:54:50
+   |
+54 |             TensorWrapper::CpuDenseF32(t) => { t.requires_grad = requires_grad; }
+   |                                                  ^^^^^^^^^^^^^ private field
+
+error[E0616]: field `requires_grad` of struct `tensor::Tensor` is private
+  --> pycoeus\src\tensor\class.rs:55:50
+   |
+55 |             TensorWrapper::CpuDenseF64(t) => { t.requires_grad = requires_grad; }
+   |                                                  ^^^^^^^^^^^^^ private field
+
+error[E0616]: field `requires_grad` of struct `tensor::Tensor` is private
+  --> pycoeus\src\tensor\class.rs:56:50
+   |
+56 |             TensorWrapper::CpuDenseI64(t) => { t.requires_grad = requires_grad; }
+   |                                                  ^^^^^^^^^^^^^ private field
+
+error[E0616]: field `requires_grad` of struct `tensor::Tensor` is private
+   --> pycoeus\src\tensor\class.rs:111:48
+    |
+111 |             TensorWrapper::CpuDenseF32(t) => t.requires_grad,
+    |                                                ^^^^^^^^^^^^^ private field
+    |
+help: a method `requires_grad` also exists, call it with parentheses
+    |
+111 |             TensorWrapper::CpuDenseF32(t) => t.requires_grad(),
+    |                                                             ++
+
+error[E0616]: field `requires_grad` of struct `tensor::Tensor` is private
+   --> pycoeus\src\tensor\class.rs:112:48
+    |
+112 |             TensorWrapper::CpuDenseF64(t) => t.requires_grad,
+    |                                                ^^^^^^^^^^^^^ private field
+    |
+help: a method `requires_grad` also exists, call it with parentheses
+    |
+112 |             TensorWrapper::CpuDenseF64(t) => t.requires_grad(),
+    |                                                             ++
+
+error[E0616]: field `requires_grad` of struct `tensor::Tensor` is private
+   --> pycoeus\src\tensor\class.rs:113:48
+    |
+113 |             TensorWrapper::CpuDenseI64(t) => t.requires_grad,
+    |                                                ^^^^^^^^^^^^^ private field
+    |
+help: a method `requires_grad` also exists, call it with parentheses
+    |
+113 |             TensorWrapper::CpuDenseI64(t) => t.requires_grad(),
+    |                                                             ++
+
+For more information about this error, try `rustc --explain E0616`.
+error: could not compile `pycoeus` (lib) due to 12 previous errors

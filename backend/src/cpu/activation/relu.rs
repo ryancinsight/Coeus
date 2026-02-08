@@ -37,6 +37,18 @@ where
     Ok(())
 }
 
+// Implement relu_strided_primitive using macro
+crate::unary_strided_primitive!(relu_strided_primitive, |x_val| {
+    let zero = T::default();
+    if x_val > zero { x_val } else { zero }
+}, std::cmp::PartialOrd);
+
+// Implement relu_csr_primitive using macro
+crate::unary_csr_primitive!(relu_csr_primitive, |x_val| {
+    let zero = T::default();
+    if x_val > zero { x_val } else { zero }
+}, std::cmp::PartialOrd);
+
 #[cfg(test)]
 mod tests {
     use super::*;

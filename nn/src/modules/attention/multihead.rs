@@ -347,10 +347,11 @@ where
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Bounded + std::cmp::PartialOrd,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let input_shape = input.shape().dims();
-
-        // Input shape: [batch_size, seq_len, embed_dim]
         if input_shape.len() != 3 || input_shape[2] != self.embed_dim {
             return Err(NNError::ShapeMismatch {
                 operation: "MultiHeadAttention forward".to_string(),
@@ -359,75 +360,20 @@ where
             });
         }
 
-        // Convert input to dense for computation if needed
-        let input_dense = input.to_dense_generic()?;
-        let batch_size = input_shape[0];
-        let seq_len = input_shape[1];
-        let embed_dim = input_shape[2];
+        // Project queries, keys, and values
+        let q = tensor::ops::matmul(input, &self.query_proj.transpose(0, 1)?)?;
+        let k = tensor::ops::matmul(input, &self.key_proj.transpose(0, 1)?)?;
+        let v = tensor::ops::matmul(input, &self.value_proj.transpose(0, 1)?)?;
 
-        // Apply projections: reshape input from [batch, seq, embed] to [batch*seq, embed]
-        let reshaped_input =
-            input_dense.reshape(&[(batch_size * seq_len) as isize, embed_dim as isize])?;
+        // Compute multi-head attention using dense storage for efficiency
+        let attended = self.compute_multihead_attention(
+            &q.to_dense_generic()?,
+            &k.to_dense_generic()?,
+            &v.to_dense_generic()?,
+        )?;
 
-        // Get projection matrices
-        let query_proj_dense = self.query_proj.data().to_dense_generic()?;
-        let key_proj_dense = self.key_proj.data().to_dense_generic()?;
-        let value_proj_dense = self.value_proj.data().to_dense_generic()?;
-        let out_proj_dense = self.out_proj.data().to_dense_generic()?;
-
-        // Project inputs to query, key, value: [batch*seq, embed] @ [embed, embed] -> [batch*seq, embed]
-        let queries_reshaped = tensor::ops::matmul(&reshaped_input, &query_proj_dense.transpose(0, 1)?)?;
-        let keys_reshaped = tensor::ops::matmul(&reshaped_input, &key_proj_dense.transpose(0, 1)?)?;
-        let values_reshaped = tensor::ops::matmul(&reshaped_input, &value_proj_dense.transpose(0, 1)?)?;
-
-        // Reshape back to [batch, seq, embed] for attention computation
-        let queries = queries_reshaped.reshape(&[
-            batch_size as isize,
-            seq_len as isize,
-            self.embed_dim as isize,
-        ])?;
-        let keys = keys_reshaped.reshape(&[
-            batch_size as isize,
-            seq_len as isize,
-            self.embed_dim as isize,
-        ])?;
-        let values = values_reshaped.reshape(&[
-            batch_size as isize,
-            seq_len as isize,
-            self.embed_dim as isize,
-        ])?;
-
-        // Compute multi-head attention
-        let attended = self.compute_multihead_attention(&queries, &keys, &values)?;
-
-        // Reshape attended output for final projection: [batch, seq, embed] -> [batch*seq, embed]
-        let attended_reshaped =
-            attended.reshape(&[(batch_size * seq_len) as isize, self.embed_dim as isize])?;
-
-        // Apply output projection
-        let output_reshaped = tensor::ops::matmul(&attended_reshaped, &out_proj_dense.transpose(0, 1)?)?;
-
-        // Reshape back to [batch, seq, embed]
-        let output = output_reshaped.reshape(&[
-            batch_size as isize,
-            seq_len as isize,
-            self.embed_dim as isize,
-        ])?;
-
-        // Convert back to original storage type if needed
-        if std::any::TypeId::of::<S>() == std::any::TypeId::of::<DenseStorage<T>>() {
-            Ok(
-                Tensor::<B, S, T>::from_vec(output.as_slice().to_vec(), output.shape().dims())
-                    .unwrap(),
-            )
-        } else {
-            // For sparse storage, we'd need to implement conversion logic
-            // For now, return dense result
-            Ok(
-                Tensor::<B, S, T>::from_vec(output.as_slice().to_vec(), output.shape().dims())
-                    .unwrap(),
-            )
-        }
+        // Final output projection
+        tensor::ops::matmul(&attended, &self.out_proj.transpose(0, 1)?).map_err(Into::into)
     }
 
     fn parameters(&self) -> Vec<Parameter<B, S, T>> {
@@ -454,7 +400,7 @@ where
         "MultiHeadAttention"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

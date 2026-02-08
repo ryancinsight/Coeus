@@ -24,7 +24,7 @@ use storage::{DenseStorage, StorageFormat};
 ///
 /// This trait provides a single interface for all tensor operations,
 /// enabling zero-cost dispatch based on storage type and backend.
-pub trait TensorStorageOps<T: DataType>: storage::Storage<T> + Sized {
+pub trait TensorStorageOps<T: DataType>: storage::Storage<T> + storage::StorageToDense<T> + Sized {
     // ================== Arithmetic Operations ==================
 
     /// Element-wise addition: self + other
@@ -40,7 +40,41 @@ pub trait TensorStorageOps<T: DataType>: storage::Storage<T> + Sized {
     fn storage_div<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>;
 
     /// Element-wise negation: -self
-    fn storage_neg<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>;
+    fn storage_neg<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: core::ops::Neg<Output = T>;
+
+    // ================== Comparison Operations ==================
+
+    /// Element-wise equality: self == other
+    fn storage_eq<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero;
+
+    /// Element-wise inequality: self != other
+    fn storage_ne<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero;
+
+    /// Element-wise greater than: self > other
+    fn storage_gt<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero;
+
+    /// Element-wise greater or equal: self >= other
+    fn storage_ge<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero;
+
+    /// Element-wise less than: self < other
+    fn storage_lt<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero;
+
+    /// Element-wise less or equal: self <= other
+    fn storage_le<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: PartialOrd + num_traits::One + num_traits::Zero;
 
     // ================== Linear Algebra Operations ==================
 
@@ -49,6 +83,36 @@ pub trait TensorStorageOps<T: DataType>: storage::Storage<T> + Sized {
 
     /// Matrix transpose
     fn storage_transpose<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>;
+
+    /// Add matrix multiplication: beta * self + alpha * (mat1 @ mat2)
+    fn storage_addmm<B: Backend<Data = T>>(
+        &self,
+        _mat1: &Self,
+        _mat2: &Self,
+        _beta: T,
+        _alpha: T,
+        _backend: &B
+    ) -> Result<Self> {
+         Err(crate::TensorError::UnsupportedOperation {
+             operation: "storage_addmm".to_string(),
+             storage_type: "Generic".to_string(),
+         })
+    }
+
+    /// Add matrix-vector multiplication: beta * self + alpha * (mat @ vec)
+    fn storage_addmv<B: Backend<Data = T>>(
+        &self,
+        _mat: &Self,
+        _vec: &Self,
+        _beta: T,
+        _alpha: T,
+        _backend: &B
+    ) -> Result<Self> {
+         Err(crate::TensorError::UnsupportedOperation {
+             operation: "storage_addmv".to_string(),
+             storage_type: "Generic".to_string(),
+         })
+    }
 
     // ================== Activation Functions ==================
 
@@ -134,6 +198,90 @@ pub trait TensorStorageOps<T: DataType>: storage::Storage<T> + Sized {
     where
         T: num_traits::Float;
 
+    /// Element-wise square root
+    fn storage_sqrt<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float;
+
+    /// Element-wise reciprocal square root
+    fn storage_rsqrt<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float;
+
+    /// Element-wise error function
+    fn storage_erf<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float;
+
+    /// Element-wise complementary error function
+    fn storage_erfc<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float;
+
+    /// Element-wise inverse error function
+    fn storage_erfinv<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float;
+
+    /// Element-wise inverse tangent (y, x)
+    fn storage_atan2<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float;
+
+    /// Element-wise log1p: log(1 + x)
+    fn storage_log1p<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float;
+
+    /// Element-wise expm1: exp(x) - 1
+    fn storage_expm1<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float;
+
+    /// Element-wise reciprocal: 1 / x
+    fn storage_reciprocal<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float;
+
+    // ================== Comparison/Status Operations ==================
+
+    /// Element-wise check for NaN
+    fn storage_isnan<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float + num_traits::One + num_traits::Zero;
+
+    /// Element-wise check for infinity
+    fn storage_isinf<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float + num_traits::One + num_traits::Zero;
+
+    /// Element-wise check for finite values
+    fn storage_isfinite<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::Float + num_traits::One + num_traits::Zero;
+
+    // ================== Logical Operations ==================
+
+    /// Element-wise logical AND
+    fn storage_logical_and<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero;
+
+    /// Element-wise logical OR
+    fn storage_logical_or<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero;
+
+    /// Element-wise logical XOR
+    fn storage_logical_xor<B: Backend<Data = T>>(&self, other: &Self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero;
+
+    /// Element-wise logical NOT
+    fn storage_logical_not<B: Backend<Data = T>>(&self, backend: &B) -> Result<Self>
+    where
+        T: num_traits::One + num_traits::Zero;
+
     // ================== Conversion Operations ==================
 
     /// Convert to dense storage
@@ -145,4 +293,28 @@ pub trait TensorStorageOps<T: DataType>: storage::Storage<T> + Sized {
     fn storage_format(&self) -> StorageFormat {
         self.format()
     }
+}
+
+/// Trait for mixed-storage binary operations.
+///
+/// This trait enables zero-conversion operations between different storage types
+/// (e.g., Dense + Sparse) by providing a double-dispatch mechanism.
+pub trait StorageBinaryOps<OtherS, T: DataType>: storage::Storage<T> + Sized {
+    /// The resulting storage type of the mixed operation
+    type Output: storage::Storage<T> + Sized;
+
+    /// Mixed-storage element-wise addition: self + other
+    fn storage_add_mixed<B: Backend<Data = T>>(&self, other: &OtherS, backend: &B) -> Result<Self::Output>;
+
+    /// Mixed-storage element-wise subtraction: self - other
+    fn storage_sub_mixed<B: Backend<Data = T>>(&self, other: &OtherS, backend: &B) -> Result<Self::Output>;
+
+    /// Mixed-storage element-wise multiplication: self * other
+    fn storage_mul_mixed<B: Backend<Data = T>>(&self, other: &OtherS, backend: &B) -> Result<Self::Output>;
+
+    /// Mixed-storage element-wise division: self / other
+    fn storage_div_mixed<B: Backend<Data = T>>(&self, other: &OtherS, backend: &B) -> Result<Self::Output>;
+
+    /// Mixed-storage matrix multiplication: self @ other
+    fn storage_matmul_mixed<B: Backend<Data = T>>(&self, other: &OtherS, backend: &B) -> Result<Self::Output>;
 }

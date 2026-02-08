@@ -180,12 +180,12 @@ proptest! {
         //     prop_assert_eq!(orig_data.len(), loaded_data.len());
 
         //     for (o, l) in orig_data.iter().zip(loaded_data.iter()) {
-        //         let diff = (o.get() - l.get()).abs();
+        //         let diff = (o.get() as f32 - l.get() as f32).abs();
         //         prop_assert!(
         //             diff < 1e-6,
         //             "Parameter mismatch after round-trip: original={}, loaded={}, diff={}",
-        //             o.get(),
-        //             l.get(),
+        //             o.get() as f32,
+        //             l.get() as f32,
         //             diff
         //         );
         //     }
@@ -239,12 +239,12 @@ proptest! {
         // prop_assert_eq!(before_data.len(), after_data.len());
 
         // for (b, a) in before_data.iter().zip(after_data.iter()) {
-        //     let diff = (b.get() - a.get()).abs();
+        //     let diff = (b.get() as f32 - a.get() as f32).abs();
         //     prop_assert!(
         //         diff < 1e-5,
         //         "Forward pass mismatch after serialization: before={}, after={}, diff={}",
-        //         b.get(),
-        //         a.get(),
+        //         b.get() as f32,
+        //         a.get() as f32,
         //         diff
         //     );
         // }
@@ -281,9 +281,9 @@ fn test_property_8_storage_from_vec_trait_bounds() {
 
     // Verify output is a valid tensor (created using StorageFromVec)
     assert_eq!(output.shape().dims(), &[3]);
-    assert!(output.as_slice()[0].get() == 0.0); // relu(-1) = 0
-    assert!(output.as_slice()[1].get() == 2.0); // relu(2) = 2
-    assert!(output.as_slice()[2].get() == 0.0); // relu(-3) = 0
+    assert!(output.as_slice()[0].get() as f32 == 0.0); // relu(-1) = 0
+    assert!(output.as_slice()[1].get() as f32 == 2.0); // relu(2) = 2
+    assert!(output.as_slice()[2].get() as f32 == 0.0); // relu(-3) = 0
 
     // If this compiles and runs, StorageFromVec trait bounds are present
 }

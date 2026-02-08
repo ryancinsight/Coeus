@@ -19,6 +19,7 @@ pub mod activation;
 pub mod reduction;
 pub mod sparse_kernels;
 pub mod backend;
+pub mod implementations;
 
 // Re-export the main CPU backend
 pub use backend::CpuBackend;

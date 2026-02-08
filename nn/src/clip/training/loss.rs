@@ -67,7 +67,7 @@ pub fn info_nce_loss<B, S, T>(
 ) -> Result<Tensor<B, DenseStorage<T>, T>>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageToDense<T> + StorageFromVec<T> + 'static,+ tensor::ops::TensorStorageOps<T>
+    S: Storage<T> + Clone + StorageToDense<T> + StorageFromVec<T> + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType
         + FloatExt
         + std::ops::Neg<Output = T>
@@ -160,7 +160,7 @@ where
     ) -> Result<Tensor<B, DenseStorage<T>, T>>
     where
         B: Backend<Data = T> + Clone + Default,
-        S: Storage<T> + Clone + StorageToDense<T> + StorageFromVec<T> + 'static,
+        S: Storage<T> + Clone + StorageToDense<T> + StorageFromVec<T> + 'static + tensor::ops::TensorStorageOps<T>,
     {
         info_nce_loss(image_features, text_features, self.temperature)
     }

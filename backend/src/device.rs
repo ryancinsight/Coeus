@@ -1,5 +1,4 @@
-//! Device information and capabilities
-
+pub use crate::core::DeviceInfo;
 use core::fmt;
 
 #[cfg(feature = "std")]
@@ -61,6 +60,16 @@ impl Device {
             Self::Tpu { name, .. } => name,
         }
     }
+
+    /// Returns memory capacity in GB
+    pub fn memory_gb(&self) -> usize {
+        match self {
+            Device::Cpu => 16,       // Assume 16GB system RAM for CPU
+            Device::Gpu { .. } => 8, // Assume 8GB VRAM for GPU
+            Device::Npu { memory_mb, .. } => memory_mb / 1024,
+            Device::Tpu { memory_gb, .. } => *memory_gb,
+        }
+    }
 }
 
 impl fmt::Display for Device {
@@ -69,54 +78,25 @@ impl fmt::Display for Device {
     }
 }
 
-/// Device information and capability query trait
-pub trait DeviceInfo: Send + Sync {
-    /// Returns the device type
-    fn device(&self) -> &Device;
-
-    /// Returns the device name
-    fn name(&self) -> &str {
-        self.device().name()
-    }
-
-    /// Returns true if the device is available
-    fn is_available(&self) -> bool;
-
-    /// Returns memory capacity in GB
-    fn memory_gb(&self) -> usize;
-
-    /// Returns number of compute units
-    fn compute_units(&self) -> usize;
-}
-
 impl DeviceInfo for Device {
-    fn device(&self) -> &Device {
-        self
+    fn name(&self) -> &str {
+        self.name()
     }
 
-    fn is_available(&self) -> bool {
-        match self {
-            Device::Cpu | Device::Gpu { .. } => true, // CPU always available, assume GPU available if we have device info
-            Device::Npu { .. } => true,               // NPU available if device info present
-            Device::Tpu { .. } => true,               // TPU available if device info present
-        }
+    fn memory_total(&self) -> Option<usize> {
+        Some(self.memory_gb() * 1024 * 1024 * 1024)
     }
 
-    fn memory_gb(&self) -> usize {
-        match self {
-            Device::Cpu => 16,       // Assume 16GB system RAM for CPU
-            Device::Gpu { .. } => 8, // Assume 8GB VRAM for GPU
-            Device::Npu { memory_mb, .. } => memory_mb / 1024,
-            Device::Tpu { memory_gb, .. } => *memory_gb,
-        }
+    fn memory_available(&self) -> Option<usize> {
+        // For now assume all memory available or unknown
+        None
     }
 
-    fn compute_units(&self) -> usize {
+    fn compute_capability(&self) -> Option<String> {
         match self {
-            Device::Cpu => num_cpus::get(),
-            Device::Gpu { .. } => 1, // GPU has single device
-            Device::Npu { compute_units, .. } => *compute_units,
-            Device::Tpu { cores, .. } => *cores,
+            Device::Gpu { backend, .. } => Some(backend.to_string()),
+            Device::Tpu { generation, .. } => Some(generation.clone()),
+            _ => None,
         }
     }
 }

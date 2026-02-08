@@ -41,6 +41,7 @@ where
         + Clone
         + storage::StorageFromVec<Float32>
         + storage::StorageToDense<Float32>
+        + tensor::ops::TensorStorageOps<Float32>
         + 'static,
 {
     /// Create a new distributed optimizer wrapper

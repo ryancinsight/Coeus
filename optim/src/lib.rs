@@ -76,12 +76,14 @@ pub mod adamax;
 pub mod adamw;
 pub mod error;
 pub mod gpu_backend;
+pub mod asgd;
 pub mod nadam;
 pub mod optimizer;
 pub mod optimizer_core;
 pub mod optimizers;
 pub mod radam;
 pub mod rmsprop;
+pub mod rprop;
 pub mod schedulers;
 pub mod sgd;
 

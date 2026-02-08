@@ -32,7 +32,7 @@ pub use backend::Backend;
 pub use crate::core::module::ModuleSerialize;
 
 // Module re-exports
-pub use crate::modules::activation::{GeLU, PReLU, ReLU, SiLU, SwiGLU};
+pub use crate::modules::activation::{GeLU, PReLU, ReLU, SiLU, SwiGLU, Softmax, LogSoftmax};
 pub use crate::modules::attention::{MultiHeadAttention, SparseAttention};
 pub use crate::modules::convolution::{
     Conv1D, Conv2D, Conv3D, ConvTranspose1d, ConvTranspose2d, ConvTranspose3d,
@@ -43,6 +43,7 @@ pub use crate::modules::loss::{BCEWithLogitsLoss, CrossEntropyLoss, MSELoss, NLL
 pub use crate::modules::normalization::{
     BatchNorm1d, BatchNorm2d, BatchNorm3d, GroupNorm, LayerNorm, RMSNorm,
 };
+pub use crate::modules::distance::{PairwiseDistance, CosineSimilarity};
 pub use crate::modules::pooling::{
     AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveMaxPool2d, AvgPool1d, AvgPool2d, AvgPool3d,
     MaxPool1d, MaxPool2d, MaxPool3d,
@@ -50,6 +51,7 @@ pub use crate::modules::pooling::{
 pub use crate::modules::regularization::dropout::{Dropout, Dropout2d, Dropout3d};
 pub use crate::modules::rnn::{GRU, LSTM, RNN};
 pub use crate::modules::vision::upsample::Upsample;
+pub use crate::modules::utility::{Flatten, Identity};
 
 // Container re-exports
 pub use crate::containers::sequential::Sequential;
@@ -78,7 +80,9 @@ pub mod functional_api {
 
     // Convolution operations
     pub use crate::functional::convolution::{
-        conv1d, conv2d, conv2d_transpose as conv_transpose_2d, conv3d,
+        conv1d, conv1d_transpose,
+        conv2d, conv2d_transpose as conv_transpose_2d,
+        conv3d, conv3d_transpose,
     };
 
     // Linear operations
@@ -91,7 +95,9 @@ pub mod functional_api {
     pub use crate::ops::loss::{
         bce_with_logits_loss, cross_entropy, mse_loss, nll_loss,
         l1_loss, smooth_l1_loss, binary_cross_entropy,
+        kl_div_loss,
     };
+    pub use crate::ops::distance::{pairwise_distance, cosine_similarity};
     // generic loss names if they exist in file
     // pub use crate::ops::loss::{binary_cross_entropy, l1_loss, smooth_l1_loss}; // verify existence later
 

@@ -6,25 +6,31 @@
 
 use crate::core::error::Result;
 use crate::modules::activation::Activation;
+use crate::{Module, Parameter};
 use backend::Backend;
 use dtype::DataType;
 use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::{FloatExt, Tensor};
 
 /// Softshrink activation function
-///
-/// Applies the soft shrinkage function element-wise:
-/// - If x > λ: output = x - λ
-/// - If x < -λ: output = x + λ
-/// - Otherwise: output = 0
-#[derive(Clone)]
-pub struct Softshrink<T> {
+#[derive(Clone, Debug)]
+pub struct Softshrink<B, S, T>
+where
+    B: Backend<Data = T> + Clone,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + FloatExt,
+{
     /// Lambda parameter (threshold)
     pub lambd: T,
-    _marker: std::marker::PhantomData<T>,
+    _marker: std::marker::PhantomData<(B, S, T)>,
 }
 
-impl<T: DataType + FloatExt + num_traits::FromPrimitive> Softshrink<T> {
+impl<B, S, T> Softshrink<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + FloatExt + num_traits::FromPrimitive,
+{
     /// Create a new Softshrink with default lambda=0.5
     pub fn new() -> Self {
         Self {
@@ -42,17 +48,22 @@ impl<T: DataType + FloatExt + num_traits::FromPrimitive> Softshrink<T> {
     }
 }
 
-impl<T: DataType + FloatExt + num_traits::FromPrimitive> Default for Softshrink<T> {
+impl<B, S, T> Default for Softshrink<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
+    T: DataType + FloatExt + num_traits::FromPrimitive,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<B, S, T> Activation<B, S, T> for Softshrink<T>
+impl<B, S, T> Activation<B, S, T> for Softshrink<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T>,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + Copy + PartialOrd,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Copy + PartialOrd + Send + Sync + 'static,
 {
     fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let data = x.as_slice();
@@ -74,6 +85,32 @@ where
 
         Tensor::from_vec_with_backend(result, x.shape().dims(), x.backend().clone())
             .map_err(Into::into)
+    }
+}
+
+impl<B, S, T> Module<B, S, T> for Softshrink<B, S, T>
+where
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + Copy + PartialOrd + Send + Sync + 'static,
+{
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
+    fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
+        <Self as Activation<B, S, T>>::forward(self, input)
+    }
+
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
+        Vec::new()
+    }
+
+    fn name(&self) -> &str {
+        "Softshrink"
+    }
+
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
+        Box::new(self.clone())
     }
 }
 

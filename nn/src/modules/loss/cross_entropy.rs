@@ -9,6 +9,9 @@ use dtype::DataType;
 use tensor::Tensor;
 
 use crate::core::error::Result;
+use crate::{Module, Parameter};
+use backend::Backend;
+use storage::Storage;
 
 /// Cross-entropy loss function for classification.
 ///
@@ -58,11 +61,7 @@ impl CrossEntropyLoss {
     ///
     /// # Returns
     /// Scalar tensor containing the cross-entropy loss value.
-    pub fn forward<B, S, T>(
-        &self,
-        logits: &Tensor<B, S, T>,
-        targets: &Tensor<B, S, T>,
-    ) -> Result<Tensor<B, S, T>>
+    pub fn forward<B, S, T>(&self, logits: &Tensor<B, S, T>, targets: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>>
     where
         B: backend::Backend<Data = T> + Clone + Default + Send + Sync + 'static,
         S: storage::Storage<T>
@@ -82,6 +81,50 @@ impl CrossEntropyLoss {
             + 'static,
     {
         cross_entropy_loss(logits, targets)
+    }
+}
+
+impl<B, S, T> Module<B, S, T> for CrossEntropyLoss
+where
+    B: backend::Backend<Data = T> + Clone + Default + Send + Sync + 'static,
+    S: storage::Storage<T>
+        + storage::StorageFromVec<T>
+        + storage::StorageToDense<T>
+        + Clone
+        + 'static
+        + tensor::ops::dispatch::TensorStorageOps<T>,
+    T: DataType
+        + FloatExt
+        + std::ops::Neg<Output = T>
+        + PartialOrd
+        + num_traits::FromPrimitive
+        + Copy
+        + Send
+        + Sync
+        + 'static,
+{
+    type Input = (Tensor<B, S, T>, Tensor<B, S, T>);
+    type Output = Tensor<B, S, T>;
+
+    fn forward(&self, input: &(Tensor<B, S, T>, Tensor<B, S, T>)) -> Result<Tensor<B, S, T>> {
+        let (logits, targets) = input;
+        cross_entropy_loss(logits, targets)
+    }
+
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
+        vec![]
+    }
+
+    fn zero_grad(&mut self) {}
+
+    fn train(&mut self, _mode: bool) {}
+
+    fn name(&self) -> &str {
+        "CrossEntropyLoss"
+    }
+
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
+        Box::new(self.clone())
     }
 }
 

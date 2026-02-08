@@ -249,6 +249,11 @@ where
         &self.storage
     }
 
+    /// Returns a mutable reference to the tensor's storage.
+    pub fn storage_mut(&mut self) -> &mut S {
+        &mut self.storage
+    }
+
     /// Create a tensor from storage and backend
     pub fn from_storage(storage: S, backend: B) -> Self {
         Self {

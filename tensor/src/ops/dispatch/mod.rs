@@ -42,5 +42,6 @@ pub mod dense_dispatch;
 pub mod sparse_dispatch;
 pub mod strided_dispatch;
 pub mod traits;
+pub mod backend;
 
 pub use traits::TensorStorageOps;

@@ -11,7 +11,7 @@ use proptest::prelude::*;
 
 use backend::CpuBackend;
 use dtype::float::Float32;
-use nn::functional::ops::activations::*;
+use nn::ops::*;
 use storage::DenseStorage;
 use tensor::Tensor;
 
@@ -26,11 +26,12 @@ fn prop_relu_output_non_negative() {
 
         let output = relu(&tensor).unwrap();
 
-        for &val in output.as_slice() {
+        for val in output.as_slice().iter() {
+            let val: &Float32 = val;
             prop_assert!(
-                val.get() >= 0.0,
+                val.get() as f32 >= 0.0,
                 "ReLU output {} is negative, violates non-negativity property",
-                val.get()
+                val.get() as f32
             );
         }
     });
@@ -45,22 +46,24 @@ fn prop_relu_correctness() {
 
         let output = relu(&tensor).unwrap();
 
-        for (&input, &output_val) in float_data.iter().zip(output.as_slice()) {
-            if input.get() > 0.0 {
+        for (input, output_val) in float_data.iter().zip(output.as_slice().iter()) {
+            let input: &Float32 = input;
+            let output_val: &Float32 = output_val;
+            if input.get() as f32 > 0.0 {
                 prop_assert_eq!(
-                    output_val.get(),
-                    input.get(),
+                    output_val.get() as f32,
+                    input.get() as f32,
                     "ReLU should preserve positive value {} but got {}",
-                    input.get(),
-                    output_val.get()
+                    input.get() as f32,
+                    output_val.get() as f32
                 );
             } else {
                 prop_assert_eq!(
-                    output_val.get(),
+                    output_val.get() as f32,
                     0.0,
                     "ReLU should zero negative/zero value {} but got {}",
-                    input.get(),
-                    output_val.get()
+                    input.get() as f32,
+                    output_val.get() as f32
                 );
             }
         }
@@ -76,8 +79,8 @@ fn prop_sigmoid_output_range() {
 
         let output = sigmoid(&tensor).unwrap();
 
-        for &val in output.as_slice() {
-            let v = val.get();
+        for val in output.as_slice().iter() {
+            let val: &Float32 = val; let v = val.get() as f32;
             prop_assert!(
                 v >= -1e-6 && v <= 1.0 + 1e-6,
                 "Sigmoid output {} is not in [0, 1] within tolerance, violates range property",
@@ -100,12 +103,12 @@ fn prop_sigmoid_monotonic() {
 
         // Property: sigmoid is monotonically increasing
         prop_assert!(
-            output1.as_slice()[0].get() <= output2.as_slice()[0].get(),
+            output1.as_slice()[0].get() as f32 <= output2.as_slice()[0].get() as f32,
             "Sigmoid should be monotonic: sigmoid({}) = {} should be <= sigmoid({}) = {}",
             x1,
-            output1.as_slice()[0].get(),
+            output1.as_slice()[0].get() as f32,
             x2,
-            output2.as_slice()[0].get()
+            output2.as_slice()[0].get() as f32
         );
     });
 }
@@ -119,8 +122,8 @@ fn prop_tanh_output_range() {
 
         let output = tanh(&tensor).unwrap();
 
-        for &val in output.as_slice() {
-            let v = val.get();
+        for val in output.as_slice().iter() {
+            let val: &Float32 = val; let v = val.get() as f32;
             prop_assert!(
                 v >= -1.0 - 1e-6 && v <= 1.0 + 1e-6,
                 "Tanh output {} is not in [-1, 1] within tolerance, violates range property",
@@ -140,8 +143,8 @@ fn prop_tanh_odd_function() {
         let output_neg = tanh(&tensor_neg).unwrap();
 
         // Property: tanh is an odd function
-        let pos_val = output_pos.as_slice()[0].get();
-        let neg_val = output_neg.as_slice()[0].get();
+        let pos_val = output_pos.as_slice()[0].get() as f32;
+        let neg_val = output_neg.as_slice()[0].get() as f32;
 
         prop_assert!(
             (pos_val + neg_val).abs() < 1e-6,
@@ -168,12 +171,12 @@ fn prop_tanh_monotonic() {
 
         // Property: tanh is monotonically increasing
         prop_assert!(
-            output1.as_slice()[0].get() <= output2.as_slice()[0].get(),
+            output1.as_slice()[0].get() as f32 <= output2.as_slice()[0].get() as f32,
             "Tanh should be monotonic: tanh({}) = {} should be <= tanh({}) = {}",
             x1,
-            output1.as_slice()[0].get(),
+            output1.as_slice()[0].get() as f32,
             x2,
-            output2.as_slice()[0].get()
+            output2.as_slice()[0].get() as f32
         );
     });
 }
@@ -183,7 +186,7 @@ fn prop_gelu_large_positive() {
     proptest!(|(x in 3.0..100.0f32)| {
         let tensor = TestTensor::from_vec(vec![Float32::new(x)], &[1]).unwrap();
         let output = gelu(&tensor).unwrap();
-        let output_val = output.as_slice()[0].get();
+        let output_val = output.as_slice()[0].get() as f32;
 
         let ratio = output_val / x;
         prop_assert!(
@@ -202,7 +205,7 @@ fn prop_gelu_large_negative() {
     proptest!(|(x in -100.0..-3.0f32)| {
         let tensor = TestTensor::from_vec(vec![Float32::new(x)], &[1]).unwrap();
         let output = gelu(&tensor).unwrap();
-        let output_val = output.as_slice()[0].get();
+        let output_val = output.as_slice()[0].get() as f32;
 
         prop_assert!(
             output_val.abs() < 0.1,
@@ -217,7 +220,7 @@ fn prop_gelu_large_negative() {
 fn prop_silu_zero() {
     let tensor = TestTensor::from_vec(vec![Float32::new(0.0)], &[1]).unwrap();
     let output = silu(&tensor).unwrap();
-    let output_val = output.as_slice()[0].get();
+    let output_val = output.as_slice()[0].get() as f32;
 
     assert!(
         output_val.abs() < 1e-6,
@@ -231,7 +234,7 @@ fn prop_leaky_relu_positive() {
     proptest!(|(x in 0.0..100.0f32, slope in 0.0..1.0f32)| {
         let tensor = TestTensor::from_vec(vec![Float32::new(x)], &[1]).unwrap();
         let output = leaky_relu(&tensor, Float32::new(slope)).unwrap();
-        let output_val = output.as_slice()[0].get();
+        let output_val = output.as_slice()[0].get() as f32;
 
         prop_assert!(
             (output_val - x).abs() < 1e-6,
@@ -248,7 +251,7 @@ fn prop_leaky_relu_negative() {
     proptest!(|(x in -100.0..0.0f32, slope in 0.0..1.0f32)| {
         let tensor = TestTensor::from_vec(vec![Float32::new(x)], &[1]).unwrap();
         let output = leaky_relu(&tensor, Float32::new(slope)).unwrap();
-        let output_val = output.as_slice()[0].get();
+        let output_val = output.as_slice()[0].get() as f32;
 
         let expected = slope * x;
         prop_assert!(
@@ -267,7 +270,7 @@ fn prop_elu_positive() {
     proptest!(|(x in 0.0..100.0f32, alpha in 0.1..2.0f32)| {
         let tensor = TestTensor::from_vec(vec![Float32::new(x)], &[1]).unwrap();
         let output = elu(&tensor, Float32::new(alpha)).unwrap();
-        let output_val = output.as_slice()[0].get();
+        let output_val = output.as_slice()[0].get() as f32;
 
         prop_assert!(
             (output_val - x).abs() < 1e-6,
@@ -284,7 +287,7 @@ fn prop_elu_negative_bounded() {
     proptest!(|(x in -100.0..0.0f32, alpha in 0.1..2.0f32)| {
         let tensor = TestTensor::from_vec(vec![Float32::new(x)], &[1]).unwrap();
         let output = elu(&tensor, Float32::new(alpha)).unwrap();
-        let output_val = output.as_slice()[0].get();
+        let output_val = output.as_slice()[0].get() as f32;
 
         prop_assert!(
             output_val >= -alpha - 1e-6,
@@ -305,7 +308,7 @@ fn prop_softmax_sums_to_one() {
 
         let output = softmax(&tensor).unwrap();
 
-        let sum: f32 = output.as_slice().iter().map(|x| x.get()).sum();
+        let sum: f32 = output.as_slice().iter().map(|x| x.get() as f32).sum();
         prop_assert!(
             (sum - 1.0).abs() < 1e-5,
             "Softmax outputs should sum to 1, got {}",
@@ -323,11 +326,12 @@ fn prop_softmax_all_positive() {
 
         let output = softmax(&tensor).unwrap();
 
-        for &val in output.as_slice() {
+        for val in output.as_slice().iter() {
+            let val: Float32 = *val;
             prop_assert!(
                 val.get() > 0.0,
                 "Softmax output {} should be positive",
-                val.get()
+                val.get() as f32
             );
         }
     });
@@ -342,11 +346,12 @@ fn prop_log_softmax_all_negative() {
 
         let output = log_softmax(&tensor, 0).unwrap();
 
-        for &val in output.as_slice() {
+        for val in output.as_slice().iter() {
+            let val: Float32 = *val;
             prop_assert!(
                 val.get() <= 1e-6,
                 "Log softmax output {} should be <= 0 within tolerance",
-                val.get()
+                val.get() as f32
             );
         }
     });
@@ -363,12 +368,14 @@ fn prop_log_softmax_exp_equals_softmax() {
         let log_softmax_output = log_softmax(&tensor, 0).unwrap();
 
         for (soft_val, log_soft_val) in softmax_output.as_slice().iter().zip(log_softmax_output.as_slice()) {
-            let exp_log_soft = log_soft_val.get().exp();
+            let soft_val: Float32 = *soft_val;
+            let log_soft_val: Float32 = *log_soft_val;
+            let exp_log_soft = (log_soft_val.get() as f32).exp();
             prop_assert!(
-                (exp_log_soft - soft_val.get()).abs() < 1e-5,
+                (exp_log_soft - soft_val.get() as f32).abs() < 1e-5,
                 "exp(log_softmax) = {} should equal softmax = {}",
                 exp_log_soft,
-                soft_val.get()
+                soft_val.get() as f32
             );
         }
     });

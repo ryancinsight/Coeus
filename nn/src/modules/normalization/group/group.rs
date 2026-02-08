@@ -89,6 +89,9 @@ impl<T> Module<CpuBackend<T>, DenseStorage<T>, T> for GroupNorm<CpuBackend<T>, D
 where
     T: DataType + FloatExt + PartialOrd,
 {
+    type Input = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
+    type Output = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
+
     fn forward(
         &self,
         input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
@@ -210,7 +213,7 @@ where
         "GroupNorm"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

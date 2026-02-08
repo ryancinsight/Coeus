@@ -27,6 +27,27 @@ where
     sum
 }
 
+/// Sum reduction for strided storage
+pub fn sum_strided_primitive<T: DataType>(
+    input_data: &[T],
+    input_shape: &[usize],
+    input_strides: &[usize],
+    input_offset: usize,
+) -> T
+where
+    T: core::ops::Add<Output = T> + Default + Copy,
+{
+    let mut sum = T::default();
+    let size = input_shape.iter().product();
+
+    for i in 0..size {
+        let idx = input_offset + storage::iter::compute_strided_index_fast(i, input_shape, input_strides);
+        sum = sum + input_data[idx];
+    }
+    
+    sum
+}
+
 /// Sum reduction along axis primitive (placeholder)
 ///
 /// Future implementation will provide sum reduction along specified axes

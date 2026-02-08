@@ -8,7 +8,7 @@ use storage::{Storage, StorageFromVec};
 impl<B, S, T> Tensor<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + StorageFromVec<T>,
+    S: Storage<T> + StorageFromVec<T> + crate::ops::dispatch::TensorStorageOps<T>,
     T: DataType,
 {
     /// Base reduction implementation along specified dimensions.
@@ -55,25 +55,47 @@ where
             .map(|i| out_shape.iter().skip(i + 1).product())
             .collect();
 
-        let data = self.as_slice();
-        for i in 0..data.len() {
-            let mut out_idx = 0;
-            let mut temp_idx = i;
-            let mut out_dim_idx = 0;
+        if !self.storage.is_contiguous() {
+            let dense_self = self.to_cpu_dense()?;
+            let data = dense_self.storage().as_slice();
+            for i in 0..data.len() {
+                let mut out_idx = 0;
+                let mut temp_idx = i;
+                let mut out_dim_idx = 0;
 
-            for (d, &s) in stride.iter().enumerate() {
-                let coord = temp_idx / s;
-                temp_idx %= s;
+                for (d, &s) in stride.iter().enumerate() {
+                    let coord = temp_idx / s;
+                    temp_idx %= s;
 
-                if !reduce_dims.contains(&d) {
-                    out_idx += coord * out_stride[out_dim_idx];
-                    out_dim_idx += 1;
-                } else if keepdim {
-                    // skip out_idx update as coord is effectively 0 for a reduced dim of size 1
-                    out_dim_idx += 1;
+                    if !reduce_dims.contains(&d) {
+                        out_idx += coord * out_stride[out_dim_idx];
+                        out_dim_idx += 1;
+                    } else if keepdim {
+                        out_dim_idx += 1;
+                    }
                 }
+                out_data[out_idx] = op(out_data[out_idx], data[i]);
             }
-            out_data[out_idx] = op(out_data[out_idx], data[i]);
+        } else {
+            let data = self.as_slice();
+            for i in 0..data.len() {
+                let mut out_idx = 0;
+                let mut temp_idx = i;
+                let mut out_dim_idx = 0;
+
+                for (d, &s) in stride.iter().enumerate() {
+                    let coord = temp_idx / s;
+                    temp_idx %= s;
+
+                    if !reduce_dims.contains(&d) {
+                        out_idx += coord * out_stride[out_dim_idx];
+                        out_dim_idx += 1;
+                    } else if keepdim {
+                        out_dim_idx += 1;
+                    }
+                }
+                out_data[out_idx] = op(out_data[out_idx], data[i]);
+            }
         }
 
         Tensor::from_vec_with_backend(out_data, &out_shape, self.backend.clone())
@@ -85,5 +107,29 @@ where
         T: core::ops::Add<Output = T>,
     {
         self.reduce_generic(dims, keepdim, |acc, x| acc + x, T::zero())
+    }
+
+    /// Mean reduction along specified dimensions.
+    /// Note: This method is named `mean_dims` to avoid conflict with sparse tensor's `mean()` method.
+    pub fn mean_dims(&self, dims: Option<&[usize]>, keepdim: bool) -> Result<Tensor<B, S, T>>
+    where
+        T: DataType + num_traits::Float + num_traits::FromPrimitive + core::ops::Add<Output = T> + core::ops::Div<Output = T> + Clone,
+    {
+        let shape = self.shape().dims();
+        let reduce_dims: Vec<usize> = dims.map(|d| d.to_vec()).unwrap_or_else(|| (0..shape.len()).collect());
+        
+        // Calculate the number of elements being averaged
+        let n: usize = reduce_dims.iter().map(|&d| shape[d]).product();
+        let n_t = T::from_usize(n).ok_or_else(|| TensorError::InvalidInput {
+            message: "Could not convert dimension size to tensor type".to_string(),
+        })?;
+
+        let sum_result = self.sum_generic(dims, keepdim)?;
+        
+        // Divide each element by n
+        let data: Vec<T> = sum_result.as_slice().iter().map(|&x| x / n_t.clone()).collect();
+        let out_shape = sum_result.shape().dims().to_vec();
+        
+        Tensor::from_vec_with_backend(data, &out_shape, self.backend.clone())
     }
 }

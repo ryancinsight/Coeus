@@ -1,6 +1,6 @@
 //! Logical any reduction operation
 
-use crate::{Result, Tensor, TensorError};
+use crate::{Result, Tensor};
 use backend::Backend;
 use dtype::DataType;
 use storage::{Storage, StorageFromVec};
@@ -20,47 +20,17 @@ pub fn any<B, T, S>(
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    T: DataType + PartialEq + num_traits::Zero + num_traits::One + 'static,
-    S: Storage<T> + StorageFromVec<T> + Clone + 'static,
+    T: DataType + num_traits::One + num_traits::Zero + PartialOrd + 'static,
+    S: Storage<T> + StorageFromVec<T> + Clone + 'static + crate::ops::dispatch::TensorStorageOps<T>,
 {
-    let data = tensor.as_slice();
-    let shape = tensor.shape().dims();
-
-    match dims {
-        None => {
-            // Reduce all dimensions
-            let result = if data.iter().any(|&x| x != T::zero()) {
-                T::one()
-            } else {
-                T::zero()
-            };
-            let out_shape = if keepdim {
-                vec![1; shape.len()]
-            } else {
-                vec![1]
-            };
-            Tensor::from_vec_with_backend(vec![result], &out_shape, tensor.backend.clone())
+    let init = T::zero();
+    let op = |acc: T, val: T| {
+        if acc != T::zero() || val != T::zero() {
+            T::one()
+        } else {
+            T::zero()
         }
-        Some(dims_arr) => {
-            // For simplicity, implement full reduction first
-            if dims_arr.is_empty() || dims_arr.len() == shape.len() {
-                let result = if data.iter().any(|&x| x != T::zero()) {
-                    T::one()
-                } else {
-                    T::zero()
-                };
-                let out_shape = if keepdim {
-                    vec![1; shape.len()]
-                } else {
-                    vec![1]
-                };
-                Tensor::from_vec_with_backend(vec![result], &out_shape, tensor.backend.clone())
-            } else {
-                Err(TensorError::UnsupportedOperation {
-                    operation: "any (partial dim)".to_string(),
-                    storage_type: "partial dimension reduction not yet implemented".to_string(),
-                })
-            }
-        }
-    }
+    };
+    
+    super::reduce_dims(tensor, dims, keepdim, op, init)
 }

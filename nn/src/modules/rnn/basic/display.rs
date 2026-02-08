@@ -1,17 +1,17 @@
 //! Basic RNN Display trait implementation.
 
 use backend::Backend;
-use dtype::DataType;
+use dtype::{traits::FloatExt, DataType};
 use std::fmt;
-use storage::{Storage, StorageFromVec};
+use storage::{Storage, StorageFromVec, StorageToDense};
 
 use super::core::RNN;
 
 impl<B, S, T> fmt::Display for RNN<B, S, T>
 where
     B: Backend<Data = T>,
-    S: Storage<T> + Clone + StorageFromVec<T>,
-    T: DataType + std::cmp::PartialOrd,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + FloatExt + std::cmp::PartialOrd,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

@@ -18,9 +18,13 @@ pub mod scatter;
 pub mod masked;
 pub mod take;
 pub mod put;
+pub mod nonzero;
+pub mod index_add;
 
 pub use gather::gather;
 pub use index_select::index_select;
 pub use scatter::scatter;
 pub use take::take;
 pub use put::put;
+pub use nonzero::nonzero;
+pub use index_add::index_add;

@@ -9,8 +9,7 @@ use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::Tensor;
 
 use crate::core::error::{NNError, Result};
-use crate::core::module::Module;
-use crate::core::parameter::Parameter;
+use crate::{Module, Parameter};
 use crate::modules::normalization::batch::{BatchNorm1d, BatchNorm2d, BatchNorm3d};
 
 /// A 1D batch normalization layer that initializes its parameters on the first forward pass.
@@ -82,9 +81,14 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive + num_traits::One,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.initialize_if_needed(input)?;
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock().map_err(|_| NNError::ExecutionError {
+            message: "Failed to acquire lock on LazyBatchNorm1d".to_string(),
+        })?;
         guard.as_mut().unwrap().forward(input)
     }
 
@@ -121,7 +125,7 @@ where
         "LazyBatchNorm1d"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }
@@ -192,9 +196,14 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive + num_traits::One,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.initialize_if_needed(input)?;
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock().map_err(|_| NNError::ExecutionError {
+            message: "Failed to acquire lock on LazyBatchNorm2d".to_string(),
+        })?;
         guard.as_mut().unwrap().forward(input)
     }
 
@@ -226,7 +235,7 @@ where
     fn name(&self) -> &str {
         "LazyBatchNorm2d"
     }
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }
@@ -297,9 +306,14 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::FromPrimitive + num_traits::One,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         self.initialize_if_needed(input)?;
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock().map_err(|_| NNError::ExecutionError {
+            message: "Failed to acquire lock on LazyBatchNorm3d".to_string(),
+        })?;
         guard.as_mut().unwrap().forward(input)
     }
 
@@ -331,7 +345,7 @@ where
     fn name(&self) -> &str {
         "LazyBatchNorm3d"
     }
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

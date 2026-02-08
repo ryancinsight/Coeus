@@ -22,7 +22,7 @@ where
     S: Storage<T> + Clone + storage::StorageFromVec<T> + crate::ops::TensorStorageOps<T>,
     T: DataType,
     MB: Backend<Data = U8> + Clone,
-    MS: Storage<U8> + Clone + crate::ops::TensorStorageOps<U8> + storage::StorageFromVec<U8>,
+    MS: Storage<U8> + Clone + storage::StorageFromVec<U8> + storage::StorageToDense<U8>,
 {
 
     // Alignment check

@@ -1,11 +1,10 @@
-use backend::CpuBackend;
+use backend::{Backend, CpuBackend};
 use dtype::{traits::FloatExt, DataType};
 use storage::DenseStorage;
-use tensor::Tensor;
+use tensor::{Tensor, ops::TensorStorageOps};
 
 use crate::core::error::Result;
-use crate::core::module::Module;
-use crate::core::parameter::Parameter;
+use crate::{Module, Parameter};
 
 /// 3D Adaptive Max Pooling layer.
 ///
@@ -31,76 +30,29 @@ impl AdaptiveMaxPool3d {
     }
 }
 
-impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>, T>
-    for AdaptiveMaxPool3d
+impl<B, S, T> Module<B, S, T> for AdaptiveMaxPool3d
+where
+    B: Backend<Data = T> + Clone + Default,
+    S: storage::Storage<T> + storage::StorageFromVec<T> + storage::StorageToDense<T> + TensorStorageOps<T> + Clone + 'static,
+    T: DataType + FloatExt + PartialOrd + Clone,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(
         &self,
-        input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
-    ) -> Result<Tensor<CpuBackend<T>, DenseStorage<T>, T>> {
-        let input_shape = input.shape().dims();
-        assert_eq!(
-            input_shape.len(),
-            5,
-            "Input must be 5D [N, C, D_in, H_in, W_in]"
-        );
-
-        let batch_size = input_shape[0];
-        let channels = input_shape[1];
-        let input_d = input_shape[2];
-        let input_h = input_shape[3];
-        let input_w = input_shape[4];
-
-        let (output_d, output_h, output_w) = self.output_size;
-        let mut output_data =
-            Vec::with_capacity(batch_size * channels * output_d * output_h * output_w);
-        let input_data = input.as_slice();
-
-        for n in 0..batch_size {
-            for c in 0..channels {
-                for od in 0..output_d {
-                    let d_start = (od * input_d) / output_d;
-                    let d_end = ((od + 1) * input_d + output_d - 1) / output_d;
-
-                    for oh in 0..output_h {
-                        let h_start = (oh * input_h) / output_h;
-                        let h_end = ((oh + 1) * input_h + output_h - 1) / output_h;
-
-                        for ow in 0..output_w {
-                            let w_start = (ow * input_w) / output_w;
-                            let w_end = ((ow + 1) * input_w + output_w - 1) / output_w;
-
-                            let mut max_val = T::from(f64::NEG_INFINITY).unwrap();
-
-                            for id in d_start..d_end {
-                                for ih in h_start..h_end {
-                                    for iw in w_start..w_end {
-                                        let idx = (((n * channels + c) * input_d + id) * input_h
-                                            + ih)
-                                            * input_w
-                                            + iw;
-                                        let val = input_data[idx];
-                                        if val > max_val {
-                                            max_val = val;
-                                        }
-                                    }
-                                }
-                            }
-                            output_data.push(max_val);
-                        }
-                    }
-                }
-            }
-        }
-
-        Tensor::from_vec(
-            output_data,
-            &[batch_size, channels, output_d, output_h, output_w],
-        )
-        .map_err(Into::into)
+        input: &Tensor<B, S, T>,
+    ) -> Result<Tensor<B, S, T>> {
+        let output = crate::functional::ops::pooling::adaptive_max_pool3d(
+            input,
+            self.output_size,
+        )?;
+        let dense = output.to_dense_generic()?;
+        let storage = S::from_vec(dense.as_slice().to_vec(), dense.shape().dims())?;
+        Ok(Tensor::from_storage(storage, input.backend().clone()))
     }
 
-    fn parameters(&self) -> Vec<Parameter<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn parameters(&self) -> Vec<Parameter<B, S, T>> {
         Vec::new()
     }
 
@@ -112,7 +64,7 @@ impl<T: DataType + FloatExt + PartialOrd> Module<CpuBackend<T>, DenseStorage<T>,
         "AdaptiveMaxPool3d"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

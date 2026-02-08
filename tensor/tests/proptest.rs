@@ -92,7 +92,7 @@ proptest! {
     #[test]
     fn test_addition_associative((ref a, ref b) in arb_tensor_pair_same_shape()) {
         let c_data: Vec<Float32> = (0..a.len()).map(|_| Float32::new(1.5)).collect();
-        let c = Tensor::from_vec(c_data, a.shape().dims()).unwrap();
+        let c = Tensor::<_, DenseStorage<_>, _>::from_vec(c_data, a.shape().dims()).unwrap();
 
         let ab = arithmetic::add(a, b).unwrap();
         let sum1 = arithmetic::add(&ab, &c).unwrap();
@@ -130,7 +130,7 @@ proptest! {
     #[test]
     fn test_addition_identity(ref a in arb_tensor()) {
         let zero_data: Vec<Float32> = (0..a.len()).map(|_| Float32::new(0.0)).collect();
-        let zero = Tensor::from_vec(zero_data, a.shape().dims()).unwrap();
+        let zero = Tensor::<_, DenseStorage<_>, _>::from_vec(zero_data, a.shape().dims()).unwrap();
 
         let result = arithmetic::add(a, &zero).unwrap();
 
@@ -148,7 +148,7 @@ proptest! {
     #[test]
     fn test_multiplication_identity(ref a in arb_tensor()) {
         let one_data: Vec<Float32> = (0..a.len()).map(|_| Float32::new(1.0)).collect();
-        let one = Tensor::from_vec(one_data, a.shape().dims()).unwrap();
+        let one = Tensor::<_, DenseStorage<_>, _>::from_vec(one_data, a.shape().dims()).unwrap();
 
         let result = arithmetic::mul(a, &one).unwrap();
 
@@ -166,7 +166,7 @@ proptest! {
     #[test]
     fn test_multiplication_zero(ref a in arb_tensor()) {
         let zero_data: Vec<Float32> = (0..a.len()).map(|_| Float32::new(0.0)).collect();
-        let zero = Tensor::from_vec(zero_data, a.shape().dims()).unwrap();
+        let zero = Tensor::<_, DenseStorage<_>, _>::from_vec(zero_data, a.shape().dims()).unwrap();
 
         let result = arithmetic::mul(a, &zero).unwrap();
 
@@ -257,8 +257,8 @@ proptest! {
     fn test_sum_reduction(ref a in arb_tensor()) {
         let sum_result = reduction::sum(a, None, false).unwrap();
 
-        // Sum should be scalar (shape [1])
-        prop_assert_eq!(sum_result.shape().dims(), &[1]);
+        // Sum should be scalar (empty shape [])
+        prop_assert_eq!(sum_result.shape().dims(), &[]);
 
         // Manual sum verification
         let manual_sum: f32 = a.as_slice().iter().map(|x| x.get()).sum();
@@ -274,8 +274,8 @@ proptest! {
     fn test_mean_reduction(ref a in arb_tensor()) {
         let mean_result = reduction::mean(a, None, false).unwrap();
 
-        // Mean should be scalar (shape [1])
-        prop_assert_eq!(mean_result.shape().dims(), &[1]);
+        // Mean should be scalar (empty shape [])
+        prop_assert_eq!(mean_result.shape().dims(), &[]);
 
         // Manual mean verification
         let manual_sum: f32 = a.as_slice().iter().map(|x| x.get()).sum();
@@ -291,7 +291,7 @@ proptest! {
     #[test]
     fn test_scalar_broadcasting(ref a in arb_tensor()) {
         let scalar = Float32::new(3.5);
-        let scalar_t = Tensor::from_vec(vec![scalar], &[1]).unwrap();
+        let scalar_t = Tensor::<_, DenseStorage<_>, _>::from_vec(vec![scalar], &[1]).unwrap();
         let result = arithmetic::add(a, &scalar_t).unwrap();
 
         prop_assert_eq!(result.shape().dims(), a.shape().dims());
@@ -369,7 +369,7 @@ proptest! {
         let one = Float32::new(1.0);
         let recip_data: Vec<Float32> = a.as_slice().iter().copied().map(|x| one / x).collect();
         let recip =
-            Tensor::from_vec_with_backend(recip_data, a.shape().dims(), a.backend().clone())
+            Tensor::<_, DenseStorage<_>, _>::from_vec_with_backend(recip_data, a.shape().dims(), a.backend().clone())
                 .unwrap();
         let product = arithmetic::mul(a, &recip).unwrap();
 

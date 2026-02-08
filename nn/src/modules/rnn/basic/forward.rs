@@ -4,12 +4,12 @@ use super::core::{CpuTensor, TensorPair};
 use crate::core::error::Result;
 use backend::Backend;
 use dtype::{traits::FloatExt, DataType};
-use storage::{Storage, StorageFromVec};
+use storage::{Storage, StorageFromVec, StorageToDense};
 
 pub trait RNNForward<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + 'static,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
     T: DataType + FloatExt,
 {
     fn forward_layer(

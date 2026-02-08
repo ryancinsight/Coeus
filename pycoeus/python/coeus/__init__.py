@@ -25,15 +25,19 @@ import numpy as np
 try:
     from ._coeus import (
         # Core tensor operations
-        tensor_zeros, tensor_ones, tensor_randn, tensor_rand, tensor_randint,
-        tensor_zeros_like, tensor_ones_like, tensor_full_like,
-        tensor_arange, tensor_linspace, tensor_eye, tensor_full, tensor_from_data, tensor_logspace,
-        matmul, bmm, addmm,
+        zeros as tensor_zeros, ones as tensor_ones, randn as tensor_randn, rand as tensor_rand, randint as tensor_randint,
+        zeros_like as tensor_zeros_like, ones_like as tensor_ones_like, full_like as tensor_full_like,
+        arange as tensor_arange, linspace as tensor_linspace, eye as tensor_eye, full as tensor_full, from_data as tensor_from_data, logspace as tensor_logspace,
+        std as _std, var as _var,
+        matmul, bmm, addmm, addmv, addbmm, baddbmm,
         reshape, view, flatten, squeeze, unsqueeze, transpose, permute,
         # Classes
-        Tensor, Device,
         grad_enabled as _grad_enabled,
         set_grad_enabled as _set_grad_enabled,
+        set_num_threads as _set_num_threads,
+        get_num_threads as _get_num_threads,
+        manual_seed as _manual_seed,
+        cuda_is_available,
         # Functional - expanded to match PyTorch
         gelu, silu, leaky_relu, elu, relu, sigmoid, tanh,
         mse_loss, cross_entropy, nll_loss, l1_loss, smooth_l1_loss, binary_cross_entropy, bce_with_logits_loss,
@@ -42,6 +46,10 @@ try:
         conv1d, conv2d, conv_transpose2d, conv3d,
         cat as _cat, stack as _stack,
         argmax as _argmax, argmin as _argmin,
+        isnan as _isnan, isinf as _isinf, isfinite as _isfinite,
+        logical_and as _logical_and, logical_or as _logical_or, logical_xor as _logical_xor, logical_not as _logical_not,
+        atan2 as _atan2, log1p as _log1p, expm1 as _expm1, reciprocal as _reciprocal,
+        pairwise_distance as _pairwise_distance, cosine_similarity as _cosine_similarity,
         # Utils
         TensorDataset, ConcatDataset, Subset,
         # Transform factory functions
@@ -58,13 +66,21 @@ except ImportError as e:
         Tensor, Device,
         grad_enabled as _grad_enabled,
         set_grad_enabled as _set_grad_enabled,
-        tensor_zeros, tensor_ones, tensor_randn, tensor_rand, tensor_randint,
-        tensor_zeros_like, tensor_ones_like, tensor_full_like,
-        tensor_arange, tensor_linspace, tensor_eye, tensor_full, tensor_from_data, tensor_logspace,
-        matmul, bmm, addmm,
+        set_num_threads as _set_num_threads,
+        get_num_threads as _get_num_threads,
+        manual_seed as _manual_seed,
+        cuda_is_available,
+        zeros as tensor_zeros, ones as tensor_ones, randn as tensor_randn, rand as tensor_rand, randint as tensor_randint,
+        zeros_like as tensor_zeros_like, ones_like as tensor_ones_like, full_like as tensor_full_like,
+        arange as tensor_arange, linspace as tensor_linspace, eye as tensor_eye, full as tensor_full, from_data as tensor_from_data, logspace as tensor_logspace,
+        std as _std, var as _var,
+        matmul, bmm, addmm, addmv, addbmm, baddbmm,
         reshape, view, flatten, squeeze, unsqueeze, transpose, permute,
         cat as _cat, stack as _stack,
         argmax as _argmax, argmin as _argmin,
+        isnan as _isnan, isinf as _isinf, isfinite as _isfinite,
+        logical_and as _logical_and, logical_or as _logical_or, logical_xor as _logical_xor, logical_not as _logical_not,
+        atan2 as _atan2, log1p as _log1p, expm1 as _expm1, reciprocal as _reciprocal,
         TensorDataset, ConcatDataset, Subset,
         to_tensor, normalize, resize, random_apply, compose,
         FFT, IFFT, fft as _fft, ifft as _ifft, rfft as _rfft, irfft as _irfft,
@@ -125,6 +141,39 @@ def ones(*size, **kwargs):
     else:
         shape = list(size)
     return tensor_ones(shape)
+
+def randn(*size, **kwargs):
+    """Create a tensor with values from a normal distribution."""
+    if len(size) == 1 and isinstance(size[0], (tuple, list)):
+        shape = list(size[0])
+    else:
+        shape = list(size)
+    return tensor_randn(shape)
+
+def rand(*size, **kwargs):
+    """Create a tensor with values from a uniform distribution [0, 1)."""
+    if len(size) == 1 and isinstance(size[0], (tuple, list)):
+        shape = list(size[0])
+    else:
+        shape = list(size)
+    return tensor_rand(shape)
+
+def randint(low, high=None, size=None, **kwargs):
+    """Create a tensor with integers from a uniform distribution."""
+    if high is None:
+        high = low
+        low = 0
+    if size is None:
+        # If size not provided, try to infer? PyTorch syntax: randint(low, high, size) OR randint(high, size)
+        # Here we only handle if size is explicit or maybe in kwargs?
+        pass 
+    # For simplicity assuming size is passed correctly or handled by tensor_randint logic if it differs.
+    # tensor_randint signature: (low, high, shape)
+    if isinstance(size, (tuple, list)):
+        shape = list(size)
+    else:
+        shape = [size] if size is not None else []
+    return tensor_randint(low, high, shape)
 
 def empty(*size, **kwargs):
     """Create an uninitialized tensor."""
@@ -209,9 +258,24 @@ def cholesky(input): return linalg.cholesky(input)
 def qr(input): return linalg.qr(input)
 def svd(input, full_matrices=False): return linalg.svd(input, full_matrices)
 def outer(input, other): return input.outer(other)
-def addr(input, vec1, vec2): return input.addr(vec1, vec2)
+def addr(input, vec1, vec2, beta=1.0, alpha=1.0): return input.addr(vec1, vec2, beta=beta, alpha=alpha)
 def mv(input, vec): return input.mv(vec)
 def dot(input, other): return input.dot(other)
+def atan2(input, other): return _atan2(input, other)
+def log1p(input): return _log1p(input)
+def expm1(input): return _expm1(input)
+def reciprocal(input): return _reciprocal(input)
+
+# Comparison/Logical
+def isnan(input): return _isnan(input)
+def isinf(input): return _isinf(input)
+def isfinite(input): return _isfinite(input)
+def logical_and(input, other): return _logical_and(input, other)
+def logical_or(input, other): return _logical_or(input, other)
+def logical_xor(input, other): return _logical_xor(input, other)
+def logical_not(input): return _logical_not(input)
+def pairwise_distance(x1, x2, p=2.0, eps=1e-6, keepdim=False): return _pairwise_distance(x1, x2, p, eps, keepdim)
+def cosine_similarity(x1, x2, dim=1, eps=1e-8): return _cosine_similarity(x1, x2, dim, eps)
 
 # Reduction operations
 def max(input, dim=None, keepdim=False):
@@ -274,6 +338,14 @@ def nan_to_num(input, nan=0.0, posinf=None, neginf=None):
     """Replace NaN, positive infinity, and negative infinity values."""
     return input.nan_to_num(nan, posinf, neginf)
 
+def std(input, dim=None, correction=1, keepdim=False):
+    """Computes the standard deviation."""
+    return _std(input, dim, correction, keepdim)
+
+def var(input, dim=None, correction=1, keepdim=False):
+    """Computes the variance."""
+    return _var(input, dim, correction, keepdim)
+
 # Comparison operations
 def eq(input, other):
     """Element-wise equality comparison."""
@@ -329,8 +401,15 @@ def mul(input, other):
 def div(input, other):
     return input / other
 
-def true_divide(input, other):
-    return input / other
+def set_num_threads(num_threads): return _set_num_threads(num_threads)
+def get_num_threads(): return _get_num_threads()
+def manual_seed(seed): return _manual_seed(seed)
+def grad(input): return input.grad
+def is_grad_enabled(): return _grad_enabled()
+def set_grad_enabled(enabled): return _set_grad_enabled(enabled)
+
+def clone(input): return input.clone()
+def detach(input): return input.detach()
 
 class no_grad:
     """Context manager that disables gradient calculation."""
@@ -365,11 +444,15 @@ __all__ = [
     "optim",
 
     # Automatic differentiation
-    "no_grad",
+    "no_grad", "set_grad_enabled", "is_grad_enabled", "grad_enabled", "grad",
+    "detach", "clone",
+    
+    # Global settings
+    "set_num_threads", "get_num_threads", "manual_seed", "cuda_is_available",
 
     # Utility functions
     "cat", "stack",
-    "matmul", "bmm", "addmm", "mv", "dot", "addr", "outer",
+    "matmul", "bmm", "addmm", "addmv", "addbmm", "baddbmm", "mv", "dot", "addr", "outer",
     "reshape", "view", "flatten", "squeeze", "unsqueeze", "transpose", "permute",
 
     # Functional activations
@@ -399,9 +482,14 @@ __all__ = [
 
     # Exponential and logarithmic
     "exp", "exp2", "log", "log2", "log10", "sqrt", "rsqrt",
+    "std", "var",
 
     # Other math
     "sign", "clamp", "clip", "nan_to_num", "erf", "erfc", "erfinv",
+    "atan2", "log1p", "expm1", "reciprocal",
+    "isnan", "isinf", "isfinite",
+    "logical_and", "logical_or", "logical_xor", "logical_not",
+    "pairwise_distance", "cosine_similarity",
 
     # Version info
     "__version__",

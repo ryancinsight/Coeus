@@ -21,13 +21,13 @@ fn assert_tensor_close(actual: &TestTensor, expected: &[f32], tolerance: f32) {
     let actual_data = actual.as_slice();
     assert_eq!(actual_data.len(), expected.len(), "Tensor length mismatch");
     for (i, (&a, &e)) in actual_data.iter().zip(expected.iter()).enumerate() {
-        let diff = (a.get() - e).abs();
+        let diff = (a.get() as f32 - e).abs();
         assert!(
             diff < tolerance,
             "Value mismatch at index {}: expected {}, got {} (diff: {})",
             i,
             e,
-            a.get(),
+            a.get() as f32,
             diff
         );
     }
@@ -90,8 +90,8 @@ fn test_sigmoid_range() {
     let input = create_tensor(vec![-100.0, -10.0, 0.0, 10.0, 100.0], &[5]);
     let output = sigmoid(&input).unwrap();
 
-    for &val in output.as_slice() {
-        let v = val.get();
+    for val in output.as_slice() {
+        let v = val.get() as f32;
         assert!(
             v >= -1e-6 && v <= 1.0 + 1e-6,
             "Sigmoid output {} not in [0, 1] within tolerance",
@@ -118,8 +118,8 @@ fn test_tanh_range() {
     let input = create_tensor(vec![-100.0, -10.0, 0.0, 10.0, 100.0], &[5]);
     let output = tanh(&input).unwrap();
 
-    for &val in output.as_slice() {
-        let v = val.get();
+    for val in output.as_slice() {
+        let v = val.get() as f32;
         assert!(
             v >= -1.0 - 1e-6 && v <= 1.0 + 1e-6,
             "Tanh output {} not in [-1, 1] within tolerance",
@@ -135,11 +135,11 @@ fn test_gelu_basic() {
 
     // GELU should be approximately 0 for negative values and close to x for positive
     let output_data = output.as_slice();
-    assert!(output_data[0].get() < 0.0); // negative input
-    assert!(output_data[1].get() < 0.0); // negative input
-    assert!(output_data[2].get().abs() < 1e-6); // zero input
-    assert!(output_data[3].get() > 0.0); // positive input
-    assert!(output_data[4].get() > 0.0); // positive input
+    assert!(output_data[0].get() as f32 < 0.0); // negative input
+    assert!(output_data[1].get() as f32 < 0.0); // negative input
+    assert!(output_data[2].get() as f32.abs() < 1e-6); // zero input
+    assert!(output_data[3].get() as f32 > 0.0); // positive input
+    assert!(output_data[4].get() as f32 > 0.0); // positive input
 }
 
 #[test]
@@ -149,11 +149,11 @@ fn test_silu_basic() {
 
     // SiLU(x) = x * sigmoid(x)
     let output_data = output.as_slice();
-    assert!(output_data[0].get() < 0.0); // negative input
-    assert!(output_data[1].get() < 0.0); // negative input
-    assert!(output_data[2].get().abs() < 1e-6); // zero input
-    assert!(output_data[3].get() > 0.0); // positive input
-    assert!(output_data[4].get() > 0.0); // positive input
+    assert!(output_data[0].get() as f32 < 0.0); // negative input
+    assert!(output_data[1].get() as f32 < 0.0); // negative input
+    assert!(output_data[2].get() as f32.abs() < 1e-6); // zero input
+    assert!(output_data[3].get() as f32 > 0.0); // positive input
+    assert!(output_data[4].get() as f32 > 0.0); // positive input
 }
 
 #[test]
@@ -216,7 +216,7 @@ fn test_softmax_basic() {
     let output = softmax(&input).unwrap();
 
     // Softmax output should sum to 1
-    let sum: f32 = output.as_slice().iter().map(|x| x.get()).sum();
+    let sum: f32 = output.as_slice().iter().map(|x| x.get() as f32).sum();
     assert!(
         (sum - 1.0).abs() < 1e-6,
         "Softmax sum is {}, expected 1.0",
@@ -224,11 +224,11 @@ fn test_softmax_basic() {
     );
 
     // All values should be positive
-    for &val in output.as_slice() {
+    for val in output.as_slice() {
         assert!(
-            val.get() > 0.0,
+            val.get() as f32 > 0.0,
             "Softmax output {} should be positive",
-            val.get()
+            val.get() as f32
         );
     }
 }
@@ -244,8 +244,8 @@ fn test_softmax_2d() {
 
     // Each row should sum to 1
     let data = output.as_slice();
-    let row1_sum: f32 = data[0..3].iter().map(|x| x.get()).sum();
-    let row2_sum: f32 = data[3..6].iter().map(|x| x.get()).sum();
+    let row1_sum: f32 = data[0..3].iter().map(|x| x.get() as f32).sum();
+    let row2_sum: f32 = data[3..6].iter().map(|x| x.get() as f32).sum();
 
     assert!((row1_sum - 1.0).abs() < 1e-6);
     assert!((row2_sum - 1.0).abs() < 1e-6);
@@ -262,8 +262,8 @@ fn test_softmax_dim() {
 
     // Each row should sum to 1 (softmax along dim 1)
     let data = output.as_slice();
-    let row1_sum: f32 = data[0..3].iter().map(|x| x.get()).sum();
-    let row2_sum: f32 = data[3..6].iter().map(|x| x.get()).sum();
+    let row1_sum: f32 = data[0..3].iter().map(|x| x.get() as f32).sum();
+    let row2_sum: f32 = data[3..6].iter().map(|x| x.get() as f32).sum();
 
     assert!((row1_sum - 1.0).abs() < 1e-6);
     assert!((row2_sum - 1.0).abs() < 1e-6);
@@ -275,11 +275,11 @@ fn test_log_softmax_basic() {
     let output = log_softmax(&input, 0).unwrap();
 
     // Log softmax output should be negative (since softmax is in (0, 1))
-    for &val in output.as_slice() {
+    for val in output.as_slice() {
         assert!(
-            val.get() < 0.0,
+            val.get() as f32 < 0.0,
             "Log softmax output {} should be negative",
-            val.get()
+            val.get() as f32
         );
     }
 
@@ -290,8 +290,8 @@ fn test_log_softmax_basic() {
         .iter()
         .zip(softmax_output.as_slice().iter())
     {
-        let exp_log = log_val.get().exp();
-        assert!((exp_log - soft_val.get()).abs() < 1e-5);
+        let exp_log = log_val.get() as f32.exp();
+        assert!((exp_log - soft_val.get() as f32).abs() < 1e-5);
     }
 }
 
@@ -303,8 +303,8 @@ fn test_dropout_training_mode() {
     // In training mode with p=0.5, some values should be zeroed
     // and others should be scaled by 1/(1-p) = 2.0
     let output_data = output.as_slice();
-    for &val in output_data {
-        let v = val.get();
+    for val in output_data {
+        let v = val.get() as f32;
         // Value should be either 0 or scaled
         assert!(v == 0.0 || v > 0.0);
     }

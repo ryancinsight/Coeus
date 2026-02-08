@@ -18,7 +18,7 @@ type CpuTensor<T> = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
 
 impl<T> GRUForward<CpuBackend<T>, DenseStorage<T>, T> for GRU<CpuBackend<T>, DenseStorage<T>, T>
 where
-    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + std::ops::Add<Output = T>,
 {
     fn forward_layer_unidirectional(
         &self,
@@ -109,7 +109,7 @@ where
 
 impl<T> GRU<CpuBackend<T>, DenseStorage<T>, T>
 where
-    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + std::ops::Add<Output = T>,
 {
     /// Forward pass with hidden state management.
     pub fn forward_with_hidden(
@@ -309,8 +309,11 @@ where
 
 impl<T> Module<CpuBackend<T>, DenseStorage<T>, T> for GRU<CpuBackend<T>, DenseStorage<T>, T>
 where
-    T: DataType + FloatExt + std::ops::Neg<Output = T>,
+    T: DataType + FloatExt,
 {
+    type Input = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
+    type Output = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
+
     fn forward(
         &self,
         input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
@@ -351,7 +354,7 @@ where
         "GRU"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

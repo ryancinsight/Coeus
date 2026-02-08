@@ -1,0 +1,44 @@
+    Checking backend v0.2.1 (D:\coeus\backend)
+error[E0369]: binary operation `>` cannot be applied to type `T`
+  --> backend\src\cpu\activation\relu.rs:43:14
+   |
+43 |     if x_val > zero { x_val } else { zero }
+   |        ----- ^ ---- T
+   |        |
+   |        T
+   |
+help: consider further restricting type parameter `T` with trait `PartialOrd`
+  --> backend\src\cpu\arithmetic\macros.rs:43:31
+   |
+43 |             T: Copy + Default, T: std::cmp::PartialOrd
+   |                                +++++++++++++++++++++++
+
+error[E0369]: binary operation `>` cannot be applied to type `T`
+  --> backend\src\cpu\activation\relu.rs:49:14
+   |
+49 |     if x_val > zero { x_val } else { zero }
+   |        ----- ^ ---- T
+   |        |
+   |        T
+   |
+help: consider further restricting type parameter `T` with trait `PartialOrd`
+  --> backend\src\cpu\arithmetic\macros.rs:67:31
+   |
+67 |             T: Copy + Default, T: std::cmp::PartialOrd
+   |                                +++++++++++++++++++++++
+
+error[E0599]: no method named `storage_to_dense` found for reference `&StridedStorage<T>` in the current scope
+   --> backend\src\cpu\backend.rs:337:63
+    |
+337 |         super::implementations::activation::gelu_dense(&input.storage_to_dense()?) // temporary fallback until strided gelu
+    |                                                               ^^^^^^^^^^^^^^^^
+    |
+help: there is a method `to_dense` with a similar name
+    |
+337 -         super::implementations::activation::gelu_dense(&input.storage_to_dense()?) // temporary fallback until strided gelu
+337 +         super::implementations::activation::gelu_dense(&input.to_dense()?) // temporary fallback until strided gelu
+    |
+
+Some errors have detailed explanations: E0369, E0599.
+For more information about an error, try `rustc --explain E0369`.
+error: could not compile `backend` (lib) due to 3 previous errors

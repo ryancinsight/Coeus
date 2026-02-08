@@ -26,6 +26,23 @@ buffer_slice.map_async(wgpu::MapMode::Read, move |res: Result<(), wgpu::BufferAs
 });
 ```
 
+## Phase 12: Zero-Cost Dispatch Optimization
+- [x] Extend `Backend` trait with comparison operations (`eq_strided`, `eq_dense`, etc.)
+- [x] Implement comparison stubs in `StubBackend` and `GpuBackend` (for compilation)
+- [x] Implement strided comparison in `CpuBackend` (stubbed to unsupported for now, but trait satisfied)
+- [x] Fix `tensor/src/ops/comparison/mod.rs` to use `TensorStorageOps` dispatch
+- [x] Implement `TensorStorageOps` for `CsrStorage` and `CooStorage` (using fallback to dense for now)
+- [x] Update `pycoeus` comparison operations to use `to_strided()` and native dispatch instead of `to_dense_generic()`
+
+## Phase 13: Native Sparse Arithmetic & Backend Parity
+Support sparse operations directly in the backend to fulfill the "zero conversion" mandate.
+
+- [ ] Implement `csr_add_csr_kernel` in `backend/src/cpu/sparse_kernels.rs`
+- [ ] Implement `coo_add_coo_kernel` (or generic sparse add) from first principles
+- [ ] Extend `Backend` trait with CSR arithmetic operations (`add_csr`, `mul_csr`, etc.)
+- [ ] Update `CsrStorage` and `CooStorage` dispatch in `tensor` crate to use native backend ops
+- [ ] Audit `tensor/src/ops/arithmetic/mod.rs` to avoid unnecessary densification for matching storage types
+
 ### 1.2 Replace Placeholder Implementations
 
 #### Backend CPU Placeholders

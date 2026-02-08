@@ -817,4 +817,206 @@ impl<T: DataType + GpuFloat> Backend for GpuBackend<T> {
             backend: "gpu".to_string(),
         })
     }
+
+    // ================== Comparison ==================
+
+    fn eq_dense(
+        &self,
+        _lhs: &storage::DenseStorage<Self::Data>,
+        _rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "eq_dense".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn eq_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "eq_strided".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn ne_dense(
+        &self,
+        _lhs: &storage::DenseStorage<Self::Data>,
+        _rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "ne_dense".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn ne_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "ne_strided".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn gt_dense(
+        &self,
+        _lhs: &storage::DenseStorage<Self::Data>,
+        _rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: PartialOrd,
+    {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "gt_dense".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn gt_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>>
+    where
+        Self::Data: PartialOrd,
+    {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "gt_strided".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn ge_dense(
+        &self,
+        _lhs: &storage::DenseStorage<Self::Data>,
+        _rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: PartialOrd,
+    {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "ge_dense".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn ge_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>>
+    where
+        Self::Data: PartialOrd,
+    {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "ge_strided".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn lt_dense(
+        &self,
+        _lhs: &storage::DenseStorage<Self::Data>,
+        _rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: PartialOrd,
+    {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "lt_dense".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn lt_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>>
+    where
+        Self::Data: PartialOrd,
+    {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "lt_strided".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn le_dense(
+        &self,
+        _lhs: &storage::DenseStorage<Self::Data>,
+        _rhs: &storage::DenseStorage<Self::Data>,
+    ) -> Result<storage::DenseStorage<Self::Data>>
+    where
+        Self::Data: PartialOrd,
+    {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "le_dense".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn le_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>>
+    where
+        Self::Data: PartialOrd,
+    {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "le_strided".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn add_csr(
+        &self,
+        _lhs: &storage::CsrStorage<Self::Data>,
+        _rhs: &storage::CsrStorage<Self::Data>,
+    ) -> Result<storage::CsrStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "add_csr".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn mul_csr(
+        &self,
+        _lhs: &storage::CsrStorage<Self::Data>,
+        _rhs: &storage::CsrStorage<Self::Data>,
+    ) -> Result<storage::CsrStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "mul_csr".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn sub_csr(
+        &self,
+        _lhs: &storage::CsrStorage<Self::Data>,
+        _rhs: &storage::CsrStorage<Self::Data>,
+    ) -> Result<storage::CsrStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "sub_csr".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
+
+    fn div_strided(
+        &self,
+        _lhs: &storage::StridedStorage<Self::Data>,
+        _rhs: &storage::StridedStorage<Self::Data>,
+    ) -> Result<storage::StridedStorage<Self::Data>> {
+        Err(crate::BackendError::UnsupportedOperation {
+            operation: "div_strided".to_string(),
+            backend: "gpu".to_string(),
+        })
+    }
 }

@@ -5,13 +5,14 @@
 //! and is used in modern transformer architectures like GPT-NeoX, PaLM, and LLaMA.
 
 use crate::core::error::{NNError, Result};
-use crate::core::module::Module;
-use crate::core::parameter::Parameter;
+use crate::{Module, Parameter};
+
 use autograd::ops::mean;
-use backend::Backend;
+
 use dtype::DataType;
 use storage::{Storage, StorageFromVec, StorageToDense};
 use tensor::{ops::{self, arithmetic::*}, FloatExt, Tensor};
+use backend::Backend;
 
 /// RMSNorm layer
 ///
@@ -259,6 +260,9 @@ where
         + num_traits::FromPrimitive
         + 'static,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         RMSNorm::forward(self, input)
     }
@@ -271,7 +275,7 @@ where
         }
     }
 
-    fn modules(&self) -> Vec<&dyn Module<B, S, T>> {
+    fn modules(&self) -> Vec<&dyn Module<B, S, T, Input = Tensor<B, S, T>, Output = Tensor<B, S, T>>> {
         vec![]
     }
 
@@ -285,7 +289,7 @@ where
         "RMSNorm"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

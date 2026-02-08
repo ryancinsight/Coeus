@@ -6,6 +6,7 @@ pub mod loss;
 pub mod normalization;
 pub mod ops;
 pub mod pooling;
+pub mod distance;
 
 pub use activation::*;
 pub use conv::*;
@@ -15,6 +16,7 @@ pub use loss::*;
 pub use normalization::*;
 pub use ops::*;
 pub use pooling::*;
+pub use distance::*;
 
 use pyo3::prelude::*;
 
@@ -27,6 +29,8 @@ pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(activation::silu, m)?)?;
     m.add_function(wrap_pyfunction!(activation::leaky_relu, m)?)?;
     m.add_function(wrap_pyfunction!(activation::elu, m)?)?;
+    m.add_function(wrap_pyfunction!(activation::softmax, m)?)?;
+    m.add_function(wrap_pyfunction!(activation::log_softmax, m)?)?;
     m.add_function(wrap_pyfunction!(loss::mse_loss, m)?)?;
     m.add_function(wrap_pyfunction!(loss::cross_entropy, m)?)?;
     m.add_function(wrap_pyfunction!(loss::nll_loss, m)?)?;
@@ -34,7 +38,6 @@ pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(loss::smooth_l1_loss, m)?)?;
     m.add_function(wrap_pyfunction!(loss::binary_cross_entropy, m)?)?;
     m.add_function(wrap_pyfunction!(loss::bce_with_logits_loss, m)?)?;
-    m.add_function(wrap_pyfunction!(normalization::softmax, m)?)?;
     m.add_function(wrap_pyfunction!(normalization::batch_norm, m)?)?;
     m.add_function(wrap_pyfunction!(normalization::layer_norm, m)?)?;
     m.add_function(wrap_pyfunction!(pooling::max_pool2d, m)?)?;
@@ -42,8 +45,10 @@ pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::dropout, m)?)?;
     m.add_function(wrap_pyfunction!(conv::conv1d, m)?)?;
     m.add_function(wrap_pyfunction!(conv::conv2d, m)?)?;
-    m.add_function(wrap_pyfunction!(conv::conv_transpose2d, m)?)?;
     m.add_function(wrap_pyfunction!(conv::conv3d, m)?)?;
+    m.add_function(wrap_pyfunction!(conv::conv_transpose1d, m)?)?;
+    m.add_function(wrap_pyfunction!(conv::conv_transpose2d, m)?)?;
+    m.add_function(wrap_pyfunction!(conv::conv_transpose3d, m)?)?;
     m.add_function(wrap_pyfunction!(ops::matmul, m)?)?;
     m.add_function(wrap_pyfunction!(ops::bmm, m)?)?;
     m.add_function(wrap_pyfunction!(ops::addmm, m)?)?;
@@ -64,7 +69,33 @@ pub fn register(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(linalg::cholesky, m)?)?;
     m.add_function(wrap_pyfunction!(linalg::qr, m)?)?;
     m.add_function(wrap_pyfunction!(linalg::svd, m)?)?;
+    m.add_function(wrap_pyfunction!(distance::norm, m)?)?;
+    m.add_function(wrap_pyfunction!(distance::pairwise_distance, m)?)?;
+    m.add_function(wrap_pyfunction!(distance::cosine_similarity, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::gather, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::index_select, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::nonzero, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::index_add, m)?)?;
     m.add_function(wrap_pyfunction!(crate::tensor::functions::cat, m)?)?;
     m.add_function(wrap_pyfunction!(crate::tensor::functions::stack, m)?)?;
+
+    // Math/Comparison/Logical from functions.rs for functional parity
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::isnan, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::isinf, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::isfinite, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::logical_and, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::logical_or, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::logical_xor, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::logical_not, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::atan2, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::sqrt, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::rsqrt, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::erf, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::erfc, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::erfinv, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::log1p, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::expm1, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::tensor::functions::reciprocal, m)?)?;
+
     Ok(())
 }

@@ -1,7 +1,6 @@
 use backend::CpuBackend;
 use dtype::float::Float32;
 use optim::SGD as RustSGD;
-use optim::BaseOptimizer; // Need BaseOptimizer import for add_param_group on SGD?
 // Actually in mod.rs it says `optim::BaseOptimizer::add_param_group(&mut sgd, rust_params);`
 // So I just need `use optim;` or imports.
 use pyo3::prelude::*;

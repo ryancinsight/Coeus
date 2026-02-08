@@ -14,111 +14,104 @@ use dtype::DataType;
 use storage::{Storage, StorageFromVec};
 
 pub mod where_cond;
+pub mod isclose;
+pub mod allclose;
+pub mod isnan;
+pub mod isinf;
+pub mod isfinite;
 
+pub use isclose::isclose;
+pub use allclose::allclose;
+pub use where_cond::where_cond;
+pub use isnan::isnan;
+pub use isinf::isinf;
+pub use isfinite::isfinite;
+
+pub mod scalar;
+pub use scalar::*;
+
+pub mod maximum_scalar;
+pub mod minimum_scalar;
+pub use maximum_scalar::maximum_scalar;
+pub use minimum_scalar::minimum_scalar;
+
+
+use crate::ops::TensorStorageOps;
 
 /// Element-wise equality comparison
 pub fn eq<
     T: DataType + PartialEq + num_traits::One + num_traits::Zero,
     B: Backend<Data = T> + Clone + Send + Sync + Default,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + TensorStorageOps<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
     b: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
-    compare(a, b, |x, y| x == y)
+    let storage = a.storage.storage_eq(&b.storage, &a.backend)?;
+    Ok(Tensor::from_storage(storage, a.backend.clone()))
 }
 
 /// Element-wise inequality comparison
 pub fn ne<
     T: DataType + PartialEq + num_traits::One + num_traits::Zero,
     B: Backend<Data = T> + Clone + Send + Sync + Default,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + TensorStorageOps<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
     b: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
-    compare(a, b, |x, y| x != y)
+    let storage = a.storage.storage_ne(&b.storage, &a.backend)?;
+    Ok(Tensor::from_storage(storage, a.backend.clone()))
 }
 
 /// Element-wise greater than comparison
 pub fn gt<
     T: DataType + PartialOrd + num_traits::One + num_traits::Zero,
     B: Backend<Data = T> + Clone + Send + Sync + Default,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + TensorStorageOps<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
     b: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
-    compare(a, b, |x, y| x > y)
+    let storage = a.storage.storage_gt(&b.storage, &a.backend)?;
+    Ok(Tensor::from_storage(storage, a.backend.clone()))
 }
 
 /// Element-wise greater than or equal comparison
 pub fn ge<
     T: DataType + PartialOrd + num_traits::One + num_traits::Zero,
     B: Backend<Data = T> + Clone + Send + Sync + Default,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + TensorStorageOps<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
     b: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
-    compare(a, b, |x, y| x >= y)
+    let storage = a.storage.storage_ge(&b.storage, &a.backend)?;
+    Ok(Tensor::from_storage(storage, a.backend.clone()))
 }
 
 /// Element-wise less than comparison
 pub fn lt<
     T: DataType + PartialOrd + num_traits::One + num_traits::Zero,
     B: Backend<Data = T> + Clone + Send + Sync + Default,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + TensorStorageOps<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
     b: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
-    compare(a, b, |x, y| x < y)
+    let storage = a.storage.storage_lt(&b.storage, &a.backend)?;
+    Ok(Tensor::from_storage(storage, a.backend.clone()))
 }
 
 /// Element-wise less than or equal comparison
 pub fn le<
     T: DataType + PartialOrd + num_traits::One + num_traits::Zero,
     B: Backend<Data = T> + Clone + Send + Sync + Default,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
+    S: Storage<T> + Clone + Send + Sync + TensorStorageOps<T> + 'static,
 >(
     a: &Tensor<B, S, T>,
     b: &Tensor<B, S, T>,
 ) -> Result<Tensor<B, S, T>> {
-    compare(a, b, |x, y| x <= y)
-}
-
-/// Helper function for comparison operations
-/// Returns T (1 for true, 0 for false) to conform to Tensor<B, S, T>
-fn compare<
-    T: DataType + num_traits::One + num_traits::Zero,
-    B: Backend<Data = T> + Clone + Send + Sync + Default,
-    S: Storage<T> + Clone + Send + Sync + StorageFromVec<T> + 'static,
-    F: Fn(&T, &T) -> bool,
->(
-    a: &Tensor<B, S, T>,
-    b: &Tensor<B, S, T>,
-    op: F,
-) -> Result<Tensor<B, S, T>> {
-    // For now, only support same-shape tensors for simplicity
-    // Broadcasting can be added later following arithmetic.rs pattern
-    if a.shape() != b.shape() {
-        return Err(TensorError::ShapeMismatch {
-            expected: a.shape().dims().to_vec(),
-            actual: b.shape().dims().to_vec(),
-            operation: "comparison",
-        });
-    }
-
-    let data = a
-        .as_slice()
-        .iter()
-        .zip(b.as_slice())
-        .map(|(x, y)| if op(x, y) { T::one() } else { T::zero() })
-        .collect();
-
-    let result = Tensor::from_vec(data, a.shape().dims())?;
-
-    // Comparison results don't require gradients
-    Ok(result)
+    let storage = a.storage.storage_le(&b.storage, &a.backend)?;
+    Ok(Tensor::from_storage(storage, a.backend.clone()))
 }

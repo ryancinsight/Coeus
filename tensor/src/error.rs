@@ -44,6 +44,14 @@ pub enum TensorError {
 
     /// Error from backend layer
     BackendError(std::string::String),
+    
+    /// Unsupported operation by backend
+    BackendUnsupported {
+        /// Operation name
+        operation: std::string::String,
+        /// Backend name
+        backend: std::string::String,
+    },
 
     /// Unsupported operation for storage type
     UnsupportedOperation {
@@ -125,6 +133,9 @@ impl fmt::Display for TensorError {
             Self::BackendError(msg) => {
                 write!(f, "Backend error: {msg}")
             }
+            Self::BackendUnsupported { operation, backend } => {
+                write!(f, "Unsupported {operation} operation for {backend} backend")
+            }
             Self::BroadcastError {
                 lhs_shape: _,
                 rhs_shape: _,
@@ -169,9 +180,7 @@ impl From<backend::BackendError> for TensorError {
     fn from(error: backend::BackendError) -> Self {
         match error {
             backend::BackendError::UnsupportedOperation { operation, backend } => {
-                Self::BackendError(std::format!(
-                    "Unsupported {operation} operation for {backend} backend"
-                ))
+                Self::BackendUnsupported { operation, backend }
             }
             backend::BackendError::InvalidInput(msg) => {
                 Self::BackendError(std::format!("Invalid input: {msg}"))

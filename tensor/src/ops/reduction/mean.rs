@@ -16,8 +16,8 @@ pub fn mean<B, T, S>(
 ) -> Result<Tensor<B, S, T>>
 where
     B: Backend<Data = T> + Clone + Default + 'static,
-    T: DataType + 'static + FloatExt + num_traits::FromPrimitive + core::ops::Add<Output = T>,
-    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + num_traits::Float + num_traits::FromPrimitive + core::ops::Add<Output = T> + core::ops::Div<Output = T> + Clone,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + crate::ops::dispatch::TensorStorageOps<T> + Clone + 'static,
 {
     let sum_t = tensor.sum_generic(dims, keepdim)?;
 

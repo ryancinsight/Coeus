@@ -1,6 +1,10 @@
 use crate::tensor::class::{PyTensor, TensorWrapper, to_py_err};
 use pyo3::prelude::*;
 
+pub fn register(_py: Python<'_>, _m: &Bound<'_, PyModule>) -> PyResult<()> {
+    Ok(())
+}
+
 #[pymethods]
 impl PyTensor {
     pub fn matmul(&self, other: &PyTensor) -> PyResult<PyTensor> {
@@ -58,6 +62,60 @@ impl PyTensor {
          }
     }
 
+    /// Add matrix-vector multiplication: beta * self + alpha * (mat @ vec)
+    #[pyo3(signature = (mat, vec, *, beta=1.0, alpha=1.0))]
+    pub fn addmv(&self, mat: &PyTensor, vec: &PyTensor, beta: f64, alpha: f64) -> PyResult<PyTensor> {
+         match (&self.inner, &mat.inner, &vec.inner) {
+            (TensorWrapper::CpuDenseF32(input), TensorWrapper::CpuDenseF32(m), TensorWrapper::CpuDenseF32(v)) => {
+                let res = tensor::ops::addmv(input, m, v, dtype::float::Float32(beta as f32), dtype::float::Float32(alpha as f32)).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            }
+            (TensorWrapper::CpuDenseF64(input), TensorWrapper::CpuDenseF64(m), TensorWrapper::CpuDenseF64(v)) => {
+                 let res = tensor::ops::addmv(input, m, v, dtype::float::Float64(beta), dtype::float::Float64(alpha)).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            }
+             _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "addmv not implemented for this tensor type combination",
+            )),
+         }
+    }
+    
+    /// Add batch matrix multiplication: beta * self + alpha * (batch1 @ batch2)
+    #[pyo3(signature = (batch1, batch2, *, beta=1.0, alpha=1.0))]
+    pub fn baddbmm(&self, batch1: &PyTensor, batch2: &PyTensor, beta: f64, alpha: f64) -> PyResult<PyTensor> {
+         match (&self.inner, &batch1.inner, &batch2.inner) {
+            (TensorWrapper::CpuDenseF32(input), TensorWrapper::CpuDenseF32(b1), TensorWrapper::CpuDenseF32(b2)) => {
+                let res = tensor::ops::baddbmm(input, b1, b2, dtype::float::Float32(beta as f32), dtype::float::Float32(alpha as f32)).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            }
+            (TensorWrapper::CpuDenseF64(input), TensorWrapper::CpuDenseF64(b1), TensorWrapper::CpuDenseF64(b2)) => {
+                 let res = tensor::ops::baddbmm(input, b1, b2, dtype::float::Float64(beta), dtype::float::Float64(alpha)).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            }
+             _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "baddbmm not implemented for this tensor type combination",
+            )),
+         }
+    }
+
+    /// Add batch matrix multiplication (summed): beta * self + alpha * (batch1 @ batch2).sum(0)
+    #[pyo3(signature = (batch1, batch2, *, beta=1.0, alpha=1.0))]
+    pub fn addbmm(&self, batch1: &PyTensor, batch2: &PyTensor, beta: f64, alpha: f64) -> PyResult<PyTensor> {
+         match (&self.inner, &batch1.inner, &batch2.inner) {
+            (TensorWrapper::CpuDenseF32(input), TensorWrapper::CpuDenseF32(b1), TensorWrapper::CpuDenseF32(b2)) => {
+                let res = tensor::ops::addbmm(input, b1, b2, dtype::float::Float32(beta as f32), dtype::float::Float32(alpha as f32)).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
+            }
+            (TensorWrapper::CpuDenseF64(input), TensorWrapper::CpuDenseF64(b1), TensorWrapper::CpuDenseF64(b2)) => {
+                 let res = tensor::ops::addbmm(input, b1, b2, dtype::float::Float64(beta), dtype::float::Float64(alpha)).map_err(to_py_err)?;
+                Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
+            }
+             _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+                "addbmm not implemented for this tensor type combination",
+            )),
+         }
+    }
+
     /// Matrix-vector multiplication
     pub fn mv(&self, vec: &PyTensor) -> PyResult<PyTensor> {
         match (&self.inner, &vec.inner) {
@@ -75,62 +133,39 @@ impl PyTensor {
         }
     }
 
-    /// Outer product of vectors
-    pub fn addr(&self, vec1: &PyTensor, vec2: &PyTensor) -> PyResult<PyTensor> {
-        // Note: addr usually performs beta * self + alpha * (vec1 @ vec2)
-        // But my tensor::ops::addr implementation is JUST vec1 @ vec2.
-        // Wait, PyTorch `addr` is `input + vec1 @ vec2`.
-        // `torch.ger` or `torch.outer` is just outer product.
-        // My implementation in `tensor` was just `vec1 @ vec2` (outer product).
-        // If I want full `addr` behavior (add + outer), I need to update `tensor` or implement logic here.
-        // The task said "Implement `addr` (outer product)".
-        // So I will implement it as `outer`.
-        // BUT PyTorch `addr` has `beta`, `alpha`.
-        // If the user meant `torch.outer`, then `addr` name in `tensor` is fine.
-        // If they meant `torch.addr`, then it should be `add_outer`?
-        // Let's bind it as `outer` in Python if it is pure outer product.
-        // But if I name it `addr`, users imply `torch.addr`.
-        // User asked for "Implement `addr` (outer product)". I'll stick to that description.
-        // I will bind it as `addr` but note it currently just does outer product? 
-        // Or better: bind as `outer` AND `addr` (ignoring self? No that's confusing).
-        // Let's check my `addr.rs` implementation: just `matmul`.
-        // So it is `outer`.
-        // I'll bind as `outer` primarily, and maybe `addr` but `addr` usually takes `input`.
-        
+    /// Outer product of vectors: vec1 @ vec2^T
+    /// If input is provided, behaves like addr: beta * input + alpha * (vec1 @ vec2)
+    /// NOTE: To match PyTorch structure where `addr` is a method on input, we use this signature.
+    /// self is input.
+    #[pyo3(signature = (vec1, vec2, *, beta=1.0, alpha=1.0))]
+    pub fn addr(&self, vec1: &PyTensor, vec2: &PyTensor, beta: f64, alpha: f64) -> PyResult<PyTensor> {
         match (&self.inner, &vec1.inner, &vec2.inner) {
-             (TensorWrapper::CpuDenseF32(_), TensorWrapper::CpuDenseF32(v1), TensorWrapper::CpuDenseF32(v2)) => {
-                 // Ignoring self for now, just outer product
-                 let res = tensor::ops::addr(v1, v2).map_err(to_py_err)?;
+             (TensorWrapper::CpuDenseF32(input), TensorWrapper::CpuDenseF32(v1), TensorWrapper::CpuDenseF32(v2)) => {
+                 let res = tensor::ops::addr(input, v1, v2, dtype::float::Float32(beta as f32), dtype::float::Float32(alpha as f32)).map_err(to_py_err)?;
                  Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
              }
-             (TensorWrapper::CpuDenseF64(_), TensorWrapper::CpuDenseF64(v1), TensorWrapper::CpuDenseF64(v2)) => {
-                 let res = tensor::ops::addr(v1, v2).map_err(to_py_err)?;
+             (TensorWrapper::CpuDenseF64(input), TensorWrapper::CpuDenseF64(v1), TensorWrapper::CpuDenseF64(v2)) => {
+                 let res = tensor::ops::addr(input, v1, v2, dtype::float::Float64(beta), dtype::float::Float64(alpha)).map_err(to_py_err)?;
                  Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
              }
-              (TensorWrapper::CpuDenseF32(_), _, _) | (TensorWrapper::CpuDenseF64(_), _, _) => {
-                  // For addr, we need to handle self if we follow torch spec.
-                  // But pure outer doesn't use self.
-                  // I'll implementation `outer` behavior for now.
-                   Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-                "addr (outer) not implemented for this tensor type combination",
-            ))
-              }
-               _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
+             _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
                 "addr not implemented for this tensor type combination",
             )),
         }
     }
     
+    /// Pure outer product: vec1 @ vec2^T (no input, no beta/alpha)
+    /// PyTorch has torch.outer(vec1, vec2)
     pub fn outer(&self, vec2: &PyTensor) -> PyResult<PyTensor> {
          // self is vec1
          // vec2 is vec2
           match (&self.inner, &vec2.inner) {
              (TensorWrapper::CpuDenseF32(v1), TensorWrapper::CpuDenseF32(v2)) => {
-                 let res = tensor::ops::addr(v1, v2).map_err(to_py_err)?;
+                 let res = tensor::ops::outer(v1, v2).map_err(to_py_err)?;
                  Ok(PyTensor { inner: TensorWrapper::CpuDenseF32(res) })
              }
              (TensorWrapper::CpuDenseF64(v1), TensorWrapper::CpuDenseF64(v2)) => {
-                 let res = tensor::ops::addr(v1, v2).map_err(to_py_err)?;
+                 let res = tensor::ops::outer(v1, v2).map_err(to_py_err)?;
                  Ok(PyTensor { inner: TensorWrapper::CpuDenseF64(res) })
              }
               _ => Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(

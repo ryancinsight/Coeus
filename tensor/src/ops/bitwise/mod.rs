@@ -15,3 +15,5 @@ pub use bitwise_not::bitwise_not;
 pub use bitwise_or::bitwise_or;
 pub use bitwise_right_shift::bitwise_right_shift;
 pub use bitwise_xor::bitwise_xor;
+pub mod logical;
+pub use logical::{logical_and, logical_or, logical_xor, logical_not};

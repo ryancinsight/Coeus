@@ -36,6 +36,9 @@ impl Default for Dropout {
 }
 
 impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropout {
+    type Input = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
+    type Output = Tensor<CpuBackend<T>, DenseStorage<T>, T>;
+
     fn forward(
         &self,
         input: &Tensor<CpuBackend<T>, DenseStorage<T>, T>,
@@ -43,20 +46,17 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropo
         if !self.training || self.p == 0.0 {
             return Ok(input.clone());
         }
-        let scale = T::from(1.0 / (1.0 - self.p)).unwrap();
-        let keep_prob = 1.0 - self.p;
 
-        let output_data: Vec<T> = input
-            .as_slice()
-            .iter()
-            .map(|&x| {
-                if rand::random::<f64>() < keep_prob {
-                    x * scale
-                } else {
-                    T::zero()
-                }
-            })
-            .collect();
+        let mut output_data = input.as_slice().to_vec();
+        let scale = 1.0 / (1.0 - self.p);
+
+        for val in output_data.iter_mut() {
+            if rand::random::<f64>() < self.p {
+                *val = T::zero();
+            } else {
+                *val = *val * T::from(scale).unwrap();
+            }
+        }
 
         Ok(Tensor::from_vec(output_data, input.shape().dims())?)
     }
@@ -71,7 +71,8 @@ impl<T: DataType + FloatExt> Module<CpuBackend<T>, DenseStorage<T>, T> for Dropo
     fn name(&self) -> &str {
         "Dropout"
     }
-    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T>> {
+
+    fn clone_box(&self) -> Box<dyn Module<CpuBackend<T>, DenseStorage<T>, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

@@ -5,16 +5,17 @@
 use std::fmt;
 
 use backend::Backend;
-use dtype::DataType;
+use dtype::{traits::FloatExt, DataType};
 use storage::{Storage, StorageFromVec, StorageToDense};
+use tensor::ops::TensorStorageOps;
 
 use super::core::GRU;
 
 impl<B, S, T> fmt::Display for GRU<B, S, T>
 where
-    B: Backend<Data = T>,
-    S: Storage<T> + Clone + StorageFromVec<T>,
-    T: DataType + std::cmp::PartialOrd,
+    B: Backend<Data = T> + Clone + Default,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -33,8 +34,8 @@ where
 impl<B, S, T> fmt::Display for super::cell::GRUCell<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType + std::cmp::PartialOrd,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + TensorStorageOps<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

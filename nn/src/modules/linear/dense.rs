@@ -329,6 +329,9 @@ where
     S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
     T: DataType + FloatExt + num_traits::Zero + num_traits::One,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // Linear transformation: output = input @ weight.T + bias
         // Shapes: input [..., in_features], weight [out_features, in_features], bias [out_features]
@@ -442,7 +445,7 @@ where
         "Linear"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

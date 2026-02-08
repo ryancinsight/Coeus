@@ -18,8 +18,8 @@ use crate::core::parameter::Parameter;
 pub struct GRUCell<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static,
-    T: DataType,
+    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
     /// Input-to-hidden weights [3 * hidden_size, input_size]
     pub weight_ih: Parameter<B, S, T>,
@@ -177,9 +177,12 @@ where
 impl<B, S, T> Module<B, S, T> for GRUCell<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + 'static + tensor::ops::TensorStorageOps<T>,
+    S: Storage<T> + StorageFromVec<T> + StorageToDense<T> + Clone + 'static + tensor::ops::TensorStorageOps<T>,
     T: DataType + FloatExt + std::ops::Neg<Output = T>,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         // For a single cell, we assume input is [batch_size, input_size]
         // and hidden state is zeros if not provided. This matches PyTorch GRUCell.
@@ -217,7 +220,7 @@ where
         }
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }

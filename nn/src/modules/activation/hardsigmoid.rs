@@ -44,10 +44,9 @@ where
 
 impl<B, S, T> Activation<B, S, T> for Hardsigmoid<B, S, T>
 where
-    B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::FromPrimitive,
+    B: Backend<Data = T> + Clone + Default + Send + Sync + 'static,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::FromPrimitive,
 {
     fn forward(&self, x: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         let three = Tensor::<B, S, T>::full_like(x, T::from_f64(3.0).unwrap())?;
@@ -70,10 +69,12 @@ where
 impl<B, S, T> Module<B, S, T> for Hardsigmoid<B, S, T>
 where
     B: Backend<Data = T> + Clone + Default,
-    S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static,
-    T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::FromPrimitive,
     S: Storage<T> + Clone + StorageFromVec<T> + StorageToDense<T> + Send + Sync + 'static + tensor::ops::dispatch::TensorStorageOps<T>,
+    T: DataType + FloatExt + std::ops::Neg<Output = T> + num_traits::FromPrimitive,
 {
+    type Input = Tensor<B, S, T>;
+    type Output = Tensor<B, S, T>;
+
     fn forward(&self, input: &Tensor<B, S, T>) -> Result<Tensor<B, S, T>> {
         <Self as Activation<B, S, T>>::forward(self, input)
     }
@@ -86,7 +87,7 @@ where
         "Hardsigmoid"
     }
 
-    fn clone_box(&self) -> Box<dyn Module<B, S, T>> {
+    fn clone_box(&self) -> Box<dyn Module<B, S, T, Input = Self::Input, Output = Self::Output>> {
         Box::new(self.clone())
     }
 }
