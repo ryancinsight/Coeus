@@ -1,5 +1,31 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-55: hermes SIMD-effect SSOT Integration [IN PROGRESS] [minor]
+
+`hermes-simd` (git remote, tracks `main`) is now the SIMD-effect SSOT consumed by
+coeus. The NN-level tensor ops (softmax, layer_norm, attention, matmul, norm) were
+removed from hermes upstream; coeus owns those.
+
+### Completed:
+- Added `hermes-simd` as a workspace git dependency (latest `main`; advance with
+  `cargo update -p hermes-simd`) and to `coeus-core`.
+- Added `Scalar::mul_slice` seam (scalar default; `f32`/`f64` override →
+  `hermes_simd::elementwise_mul`). `coeus-ops` `BinaryKernelOp::apply_contiguous`
+  routes the contiguous elementwise product through it; the fast path is chunked
+  under `parallel_for` to preserve Moirai threading.
+- Differential verification: `coeus-ops/tests/binary_simd_diff.rs` asserts
+  bitwise equality vs a scalar reference for Add/Sub/Mul/Div on f32/f64, across
+  sizes spanning the 8192 chunk boundary, on Sequential and Moirai backends.
+
+### Remaining (follow-on migration):
+- Route reductions (`sum`/`min`/`max`) through hermes `SimdOps` (note: reductions
+  reassociate — use epsilon, not bitwise, differential bounds).
+- Route dot / scalar-`scale` and tiled GEMM through hermes (`dot`, `scale`,
+  `tile_matmul::gemm`); elementwise Add/Sub/Div await hermes free-fn exposure.
+- Tune the contiguous CHUNK (currently 8192) against Criterion benchmarks.
+
+---
+
 ## Sprint MS-54: CPU Workspace Stabilization & Zero-Copy Optimization [COMPLETED - 100% MISSION ACCOMPLISHED]
 
 ### Completed Action Items:

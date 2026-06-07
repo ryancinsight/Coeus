@@ -63,6 +63,21 @@ pub trait Scalar:
 
     /// Calculate absolute value of the value natively.
     fn abs_val(self) -> Self;
+
+    /// Elementwise multiply `a * b` into `out` over equal-length contiguous slices.
+    ///
+    /// This is the per-type seam onto the SIMD-effect SSOT (`hermes-simd`): the
+    /// default is a scalar loop; reduced/extended precision and integer types use
+    /// it unchanged, while `f32`/`f64` override it to delegate to
+    /// `hermes_simd::elementwise_mul`. Elementwise multiplication is independent
+    /// per lane, so the SIMD result is bitwise-identical to the scalar default;
+    /// no reassociation occurs. `out`, `a`, and `b` must have equal length.
+    #[inline]
+    fn mul_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
+        for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
+            *o = x * y;
+        }
+    }
 }
 
 /// Floating-point extension trait.

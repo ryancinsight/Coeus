@@ -18,6 +18,16 @@ macro_rules! impl_scalar_float_native {
             fn sqrt_val(self) -> Self { self.sqrt() }
             #[inline(always)]
             fn abs_val(self) -> Self { self.abs() }
+            #[inline]
+            fn mul_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
+                // Delegate to the SIMD-effect SSOT. Lengths are equal by the
+                // caller's contract; on a length mismatch fall back to scalar.
+                if hermes_simd::elementwise_mul::<$t>(a, b, out).is_err() {
+                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
+                        *o = x * y;
+                    }
+                }
+            }
         }
         impl FloatOps for $t {
             #[inline(always)] fn exp_op(self) -> Self { self.exp() }

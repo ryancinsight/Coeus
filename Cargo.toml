@@ -26,6 +26,8 @@ license = "MIT OR Apache-2.0"
 moirai     = { git = "https://github.com/ryancinsight/Moirai.git" }
 mnemosyne  = { git = "https://github.com/ryancinsight/Mnemosyne.git" }
 apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", package = "apollo-fft" }
+# SIMD-effect SSOT. Tracks hermes `main`; advance with `cargo update -p hermes-simd`.
+hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", package = "hermes-simd" }
 
 # ── Numerical ──
 num-traits = "0.2"

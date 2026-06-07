@@ -7,6 +7,17 @@ use crate::backend_ops::{compute_broadcast_offsets, compute_unary_offset};
 
 pub trait BinaryKernelOp<T: Scalar> {
     fn apply(x: T, y: T) -> T;
+
+    /// Apply this op over equal-length contiguous slices `a`, `b` → `out`.
+    ///
+    /// The default reproduces `apply` element-by-element; ops that have a
+    /// vectorized SSOT path (e.g. `MulOp` → `hermes-simd`) override this.
+    #[inline]
+    fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) {
+        for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
+            *o = Self::apply(x, y);
+        }
+    }
 }
 
 pub struct AddOp;
@@ -25,6 +36,12 @@ pub struct MulOp;
 impl<T: Scalar> BinaryKernelOp<T> for MulOp {
     #[inline(always)]
     fn apply(x: T, y: T) -> T { x * y }
+
+    #[inline]
+    fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) {
+        // Route the contiguous elementwise product through the SIMD-effect SSOT.
+        T::mul_slice(a, b, out);
+    }
 }
 
 pub struct DivOp;
@@ -304,14 +321,28 @@ fn run_binary_op<T: Scalar, B: Backend, O: BinaryKernelOp<T>>(
         && b_layout.is_contiguous()
         && c_layout.is_contiguous()
     {
-        // Contiguous fast path: monomorphized static loop
-        let a_off = a_layout.offset();
-        let b_off = b_layout.offset();
-        let c_off = c_layout.offset();
-        backend.parallel_for(0, out_numel, move |i| unsafe {
-            // SAFETY: The raw pointers point to valid contiguous device memory buffers of size out_numel.
-            // Loop index i is in [0, out_numel), which is within safe bounds.
-            c_ptr.write(c_off + i, O::apply(a_ptr.read(a_off + i), b_ptr.read(b_off + i)));
+        // Contiguous fast path: process disjoint chunks in parallel, each chunk
+        // dispatched to the op's contiguous kernel (`MulOp` → hermes SIMD SSOT,
+        // others → scalar). Chunking preserves moirai multithreading while
+        // letting each chunk vectorize over a flat sub-slice.
+        const CHUNK: usize = 8192;
+        let n_chunks = out_numel.div_ceil(CHUNK);
+        backend.parallel_for(0, n_chunks, move |chunk| {
+            // Capture the Send+Sync pointer wrappers whole (disjoint-capture would
+            // otherwise grab the inner raw pointers, which are neither Send nor Sync).
+            let (ap, bp, cp) = (a_ptr, b_ptr, c_ptr);
+            let base = chunk * CHUNK;
+            let len = core::cmp::min(CHUNK, out_numel - base);
+            // SAFETY: a/b/c are contiguous buffers with at least out_numel elements
+            // past their offsets. [base, base+len) ⊆ [0, out_numel), so all three
+            // sub-slices are in bounds. Chunks partition [0, out_numel) into disjoint
+            // ranges, so each `c_sub` is a unique, non-aliasing mutable view.
+            unsafe {
+                let a_sub = core::slice::from_raw_parts(ap.0.add(a_off + base), len);
+                let b_sub = core::slice::from_raw_parts(bp.0.add(b_off + base), len);
+                let c_sub = core::slice::from_raw_parts_mut(cp.0.add(c_off + base), len);
+                O::apply_contiguous(a_sub, b_sub, c_sub);
+            }
         });
         return;
     }
