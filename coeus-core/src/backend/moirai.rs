@@ -74,11 +74,13 @@ impl Backend for MoiraiBackend {
         if len == 0 {
             return;
         }
-        // Dispatch to Moirai global runtime
-        moirai::global()
-            .for_each_indexed(len, move |i| {
-                f(start + i);
-            })
-            .expect("Moirai parallel_for dispatch failed");
+        // Dispatch through moirai's data-parallel surface. `Adaptive` runs the
+        // SyncTask (CPU-compute) work class and auto-routes sequential below the
+        // adaptive threshold, parallel above it — the work-stealing path that
+        // beats rayon. (The umbrella `for_each_indexed` uses BlockingTask, which
+        // targets I/O-bound work, not compute.)
+        moirai::for_each_index_with::<moirai::Adaptive, _>(len, move |i| {
+            f(start + i);
+        });
     }
 }

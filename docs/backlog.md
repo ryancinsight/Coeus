@@ -1,5 +1,36 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-56: moirai parallelization/async SSOT hardening [minor]
+
+Architectural goal: **moirai = SSOT for parallelization (MIMD) + async**;
+**hermes = SSOT for SIMD**. The two are orthogonal (MIMD across cores vs SIMD
+within a core) and neither depends on the other — coeus composes them
+(`parallel_for` fans out across cores via moirai; each chunk runs hermes SIMD).
+
+### Completed:
+- **moirai no longer imposes a global allocator on coeus.** Was depending on
+  moirai with default features (`async,iter,parallel,local,mnemosyne`), which
+  activates moirai's `#[cfg(feature="mnemosyne")] #[global_allocator]`. Now
+  `default-features = false, features = ["parallel"]`. coeus still allocates
+  explicitly via `mnemosyne::Mnemosyne` in `coeus-core::storage`; a global
+  allocator (if wanted) is the binary/python crate's explicit choice, not moirai's.
+- **`parallel_for` uses moirai's CPU-compute path.** Switched from the umbrella
+  `moirai::global().for_each_indexed` (BlockingTask, I/O class) to
+  `moirai::for_each_index_with::<Adaptive>` (SyncTask, work-stealing; the path
+  that beats rayon, auto-routing seq/parallel at the adaptive threshold).
+- coeus declares no ndarray `rayon` feature (uses no ndarray parallel iterators).
+- Verified: full CPU suite + MoiraiBackend parity/proptests green; clippy clean.
+
+### Audit findings / tracked follow-on (cross-contamination still present):
+- **apollo-fft uses ndarray's internal rayon** (`Zip::par_for_each`) — pulls rayon
+  into every FFT consumer's tree via feature unification. Eliminating it requires
+  migrating apollo's ndarray-par sites to moirai (apollo-scoped, ~separate effort).
+- **coeus-wgpu `pollster::block_on`** drives one-time wgpu context init outside
+  moirai. Route through moirai-async `block_on` for async SSOT (needs a wgpu build
+  env to verify).
+- **coeus-dist** uses raw `std::thread`/std TCP rather than moirai-transport/async.
+
+---
 ## Sprint MS-55: hermes SIMD-effect SSOT Integration [minor]
 
 `hermes-simd` (git remote, tracks `main`) is the SIMD-effect SSOT consumed by

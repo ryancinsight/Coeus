@@ -23,7 +23,10 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 # ── Remote System Dependencies ──
-moirai     = { git = "https://github.com/ryancinsight/Moirai.git" }
+# Parallelization/async SSOT. default-features=false so moirai does NOT impose its
+# own mnemosyne #[global_allocator] on coeus (coeus allocates explicitly via
+# mnemosyne in coeus-core::storage); we consume only the data-parallel surface.
+moirai     = { git = "https://github.com/ryancinsight/Moirai.git", default-features = false, features = ["parallel"] }
 mnemosyne  = { git = "https://github.com/ryancinsight/Mnemosyne.git" }
 apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", package = "apollo-fft" }
 # SIMD-effect SSOT. Tracks hermes `main`; advance with `cargo update -p hermes-simd`.
@@ -33,7 +36,11 @@ hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", package = "h
 num-traits = "0.2"
 bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
 half       = { version = "2.7", features = ["num-traits", "bytemuck"] }
-ndarray    = { version = "0.16", features = ["rayon"] }
+# No "rayon" feature: coeus uses moirai as its data-parallel runtime and calls no
+# ndarray parallel iterators. (rayon may still enter the build tree transitively
+# via apollo-fft, which uses ndarray's parallel `Zip`; eliminating that requires
+# migrating apollo's ndarray-par sites to moirai — tracked, out of scope here.)
+ndarray    = { version = "0.16" }
 smallvec   = "1.13"
 wgpu       = "23.0"
 pollster   = "0.3"
