@@ -1,0 +1,14 @@
+[package]
+name = "coeus-autograd"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+coeus-core   = { workspace = true }
+coeus-tensor = { workspace = true }
+coeus-ops    = { workspace = true }
+coeus-sparse = { workspace = true }
+smallvec     = { workspace = true }
+thiserror    = { workspace = true }

@@ -1,0 +1,181 @@
+use coeus_tensor::{Tensor, Transpose};
+use coeus_autograd::Var;
+use coeus_nn::{
+    elu, ELU,
+    softplus, Softplus,
+    gelu_tanh, GeLUTanh,
+    leaky_relu, LeakyReLU,
+    Module,
+};
+use coeus_core::MoiraiBackend;
+
+#[test]
+fn test_elu_activation() {
+    let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
+    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data), true);
+
+    // Test Functional
+    let output = elu(&input);
+    assert_eq!(output.tensor.shape(), &[5]);
+    let out_slice = output.tensor.as_slice();
+
+    // ELU forward: x >= 0 ? x : exp(x) - 1
+    for (i, &x) in input_data.iter().enumerate() {
+        let expected = if x >= 0.0 { x } else { x.exp() - 1.0 };
+        assert!((out_slice[i] - expected).abs() < 1e-7);
+    }
+
+    // Backward pass
+    output.backward();
+    assert!(input.grad().is_some());
+    let grad_slice = input.grad().unwrap().as_slice().to_vec();
+
+    // ELU derivative: x >= 0 ? 1 : exp(x)
+    for (i, &x) in input_data.iter().enumerate() {
+        let expected_grad = if x >= 0.0 { 1.0 } else { x.exp() };
+        assert!((grad_slice[i] - expected_grad).abs() < 1e-7);
+    }
+
+    // Test Module
+    let input_mod = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]), true);
+    let elu_mod = ELU;
+    let output_mod = elu_mod.forward(&input_mod);
+    assert_eq!(output_mod.tensor.shape(), &[2, 2]);
+    assert_eq!(Module::<f64, MoiraiBackend>::parameters(&elu_mod).len(), 0);
+}
+
+#[test]
+fn test_softplus_activation() {
+    let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
+    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data), true);
+
+    // Test Functional
+    let output = softplus(&input);
+    assert_eq!(output.tensor.shape(), &[5]);
+    let out_slice = output.tensor.as_slice();
+
+    // Softplus forward: log(1 + exp(x))
+    for (i, &x) in input_data.iter().enumerate() {
+        let expected = (1.0 + x.exp()).ln();
+        assert!((out_slice[i] - expected).abs() < 1e-7);
+    }
+
+    // Backward pass
+    output.backward();
+    assert!(input.grad().is_some());
+    let grad_slice = input.grad().unwrap().as_slice().to_vec();
+
+    // Softplus derivative: sigmoid(x) = 1 / (1 + exp(-x))
+    for (i, &x) in input_data.iter().enumerate() {
+        let expected_grad = 1.0 / (1.0 + (-x).exp());
+        assert!((grad_slice[i] - expected_grad).abs() < 1e-7);
+    }
+
+    // Test Module
+    let input_mod = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]), true);
+    let softplus_mod = Softplus;
+    let output_mod = softplus_mod.forward(&input_mod);
+    assert_eq!(output_mod.tensor.shape(), &[2, 2]);
+    assert_eq!(Module::<f64, MoiraiBackend>::parameters(&softplus_mod).len(), 0);
+}
+
+#[test]
+fn test_gelu_tanh_activation() {
+    let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
+    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data), true);
+
+    // Test Functional
+    let output = gelu_tanh(&input);
+    assert_eq!(output.tensor.shape(), &[5]);
+    let out_slice = output.tensor.as_slice();
+
+    // GELU Tanh forward: 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
+    let c1 = 0.7978845608; // sqrt(2/pi)
+    let c2 = 0.044715;
+    for (i, &x) in input_data.iter().enumerate() {
+        let v = c1 * (x + c2 * x * x * x);
+        let expected = 0.5 * x * (1.0 + v.tanh());
+        assert!((out_slice[i] - expected).abs() < 1e-7);
+    }
+
+    // Backward pass
+    output.backward();
+    assert!(input.grad().is_some());
+    let grad_slice = input.grad().unwrap().as_slice().to_vec();
+
+    // GELU Tanh derivative:
+    let c3 = 3.0 * c2;
+    for (i, &x) in input_data.iter().enumerate() {
+        let v = c1 * (x + c2 * x * x * x);
+        let t = v.tanh();
+        let dt = c1 * (1.0 + c3 * x * x);
+        let expected_grad = 0.5 * (1.0 + t) + 0.5 * x * (1.0 - t * t) * dt;
+        assert!((grad_slice[i] - expected_grad).abs() < 1e-7);
+    }
+
+    // Test Module
+    let input_mod = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]), true);
+    let gelu_tanh_mod = GeLUTanh;
+    let output_mod = gelu_tanh_mod.forward(&input_mod);
+    assert_eq!(output_mod.tensor.shape(), &[2, 2]);
+    assert_eq!(Module::<f64, MoiraiBackend>::parameters(&gelu_tanh_mod).len(), 0);
+}
+
+#[test]
+fn test_leaky_relu_activation() {
+    let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
+    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data), true);
+    let slope = 0.1;
+
+    // Test Functional
+    let output = leaky_relu(&input, slope);
+    assert_eq!(output.tensor.shape(), &[5]);
+    let out_slice = output.tensor.as_slice();
+
+    // LeakyReLU forward: x >= 0 ? x : slope * x
+    for (i, &x) in input_data.iter().enumerate() {
+        let expected = if x >= 0.0 { x } else { slope * x };
+        assert!((out_slice[i] - expected).abs() < 1e-7);
+    }
+
+    // Backward pass
+    output.backward();
+    assert!(input.grad().is_some());
+    let grad_slice = input.grad().unwrap().as_slice().to_vec();
+
+    // LeakyReLU derivative: x >= 0 ? 1 : slope
+    for (i, &x) in input_data.iter().enumerate() {
+        let expected_grad = if x >= 0.0 { 1.0 } else { slope };
+        assert!((grad_slice[i] - expected_grad).abs() < 1e-7);
+    }
+
+    // Test Module
+    let input_mod = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]), true);
+    let leaky_mod = LeakyReLU::new(0.05);
+    let output_mod = leaky_mod.forward(&input_mod);
+    assert_eq!(output_mod.tensor.shape(), &[2, 2]);
+    assert_eq!(Module::<f64, MoiraiBackend>::parameters(&leaky_mod).len(), 0);
+}
+
+#[test]
+fn test_non_contiguous_activations() {
+    let input_raw = Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[
+        -2.0f64, -1.0, 0.0,
+        1.0, 2.0, 3.0,
+    ]);
+    let input_t = input_raw.transpose(); // shape [3, 2], non-contiguous
+    let input = Var::new(input_t, true);
+
+    // Test ELU on transposed view
+    let output_elu = elu(&input);
+    assert_eq!(output_elu.tensor.shape(), &[3, 2]);
+    output_elu.backward();
+    assert!(input.grad().is_some());
+
+    // Reset gradient for next test
+    let input2 = Var::new(input_raw.transpose(), true);
+    let output_leaky = leaky_relu(&input2, 0.2);
+    assert_eq!(output_leaky.tensor.shape(), &[3, 2]);
+    output_leaky.backward();
+    assert!(input2.grad().is_some());
+}

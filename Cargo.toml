@@ -1,227 +1,53 @@
-# Coeus Workspace Configuration
-
 [workspace]
+resolver = "2"
+
 members = [
-    "autograd",
-    "backend",
-    "coeus-error",
-    "dtype",
-    "storage",
-    "dense", # New dense crate for dense tensor operations
-    "tensor",
-    "nn",
-    "optim",
-    "distributed",
-    "distributions",
-    "foundation",
-    "audio",
-    "jit",
-    "profiling",
-    "pycoeus",
-    "tokenizer",
-    "utils",
-    "hub",
-    "coeus-semantic-api", # New crate for semantic search REST API
-    "fft",
-    "linalg",
-    "sparse",
-    "signal",
-    "special",
-    "vision",
-    "quantization", # New quantization crate
-    "xtask",
+    "coeus-core",
+    "coeus-tensor",
+    "coeus-ops",
+    "coeus-autograd",
+    "coeus-nn",
+    "coeus-optim",
+    "coeus-python",
+    "coeus-sparse",
+    "coeus-wgpu",
+    "coeus-cuda",
+    "coeus-dist",
 ]
 
 [workspace.package]
-version = "0.2.1"
+version = "0.1.0"
 edition = "2021"
-rust-version = "1.70"
 authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
-repository = "https://github.com/ryancinsight/Coeus"
-homepage = "https://github.com/ryancinsight/Coeus"
-documentation = "https://docs.rs/coeus/latest"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-# Core numeric traits and utilities
+# ── Remote System Dependencies ──
+moirai     = { git = "https://github.com/ryancinsight/Moirai.git" }
+mnemosyne  = { git = "https://github.com/ryancinsight/Mnemosyne.git" }
+apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", package = "apollo-fft" }
+
+# ── Numerical ──
 num-traits = "0.2"
-libm = "0.2"
-half = { version = "2.1", features = ["num-traits", "serde"] }
-num-complex = "0.4"
+bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
+half       = { version = "2.7", features = ["num-traits", "bytemuck"] }
+ndarray    = { version = "0.16", features = ["rayon"] }
+smallvec   = "1.13"
+wgpu       = "23.0"
+pollster   = "0.3"
 
-# Statistical computing
-statrs = "0.16"
+# ── Error ──
+thiserror = "2"
 
-# Error handling
-thiserror = "1.0"
-anyhow = "1.0"
+# ── Python ──
+pyo3 = { version = "0.23", features = ["extension-module"] }
 
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", features = ["float_roundtrip"] }
-serde_bytes = "0.11"
-
-# Async runtime
-tokio = { version = "1.0", features = ["full"] }
-tokio-stream = "0.1"
-futures = "0.3"
-
-# Observability and tracing
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-tracing-test = "0.2"
-
-# Byte manipulation and casting
-bytemuck = { version = "1.13", features = ["derive"] }
-
-# Async traits
-async-trait = "0.1"
-
-# GPU/WebGPU
-wgpu = { version = "0.19", features = ["spirv"] }
-
-# Random number generation
-rand = "0.8"
-rand_distr = "0.4"
-rand_pcg = "0.3"
-fastrand = "2.0"
-
-# Memory management
-cow-utils = "0.1"
-smallvec = "1.13"
-
-# Binary serialization
-bincode = "1.3"
-
-# Parallel processing
-rayon = "1.8"
-
-# Regular expressions
-regex = "1.10"
-
-# Date/time handling
-chrono = { version = "0.4", features = ["serde"] }
-
-# System utilities
-hostname = "0.3"
-rustc_version = "0.4"
-
-# UUID generation
-uuid = { version = "1.0", features = ["v4"] }
-
-# Python bindings
-pyo3 = { version = ">=0.24.1", features = ["extension-module", "abi3-py312"] }
-numpy = ">=0.26"
-
-# Testing and benchmarking
-proptest = "1.0"
-approx = "0.5"
-criterion = { version = "0.5", features = ["html_reports"] }
-tempfile = "3.0"
-insta = "1.34"
-arbitrary = { version = "1.3", features = ["derive"] }
-pollster = "0.3"
-
-# Compression
-flate2 = "1.0"
-
-# Internal workspace packages
-dtype = { path = "dtype", version = "0.2.0" }
-storage = { path = "storage", version = "0.2.0" }
-dense = { path = "dense", version = "0.2.0" }
-tensor = { path = "tensor", version = "0.2.0" }
-autograd = { path = "autograd", version = "0.2.0" }
-backend = { path = "backend", version = "0.2.0" }
-nn = { path = "nn", version = "0.2.0" }
-optim = { path = "optim", version = "0.2.0" }
-coeus-error = { path = "coeus-error", version = "0.2.0" }
-# Additional workspace packages
-jit = { path = "jit", version = "0.2.0" }
-profiling = { path = "profiling", version = "0.2.0" }
-distributed = { path = "distributed", version = "0.2.0" }
-foundation = { path = "foundation", version = "0.2.0" }
-hub = { path = "hub", version = "0.2.0" }
-coeus-semantic-api = { path = "coeus-semantic-api", version = "0.2.0" }
-tokenizer = { path = "tokenizer", version = "0.2.0" }
-utils = { path = "utils", version = "0.2.0" }
-audio = { path = "audio", version = "0.2.0" }
-fft = { path = "fft", package = "coeus-fft", version = "0.2.0" }
-coeus-sparse = { path = "sparse", version = "0.2.0" }
-coeus-linalg = { path = "linalg", version = "0.1.0" }
-coeus-signal = { path = "signal", version = "0.1.0" }
-coeus-special = { path = "special", version = "0.1.0" }
-coeus-vision = { path = "vision", version = "0.1.0" }
-coeus-distributions = { path = "distributions", version = "0.1.0" }
-quantization = { path = "quantization", version = "0.2.0" }
-pycoeus = { path = "pycoeus", version = "0.2.0" }
-
-# Core crates
-[package]
-name = "coeus"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-repository.workspace = true
-license.workspace = true
-description = "Safe Rust deep learning framework with tensors, autograd, and backends"
-keywords = ["machine-learning", "deep-learning", "tensor", "autograd"]
-categories = ["science", "mathematics"]
-autoexamples = false
-autotests = false
-
-[features]
-default = []
-jit = ["dep:jit"]
-
-[dependencies]
-# Workspace crate dependencies (for examples and integration)
-dtype.workspace = true
-storage.workspace = true
-tensor.workspace = true
-autograd.workspace = true
-backend.workspace = true
-nn.workspace = true
-optim.workspace = true
-coeus-error.workspace = true
-distributed.workspace = true
-foundation.workspace = true
-audio.workspace = true
-jit = { workspace = true, optional = true }
-profiling.workspace = true
-pycoeus.workspace = true
-tokenizer.workspace = true
-utils.workspace = true
-hub.workspace = true
-coeus-semantic-api.workspace = true
-
-# External dependencies
-# Semantic API server dependencies
-axum = { version = "0.7", features = ["tracing", "macros", "json", "form", "matched-path"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tokio = { version = "1.0", features = ["full"] }
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-reqwest = { version = "0.12", features = ["json"] }
-
-# Benchmarking dependencies
-time = { version = "0.3", features = ["macros", "local-offset"] }
-
-# Random number generation (for examples)
-rand.workspace = true
-
-[dev-dependencies]
-criterion.workspace = true
-walkdir = "2.4"
-regex = "1.10"
-
-[[test]]
-name = "boundary_enforcement_tests"
-path = "tests/boundary_enforcement_tests.rs"
-
-[profile.dev]
-debug = 0
-incremental = false
-
-[profile.test]
-debug = 0
-incremental = false
+# ── Local ──
+coeus-core     = { path = "coeus-core" }
+coeus-tensor   = { path = "coeus-tensor" }
+coeus-ops      = { path = "coeus-ops" }
+coeus-autograd = { path = "coeus-autograd" }
+coeus-nn       = { path = "coeus-nn" }
+coeus-optim    = { path = "coeus-optim" }
+coeus-sparse   = { path = "coeus-sparse" }
+coeus-dist     = { path = "coeus-dist" }

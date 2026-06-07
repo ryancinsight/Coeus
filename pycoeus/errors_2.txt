@@ -1,2 +1,0 @@
-    Checking pycoeus v0.2.1 (D:\coeus\pycoeus)
-    Finished `dev` profile [unoptimized] target(s) in 6.95s

@@ -1,0 +1,18 @@
+[package]
+name = "coeus-ops"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+coeus-core   = { workspace = true }
+coeus-tensor = { workspace = true }
+coeus-sparse = { workspace = true }
+apollo-fft   = { workspace = true }
+smallvec     = { workspace = true }
+num-traits   = { workspace = true }
+thiserror    = { workspace = true }
+half         = { workspace = true }
+ndarray      = { workspace = true }
+bytemuck     = { workspace = true }

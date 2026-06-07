@@ -1,8 +1,0 @@
----
-source: nn/tests/snapshot_tests.rs
-assertion_line: 336
-expression: "serde_json::to_string_pretty(&snapshot).unwrap()"
----
-{
-  "value": 0.25
-}

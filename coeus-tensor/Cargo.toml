@@ -1,0 +1,24 @@
+[package]
+name = "coeus-tensor"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+coeus-core  = { workspace = true }
+smallvec    = { workspace = true }
+thiserror   = { workspace = true }
+bytemuck    = { workspace = true }
+
+[dev-dependencies]
+criterion = "0.5"
+ndarray   = { workspace = true }
+coeus-ops = { workspace = true }
+proptest  = "1.5"
+
+[[bench]]
+name = "tensor_bench"
+harness = false

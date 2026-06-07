@@ -1,0 +1,17 @@
+[package]
+name = "coeus-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+mnemosyne = { workspace = true }
+moirai    = { workspace = true }
+num-traits = { workspace = true }
+bytemuck   = { workspace = true }
+half       = { workspace = true }
+smallvec   = { workspace = true }
+thiserror  = { workspace = true }

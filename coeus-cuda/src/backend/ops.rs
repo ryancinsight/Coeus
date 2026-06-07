@@ -1,0 +1,315 @@
+use coeus_core::{Layout, Scalar};
+use crate::backend::{CudaBackend, CudaScalar};
+
+pub mod math;
+pub mod conv;
+pub mod pool;
+pub mod optim;
+
+impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
+    #[inline]
+    fn elementwise_binary(
+        &self,
+        op: coeus_ops::BinaryOp,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        b: &Self::DeviceBuffer<T>,
+        b_layout: &Layout,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) {
+        self.cuda_elementwise_binary(op, a, a_layout, b, b_layout, c, c_layout);
+    }
+
+    #[inline]
+    fn elementwise_unary(
+        &self,
+        op: coeus_ops::UnaryOp,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) {
+        self.cuda_elementwise_unary(op, a, a_layout, c, c_layout);
+    }
+
+    #[inline]
+    fn matmul(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        b: &Self::DeviceBuffer<T>,
+        b_layout: &Layout,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) {
+        self.cuda_matmul(a, a_layout, b, b_layout, c, c_layout);
+    }
+
+    #[inline]
+    fn reduce(
+        &self,
+        op: coeus_ops::ReductionOp,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) {
+        self.cuda_reduce(op, a, a_layout, axis, c, c_layout);
+    }
+
+    #[inline]
+    fn conv1d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        self.cuda_conv1d(input, input_layout, weight, weight_layout, bias, stride, padding, dilation, output, output_layout);
+    }
+
+    #[inline]
+    fn conv1d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        grad_input: Option<&mut Self::DeviceBuffer<T>>,
+        grad_input_layout: &Layout,
+        grad_weight: Option<&mut Self::DeviceBuffer<T>>,
+        grad_weight_layout: &Layout,
+        grad_bias: Option<&mut Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+    ) {
+        self.cuda_conv1d_backward(
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            grad_input,
+            grad_input_layout,
+            grad_weight,
+            grad_weight_layout,
+            grad_bias,
+            stride,
+            padding,
+            dilation,
+        );
+    }
+
+    #[inline]
+    fn conv2d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        self.cuda_conv2d(input, input_layout, weight, weight_layout, bias, stride, padding, dilation, output, output_layout);
+    }
+
+    #[inline]
+    fn conv2d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        grad_input: Option<&mut Self::DeviceBuffer<T>>,
+        grad_input_layout: &Layout,
+        grad_weight: Option<&mut Self::DeviceBuffer<T>>,
+        grad_weight_layout: &Layout,
+        grad_bias: Option<&mut Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+    ) {
+        self.cuda_conv2d_backward(
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            grad_input,
+            grad_input_layout,
+            grad_weight,
+            grad_weight_layout,
+            grad_bias,
+            stride,
+            padding,
+            dilation,
+        );
+    }
+
+    #[inline]
+    fn max_pool2d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        self.cuda_max_pool2d(input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+    }
+
+    #[inline]
+    fn max_pool2d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        grad_input: &mut Self::DeviceBuffer<T>,
+        grad_input_layout: &Layout,
+    ) {
+        self.cuda_max_pool2d_backward(
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        );
+    }
+
+    #[inline]
+    fn avg_pool2d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        self.cuda_avg_pool2d(input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+    }
+
+    #[inline]
+    fn avg_pool2d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        grad_input: &mut Self::DeviceBuffer<T>,
+        grad_input_layout: &Layout,
+    ) {
+        self.cuda_avg_pool2d_backward(
+            grad_out,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        );
+    }
+
+    #[inline]
+    fn sgd_step(
+        &self,
+        param: &mut Self::DeviceBuffer<T>,
+        param_layout: &Layout,
+        grad: &Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+        velocity: &mut Self::DeviceBuffer<T>,
+        velocity_layout: &Layout,
+        lr: T,
+        momentum: T,
+    ) where T: coeus_core::Float {
+        self.cuda_sgd_step(param, param_layout, grad, grad_layout, velocity, velocity_layout, lr, momentum);
+    }
+
+    #[inline]
+    fn adam_step(
+        &self,
+        param: &mut Self::DeviceBuffer<T>,
+        param_layout: &Layout,
+        grad: &Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+        m: &mut Self::DeviceBuffer<T>,
+        m_layout: &Layout,
+        v: &mut Self::DeviceBuffer<T>,
+        v_layout: &Layout,
+        lr: T,
+        beta1: T,
+        beta2: T,
+        eps: T,
+        t: usize,
+    ) where T: coeus_core::Float {
+        self.cuda_adam_step(param, param_layout, grad, grad_layout, m, m_layout, v, v_layout, lr, beta1, beta2, eps, t);
+    }
+
+    #[inline]
+    fn rmsprop_step(
+        &self,
+        param: &mut Self::DeviceBuffer<T>,
+        param_layout: &Layout,
+        grad: &Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+        v: &mut Self::DeviceBuffer<T>,
+        v_layout: &Layout,
+        lr: T,
+        alpha: T,
+        eps: T,
+    ) where T: coeus_core::Float {
+        self.cuda_rmsprop_step(param, param_layout, grad, grad_layout, v, v_layout, lr, alpha, eps);
+    }
+
+    #[inline]
+    fn adagrad_step(
+        &self,
+        param: &mut Self::DeviceBuffer<T>,
+        param_layout: &Layout,
+        grad: &Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+        history: &mut Self::DeviceBuffer<T>,
+        history_layout: &Layout,
+        lr: T,
+        eps: T,
+    ) where T: coeus_core::Float {
+        self.cuda_adagrad_step(param, param_layout, grad, grad_layout, history, history_layout, lr, eps);
+    }
+}

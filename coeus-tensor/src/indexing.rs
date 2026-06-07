@@ -1,0 +1,37 @@
+// ── Tensor indexing ──
+// Multi-dimensional get/set helpers.
+
+use coeus_core::{Scalar, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut};
+use crate::tensor::Tensor;
+
+impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
+    /// Compute 1-D physical offset from logical coordinates.
+    #[inline]
+    pub fn physical_index(&self, index: &[usize]) -> usize {
+        self.layout.physical_index(index)
+    }
+}
+
+impl<T: Scalar, B: ComputeBackend> Tensor<T, B>
+where
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    /// Get element at a 1-D flat offset.
+    #[inline]
+    pub fn get_flat(&self, offset: usize) -> T {
+        self.storage.as_slice()[self.layout.offset() + offset]
+    }
+}
+
+impl<T: Scalar, B: ComputeBackend> Tensor<T, B>
+where
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    /// Set element at a 1-D flat offset.
+    #[inline]
+    pub fn set_flat(&mut self, offset: usize, val: T) {
+        let base = self.layout.offset();
+        self.storage.as_mut_slice()[base + offset] = val;
+    }
+}
+

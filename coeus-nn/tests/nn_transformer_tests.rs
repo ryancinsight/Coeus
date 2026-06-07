@@ -1,0 +1,112 @@
+use coeus_tensor::Tensor;
+use coeus_autograd::{Var, NullMask, CausalMask};
+use coeus_nn::{TransformerDecoderLayer, TransformerDecoder, Transformer, Module};
+use coeus_core::MoiraiBackend;
+
+#[test]
+fn test_transformer_decoder_layer() {
+    const H: usize = 2;
+    let d_model = 8;
+    let d_ff = 16;
+    let backend = MoiraiBackend::default();
+
+    let layer = TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(d_model, d_ff, 0.0);
+    
+    // parameters check
+    let params = layer.parameters();
+    // norm1 (2), self_attn (8), norm2 (2), cross_attn (8), norm3 (2), ffn (4) = 26 parameters
+    assert_eq!(params.len(), 26);
+
+    let batch = 2;
+    let seq_tgt = 4;
+    let seq_src = 5;
+
+    let tgt = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend), true);
+    let memory = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend), true);
+
+    let output = layer.forward_decoder(&tgt, &memory);
+    assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
+
+    // Backward pass
+    let loss = coeus_autograd::sum(&output);
+    loss.backward();
+
+    assert!(tgt.grad().is_some());
+    assert!(memory.grad().is_some());
+    for (i, p) in params.iter().enumerate() {
+        assert!(p.grad().is_some(), "DecoderLayer parameter {i} has no gradient");
+    }
+}
+
+#[test]
+fn test_transformer_decoder() {
+    const H: usize = 2;
+    const N: usize = 3;
+    let d_model = 8;
+    let d_ff = 16;
+    let backend = MoiraiBackend::default();
+
+    let decoder = TransformerDecoder::<f64, MoiraiBackend, H, N, CausalMask, NullMask>::new(d_model, d_ff, 0.0);
+    
+    let params = decoder.parameters();
+    assert_eq!(params.len(), 26 * N);
+
+    let batch = 2;
+    let seq_tgt = 4;
+    let seq_src = 5;
+
+    let tgt = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend), true);
+    let memory = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend), true);
+
+    let output = decoder.forward_decoder(&tgt, &memory);
+    assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
+
+    let loss = coeus_autograd::sum(&output);
+    loss.backward();
+
+    assert!(tgt.grad().is_some());
+    assert!(memory.grad().is_some());
+    for (i, p) in params.iter().enumerate() {
+        assert!(p.grad().is_some(), "Decoder stack parameter {i} has no gradient");
+    }
+}
+
+#[test]
+fn test_transformer_seq2seq() {
+    const H: usize = 2;
+    const NUM_ENC: usize = 2;
+    const NUM_DEC: usize = 2;
+    let d_model = 8;
+    let d_ff = 16;
+    let backend = MoiraiBackend::default();
+
+    let transformer = Transformer::<f64, MoiraiBackend, H, NUM_ENC, NUM_DEC, NullMask, CausalMask, NullMask>::new(
+        d_model, d_ff, 0.0
+    );
+
+    let params = transformer.parameters();
+    // Encoder layer: norm1 (2), self_attn (8), norm2 (2), ffn (4) = 16 parameters
+    // Encoder: 16 * NUM_ENC = 32 parameters
+    // Decoder: 26 * NUM_DEC = 52 parameters
+    // Total = 84 parameters
+    assert_eq!(params.len(), 84);
+
+    let batch = 2;
+    let seq_src = 5;
+    let seq_tgt = 4;
+
+    let src = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend), true);
+    let tgt = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend), true);
+
+    let output = transformer.forward_seq2seq(&src, &tgt);
+    assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
+
+    let loss = coeus_autograd::sum(&output);
+    loss.backward();
+
+    assert!(src.grad().is_some());
+    assert!(tgt.grad().is_some());
+    for (i, p) in params.iter().enumerate() {
+        assert!(p.grad().is_some(), "Seq2Seq Transformer parameter {i} has no gradient");
+    }
+}

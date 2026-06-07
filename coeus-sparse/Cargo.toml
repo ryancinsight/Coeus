@@ -1,0 +1,10 @@
+[package]
+name = "coeus-sparse"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+coeus-core   = { workspace = true }
+coeus-tensor = { workspace = true }
+thiserror    = { workspace = true }
+smallvec     = { workspace = true }
