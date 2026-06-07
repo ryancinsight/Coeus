@@ -26,6 +26,7 @@ pub struct PyConv1d {
 impl PyConv1d {
     #[new]
     #[pyo3(signature = (in_channels, out_channels, kernel_size, stride = 1, padding = 0, dilation = 1, bias = true))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         py: Python<'_>,
         in_channels: usize,
@@ -134,6 +135,7 @@ pub struct PyConv2d {
 impl PyConv2d {
     #[new]
     #[pyo3(signature = (in_channels, out_channels, kernel_size, stride = 1, padding = 0, dilation = 1, bias = true))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         py: Python<'_>,
         in_channels: usize,
@@ -242,6 +244,7 @@ pub struct PyConv3d {
 impl PyConv3d {
     #[new]
     #[pyo3(signature = (in_channels, out_channels, kernel_size, stride = 1, padding = 0, dilation = 1, bias = true))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         py: Python<'_>,
         in_channels: usize,
