@@ -46,24 +46,23 @@ where
         let rowof = |r: usize| &data[r * cols..(r + 1) * cols];
 
         let sum = reduce_last_axis(backend, ReductionOp::Sum, rows, cols, &data);
-        for r in 0..rows {
+        for (r, &got) in sum.iter().enumerate() {
             let expected: f32 = rowof(r).iter().copied().sum();
             let tol = 1e-4 * (1.0 + expected.abs()); // reassociation epsilon
             assert!(
-                (sum[r] - expected).abs() <= tol,
-                "sum row {r} ({rows}x{cols}): got {}, expected {expected}",
-                sum[r],
+                (got - expected).abs() <= tol,
+                "sum row {r} ({rows}x{cols}): got {got}, expected {expected}",
             );
         }
 
         let min = reduce_last_axis(backend, ReductionOp::Min, rows, cols, &data);
         let max = reduce_last_axis(backend, ReductionOp::Max, rows, cols, &data);
-        for r in 0..rows {
+        for (r, (&gmin, &gmax)) in min.iter().zip(&max).enumerate() {
             let emin = rowof(r).iter().copied().fold(f32::INFINITY, f32::min);
             let emax = rowof(r).iter().copied().fold(f32::NEG_INFINITY, f32::max);
             // Exact: min/max do not reassociate.
-            assert_eq!(min[r].to_bits(), emin.to_bits(), "min row {r} ({rows}x{cols})");
-            assert_eq!(max[r].to_bits(), emax.to_bits(), "max row {r} ({rows}x{cols})");
+            assert_eq!(gmin.to_bits(), emin.to_bits(), "min row {r} ({rows}x{cols})");
+            assert_eq!(gmax.to_bits(), emax.to_bits(), "max row {r} ({rows}x{cols})");
         }
     }
 }

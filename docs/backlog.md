@@ -1,27 +1,38 @@
 # Coeus Project Backlog & Historical Archives
 
-## Sprint MS-55: hermes SIMD-effect SSOT Integration [IN PROGRESS] [minor]
+## Sprint MS-55: hermes SIMD-effect SSOT Integration [minor]
 
-`hermes-simd` (git remote, tracks `main`) is now the SIMD-effect SSOT consumed by
+`hermes-simd` (git remote, tracks `main`) is the SIMD-effect SSOT consumed by
 coeus. The NN-level tensor ops (softmax, layer_norm, attention, matmul, norm) were
 removed from hermes upstream; coeus owns those.
 
 ### Completed:
 - Added `hermes-simd` as a workspace git dependency (latest `main`; advance with
   `cargo update -p hermes-simd`) and to `coeus-core`.
-- Added `Scalar::mul_slice` seam (scalar default; `f32`/`f64` override →
-  `hermes_simd::elementwise_mul`). `coeus-ops` `BinaryKernelOp::apply_contiguous`
-  routes the contiguous elementwise product through it; the fast path is chunked
-  under `parallel_for` to preserve Moirai threading.
-- Differential verification: `coeus-ops/tests/binary_simd_diff.rs` asserts
-  bitwise equality vs a scalar reference for Add/Sub/Mul/Div on f32/f64, across
-  sizes spanning the 8192 chunk boundary, on Sequential and Moirai backends.
+- **Elementwise binary (all four ops):** `Scalar::{add,sub,mul,div}_slice` seams
+  (scalar default; `f32`/`f64` → `hermes_simd::elementwise_{add,sub,mul,div}`).
+  `coeus-ops` `BinaryKernelOp::apply_contiguous` routes the contiguous fast path
+  through them, chunked under `parallel_for` to preserve Moirai threading.
+  Upstreamed the matching `elementwise_add/sub/div` to hermes (one op-parameterized
+  kernel via `zip_into`/`ElementOp`).
+  Verified: `binary_simd_diff.rs` — bitwise vs scalar ref, 4 ops, f32/f64, sizes
+  spanning the chunk boundary, Sequential + Moirai.
+- **Reductions:** `Scalar::{sum,min,max}_slice` seams (→ `hermes_simd::{sum,min,max}`).
+  `ReductionKernelOp::reduce_contiguous` + a unit-stride-axis fast path in the
+  reduce kernel route each output's contiguous run to the SSOT; strided axes keep
+  the gather fold. Verified: `reduction_simd_diff.rs` — sum within reassociation
+  epsilon, min/max bitwise, both backends.
 
-### Remaining (follow-on migration):
-- Route reductions (`sum`/`min`/`max`) through hermes `SimdOps` (note: reductions
-  reassociate — use epsilon, not bitwise, differential bounds).
-- Route dot / scalar-`scale` and tiled GEMM through hermes (`dot`, `scale`,
-  `tile_matmul::gemm`); elementwise Add/Sub/Div await hermes free-fn exposure.
+### Decisions:
+- **matmul stays in coeus** (not routed to `hermes tiled_gemm`): coeus's matmul is
+  a sparse-aware scalar triple-loop with zero-skip, parallelized via `parallel_for`
+  — a distinct dense-sparse-hybrid algorithm, not a hand-rolled SIMD kernel, so it
+  does not violate hermes's SIMD SSOT. Routing to dense GEMM would drop the
+  zero-skip feature and reassociate the k-sum. Revisit only behind an explicit
+  density policy that selects dense GEMM (→ hermes) vs the sparse-aware path.
+
+### Remaining (follow-on):
+- Route `dot` / scalar-`scale` through hermes where coeus exposes them.
 - Tune the contiguous CHUNK (currently 8192) against Criterion benchmarks.
 
 ---
