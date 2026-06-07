@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use ndarray::Array2;
 use coeus_core::{SequentialBackend, MoiraiBackend};
 use coeus_tensor::Tensor;
 
@@ -16,9 +15,6 @@ fn bench_elementwise_add(c: &mut Criterion) {
     let a_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone());
     let b_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone());
 
-    let nd_a = Array2::<f32>::ones((size, size));
-    let nd_b = Array2::<f32>::ones((size, size));
-
     let mut group = c.benchmark_group("Elementwise Add (1024x1024)");
 
     group.bench_function("Coeus Sequential", |b| {
@@ -30,12 +26,6 @@ fn bench_elementwise_add(c: &mut Criterion) {
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             let _res = coeus_ops::add(&a_moirai, &b_moirai, &moirai_backend);
-        })
-    });
-
-    group.bench_function("ndarray", |b| {
-        b.iter(|| {
-            let _res = &nd_a + &nd_b;
         })
     });
 
@@ -57,9 +47,6 @@ fn bench_matmul(c: &mut Criterion) {
     let a_moirai = Tensor::<f32, MoiraiBackend>::ones(vec![m, k]);
     let b_moirai = Tensor::<f32, MoiraiBackend>::ones(vec![k, n]);
 
-    let nd_a = Array2::<f32>::ones((m, k));
-    let nd_b = Array2::<f32>::ones((k, n));
-
     let mut group = c.benchmark_group("Matrix Multiplication (256x256)");
 
     group.bench_function("Coeus Sequential", |b| {
@@ -71,12 +58,6 @@ fn bench_matmul(c: &mut Criterion) {
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             let _res = coeus_ops::matmul(&a_moirai, &b_moirai, &moirai_backend);
-        })
-    });
-
-    group.bench_function("ndarray", |b| {
-        b.iter(|| {
-            let _res = nd_a.dot(&nd_b);
         })
     });
 

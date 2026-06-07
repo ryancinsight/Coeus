@@ -36,11 +36,9 @@ hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", package = "h
 num-traits = "0.2"
 bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
 half       = { version = "2.7", features = ["num-traits", "bytemuck"] }
-# No "rayon" feature: coeus uses moirai as its data-parallel runtime and calls no
-# ndarray parallel iterators. (rayon may still enter the build tree transitively
-# via apollo-fft, which uses ndarray's parallel `Zip`; eliminating that requires
-# migrating apollo's ndarray-par sites to moirai — tracked, out of scope here.)
-ndarray    = { version = "0.16" }
+# ndarray is intentionally absent: coeus implements its own tensor/array stack
+# (coeus-tensor). It may still appear transitively inside apollo-fft (an
+# ndarray-based FFT crate), but coeus's own code does not depend on it.
 smallvec   = "1.13"
 wgpu       = "23.0"
 pollster   = "0.3"

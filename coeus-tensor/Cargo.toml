@@ -15,7 +15,6 @@ bytemuck    = { workspace = true }
 
 [dev-dependencies]
 criterion = "0.5"
-ndarray   = { workspace = true }
 coeus-ops = { workspace = true }
 proptest  = "1.5"
 

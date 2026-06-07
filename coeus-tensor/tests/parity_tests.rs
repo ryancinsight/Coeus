@@ -1,6 +1,21 @@
-use ndarray::Array2;
 use coeus_core::{SequentialBackend, MoiraiBackend};
 use coeus_tensor::{Tensor, Transpose};
+
+/// Self-contained row-major matmul reference: `c[m,n] = a[m,k] · b[k,n]`.
+/// Independent of both coeus's implementation and any external array library.
+fn matmul_ref(a: &[f32], m: usize, k: usize, b: &[f32], n: usize) -> Vec<f32> {
+    let mut c = vec![0.0f32; m * n];
+    for i in 0..m {
+        for j in 0..n {
+            let mut acc = 0.0f32;
+            for p in 0..k {
+                acc += a[i * k + p] * b[p * n + j];
+            }
+            c[i * n + j] = acc;
+        }
+    }
+    c
+}
 
 #[test]
 fn test_elementwise_add_parity() {
@@ -21,16 +36,11 @@ fn test_elementwise_add_parity() {
 
     // Run Coeus addition
     let c = coeus_ops::add(&a, &b, &backend);
-    
-    // ndarray equivalence
-    let nd_a = Array2::from_shape_fn((3, 4), |(r, c)| (r * 4 + c) as f32);
-    let nd_b = Array2::from_shape_fn((3, 4), |(r, c)| ((r * 4 + c) * 2) as f32);
-    let nd_c = nd_a + nd_b;
 
-    let c_slice = c.as_slice();
-    let nd_c_slice = nd_c.as_slice().unwrap();
-    for i in 0..12 {
-        assert_eq!(c_slice[i], nd_c_slice[i]);
+    // Self-contained reference: a[i] = i, b[i] = 2i  =>  c[i] = 3i.
+    for (i, &got) in c.as_slice().iter().enumerate() {
+        let expected = (i as f32) + (i * 2) as f32;
+        assert_eq!(got, expected);
     }
 }
 
@@ -74,29 +84,31 @@ fn test_non_contiguous_matmul_parity() {
 
     // Standard matmul: [2, 3] x [3, 2] -> [2, 2]
     let c = coeus_ops::matmul(&a, &b, &backend);
-    
-    // ndarray
-    let nd_a = Array2::from_shape_vec((2, 3), a_data.clone()).unwrap();
-    let nd_b = Array2::from_shape_vec((3, 2), b_data.clone()).unwrap();
-    let nd_c = nd_a.dot(&nd_b);
 
-    assert_eq!(c.as_slice(), nd_c.as_slice().unwrap());
+    // Self-contained reference (row-major triple loop).
+    let ref_c = matmul_ref(&a_data, 2, 3, &b_data, 2);
+    assert_eq!(c.as_slice(), ref_c.as_slice());
 
     // Transposed matmul test (non-contiguous)
     // a_t shape: [3, 2], strides: [1, 3]
-    let a_t = a.transpose(); 
+    let a_t = a.transpose();
     // matmul(a_t, a) -> [3, 2] x [2, 3] -> [3, 3]
     let c_t = coeus_ops::matmul(&a_t, &a, &backend);
 
-    let nd_a_t = nd_a.t();
-    let nd_c_t = nd_a_t.dot(&nd_a);
+    // Reference: build a_t in row-major ([3,2], a_t[i][j] = a[j][i]) then matmul.
+    let mut a_t_data = vec![0.0f32; 6];
+    for i in 0..3 {
+        for j in 0..2 {
+            a_t_data[i * 2 + j] = a_data[j * 3 + i];
+        }
+    }
+    let ref_c_t = matmul_ref(&a_t_data, 3, 2, &a_data, 3);
 
-    // Verify element-by-element
     let shape_c = c_t.shape();
     assert_eq!(shape_c, &[3, 3]);
     for r in 0..3 {
         for col in 0..3 {
-            assert_eq!(c_t.get(&[r, col]), nd_c_t[[r, col]]);
+            assert_eq!(c_t.get(&[r, col]), ref_c_t[r * 3 + col]);
         }
     }
 }

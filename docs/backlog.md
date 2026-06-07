@@ -1,5 +1,24 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-57: remove ndarray from coeus [minor]
+
+coeus implements its own tensor/array stack (coeus-tensor); ndarray is no longer
+a coeus dependency. The only remaining occurrence is *inside* apollo-fft (an
+ndarray-based FFT crate coeus consumes, like hermes/moirai) — coeus's own code
+and manifests reference ndarray nowhere (`cargo tree -i ndarray` → apollo-fft only).
+
+### Completed:
+- **apollo-fft** gained a slice/Vec 1D API (`fft_1d_slice_typed`/`ifft_1d_slice_typed`,
+  upstream `66c3d1e`) so consumers FFT without ndarray; the `Array1` is built and
+  consumed internally. coeus-ops `fft/apollo_fft.rs` rewritten to call it; ndarray
+  dropped from `coeus-ops` deps.
+- **coeus-tensor**: ndarray test oracle replaced with a self-contained row-major
+  `matmul_ref` and direct elementwise references (independent of any array lib);
+  ndarray comparison arms removed from `tensor_bench`; ndarray dev-dependency and
+  the workspace `ndarray` entry removed.
+- Verified: full CPU suite incl. parity + FFT round-trip green; clippy clean.
+
+---
 ## Sprint MS-56: moirai parallelization/async SSOT hardening [minor]
 
 Architectural goal: **moirai = SSOT for parallelization (MIMD) + async**;
