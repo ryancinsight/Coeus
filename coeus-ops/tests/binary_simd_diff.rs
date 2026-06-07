@@ -7,10 +7,10 @@
 //! (no epsilon), across sizes that span the parallel chunk boundary (8192).
 
 use coeus_core::{
-    Backend, ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar,
-    SequentialBackend, Shape,
+    ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar, SequentialBackend,
+    Shape,
 };
-use coeus_ops::{BackendOps, BinaryOp};
+use coeus_ops::{BackendOps, BinaryOp, CpuBackend};
 
 /// Sizes chosen to exercise: empty-ish, sub-SIMD-width, exact chunk, chunk+1,
 /// multi-chunk, and a non-chunk-multiple multi-chunk tail.
@@ -27,7 +27,7 @@ fn reference<T: Scalar>(op: BinaryOp, x: T, y: T) -> T {
 }
 
 /// Drive the public CPU kernel for one (backend, op, length) and return the host result.
-fn device_binary<T: Scalar, B: Backend>(backend: &B, op: BinaryOp, a: &[T], b: &[T]) -> Vec<T>
+fn device_binary<T: Scalar, B: CpuBackend>(backend: &B, op: BinaryOp, a: &[T], b: &[T]) -> Vec<T>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -47,7 +47,7 @@ where
     out
 }
 
-fn check_op<T: Scalar, B: Backend>(backend: &B, op: BinaryOp)
+fn check_op<T: Scalar, B: CpuBackend>(backend: &B, op: BinaryOp)
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

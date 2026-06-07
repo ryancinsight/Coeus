@@ -8,8 +8,22 @@ mod matmul;
 mod optim;
 mod pool;
 
+mod sealed {
+    pub trait Sealed {}
+    impl Sealed for coeus_core::SequentialBackend {}
+    impl Sealed for coeus_core::MoiraiBackend {}
+}
 
-impl<T: Scalar, B: Backend> BackendOps<T> for B
+/// Marker for host (CPU) compute backends whose device buffers are directly
+/// host-addressable. Restricts the blanket [`BackendOps`] CPU implementation to
+/// CPU backends so device backends (e.g. CUDA, wgpu) can provide their own
+/// non-overlapping `BackendOps` impls. Sealed: only the in-crate CPU backends
+/// (`SequentialBackend`, `MoiraiBackend`) implement it.
+pub trait CpuBackend: Backend + sealed::Sealed {}
+impl CpuBackend for coeus_core::SequentialBackend {}
+impl CpuBackend for coeus_core::MoiraiBackend {}
+
+impl<T: Scalar, B: CpuBackend> BackendOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

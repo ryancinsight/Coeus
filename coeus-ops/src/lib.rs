@@ -4,7 +4,7 @@
 
 pub(crate) mod ptr;
 pub mod backend_ops;
-pub use backend_ops::{BackendOps, BinaryOp, UnaryOp, ReductionOp};
+pub use backend_ops::{BackendOps, BinaryOp, UnaryOp, ReductionOp, CpuBackend};
 pub mod unary;
 pub mod binary;
 pub mod matmul;

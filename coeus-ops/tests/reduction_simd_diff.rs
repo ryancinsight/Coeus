@@ -6,13 +6,13 @@
 //! reassociates under SIMD, so it is checked within an epsilon bound.
 
 use coeus_core::{
-    Backend, ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar,
-    SequentialBackend, Shape,
+    ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar, SequentialBackend,
+    Shape,
 };
-use coeus_ops::{BackendOps, ReductionOp};
+use coeus_ops::{BackendOps, CpuBackend, ReductionOp};
 
 /// Reduce the last (unit-stride) axis of a contiguous `[rows, cols]` tensor.
-fn reduce_last_axis<T: Scalar, B: Backend>(
+fn reduce_last_axis<T: Scalar, B: CpuBackend>(
     backend: &B,
     op: ReductionOp,
     rows: usize,
@@ -36,7 +36,7 @@ where
     out
 }
 
-fn check_f32<B: Backend>(backend: &B)
+fn check_f32<B: CpuBackend>(backend: &B)
 where
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {

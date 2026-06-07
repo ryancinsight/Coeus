@@ -5,6 +5,7 @@
 use coeus_core::{Scalar, Layout};
 
 mod cpu_impl;
+pub use cpu_impl::CpuBackend;
 
 // ── Non-generic helper functions for layout indexing (Inner-Function Pattern) ──
 // These compute physical offsets from logical coordinates, avoiding monomorphization bloat.
