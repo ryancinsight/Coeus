@@ -24,12 +24,18 @@ pub struct AddOp;
 impl<T: Scalar> BinaryKernelOp<T> for AddOp {
     #[inline(always)]
     fn apply(x: T, y: T) -> T { x + y }
+
+    #[inline]
+    fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) { T::add_slice(a, b, out); }
 }
 
 pub struct SubOp;
 impl<T: Scalar> BinaryKernelOp<T> for SubOp {
     #[inline(always)]
     fn apply(x: T, y: T) -> T { x - y }
+
+    #[inline]
+    fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) { T::sub_slice(a, b, out); }
 }
 
 pub struct MulOp;
@@ -48,6 +54,9 @@ pub struct DivOp;
 impl<T: Scalar> BinaryKernelOp<T> for DivOp {
     #[inline(always)]
     fn apply(x: T, y: T) -> T { x / y }
+
+    #[inline]
+    fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) { T::div_slice(a, b, out); }
 }
 
 // ── Unary operations monomorphization traits ──

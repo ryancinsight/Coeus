@@ -19,13 +19,29 @@ macro_rules! impl_scalar_float_native {
             #[inline(always)]
             fn abs_val(self) -> Self { self.abs() }
             #[inline]
-            fn mul_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
+            fn add_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
                 // Delegate to the SIMD-effect SSOT. Lengths are equal by the
                 // caller's contract; on a length mismatch fall back to scalar.
+                if hermes_simd::elementwise_add::<$t>(a, b, out).is_err() {
+                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) { *o = x + y; }
+                }
+            }
+            #[inline]
+            fn sub_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
+                if hermes_simd::elementwise_sub::<$t>(a, b, out).is_err() {
+                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) { *o = x - y; }
+                }
+            }
+            #[inline]
+            fn mul_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
                 if hermes_simd::elementwise_mul::<$t>(a, b, out).is_err() {
-                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
-                        *o = x * y;
-                    }
+                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) { *o = x * y; }
+                }
+            }
+            #[inline]
+            fn div_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
+                if hermes_simd::elementwise_div::<$t>(a, b, out).is_err() {
+                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) { *o = x / y; }
                 }
             }
         }
