@@ -102,6 +102,54 @@ pub trait Scalar:
             *o = x / y;
         }
     }
+
+    /// Sum of a contiguous slice — per-type seam onto the SIMD-effect SSOT.
+    ///
+    /// Default is a sequential left fold; `f32`/`f64` override to
+    /// `hermes_simd::sum`. Summation is associative only approximately in
+    /// floating point, so the SIMD result may differ from the sequential fold
+    /// within the type's rounding error (differential tests use an epsilon
+    /// bound, not bitwise equality). Empty slice sums to `Self::zero()`.
+    #[inline]
+    fn sum_slice(s: &[Self]) -> Self {
+        match s.split_first() {
+            Some((&first, rest)) => {
+                let mut acc = first;
+                for &v in rest {
+                    acc = acc + v;
+                }
+                acc
+            }
+            None => Self::zero(),
+        }
+    }
+
+    /// Minimum of a non-empty contiguous slice. `f32`/`f64` override to
+    /// `hermes_simd::min`. min is exactly associative, so the SIMD result is
+    /// value-identical to the sequential fold for non-NaN inputs.
+    #[inline]
+    fn min_slice(s: &[Self]) -> Self {
+        let mut acc = s[0];
+        for &v in &s[1..] {
+            if v < acc {
+                acc = v;
+            }
+        }
+        acc
+    }
+
+    /// Maximum of a non-empty contiguous slice. `f32`/`f64` override to
+    /// `hermes_simd::max`. See [`Scalar::min_slice`].
+    #[inline]
+    fn max_slice(s: &[Self]) -> Self {
+        let mut acc = s[0];
+        for &v in &s[1..] {
+            if v > acc {
+                acc = v;
+            }
+        }
+        acc
+    }
 }
 
 /// Floating-point extension trait.

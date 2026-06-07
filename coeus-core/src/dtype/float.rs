@@ -44,6 +44,12 @@ macro_rules! impl_scalar_float_native {
                     for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) { *o = x / y; }
                 }
             }
+            #[inline]
+            fn sum_slice(s: &[Self]) -> Self { hermes_simd::sum::<$t>(s) }
+            #[inline]
+            fn min_slice(s: &[Self]) -> Self { hermes_simd::min::<$t>(s) }
+            #[inline]
+            fn max_slice(s: &[Self]) -> Self { hermes_simd::max::<$t>(s) }
         }
         impl FloatOps for $t {
             #[inline(always)] fn exp_op(self) -> Self { self.exp() }

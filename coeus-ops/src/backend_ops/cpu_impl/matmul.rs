@@ -96,24 +96,45 @@ pub(crate) fn matmul<T: Scalar, B: Backend>(
 
 pub trait ReductionKernelOp<T: Scalar> {
     fn combine(x: T, y: T) -> T;
+
+    /// Reduce a non-empty contiguous slice. Default is a sequential fold via
+    /// `combine` (identical to the strided path); ops with a SIMD SSOT path
+    /// override this to route through `coeus_core::Scalar` (→ hermes-simd).
+    #[inline]
+    fn reduce_contiguous(s: &[T]) -> T {
+        let mut acc = s[0];
+        for &v in &s[1..] {
+            acc = Self::combine(acc, v);
+        }
+        acc
+    }
 }
 
 pub struct SumOp;
 impl<T: Scalar> ReductionKernelOp<T> for SumOp {
     #[inline(always)]
     fn combine(x: T, y: T) -> T { x + y }
+
+    #[inline]
+    fn reduce_contiguous(s: &[T]) -> T { T::sum_slice(s) }
 }
 
 pub struct MaxOp;
 impl<T: Scalar> ReductionKernelOp<T> for MaxOp {
     #[inline(always)]
     fn combine(x: T, y: T) -> T { if x > y { x } else { y } }
+
+    #[inline]
+    fn reduce_contiguous(s: &[T]) -> T { T::max_slice(s) }
 }
 
 pub struct MinOp;
 impl<T: Scalar> ReductionKernelOp<T> for MinOp {
     #[inline(always)]
     fn combine(x: T, y: T) -> T { if x < y { x } else { y } }
+
+    #[inline]
+    fn reduce_contiguous(s: &[T]) -> T { T::min_slice(s) }
 }
 
 #[inline(always)]
@@ -130,6 +151,9 @@ fn run_reduction_op<T: Scalar, B: Backend, O: ReductionKernelOp<T>>(
     axis: usize,
 ) {
     backend.parallel_for(0, out_numel, move |i| {
+        // Capture the Send+Sync wrapper whole (disjoint capture would grab the
+        // inner raw pointer, which is neither Send nor Sync).
+        let ap = a_ptr;
         let base_off_a = compute_reduction_base_offset(
             i,
             &out_strides_vec,
@@ -140,11 +164,21 @@ fn run_reduction_op<T: Scalar, B: Backend, O: ReductionKernelOp<T>>(
         );
 
         let stride_axis = a_strides_vec[axis];
-        let mut acc = unsafe { a_ptr.read(base_off_a) };
-        for k in 1..axis_len {
-            let val = unsafe { a_ptr.read(base_off_a + k * stride_axis) };
-            acc = O::combine(acc, val);
-        }
+        let acc = if stride_axis == 1 {
+            // Contiguous run: the axis elements for output `i` are a flat slice
+            // [base_off_a, base_off_a + axis_len). Route through the SIMD SSOT.
+            // SAFETY: the reduced axis has unit stride and length axis_len, so all
+            // axis_len elements lie contiguously in bounds from base_off_a.
+            let s = unsafe { core::slice::from_raw_parts(ap.0.add(base_off_a), axis_len) };
+            O::reduce_contiguous(s)
+        } else {
+            let mut acc = unsafe { ap.read(base_off_a) };
+            for k in 1..axis_len {
+                let val = unsafe { ap.read(base_off_a + k * stride_axis) };
+                acc = O::combine(acc, val);
+            }
+            acc
+        };
 
         unsafe {
             c_ptr.write(i, acc);
