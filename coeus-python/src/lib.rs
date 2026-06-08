@@ -4,6 +4,15 @@ use pyo3::prelude::*;
 use coeus_dist::Communicator;
 use crate::tensor::PyTensor;
 
+/// Mnemosyne is the ecosystem allocation SSOT. Registering it as the extension's
+/// global allocator routes *all* Rust-side allocations (tensor buffers already go
+/// through it explicitly in `coeus-core::storage`, plus every incidental `Vec`/
+/// `Box`/intermediate) through one allocator. Disable with `--no-default-features`
+/// to fall back to the system allocator (e.g. for sanitizers or allocator profiling).
+#[cfg(feature = "mnemosyne-global")]
+#[global_allocator]
+static GLOBAL: mnemosyne::Mnemosyne = mnemosyne::Mnemosyne;
+
 pub mod tensor;
 pub mod nn;
 pub mod optim;

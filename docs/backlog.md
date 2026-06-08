@@ -1,5 +1,29 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-58: mnemosyne as the allocation SSOT [minor]
+
+mnemosyne is the ecosystem allocation SSOT (alongside hermes=SIMD, moirai=parallel,
+apollo=FFT). Previously only tensor buffers used it (`coeus-core::storage::CpuStorage`
+calls `mnemosyne::Mnemosyne.alloc/dealloc` explicitly); every incidental allocation
+(`Vec`/`Box`/op intermediates) used the system allocator.
+
+### Completed:
+- **Registered `Mnemosyne` as the global allocator** in the leaf extension
+  (`coeus-python`), so all Rust-side allocations route through mnemosyne. Gated by a
+  default-on `mnemosyne-global` feature with an *optional* `mnemosyne` dep, so
+  `--no-default-features` cleanly falls back to the system allocator (sanitizers/
+  profiling). Verified both configs build; clippy clean.
+- This is conflict-free because moirai is consumed with `default-features = false`
+  (MS-56) — moirai's own `#[cfg(feature="mnemosyne")] #[global_allocator]` is off, so
+  coeus-python is the sole registrant (only one `#[global_allocator]` per artifact).
+
+### Notes / not changed:
+- `CpuStorage` keeps its *explicit* `mnemosyne::Mnemosyne.alloc` for tensor buffers
+  (guarantees tensor data uses mnemosyne even when coeus is consumed as a library
+  without a global mnemosyne registration — e.g. a pure-Rust downstream).
+- mnemosyne consumed with default features (`branded` → melinoe-branded heap).
+
+---
 ## Sprint MS-57: remove ndarray from coeus [minor]
 
 coeus implements its own tensor/array stack (coeus-tensor); ndarray is no longer

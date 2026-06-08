@@ -20,3 +20,11 @@ coeus-optim    = { workspace = true }
 coeus-dist     = { workspace = true }
 pyo3           = { workspace = true }
 smallvec       = { workspace = true }
+# Allocation SSOT — registered as the global allocator (see lib.rs). Optional so
+# `--no-default-features` cleanly drops it (system allocator for sanitizers/profiling).
+mnemosyne      = { workspace = true, optional = true }
+
+[features]
+default = ["mnemosyne-global"]
+# Route the extension's Rust allocations through the Mnemosyne global allocator.
+mnemosyne-global = ["dep:mnemosyne"]
