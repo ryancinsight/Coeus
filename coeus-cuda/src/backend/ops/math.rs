@@ -1,4 +1,4 @@
-use coeus_core::{Layout, Scalar};
+use coeus_core::Layout;
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::storage::CudaStorage;
 use crate::driver::get_cuda_context;

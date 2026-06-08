@@ -1,4 +1,4 @@
-use coeus_core::{Layout, Scalar};
+use coeus_core::Layout;
 use crate::backend::{CudaBackend, CudaScalar};
 
 pub mod math;
@@ -311,5 +311,239 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         eps: T,
     ) where T: coeus_core::Float {
         self.cuda_adagrad_step(param, param_layout, grad, grad_layout, history, history_layout, lr, eps);
+    }
+
+    fn conv3d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        self.fallback_conv3d(input, input_layout, weight, weight_layout, bias, stride, padding, dilation, output, output_layout);
+    }
+
+    fn conv3d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        grad_input: Option<&mut Self::DeviceBuffer<T>>,
+        grad_input_layout: &Layout,
+        grad_weight: Option<&mut Self::DeviceBuffer<T>>,
+        grad_weight_layout: &Layout,
+        grad_bias: Option<&mut Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+    ) {
+        self.fallback_conv3d_backward(
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            grad_input,
+            grad_input_layout,
+            grad_weight,
+            grad_weight_layout,
+            grad_bias,
+            stride,
+            padding,
+            dilation,
+        );
+    }
+
+    fn max_pool3d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        self.fallback_max_pool3d(input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+    }
+
+    fn max_pool3d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        grad_input: &mut Self::DeviceBuffer<T>,
+        grad_input_layout: &Layout,
+    ) {
+        self.fallback_max_pool3d_backward(
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        );
+    }
+
+    fn avg_pool3d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        self.fallback_avg_pool3d(input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+    }
+
+    fn avg_pool3d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        grad_input: &mut Self::DeviceBuffer<T>,
+        grad_input_layout: &Layout,
+    ) {
+        self.fallback_avg_pool3d_backward(
+            grad_out,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        );
+    }
+
+    fn sdp_attention(
+        &self,
+        query: &Self::DeviceBuffer<T>,
+        query_layout: &Layout,
+        key: &Self::DeviceBuffer<T>,
+        key_layout: &Layout,
+        value: &Self::DeviceBuffer<T>,
+        value_layout: &Layout,
+        key_padding_mask: Option<&Self::DeviceBuffer<T>>,
+        key_padding_mask_layout: Option<&Layout>,
+        is_causal: bool,
+        scale: T,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+        attn_weights: &mut Self::DeviceBuffer<T>,
+        attn_weights_layout: &Layout,
+    ) where T: coeus_core::Float {
+        self.fallback_sdp_attention(
+            query,
+            query_layout,
+            key,
+            key_layout,
+            value,
+            value_layout,
+            key_padding_mask,
+            key_padding_mask_layout,
+            is_causal,
+            scale,
+            output,
+            output_layout,
+            attn_weights,
+            attn_weights_layout,
+        );
+    }
+
+    fn sdp_attention_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        query: &Self::DeviceBuffer<T>,
+        query_layout: &Layout,
+        key: &Self::DeviceBuffer<T>,
+        key_layout: &Layout,
+        value: &Self::DeviceBuffer<T>,
+        value_layout: &Layout,
+        attn_weights: &Self::DeviceBuffer<T>,
+        attn_weights_layout: &Layout,
+        scale: T,
+        grad_q: Option<&mut Self::DeviceBuffer<T>>,
+        grad_k: Option<&mut Self::DeviceBuffer<T>>,
+        grad_v: Option<&mut Self::DeviceBuffer<T>>,
+    ) where T: coeus_core::Float {
+        self.fallback_sdp_attention_backward(
+            grad_out,
+            grad_out_layout,
+            query,
+            query_layout,
+            key,
+            key_layout,
+            value,
+            value_layout,
+            attn_weights,
+            attn_weights_layout,
+            scale,
+            grad_q,
+            grad_k,
+            grad_v,
+        );
+    }
+
+    fn adamw_step(
+        &self,
+        param: &mut Self::DeviceBuffer<T>,
+        param_layout: &Layout,
+        grad: &Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+        m: &mut Self::DeviceBuffer<T>,
+        m_layout: &Layout,
+        v: &mut Self::DeviceBuffer<T>,
+        v_layout: &Layout,
+        lr: T,
+        beta1: T,
+        beta2: T,
+        eps: T,
+        weight_decay: T,
+        t: usize,
+    ) where T: coeus_core::Float {
+        self.cuda_adamw_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            m,
+            m_layout,
+            v,
+            v_layout,
+            lr,
+            beta1,
+            beta2,
+            eps,
+            weight_decay,
+            t,
+        );
     }
 }

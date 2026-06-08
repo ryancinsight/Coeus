@@ -178,4 +178,61 @@ impl CudaBackend {
         self.copy_to_device(seq_param.as_slice(), param);
         self.copy_to_device(seq_history.as_slice(), history);
     }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn fallback_adamw_step<T: CudaScalar>(
+        &self,
+        param: &mut CudaStorage<T>,
+        param_layout: &Layout,
+        grad: &CudaStorage<T>,
+        grad_layout: &Layout,
+        m: &mut CudaStorage<T>,
+        m_layout: &Layout,
+        v: &mut CudaStorage<T>,
+        v_layout: &Layout,
+        lr: T,
+        beta1: T,
+        beta2: T,
+        eps: T,
+        weight_decay: T,
+        t: usize,
+    ) where T: coeus_core::Float {
+        let mut host_param = vec![T::zero(); param.len()];
+        self.copy_to_host(param, &mut host_param);
+        let mut host_grad = vec![T::zero(); grad.len()];
+        self.copy_to_host(grad, &mut host_grad);
+        let mut host_m = vec![T::zero(); m.len()];
+        self.copy_to_host(m, &mut host_m);
+        let mut host_v = vec![T::zero(); v.len()];
+        self.copy_to_host(v, &mut host_v);
+
+        let seq = coeus_core::SequentialBackend::new();
+        let mut seq_param = coeus_core::CpuStorage::from_slice(&host_param);
+        let seq_grad = coeus_core::CpuStorage::from_slice(&host_grad);
+        let mut seq_m = coeus_core::CpuStorage::from_slice(&host_m);
+        let mut seq_v = coeus_core::CpuStorage::from_slice(&host_v);
+
+        coeus_ops::BackendOps::adamw_step(
+            &seq,
+            &mut seq_param,
+            param_layout,
+            &seq_grad,
+            grad_layout,
+            &mut seq_m,
+            m_layout,
+            &mut seq_v,
+            v_layout,
+            lr,
+            beta1,
+            beta2,
+            eps,
+            weight_decay,
+            t,
+        );
+
+        use coeus_core::CpuAddressableStorage;
+        self.copy_to_device(seq_param.as_slice(), param);
+        self.copy_to_device(seq_m.as_slice(), m);
+        self.copy_to_device(seq_v.as_slice(), v);
+    }
 }

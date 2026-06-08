@@ -172,4 +172,55 @@ impl CudaBackend {
         }
         self.fallback_adagrad_step(param, param_layout, grad, grad_layout, history, history_layout, lr, eps);
     }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn cuda_adamw_step<T: CudaScalar>(
+        &self,
+        param: &mut CudaStorage<T>,
+        param_layout: &Layout,
+        grad: &CudaStorage<T>,
+        grad_layout: &Layout,
+        m: &mut CudaStorage<T>,
+        m_layout: &Layout,
+        v: &mut CudaStorage<T>,
+        v_layout: &Layout,
+        lr: T,
+        beta1: T,
+        beta2: T,
+        eps: T,
+        weight_decay: T,
+        t: usize,
+    ) where T: coeus_core::Float {
+        if get_cuda_context().is_some() && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let mut param_f32 = cast_storage_mut::<T, f32>(param);
+            let grad_f32 = cast_storage::<T, f32>(grad);
+            let mut m_f32 = cast_storage_mut::<T, f32>(m);
+            let mut v_f32 = cast_storage_mut::<T, f32>(v);
+            let lr_f32 = lr.to_f64() as f32;
+            let beta1_f32 = beta1.to_f64() as f32;
+            let beta2_f32 = beta2.to_f64() as f32;
+            let eps_f32 = eps.to_f64() as f32;
+            let weight_decay_f32 = weight_decay.to_f64() as f32;
+
+            if kernels::launch_adamw_step(
+                &mut param_f32,
+                param_layout,
+                &grad_f32,
+                grad_layout,
+                &mut m_f32,
+                m_layout,
+                &mut v_f32,
+                v_layout,
+                lr_f32,
+                beta1_f32,
+                beta2_f32,
+                eps_f32,
+                weight_decay_f32,
+                t,
+            ) {
+                return;
+            }
+        }
+        self.fallback_adamw_step(param, param_layout, grad, grad_layout, m, m_layout, v, v_layout, lr, beta1, beta2, eps, weight_decay, t);
+    }
 }

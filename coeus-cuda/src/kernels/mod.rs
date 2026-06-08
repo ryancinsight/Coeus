@@ -21,7 +21,7 @@ pub use pool::{
     dispatch_avg_pool2d, dispatch_avg_pool2d_backward,
 };
 pub use optim::{
-    launch_sgd_step, launch_adam_step, launch_rmsprop_step, launch_adagrad_step,
+    launch_sgd_step, launch_adam_step, launch_adamw_step, launch_rmsprop_step, launch_adagrad_step,
 };
 
 use std::sync::OnceLock;

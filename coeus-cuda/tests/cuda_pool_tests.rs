@@ -1,4 +1,4 @@
-use coeus_core::{SequentialBackend, ComputeBackend};
+use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
 use coeus_cuda::CudaBackend;
 

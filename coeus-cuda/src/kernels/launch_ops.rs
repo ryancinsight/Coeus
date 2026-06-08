@@ -106,6 +106,7 @@ pub fn launch_contiguous_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::SiluGrad => "(1.0f / (1.0f + expf(-a[idx]))) * (1.0f + a[idx] * (1.0f - (1.0f / (1.0f + expf(-a[idx])))))",
         coeus_ops::UnaryOp::Mish => "a[idx] * tanhf(logf(1.0f + expf(a[idx])))",
         coeus_ops::UnaryOp::MishGrad => "tanhf(logf(1.0f + expf(a[idx]))) + a[idx] * (1.0f - tanhf(logf(1.0f + expf(a[idx]))) * tanhf(logf(1.0f + expf(a[idx])))) * (1.0f / (1.0f + expf(-a[idx])))",
+        _ => return false,
     };
 
     let cuda_src = format!(
@@ -313,6 +314,7 @@ pub fn launch_strided_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::SiluGrad => "(1.0f / (1.0f + expf(-val_a))) * (1.0f + val_a * (1.0f - (1.0f / (1.0f + expf(-val_a)))))",
         coeus_ops::UnaryOp::Mish => "val_a * tanhf(logf(1.0f + expf(val_a)))",
         coeus_ops::UnaryOp::MishGrad => "tanhf(logf(1.0f + expf(val_a))) + val_a * (1.0f - tanhf(logf(1.0f + expf(val_a))) * tanhf(logf(1.0f + expf(val_a)))) * (1.0f / (1.0f + expf(-val_a)))",
+        _ => return false,
     };
 
     let cuda_src = format!(
