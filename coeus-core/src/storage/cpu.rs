@@ -100,6 +100,12 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
         Arc::try_unwrap(self.block).ok()
     }
 
+    /// Returns true when this storage has exclusive ownership of its allocation.
+    #[inline]
+    pub fn is_unique(&self) -> bool {
+        Arc::strong_count(&self.block) == 1
+    }
+
     // ── Internal helpers ──
     #[inline]
     fn raw_slice(&self) -> &[T] {

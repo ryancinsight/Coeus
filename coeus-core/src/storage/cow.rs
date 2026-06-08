@@ -1,6 +1,7 @@
 // ── Copy-on-Write storage wrapper ──
 // Wraps any Storage+StorageMut to provide transparent COW semantics.
 
+use crate::storage::cpu::CpuStorage;
 use crate::storage::traits::{Storage, StorageMut, CpuAddressableStorage, CpuAddressableStorageMut};
 
 /// COW wrapper over an inner storage.
@@ -38,6 +39,17 @@ impl<S> CowStorage<S> {
     #[inline]
     pub fn inner_mut(&mut self) -> &mut S {
         &mut self.inner
+    }
+}
+
+impl<T> CowStorage<CpuStorage<T>>
+where
+    T: Copy + Send + Sync + 'static,
+{
+    /// Returns true when the wrapped CPU storage has exclusive allocation ownership.
+    #[inline]
+    pub fn is_unique(&self) -> bool {
+        self.inner.is_unique()
     }
 }
 
