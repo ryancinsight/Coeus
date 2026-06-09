@@ -1,7 +1,7 @@
 use coeus_core::SequentialBackend;
+use coeus_ops::fuse::{evaluate_fused_cpu, TensorExprExt};
 use coeus_tensor::Tensor;
-use coeus_ops::fuse::{TensorExprExt, evaluate_fused_cpu};
-use coeus_wgpu::{WgpuBackend, evaluate_fused};
+use coeus_wgpu::{evaluate_fused, WgpuBackend};
 
 #[test]
 fn test_wgpu_fusion_parity() {
@@ -24,14 +24,18 @@ fn test_wgpu_fusion_parity() {
     let c_gpu = c_cpu.to_backend_on(&seq, &wgpu_b);
 
     // Fused expression on GPU: (a_gpu * b_gpu + c_gpu).relu().sigmoid()
-    let expr = (a_gpu.expr() * b_gpu.expr() + c_gpu.expr()).relu().sigmoid();
+    let expr = (a_gpu.expr() * b_gpu.expr() + c_gpu.expr())
+        .relu()
+        .sigmoid();
     let out_gpu = evaluate_fused(&expr);
 
     // Transfer back to CPU
     let out_cpu = out_gpu.to_backend_on(&wgpu_b, &seq);
 
     // Fused expression on CPU
-    let expr_cpu = (a_cpu.expr() * b_cpu.expr() + c_cpu.expr()).relu().sigmoid();
+    let expr_cpu = (a_cpu.expr() * b_cpu.expr() + c_cpu.expr())
+        .relu()
+        .sigmoid();
     let expected_cpu = evaluate_fused_cpu(&expr_cpu, &seq);
 
     // Compare
@@ -39,7 +43,13 @@ fn test_wgpu_fusion_parity() {
     let exp_slice = expected_cpu.as_slice();
     for i in 0..out_slice.len() {
         let diff = (out_slice[i] - exp_slice[i]).abs();
-        assert!(diff < 1e-5, "Mismatch at index {}: {} vs expected {}", i, out_slice[i], exp_slice[i]);
+        assert!(
+            diff < 1e-5,
+            "Mismatch at index {}: {} vs expected {}",
+            i,
+            out_slice[i],
+            exp_slice[i]
+        );
     }
 }
 
@@ -61,21 +71,24 @@ fn test_wgpu_evaluate_fused_reduce() {
     // Fused sum reduction along axis 1
     let out_sum_gpu = coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Sum, 1);
     let out_sum_cpu = out_sum_gpu.to_backend_on(&wgpu_b, &seq);
-    let expected_sum = coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Sum, 1, &seq);
+    let expected_sum =
+        coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Sum, 1, &seq);
 
     assert_eq!(out_sum_cpu.as_slice(), expected_sum.as_slice());
 
     // Fused max reduction along axis 1
     let out_max_gpu = coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Max, 1);
     let out_max_cpu = out_max_gpu.to_backend_on(&wgpu_b, &seq);
-    let expected_max = coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Max, 1, &seq);
+    let expected_max =
+        coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Max, 1, &seq);
 
     assert_eq!(out_max_cpu.as_slice(), expected_max.as_slice());
 
     // Fused min reduction along axis 1
     let out_min_gpu = coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Min, 1);
     let out_min_cpu = out_min_gpu.to_backend_on(&wgpu_b, &seq);
-    let expected_min = coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Min, 1, &seq);
+    let expected_min =
+        coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Min, 1, &seq);
 
     assert_eq!(out_min_cpu.as_slice(), expected_min.as_slice());
 }
@@ -107,7 +120,13 @@ fn test_wgpu_fusion_silu() {
     let exp_slice = expected.as_slice();
     for i in 0..out_slice.len() {
         let diff = (out_slice[i] - exp_slice[i]).abs();
-        assert!(diff < 1e-5, "Mismatch at index {}: {} vs {}", i, out_slice[i], exp_slice[i]);
+        assert!(
+            diff < 1e-5,
+            "Mismatch at index {}: {} vs {}",
+            i,
+            out_slice[i],
+            exp_slice[i]
+        );
     }
 }
 
@@ -138,7 +157,13 @@ fn test_wgpu_fusion_mish() {
     let exp_slice = expected.as_slice();
     for i in 0..out_slice.len() {
         let diff = (out_slice[i] - exp_slice[i]).abs();
-        assert!(diff < 1e-5, "Mismatch at index {}: {} vs {}", i, out_slice[i], exp_slice[i]);
+        assert!(
+            diff < 1e-5,
+            "Mismatch at index {}: {} vs {}",
+            i,
+            out_slice[i],
+            exp_slice[i]
+        );
     }
 }
 
@@ -169,7 +194,13 @@ fn test_wgpu_fusion_gelu() {
     let exp_slice = expected.as_slice();
     for i in 0..out_slice.len() {
         let diff = (out_slice[i] - exp_slice[i]).abs();
-        assert!(diff < 1e-4, "Mismatch at index {}: {} vs {}", i, out_slice[i], exp_slice[i]);
+        assert!(
+            diff < 1e-4,
+            "Mismatch at index {}: {} vs {}",
+            i,
+            out_slice[i],
+            exp_slice[i]
+        );
     }
 }
 
@@ -200,8 +231,12 @@ fn test_wgpu_fusion_gelu_grad() {
     let exp_slice = expected.as_slice();
     for i in 0..out_slice.len() {
         let diff = (out_slice[i] - exp_slice[i]).abs();
-        assert!(diff < 1e-4, "Mismatch at index {}: {} vs {}", i, out_slice[i], exp_slice[i]);
+        assert!(
+            diff < 1e-4,
+            "Mismatch at index {}: {} vs {}",
+            i,
+            out_slice[i],
+            exp_slice[i]
+        );
     }
 }
-
-

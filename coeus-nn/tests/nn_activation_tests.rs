@@ -1,18 +1,15 @@
-use coeus_tensor::{Tensor, Transpose};
 use coeus_autograd::Var;
-use coeus_nn::{
-    elu, ELU,
-    softplus, Softplus,
-    gelu_tanh, GeLUTanh,
-    leaky_relu, LeakyReLU,
-    Module,
-};
 use coeus_core::MoiraiBackend;
+use coeus_nn::{elu, gelu_tanh, leaky_relu, softplus, GeLUTanh, LeakyReLU, Module, Softplus, ELU};
+use coeus_tensor::{Tensor, Transpose};
 
 #[test]
 fn test_elu_activation() {
     let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
-    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data), true);
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data),
+        true,
+    );
 
     // Test Functional
     let output = elu(&input);
@@ -37,7 +34,10 @@ fn test_elu_activation() {
     }
 
     // Test Module
-    let input_mod = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]), true);
+    let input_mod = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]),
+        true,
+    );
     let elu_mod = ELU;
     let output_mod = elu_mod.forward(&input_mod);
     assert_eq!(output_mod.tensor.shape(), &[2, 2]);
@@ -47,7 +47,10 @@ fn test_elu_activation() {
 #[test]
 fn test_softplus_activation() {
     let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
-    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data), true);
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data),
+        true,
+    );
 
     // Test Functional
     let output = softplus(&input);
@@ -72,17 +75,26 @@ fn test_softplus_activation() {
     }
 
     // Test Module
-    let input_mod = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]), true);
+    let input_mod = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]),
+        true,
+    );
     let softplus_mod = Softplus;
     let output_mod = softplus_mod.forward(&input_mod);
     assert_eq!(output_mod.tensor.shape(), &[2, 2]);
-    assert_eq!(Module::<f64, MoiraiBackend>::parameters(&softplus_mod).len(), 0);
+    assert_eq!(
+        Module::<f64, MoiraiBackend>::parameters(&softplus_mod).len(),
+        0
+    );
 }
 
 #[test]
 fn test_gelu_tanh_activation() {
     let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
-    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data), true);
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data),
+        true,
+    );
 
     // Test Functional
     let output = gelu_tanh(&input);
@@ -114,17 +126,26 @@ fn test_gelu_tanh_activation() {
     }
 
     // Test Module
-    let input_mod = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]), true);
+    let input_mod = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]),
+        true,
+    );
     let gelu_tanh_mod = GeLUTanh;
     let output_mod = gelu_tanh_mod.forward(&input_mod);
     assert_eq!(output_mod.tensor.shape(), &[2, 2]);
-    assert_eq!(Module::<f64, MoiraiBackend>::parameters(&gelu_tanh_mod).len(), 0);
+    assert_eq!(
+        Module::<f64, MoiraiBackend>::parameters(&gelu_tanh_mod).len(),
+        0
+    );
 }
 
 #[test]
 fn test_leaky_relu_activation() {
     let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
-    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data), true);
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data),
+        true,
+    );
     let slope = 0.1;
 
     // Test Functional
@@ -150,19 +171,23 @@ fn test_leaky_relu_activation() {
     }
 
     // Test Module
-    let input_mod = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]), true);
+    let input_mod = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]),
+        true,
+    );
     let leaky_mod = LeakyReLU::new(0.05);
     let output_mod = leaky_mod.forward(&input_mod);
     assert_eq!(output_mod.tensor.shape(), &[2, 2]);
-    assert_eq!(Module::<f64, MoiraiBackend>::parameters(&leaky_mod).len(), 0);
+    assert_eq!(
+        Module::<f64, MoiraiBackend>::parameters(&leaky_mod).len(),
+        0
+    );
 }
 
 #[test]
 fn test_non_contiguous_activations() {
-    let input_raw = Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[
-        -2.0f64, -1.0, 0.0,
-        1.0, 2.0, 3.0,
-    ]);
+    let input_raw =
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[-2.0f64, -1.0, 0.0, 1.0, 2.0, 3.0]);
     let input_t = input_raw.transpose(); // shape [3, 2], non-contiguous
     let input = Var::new(input_t, true);
 

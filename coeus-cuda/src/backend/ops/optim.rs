@@ -1,8 +1,8 @@
-use coeus_core::Layout;
 use crate::backend::{CudaBackend, CudaScalar};
-use crate::storage::CudaStorage;
 use crate::driver::get_cuda_context;
 use crate::kernels;
+use crate::storage::CudaStorage;
+use coeus_core::Layout;
 
 fn cast_storage<T, U>(storage: &CudaStorage<T>) -> CudaStorage<U> {
     CudaStorage {
@@ -31,8 +31,12 @@ impl CudaBackend {
         velocity_layout: &Layout,
         lr: T,
         momentum: T,
-    ) where T: coeus_core::Float {
-        if get_cuda_context().is_some() && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+    ) where
+        T: coeus_core::Float,
+    {
+        if get_cuda_context().is_some()
+            && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+        {
             let mut param_f32 = cast_storage_mut::<T, f32>(param);
             let grad_f32 = cast_storage::<T, f32>(grad);
             let mut velocity_f32 = cast_storage_mut::<T, f32>(velocity);
@@ -52,7 +56,16 @@ impl CudaBackend {
                 return;
             }
         }
-        self.fallback_sgd_step(param, param_layout, grad, grad_layout, velocity, velocity_layout, lr, momentum);
+        self.fallback_sgd_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            velocity,
+            velocity_layout,
+            lr,
+            momentum,
+        );
     }
 
     pub(crate) fn cuda_adam_step<T: CudaScalar>(
@@ -70,8 +83,12 @@ impl CudaBackend {
         beta2: T,
         eps: T,
         t: usize,
-    ) where T: coeus_core::Float {
-        if get_cuda_context().is_some() && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+    ) where
+        T: coeus_core::Float,
+    {
+        if get_cuda_context().is_some()
+            && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+        {
             let mut param_f32 = cast_storage_mut::<T, f32>(param);
             let grad_f32 = cast_storage::<T, f32>(grad);
             let mut m_f32 = cast_storage_mut::<T, f32>(m);
@@ -99,7 +116,21 @@ impl CudaBackend {
                 return;
             }
         }
-        self.fallback_adam_step(param, param_layout, grad, grad_layout, m, m_layout, v, v_layout, lr, beta1, beta2, eps, t);
+        self.fallback_adam_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            m,
+            m_layout,
+            v,
+            v_layout,
+            lr,
+            beta1,
+            beta2,
+            eps,
+            t,
+        );
     }
 
     pub(crate) fn cuda_rmsprop_step<T: CudaScalar>(
@@ -113,8 +144,12 @@ impl CudaBackend {
         lr: T,
         alpha: T,
         eps: T,
-    ) where T: coeus_core::Float {
-        if get_cuda_context().is_some() && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+    ) where
+        T: coeus_core::Float,
+    {
+        if get_cuda_context().is_some()
+            && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+        {
             let mut param_f32 = cast_storage_mut::<T, f32>(param);
             let grad_f32 = cast_storage::<T, f32>(grad);
             let mut v_f32 = cast_storage_mut::<T, f32>(v);
@@ -136,7 +171,17 @@ impl CudaBackend {
                 return;
             }
         }
-        self.fallback_rmsprop_step(param, param_layout, grad, grad_layout, v, v_layout, lr, alpha, eps);
+        self.fallback_rmsprop_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            v,
+            v_layout,
+            lr,
+            alpha,
+            eps,
+        );
     }
 
     pub(crate) fn cuda_adagrad_step<T: CudaScalar>(
@@ -149,8 +194,12 @@ impl CudaBackend {
         history_layout: &Layout,
         lr: T,
         eps: T,
-    ) where T: coeus_core::Float {
-        if get_cuda_context().is_some() && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+    ) where
+        T: coeus_core::Float,
+    {
+        if get_cuda_context().is_some()
+            && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+        {
             let mut param_f32 = cast_storage_mut::<T, f32>(param);
             let grad_f32 = cast_storage::<T, f32>(grad);
             let mut history_f32 = cast_storage_mut::<T, f32>(history);
@@ -170,7 +219,16 @@ impl CudaBackend {
                 return;
             }
         }
-        self.fallback_adagrad_step(param, param_layout, grad, grad_layout, history, history_layout, lr, eps);
+        self.fallback_adagrad_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            history,
+            history_layout,
+            lr,
+            eps,
+        );
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -190,8 +248,12 @@ impl CudaBackend {
         eps: T,
         weight_decay: T,
         t: usize,
-    ) where T: coeus_core::Float {
-        if get_cuda_context().is_some() && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+    ) where
+        T: coeus_core::Float,
+    {
+        if get_cuda_context().is_some()
+            && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+        {
             let mut param_f32 = cast_storage_mut::<T, f32>(param);
             let grad_f32 = cast_storage::<T, f32>(grad);
             let mut m_f32 = cast_storage_mut::<T, f32>(m);
@@ -221,6 +283,21 @@ impl CudaBackend {
                 return;
             }
         }
-        self.fallback_adamw_step(param, param_layout, grad, grad_layout, m, m_layout, v, v_layout, lr, beta1, beta2, eps, weight_decay, t);
+        self.fallback_adamw_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            m,
+            m_layout,
+            v,
+            v_layout,
+            lr,
+            beta1,
+            beta2,
+            eps,
+            weight_decay,
+            t,
+        );
     }
 }

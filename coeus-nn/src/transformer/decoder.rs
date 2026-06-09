@@ -1,9 +1,9 @@
 // ── Transformer Decoder stack ──
 
-use coeus_core::{Float, MoiraiBackend};
-use coeus_autograd::{Var, AttentionMask, CausalMask, NullMask};
-use crate::module::Module;
 use super::decoder_layer::TransformerDecoderLayer;
+use crate::module::Module;
+use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
+use coeus_core::{Float, MoiraiBackend};
 
 /// Stack of N `TransformerDecoderLayer`s.
 ///
@@ -25,13 +25,13 @@ pub struct TransformerDecoder<
 }
 
 impl<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
-    const H: usize,
-    const N: usize,
-    SelfM: AttentionMask,
-    CrossM: AttentionMask,
-> TransformerDecoder<T, B, H, N, SelfM, CrossM>
+        T: Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const H: usize,
+        const N: usize,
+        SelfM: AttentionMask,
+        CrossM: AttentionMask,
+    > TransformerDecoder<T, B, H, N, SelfM, CrossM>
 where
     TransformerDecoderLayer<T, B, H, SelfM, CrossM>: Clone,
 {
@@ -60,13 +60,13 @@ where
 }
 
 impl<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
-    const H: usize,
-    const N: usize,
-    SelfM: AttentionMask,
-    CrossM: AttentionMask,
-> Module<T, B> for TransformerDecoder<T, B, H, N, SelfM, CrossM>
+        T: Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const H: usize,
+        const N: usize,
+        SelfM: AttentionMask,
+        CrossM: AttentionMask,
+    > Module<T, B> for TransformerDecoder<T, B, H, N, SelfM, CrossM>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         self.layers.iter().flat_map(|l| l.parameters()).collect()
@@ -80,13 +80,13 @@ impl<
 
 /// Manual Clone impl.
 impl<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
-    const H: usize,
-    const N: usize,
-    SelfM: AttentionMask,
-    CrossM: AttentionMask,
-> Clone for TransformerDecoder<T, B, H, N, SelfM, CrossM>
+        T: Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const H: usize,
+        const N: usize,
+        SelfM: AttentionMask,
+        CrossM: AttentionMask,
+    > Clone for TransformerDecoder<T, B, H, N, SelfM, CrossM>
 where
     TransformerDecoderLayer<T, B, H, SelfM, CrossM>: Clone,
 {

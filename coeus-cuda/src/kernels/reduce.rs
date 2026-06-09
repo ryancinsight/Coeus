@@ -1,12 +1,11 @@
-use coeus_core::{Layout, ComputeBackend};
-use crate::storage::CudaStorage;
-use crate::driver::{CudaDriver, CUdeviceptr, get_cuda_context};
 use super::fuse::get_or_create_kernel;
-use coeus_ops::fuse::ExprNode;
 use crate::backend::{CudaBackend, CudaScalar};
+use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
+use crate::storage::CudaStorage;
+use coeus_core::{ComputeBackend, Layout};
+use coeus_ops::fuse::ExprNode;
 use coeus_tensor::Tensor;
 use std::collections::HashMap;
-
 
 /// Compile and dispatch a dynamically generated CUDA reduction kernel for Sum, Max, and Min.
 pub fn dispatch_reduce<T: CudaScalar>(
@@ -17,8 +16,12 @@ pub fn dispatch_reduce<T: CudaScalar>(
     c: &mut CudaStorage<T>,
     c_layout: &Layout,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(_ctx) = get_cuda_context() else { return false; };
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
     let cuda_type = T::CUDA_TYPE;
 
     let (init_expr, loop_start, update_expr) = match op {
@@ -83,7 +86,9 @@ extern "C" __global__ void reduce_kernel(
     );
 
     let key = format!("reduce_val_{:?}_{}", op, cuda_type);
-    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "reduce_kernel") else { return false; };
+    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "reduce_kernel") else {
+        return false;
+    };
 
     let gpu_a_layout = crate::kernels::GpuLayoutInfo::from_layout(a_layout);
     let gpu_c_layout = crate::kernels::GpuLayoutInfo::from_layout(c_layout);
@@ -109,8 +114,12 @@ extern "C" __global__ void reduce_kernel(
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32, 1, 1,
-            block_size as u32, 1, 1,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),
@@ -128,11 +137,17 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     c: &mut CudaStorage<T>,
     c_layout: &Layout,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(_ctx) = get_cuda_context() else { return false; };
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
     let cuda_type = T::CUDA_TYPE;
 
-    let expr_shape = expr.shape().expect("Fused expression must have at least one tensor input");
+    let expr_shape = expr
+        .shape()
+        .expect("Fused expression must have at least one tensor input");
     let expr_ndim = expr_shape.len();
     let axis_len = expr_shape[axis] as u32;
 
@@ -141,10 +156,7 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     expr.collect_inputs(&mut input_ptrs);
     let num_inputs = input_ptrs.len();
 
-    let inputs: Vec<&Tensor<T, CudaBackend>> = input_ptrs
-        .iter()
-        .map(|&p| unsafe { &*p })
-        .collect();
+    let inputs: Vec<&Tensor<T, CudaBackend>> = input_ptrs.iter().map(|&p| unsafe { &*p }).collect();
 
     // 2. Build input pointer to index map
     let mut input_map = HashMap::new();
@@ -165,9 +177,7 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
 
     let size_u32 = layouts_gpu.len() * (std::mem::size_of::<crate::kernels::GpuLayoutInfo>() / 4);
     let mut layout_buf = CudaStorage::<u32>::new(size_u32);
-    let slice = unsafe {
-        std::slice::from_raw_parts(layouts_gpu.as_ptr() as *const u32, size_u32)
-    };
+    let slice = unsafe { std::slice::from_raw_parts(layouts_gpu.as_ptr() as *const u32, size_u32) };
     CudaBackend::new().copy_to_device(slice, &mut layout_buf);
 
     // 5. Generate C++ CUDA kernel source code
@@ -258,7 +268,9 @@ extern "C" __global__ void fused_reduce_kernel(
 
     // 6. Get or create kernel module
     let key = format!("fused_reduce_{:?}_{}_{}", op, expr_str, cuda_type);
-    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "fused_reduce_kernel") else { return false; };
+    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "fused_reduce_kernel") else {
+        return false;
+    };
 
     // 7. Launch
     let mut out_ptr = c.cu_deviceptr();
@@ -290,8 +302,12 @@ extern "C" __global__ void fused_reduce_kernel(
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32, 1, 1,
-            block_size as u32, 1, 1,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),
@@ -300,4 +316,3 @@ extern "C" __global__ void fused_reduce_kernel(
         res == 0
     }
 }
-

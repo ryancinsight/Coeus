@@ -41,8 +41,17 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
     // cols spans the SIMD lane/tail boundary; rows exercises multiple output runs.
-    for &(rows, cols) in &[(1usize, 1usize), (3, 7), (4, 8), (5, 17), (8, 1024), (33, 257)] {
-        let data: Vec<f32> = (0..rows * cols).map(|i| (i as f32).sin() * 4.0 - 1.0).collect();
+    for &(rows, cols) in &[
+        (1usize, 1usize),
+        (3, 7),
+        (4, 8),
+        (5, 17),
+        (8, 1024),
+        (33, 257),
+    ] {
+        let data: Vec<f32> = (0..rows * cols)
+            .map(|i| (i as f32).sin() * 4.0 - 1.0)
+            .collect();
         let rowof = |r: usize| &data[r * cols..(r + 1) * cols];
 
         let sum = reduce_last_axis(backend, ReductionOp::Sum, rows, cols, &data);
@@ -61,8 +70,16 @@ where
             let emin = rowof(r).iter().copied().fold(f32::INFINITY, f32::min);
             let emax = rowof(r).iter().copied().fold(f32::NEG_INFINITY, f32::max);
             // Exact: min/max do not reassociate.
-            assert_eq!(gmin.to_bits(), emin.to_bits(), "min row {r} ({rows}x{cols})");
-            assert_eq!(gmax.to_bits(), emax.to_bits(), "max row {r} ({rows}x{cols})");
+            assert_eq!(
+                gmin.to_bits(),
+                emin.to_bits(),
+                "min row {r} ({rows}x{cols})"
+            );
+            assert_eq!(
+                gmax.to_bits(),
+                emax.to_bits(),
+                "max row {r} ({rows}x{cols})"
+            );
         }
     }
 }

@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-use coeus_core::Layout;
-use coeus_tensor::Tensor;
-use coeus_ops::fuse::ExprNode;
-use crate::backend::{WgpuBackend, WgpuScalar};
-use crate::storage::WgpuStorage;
 use super::cache::PIPELINE_CACHE;
 use super::layout::GpuLayoutInfo;
+use crate::backend::{WgpuBackend, WgpuScalar};
+use crate::storage::WgpuStorage;
+use coeus_core::Layout;
+use coeus_ops::fuse::ExprNode;
+use coeus_tensor::Tensor;
+use std::collections::HashMap;
 
 /// Compile and dispatch a dynamically generated fused WGSL compute shader on the GPU.
 pub fn dispatch_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
@@ -22,10 +22,7 @@ pub fn dispatch_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     let num_inputs = input_ptrs.len();
 
     // Convert raw pointers back to safe references
-    let inputs: Vec<&Tensor<T, WgpuBackend>> = input_ptrs
-        .iter()
-        .map(|&p| unsafe { &*p })
-        .collect();
+    let inputs: Vec<&Tensor<T, WgpuBackend>> = input_ptrs.iter().map(|&p| unsafe { &*p }).collect();
 
     // 2. Build input pointer to index map
     let mut input_map = HashMap::new();
@@ -44,7 +41,8 @@ pub fn dispatch_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     layouts_gpu.push(GpuLayoutInfo::from_layout(out_layout));
 
     let layout_buf = crate::backend::PooledMetadataBuffer::new();
-    ctx.queue.write_buffer(&layout_buf, 0, bytemuck::cast_slice(&layouts_gpu));
+    ctx.queue
+        .write_buffer(&layout_buf, 0, bytemuck::cast_slice(&layouts_gpu));
 
     // 5. Generate the WGSL code
     let mut inputs_decl = String::new();
@@ -141,9 +139,11 @@ pub fn dispatch_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     });
 
     // 8. Dispatch
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("fused-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("fused-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -158,4 +158,3 @@ pub fn dispatch_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 
     ctx.queue.submit(Some(encoder.finish()));
 }
-

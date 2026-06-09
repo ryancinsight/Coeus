@@ -1,6 +1,6 @@
-use coeus_core::{Layout, ComputeBackend, Storage};
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::storage::CudaStorage;
+use coeus_core::{ComputeBackend, Layout, Storage};
 
 impl CudaBackend {
     pub(crate) fn fallback_conv1d<T: CudaScalar>(
@@ -176,9 +176,15 @@ impl CudaBackend {
         let seq_in = coeus_core::CpuStorage::from_slice(&host_input);
         let seq_w = coeus_core::CpuStorage::from_slice(&host_weight);
 
-        let mut seq_gi = grad_input.as_ref().map(|gi| coeus_core::CpuStorage::from_slice(&vec![T::zero(); gi.len()]));
-        let mut seq_gw = grad_weight.as_ref().map(|gw| coeus_core::CpuStorage::from_slice(&vec![T::zero(); gw.len()]));
-        let mut seq_gb = grad_bias.as_ref().map(|gb| coeus_core::CpuStorage::from_slice(&vec![T::zero(); gb.len()]));
+        let mut seq_gi = grad_input
+            .as_ref()
+            .map(|gi| coeus_core::CpuStorage::from_slice(&vec![T::zero(); gi.len()]));
+        let mut seq_gw = grad_weight
+            .as_ref()
+            .map(|gw| coeus_core::CpuStorage::from_slice(&vec![T::zero(); gw.len()]));
+        let mut seq_gb = grad_bias
+            .as_ref()
+            .map(|gb| coeus_core::CpuStorage::from_slice(&vec![T::zero(); gb.len()]));
 
         coeus_ops::BackendOps::conv3d_backward(
             &seq,

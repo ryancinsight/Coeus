@@ -57,7 +57,11 @@ where
         let b: Vec<T> = (0..n).map(|i| T::from_f64((i % 7) as f64 + 1.0)).collect();
 
         let got = device_binary(backend, op, &a, &b);
-        let expected: Vec<T> = a.iter().zip(&b).map(|(&x, &y)| reference(op, x, y)).collect();
+        let expected: Vec<T> = a
+            .iter()
+            .zip(&b)
+            .map(|(&x, &y)| reference(op, x, y))
+            .collect();
 
         for i in 0..n {
             // Bitwise-exact: single IEEE op per lane, scalar == SIMD.

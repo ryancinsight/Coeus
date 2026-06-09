@@ -1,0 +1,125 @@
+use crate::node::BackwardNode;
+use crate::var::Var;
+use coeus_core::Scalar;
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
+
+/// Abstract interface for compile-time specialized unary autograd operations.
+pub trait UnaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Send + Sync {
+    /// Human-readable operation name for tracking.
+    const OP_NAME: &'static str;
+
+    /// Execute forward pass.
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B>;
+
+    /// Compute input gradient: computes the derivative and scales by grad_out.
+    ///
+    /// Accepts both the input tensor `x` and output tensor `y` to allow optimized
+    /// derivative computation using the output values where mathematically feasible.
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B>;
+}
+
+pub struct UnaryNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: UnaryAutogradOp<T, B>> {
+    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub inputs: Vec<Var<T, B>>,
+    pub a_tensor: Tensor<T, B>,
+    pub out_tensor: Tensor<T, B>,
+    pub _phantom: std::marker::PhantomData<Op>,
+}
+
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: UnaryAutogradOp<T, B>> BackwardNode<T, B>
+    for UnaryNode<T, B, Op>
+{
+    #[inline]
+    fn op_name(&self) -> &'static str {
+        Op::OP_NAME
+    }
+
+    #[inline]
+    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+        &self.output_grad
+    }
+
+    #[inline]
+    fn inputs(&self) -> &[Var<T, B>] {
+        &self.inputs
+    }
+
+    #[inline]
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+        let backend = B::default();
+        if let Some(Some(ref g)) = input_grads.get(0) {
+            let mask = Op::backward(grad_out, &self.a_tensor, &self.out_tensor, &backend);
+            let mut gl = g.lock().unwrap();
+            coeus_ops::add_assign(&mut gl, &mask, &backend);
+        }
+    }
+}
+
+/// Generic, monomorphized activation wrapper that builds the autograd node.
+#[inline]
+pub fn unary_op<
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+    Op: UnaryAutogradOp<T, B> + 'static,
+>(
+    a: &Var<T, B>,
+) -> Var<T, B> {
+    let backend = B::default();
+    let out_tensor = Op::forward(&a.tensor, &backend);
+    let requires_grad = a.grad.is_some();
+    let grad = if requires_grad {
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
+    } else {
+        None
+    };
+
+    let creator = if requires_grad {
+        let output_grad = grad.as_ref().unwrap().clone();
+        let inputs = vec![a.clone()];
+        let a_tensor = a.tensor.clone();
+        let out_t = out_tensor.clone();
+        let node: UnaryNode<T, B, Op> = UnaryNode {
+            output_grad,
+            inputs,
+            a_tensor,
+            out_tensor: out_t,
+            _phantom: std::marker::PhantomData,
+        };
+        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
+    } else {
+        None
+    };
+
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
+}
+
+// ── Leaf modules ──
+pub mod gelu;
+pub mod math;
+pub mod relu;
+pub mod sigmoid;
+pub mod silu;
+pub mod tanh_act;
+pub mod trig;
+
+// ── Re-exports ──
+pub use gelu::{gelu, gelu_tanh, GeluOp, GeluTanhOp};
+pub use math::{abs, clamp, neg, pow, sqrt, AbsOp, ClampNode, NegOp, PowNode, SqrtOp};
+pub use relu::{elu, leaky_relu, relu, EluOp, ReluOp};
+pub use sigmoid::{sigmoid, SigmoidOp};
+pub use silu::{mish, silu, softplus, MishOp, SiluOp, SoftplusOp};
+pub use tanh_act::{tanh, TanhOp};
+pub use trig::{exp, log, ExpOp, LogOp};

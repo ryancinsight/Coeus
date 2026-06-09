@@ -1,5 +1,5 @@
-use std::sync::{OnceLock, Arc};
 use libloading::Library;
+use std::sync::{Arc, OnceLock};
 
 pub type CUdevice = i32;
 pub type CUcontext = *mut std::ffi::c_void;
@@ -14,14 +14,32 @@ pub struct CudaDriver {
     _lib: Library,
     pub cu_init: unsafe extern "C" fn(flags: u32) -> CUresult,
     pub cu_device_get: unsafe extern "C" fn(device: *mut CUdevice, ordinal: i32) -> CUresult,
-    pub cu_ctx_create: unsafe extern "C" fn(pctx: *mut CUcontext, flags: u32, dev: CUdevice) -> CUresult,
+    pub cu_ctx_create:
+        unsafe extern "C" fn(pctx: *mut CUcontext, flags: u32, dev: CUdevice) -> CUresult,
     pub cu_mem_alloc: unsafe extern "C" fn(dptr: *mut CUdeviceptr, bytesize: usize) -> CUresult,
     pub cu_mem_free: unsafe extern "C" fn(dptr: CUdeviceptr) -> CUresult,
-    pub cu_memcpy_htod: unsafe extern "C" fn(dst_device: CUdeviceptr, src_host: *const std::ffi::c_void, byte_count: usize) -> CUresult,
-    pub cu_memcpy_dtoh: unsafe extern "C" fn(dst_host: *mut std::ffi::c_void, src_device: CUdeviceptr, byte_count: usize) -> CUresult,
-    pub cu_memcpy_dtod: unsafe extern "C" fn(dst_device: CUdeviceptr, src_device: CUdeviceptr, byte_count: usize) -> CUresult,
-    pub cu_module_load_data: unsafe extern "C" fn(module: *mut CUmodule, image: *const std::ffi::c_void) -> CUresult,
-    pub cu_module_get_function: unsafe extern "C" fn(hfunc: *mut CUfunction, hmod: CUmodule, name: *const std::ffi::c_char) -> CUresult,
+    pub cu_memcpy_htod: unsafe extern "C" fn(
+        dst_device: CUdeviceptr,
+        src_host: *const std::ffi::c_void,
+        byte_count: usize,
+    ) -> CUresult,
+    pub cu_memcpy_dtoh: unsafe extern "C" fn(
+        dst_host: *mut std::ffi::c_void,
+        src_device: CUdeviceptr,
+        byte_count: usize,
+    ) -> CUresult,
+    pub cu_memcpy_dtod: unsafe extern "C" fn(
+        dst_device: CUdeviceptr,
+        src_device: CUdeviceptr,
+        byte_count: usize,
+    ) -> CUresult,
+    pub cu_module_load_data:
+        unsafe extern "C" fn(module: *mut CUmodule, image: *const std::ffi::c_void) -> CUresult,
+    pub cu_module_get_function: unsafe extern "C" fn(
+        hfunc: *mut CUfunction,
+        hmod: CUmodule,
+        name: *const std::ffi::c_char,
+    ) -> CUresult,
     pub cu_module_unload: unsafe extern "C" fn(hmod: CUmodule) -> CUresult,
     #[allow(non_snake_case)]
     pub cu_launch_kernel: unsafe extern "C" fn(
@@ -51,15 +69,15 @@ static CONTEXT: OnceLock<Option<CUcontextWrapper>> = OnceLock::new();
 impl CudaDriver {
     /// Retrieve a reference to the dynamically loaded driver if available.
     pub fn get() -> Option<&'static Self> {
-        DRIVER.get_or_init(|| {
-            unsafe {
+        DRIVER
+            .get_or_init(|| unsafe {
                 let lib_name = if cfg!(windows) {
                     "nvcuda.dll"
                 } else {
                     "libcuda.so"
                 };
                 let lib = Library::new(lib_name).ok()?;
-                
+
                 let cu_init = *lib.get(b"cuInit\0").ok()?;
                 let cu_device_get = *lib.get(b"cuDeviceGet\0").ok()?;
                 let cu_ctx_create = *lib.get(b"cuCtxCreate\0").ok()?;
@@ -72,7 +90,7 @@ impl CudaDriver {
                 let cu_module_get_function = *lib.get(b"cuModuleGetFunction\0").ok()?;
                 let cu_module_unload = *lib.get(b"cuModuleUnload\0").ok()?;
                 let cu_launch_kernel = *lib.get(b"cuLaunchKernel\0").ok()?;
-                
+
                 Some(Self {
                     _lib: lib,
                     cu_init,
@@ -88,30 +106,38 @@ impl CudaDriver {
                     cu_module_unload,
                     cu_launch_kernel,
                 })
-            }
-        }).as_ref()
+            })
+            .as_ref()
     }
 }
 
 /// Retrieve a reference to the active CUDA driver context.
 pub fn get_cuda_context() -> Option<CUcontext> {
-    CONTEXT.get_or_init(|| {
-        let drv = CudaDriver::get()?;
-        unsafe {
-            let res = (drv.cu_init)(0);
-            if res != 0 { return None; }
-            
-            let mut dev: CUdevice = 0;
-            let res = (drv.cu_device_get)(&mut dev, 0);
-            if res != 0 { return None; }
-            
-            let mut ctx: CUcontext = std::ptr::null_mut();
-            let res = (drv.cu_ctx_create)(&mut ctx, 0, dev);
-            if res != 0 { return None; }
-            
-            Some(CUcontextWrapper(ctx))
-        }
-    }).map(|w| w.0)
+    CONTEXT
+        .get_or_init(|| {
+            let drv = CudaDriver::get()?;
+            unsafe {
+                let res = (drv.cu_init)(0);
+                if res != 0 {
+                    return None;
+                }
+
+                let mut dev: CUdevice = 0;
+                let res = (drv.cu_device_get)(&mut dev, 0);
+                if res != 0 {
+                    return None;
+                }
+
+                let mut ctx: CUcontext = std::ptr::null_mut();
+                let res = (drv.cu_ctx_create)(&mut ctx, 0, dev);
+                if res != 0 {
+                    return None;
+                }
+
+                Some(CUcontextWrapper(ctx))
+            }
+        })
+        .map(|w| w.0)
 }
 
 static BORROWED_DEVICE: OnceLock<Option<Arc<cuda_core::Device>>> = OnceLock::new();
@@ -119,29 +145,32 @@ static BORROWED_STREAM: OnceLock<Option<Arc<cuda_core::Stream>>> = OnceLock::new
 
 /// Retrieve the borrowed cutile Device wrapper.
 pub fn get_borrowed_device() -> Option<Arc<cuda_core::Device>> {
-    BORROWED_DEVICE.get_or_init(|| {
-        let ctx = get_cuda_context()?;
-        unsafe {
-            Some(cuda_core::Device::borrow_raw(
-                ctx,
-                0, // Device 0
-                0, // Ordinal 0
-            ))
-        }
-    }).clone()
+    BORROWED_DEVICE
+        .get_or_init(|| {
+            let ctx = get_cuda_context()?;
+            unsafe {
+                Some(cuda_core::Device::borrow_raw(
+                    ctx, 0, // Device 0
+                    0, // Ordinal 0
+                ))
+            }
+        })
+        .clone()
 }
 
 /// Retrieve the borrowed cutile Stream wrapper.
 pub fn get_borrowed_stream() -> Option<Arc<cuda_core::Stream>> {
-    BORROWED_STREAM.get_or_init(|| {
-        let device = get_borrowed_device()?;
-        unsafe {
-            Some(cuda_core::Stream::borrow_raw(
-                std::ptr::null_mut(), // Default stream (null_mut() is Stream 0 in CUDA)
-                &device,
-            ))
-        }
-    }).clone()
+    BORROWED_STREAM
+        .get_or_init(|| {
+            let device = get_borrowed_device()?;
+            unsafe {
+                Some(cuda_core::Stream::borrow_raw(
+                    std::ptr::null_mut(), // Default stream (null_mut() is Stream 0 in CUDA)
+                    &device,
+                ))
+            }
+        })
+        .clone()
 }
 
 #[allow(non_camel_case_types)]
@@ -165,28 +194,16 @@ pub struct NvrtcDriver {
         numOptions: std::ffi::c_int,
         options: *const *const std::ffi::c_char,
     ) -> nvrtcResult,
-    pub nvrtcGetPTXSize: unsafe extern "C" fn(
-        prog: nvrtcProgram,
-        ptxSize: *mut usize,
-    ) -> nvrtcResult,
-    pub nvrtcGetPTX: unsafe extern "C" fn(
-        prog: nvrtcProgram,
-        ptx: *mut std::ffi::c_char,
-    ) -> nvrtcResult,
-    pub nvrtcGetProgramLogSize: unsafe extern "C" fn(
-        prog: nvrtcProgram,
-        logSize: *mut usize,
-    ) -> nvrtcResult,
-    pub nvrtcGetProgramLog: unsafe extern "C" fn(
-        prog: nvrtcProgram,
-        log: *mut std::ffi::c_char,
-    ) -> nvrtcResult,
-    pub nvrtcDestroyProgram: unsafe extern "C" fn(
-        prog: *mut nvrtcProgram,
-    ) -> nvrtcResult,
-    pub nvrtcGetErrorString: unsafe extern "C" fn(
-        result: nvrtcResult,
-    ) -> *const std::ffi::c_char,
+    pub nvrtcGetPTXSize:
+        unsafe extern "C" fn(prog: nvrtcProgram, ptxSize: *mut usize) -> nvrtcResult,
+    pub nvrtcGetPTX:
+        unsafe extern "C" fn(prog: nvrtcProgram, ptx: *mut std::ffi::c_char) -> nvrtcResult,
+    pub nvrtcGetProgramLogSize:
+        unsafe extern "C" fn(prog: nvrtcProgram, logSize: *mut usize) -> nvrtcResult,
+    pub nvrtcGetProgramLog:
+        unsafe extern "C" fn(prog: nvrtcProgram, log: *mut std::ffi::c_char) -> nvrtcResult,
+    pub nvrtcDestroyProgram: unsafe extern "C" fn(prog: *mut nvrtcProgram) -> nvrtcResult,
+    pub nvrtcGetErrorString: unsafe extern "C" fn(result: nvrtcResult) -> *const std::ffi::c_char,
 }
 
 static NVRTC_DRIVER: OnceLock<Option<NvrtcDriver>> = OnceLock::new();
@@ -194,31 +211,33 @@ static NVRTC_DRIVER: OnceLock<Option<NvrtcDriver>> = OnceLock::new();
 impl NvrtcDriver {
     #[allow(non_snake_case)]
     pub fn get() -> Option<&'static Self> {
-        NVRTC_DRIVER.get_or_init(|| {
-            let lib = find_nvrtc_library()?;
-            unsafe {
-                let nvrtcCreateProgram = *lib.get(b"nvrtcCreateProgram\0").ok()?;
-                let nvrtcCompileProgram = *lib.get(b"nvrtcCompileProgram\0").ok()?;
-                let nvrtcGetPTXSize = *lib.get(b"nvrtcGetPTXSize\0").ok()?;
-                let nvrtcGetPTX = *lib.get(b"nvrtcGetPTX\0").ok()?;
-                let nvrtcGetProgramLogSize = *lib.get(b"nvrtcGetProgramLogSize\0").ok()?;
-                let nvrtcGetProgramLog = *lib.get(b"nvrtcGetProgramLog\0").ok()?;
-                let nvrtcDestroyProgram = *lib.get(b"nvrtcDestroyProgram\0").ok()?;
-                let nvrtcGetErrorString = *lib.get(b"nvrtcGetErrorString\0").ok()?;
-                
-                Some(Self {
-                    _lib: lib,
-                    nvrtcCreateProgram,
-                    nvrtcCompileProgram,
-                    nvrtcGetPTXSize,
-                    nvrtcGetPTX,
-                    nvrtcGetProgramLogSize,
-                    nvrtcGetProgramLog,
-                    nvrtcDestroyProgram,
-                    nvrtcGetErrorString,
-                })
-            }
-        }).as_ref()
+        NVRTC_DRIVER
+            .get_or_init(|| {
+                let lib = find_nvrtc_library()?;
+                unsafe {
+                    let nvrtcCreateProgram = *lib.get(b"nvrtcCreateProgram\0").ok()?;
+                    let nvrtcCompileProgram = *lib.get(b"nvrtcCompileProgram\0").ok()?;
+                    let nvrtcGetPTXSize = *lib.get(b"nvrtcGetPTXSize\0").ok()?;
+                    let nvrtcGetPTX = *lib.get(b"nvrtcGetPTX\0").ok()?;
+                    let nvrtcGetProgramLogSize = *lib.get(b"nvrtcGetProgramLogSize\0").ok()?;
+                    let nvrtcGetProgramLog = *lib.get(b"nvrtcGetProgramLog\0").ok()?;
+                    let nvrtcDestroyProgram = *lib.get(b"nvrtcDestroyProgram\0").ok()?;
+                    let nvrtcGetErrorString = *lib.get(b"nvrtcGetErrorString\0").ok()?;
+
+                    Some(Self {
+                        _lib: lib,
+                        nvrtcCreateProgram,
+                        nvrtcCompileProgram,
+                        nvrtcGetPTXSize,
+                        nvrtcGetPTX,
+                        nvrtcGetProgramLogSize,
+                        nvrtcGetProgramLog,
+                        nvrtcDestroyProgram,
+                        nvrtcGetErrorString,
+                    })
+                }
+            })
+            .as_ref()
     }
 }
 
@@ -247,7 +266,8 @@ fn find_nvrtc_library() -> Option<Library> {
                             let matches = if cfg!(windows) {
                                 filename.starts_with("nvrtc") && filename.ends_with(".dll")
                             } else {
-                                filename.starts_with("libnvrtc") && (filename.ends_with(".so") || filename.contains(".so."))
+                                filename.starts_with("libnvrtc")
+                                    && (filename.ends_with(".so") || filename.contains(".so."))
                             };
                             if matches {
                                 if let Ok(lib) = unsafe { Library::new(&path) } {
@@ -260,9 +280,13 @@ fn find_nvrtc_library() -> Option<Library> {
             }
         }
     }
-    
+
     let fallback_names = if cfg!(windows) {
-        vec!["nvrtc64_130_0.dll", "nvrtc64_120_0.dll", "nvrtc64_112_0.dll"]
+        vec![
+            "nvrtc64_130_0.dll",
+            "nvrtc64_120_0.dll",
+            "nvrtc64_112_0.dll",
+        ]
     } else {
         vec!["libnvrtc.so"]
     };
@@ -273,4 +297,3 @@ fn find_nvrtc_library() -> Option<Library> {
     }
     None
 }
-

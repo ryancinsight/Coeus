@@ -1,8 +1,8 @@
 // ── Tensor constructors ──
 // Factory functions for creating tensors.
 
-use coeus_core::{Scalar, CpuAddressableStorageMut, ComputeBackend, Shape};
 use crate::tensor::Tensor;
+use coeus_core::{ComputeBackend, CpuAddressableStorageMut, Scalar, Shape};
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B>
 where
@@ -83,7 +83,11 @@ where
         let slice = t.as_mut_slice();
         let start_f = start.to_f64();
         let end_f = end.to_f64();
-        let step = if n > 1 { (end_f - start_f) / (n - 1) as f64 } else { 0.0 };
+        let step = if n > 1 {
+            (end_f - start_f) / (n - 1) as f64
+        } else {
+            0.0
+        };
         for i in 0..n {
             slice[i] = T::from_f64(start_f + step * i as f64);
         }

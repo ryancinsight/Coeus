@@ -1,39 +1,70 @@
+//! Neural network layer module system built on [`coeus_autograd`].
+//!
+//! # Module trait
+//! [`Module<T, B>`](module::Module) is the core abstraction: `forward(&self, input: &Var<T, B>) -> Var<T, B>`.
+//!
+//! # Layer families
+//! - **Linear** — [`Linear`], weight + optional bias, Xavier/Kaiming init via [`init`].
+//! - **Convolution** — [`Conv1d`], [`Conv2d`], [`Conv3d`] with stride/padding/dilation.
+//! - **Normalization** — [`LayerNorm`], [`RMSNorm`], [`BatchNorm1d/2d/3d`](BatchNorm2d), [`GroupNorm`], [`InstanceNorm1d/2d`](InstanceNorm2d).
+//! - **Pooling** — [`MaxPool2d`], [`AvgPool2d`], [`MaxPool3d`], [`AvgPool3d`].
+//! - **Attention** — [`MultiHeadAttention`], [`ScaledDotProductAttention`] with [`CausalMask`] / [`NullMask`].
+//! - **Transformer** — [`TransformerEncoder`], [`TransformerDecoder`], [`FeedForward`] blocks.
+//! - **Positional** — [`SinusoidalEncoding`], [`RotaryEmbedding`].
+//! - **Composites** — [`Sequential`], [`StaticSeq`], [`Dropout`], [`Embedding`], [`Softmax`].
+
 // ── Coeus NN ──
 // Neural network building blocks.
-#![allow(clippy::needless_range_loop, clippy::get_first, clippy::manual_range_contains, clippy::type_complexity)]
+#![allow(
+    clippy::needless_range_loop,
+    clippy::get_first,
+    clippy::manual_range_contains,
+    clippy::type_complexity
+)]
 
-pub mod module;
-pub mod parameter;
-pub mod linear;
-pub mod conv;
-pub mod embedding;
-pub mod pool;
 pub mod activation;
-pub mod normalization;
-pub mod dropout;
-pub mod softmax;
-pub mod loss;
-pub mod init;
 pub mod attention;
+pub mod conv;
+pub mod dropout;
+pub mod embedding;
+pub mod init;
+pub mod linear;
+pub mod loss;
+pub mod module;
+pub mod normalization;
+pub mod parameter;
+pub mod pool;
 pub mod positional;
-pub mod transformer;
 pub mod sequential;
+pub mod softmax;
+pub mod transformer;
 
-pub use module::Module;
-pub use parameter::Parameter;
-pub use linear::Linear;
-pub use embedding::Embedding;
+pub use activation::{
+    elu, gelu, gelu_tanh, leaky_relu, mish, relu, sigmoid, silu, softplus, tanh, GeLU, GeLUTanh,
+    LeakyReLU, Mish, ReLU, SiLU, Sigmoid, Softplus, Tanh, ELU,
+};
+pub use attention::{
+    AttentionMask, CausalMask, MultiHeadAttention, NullMask, ScaledDotProductAttention,
+};
 pub use conv::{Conv1d, Conv2d, Conv3d};
-pub use pool::{AvgPool2d, MaxPool2d, AvgPool3d, MaxPool3d};
-pub use activation::{relu, gelu, sigmoid, tanh, silu, mish, leaky_relu, elu, softplus, gelu_tanh,
-                     ReLU, Sigmoid, Tanh, GeLU, SiLU, Mish, LeakyReLU, ELU, Softplus, GeLUTanh};
-pub use normalization::{BatchNorm1d, BatchNorm2d, BatchNorm3d, LayerNorm, RMSNorm,
-                        GroupNorm, InstanceNorm1d, InstanceNorm2d};
 pub use dropout::Dropout;
+pub use embedding::Embedding;
+pub use init::{kaiming_uniform, xavier_uniform};
+pub use linear::Linear;
+pub use loss::{
+    binary_cross_entropy, cosine_embedding_loss, cross_entropy_loss, huber_loss, mse_loss, nll_loss,
+};
+pub use module::Module;
+pub use normalization::{
+    BatchNorm1d, BatchNorm2d, BatchNorm3d, GroupNorm, InstanceNorm1d, InstanceNorm2d, LayerNorm,
+    RMSNorm,
+};
+pub use parameter::Parameter;
+pub use pool::{AvgPool2d, AvgPool3d, MaxPool2d, MaxPool3d};
+pub use positional::{RotaryEmbedding, SinusoidalEncoding};
+pub use sequential::{ModuleExt, Sequential, StaticSeq};
 pub use softmax::{softmax, Softmax};
-pub use loss::{mse_loss, cross_entropy_loss, binary_cross_entropy, nll_loss, huber_loss, cosine_embedding_loss};
-pub use init::{xavier_uniform, kaiming_uniform};
-pub use attention::{AttentionMask, CausalMask, NullMask, ScaledDotProductAttention, MultiHeadAttention};
-pub use positional::{SinusoidalEncoding, RotaryEmbedding};
-pub use transformer::{FeedForward, TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer, TransformerDecoder, Transformer};
-pub use sequential::{Sequential, StaticSeq, ModuleExt};
+pub use transformer::{
+    FeedForward, Transformer, TransformerDecoder, TransformerDecoderLayer, TransformerEncoder,
+    TransformerEncoderLayer,
+};

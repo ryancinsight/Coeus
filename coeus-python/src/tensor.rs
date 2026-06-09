@@ -1,8 +1,8 @@
 // ── Python tensor wrapper ──
 
-use pyo3::prelude::*;
 use coeus_autograd::Var;
 use coeus_tensor::Tensor;
+use pyo3::prelude::*;
 
 /// Python-exposed tensor class wrapping autograd variables.
 #[pyclass(name = "Tensor")]
@@ -19,7 +19,9 @@ impl PyTensor {
     fn new(data: Vec<f64>, shape: Option<Vec<usize>>, requires_grad: bool) -> PyResult<Self> {
         let shape = shape.unwrap_or_else(|| vec![data.len()]);
         let tensor = Tensor::from_slice(shape, &data);
-        Ok(Self { inner: Var::new(tensor, requires_grad) })
+        Ok(Self {
+            inner: Var::new(tensor, requires_grad),
+        })
     }
 
     /// Shape getter.
@@ -37,7 +39,9 @@ impl PyTensor {
     /// Gradient getter.
     #[getter]
     fn grad(&self) -> Option<Vec<f64>> {
-        self.inner.grad().map(|g| g.to_contiguous().as_slice().to_vec())
+        self.inner
+            .grad()
+            .map(|g| g.to_contiguous().as_slice().to_vec())
     }
 
     /// Run backward pass (releasing the GIL).
@@ -221,7 +225,6 @@ impl PyTensor {
         Ok(Self { inner })
     }
 
-
     /// Zero the accumulated gradient.
     fn zero_grad(&self) {
         self.inner.zero_grad();
@@ -229,7 +232,11 @@ impl PyTensor {
 
     /// Repr representation.
     fn __repr__(&self) -> String {
-        format!("Tensor(shape={:?}, requires_grad={})", self.shape(), self.inner.grad.is_some())
+        format!(
+            "Tensor(shape={:?}, requires_grad={})",
+            self.shape(),
+            self.inner.grad.is_some()
+        )
     }
 }
 
@@ -243,7 +250,9 @@ pub struct PyStateDict {
 impl PyStateDict {
     #[new]
     fn new() -> Self {
-        Self { inner: coeus_tensor::checkpoint::StateDict::new() }
+        Self {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
     }
 
     /// Insert a tensor into the state dict.
@@ -275,7 +284,9 @@ impl PyStateDict {
 
     /// Repr representation.
     fn __repr__(&self) -> String {
-        format!("StateDict(keys={:?})", self.inner.tensors.keys().collect::<Vec<_>>())
+        format!(
+            "StateDict(keys={:?})",
+            self.inner.tensors.keys().collect::<Vec<_>>()
+        )
     }
 }
-

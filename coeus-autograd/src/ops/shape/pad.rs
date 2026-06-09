@@ -1,12 +1,13 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::Scalar;
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::Scalar;
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct PadNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
     pub inputs: Vec<Var<T, B>>,
@@ -15,20 +16,29 @@ where
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for PadNode<T, B>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     #[inline]
-    fn op_name(&self) -> &'static str { "pad" }
+    fn op_name(&self) -> &'static str {
+        "pad"
+    }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> { &self.output_grad }
+    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+        &self.output_grad
+    }
 
     #[inline]
-    fn inputs(&self) -> &[Var<T, B>] { &self.inputs }
+    fn inputs(&self) -> &[Var<T, B>] {
+        &self.inputs
+    }
 
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
         let backend = B::default();
-        let Some(Some(ref acc)) = input_grads.first() else { return; };
+        let Some(Some(ref acc)) = input_grads.first() else {
+            return;
+        };
 
         let ndim = grad_out.ndim();
         let in_shape = {
@@ -57,7 +67,8 @@ pub fn pad<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     value: T,
 ) -> Var<T, B>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
     let out_tensor = coeus_ops::pad(&x.tensor, pads, value);
@@ -67,7 +78,10 @@ where
         return Var::new(out_tensor, false);
     }
 
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend)));
+    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+        out_tensor.shape_cloned(),
+        &backend,
+    )));
     let grad = Some(output_grad.clone());
 
     let node = PadNode {

@@ -1,13 +1,16 @@
-use coeus_tensor::{Tensor, Transpose};
 use coeus_autograd::Var;
-use coeus_nn::{mish, Mish, Module};
 use coeus_core::MoiraiBackend;
+use coeus_nn::{mish, Mish, Module};
+use coeus_tensor::{Tensor, Transpose};
 
 #[test]
 fn test_mish_functional_cpu() {
     let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
-    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data), true);
-    
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data),
+        true,
+    );
+
     let output = mish(&input);
     assert_eq!(output.tensor.shape(), &[5]);
 
@@ -37,10 +40,10 @@ fn test_mish_functional_cpu() {
 #[test]
 fn test_mish_module_cpu() {
     let mish_mod = Mish;
-    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[
-        -1.0f64, 0.0,
-        1.0, 2.0,
-    ]), true);
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0f64, 0.0, 1.0, 2.0]),
+        true,
+    );
 
     let output = mish_mod.forward(&input);
     assert_eq!(output.tensor.shape(), &[2, 2]);
@@ -52,10 +55,8 @@ fn test_mish_module_cpu() {
 
 #[test]
 fn test_mish_non_contiguous_cpu() {
-    let input_raw = Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[
-        -2.0f64, -1.0, 0.0,
-        1.0, 2.0, 3.0,
-    ]);
+    let input_raw =
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[-2.0f64, -1.0, 0.0, 1.0, 2.0, 3.0]);
     let input_t = input_raw.transpose(); // shape [3, 2], non-contiguous
     let input = Var::new(input_t, true);
 

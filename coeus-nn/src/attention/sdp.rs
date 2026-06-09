@@ -1,9 +1,9 @@
 // ── Scaled Dot-Product Attention module ──
 
-use std::marker::PhantomData;
-use coeus_core::{Float, MoiraiBackend};
-use coeus_autograd::{Var, AttentionMask};
 use crate::module::Module;
+use coeus_autograd::{AttentionMask, Var};
+use coeus_core::{Float, MoiraiBackend};
+use std::marker::PhantomData;
 
 /// Scaled dot-product attention layer.
 ///
@@ -22,11 +22,13 @@ pub struct ScaledDotProductAttention<
     _marker: PhantomData<(T, B, M)>,
 }
 
-impl<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask>
-    Default for ScaledDotProductAttention<T, B, M>
+impl<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Default
+    for ScaledDotProductAttention<T, B, M>
 {
     fn default() -> Self {
-        Self { _marker: PhantomData }
+        Self {
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -41,19 +43,20 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask>
     pub fn forward(
         &self,
         query: &Var<T, B>,
-        key:   &Var<T, B>,
+        key: &Var<T, B>,
         value: &Var<T, B>,
         key_padding_mask: Option<&Var<T, B>>,
         scale: T,
     ) -> Var<T, B> {
-        let (out, _attn_weights) = coeus_autograd::sdp_attention::<T, B, M>(query, key, value, key_padding_mask, scale);
+        let (out, _attn_weights) =
+            coeus_autograd::sdp_attention::<T, B, M>(query, key, value, key_padding_mask, scale);
         out
     }
 }
 
 /// Convenience `Module` impl — self-attention: Q = K = V = input.
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask>
-    Module<T, B> for ScaledDotProductAttention<T, B, M>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Module<T, B>
+    for ScaledDotProductAttention<T, B, M>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]

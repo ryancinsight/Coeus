@@ -2,7 +2,7 @@
 // Maps logical tensor indices to physical memory offsets.
 
 use crate::layout::shape::Shape;
-use crate::layout::strides::{Strides, row_major_strides, is_contiguous};
+use crate::layout::strides::{is_contiguous, row_major_strides, Strides};
 
 /// Multi-dimensional layout descriptor.
 ///
@@ -20,13 +20,21 @@ impl Layout {
     #[inline]
     pub fn new(shape: Shape) -> Self {
         let strides = row_major_strides(&shape);
-        Self { shape, strides, offset: 0 }
+        Self {
+            shape,
+            strides,
+            offset: 0,
+        }
     }
 
     /// Create from shape and explicit strides (for views).
     #[inline]
     pub fn from_shape_strides(shape: Shape, strides: Strides, offset: usize) -> Self {
-        Self { shape, strides, offset }
+        Self {
+            shape,
+            strides,
+            offset,
+        }
     }
 
     /// Number of dimensions.
@@ -86,7 +94,11 @@ impl Layout {
         debug_assert_eq!(index.len(), self.shape.len(), "index ndim mismatch");
         let mut off = self.offset;
         for (i, &idx) in index.iter().enumerate() {
-            debug_assert!(idx < self.shape[i], "index[{i}]={idx} out of bounds (dim={})", self.shape[i]);
+            debug_assert!(
+                idx < self.shape[i],
+                "index[{i}]={idx} out of bounds (dim={})",
+                self.shape[i]
+            );
             off += idx * self.strides[i];
         }
         off
@@ -103,29 +115,40 @@ impl Layout {
         let mut offset = self.offset;
 
         for (i, &(start, end)) in ranges.iter().enumerate() {
-            assert!(start <= end && end <= self.shape[i], "slice [{start}..{end}) out of dim {i}={}", self.shape[i]);
+            assert!(
+                start <= end && end <= self.shape[i],
+                "slice [{start}..{end}) out of dim {i}={}",
+                self.shape[i]
+            );
             shape.push(end - start);
             strides.push(self.strides[i]);
             offset += start * self.strides[i];
         }
 
-        Self { shape, strides, offset }
+        Self {
+            shape,
+            strides,
+            offset,
+        }
     }
 
     /// Create a zero-copy unsqueezed layout by inserting a dimension of size 1 at `axis`.
     #[inline]
     pub fn unsqueeze(&self, axis: usize) -> Self {
         let ndim = self.ndim();
-        assert!(axis <= ndim, "unsqueeze: axis {axis} out of bounds for ndim {ndim}");
-        
+        assert!(
+            axis <= ndim,
+            "unsqueeze: axis {axis} out of bounds for ndim {ndim}"
+        );
+
         let mut shape = Shape::with_capacity(ndim + 1);
         let mut strides = Strides::with_capacity(ndim + 1);
-        
+
         for i in 0..axis {
             shape.push(self.shape[i]);
             strides.push(self.strides[i]);
         }
-        
+
         shape.push(1);
         let stride_val = if axis < ndim {
             self.strides[axis]
@@ -135,33 +158,48 @@ impl Layout {
             1
         };
         strides.push(stride_val);
-        
+
         for i in axis..ndim {
             shape.push(self.shape[i]);
             strides.push(self.strides[i]);
         }
-        
-        Self { shape, strides, offset: self.offset }
+
+        Self {
+            shape,
+            strides,
+            offset: self.offset,
+        }
     }
 
     /// Create a zero-copy squeezed layout by removing the dimension of size 1 at `axis`.
     #[inline]
     pub fn squeeze(&self, axis: usize) -> Self {
         let ndim = self.ndim();
-        assert!(axis < ndim, "squeeze: axis {axis} out of bounds for ndim {ndim}");
-        assert_eq!(self.shape[axis], 1, "squeeze: axis {axis} has size {}, expected 1", self.shape[axis]);
-        
+        assert!(
+            axis < ndim,
+            "squeeze: axis {axis} out of bounds for ndim {ndim}"
+        );
+        assert_eq!(
+            self.shape[axis], 1,
+            "squeeze: axis {axis} has size {}, expected 1",
+            self.shape[axis]
+        );
+
         let mut shape = Shape::with_capacity(ndim - 1);
         let mut strides = Strides::with_capacity(ndim - 1);
-        
+
         for i in 0..ndim {
             if i != axis {
                 shape.push(self.shape[i]);
                 strides.push(self.strides[i]);
             }
         }
-        
-        Self { shape, strides, offset: self.offset }
+
+        Self {
+            shape,
+            strides,
+            offset: self.offset,
+        }
     }
 
     /// Create a zero-copy squeezed layout by removing all dimensions of size 1.
@@ -170,15 +208,19 @@ impl Layout {
         let ndim = self.ndim();
         let mut shape = Shape::with_capacity(ndim);
         let mut strides = Strides::with_capacity(ndim);
-        
+
         for i in 0..ndim {
             if self.shape[i] != 1 {
                 shape.push(self.shape[i]);
                 strides.push(self.strides[i]);
             }
         }
-        
-        Self { shape, strides, offset: self.offset }
+
+        Self {
+            shape,
+            strides,
+            offset: self.offset,
+        }
     }
 }
 
@@ -203,7 +245,11 @@ impl<const DIMS: usize> ConstLayout<DIMS> {
                 strides[i] = strides[i + 1] * shape.dims[i + 1];
             }
         }
-        Self { shape, strides, offset: 0 }
+        Self {
+            shape,
+            strides,
+            offset: 0,
+        }
     }
 
     /// Query dimensional contiguity at compile-time.
@@ -279,11 +325,10 @@ mod tests {
         assert_eq!(l5.strides(), &[3, 1]);
 
         // Squeeze all on a layout with multiple 1s: [1, 2, 1, 3] -> [2, 3]
-        let l_multi = Layout::from_shape_strides([1, 2, 1, 3].into(), smallvec::smallvec![6, 3, 3, 1], 0);
+        let l_multi =
+            Layout::from_shape_strides([1, 2, 1, 3].into(), smallvec::smallvec![6, 3, 3, 1], 0);
         let l_squeezed = l_multi.squeeze_all();
         assert_eq!(l_squeezed.shape(), &[2, 3]);
         assert_eq!(l_squeezed.strides(), &[3, 1]);
     }
 }
-
-

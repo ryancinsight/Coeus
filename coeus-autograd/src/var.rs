@@ -1,10 +1,10 @@
 // ── Differentiable variable ──
 
-use std::sync::{Arc, Mutex};
-use std::collections::HashSet;
-use coeus_core::{Scalar, ComputeBackend, MoiraiBackend};
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
+use coeus_core::{ComputeBackend, MoiraiBackend, Scalar};
+use coeus_tensor::Tensor;
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 
 /// A differentiable variable wrapping a tensor and its gradient accumulator.
 #[derive(Clone)]
@@ -22,11 +22,18 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     #[inline]
     pub fn new(tensor: Tensor<T, B>, requires_grad: bool) -> Self {
         let grad = if requires_grad {
-            Some(Arc::new(Mutex::new(Tensor::zeros_on(tensor.shape(), &B::default()))))
+            Some(Arc::new(Mutex::new(Tensor::zeros_on(
+                tensor.shape(),
+                &B::default(),
+            ))))
         } else {
             None
         };
-        Self { tensor, grad, creator: None }
+        Self {
+            tensor,
+            grad,
+            creator: None,
+        }
     }
 
     /// Create an intermediate variable (result of an op).
@@ -36,7 +43,11 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
         grad: Option<Arc<Mutex<Tensor<T, B>>>>,
         creator: Arc<dyn BackwardNode<T, B>>,
     ) -> Self {
-        Self { tensor, grad, creator: Some(creator) }
+        Self {
+            tensor,
+            grad,
+            creator: Some(creator),
+        }
     }
 
     /// Read the accumulated gradient.
@@ -81,9 +92,13 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// If `seed.shape()` does not match `self.tensor.shape()`.
     #[inline]
     pub fn backward_with_seed(&self, seed: Tensor<T, B>) {
-        assert_eq!(seed.shape(), self.tensor.shape(),
+        assert_eq!(
+            seed.shape(),
+            self.tensor.shape(),
             "backward_with_seed: seed shape {:?} must match tensor shape {:?}",
-            seed.shape(), self.tensor.shape());
+            seed.shape(),
+            self.tensor.shape()
+        );
 
         // Topological sort via DFS
         let mut visited = HashSet::new();
@@ -95,7 +110,9 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
             order: &mut Vec<Arc<dyn BackwardNode<T, B>>>,
         ) {
             let ptr = Arc::as_ptr(node) as *const ();
-            if visited.contains(&ptr) { return; }
+            if visited.contains(&ptr) {
+                return;
+            }
             visited.insert(ptr);
             for input in node.inputs() {
                 if let Some(ref cr) = input.creator {

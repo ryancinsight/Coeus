@@ -7,11 +7,11 @@
 // Unlike BatchNorm, GroupNorm has no running statistics and is identical in
 // train and eval modes — correct for variable-batch or single-sample inference.
 
-use std::cell::RefCell;
+use crate::module::Module;
+use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
-use coeus_autograd::Var;
-use crate::module::Module;
+use std::cell::RefCell;
 
 #[derive(Clone)]
 struct GroupNormCache<T: Float, B: coeus_ops::BackendOps<T> + Default> {
@@ -60,8 +60,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
         );
         let backend = B::default();
         let weight = Var::new(Tensor::ones_on([num_features], &backend), true);
-        let bias   = Var::new(Tensor::zeros_on([num_features], &backend), true);
-        Self { weight, bias, num_features, eps, cache: RefCell::new(None) }
+        let bias = Var::new(Tensor::zeros_on([num_features], &backend), true);
+        Self {
+            weight,
+            bias,
+            num_features,
+            eps,
+            cache: RefCell::new(None),
+        }
     }
 
     fn get_cache(&self, group_size: usize) -> std::cell::RefMut<'_, Option<GroupNormCache<T, B>>> {
@@ -89,7 +95,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, B> for GroupNorm<T, B, G> {
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, B>
+    for GroupNorm<T, B, G>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]
     }
@@ -101,13 +109,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
     /// then reshapes back and applies per-channel weight/bias.
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         let shape = input.tensor.shape_cloned();
-        assert!(
-            shape.len() >= 2,
-            "GroupNorm: input must be at least 2D"
-        );
+        assert!(shape.len() >= 2, "GroupNorm: input must be at least 2D");
         let n = shape[0];
         let c = shape[1];
-        assert_eq!(c, self.num_features, "GroupNorm: channel dimension mismatch");
+        assert_eq!(
+            c, self.num_features,
+            "GroupNorm: channel dimension mismatch"
+        );
         let c_per_g = c / G;
 
         // Compute total spatial elements (everything after batch and channel dims)
@@ -188,7 +196,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
         let mut broadcast_shape = vec![1usize; shape.len()];
         broadcast_shape[1] = c;
         let w_reshaped = coeus_autograd::reshape(&self.weight, broadcast_shape.as_slice());
-        let b_reshaped = coeus_autograd::reshape(&self.bias,   broadcast_shape.as_slice());
+        let b_reshaped = coeus_autograd::reshape(&self.bias, broadcast_shape.as_slice());
 
         let scaled = coeus_autograd::mul(&normed, &w_reshaped);
         coeus_autograd::add(&scaled, &b_reshaped)

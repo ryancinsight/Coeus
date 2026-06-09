@@ -1,8 +1,8 @@
 // ── Tensor indexing ──
 // Multi-dimensional get/set helpers.
 
-use coeus_core::{Scalar, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut};
 use crate::tensor::Tensor;
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// Compute 1-D physical offset from logical coordinates.
@@ -34,4 +34,3 @@ where
         self.storage.as_mut_slice()[base + offset] = val;
     }
 }
-

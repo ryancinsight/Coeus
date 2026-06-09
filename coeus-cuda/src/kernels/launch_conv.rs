@@ -1,9 +1,9 @@
 #![allow(clippy::too_many_arguments)]
 
-use coeus_core::Layout;
-use crate::storage::CudaStorage;
+use super::{create_layout_buffer, get_cuda_function};
 use crate::driver::CudaDriver;
-use super::{get_cuda_function, create_layout_buffer};
+use crate::storage::CudaStorage;
+use coeus_core::Layout;
 
 pub fn launch_conv1d(
     input: &CudaStorage<f32>,
@@ -18,13 +18,17 @@ pub fn launch_conv1d(
     dilation: usize,
     out_numel: usize,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(func) = get_cuda_function("conv1d_f32") else { return false; };
-    
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(func) = get_cuda_function("conv1d_f32") else {
+        return false;
+    };
+
     let in_layout_buf = create_layout_buffer(input_layout);
     let w_layout_buf = create_layout_buffer(weight_layout);
     let out_layout_buf = create_layout_buffer(output_layout);
-    
+
     let mut in_ptr = input.cu_deviceptr();
     let mut w_ptr = weight.cu_deviceptr();
     let mut b_ptr = bias.map(|b| b.cu_deviceptr()).unwrap_or(0);
@@ -36,7 +40,7 @@ pub fn launch_conv1d(
     let mut pad_val = padding as u32;
     let mut dil_val = dilation as u32;
     let mut out_n = out_numel as u32;
-    
+
     let mut args: [*mut std::ffi::c_void; 11] = [
         &mut in_ptr as *mut u64 as *mut std::ffi::c_void,
         &mut w_ptr as *mut u64 as *mut std::ffi::c_void,
@@ -50,15 +54,19 @@ pub fn launch_conv1d(
         &mut dil_val as *mut u32 as *mut std::ffi::c_void,
         &mut out_n as *mut u32 as *mut std::ffi::c_void,
     ];
-    
+
     let block_size = 256;
     let grid_size = out_numel.div_ceil(block_size);
-    
+
     unsafe {
         let res = (drv.cu_launch_kernel)(
             func,
-            grid_size as u32, 1, 1,
-            block_size as u32, 1, 1,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),
@@ -81,13 +89,17 @@ pub fn launch_conv2d(
     dilation: usize,
     out_numel: usize,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(func) = get_cuda_function("conv2d_f32") else { return false; };
-    
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(func) = get_cuda_function("conv2d_f32") else {
+        return false;
+    };
+
     let in_layout_buf = create_layout_buffer(input_layout);
     let w_layout_buf = create_layout_buffer(weight_layout);
     let out_layout_buf = create_layout_buffer(output_layout);
-    
+
     let mut in_ptr = input.cu_deviceptr();
     let mut w_ptr = weight.cu_deviceptr();
     let mut b_ptr = bias.map(|b| b.cu_deviceptr()).unwrap_or(0);
@@ -99,7 +111,7 @@ pub fn launch_conv2d(
     let mut pad_val = padding as u32;
     let mut dil_val = dilation as u32;
     let mut out_n = out_numel as u32;
-    
+
     let mut args: [*mut std::ffi::c_void; 11] = [
         &mut in_ptr as *mut u64 as *mut std::ffi::c_void,
         &mut w_ptr as *mut u64 as *mut std::ffi::c_void,
@@ -113,15 +125,19 @@ pub fn launch_conv2d(
         &mut dil_val as *mut u32 as *mut std::ffi::c_void,
         &mut out_n as *mut u32 as *mut std::ffi::c_void,
     ];
-    
+
     let block_size = 256;
     let grid_size = out_numel.div_ceil(block_size);
-    
+
     unsafe {
         let res = (drv.cu_launch_kernel)(
             func,
-            grid_size as u32, 1, 1,
-            block_size as u32, 1, 1,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),
@@ -161,10 +177,12 @@ pub fn launch_conv1d_backward(
     let mut dil_val = dilation as u32;
 
     if let Some(gi) = grad_input {
-        let Some(func) = get_cuda_function("conv1d_grad_input_f32") else { return false; };
+        let Some(func) = get_cuda_function("conv1d_grad_input_f32") else {
+            return false;
+        };
         let w_layout_buf = create_layout_buffer(weight_layout);
         let gi_layout_buf = create_layout_buffer(grad_input_layout);
-        
+
         let mut w_ptr = weight.cu_deviceptr();
         let mut gi_ptr = gi.cu_deviceptr();
         let mut wl_ptr = w_layout_buf.cu_deviceptr();
@@ -190,8 +208,12 @@ pub fn launch_conv1d_backward(
         unsafe {
             let res = (drv.cu_launch_kernel)(
                 func,
-                grid_size as u32, 1, 1,
-                block_size as u32, 1, 1,
+                grid_size as u32,
+                1,
+                1,
+                block_size as u32,
+                1,
+                1,
                 0,
                 std::ptr::null_mut(),
                 args.as_mut_ptr(),
@@ -204,10 +226,12 @@ pub fn launch_conv1d_backward(
     }
 
     if let Some(gw) = grad_weight {
-        let Some(func) = get_cuda_function("conv1d_grad_weight_f32") else { return false; };
+        let Some(func) = get_cuda_function("conv1d_grad_weight_f32") else {
+            return false;
+        };
         let in_layout_buf = create_layout_buffer(input_layout);
         let gw_layout_buf = create_layout_buffer(grad_weight_layout);
-        
+
         let mut in_ptr = input.cu_deviceptr();
         let mut gw_ptr = gw.cu_deviceptr();
         let mut inl_ptr = in_layout_buf.cu_deviceptr();
@@ -233,8 +257,12 @@ pub fn launch_conv1d_backward(
         unsafe {
             let res = (drv.cu_launch_kernel)(
                 func,
-                grid_size as u32, 1, 1,
-                block_size as u32, 1, 1,
+                grid_size as u32,
+                1,
+                1,
+                block_size as u32,
+                1,
+                1,
                 0,
                 std::ptr::null_mut(),
                 args.as_mut_ptr(),
@@ -247,7 +275,9 @@ pub fn launch_conv1d_backward(
     }
 
     if let Some(gb) = grad_bias {
-        let Some(func) = get_cuda_function("conv1d_grad_bias_f32") else { return false; };
+        let Some(func) = get_cuda_function("conv1d_grad_bias_f32") else {
+            return false;
+        };
         let mut gb_ptr = gb.cu_deviceptr();
         let c_out = weight_layout.shape()[0];
         let mut c_out_val = c_out as u32;
@@ -264,8 +294,12 @@ pub fn launch_conv1d_backward(
         unsafe {
             let res = (drv.cu_launch_kernel)(
                 func,
-                grid_size as u32, 1, 1,
-                block_size as u32, 1, 1,
+                grid_size as u32,
+                1,
+                1,
+                block_size as u32,
+                1,
+                1,
                 0,
                 std::ptr::null_mut(),
                 args.as_mut_ptr(),
@@ -310,10 +344,12 @@ pub fn launch_conv2d_backward(
     let mut dil_val = dilation as u32;
 
     if let Some(gi) = grad_input {
-        let Some(func) = get_cuda_function("conv2d_grad_input_f32") else { return false; };
+        let Some(func) = get_cuda_function("conv2d_grad_input_f32") else {
+            return false;
+        };
         let w_layout_buf = create_layout_buffer(weight_layout);
         let gi_layout_buf = create_layout_buffer(grad_input_layout);
-        
+
         let mut w_ptr = weight.cu_deviceptr();
         let mut gi_ptr = gi.cu_deviceptr();
         let mut wl_ptr = w_layout_buf.cu_deviceptr();
@@ -339,8 +375,12 @@ pub fn launch_conv2d_backward(
         unsafe {
             let res = (drv.cu_launch_kernel)(
                 func,
-                grid_size as u32, 1, 1,
-                block_size as u32, 1, 1,
+                grid_size as u32,
+                1,
+                1,
+                block_size as u32,
+                1,
+                1,
                 0,
                 std::ptr::null_mut(),
                 args.as_mut_ptr(),
@@ -353,10 +393,12 @@ pub fn launch_conv2d_backward(
     }
 
     if let Some(gw) = grad_weight {
-        let Some(func) = get_cuda_function("conv2d_grad_weight_f32") else { return false; };
+        let Some(func) = get_cuda_function("conv2d_grad_weight_f32") else {
+            return false;
+        };
         let in_layout_buf = create_layout_buffer(input_layout);
         let gw_layout_buf = create_layout_buffer(grad_weight_layout);
-        
+
         let mut in_ptr = input.cu_deviceptr();
         let mut gw_ptr = gw.cu_deviceptr();
         let mut inl_ptr = in_layout_buf.cu_deviceptr();
@@ -382,8 +424,12 @@ pub fn launch_conv2d_backward(
         unsafe {
             let res = (drv.cu_launch_kernel)(
                 func,
-                grid_size as u32, 1, 1,
-                block_size as u32, 1, 1,
+                grid_size as u32,
+                1,
+                1,
+                block_size as u32,
+                1,
+                1,
                 0,
                 std::ptr::null_mut(),
                 args.as_mut_ptr(),
@@ -396,7 +442,9 @@ pub fn launch_conv2d_backward(
     }
 
     if let Some(gb) = grad_bias {
-        let Some(func) = get_cuda_function("conv2d_grad_bias_f32") else { return false; };
+        let Some(func) = get_cuda_function("conv2d_grad_bias_f32") else {
+            return false;
+        };
         let mut gb_ptr = gb.cu_deviceptr();
         let c_out = weight_layout.shape()[0];
         let mut c_out_val = c_out as u32;
@@ -413,8 +461,12 @@ pub fn launch_conv2d_backward(
         unsafe {
             let res = (drv.cu_launch_kernel)(
                 func,
-                grid_size as u32, 1, 1,
-                block_size as u32, 1, 1,
+                grid_size as u32,
+                1,
+                1,
+                block_size as u32,
+                1,
+                1,
                 0,
                 std::ptr::null_mut(),
                 args.as_mut_ptr(),

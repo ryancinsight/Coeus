@@ -2,7 +2,7 @@
 // Concatenates a list of tensors along a given dimension.
 // Zero-copy when a single input is given (returns a clone of the storage view).
 
-use coeus_core::{Scalar, ComputeBackend, Layout, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 use coeus_tensor::Tensor;
 
 /// Concatenate `tensors` along `dim`.
@@ -33,18 +33,22 @@ where
 
     // Validate shapes and compute output dim size.
     let mut out_shape = tensors[0].shape_cloned();
-    let out_dim_size = tensors.iter().map(|t| {
-        assert_eq!(t.ndim(), ndim, "cat: all tensors must have the same rank");
-        for d in 0..ndim {
-            if d != dim {
-                assert_eq!(
-                    t.shape()[d], out_shape[d],
-                    "cat: shape mismatch at dimension {d}"
-                );
+    let out_dim_size = tensors
+        .iter()
+        .map(|t| {
+            assert_eq!(t.ndim(), ndim, "cat: all tensors must have the same rank");
+            for d in 0..ndim {
+                if d != dim {
+                    assert_eq!(
+                        t.shape()[d],
+                        out_shape[d],
+                        "cat: shape mismatch at dimension {d}"
+                    );
+                }
             }
-        }
-        t.shape()[dim]
-    }).sum::<usize>();
+            t.shape()[dim]
+        })
+        .sum::<usize>();
     out_shape[dim] = out_dim_size;
 
     let mut out = Tensor::zeros_on(out_shape.clone(), &backend);
@@ -57,7 +61,13 @@ where
         let ranges: Vec<(usize, usize)> = out_shape
             .iter()
             .enumerate()
-            .map(|(d, &s)| if d == dim { (offset, offset + t_dim_size) } else { (0, s) })
+            .map(|(d, &s)| {
+                if d == dim {
+                    (offset, offset + t_dim_size)
+                } else {
+                    (0, s)
+                }
+            })
             .collect();
         // Write into slice view of output.
         let src = t.to_contiguous_on(&backend);

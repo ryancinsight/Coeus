@@ -23,7 +23,10 @@ pub fn dispatch_contiguous_binary<T: WgpuScalar>(
         coeus_ops::BinaryOp::Div => "/",
     };
 
-    let key = format!("contiguous_binary_{:?}_{}_ac_{}_bc_{}", op, wgsl_type, is_a_c, is_b_c);
+    let key = format!(
+        "contiguous_binary_{:?}_{}_ac_{}_bc_{}",
+        op, wgsl_type, is_a_c, is_b_c
+    );
 
     let shader_src = if is_a_c && is_b_c {
         format!(
@@ -95,24 +98,17 @@ pub fn dispatch_contiguous_binary<T: WgpuScalar>(
         )
     };
 
-    let pipeline = PIPELINE_CACHE.get_or_create(
-        &key,
-        &ctx.device,
-        &shader_src,
-        "main",
-    );
+    let pipeline = PIPELINE_CACHE.get_or_create(&key, &ctx.device, &shader_src, "main");
 
     let bind_group_layout = pipeline.get_bind_group_layout(0);
     let bind_group = if is_a_c && is_b_c {
         ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("binary-bind-group-abc"),
             layout: &bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: c.as_entire_binding(),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: c.as_entire_binding(),
+            }],
         })
     } else if is_a_c {
         ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -165,9 +161,11 @@ pub fn dispatch_contiguous_binary<T: WgpuScalar>(
         })
     };
 
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("binary-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("binary-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -182,7 +180,6 @@ pub fn dispatch_contiguous_binary<T: WgpuScalar>(
 
     ctx.queue.submit(Some(encoder.finish()));
 }
-
 
 /// Dispatch a WGSL shader for general elementwise binary operations with layout traversal and broadcasting.
 #[allow(clippy::too_many_arguments)]
@@ -207,9 +204,12 @@ pub fn dispatch_binary<T: WgpuScalar>(
     let b_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let c_layout_buf = crate::backend::PooledMetadataBuffer::new();
 
-    ctx.queue.write_buffer(&a_layout_buf, 0, bytemuck::bytes_of(&a_layout_gpu));
-    ctx.queue.write_buffer(&b_layout_buf, 0, bytemuck::bytes_of(&b_layout_gpu));
-    ctx.queue.write_buffer(&c_layout_buf, 0, bytemuck::bytes_of(&c_layout_gpu));
+    ctx.queue
+        .write_buffer(&a_layout_buf, 0, bytemuck::bytes_of(&a_layout_gpu));
+    ctx.queue
+        .write_buffer(&b_layout_buf, 0, bytemuck::bytes_of(&b_layout_gpu));
+    ctx.queue
+        .write_buffer(&c_layout_buf, 0, bytemuck::bytes_of(&c_layout_gpu));
 
     let op_symbol = match op {
         coeus_ops::BinaryOp::Add => "+",
@@ -221,7 +221,10 @@ pub fn dispatch_binary<T: WgpuScalar>(
     let is_a_c = std::ptr::eq(a, c);
     let is_b_c = std::ptr::eq(b, c);
 
-    let key = format!("binary_{}_{}_ac_{}_bc_{}", op_symbol, wgsl_type, is_a_c, is_b_c);
+    let key = format!(
+        "binary_{}_{}_ac_{}_bc_{}",
+        op_symbol, wgsl_type, is_a_c, is_b_c
+    );
 
     let shader_src = if is_a_c && is_b_c {
         format!(
@@ -433,10 +436,22 @@ pub fn dispatch_binary<T: WgpuScalar>(
             label: Some("binary-bind-group-abc"),
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: c.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: a_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: b_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 3, resource: c_layout_buf.as_entire_binding() },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: c.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: a_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: b_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: c_layout_buf.as_entire_binding(),
+                },
             ],
         })
     } else if is_a_c {
@@ -444,11 +459,26 @@ pub fn dispatch_binary<T: WgpuScalar>(
             label: Some("binary-bind-group-ac"),
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: b.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: c.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: a_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 3, resource: b_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 4, resource: c_layout_buf.as_entire_binding() },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: b.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: c.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: a_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: b_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: c_layout_buf.as_entire_binding(),
+                },
             ],
         })
     } else if is_b_c {
@@ -456,11 +486,26 @@ pub fn dispatch_binary<T: WgpuScalar>(
             label: Some("binary-bind-group-bc"),
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: a.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: c.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: a_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 3, resource: b_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 4, resource: c_layout_buf.as_entire_binding() },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: a.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: c.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: a_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: b_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: c_layout_buf.as_entire_binding(),
+                },
             ],
         })
     } else {
@@ -468,19 +513,39 @@ pub fn dispatch_binary<T: WgpuScalar>(
             label: Some("binary-bind-group"),
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: a.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: b.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: c.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 3, resource: a_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 4, resource: b_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 5, resource: c_layout_buf.as_entire_binding() },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: a.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: b.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: c.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: a_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: b_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: c_layout_buf.as_entire_binding(),
+                },
             ],
         })
     };
 
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("binary-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("binary-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {

@@ -1,13 +1,13 @@
-mod storage;
 mod backend;
 mod kernels;
+mod storage;
 
-pub use storage::WgpuStorage;
 pub use backend::{WgpuBackend, WgpuScalar};
+pub use storage::WgpuStorage;
 
 use coeus_core::Layout;
-use coeus_tensor::Tensor;
 use coeus_ops::fuse::ExprNode;
+use coeus_tensor::Tensor;
 
 /// Element-wise addition of two WebGPU tensors.
 pub fn add<T: WgpuScalar>(
@@ -16,9 +16,9 @@ pub fn add<T: WgpuScalar>(
 ) -> Tensor<T, WgpuBackend> {
     assert_eq!(a.shape(), b.shape(), "Shape mismatch in wgpu add");
     let len = a.numel();
-    
+
     let c_storage = WgpuStorage::new(len);
-    
+
     kernels::dispatch_contiguous_binary::<T>(
         coeus_ops::BinaryOp::Add,
         &a.storage().buffer,
@@ -26,7 +26,7 @@ pub fn add<T: WgpuScalar>(
         &c_storage.buffer,
         len,
     );
-    
+
     Tensor::from_raw_parts(c_storage, Layout::new(a.shape_cloned()))
 }
 
@@ -59,13 +59,17 @@ pub fn matmul<T: WgpuScalar>(
 }
 
 /// Evaluate a fused element-wise expression on the WebGPU device.
-pub fn evaluate_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(expr: &E) -> Tensor<T, WgpuBackend> {
-    let out_shape = expr.shape().expect("Fused expression must have at least one tensor input to determine shape");
+pub fn evaluate_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
+    expr: &E,
+) -> Tensor<T, WgpuBackend> {
+    let out_shape = expr
+        .shape()
+        .expect("Fused expression must have at least one tensor input to determine shape");
     let out_layout = Layout::new(out_shape.clone());
     let mut out_storage = WgpuStorage::new(out_layout.numel());
-    
+
     kernels::dispatch_fused(expr, &mut out_storage, &out_layout);
-    
+
     Tensor::from_raw_parts(out_storage, out_layout)
 }
 
@@ -75,17 +79,20 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     op: coeus_ops::ReductionOp,
     axis: usize,
 ) -> Tensor<T, WgpuBackend> {
-    let expr_shape = expr.shape().expect("Fused expression must have at least one tensor input to determine shape");
-    assert!(axis < expr_shape.len(), "Axis out of bounds in evaluate_fused_reduce");
-    
+    let expr_shape = expr
+        .shape()
+        .expect("Fused expression must have at least one tensor input to determine shape");
+    assert!(
+        axis < expr_shape.len(),
+        "Axis out of bounds in evaluate_fused_reduce"
+    );
+
     let mut out_shape = expr_shape;
     out_shape[axis] = 1;
     let out_layout = Layout::new(out_shape.clone());
     let mut out_storage = WgpuStorage::new(out_layout.numel());
-    
+
     kernels::dispatch_fused_reduce(expr, op, axis, &mut out_storage, &out_layout);
-    
+
     Tensor::from_raw_parts(out_storage, out_layout)
 }
-
-

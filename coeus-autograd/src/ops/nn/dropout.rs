@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::{Scalar, Float};
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::{Float, Scalar};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 /// A simple, fast, deterministic pseudo-random number generator (Xorshift64).
 pub struct Xorshift64 {
@@ -85,14 +85,15 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let shape = input.tensor.shape_cloned();
 
     let cpu_backend = coeus_core::MoiraiBackend::new();
-    let mask_cpu = Tensor::<T, coeus_core::MoiraiBackend>::from_fn_on(shape.clone(), &cpu_backend, |_| {
-        let r = rng.borrow_mut().next_f64();
-        if r < p {
-            T::zero()
-        } else {
-            T::from_f64(scale)
-        }
-    });
+    let mask_cpu =
+        Tensor::<T, coeus_core::MoiraiBackend>::from_fn_on(shape.clone(), &cpu_backend, |_| {
+            let r = rng.borrow_mut().next_f64();
+            if r < p {
+                T::zero()
+            } else {
+                T::from_f64(scale)
+            }
+        });
 
     let target_backend = B::default();
     let mask = mask_cpu.to_backend_on(&cpu_backend, &target_backend);
@@ -100,7 +101,10 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(shape.clone(), &target_backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            shape.clone(),
+            &target_backend,
+        ))))
     } else {
         None
     };
@@ -108,11 +112,19 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let creator = if requires_grad {
         let output_grad = grad.as_ref().unwrap().clone();
         let inputs = vec![input.clone()];
-        let node = DropoutNode { output_grad, inputs, mask };
+        let node = DropoutNode {
+            output_grad,
+            inputs,
+            mask,
+        };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
     } else {
         None
     };
 
-    Var { tensor: out_tensor, grad, creator }
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
 }

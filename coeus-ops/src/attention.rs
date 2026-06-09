@@ -1,8 +1,8 @@
 // ── Coeus Ops — free function for scaled dot-product attention ──
 
-use coeus_core::{Float};
-use coeus_tensor::Tensor;
 use crate::BackendOps;
+use coeus_core::Float;
+use coeus_tensor::Tensor;
 
 /// Compute scaled dot-product attention.
 ///
@@ -81,15 +81,15 @@ pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Defaul
     // We need to pass mutable references into BackendOps, but only for the storage of
     // each gradient tensor. Extract them separately to avoid borrow conflicts.
     let go_storage = grad_out.storage();
-    let go_layout  = grad_out.layout();
-    let q_storage  = query.storage();
-    let q_layout   = query.layout();
-    let k_storage  = key.storage();
-    let k_layout   = key.layout();
-    let v_storage  = value.storage();
-    let v_layout   = value.layout();
+    let go_layout = grad_out.layout();
+    let q_storage = query.storage();
+    let q_layout = query.layout();
+    let k_storage = key.storage();
+    let k_layout = key.layout();
+    let v_storage = value.storage();
+    let v_layout = value.layout();
     let aw_storage = attn_weights.storage();
-    let aw_layout  = attn_weights.layout();
+    let aw_layout = attn_weights.layout();
 
     match (grad_q, grad_k, grad_v) {
         (Some(gq), Some(gk), Some(gv)) => {
@@ -97,41 +97,138 @@ pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Defaul
             let (gk_s, _gk_l) = gk.storage_mut_and_layout();
             let (gv_s, _gv_l) = gv.storage_mut_and_layout();
             backend.sdp_attention_backward(
-                go_storage, go_layout,
-                q_storage, q_layout,
-                k_storage, k_layout,
-                v_storage, v_layout,
-                aw_storage, aw_layout,
+                go_storage,
+                go_layout,
+                q_storage,
+                q_layout,
+                k_storage,
+                k_layout,
+                v_storage,
+                v_layout,
+                aw_storage,
+                aw_layout,
                 scale,
-                Some(gq_s), Some(gk_s), Some(gv_s),
+                Some(gq_s),
+                Some(gk_s),
+                Some(gv_s),
             );
         }
         (Some(gq), Some(gk), None) => {
             let (gq_s, _) = gq.storage_mut_and_layout();
             let (gk_s, _) = gk.storage_mut_and_layout();
-            backend.sdp_attention_backward(go_storage, go_layout, q_storage, q_layout, k_storage, k_layout, v_storage, v_layout, aw_storage, aw_layout, scale, Some(gq_s), Some(gk_s), None);
+            backend.sdp_attention_backward(
+                go_storage,
+                go_layout,
+                q_storage,
+                q_layout,
+                k_storage,
+                k_layout,
+                v_storage,
+                v_layout,
+                aw_storage,
+                aw_layout,
+                scale,
+                Some(gq_s),
+                Some(gk_s),
+                None,
+            );
         }
         (Some(gq), None, Some(gv)) => {
             let (gq_s, _) = gq.storage_mut_and_layout();
             let (gv_s, _) = gv.storage_mut_and_layout();
-            backend.sdp_attention_backward(go_storage, go_layout, q_storage, q_layout, k_storage, k_layout, v_storage, v_layout, aw_storage, aw_layout, scale, Some(gq_s), None, Some(gv_s));
+            backend.sdp_attention_backward(
+                go_storage,
+                go_layout,
+                q_storage,
+                q_layout,
+                k_storage,
+                k_layout,
+                v_storage,
+                v_layout,
+                aw_storage,
+                aw_layout,
+                scale,
+                Some(gq_s),
+                None,
+                Some(gv_s),
+            );
         }
         (None, Some(gk), Some(gv)) => {
             let (gk_s, _) = gk.storage_mut_and_layout();
             let (gv_s, _) = gv.storage_mut_and_layout();
-            backend.sdp_attention_backward(go_storage, go_layout, q_storage, q_layout, k_storage, k_layout, v_storage, v_layout, aw_storage, aw_layout, scale, None, Some(gk_s), Some(gv_s));
+            backend.sdp_attention_backward(
+                go_storage,
+                go_layout,
+                q_storage,
+                q_layout,
+                k_storage,
+                k_layout,
+                v_storage,
+                v_layout,
+                aw_storage,
+                aw_layout,
+                scale,
+                None,
+                Some(gk_s),
+                Some(gv_s),
+            );
         }
         (Some(gq), None, None) => {
             let (gq_s, _) = gq.storage_mut_and_layout();
-            backend.sdp_attention_backward(go_storage, go_layout, q_storage, q_layout, k_storage, k_layout, v_storage, v_layout, aw_storage, aw_layout, scale, Some(gq_s), None, None);
+            backend.sdp_attention_backward(
+                go_storage,
+                go_layout,
+                q_storage,
+                q_layout,
+                k_storage,
+                k_layout,
+                v_storage,
+                v_layout,
+                aw_storage,
+                aw_layout,
+                scale,
+                Some(gq_s),
+                None,
+                None,
+            );
         }
         (None, Some(gk), None) => {
             let (gk_s, _) = gk.storage_mut_and_layout();
-            backend.sdp_attention_backward(go_storage, go_layout, q_storage, q_layout, k_storage, k_layout, v_storage, v_layout, aw_storage, aw_layout, scale, None, Some(gk_s), None);
+            backend.sdp_attention_backward(
+                go_storage,
+                go_layout,
+                q_storage,
+                q_layout,
+                k_storage,
+                k_layout,
+                v_storage,
+                v_layout,
+                aw_storage,
+                aw_layout,
+                scale,
+                None,
+                Some(gk_s),
+                None,
+            );
         }
         (None, None, Some(gv)) => {
             let (gv_s, _) = gv.storage_mut_and_layout();
-            backend.sdp_attention_backward(go_storage, go_layout, q_storage, q_layout, k_storage, k_layout, v_storage, v_layout, aw_storage, aw_layout, scale, None, None, Some(gv_s));
+            backend.sdp_attention_backward(
+                go_storage,
+                go_layout,
+                q_storage,
+                q_layout,
+                k_storage,
+                k_layout,
+                v_storage,
+                v_layout,
+                aw_storage,
+                aw_layout,
+                scale,
+                None,
+                None,
+                Some(gv_s),
+            );
         }
         (None, None, None) => {}
     }

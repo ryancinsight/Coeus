@@ -5,9 +5,9 @@
 // the concrete layer types are genuinely unknown at compile time and type erasure
 // is the domain requirement for a user-constructable heterogeneous module stack.
 
-use coeus_core::{Scalar, MoiraiBackend};
-use coeus_autograd::Var;
 use crate::module::Module;
+use coeus_autograd::Var;
+use coeus_core::{MoiraiBackend, Scalar};
 
 /// A sequential container that chains modules.
 ///
@@ -21,10 +21,7 @@ use crate::module::Module;
 /// seq.add(Linear::new(128, 10, true));
 /// let output = seq.forward(&input);
 /// ```
-pub struct Sequential<
-    T: Scalar,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
-> {
+pub struct Sequential<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Type-erased module list. dyn dispatch is justified: types are unknown at compile time.
     layers: Vec<Box<dyn Module<T, B>>>,
 }
@@ -95,11 +92,12 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sequenti
 pub struct StaticSeq<H, T>(pub H, pub T);
 
 impl<
-    ScalarType: Scalar,
-    B: coeus_ops::BackendOps<ScalarType> + Default,
-    H: Module<ScalarType, B>,
-    T: Module<ScalarType, B>,
-> Module<ScalarType, B> for StaticSeq<H, T> {
+        ScalarType: Scalar,
+        B: coeus_ops::BackendOps<ScalarType> + Default,
+        H: Module<ScalarType, B>,
+        T: Module<ScalarType, B>,
+    > Module<ScalarType, B> for StaticSeq<H, T>
+{
     #[inline]
     fn parameters(&self) -> Vec<Var<ScalarType, B>> {
         let mut params = self.0.parameters();

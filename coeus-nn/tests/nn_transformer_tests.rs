@@ -1,17 +1,19 @@
-use coeus_tensor::Tensor;
-use coeus_autograd::{Var, NullMask, CausalMask};
-use coeus_nn::{TransformerDecoderLayer, TransformerDecoder, Transformer, Module};
+use coeus_autograd::{CausalMask, NullMask, Var};
 use coeus_core::MoiraiBackend;
+use coeus_nn::{Module, Transformer, TransformerDecoder, TransformerDecoderLayer};
+use coeus_tensor::Tensor;
 
 #[test]
 fn test_transformer_decoder_layer() {
     const H: usize = 2;
     let d_model = 8;
     let d_ff = 16;
-    let backend = MoiraiBackend::default();
+    let backend = MoiraiBackend;
 
-    let layer = TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(d_model, d_ff, 0.0);
-    
+    let layer = TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(
+        d_model, d_ff, 0.0,
+    );
+
     // parameters check
     let params = layer.parameters();
     // norm1 (2), self_attn (8), norm2 (2), cross_attn (8), norm3 (2), ffn (4) = 26 parameters
@@ -21,8 +23,14 @@ fn test_transformer_decoder_layer() {
     let seq_tgt = 4;
     let seq_src = 5;
 
-    let tgt = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend), true);
-    let memory = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend), true);
+    let tgt = Var::new(
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend),
+        true,
+    );
+    let memory = Var::new(
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend),
+        true,
+    );
 
     let output = layer.forward_decoder(&tgt, &memory);
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
@@ -34,7 +42,10 @@ fn test_transformer_decoder_layer() {
     assert!(tgt.grad().is_some());
     assert!(memory.grad().is_some());
     for (i, p) in params.iter().enumerate() {
-        assert!(p.grad().is_some(), "DecoderLayer parameter {i} has no gradient");
+        assert!(
+            p.grad().is_some(),
+            "DecoderLayer parameter {i} has no gradient"
+        );
     }
 }
 
@@ -44,10 +55,12 @@ fn test_transformer_decoder() {
     const N: usize = 3;
     let d_model = 8;
     let d_ff = 16;
-    let backend = MoiraiBackend::default();
+    let backend = MoiraiBackend;
 
-    let decoder = TransformerDecoder::<f64, MoiraiBackend, H, N, CausalMask, NullMask>::new(d_model, d_ff, 0.0);
-    
+    let decoder = TransformerDecoder::<f64, MoiraiBackend, H, N, CausalMask, NullMask>::new(
+        d_model, d_ff, 0.0,
+    );
+
     let params = decoder.parameters();
     assert_eq!(params.len(), 26 * N);
 
@@ -55,8 +68,14 @@ fn test_transformer_decoder() {
     let seq_tgt = 4;
     let seq_src = 5;
 
-    let tgt = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend), true);
-    let memory = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend), true);
+    let tgt = Var::new(
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend),
+        true,
+    );
+    let memory = Var::new(
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend),
+        true,
+    );
 
     let output = decoder.forward_decoder(&tgt, &memory);
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
@@ -67,7 +86,10 @@ fn test_transformer_decoder() {
     assert!(tgt.grad().is_some());
     assert!(memory.grad().is_some());
     for (i, p) in params.iter().enumerate() {
-        assert!(p.grad().is_some(), "Decoder stack parameter {i} has no gradient");
+        assert!(
+            p.grad().is_some(),
+            "Decoder stack parameter {i} has no gradient"
+        );
     }
 }
 
@@ -78,11 +100,18 @@ fn test_transformer_seq2seq() {
     const NUM_DEC: usize = 2;
     let d_model = 8;
     let d_ff = 16;
-    let backend = MoiraiBackend::default();
+    let backend = MoiraiBackend;
 
-    let transformer = Transformer::<f64, MoiraiBackend, H, NUM_ENC, NUM_DEC, NullMask, CausalMask, NullMask>::new(
-        d_model, d_ff, 0.0
-    );
+    let transformer = Transformer::<
+        f64,
+        MoiraiBackend,
+        H,
+        NUM_ENC,
+        NUM_DEC,
+        NullMask,
+        CausalMask,
+        NullMask,
+    >::new(d_model, d_ff, 0.0);
 
     let params = transformer.parameters();
     // Encoder layer: norm1 (2), self_attn (8), norm2 (2), ffn (4) = 16 parameters
@@ -95,8 +124,14 @@ fn test_transformer_seq2seq() {
     let seq_src = 5;
     let seq_tgt = 4;
 
-    let src = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend), true);
-    let tgt = Var::new(Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend), true);
+    let src = Var::new(
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend),
+        true,
+    );
+    let tgt = Var::new(
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend),
+        true,
+    );
 
     let output = transformer.forward_seq2seq(&src, &tgt);
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
@@ -107,6 +142,9 @@ fn test_transformer_seq2seq() {
     assert!(src.grad().is_some());
     assert!(tgt.grad().is_some());
     for (i, p) in params.iter().enumerate() {
-        assert!(p.grad().is_some(), "Seq2Seq Transformer parameter {i} has no gradient");
+        assert!(
+            p.grad().is_some(),
+            "Seq2Seq Transformer parameter {i} has no gradient"
+        );
     }
 }

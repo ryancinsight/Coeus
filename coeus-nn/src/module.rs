@@ -1,5 +1,5 @@
-use coeus_core::{Scalar, MoiraiBackend};
 use coeus_autograd::Var;
+use coeus_core::{MoiraiBackend, Scalar};
 
 /// Trait for neural network modules.
 ///

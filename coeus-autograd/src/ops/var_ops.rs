@@ -20,11 +20,11 @@
 // case of scaling a tensor by a constant without allocating a full broadcast
 // tensor.
 
-use std::ops::{Add, Sub, Mul, Div, Neg};
-use coeus_core::{Scalar, MoiraiBackend};
-use super::arithmetic::{add, sub, mul, div, scalar_mul, scalar_add, scalar_sub, scalar_div};
 use super::activation::neg as tracked_neg;
+use super::arithmetic::{add, div, mul, scalar_add, scalar_div, scalar_mul, scalar_sub, sub};
 use crate::var::Var;
+use coeus_core::{FloatOps, MoiraiBackend, Scalar};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 // ── &Var op &Var ──────────────────────────────────────────────────────────
 
@@ -66,7 +66,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<&Var<T, B>> for &Var<
 
 // ── Neg for &Var ──────────────────────────────────────────────────────────
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Neg for &Var<T, B> {
+impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> Neg for &Var<T, B> {
     type Output = Var<T, B>;
 
     #[inline]
@@ -165,7 +165,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<&Var<T, B>> for Var<T
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Neg for Var<T, B> {
+impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> Neg for Var<T, B> {
     type Output = Var<T, B>;
 
     #[inline]

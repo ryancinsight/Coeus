@@ -1,7 +1,7 @@
-use coeus_core::{Scalar, MoiraiBackend};
-use coeus_tensor::Tensor;
-use coeus_autograd::Var;
 use crate::module::Module;
+use coeus_autograd::Var;
+use coeus_core::{MoiraiBackend, Scalar};
+use coeus_tensor::Tensor;
 
 /// Fully-connected linear layer.
 #[derive(Clone)]
@@ -28,12 +28,14 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Linear<T, B> {
             None
         };
 
-        Self { weight, bias: bias_var }
+        Self {
+            weight,
+            bias: bias_var,
+        }
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T, B>
-{
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut params = vec![self.weight.clone()];
         if let Some(ref b) = self.bias {
@@ -52,5 +54,3 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T
         }
     }
 }
-
-

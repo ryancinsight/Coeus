@@ -1,5 +1,5 @@
-use coeus_core::{Scalar, Layout, Backend, CpuAddressableStorage, CpuAddressableStorageMut};
-use crate::ptr::{Ptr, MutPtr};
+use crate::ptr::{MutPtr, Ptr};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
 #[inline]
 pub(crate) fn conv1d<T: Scalar, B: Backend>(
@@ -274,8 +274,12 @@ pub(crate) fn conv2d<T: Scalar, B: Backend>(
                     for ikw in 0..kw {
                         let w_in = ow as isize * stride_s + ikw as isize * dil_s - pad_s;
                         if w_in >= 0 && (w_in as usize) < w {
-                            let input_idx =
-                                input_layout.physical_index(&[ni, ic, h_in as usize, w_in as usize]);
+                            let input_idx = input_layout.physical_index(&[
+                                ni,
+                                ic,
+                                h_in as usize,
+                                w_in as usize,
+                            ]);
                             let weight_idx = weight_layout.physical_index(&[oc, ic, ikh, ikw]);
                             let ival = unsafe { input_ptr.read(input_idx) };
                             let wval = unsafe { weight_ptr.read(weight_idx) };
@@ -413,8 +417,12 @@ pub(crate) fn conv2d_backward<T: Scalar, B: Backend>(
                             let w_in = ow as isize * stride_s + ikw as isize * dil_s - pad_s;
                             if w_in >= 0 && (w_in as usize) < w {
                                 let go_idx = go_layout.physical_index(&[ni, oc, oh, ow]);
-                                let input_idx =
-                                    input_layout.physical_index(&[ni, ic, h_in as usize, w_in as usize]);
+                                let input_idx = input_layout.physical_index(&[
+                                    ni,
+                                    ic,
+                                    h_in as usize,
+                                    w_in as usize,
+                                ]);
                                 let gval = unsafe { go_ptr.read(go_idx) };
                                 let ival = unsafe { input_ptr.read(input_idx) };
                                 sum = sum + gval * ival;
@@ -534,7 +542,8 @@ pub(crate) fn conv3d<T: Scalar, B: Backend>(
                                         h_in as usize,
                                         w_in as usize,
                                     ]);
-                                    let weight_idx = weight_layout.physical_index(&[oc, ic, ikd, ikh, ikw]);
+                                    let weight_idx =
+                                        weight_layout.physical_index(&[oc, ic, ikd, ikh, ikw]);
                                     let ival = unsafe { input_ptr.read(input_idx) };
                                     let wval = unsafe { weight_ptr.read(weight_idx) };
                                     sum = sum + ival * wval;
@@ -631,12 +640,15 @@ pub(crate) fn conv3d_backward<T: Scalar, B: Backend>(
                                     let oh = (numer_h / stride_s) as usize;
                                     if oh < h_out {
                                         for ikw in 0..kw {
-                                            let numer_w = wi as isize + pad_s - ikw as isize * dil_s;
+                                            let numer_w =
+                                                wi as isize + pad_s - ikw as isize * dil_s;
                                             if numer_w >= 0 && numer_w % stride_s == 0 {
                                                 let ow = (numer_w / stride_s) as usize;
                                                 if ow < w_out {
-                                                    let go_idx = go_layout.physical_index(&[ni, oc, od, oh, ow]);
-                                                    let w_idx = w_layout.physical_index(&[oc, ic, ikd, ikh, ikw]);
+                                                    let go_idx = go_layout
+                                                        .physical_index(&[ni, oc, od, oh, ow]);
+                                                    let w_idx = w_layout
+                                                        .physical_index(&[oc, ic, ikd, ikh, ikw]);
                                                     let gval = unsafe { go_ptr.read(go_idx) };
                                                     let wval = unsafe { w_ptr.read(w_idx) };
                                                     sum = sum + gval * wval;
@@ -688,9 +700,11 @@ pub(crate) fn conv3d_backward<T: Scalar, B: Backend>(
                             let h_in = oh as isize * stride_s + ikh as isize * dil_s - pad_s;
                             if h_in >= 0 && (h_in as usize) < h {
                                 for ow in 0..w_out {
-                                    let w_in = ow as isize * stride_s + ikw as isize * dil_s - pad_s;
+                                    let w_in =
+                                        ow as isize * stride_s + ikw as isize * dil_s - pad_s;
                                     if w_in >= 0 && (w_in as usize) < w {
-                                        let go_idx = go_layout.physical_index(&[ni, oc, od, oh, ow]);
+                                        let go_idx =
+                                            go_layout.physical_index(&[ni, oc, od, oh, ow]);
                                         let input_idx = input_layout.physical_index(&[
                                             ni,
                                             ic,

@@ -5,7 +5,7 @@ use std::alloc::{GlobalAlloc, Layout as AllocLayout};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use crate::storage::{Storage, StorageMut, CpuAddressableStorage, CpuAddressableStorageMut};
+use crate::storage::{CpuAddressableStorage, CpuAddressableStorageMut, Storage, StorageMut};
 
 // ── Aligned raw block ──
 
@@ -20,7 +20,10 @@ impl RawBlock {
     fn new(size: usize, align: usize) -> Option<Self> {
         let layout = AllocLayout::from_size_align(size, align).ok()?;
         if size == 0 {
-            return Some(Self { ptr: std::ptr::null_mut(), layout });
+            return Some(Self {
+                ptr: std::ptr::null_mut(),
+                layout,
+            });
         }
         // SAFETY: `layout` is constructed with valid non-zero size and alignment verified by AllocLayout::from_size_align.
         let ptr = unsafe { mnemosyne::Mnemosyne.alloc(layout) };
@@ -32,9 +35,13 @@ impl RawBlock {
     }
 
     #[inline]
-    fn as_ptr(&self) -> *const u8 { self.ptr }
+    fn as_ptr(&self) -> *const u8 {
+        self.ptr
+    }
     #[inline]
-    fn as_mut_ptr(&self) -> *mut u8 { self.ptr }
+    fn as_mut_ptr(&self) -> *mut u8 {
+        self.ptr
+    }
 }
 
 impl Drop for RawBlock {
@@ -42,7 +49,9 @@ impl Drop for RawBlock {
     fn drop(&mut self) {
         if !self.ptr.is_null() && self.layout.size() > 0 {
             // SAFETY: `self.ptr` is a non-null, valid pointer previously allocated by Mnemosyne with the exact same `self.layout`.
-            unsafe { mnemosyne::Mnemosyne.dealloc(self.ptr, self.layout); }
+            unsafe {
+                mnemosyne::Mnemosyne.dealloc(self.ptr, self.layout);
+            }
         }
     }
 }
@@ -77,8 +86,8 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     pub fn new(len: usize) -> Self {
         let byte_size = len * std::mem::size_of::<T>();
         let align = std::mem::align_of::<T>();
-        let block = RawBlock::new(byte_size, align)
-            .expect("Mnemosyne allocation failed in CpuStorage");
+        let block =
+            RawBlock::new(byte_size, align).expect("Mnemosyne allocation failed in CpuStorage");
         Self {
             block: Arc::new(block),
             len,
@@ -110,12 +119,7 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     #[inline]
     fn raw_slice(&self) -> &[T] {
         // SAFETY: The underlying block pointer is aligned, valid, and non-null (allocated via Mnemosyne) for `self.len` elements of type `T`.
-        unsafe {
-            std::slice::from_raw_parts(
-                self.block.as_ptr() as *const T,
-                self.len,
-            )
-        }
+        unsafe { std::slice::from_raw_parts(self.block.as_ptr() as *const T, self.len) }
     }
 
     /// Mutable raw slice — bypasses COW. Unsafe.
@@ -125,10 +129,7 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     #[inline]
     unsafe fn raw_slice_mut(&mut self) -> &mut [T] {
         // SAFETY: The block pointer is aligned, valid, and non-null for `self.len` elements, and the mutable borrow guarantees exclusive access.
-        std::slice::from_raw_parts_mut(
-            self.block.as_mut_ptr() as *mut T,
-            self.len,
-        )
+        std::slice::from_raw_parts_mut(self.block.as_mut_ptr() as *mut T, self.len)
     }
 
     /// Mutable raw slice with COW handling.
@@ -147,7 +148,6 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
         unsafe { self.raw_slice_mut() }
     }
 }
-
 
 impl<T: Copy + Send + Sync + 'static> Storage<T> for CpuStorage<T> {
     #[inline]

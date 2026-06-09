@@ -1,10 +1,10 @@
 // ── Activation functions ──
 // Element-wise neural network activation functions.
 
-use coeus_core::{Scalar, Float};
-use coeus_tensor::Tensor;
-use crate::backend_ops::{BackendOps, UnaryOp};
 use super::kernel::{elementwise_unary, elementwise_unary_assign};
+use crate::backend_ops::{BackendOps, UnaryOp};
+use coeus_core::{Float, Scalar};
+use coeus_tensor::Tensor;
 
 /// Rectified Linear Unit: max(0, x).
 #[inline]
@@ -117,14 +117,30 @@ pub fn gelu_tanh_assign<T: Float, B: BackendOps<T>>(input: &mut Tensor<T, B>, ba
 
 /// LeakyReLU: x >= 0 ? x : negative_slope * x.
 #[inline]
-pub fn leaky_relu<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B, negative_slope: f64) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::LeakyRelu(f64::to_bits(negative_slope)))
+pub fn leaky_relu<T: Float, B: BackendOps<T>>(
+    input: &Tensor<T, B>,
+    backend: &B,
+    negative_slope: f64,
+) -> Tensor<T, B> {
+    elementwise_unary(
+        input,
+        backend,
+        UnaryOp::LeakyRelu(f64::to_bits(negative_slope)),
+    )
 }
 
 /// In-place LeakyReLU.
 #[inline]
-pub fn leaky_relu_assign<T: Float, B: BackendOps<T>>(input: &mut Tensor<T, B>, backend: &B, negative_slope: f64) {
-    elementwise_unary_assign(input, backend, UnaryOp::LeakyRelu(f64::to_bits(negative_slope)));
+pub fn leaky_relu_assign<T: Float, B: BackendOps<T>>(
+    input: &mut Tensor<T, B>,
+    backend: &B,
+    negative_slope: f64,
+) {
+    elementwise_unary_assign(
+        input,
+        backend,
+        UnaryOp::LeakyRelu(f64::to_bits(negative_slope)),
+    );
 }
 
 /// Numerically-stable log-softmax along `axis`.
@@ -140,7 +156,10 @@ pub fn log_softmax_axis<T: Float, B: BackendOps<T> + Default>(
     backend: &B,
 ) -> Tensor<T, B> {
     let ndim = input.ndim();
-    assert!(axis < ndim, "log_softmax_axis: axis {axis} out of bounds for ndim {ndim}");
+    assert!(
+        axis < ndim,
+        "log_softmax_axis: axis {axis} out of bounds for ndim {ndim}"
+    );
     // Shift by max for numerical stability: shifted = x - max(x, axis)
     let max_vals = super::super::reduction::max_axis(input, axis, backend);
     let shifted = super::super::binary::sub(input, &max_vals, backend);

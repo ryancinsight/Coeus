@@ -5,9 +5,9 @@
 // Strategy computation executes in `f64` (schedule math) and converts to `T` via
 // `Scalar::from_f64` at the `set_lr` boundary — the only precision crossing.
 
-use std::marker::PhantomData;
-use coeus_core::Float;
 use crate::traits::Optimizer;
+use coeus_core::Float;
+use std::marker::PhantomData;
 
 // ── Strategy sealed trait ──
 
@@ -55,7 +55,8 @@ impl SchedulerStrategy for CosineAnneal {
         }
         let t = step.min(self.t_max) as f64;
         let tm = self.t_max as f64;
-        self.eta_min + 0.5 * (base_lr - self.eta_min) * (1.0 + (std::f64::consts::PI * t / tm).cos())
+        self.eta_min
+            + 0.5 * (base_lr - self.eta_min) * (1.0 + (std::f64::consts::PI * t / tm).cos())
     }
 }
 
@@ -92,10 +93,17 @@ impl SchedulerStrategy for WarmupCosine {
     #[inline]
     fn lr(&self, base_lr: f64, step: usize) -> f64 {
         if step < self.warmup_steps {
-            LinearWarmup { warmup_steps: self.warmup_steps }.lr(base_lr, step)
+            LinearWarmup {
+                warmup_steps: self.warmup_steps,
+            }
+            .lr(base_lr, step)
         } else {
             let cosine_step = step - self.warmup_steps;
-            CosineAnneal { t_max: self.t_max, eta_min: self.eta_min }.lr(base_lr, cosine_step)
+            CosineAnneal {
+                t_max: self.t_max,
+                eta_min: self.eta_min,
+            }
+            .lr(base_lr, cosine_step)
         }
     }
 }

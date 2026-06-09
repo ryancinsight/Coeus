@@ -1,8 +1,8 @@
 // ── Sum reduction ──
 
+use crate::backend_ops::{BackendOps, ReductionOp};
 use coeus_core::Scalar;
 use coeus_tensor::Tensor;
-use crate::backend_ops::{BackendOps, ReductionOp};
 
 /// Sum all elements.
 #[inline]
@@ -24,7 +24,11 @@ pub fn sum<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B)
 
 /// Sum along a specific axis, reducing it to size 1.
 #[inline]
-pub fn sum_axis<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, axis: usize, backend: &B) -> Tensor<T, B> {
+pub fn sum_axis<T: Scalar, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    axis: usize,
+    backend: &B,
+) -> Tensor<T, B> {
     assert!(axis < a.ndim(), "sum_axis: axis {axis} out of bounds");
 
     let mut out_shape = a.shape_cloned();
@@ -47,7 +51,11 @@ pub fn sum_axis<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, axis: u
 
 /// Maximum along a specific axis, reducing it to size 1.
 #[inline]
-pub fn max_axis<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, axis: usize, backend: &B) -> Tensor<T, B> {
+pub fn max_axis<T: Scalar, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    axis: usize,
+    backend: &B,
+) -> Tensor<T, B> {
     assert!(axis < a.ndim(), "max_axis: axis {axis} out of bounds");
 
     let mut out_shape = a.shape_cloned();
@@ -70,7 +78,11 @@ pub fn max_axis<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, axis: u
 
 /// Minimum along a specific axis, reducing it to size 1.
 #[inline]
-pub fn min_axis<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, axis: usize, backend: &B) -> Tensor<T, B> {
+pub fn min_axis<T: Scalar, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    axis: usize,
+    backend: &B,
+) -> Tensor<T, B> {
     assert!(axis < a.ndim(), "min_axis: axis {axis} out of bounds");
 
     let mut out_shape = a.shape_cloned();

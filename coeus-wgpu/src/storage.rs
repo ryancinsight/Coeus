@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use std::marker::PhantomData;
-use coeus_core::{Storage, StorageMut, Scalar};
 use crate::backend::get_wgpu_context;
+use coeus_core::{Scalar, Storage, StorageMut};
+use std::marker::PhantomData;
+use std::sync::Arc;
 
 /// GPU-allocated buffer managed by wgpu.
 pub struct WgpuStorage<T> {
@@ -30,12 +30,12 @@ impl<T: Scalar> WgpuStorage<T> {
     pub fn new(len: usize) -> Self {
         let ctx = get_wgpu_context();
         let size_in_bytes = (len * std::mem::size_of::<T>()).max(4) as u64; // wgpu requires min 4 bytes
-        
+
         let buffer = ctx.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("coeus-wgpu-buffer"),
             size: size_in_bytes,
-            usage: wgpu::BufferUsages::STORAGE 
-                | wgpu::BufferUsages::COPY_SRC 
+            usage: wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
                 | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -75,28 +75,24 @@ impl<T: Scalar> StorageMut<T> for WgpuStorage<T> {
         if Arc::strong_count(&self.buffer) > 1 {
             let ctx = get_wgpu_context();
             let size_in_bytes = (self.len * std::mem::size_of::<T>()).max(4) as u64;
-            
+
             let new_buffer = ctx.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("coeus-wgpu-cow-buffer"),
                 size: size_in_bytes,
-                usage: wgpu::BufferUsages::STORAGE 
-                    | wgpu::BufferUsages::COPY_SRC 
+                usage: wgpu::BufferUsages::STORAGE
+                    | wgpu::BufferUsages::COPY_SRC
                     | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
-            
-            let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("coeus-wgpu-cow-copy"),
-            });
-            encoder.copy_buffer_to_buffer(
-                &self.buffer,
-                0,
-                &new_buffer,
-                0,
-                size_in_bytes,
-            );
+
+            let mut encoder = ctx
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("coeus-wgpu-cow-copy"),
+                });
+            encoder.copy_buffer_to_buffer(&self.buffer, 0, &new_buffer, 0, size_in_bytes);
             ctx.queue.submit(std::iter::once(encoder.finish()));
-            
+
             self.buffer = Arc::new(new_buffer);
         }
     }

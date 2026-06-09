@@ -1,12 +1,17 @@
 #![allow(clippy::too_many_arguments)]
 
+use crate::backend::WgpuScalar;
 use crate::kernels::cache::PIPELINE_CACHE;
 use crate::kernels::layout::GpuLayoutInfo;
-use crate::backend::WgpuScalar;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct ConvParams { stride: u32, padding: u32, dilation: u32, has_bias: u32, }
+struct ConvParams {
+    stride: u32,
+    padding: u32,
+    dilation: u32,
+    has_bias: u32,
+}
 
 pub fn dispatch_conv1d<T: WgpuScalar>(
     input: &wgpu::Buffer,
@@ -40,10 +45,14 @@ pub fn dispatch_conv1d<T: WgpuScalar>(
     let out_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let params_buf = crate::backend::PooledMetadataBuffer::new();
 
-    ctx.queue.write_buffer(&in_layout_buf, 0, bytemuck::bytes_of(&in_layout_gpu));
-    ctx.queue.write_buffer(&w_layout_buf, 0, bytemuck::bytes_of(&w_layout_gpu));
-    ctx.queue.write_buffer(&out_layout_buf, 0, bytemuck::bytes_of(&out_layout_gpu));
-    ctx.queue.write_buffer(&params_buf, 0, bytemuck::bytes_of(&params_data));
+    ctx.queue
+        .write_buffer(&in_layout_buf, 0, bytemuck::bytes_of(&in_layout_gpu));
+    ctx.queue
+        .write_buffer(&w_layout_buf, 0, bytemuck::bytes_of(&w_layout_gpu));
+    ctx.queue
+        .write_buffer(&out_layout_buf, 0, bytemuck::bytes_of(&out_layout_gpu));
+    ctx.queue
+        .write_buffer(&params_buf, 0, bytemuck::bytes_of(&params_data));
 
     let dummy_bias = crate::backend::PooledMetadataBuffer::new();
     let bias_buf = bias.unwrap_or(&dummy_bias);
@@ -118,20 +127,46 @@ pub fn dispatch_conv1d<T: WgpuScalar>(
         label: Some("conv1d-bind-group"),
         layout: &bind_group_layout,
         entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: input.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 1, resource: weight.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 2, resource: bias_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 3, resource: output.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 4, resource: in_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 5, resource: w_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 6, resource: out_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 7, resource: params_buf.as_entire_binding() },
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: input.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: weight.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: bias_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: output.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: in_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 5,
+                resource: w_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 6,
+                resource: out_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 7,
+                resource: params_buf.as_entire_binding(),
+            },
         ],
     });
 
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("conv1d-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("conv1d-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -183,15 +218,20 @@ pub fn dispatch_conv1d_backward<T: WgpuScalar>(
     let w_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let params_buf = crate::backend::PooledMetadataBuffer::new();
 
-    ctx.queue.write_buffer(&go_layout_buf, 0, bytemuck::bytes_of(&go_layout_gpu));
-    ctx.queue.write_buffer(&in_layout_buf, 0, bytemuck::bytes_of(&in_layout_gpu));
-    ctx.queue.write_buffer(&w_layout_buf, 0, bytemuck::bytes_of(&w_layout_gpu));
-    ctx.queue.write_buffer(&params_buf, 0, bytemuck::bytes_of(&params_data));
+    ctx.queue
+        .write_buffer(&go_layout_buf, 0, bytemuck::bytes_of(&go_layout_gpu));
+    ctx.queue
+        .write_buffer(&in_layout_buf, 0, bytemuck::bytes_of(&in_layout_gpu));
+    ctx.queue
+        .write_buffer(&w_layout_buf, 0, bytemuck::bytes_of(&w_layout_gpu));
+    ctx.queue
+        .write_buffer(&params_buf, 0, bytemuck::bytes_of(&params_data));
 
     // 1. Grad Input
     if let Some(gi) = grad_input {
         let gi_layout_buf = crate::backend::PooledMetadataBuffer::new();
-        ctx.queue.write_buffer(&gi_layout_buf, 0, bytemuck::bytes_of(&gi_layout_gpu));
+        ctx.queue
+            .write_buffer(&gi_layout_buf, 0, bytemuck::bytes_of(&gi_layout_gpu));
 
         let shader_src = format!(
             r#"
@@ -261,19 +301,42 @@ pub fn dispatch_conv1d_backward<T: WgpuScalar>(
             label: Some("conv1d-back-gi-bind-group"),
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: grad_out.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: weight.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: gi.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 3, resource: go_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 4, resource: w_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 5, resource: gi_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 6, resource: params_buf.as_entire_binding() },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: grad_out.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: weight.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: gi.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: go_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: w_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: gi_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: params_buf.as_entire_binding(),
+                },
             ],
         });
 
-        let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("conv1d-back-gi-encoder"),
-        });
+        let mut encoder = ctx
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("conv1d-back-gi-encoder"),
+            });
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("conv1d-back-gi-compute-pass"),
@@ -291,7 +354,8 @@ pub fn dispatch_conv1d_backward<T: WgpuScalar>(
     // 2. Grad Weight
     if let Some(gw) = grad_weight {
         let gw_layout_buf = crate::backend::PooledMetadataBuffer::new();
-        ctx.queue.write_buffer(&gw_layout_buf, 0, bytemuck::bytes_of(&gw_layout_gpu));
+        ctx.queue
+            .write_buffer(&gw_layout_buf, 0, bytemuck::bytes_of(&gw_layout_gpu));
 
         let shader_src = format!(
             r#"
@@ -358,19 +422,42 @@ pub fn dispatch_conv1d_backward<T: WgpuScalar>(
             label: Some("conv1d-back-gw-bind-group"),
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: grad_out.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: input.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: gw.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 3, resource: go_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 4, resource: in_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 5, resource: gw_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 6, resource: params_buf.as_entire_binding() },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: grad_out.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: input.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: gw.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: go_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: in_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: gw_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: params_buf.as_entire_binding(),
+                },
             ],
         });
 
-        let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("conv1d-back-gw-encoder"),
-        });
+        let mut encoder = ctx
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("conv1d-back-gw-encoder"),
+            });
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("conv1d-back-gw-compute-pass"),
@@ -432,15 +519,26 @@ pub fn dispatch_conv1d_backward<T: WgpuScalar>(
             label: Some("conv1d-back-gb-bind-group"),
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: grad_out.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: gb.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: go_layout_buf.as_entire_binding() },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: grad_out.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: gb.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: go_layout_buf.as_entire_binding(),
+                },
             ],
         });
 
-        let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("conv1d-back-gb-encoder"),
-        });
+        let mut encoder = ctx
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("conv1d-back-gb-encoder"),
+            });
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("conv1d-back-gb-compute-pass"),

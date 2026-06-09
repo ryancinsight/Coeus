@@ -1,6 +1,6 @@
-use coeus_core::{Layout, ComputeBackend, Storage};
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::storage::CudaStorage;
+use coeus_core::{ComputeBackend, Layout, Storage};
 
 impl CudaBackend {
     pub(crate) fn fallback_sgd_step<T: CudaScalar>(
@@ -13,7 +13,9 @@ impl CudaBackend {
         velocity_layout: &Layout,
         lr: T,
         momentum: T,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let mut host_param = vec![T::zero(); param.len()];
         self.copy_to_host(param, &mut host_param);
         let mut host_grad = vec![T::zero(); grad.len()];
@@ -58,7 +60,9 @@ impl CudaBackend {
         beta2: T,
         eps: T,
         t: usize,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let mut host_param = vec![T::zero(); param.len()];
         self.copy_to_host(param, &mut host_param);
         let mut host_grad = vec![T::zero(); grad.len()];
@@ -108,7 +112,9 @@ impl CudaBackend {
         lr: T,
         alpha: T,
         eps: T,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let mut host_param = vec![T::zero(); param.len()];
         self.copy_to_host(param, &mut host_param);
         let mut host_grad = vec![T::zero(); grad.len()];
@@ -149,7 +155,9 @@ impl CudaBackend {
         history_layout: &Layout,
         lr: T,
         eps: T,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let mut host_param = vec![T::zero(); param.len()];
         self.copy_to_host(param, &mut host_param);
         let mut host_grad = vec![T::zero(); grad.len()];
@@ -196,7 +204,9 @@ impl CudaBackend {
         eps: T,
         weight_decay: T,
         t: usize,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let mut host_param = vec![T::zero(); param.len()];
         self.copy_to_host(param, &mut host_param);
         let mut host_grad = vec![T::zero(); grad.len()];

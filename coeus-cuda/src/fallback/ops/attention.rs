@@ -1,7 +1,7 @@
-use coeus_core::{Layout, ComputeBackend, Storage};
-use coeus_ops::BackendOps;
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::storage::CudaStorage;
+use coeus_core::{ComputeBackend, Layout, Storage};
+use coeus_ops::BackendOps;
 
 impl CudaBackend {
     pub(crate) fn fallback_sdp_attention<T: CudaScalar>(
@@ -20,7 +20,9 @@ impl CudaBackend {
         output_layout: &Layout,
         attn_weights: &mut CudaStorage<T>,
         attn_weights_layout: &Layout,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let mut host_q = vec![T::zero(); query.len()];
         self.copy_to_host(query, &mut host_q);
         let mut host_k = vec![T::zero(); key.len()];
@@ -81,7 +83,9 @@ impl CudaBackend {
         grad_q: Option<&mut CudaStorage<T>>,
         grad_k: Option<&mut CudaStorage<T>>,
         grad_v: Option<&mut CudaStorage<T>>,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let mut host_go = vec![T::zero(); grad_out.len()];
         self.copy_to_host(grad_out, &mut host_go);
         let mut host_q = vec![T::zero(); query.len()];
@@ -100,9 +104,15 @@ impl CudaBackend {
         let seq_v = coeus_core::CpuStorage::from_slice(&host_v);
         let seq_aw = coeus_core::CpuStorage::from_slice(&host_aw);
 
-        let mut seq_gq = grad_q.as_ref().map(|g| coeus_core::CpuStorage::from_slice(&vec![T::zero(); g.len()]));
-        let mut seq_gk = grad_k.as_ref().map(|g| coeus_core::CpuStorage::from_slice(&vec![T::zero(); g.len()]));
-        let mut seq_gv = grad_v.as_ref().map(|g| coeus_core::CpuStorage::from_slice(&vec![T::zero(); g.len()]));
+        let mut seq_gq = grad_q
+            .as_ref()
+            .map(|g| coeus_core::CpuStorage::from_slice(&vec![T::zero(); g.len()]));
+        let mut seq_gk = grad_k
+            .as_ref()
+            .map(|g| coeus_core::CpuStorage::from_slice(&vec![T::zero(); g.len()]));
+        let mut seq_gv = grad_v
+            .as_ref()
+            .map(|g| coeus_core::CpuStorage::from_slice(&vec![T::zero(); g.len()]));
 
         seq.sdp_attention_backward(
             &seq_go,

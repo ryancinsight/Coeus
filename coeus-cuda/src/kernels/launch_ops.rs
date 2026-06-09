@@ -1,10 +1,10 @@
 #![allow(clippy::too_many_arguments)]
 
-use coeus_core::Layout;
-use crate::storage::CudaStorage;
-use crate::driver::{CudaDriver, CUdeviceptr, get_cuda_context};
-use crate::backend::CudaScalar;
 use super::GpuLayoutInfo;
+use crate::backend::CudaScalar;
+use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
+use crate::storage::CudaStorage;
+use coeus_core::Layout;
 
 pub fn launch_contiguous_binary<T: CudaScalar>(
     op: coeus_ops::BinaryOp,
@@ -13,8 +13,12 @@ pub fn launch_contiguous_binary<T: CudaScalar>(
     c: &mut CudaStorage<T>,
     n: usize,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(_ctx) = get_cuda_context() else { return false; };
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
     let cuda_type = T::CUDA_TYPE;
 
     let op_expr = match op {
@@ -43,7 +47,9 @@ extern "C" __global__ void contiguous_binary_kernel(
     );
 
     let key = format!("contiguous_binary_{:?}_{}", op, cuda_type);
-    let Some(kernel) = super::fuse::get_or_create_kernel(&key, &cuda_src, "contiguous_binary_kernel") else {
+    let Some(kernel) =
+        super::fuse::get_or_create_kernel(&key, &cuda_src, "contiguous_binary_kernel")
+    else {
         return false;
     };
 
@@ -65,8 +71,12 @@ extern "C" __global__ void contiguous_binary_kernel(
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32, 1, 1,
-            block_size as u32, 1, 1,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),
@@ -82,8 +92,12 @@ pub fn launch_contiguous_unary<T: CudaScalar>(
     c: &mut CudaStorage<T>,
     n: usize,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(_ctx) = get_cuda_context() else { return false; };
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
     let cuda_type = T::CUDA_TYPE;
 
     let op_expr = match op {
@@ -127,7 +141,9 @@ extern "C" __global__ void contiguous_unary_kernel(
     );
 
     let key = format!("contiguous_unary_{:?}_{}", op, cuda_type);
-    let Some(kernel) = super::fuse::get_or_create_kernel(&key, &cuda_src, "contiguous_unary_kernel") else {
+    let Some(kernel) =
+        super::fuse::get_or_create_kernel(&key, &cuda_src, "contiguous_unary_kernel")
+    else {
         return false;
     };
 
@@ -147,8 +163,12 @@ extern "C" __global__ void contiguous_unary_kernel(
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32, 1, 1,
-            block_size as u32, 1, 1,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),
@@ -168,8 +188,12 @@ pub fn launch_strided_binary<T: CudaScalar>(
     c_layout: &Layout,
     n: usize,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(_ctx) = get_cuda_context() else { return false; };
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
     let cuda_type = T::CUDA_TYPE;
 
     let op_expr = match op {
@@ -242,7 +266,8 @@ extern "C" __global__ void binary_strided_kernel(
     );
 
     let key = format!("strided_binary_{:?}_{}", op, cuda_type);
-    let Some(kernel) = super::fuse::get_or_create_kernel(&key, &cuda_src, "binary_strided_kernel") else {
+    let Some(kernel) = super::fuse::get_or_create_kernel(&key, &cuda_src, "binary_strided_kernel")
+    else {
         return false;
     };
 
@@ -271,8 +296,12 @@ extern "C" __global__ void binary_strided_kernel(
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32, 1, 1,
-            block_size as u32, 1, 1,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),
@@ -290,8 +319,12 @@ pub fn launch_strided_unary<T: CudaScalar>(
     c_layout: &Layout,
     n: usize,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(_ctx) = get_cuda_context() else { return false; };
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
     let cuda_type = T::CUDA_TYPE;
 
     let op_expr = match op {
@@ -370,7 +403,8 @@ extern "C" __global__ void unary_strided_kernel(
     );
 
     let key = format!("strided_unary_{:?}_{}", op, cuda_type);
-    let Some(kernel) = super::fuse::get_or_create_kernel(&key, &cuda_src, "unary_strided_kernel") else {
+    let Some(kernel) = super::fuse::get_or_create_kernel(&key, &cuda_src, "unary_strided_kernel")
+    else {
         return false;
     };
 
@@ -395,8 +429,12 @@ extern "C" __global__ void unary_strided_kernel(
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32, 1, 1,
-            block_size as u32, 1, 1,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),

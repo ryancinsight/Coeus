@@ -2,8 +2,8 @@
 // Zero-sized type dispatching work to the Moirai work-stealing engine.
 
 use crate::backend::{Backend, ComputeBackend};
-use crate::storage::{Storage, CpuStorage};
 use crate::dtype::Scalar;
+use crate::storage::{CpuStorage, Storage};
 
 /// Moirai work-stealing backend.
 ///

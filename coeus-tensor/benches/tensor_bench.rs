@@ -1,17 +1,17 @@
-use criterion::{criterion_group, criterion_main, Criterion};
-use coeus_core::{SequentialBackend, MoiraiBackend};
+use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::Tensor;
+use criterion::{criterion_group, criterion_main, Criterion};
 
 fn bench_elementwise_add(c: &mut Criterion) {
     let size = 1024;
     let shape = vec![size, size];
-    
+
     let seq_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
-    
+
     let a_seq = Tensor::<f32, SequentialBackend>::ones(shape.clone());
     let b_seq = Tensor::<f32, SequentialBackend>::ones(shape.clone());
-    
+
     let a_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone());
     let b_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone());
 
@@ -37,13 +37,13 @@ fn bench_matmul(c: &mut Criterion) {
     let m = 256;
     let k = 256;
     let n = 256;
-    
+
     let seq_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
-    
+
     let a_seq = Tensor::<f32, SequentialBackend>::ones(vec![m, k]);
     let b_seq = Tensor::<f32, SequentialBackend>::ones(vec![k, n]);
-    
+
     let a_moirai = Tensor::<f32, MoiraiBackend>::ones(vec![m, k]);
     let b_moirai = Tensor::<f32, MoiraiBackend>::ones(vec![k, n]);
 

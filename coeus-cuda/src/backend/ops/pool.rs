@@ -1,8 +1,8 @@
-use coeus_core::Layout;
 use crate::backend::{CudaBackend, CudaScalar};
-use crate::storage::CudaStorage;
 use crate::driver::get_cuda_context;
 use crate::kernels;
+use crate::storage::CudaStorage;
+use coeus_core::Layout;
 
 impl CudaBackend {
     pub(crate) fn cuda_max_pool2d<T: CudaScalar>(
@@ -30,7 +30,16 @@ impl CudaBackend {
                 return;
             }
         }
-        self.fallback_max_pool2d(input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+        self.fallback_max_pool2d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     pub(crate) fn cuda_max_pool2d_backward<T: CudaScalar>(
@@ -101,7 +110,16 @@ impl CudaBackend {
                 return;
             }
         }
-        self.fallback_avg_pool2d(input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+        self.fallback_avg_pool2d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     pub(crate) fn cuda_avg_pool2d_backward<T: CudaScalar>(

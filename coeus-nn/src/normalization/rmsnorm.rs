@@ -1,7 +1,7 @@
+use crate::module::Module;
+use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
-use coeus_autograd::Var;
-use crate::module::Module;
 
 /// Root Mean Square Normalization (RMSNorm) module.
 ///
@@ -40,7 +40,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T
 
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         let shape = input.tensor.shape_cloned();
-        assert_eq!(shape.len(), 2, "RMSNorm expects 2D input [batch_size, normalized_shape]");
+        assert_eq!(
+            shape.len(),
+            2,
+            "RMSNorm expects 2D input [batch_size, normalized_shape]"
+        );
         let _n = shape[0];
         let d = shape[1];
         let backend = B::default();
@@ -60,12 +64,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T
         let w_reshaped = self.weight.tensor.reshape([1, d]);
         let out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
 
-        coeus_autograd::rmsnorm(
-            input,
-            &self.weight,
-            out_tensor,
-            x_hat,
-            rms,
-        )
+        coeus_autograd::rmsnorm(input, &self.weight, out_tensor, x_hat, rms)
     }
 }

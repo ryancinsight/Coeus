@@ -1,7 +1,7 @@
 // ── TopK and ArgMax/ArgMin ──
 // Returns the k largest (or smallest) values and their indices along a dimension.
 
-use coeus_core::{Scalar, ComputeBackend, Layout, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 use coeus_tensor::Tensor;
 
 /// Return the `k` largest (or smallest) values and their flat indices along `dim`.
@@ -25,7 +25,10 @@ where
 {
     let ndim = x.ndim();
     let dim_size = x.shape()[dim];
-    assert!(k > 0 && k <= dim_size, "topk: k={k} invalid for dim_size={dim_size}");
+    assert!(
+        k > 0 && k <= dim_size,
+        "topk: k={k} invalid for dim_size={dim_size}"
+    );
     assert!(dim < ndim, "topk: dim {dim} out of range");
 
     let backend = B::default();
@@ -47,11 +50,15 @@ where
         let mut coords = vec![0usize; ndim];
         let mut rem = outer_idx;
         for d in (0..ndim).rev() {
-            if d == dim { continue; }
+            if d == dim {
+                continue;
+            }
             coords[d] = rem % in_shape[d];
             rem /= in_shape[d];
         }
-        let base: usize = coords.iter().enumerate()
+        let base: usize = coords
+            .iter()
+            .enumerate()
             .map(|(d, &c)| if d != dim { c * in_strides[d] } else { 0 })
             .sum();
 
@@ -62,15 +69,23 @@ where
 
         // Partial sort: select k elements.
         if largest {
-            pairs.select_nth_unstable_by(k - 1, |a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+            pairs.select_nth_unstable_by(k - 1, |a, b| {
+                b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
+            });
         } else {
-            pairs.select_nth_unstable_by(k - 1, |a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+            pairs.select_nth_unstable_by(k - 1, |a, b| {
+                a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal)
+            });
         }
         pairs.truncate(k);
         if largest {
-            pairs.sort_unstable_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+            pairs.sort_unstable_by(|a, b| {
+                b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
+            });
         } else {
-            pairs.sort_unstable_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+            pairs.sort_unstable_by(|a, b| {
+                a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal)
+            });
         }
 
         for (rank, (v, orig_idx)) in pairs.iter().enumerate() {

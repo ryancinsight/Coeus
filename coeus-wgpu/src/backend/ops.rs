@@ -1,6 +1,6 @@
-use coeus_core::{Layout, Storage};
 use crate::backend::{WgpuBackend, WgpuScalar};
 use crate::kernels;
+use coeus_core::{Layout, Storage};
 
 impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
     #[inline]
@@ -25,7 +25,16 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         {
             kernels::dispatch_contiguous_binary::<T>(op, &a.buffer, &b.buffer, &c.buffer, c.len());
         } else {
-            kernels::dispatch_binary::<T>(op, &a.buffer, a_layout, &b.buffer, b_layout, &c.buffer, c_layout, c.len());
+            kernels::dispatch_binary::<T>(
+                op,
+                &a.buffer,
+                a_layout,
+                &b.buffer,
+                b_layout,
+                &c.buffer,
+                c_layout,
+                c.len(),
+            );
         }
     }
 
@@ -59,7 +68,9 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        kernels::dispatch_matmul::<T>(&a.buffer, a_layout, &b.buffer, b_layout, &c.buffer, c_layout);
+        kernels::dispatch_matmul::<T>(
+            &a.buffer, a_layout, &b.buffer, b_layout, &c.buffer, c_layout,
+        );
     }
 
     #[inline]
@@ -322,7 +333,9 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         velocity_layout: &Layout,
         lr: T,
         momentum: T,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let len = param_layout.shape().iter().product::<usize>();
         kernels::dispatch_sgd_step::<T>(
             &param.buffer,
@@ -353,7 +366,9 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         beta2: T,
         eps: T,
         t: usize,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let len = param_layout.shape().iter().product::<usize>();
         kernels::dispatch_adam_step::<T>(
             &param.buffer,
@@ -390,7 +405,9 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         eps: T,
         weight_decay: T,
         t: usize,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let len = param_layout.shape().iter().product::<usize>();
         kernels::dispatch_adamw_step::<T>(
             &param.buffer,
@@ -423,7 +440,9 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         lr: T,
         alpha: T,
         eps: T,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let len = param_layout.shape().iter().product::<usize>();
         kernels::dispatch_rmsprop_step::<T>(
             &param.buffer,
@@ -450,7 +469,9 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         history_layout: &Layout,
         lr: T,
         eps: T,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         let len = param_layout.shape().iter().product::<usize>();
         kernels::dispatch_adagrad_step::<T>(
             &param.buffer,
@@ -644,8 +665,12 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         output_layout: &Layout,
         attn_weights: &mut Self::DeviceBuffer<T>,
         attn_weights_layout: &Layout,
-    ) where T: coeus_core::Float {
-        use coeus_core::{SequentialBackend, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut};
+    ) where
+        T: coeus_core::Float,
+    {
+        use coeus_core::{
+            ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, SequentialBackend,
+        };
         // Stage: GPU → CPU
         let seq = SequentialBackend::new();
         let q_len = query.len();
@@ -706,8 +731,12 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         grad_q: Option<&mut Self::DeviceBuffer<T>>,
         grad_k: Option<&mut Self::DeviceBuffer<T>>,
         grad_v: Option<&mut Self::DeviceBuffer<T>>,
-    ) where T: coeus_core::Float {
-        use coeus_core::{SequentialBackend, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut};
+    ) where
+        T: coeus_core::Float,
+    {
+        use coeus_core::{
+            ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, SequentialBackend,
+        };
         let seq = SequentialBackend::new();
         // Stage inputs to CPU
         let go_len = grad_out.len();
@@ -716,9 +745,9 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         let v_len = value.len();
         let aw_len = attn_weights.len();
         let mut go_cpu = seq.allocate::<T>(go_len);
-        let mut q_cpu  = seq.allocate::<T>(q_len);
-        let mut k_cpu  = seq.allocate::<T>(k_len);
-        let mut v_cpu  = seq.allocate::<T>(v_len);
+        let mut q_cpu = seq.allocate::<T>(q_len);
+        let mut k_cpu = seq.allocate::<T>(k_len);
+        let mut v_cpu = seq.allocate::<T>(v_len);
         let mut aw_cpu = seq.allocate::<T>(aw_len);
         self.copy_to_host(grad_out, go_cpu.as_mut_slice());
         self.copy_to_host(query, q_cpu.as_mut_slice());
@@ -726,10 +755,37 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         self.copy_to_host(value, v_cpu.as_mut_slice());
         self.copy_to_host(attn_weights, aw_cpu.as_mut_slice());
         // Prepare CPU gradient buffers
-        let mut gq_cpu = grad_q.as_ref().map(|g| { let mut s = seq.allocate::<T>(g.len()); self.copy_to_host(*g, s.as_mut_slice()); s });
-        let mut gk_cpu = grad_k.as_ref().map(|g| { let mut s = seq.allocate::<T>(g.len()); self.copy_to_host(*g, s.as_mut_slice()); s });
-        let mut gv_cpu = grad_v.as_ref().map(|g| { let mut s = seq.allocate::<T>(g.len()); self.copy_to_host(*g, s.as_mut_slice()); s });
-        seq.sdp_attention_backward(&go_cpu, grad_out_layout, &q_cpu, query_layout, &k_cpu, key_layout, &v_cpu, value_layout, &aw_cpu, attn_weights_layout, scale, gq_cpu.as_mut(), gk_cpu.as_mut(), gv_cpu.as_mut());
+        let mut gq_cpu = grad_q.as_ref().map(|g| {
+            let mut s = seq.allocate::<T>(g.len());
+            self.copy_to_host(*g, s.as_mut_slice());
+            s
+        });
+        let mut gk_cpu = grad_k.as_ref().map(|g| {
+            let mut s = seq.allocate::<T>(g.len());
+            self.copy_to_host(*g, s.as_mut_slice());
+            s
+        });
+        let mut gv_cpu = grad_v.as_ref().map(|g| {
+            let mut s = seq.allocate::<T>(g.len());
+            self.copy_to_host(*g, s.as_mut_slice());
+            s
+        });
+        seq.sdp_attention_backward(
+            &go_cpu,
+            grad_out_layout,
+            &q_cpu,
+            query_layout,
+            &k_cpu,
+            key_layout,
+            &v_cpu,
+            value_layout,
+            &aw_cpu,
+            attn_weights_layout,
+            scale,
+            gq_cpu.as_mut(),
+            gk_cpu.as_mut(),
+            gv_cpu.as_mut(),
+        );
         // Stage back
         if let (Some(gq_gpu), Some(ref gq_c)) = (grad_q, &gq_cpu) {
             self.copy_to_device(gq_c.as_slice(), gq_gpu);
@@ -742,5 +798,3 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         }
     }
 }
-
-

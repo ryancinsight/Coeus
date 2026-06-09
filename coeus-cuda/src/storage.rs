@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
+use coeus_core::{Scalar, Storage, StorageMut};
+use half::{bf16, f16};
 use std::marker::PhantomData;
-use coeus_core::{Storage, StorageMut, Scalar};
-use crate::driver::{CudaDriver, CUdeviceptr, get_cuda_context};
-use half::{f16, bf16};
+use std::sync::Arc;
 
 /// RAII wrapper for raw CUDA memory allocations.
 pub struct CudaAllocation {
@@ -33,7 +33,10 @@ pub enum CudaBuffer {
     TensorF16(Arc<cutile::tensor::Tensor<f16>>, Arc<CudaAllocation>),
     TensorBF16(Arc<cutile::tensor::Tensor<bf16>>, Arc<CudaAllocation>),
     TensorI32(Arc<cutile::tensor::Tensor<i32>>, Arc<CudaAllocation>),
-    Fallback(Arc<cuda_async::device_buffer::DeviceBuffer>, Arc<CudaAllocation>),
+    Fallback(
+        Arc<cuda_async::device_buffer::DeviceBuffer>,
+        Arc<CudaAllocation>,
+    ),
     Null(Arc<CudaAllocation>),
 }
 
@@ -79,7 +82,7 @@ impl<T: Scalar> CudaStorage<T> {
     pub fn new(len: usize) -> Self {
         let size_in_bytes = (len * std::mem::size_of::<T>()).max(4);
         let mut ptr: CUdeviceptr = 0;
-        
+
         if let Some(drv) = CudaDriver::get() {
             if get_cuda_context().is_some() {
                 unsafe {
@@ -90,7 +93,7 @@ impl<T: Scalar> CudaStorage<T> {
                 }
             }
         }
-        
+
         let alloc = Arc::new(CudaAllocation { ptr });
         let buffer = if ptr == 0 {
             CudaBuffer::Null(alloc)
@@ -153,16 +156,12 @@ impl<T: Scalar> CudaStorage<T> {
                 CudaBuffer::TensorI32(Arc::new(tensor), alloc)
             } else {
                 let buffer = unsafe {
-                    cuda_async::device_buffer::DeviceBuffer::from_raw_parts(
-                        ptr,
-                        size_in_bytes,
-                        0,
-                    )
+                    cuda_async::device_buffer::DeviceBuffer::from_raw_parts(ptr, size_in_bytes, 0)
                 };
                 CudaBuffer::Fallback(Arc::new(buffer), alloc)
             }
         };
-        
+
         Self {
             buffer,
             len,

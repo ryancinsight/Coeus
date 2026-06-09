@@ -1,7 +1,7 @@
 // ── Constant padding ──
 // Pads a tensor with a constant value along each dimension.
 
-use coeus_core::{Scalar, ComputeBackend, Layout, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 use coeus_tensor::Tensor;
 
 /// Pad `x` with `value` along each dimension.

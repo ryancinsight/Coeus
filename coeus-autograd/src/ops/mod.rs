@@ -1,21 +1,33 @@
 // ── Tracked autograd ops ──
 
-pub mod arithmetic;
 pub mod activation;
+pub mod arithmetic;
+pub mod embedding;
 pub mod linalg;
 pub mod nn;
-pub mod embedding;
+pub mod reduction;
 pub mod shape;
 pub mod var_ops;
-pub mod reduction;
 
-pub use arithmetic::{add, sub, mul, div, sum, mean, sum_axis, mean_axis, scalar_mul, scalar_add, scalar_sub, scalar_div};
-pub use activation::{relu, sigmoid, tanh, gelu, silu, mish, exp, log, elu, softplus, gelu_tanh, leaky_relu,
-                     neg, abs, sqrt, pow, clamp};
-pub use reduction::{max_axis, min_axis, log_sum_exp};
+pub use activation::{
+    abs, clamp, elu, exp, gelu, gelu_tanh, leaky_relu, log, mish, neg, pow, relu, sigmoid, silu,
+    softplus, sqrt, tanh,
+};
+pub use arithmetic::{
+    add, div, mean, mean_axis, mul, scalar_add, scalar_div, scalar_mul, scalar_sub, sub, sum,
+    sum_axis,
+};
+pub use reduction::{log_sum_exp, max_axis, min_axis};
 
-pub use linalg::{matmul, transpose_2d, sparse_matmul};
-pub use nn::{layernorm, rmsnorm, batchnorm1d, batchnorm2d, batchnorm3d, conv1d, conv2d, conv3d, max_pool2d, avg_pool2d, max_pool3d, avg_pool3d, softmax, dropout, cross_entropy_loss, binary_cross_entropy, nll_loss, huber_loss, sdp_attention, AttentionMask, CausalMask, NullMask, log_softmax, cosine_embedding_loss};
+pub use linalg::{matmul, sparse_matmul, transpose_2d};
+pub use nn::{
+    avg_pool2d, avg_pool3d, batchnorm1d, batchnorm2d, batchnorm3d, binary_cross_entropy, conv1d,
+    conv2d, conv3d, cosine_embedding_loss, cross_entropy_loss, dropout, huber_loss, layernorm,
+    log_softmax, max_pool2d, max_pool3d, nll_loss, rmsnorm, sdp_attention, softmax, AttentionMask,
+    BatchNorm1dArgs, BatchNorm2dArgs, BatchNorm3dArgs, CausalMask, NullMask,
+};
 
 pub use embedding::embedding;
-pub use shape::{reshape, permute, slice, contiguous, cat, split, pad, squeeze, unsqueeze, transpose, cumsum};
+pub use shape::{
+    cat, contiguous, cumsum, pad, permute, reshape, slice, split, squeeze, transpose, unsqueeze,
+};

@@ -1,7 +1,9 @@
-use coeus_core::{Scalar, Layout, Backend, CpuAddressableStorage, CpuAddressableStorageMut, Shape, Strides};
-use crate::ptr::{Ptr, MutPtr};
-use crate::backend_ops::ReductionOp;
 use crate::backend_ops::compute_reduction_base_offset;
+use crate::backend_ops::ReductionOp;
+use crate::ptr::{MutPtr, Ptr};
+use coeus_core::{
+    Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar, Shape, Strides,
+};
 
 #[inline]
 pub(crate) fn matmul<T: Scalar, B: Backend>(
@@ -113,28 +115,48 @@ pub trait ReductionKernelOp<T: Scalar> {
 pub struct SumOp;
 impl<T: Scalar> ReductionKernelOp<T> for SumOp {
     #[inline(always)]
-    fn combine(x: T, y: T) -> T { x + y }
+    fn combine(x: T, y: T) -> T {
+        x + y
+    }
 
     #[inline]
-    fn reduce_contiguous(s: &[T]) -> T { T::sum_slice(s) }
+    fn reduce_contiguous(s: &[T]) -> T {
+        T::sum_slice(s)
+    }
 }
 
 pub struct MaxOp;
 impl<T: Scalar> ReductionKernelOp<T> for MaxOp {
     #[inline(always)]
-    fn combine(x: T, y: T) -> T { if x > y { x } else { y } }
+    fn combine(x: T, y: T) -> T {
+        if x > y {
+            x
+        } else {
+            y
+        }
+    }
 
     #[inline]
-    fn reduce_contiguous(s: &[T]) -> T { T::max_slice(s) }
+    fn reduce_contiguous(s: &[T]) -> T {
+        T::max_slice(s)
+    }
 }
 
 pub struct MinOp;
 impl<T: Scalar> ReductionKernelOp<T> for MinOp {
     #[inline(always)]
-    fn combine(x: T, y: T) -> T { if x < y { x } else { y } }
+    fn combine(x: T, y: T) -> T {
+        if x < y {
+            x
+        } else {
+            y
+        }
+    }
 
     #[inline]
-    fn reduce_contiguous(s: &[T]) -> T { T::min_slice(s) }
+    fn reduce_contiguous(s: &[T]) -> T {
+        T::min_slice(s)
+    }
 }
 
 #[inline(always)]

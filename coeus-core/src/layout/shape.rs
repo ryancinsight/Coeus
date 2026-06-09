@@ -1,8 +1,8 @@
 // ── Shape descriptor ──
 // SmallVec-backed dimension array. Elides heap alloc for ndim ≤ 4.
 
-use std::ops::{Deref, DerefMut};
 use smallvec::SmallVec;
+use std::ops::{Deref, DerefMut};
 
 /// Shape type: inline for up to 4 dims, spills to heap beyond.
 #[derive(Clone, PartialEq, Eq, Hash, Default)]
@@ -116,4 +116,3 @@ impl std::fmt::Debug for Shape {
         write!(f, "Shape({:?})", &self.0)
     }
 }
-

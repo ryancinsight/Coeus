@@ -8,11 +8,11 @@
 // GroupNorm<T, B, C>. Instead, InstanceNorm uses the same approach manually:
 // reshape to [N*C, spatial], apply LayerNorm, reshape back, apply affine.
 
-use std::cell::RefCell;
+use crate::module::Module;
+use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
-use coeus_autograd::Var;
-use crate::module::Module;
+use std::cell::RefCell;
 
 #[derive(Clone)]
 struct InstanceNormCache<T: Float, B: coeus_ops::BackendOps<T> + Default> {
@@ -28,10 +28,7 @@ struct InstanceNormCache<T: Float, B: coeus_ops::BackendOps<T> + Default> {
 ///
 /// Normalizes over the L (spatial) dimension independently per sample per channel.
 #[derive(Clone)]
-pub struct InstanceNorm1d<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
-> {
+pub struct InstanceNorm1d<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Trainable scale (gamma): shape `[num_features]`.
     pub weight: Var<T, B>,
     /// Trainable shift (beta): shape `[num_features]`.
@@ -46,8 +43,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> InstanceNorm1d<T, B> {
     pub fn new(num_features: usize, eps: f64) -> Self {
         let backend = B::default();
         let weight = Var::new(Tensor::ones_on([num_features], &backend), true);
-        let bias   = Var::new(Tensor::zeros_on([num_features], &backend), true);
-        Self { weight, bias, num_features, eps, cache: RefCell::new(None) }
+        let bias = Var::new(Tensor::zeros_on([num_features], &backend), true);
+        Self {
+            weight,
+            bias,
+            num_features,
+            eps,
+            cache: RefCell::new(None),
+        }
     }
 
     fn get_cache(&self, spatial: usize) -> std::cell::RefMut<'_, Option<InstanceNormCache<T, B>>> {
@@ -155,7 +158,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceN
         let mut bshape = vec![1usize; shape.len()];
         bshape[1] = c;
         let w = coeus_autograd::reshape(&self.weight, bshape.as_slice());
-        let b = coeus_autograd::reshape(&self.bias,   bshape.as_slice());
+        let b = coeus_autograd::reshape(&self.bias, bshape.as_slice());
         let scaled = coeus_autograd::mul(&normed, &w);
         coeus_autograd::add(&scaled, &b)
     }
@@ -165,10 +168,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceN
 ///
 /// Normalizes over the H*W spatial dimensions independently per sample per channel.
 #[derive(Clone)]
-pub struct InstanceNorm2d<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
-> {
+pub struct InstanceNorm2d<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     pub weight: Var<T, B>,
     pub bias: Var<T, B>,
     pub num_features: usize,
@@ -181,8 +181,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> InstanceNorm2d<T, B> {
     pub fn new(num_features: usize, eps: f64) -> Self {
         let backend = B::default();
         let weight = Var::new(Tensor::ones_on([num_features], &backend), true);
-        let bias   = Var::new(Tensor::zeros_on([num_features], &backend), true);
-        Self { weight, bias, num_features, eps, cache: RefCell::new(None) }
+        let bias = Var::new(Tensor::zeros_on([num_features], &backend), true);
+        Self {
+            weight,
+            bias,
+            num_features,
+            eps,
+            cache: RefCell::new(None),
+        }
     }
 
     fn get_cache(&self, spatial: usize) -> std::cell::RefMut<'_, Option<InstanceNormCache<T, B>>> {
@@ -290,7 +296,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceN
         let mut bshape = vec![1usize; shape.len()];
         bshape[1] = c;
         let wv = coeus_autograd::reshape(&self.weight, bshape.as_slice());
-        let bv = coeus_autograd::reshape(&self.bias,   bshape.as_slice());
+        let bv = coeus_autograd::reshape(&self.bias, bshape.as_slice());
         let scaled = coeus_autograd::mul(&normed, &wv);
         coeus_autograd::add(&scaled, &bv)
     }

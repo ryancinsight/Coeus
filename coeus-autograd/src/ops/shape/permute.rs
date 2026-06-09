@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::Scalar;
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::Scalar;
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct PermuteNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -51,7 +51,10 @@ pub fn permute<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         return Var::new(out_tensor, false);
     }
 
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend)));
+    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+        out_tensor.shape_cloned(),
+        &backend,
+    )));
     let grad = Some(output_grad.clone());
 
     // Compute inverse permutation
@@ -82,7 +85,10 @@ pub fn transpose<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     dim1: usize,
 ) -> Var<T, B> {
     let ndim = x.tensor.ndim();
-    assert!(dim0 < ndim && dim1 < ndim, "transpose: dimensions out of bounds");
+    assert!(
+        dim0 < ndim && dim1 < ndim,
+        "transpose: dimensions out of bounds"
+    );
     if dim0 == dim1 {
         return x.clone();
     }

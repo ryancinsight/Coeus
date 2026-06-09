@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use std::cell::RefCell;
-use coeus_core::{Scalar, ComputeBackend, Shape, Storage, Layout};
-use coeus_tensor::Tensor;
-use coeus_tensor::broadcast::broadcast_shapes;
 use crate::fuse::op_tags::{BinaryOpTag, UnaryOpTag};
+use coeus_core::{ComputeBackend, Layout, Scalar, Shape, Storage};
+use coeus_tensor::broadcast::broadcast_shapes;
+use coeus_tensor::Tensor;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 pub struct CachedTensor<T> {
     pub data: Vec<T>,
@@ -83,7 +83,9 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<T, B> {
         } else {
             CPU_EVAL_CACHE.with(|cache| {
                 let cache_ref = cache.borrow();
-                let any_ref = cache_ref.get(&(self.0 as usize)).expect("Device tensor not cached for CPU evaluation");
+                let any_ref = cache_ref
+                    .get(&(self.0 as usize))
+                    .expect("Device tensor not cached for CPU evaluation");
                 if let Some(cached) = any_ref.downcast_ref::<CachedTensor<T>>() {
                     let layout = &cached.layout;
                     let shape = layout.shape();
@@ -124,9 +126,7 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<T, B> {
     }
 
     fn shape(&self) -> Option<Shape> {
-        unsafe {
-            Some((*self.0).shape_cloned())
-        }
+        unsafe { Some((*self.0).shape_cloned()) }
     }
 
     fn is_contiguous_and_same_shape(&self, out_shape: &[usize]) -> bool {
@@ -146,7 +146,9 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<T, B> {
         } else {
             CPU_EVAL_CACHE.with(|cache| {
                 let cache_ref = cache.borrow();
-                let any_ref = cache_ref.get(&(self.0 as usize)).expect("Device tensor not cached for CPU evaluation");
+                let any_ref = cache_ref
+                    .get(&(self.0 as usize))
+                    .expect("Device tensor not cached for CPU evaluation");
                 if let Some(cached) = any_ref.downcast_ref::<CachedTensor<T>>() {
                     let layout = &cached.layout;
                     let off = layout.offset() + idx;
@@ -207,12 +209,14 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for ScalarVal<T> {
 }
 
 #[derive(Clone, Copy)]
-pub struct UnaryExpr<Op: UnaryOpTag, Child> {
+pub struct UnaryExpr<Op, Child> {
     pub op: Op,
     pub child: Child,
 }
 
-impl<Op: UnaryOpTag + Send, Child: ExprNode<T, B>, T: Scalar, B: ComputeBackend> ExprNode<T, B> for UnaryExpr<Op, Child> {
+impl<Op: UnaryOpTag<T> + Send, Child: ExprNode<T, B>, T: Scalar, B: ComputeBackend> ExprNode<T, B>
+    for UnaryExpr<Op, Child>
+{
     fn collect_inputs(&self, list: &mut Vec<*const Tensor<T, B>>) {
         self.child.collect_inputs(list);
     }
@@ -248,7 +252,14 @@ pub struct BinaryExpr<Op: BinaryOpTag, Left, Right> {
     pub right: Right,
 }
 
-impl<Op: BinaryOpTag + Send, Left: ExprNode<T, B>, Right: ExprNode<T, B>, T: Scalar, B: ComputeBackend> ExprNode<T, B> for BinaryExpr<Op, Left, Right> {
+impl<
+        Op: BinaryOpTag + Send,
+        Left: ExprNode<T, B>,
+        Right: ExprNode<T, B>,
+        T: Scalar,
+        B: ComputeBackend,
+    > ExprNode<T, B> for BinaryExpr<Op, Left, Right>
+{
     fn collect_inputs(&self, list: &mut Vec<*const Tensor<T, B>>) {
         self.left.collect_inputs(list);
         self.right.collect_inputs(list);
@@ -271,8 +282,8 @@ impl<Op: BinaryOpTag + Send, Left: ExprNode<T, B>, Right: ExprNode<T, B>, T: Sca
         let right_shape = self.right.shape();
         match (left_shape, right_shape) {
             (Some(l), Some(r)) => {
-                let out = broadcast_shapes(&l, &r)
-                    .expect("Incompatible shapes in fused expression");
+                let out =
+                    broadcast_shapes(&l, &r).expect("Incompatible shapes in fused expression");
                 Some(out)
             }
             (Some(l), None) => Some(l),
@@ -282,7 +293,8 @@ impl<Op: BinaryOpTag + Send, Left: ExprNode<T, B>, Right: ExprNode<T, B>, T: Sca
     }
 
     fn is_contiguous_and_same_shape(&self, out_shape: &[usize]) -> bool {
-        self.left.is_contiguous_and_same_shape(out_shape) && self.right.is_contiguous_and_same_shape(out_shape)
+        self.left.is_contiguous_and_same_shape(out_shape)
+            && self.right.is_contiguous_and_same_shape(out_shape)
     }
 
     unsafe fn eval_cpu_flat(&self, idx: usize) -> T {

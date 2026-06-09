@@ -1,5 +1,5 @@
 use coeus_core::MoiraiBackend;
-use coeus_tensor::{Tensor, StateDict};
+use coeus_tensor::{StateDict, Tensor};
 
 #[test]
 fn test_state_dict_save_load() {
@@ -19,7 +19,10 @@ fn test_state_dict_save_load() {
 
     let lt1 = loaded.get("layer1.weight").unwrap();
     assert_eq!(lt1.shape(), &[2, 3]);
-    assert_eq!(lt1.to_contiguous().as_slice(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    assert_eq!(
+        lt1.to_contiguous().as_slice(),
+        &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    );
 
     let lt2 = loaded.get("layer1.bias").unwrap();
     assert_eq!(lt2.shape(), &[4]);

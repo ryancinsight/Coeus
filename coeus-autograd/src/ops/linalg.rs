@@ -1,17 +1,16 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::{Scalar, Shape, CpuAddressableStorage, CpuAddressableStorageMut};
+use crate::node::BackwardNode;
+use crate::ops::activation::{unary_op, UnaryAutogradOp};
+use crate::ops::arithmetic::{binary_op, BinaryAutogradOp};
+use crate::var::Var;
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar, Shape};
 use coeus_sparse::CsrTensor;
 use coeus_tensor::Tensor;
-use crate::node::BackwardNode;
-use crate::var::Var;
-use crate::ops::activation::{UnaryAutogradOp, unary_op};
-use crate::ops::arithmetic::{BinaryAutogradOp, binary_op};
+use std::sync::{Arc, Mutex};
 
 /// ZST tag for Matrix Multiplication autograd.
 pub struct MatmulOp;
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for MatmulOp
-{
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for MatmulOp {
     const OP_NAME: &'static str = "matmul";
 
     #[inline(always)]
@@ -31,7 +30,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
     ) {
         // ∂/∂A: grad_C @ B^T — grad_C may be batched ([batch,m,n] × [n,k] → [batch,m,k])
         if let Some(Some(ref g)) = input_grads.get(0) {
-            let b_t = b.t();  // B is always 2D (weight matrix); b.t() ✓
+            let b_t = b.t(); // B is always 2D (weight matrix); b.t() ✓
             let grad_a = coeus_ops::matmul(grad_out, &b_t, backend);
             let mut gl = g.lock().unwrap();
             coeus_ops::add_assign(&mut gl, &grad_a, backend);
@@ -47,7 +46,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
                 let batch: usize = a_shape[..a_ndim - 2].iter().product();
                 let go_shape = grad_out.shape();
                 let n = go_shape[grad_out.ndim() - 1];
-                (a.reshape([batch * m, k].as_slice()), grad_out.reshape([batch * m, n].as_slice()))
+                (
+                    a.reshape([batch * m, k].as_slice()),
+                    grad_out.reshape([batch * m, n].as_slice()),
+                )
             } else {
                 (a.clone(), grad_out.clone())
             };
@@ -71,19 +73,28 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for
     }
 
     #[inline(always)]
-    fn backward(grad_out: &Tensor<T, B>, _x: &Tensor<T, B>, _y: &Tensor<T, B>, _backend: &B) -> Tensor<T, B> {
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        _x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        _backend: &B,
+    ) -> Tensor<T, B> {
         grad_out.t()
     }
 }
 
 /// Tracked matrix multiplication.
+#[must_use]
 #[inline]
-pub fn matmul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, b: &Var<T, B>) -> Var<T, B>
-{
+pub fn matmul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
     binary_op::<T, B, MatmulOp>(a, b)
 }
 
 /// Tracked 2-D Transpose.
+#[must_use]
 #[inline]
 pub fn transpose_2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
     unary_op::<T, B, Transpose2dOp>(a)
@@ -99,7 +110,8 @@ pub struct SparseMatMulNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub b_tensor: Tensor<T, B>,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + coeus_core::Backend + Default> BackwardNode<T, B> for SparseMatMulNode<T, B>
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + coeus_core::Backend + Default> BackwardNode<T, B>
+    for SparseMatMulNode<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
@@ -163,12 +175,20 @@ where
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
 {
     let backend = B::default();
-    let csr = CsrTensor::new(a_shape.clone(), a_values.tensor.clone(), a_col_indices.clone(), a_row_offsets.clone());
+    let csr = CsrTensor::new(
+        a_shape.clone(),
+        a_values.tensor.clone(),
+        a_col_indices.clone(),
+        a_row_offsets.clone(),
+    );
     let out_tensor = coeus_ops::spmm(&csr, &b.tensor, &backend);
 
     let requires_grad = a_values.grad.is_some() || b.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -191,7 +211,9 @@ where
         None
     };
 
-    Var { tensor: out_tensor, grad, creator }
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
 }
-
-

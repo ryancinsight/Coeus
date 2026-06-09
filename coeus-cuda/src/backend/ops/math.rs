@@ -1,8 +1,8 @@
-use coeus_core::Layout;
 use crate::backend::{CudaBackend, CudaScalar};
-use crate::storage::CudaStorage;
 use crate::driver::get_cuda_context;
 use crate::kernels;
+use crate::storage::CudaStorage;
+use coeus_core::Layout;
 
 fn cast_storage<T, U>(storage: &CudaStorage<T>) -> CudaStorage<U> {
     CudaStorage {
@@ -78,11 +78,15 @@ impl CudaBackend {
         c: &mut CudaStorage<T>,
         c_layout: &Layout,
     ) {
-        if get_cuda_context().is_some() && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+        if get_cuda_context().is_some()
+            && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+        {
             let a_f32 = cast_storage::<T, f32>(a);
             let b_f32 = cast_storage::<T, f32>(b);
             let mut c_f32 = cast_storage_mut::<T, f32>(c);
-            if kernels::launch_matmul_tiled(&a_f32, &b_f32, &mut c_f32, a_layout, b_layout, c_layout) {
+            if kernels::launch_matmul_tiled(
+                &a_f32, &b_f32, &mut c_f32, a_layout, b_layout, c_layout,
+            ) {
                 return;
             }
         }

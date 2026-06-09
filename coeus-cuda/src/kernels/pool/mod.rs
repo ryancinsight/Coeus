@@ -1,8 +1,8 @@
-pub mod max;
 pub mod avg;
+pub mod max;
 
-pub use max::{dispatch_max_pool2d, dispatch_max_pool2d_backward};
 pub use avg::{dispatch_avg_pool2d, dispatch_avg_pool2d_backward};
+pub use max::{dispatch_max_pool2d, dispatch_max_pool2d_backward};
 
 pub(crate) const POOL_COMMON_SRC: &str = r#"
 struct GpuLayoutInfo {

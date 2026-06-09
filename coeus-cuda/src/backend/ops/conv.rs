@@ -1,8 +1,8 @@
-use coeus_core::Layout;
 use crate::backend::{CudaBackend, CudaScalar};
-use crate::storage::CudaStorage;
 use crate::driver::get_cuda_context;
 use crate::kernels;
+use crate::storage::CudaStorage;
+use coeus_core::Layout;
 
 fn cast_storage<T, U>(storage: &CudaStorage<T>) -> CudaStorage<U> {
     CudaStorage {
@@ -34,7 +34,9 @@ impl CudaBackend {
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
     ) {
-        if get_cuda_context().is_some() && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+        if get_cuda_context().is_some()
+            && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+        {
             let input_f32 = cast_storage::<T, f32>(input);
             let weight_f32 = cast_storage::<T, f32>(weight);
             let bias_f32 = bias.map(|b| cast_storage::<T, f32>(b));
@@ -56,7 +58,18 @@ impl CudaBackend {
                 return;
             }
         }
-        self.fallback_conv1d(input, input_layout, weight, weight_layout, bias, stride, padding, dilation, output, output_layout);
+        self.fallback_conv1d(
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     pub(crate) fn cuda_conv1d_backward<T: CudaScalar>(
@@ -76,12 +89,16 @@ impl CudaBackend {
         padding: usize,
         dilation: usize,
     ) {
-        if get_cuda_context().is_some() && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+        if get_cuda_context().is_some()
+            && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+        {
             let grad_out_f32 = cast_storage::<T, f32>(grad_out);
             let input_f32 = cast_storage::<T, f32>(input);
             let weight_f32 = cast_storage::<T, f32>(weight);
             let mut grad_input_f32 = grad_input.as_mut().map(|gi| cast_storage_mut::<T, f32>(gi));
-            let mut grad_weight_f32 = grad_weight.as_mut().map(|gw| cast_storage_mut::<T, f32>(gw));
+            let mut grad_weight_f32 = grad_weight
+                .as_mut()
+                .map(|gw| cast_storage_mut::<T, f32>(gw));
             let mut grad_bias_f32 = grad_bias.as_mut().map(|gb| cast_storage_mut::<T, f32>(gb));
 
             if kernels::launch_conv1d_backward(
@@ -128,7 +145,9 @@ impl CudaBackend {
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
     ) {
-        if get_cuda_context().is_some() && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+        if get_cuda_context().is_some()
+            && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+        {
             let input_f32 = cast_storage::<T, f32>(input);
             let weight_f32 = cast_storage::<T, f32>(weight);
             let bias_f32 = bias.map(|b| cast_storage::<T, f32>(b));
@@ -150,7 +169,18 @@ impl CudaBackend {
                 return;
             }
         }
-        self.fallback_conv2d(input, input_layout, weight, weight_layout, bias, stride, padding, dilation, output, output_layout);
+        self.fallback_conv2d(
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     pub(crate) fn cuda_conv2d_backward<T: CudaScalar>(
@@ -170,12 +200,16 @@ impl CudaBackend {
         padding: usize,
         dilation: usize,
     ) {
-        if get_cuda_context().is_some() && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+        if get_cuda_context().is_some()
+            && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+        {
             let grad_out_f32 = cast_storage::<T, f32>(grad_out);
             let input_f32 = cast_storage::<T, f32>(input);
             let weight_f32 = cast_storage::<T, f32>(weight);
             let mut grad_input_f32 = grad_input.as_mut().map(|gi| cast_storage_mut::<T, f32>(gi));
-            let mut grad_weight_f32 = grad_weight.as_mut().map(|gw| cast_storage_mut::<T, f32>(gw));
+            let mut grad_weight_f32 = grad_weight
+                .as_mut()
+                .map(|gw| cast_storage_mut::<T, f32>(gw));
             let mut grad_bias_f32 = grad_bias.as_mut().map(|gb| cast_storage_mut::<T, f32>(gb));
 
             if kernels::launch_conv2d_backward(

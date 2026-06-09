@@ -1,5 +1,5 @@
+use crate::tensor::{PyStateDict, PyTensor};
 use pyo3::prelude::*;
-use crate::tensor::{PyTensor, PyStateDict};
 
 /// Python-exposed Linear layer.
 #[pyclass(name = "Linear")]
@@ -17,7 +17,12 @@ impl PyLinear {
     #[pyo3(signature = (in_features, out_features, bias = true))]
     fn new(py: Python<'_>, in_features: usize, out_features: usize, bias: bool) -> PyResult<Self> {
         let linear = coeus_nn::linear::Linear::new(in_features, out_features, bias);
-        let weight = Py::new(py, PyTensor { inner: linear.weight })?;
+        let weight = Py::new(
+            py,
+            PyTensor {
+                inner: linear.weight,
+            },
+        )?;
         let bias = if let Some(b) = linear.bias {
             Some(Py::new(py, PyTensor { inner: b })?)
         } else {
@@ -30,7 +35,10 @@ impl PyLinear {
     fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let w_var = self.weight.bind(py).borrow().inner.clone();
-        let b_var = self.bias.as_ref().map(|b| b.bind(py).borrow().inner.clone());
+        let b_var = self
+            .bias
+            .as_ref()
+            .map(|b| b.bind(py).borrow().inner.clone());
         let input_var = input.inner.clone();
 
         let inner = py.allow_threads(move || {

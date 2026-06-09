@@ -3,9 +3,9 @@
 // Backend-agnostic: uses Layout offset arithmetic for batched N-D support.
 // No CPU-addressable storage requirements — works for GPU backends.
 
-use coeus_core::{Scalar, Layout, Shape, Strides};
-use coeus_tensor::Tensor;
 use crate::backend_ops::BackendOps;
+use coeus_core::{Layout, Scalar, Shape, Strides};
+use coeus_tensor::Tensor;
 
 /// Generalized matrix multiplication supporting 2-D and batched N-D inputs.
 ///
@@ -43,16 +43,33 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
     if a_ndim == 2 && b_ndim == 2 {
         let mut out = Tensor::zeros_on([m, n], backend);
         let (out_storage, out_layout) = out.storage_mut_and_layout();
-        backend.matmul(a.storage(), a.layout(), b.storage(), b.layout(), out_storage, out_layout);
+        backend.matmul(
+            a.storage(),
+            a.layout(),
+            b.storage(),
+            b.layout(),
+            out_storage,
+            out_layout,
+        );
         return out;
     }
 
     // ── Batch dimension resolution ──
-    let a_slices: usize = if a_ndim > 2 { a_shape[..a_ndim - 2].iter().product() } else { 1 };
-    let b_slices: usize = if b_ndim > 2 { b_shape[..b_ndim - 2].iter().product() } else { 1 };
+    let a_slices: usize = if a_ndim > 2 {
+        a_shape[..a_ndim - 2].iter().product()
+    } else {
+        1
+    };
+    let b_slices: usize = if b_ndim > 2 {
+        b_shape[..b_ndim - 2].iter().product()
+    } else {
+        1
+    };
     assert!(
         a_slices == b_slices || a_slices == 1 || b_slices == 1,
-        "matmul: batch dimensions not broadcastable: {} vs {}", a_slices, b_slices
+        "matmul: batch dimensions not broadcastable: {} vs {}",
+        a_slices,
+        b_slices
     );
     let batch_size = a_slices.max(b_slices);
 
@@ -86,9 +103,12 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
         let c_layout_2d = Layout::from_shape_strides(c_shape_2d.clone(), c_strides.clone(), c_off);
 
         backend.matmul(
-            a_storage, &a_layout_2d,
-            b_storage, &b_layout_2d,
-            out_storage, &c_layout_2d,
+            a_storage,
+            &a_layout_2d,
+            b_storage,
+            &b_layout_2d,
+            out_storage,
+            &c_layout_2d,
         );
     }
 

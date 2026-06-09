@@ -4,8 +4,8 @@
 use std::marker::PhantomData;
 
 use coeus_core::{
-    Scalar, Layout, CpuAddressableStorage, CpuAddressableStorageMut,
-    ComputeBackend, MoiraiBackend, Storage, StorageMut, Shape, Strides,
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar,
+    Shape, Storage, StorageMut, Strides,
 };
 
 /// Generic N-dimensional tensor.
@@ -104,7 +104,6 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     pub fn is_contiguous(&self) -> bool {
         self.layout.is_contiguous()
     }
-
 }
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B>
@@ -148,7 +147,10 @@ where
     /// If the tensor is not contiguous.
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        assert!(self.is_contiguous(), "as_mut_slice requires contiguous tensor");
+        assert!(
+            self.is_contiguous(),
+            "as_mut_slice requires contiguous tensor"
+        );
         let start = self.layout.offset();
         let len = self.numel();
         &mut self.storage.as_mut_slice()[start..start + len]
@@ -331,7 +333,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
 
         let numel = self.numel();
         let mut dst_storage = dst_backend.allocate(numel);
-        
+
         if let Some(host_slice) = self.storage.try_as_slice() {
             let start = self.layout.offset();
             if self.is_contiguous() {
@@ -361,10 +363,11 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
             let storage_len = Storage::len(&self.storage);
             let mut full_host_storage = vec![T::zero(); storage_len];
             src_backend.copy_to_host(&self.storage, &mut full_host_storage);
-            
+
             if self.is_contiguous() {
                 let start = self.layout.offset();
-                dst_backend.copy_to_device(&full_host_storage[start..start + numel], &mut dst_storage);
+                dst_backend
+                    .copy_to_device(&full_host_storage[start..start + numel], &mut dst_storage);
             } else {
                 let mut host_data = vec![T::zero(); numel];
                 let ndim = self.ndim();
@@ -432,10 +435,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B> {
     }
 
     /// Copy tensor memory to a new backend.
-    pub fn to_backend<NewB: ComputeBackend + Default>(
-        &self,
-        backend: &NewB,
-    ) -> Tensor<T, NewB> {
+    pub fn to_backend<NewB: ComputeBackend + Default>(&self, backend: &NewB) -> Tensor<T, NewB> {
         self.to_backend_on(&B::default(), backend)
     }
 }

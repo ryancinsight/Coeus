@@ -1,7 +1,7 @@
-use coeus_core::SequentialBackend;
-use coeus_tensor::Tensor;
 use coeus_autograd::Var;
-use coeus_optim::{SGD, Adam, AdamW, RMSProp, Optimizer};
+use coeus_core::SequentialBackend;
+use coeus_optim::{Adam, AdamW, Optimizer, RMSProp, SGD};
+use coeus_tensor::Tensor;
 
 #[test]
 fn test_sgd_optimizer() {
@@ -155,10 +155,13 @@ fn test_lr_schedulers() {
     let _backend = SequentialBackend::new();
     let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
     let x = Var::new(x_val, true);
-    
+
     {
         use coeus_optim::scheduler::{CosineAnneal, SchedulerStrategy};
-        let strategy = CosineAnneal { t_max: 0, eta_min: 1e-5 };
+        let strategy = CosineAnneal {
+            t_max: 0,
+            eta_min: 1e-5,
+        };
         let lr = strategy.lr(1e-3, 0);
         assert_eq!(lr, 1e-5);
         let lr_step = strategy.lr(1e-3, 10);
@@ -167,7 +170,10 @@ fn test_lr_schedulers() {
 
     {
         use coeus_optim::scheduler::{CosineAnneal, SchedulerStrategy};
-        let strategy = CosineAnneal { t_max: 10, eta_min: 1e-5 };
+        let strategy = CosineAnneal {
+            t_max: 10,
+            eta_min: 1e-5,
+        };
         assert!((strategy.lr(1e-3, 0) - 1e-3).abs() < 1e-6);
         assert!((strategy.lr(1e-3, 10) - 1e-5).abs() < 1e-6);
     }
@@ -175,7 +181,10 @@ fn test_lr_schedulers() {
     {
         use coeus_optim::scheduler::{LrScheduler, StepDecay};
         let optimizer = SGD::new(vec![x.clone()], 1e-3f32, 0.0f32);
-        let strategy = StepDecay { step_size: 2, gamma: 0.5 };
+        let strategy = StepDecay {
+            step_size: 2,
+            gamma: 0.5,
+        };
         let mut scheduler = LrScheduler::new(optimizer, strategy, 1e-3);
 
         assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7);
@@ -211,5 +220,3 @@ fn test_adagrad_optimizer() {
     assert!((updated_x[0] - 1.9).abs() < 1e-4);
     assert!((updated_x[1] - 3.1).abs() < 1e-4);
 }
-
-

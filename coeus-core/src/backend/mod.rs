@@ -1,10 +1,10 @@
 // ── Backend module ──
 // Execution backend abstraction. Moirai for parallel, Sequential for fallback.
 
-mod traits;
 mod moirai;
 mod sequential;
+mod traits;
 
-pub use traits::{Backend, ComputeBackend, private};
 pub use moirai::MoiraiBackend;
 pub use sequential::SequentialBackend;
+pub use traits::{private, Backend, ComputeBackend};

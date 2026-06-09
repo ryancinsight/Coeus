@@ -1,6 +1,6 @@
 // ── Embedding lookup operations ──
 
-use coeus_core::{Scalar, ComputeBackend, Storage, StorageMut};
+use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut};
 use coeus_tensor::Tensor;
 
 /// Apply embedding lookup: maps integer indices to dense vectors from a weight matrix.
@@ -15,7 +15,11 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     backend: &B,
 ) -> Tensor<T, B> {
     let weight_shape = weight.shape();
-    assert_eq!(weight_shape.len(), 2, "Weight tensor must be 2D [num_embeddings, embedding_dim]");
+    assert_eq!(
+        weight_shape.len(),
+        2,
+        "Weight tensor must be 2D [num_embeddings, embedding_dim]"
+    );
     let num_embeddings = weight_shape[0];
     let embedding_dim = weight_shape[1];
 
@@ -40,7 +44,6 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
         indices.storage().try_as_slice(),
         out_tensor.storage_mut().try_as_mut_slice(),
     ) {
-
         let ndim_idx = indices.ndim();
         let indices_shape_ref = indices.shape();
         let num_indices = indices.numel();
@@ -59,7 +62,11 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
             );
 
             let w_row_start = w_offset + (token_idx as usize) * w_strides[0];
-            let out_row_stride = if ndim_idx > 0 { out_strides[ndim_idx - 1] } else { 0 };
+            let out_row_stride = if ndim_idx > 0 {
+                out_strides[ndim_idx - 1]
+            } else {
+                0
+            };
             let out_row_start = out_offset + i * out_row_stride;
 
             for j in 0..embedding_dim {
@@ -100,7 +107,11 @@ pub fn embedding_backward<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     let embedding_dim = grad_shape[ndim_grad - 1];
 
     let indices_shape = indices.shape();
-    assert_eq!(&grad_shape[..ndim_grad - 1], indices_shape, "grad_out shape prefix must match indices shape");
+    assert_eq!(
+        &grad_shape[..ndim_grad - 1],
+        indices_shape,
+        "grad_out shape prefix must match indices shape"
+    );
 
     let mut grad_weight = Tensor::zeros_on([num_embeddings, embedding_dim], backend);
 
@@ -118,7 +129,6 @@ pub fn embedding_backward<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
         indices.storage().try_as_slice(),
         grad_weight.storage_mut().try_as_mut_slice(),
     ) {
-
         let ndim_idx = indices.ndim();
         let num_indices = indices.numel();
         let mut idx_coords = smallvec::SmallVec::<[usize; 4]>::from_elem(0, ndim_idx);
@@ -129,7 +139,11 @@ pub fn embedding_backward<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
             let token_idx = token_val.to_f64() as isize;
 
             if token_idx >= 0 && token_idx < num_embeddings as isize {
-                let go_row_stride = if ndim_idx > 0 { go_strides[ndim_idx - 1] } else { 0 };
+                let go_row_stride = if ndim_idx > 0 {
+                    go_strides[ndim_idx - 1]
+                } else {
+                    0
+                };
                 let go_row_start = go_offset + i * go_row_stride;
                 let gw_row_start = gw_offset + (token_idx as usize) * gw_strides[0];
 

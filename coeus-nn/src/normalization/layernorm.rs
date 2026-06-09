@@ -1,8 +1,8 @@
-use std::cell::RefCell;
+use crate::module::Module;
+use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
-use coeus_autograd::Var;
-use crate::module::Module;
+use std::cell::RefCell;
 
 /// Layer Normalization module.
 ///
@@ -31,7 +31,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
         let bias = Var::new(Tensor::zeros_on([normalized_shape], &backend), true);
         let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
         let d_const = Tensor::full_on([1], T::from_f64(normalized_shape as f64), &backend);
-        Self { weight, bias, eps, eps_t, d_const, ones_cache: RefCell::new(None) }
+        Self {
+            weight,
+            bias,
+            eps,
+            eps_t,
+            d_const,
+            ones_cache: RefCell::new(None),
+        }
     }
 
     /// Create a LayerNorm layer from existing parameters.
@@ -40,7 +47,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
         let normalized_shape = weight.tensor.shape()[0];
         let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
         let d_const = Tensor::full_on([1], T::from_f64(normalized_shape as f64), &backend);
-        Self { weight, bias, eps, eps_t, d_const, ones_cache: RefCell::new(None) }
+        Self {
+            weight,
+            bias,
+            eps,
+            eps_t,
+            d_const,
+            ones_cache: RefCell::new(None),
+        }
     }
 }
 
@@ -51,7 +65,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
 
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         let shape = input.tensor.shape_cloned();
-        assert_eq!(shape.len(), 2, "LayerNorm expects 2D input [batch_size, normalized_shape]");
+        assert_eq!(
+            shape.len(),
+            2,
+            "LayerNorm expects 2D input [batch_size, normalized_shape]"
+        );
         let _n = shape[0];
         let d = shape[1];
         let backend = B::default();
@@ -109,4 +127,3 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
         )
     }
 }
-

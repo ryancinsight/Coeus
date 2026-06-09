@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::{Float, Scalar, Shape};
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::{Float, Scalar, Shape};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct MaxPool2dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -66,7 +66,10 @@ pub fn max_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -90,7 +93,11 @@ pub fn max_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var { tensor: out_tensor, grad, creator }
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
 }
 
 pub struct AvgPool2dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
@@ -153,7 +160,10 @@ pub fn avg_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -177,7 +187,11 @@ pub fn avg_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var { tensor: out_tensor, grad, creator }
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
 }
 
 pub struct MaxPool3dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
@@ -241,7 +255,10 @@ pub fn max_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -265,7 +282,11 @@ pub fn max_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var { tensor: out_tensor, grad, creator }
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
 }
 
 pub struct AvgPool3dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
@@ -327,7 +348,10 @@ pub fn avg_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -351,5 +375,9 @@ pub fn avg_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var { tensor: out_tensor, grad, creator }
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
 }

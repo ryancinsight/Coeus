@@ -22,7 +22,11 @@ pub struct Max;
 impl ReduceOpTag for Max {
     #[inline(always)]
     fn apply<T: Scalar>(a: T, b: T) -> T {
-        if a > b { a } else { b }
+        if a > b {
+            a
+        } else {
+            b
+        }
     }
 }
 
@@ -32,7 +36,11 @@ pub struct Min;
 impl ReduceOpTag for Min {
     #[inline(always)]
     fn apply<T: Scalar>(a: T, b: T) -> T {
-        if a < b { a } else { b }
+        if a < b {
+            a
+        } else {
+            b
+        }
     }
 }
 

@@ -1,10 +1,10 @@
-use coeus_core::Layout;
 use crate::backend::{CudaBackend, CudaScalar};
+use coeus_core::Layout;
 
-pub mod math;
 pub mod conv;
-pub mod pool;
+pub mod math;
 pub mod optim;
+pub mod pool;
 
 impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
     #[inline]
@@ -73,7 +73,18 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.cuda_conv1d(input, input_layout, weight, weight_layout, bias, stride, padding, dilation, output, output_layout);
+        self.cuda_conv1d(
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -126,7 +137,18 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.cuda_conv2d(input, input_layout, weight, weight_layout, bias, stride, padding, dilation, output, output_layout);
+        self.cuda_conv2d(
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -177,7 +199,16 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.cuda_max_pool2d(input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+        self.cuda_max_pool2d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -220,7 +251,16 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.cuda_avg_pool2d(input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+        self.cuda_avg_pool2d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -258,8 +298,19 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         velocity_layout: &Layout,
         lr: T,
         momentum: T,
-    ) where T: coeus_core::Float {
-        self.cuda_sgd_step(param, param_layout, grad, grad_layout, velocity, velocity_layout, lr, momentum);
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_sgd_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            velocity,
+            velocity_layout,
+            lr,
+            momentum,
+        );
     }
 
     #[inline]
@@ -278,8 +329,24 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         beta2: T,
         eps: T,
         t: usize,
-    ) where T: coeus_core::Float {
-        self.cuda_adam_step(param, param_layout, grad, grad_layout, m, m_layout, v, v_layout, lr, beta1, beta2, eps, t);
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_adam_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            m,
+            m_layout,
+            v,
+            v_layout,
+            lr,
+            beta1,
+            beta2,
+            eps,
+            t,
+        );
     }
 
     #[inline]
@@ -294,8 +361,20 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         lr: T,
         alpha: T,
         eps: T,
-    ) where T: coeus_core::Float {
-        self.cuda_rmsprop_step(param, param_layout, grad, grad_layout, v, v_layout, lr, alpha, eps);
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_rmsprop_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            v,
+            v_layout,
+            lr,
+            alpha,
+            eps,
+        );
     }
 
     #[inline]
@@ -309,8 +388,19 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         history_layout: &Layout,
         lr: T,
         eps: T,
-    ) where T: coeus_core::Float {
-        self.cuda_adagrad_step(param, param_layout, grad, grad_layout, history, history_layout, lr, eps);
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_adagrad_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            history,
+            history_layout,
+            lr,
+            eps,
+        );
     }
 
     fn conv3d(
@@ -326,7 +416,18 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.fallback_conv3d(input, input_layout, weight, weight_layout, bias, stride, padding, dilation, output, output_layout);
+        self.fallback_conv3d(
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     fn conv3d_backward(
@@ -375,7 +476,16 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.fallback_max_pool3d(input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+        self.fallback_max_pool3d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     fn max_pool3d_backward(
@@ -416,7 +526,16 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.fallback_avg_pool3d(input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+        self.fallback_avg_pool3d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     fn avg_pool3d_backward(
@@ -458,7 +577,9 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output_layout: &Layout,
         attn_weights: &mut Self::DeviceBuffer<T>,
         attn_weights_layout: &Layout,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         self.fallback_sdp_attention(
             query,
             query_layout,
@@ -493,7 +614,9 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         grad_q: Option<&mut Self::DeviceBuffer<T>>,
         grad_k: Option<&mut Self::DeviceBuffer<T>>,
         grad_v: Option<&mut Self::DeviceBuffer<T>>,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         self.fallback_sdp_attention_backward(
             grad_out,
             grad_out_layout,
@@ -528,7 +651,9 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         eps: T,
         weight_decay: T,
         t: usize,
-    ) where T: coeus_core::Float {
+    ) where
+        T: coeus_core::Float,
+    {
         self.cuda_adamw_step(
             param,
             param_layout,

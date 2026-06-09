@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::{Float, Scalar};
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::{Float, Scalar};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct SoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -47,8 +47,15 @@ pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     dim: isize,
 ) -> Var<T, B> {
     let ndim = input.tensor.ndim();
-    let dim_u = if dim < 0 { (ndim as isize + dim) as usize } else { dim as usize };
-    assert!(dim_u < ndim, "softmax dim {dim} out of bounds for ndim={ndim}");
+    let dim_u = if dim < 0 {
+        (ndim as isize + dim) as usize
+    } else {
+        dim as usize
+    };
+    assert!(
+        dim_u < ndim,
+        "softmax dim {dim} out of bounds for ndim={ndim}"
+    );
     let backend = B::default();
 
     let max_t = coeus_ops::max_axis(&input.tensor, dim_u, &backend);
@@ -59,7 +66,10 @@ pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(y_t.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            y_t.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -80,5 +90,9 @@ pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var { tensor: y_t, grad, creator }
+    Var {
+        tensor: y_t,
+        grad,
+        creator,
+    }
 }

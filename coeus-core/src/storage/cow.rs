@@ -2,7 +2,9 @@
 // Wraps any Storage+StorageMut to provide transparent COW semantics.
 
 use crate::storage::cpu::CpuStorage;
-use crate::storage::traits::{Storage, StorageMut, CpuAddressableStorage, CpuAddressableStorageMut};
+use crate::storage::traits::{
+    CpuAddressableStorage, CpuAddressableStorageMut, Storage, StorageMut,
+};
 
 /// COW wrapper over an inner storage.
 ///
@@ -56,7 +58,9 @@ where
 impl<S: Storage<T>, T> Storage<T> for CowStorage<S> {
     #[inline]
     fn allocate(len: usize) -> Self {
-        Self { inner: S::allocate(len) }
+        Self {
+            inner: S::allocate(len),
+        }
     }
 
     #[inline]

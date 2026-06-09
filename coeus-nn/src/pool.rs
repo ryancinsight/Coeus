@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
-use coeus_core::{Scalar, Float, MoiraiBackend};
-use coeus_tensor::Tensor;
-use coeus_autograd::Var;
 use crate::module::Module;
+use coeus_autograd::Var;
+use coeus_core::{Float, MoiraiBackend, Scalar};
+use coeus_tensor::Tensor;
+use std::marker::PhantomData;
 
 // ── Shared pooling helpers ──
 
@@ -12,14 +12,19 @@ fn k_eff(kernel_size: usize, dilation: usize) -> usize {
 }
 
 #[inline]
-fn out_dim(input_dim: usize, kernel_size: usize, padding: usize, stride: usize, dilation: usize) -> usize {
+fn out_dim(
+    input_dim: usize,
+    kernel_size: usize,
+    padding: usize,
+    stride: usize,
+    dilation: usize,
+) -> usize {
     let total = input_dim + 2 * padding;
     match total.checked_sub(k_eff(kernel_size, dilation)) {
         Some(numer) => numer / stride + 1,
         None => 0,
     }
 }
-
 
 // ── AvgPool2d ──
 
@@ -37,14 +42,18 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AvgPool2d<T, B> {
         Self::with_params(kernel_size, kernel_size, 0, 1)
     }
 
-    pub fn with_params(
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-    ) -> Self {
-        assert!(stride >= 1 && dilation >= 1, "stride and dilation must be >= 1");
-        Self { kernel_size, stride, padding, dilation, _marker: PhantomData }
+    pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
+        assert!(
+            stride >= 1 && dilation >= 1,
+            "stride and dilation must be >= 1"
+        );
+        Self {
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -60,13 +69,27 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool2d
         let c = input.tensor.shape()[1];
         let h = input.tensor.shape()[2];
         let w = input.tensor.shape()[3];
-        let h_out = out_dim(h, self.kernel_size, self.padding, self.stride, self.dilation);
-        let w_out = out_dim(w, self.kernel_size, self.padding, self.stride, self.dilation);
+        let h_out = out_dim(
+            h,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
+        let w_out = out_dim(
+            w,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
         assert!(
             h_out > 0 && w_out > 0,
             "AvgPool2d: kernel ({}) with dilation ({}) and padding ({}) \
              does not fit input spatial dims [{h}x{w}]; output would be [{h_out}x{w_out}]",
-            self.kernel_size, self.dilation, self.padding,
+            self.kernel_size,
+            self.dilation,
+            self.padding,
         );
 
         let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend);
@@ -110,14 +133,18 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> MaxPool2d<T, B> {
         Self::with_params(kernel_size, kernel_size, 0, 1)
     }
 
-    pub fn with_params(
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-    ) -> Self {
-        assert!(stride >= 1 && dilation >= 1, "stride and dilation must be >= 1");
-        Self { kernel_size, stride, padding, dilation, _marker: PhantomData }
+    pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
+        assert!(
+            stride >= 1 && dilation >= 1,
+            "stride and dilation must be >= 1"
+        );
+        Self {
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -133,13 +160,27 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool2d
         let c = input.tensor.shape()[1];
         let h = input.tensor.shape()[2];
         let w = input.tensor.shape()[3];
-        let h_out = out_dim(h, self.kernel_size, self.padding, self.stride, self.dilation);
-        let w_out = out_dim(w, self.kernel_size, self.padding, self.stride, self.dilation);
+        let h_out = out_dim(
+            h,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
+        let w_out = out_dim(
+            w,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
         assert!(
             h_out > 0 && w_out > 0,
             "MaxPool2d: kernel ({}) with dilation ({}) and padding ({}) \
              does not fit input spatial dims [{h}x{w}]; output would be [{h_out}x{w_out}]",
-            self.kernel_size, self.dilation, self.padding,
+            self.kernel_size,
+            self.dilation,
+            self.padding,
         );
 
         let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend);
@@ -183,14 +224,18 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AvgPool3d<T, B> {
         Self::with_params(kernel_size, kernel_size, 0, 1)
     }
 
-    pub fn with_params(
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-    ) -> Self {
-        assert!(stride >= 1 && dilation >= 1, "stride and dilation must be >= 1");
-        Self { kernel_size, stride, padding, dilation, _marker: PhantomData }
+    pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
+        assert!(
+            stride >= 1 && dilation >= 1,
+            "stride and dilation must be >= 1"
+        );
+        Self {
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -207,14 +252,34 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool3d
         let d = input.tensor.shape()[2];
         let h = input.tensor.shape()[3];
         let w = input.tensor.shape()[4];
-        let d_out = out_dim(d, self.kernel_size, self.padding, self.stride, self.dilation);
-        let h_out = out_dim(h, self.kernel_size, self.padding, self.stride, self.dilation);
-        let w_out = out_dim(w, self.kernel_size, self.padding, self.stride, self.dilation);
+        let d_out = out_dim(
+            d,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
+        let h_out = out_dim(
+            h,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
+        let w_out = out_dim(
+            w,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
         assert!(
             d_out > 0 && h_out > 0 && w_out > 0,
             "AvgPool3d: kernel ({}) with dilation ({}) and padding ({}) \
              does not fit input spatial dims [{d}x{h}x{w}]",
-            self.kernel_size, self.dilation, self.padding,
+            self.kernel_size,
+            self.dilation,
+            self.padding,
         );
 
         let mut out_tensor = Tensor::zeros_on([n, c, d_out, h_out, w_out], &backend);
@@ -258,14 +323,18 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> MaxPool3d<T, B> {
         Self::with_params(kernel_size, kernel_size, 0, 1)
     }
 
-    pub fn with_params(
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-    ) -> Self {
-        assert!(stride >= 1 && dilation >= 1, "stride and dilation must be >= 1");
-        Self { kernel_size, stride, padding, dilation, _marker: PhantomData }
+    pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
+        assert!(
+            stride >= 1 && dilation >= 1,
+            "stride and dilation must be >= 1"
+        );
+        Self {
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -282,14 +351,34 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool3d
         let d = input.tensor.shape()[2];
         let h = input.tensor.shape()[3];
         let w = input.tensor.shape()[4];
-        let d_out = out_dim(d, self.kernel_size, self.padding, self.stride, self.dilation);
-        let h_out = out_dim(h, self.kernel_size, self.padding, self.stride, self.dilation);
-        let w_out = out_dim(w, self.kernel_size, self.padding, self.stride, self.dilation);
+        let d_out = out_dim(
+            d,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
+        let h_out = out_dim(
+            h,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
+        let w_out = out_dim(
+            w,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
         assert!(
             d_out > 0 && h_out > 0 && w_out > 0,
             "MaxPool3d: kernel ({}) with dilation ({}) and padding ({}) \
              does not fit input spatial dims [{d}x{h}x{w}]",
-            self.kernel_size, self.dilation, self.padding,
+            self.kernel_size,
+            self.dilation,
+            self.padding,
         );
 
         let mut out_tensor = Tensor::zeros_on([n, c, d_out, h_out, w_out], &backend);

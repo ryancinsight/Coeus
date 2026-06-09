@@ -1,9 +1,9 @@
 // ── Embedding layer module ──
 
-use coeus_core::{Scalar, MoiraiBackend};
-use coeus_tensor::Tensor;
-use coeus_autograd::Var;
 use crate::module::Module;
+use coeus_autograd::Var;
+use coeus_core::{MoiraiBackend, Scalar};
+use coeus_tensor::Tensor;
 
 /// Embedding layer mapping discrete token indices to dense vectors.
 #[derive(Clone)]

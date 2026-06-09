@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::Scalar;
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::Scalar;
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct SliceNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -34,7 +34,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sl
             let (parent_storage, parent_layout) = parent_grad.storage_mut_and_layout();
             let sliced_layout = parent_layout.slice(&self.ranges);
 
-            let parent_storage_imm: &B::DeviceBuffer<T> = unsafe { &*(parent_storage as *const B::DeviceBuffer<T>) };
+            let parent_storage_imm: &B::DeviceBuffer<T> =
+                unsafe { &*(parent_storage as *const B::DeviceBuffer<T>) };
             backend.elementwise_binary(
                 coeus_ops::BinaryOp::Add,
                 parent_storage_imm,
@@ -62,7 +63,10 @@ pub fn slice<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         return Var::new(out_tensor, false);
     }
 
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend)));
+    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+        out_tensor.shape_cloned(),
+        &backend,
+    )));
     let grad = Some(output_grad.clone());
 
     let node = SliceNode {

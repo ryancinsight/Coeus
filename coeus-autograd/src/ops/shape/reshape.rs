@@ -1,9 +1,9 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::{Scalar, Shape};
-use coeus_tensor::Tensor;
+use super::contiguous;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use super::contiguous;
+use coeus_core::{Scalar, Shape};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct ReshapeNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -57,7 +57,10 @@ pub fn reshape<T: Scalar, B: coeus_ops::BackendOps<T> + Default, S: Into<Shape>>
         return Var::new(out_tensor, false);
     }
 
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend)));
+    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+        out_tensor.shape_cloned(),
+        &backend,
+    )));
     let grad = Some(output_grad.clone());
 
     let node = ReshapeNode {

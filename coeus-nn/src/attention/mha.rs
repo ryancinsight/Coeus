@@ -4,11 +4,11 @@
 // projection is a generic tracked matmul with no CpuAddressableStorageMut requirement.
 // Head split/merge use coeus_autograd::reshape (tracked) to preserve gradient flow.
 
-use std::marker::PhantomData;
-use coeus_core::{Float, MoiraiBackend, Scalar};
-use coeus_autograd::{Var, AttentionMask};
-use crate::module::Module;
 use crate::init::kaiming_uniform;
+use crate::module::Module;
+use coeus_autograd::{AttentionMask, Var};
+use coeus_core::{Float, MoiraiBackend, Scalar};
+use std::marker::PhantomData;
 
 /// Multi-head self/cross-attention.
 ///
@@ -58,12 +58,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
             "MultiHeadAttention: d_model ({d_model}) must be divisible by H ({H})"
         );
         let make_weight = || -> Var<T, B> {
-            let mut v = Var::new(coeus_tensor::Tensor::zeros_on([d_model, d_model], &B::default()), true);
+            let mut v = Var::new(
+                coeus_tensor::Tensor::zeros_on([d_model, d_model], &B::default()),
+                true,
+            );
             kaiming_uniform(&mut v, d_model);
             v
         };
         let make_bias = || -> Var<T, B> {
-            Var::new(coeus_tensor::Tensor::zeros_on([d_model], &B::default()), true)
+            Var::new(
+                coeus_tensor::Tensor::zeros_on([d_model], &B::default()),
+                true,
+            )
         };
         Self {
             w_q: make_weight(),
@@ -79,7 +85,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         }
     }
 
-
     /// Cross-attention forward.
     ///
     /// - `query`: `[batch, seq_q, d_model]`
@@ -90,23 +95,23 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
     pub fn forward_cross(
         &self,
         query: &Var<T, B>,
-        key:   &Var<T, B>,
+        key: &Var<T, B>,
         value: &Var<T, B>,
         key_padding_mask: Option<&Var<T, B>>,
     ) -> Var<T, B> {
         let d_head = self.d_model / H;
-        let scale  = T::one() / T::from_f64((d_head as f64).sqrt());
+        let scale = T::one() / T::from_f64((d_head as f64).sqrt());
 
         let q_shape = query.tensor.shape_cloned();
-        let batch  = q_shape[0];
-        let seq_q  = q_shape[1];
+        let batch = q_shape[0];
+        let seq_q = q_shape[1];
 
         let k_shape = key.tensor.shape_cloned();
-        let seq_k   = k_shape[1];
+        let seq_k = k_shape[1];
 
         // ── Project: [batch, seq, d_model] → [batch*seq, d_model] → matmul W → [batch*seq, d_model] → [batch, seq, d_model] ──
         let q_proj = self.project_3d(query, &self.w_q, &self.b_q, batch, seq_q);
-        let k_proj = self.project_3d(key,   &self.w_k, &self.b_k, batch, seq_k);
+        let k_proj = self.project_3d(key, &self.w_k, &self.b_k, batch, seq_k);
         let v_proj = self.project_3d(value, &self.w_v, &self.b_v, batch, seq_k);
 
         // ── Reshape to [batch * H, seq, d_head] ──
@@ -158,8 +163,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
 }
 
 /// Self-attention `Module` impl (Q = K = V = input).
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: AttentionMask>
-    Module<T, B> for MultiHeadAttention<T, B, H, M>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: AttentionMask> Module<T, B>
+    for MultiHeadAttention<T, B, H, M>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = vec![
@@ -168,10 +173,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
             self.w_v.clone(),
             self.w_o.clone(),
         ];
-        if let Some(ref b) = self.b_q { p.push(b.clone()); }
-        if let Some(ref b) = self.b_k { p.push(b.clone()); }
-        if let Some(ref b) = self.b_v { p.push(b.clone()); }
-        if let Some(ref b) = self.b_o { p.push(b.clone()); }
+        if let Some(ref b) = self.b_q {
+            p.push(b.clone());
+        }
+        if let Some(ref b) = self.b_k {
+            p.push(b.clone());
+        }
+        if let Some(ref b) = self.b_v {
+            p.push(b.clone());
+        }
+        if let Some(ref b) = self.b_o {
+            p.push(b.clone());
+        }
         p
     }
 
@@ -179,4 +192,3 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         self.forward_cross(input, input, input, None)
     }
 }
-

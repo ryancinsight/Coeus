@@ -1,6 +1,6 @@
-use coeus_core::{Storage, ComputeBackend, Backend, Scalar};
+use crate::driver::{get_cuda_context, CudaDriver};
 use crate::storage::CudaStorage;
-use crate::driver::{CudaDriver, get_cuda_context};
+use coeus_core::{Backend, ComputeBackend, Scalar, Storage};
 
 pub mod ops;
 

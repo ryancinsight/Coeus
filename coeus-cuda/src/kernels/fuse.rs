@@ -1,12 +1,12 @@
-use std::collections::HashMap;
-use std::sync::{Arc, OnceLock, Mutex};
-use coeus_core::{Layout, ComputeBackend};
-use coeus_tensor::Tensor;
-use coeus_ops::fuse::ExprNode;
-use crate::backend::{CudaBackend, CudaScalar};
-use crate::storage::CudaStorage;
-use crate::driver::{CudaDriver, NvrtcDriver, CUmodule, CUfunction, CUdeviceptr, get_cuda_context};
 use super::GpuLayoutInfo;
+use crate::backend::{CudaBackend, CudaScalar};
+use crate::driver::{get_cuda_context, CUdeviceptr, CUfunction, CUmodule, CudaDriver, NvrtcDriver};
+use crate::storage::CudaStorage;
+use coeus_core::{ComputeBackend, Layout};
+use coeus_ops::fuse::ExprNode;
+use coeus_tensor::Tensor;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
 
 pub(crate) struct SafeCachedKernel {
     pub(crate) module: CUmodule,
@@ -31,12 +31,11 @@ impl Drop for SafeCachedKernel {
 static KERNEL_CACHE: OnceLock<Mutex<HashMap<String, Arc<SafeCachedKernel>>>> = OnceLock::new();
 
 pub(crate) fn compile_cuda_to_ptx(src: &str) -> Result<String, String> {
-    let nvrtc = NvrtcDriver::get()
-        .ok_or_else(|| "NVRTC driver not available".to_string())?;
-    
+    let nvrtc = NvrtcDriver::get().ok_or_else(|| "NVRTC driver not available".to_string())?;
+
     let src_c = std::ffi::CString::new(src).map_err(|e| e.to_string())?;
     let name_c = std::ffi::CString::new("fused_kernel.cu").map_err(|e| e.to_string())?;
-    
+
     let mut prog: crate::driver::nvrtcProgram = std::ptr::null_mut();
     unsafe {
         let res = (nvrtc.nvrtcCreateProgram)(
@@ -50,68 +49,77 @@ pub(crate) fn compile_cuda_to_ptx(src: &str) -> Result<String, String> {
         if res != 0 {
             return Err(format!("nvrtcCreateProgram failed: {}", res));
         }
-        
-        let options = [
-            std::ffi::CString::new("--std=c++11").unwrap(),
-        ];
-        let options_ptr: Vec<*const std::ffi::c_char> = options.iter().map(|o| o.as_ptr()).collect();
-        
+
+        let options = [std::ffi::CString::new("--std=c++11").unwrap()];
+        let options_ptr: Vec<*const std::ffi::c_char> =
+            options.iter().map(|o| o.as_ptr()).collect();
+
         let compile_res = (nvrtc.nvrtcCompileProgram)(
             prog,
             options_ptr.len() as std::ffi::c_int,
             options_ptr.as_ptr(),
         );
-        
+
         if compile_res != 0 {
             let mut log_size: usize = 0;
             (nvrtc.nvrtcGetProgramLogSize)(prog, &mut log_size);
             let mut log_bytes = vec![0u8; log_size];
             (nvrtc.nvrtcGetProgramLog)(prog, log_bytes.as_mut_ptr() as *mut std::ffi::c_char);
             let log_str = String::from_utf8_lossy(&log_bytes).into_owned();
-            
+
             (nvrtc.nvrtcDestroyProgram)(&mut prog);
-            return Err(format!("nvrtcCompileProgram failed (code {}). Log:\n{}", compile_res, log_str));
+            return Err(format!(
+                "nvrtcCompileProgram failed (code {}). Log:\n{}",
+                compile_res, log_str
+            ));
         }
-        
+
         let mut ptx_size: usize = 0;
         let ptx_res = (nvrtc.nvrtcGetPTXSize)(prog, &mut ptx_size);
         if ptx_res != 0 {
             (nvrtc.nvrtcDestroyProgram)(&mut prog);
             return Err(format!("nvrtcGetPTXSize failed: {}", ptx_res));
         }
-        
+
         let mut ptx_bytes = vec![0u8; ptx_size];
-        let ptx_get_res = (nvrtc.nvrtcGetPTX)(prog, ptx_bytes.as_mut_ptr() as *mut std::ffi::c_char);
+        let ptx_get_res =
+            (nvrtc.nvrtcGetPTX)(prog, ptx_bytes.as_mut_ptr() as *mut std::ffi::c_char);
         if ptx_get_res != 0 {
             (nvrtc.nvrtcDestroyProgram)(&mut prog);
             return Err(format!("nvrtcGetPTX failed: {}", ptx_get_res));
         }
-        
+
         (nvrtc.nvrtcDestroyProgram)(&mut prog);
-        
-        let ptx_str = String::from_utf8(ptx_bytes)
-            .map_err(|e| format!("PTX is not valid UTF-8: {}", e))?;
+
+        let ptx_str =
+            String::from_utf8(ptx_bytes).map_err(|e| format!("PTX is not valid UTF-8: {}", e))?;
         Ok(ptx_str)
     }
 }
 
-pub(crate) fn get_or_create_kernel(expr_str: &str, cuda_src: &str, func_name: &str) -> Option<Arc<SafeCachedKernel>> {
+pub(crate) fn get_or_create_kernel(
+    expr_str: &str,
+    cuda_src: &str,
+    func_name: &str,
+) -> Option<Arc<SafeCachedKernel>> {
     let cache = KERNEL_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
     let mut map = cache.lock().unwrap();
-    
+
     if let Some(kernel) = map.get(expr_str) {
         return Some(kernel.clone());
     }
-    
+
     let ptx = compile_cuda_to_ptx(cuda_src).ok()?;
     let drv = CudaDriver::get()?;
     let ptx_c = std::ffi::CString::new(ptx).ok()?;
     let mut module = std::ptr::null_mut();
-    
+
     unsafe {
         let res = (drv.cu_module_load_data)(&mut module, ptx_c.as_ptr() as *const std::ffi::c_void);
-        if res != 0 { return None; }
-        
+        if res != 0 {
+            return None;
+        }
+
         let mut func = std::ptr::null_mut();
         let func_name_c = std::ffi::CString::new(func_name).unwrap();
         let res = (drv.cu_module_get_function)(&mut func, module, func_name_c.as_ptr());
@@ -119,7 +127,7 @@ pub(crate) fn get_or_create_kernel(expr_str: &str, cuda_src: &str, func_name: &s
             (drv.cu_module_unload)(module);
             return None;
         }
-        
+
         let kernel = Arc::new(SafeCachedKernel { module, func });
         map.insert(expr_str.to_string(), kernel.clone());
         Some(kernel)
@@ -132,8 +140,12 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     output: &mut CudaStorage<T>,
     out_layout: &Layout,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(_ctx) = get_cuda_context() else { return false; };
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
     let cuda_type = T::CUDA_TYPE;
 
     // 1. Collect unique input tensors
@@ -141,10 +153,7 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     expr.collect_inputs(&mut input_ptrs);
     let num_inputs = input_ptrs.len();
 
-    let inputs: Vec<&Tensor<T, CudaBackend>> = input_ptrs
-        .iter()
-        .map(|&p| unsafe { &*p })
-        .collect();
+    let inputs: Vec<&Tensor<T, CudaBackend>> = input_ptrs.iter().map(|&p| unsafe { &*p }).collect();
 
     // 2. Build input pointer to index map
     let mut input_map = HashMap::new();
@@ -164,9 +173,7 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
 
     let size_u32 = layouts_gpu.len() * (std::mem::size_of::<GpuLayoutInfo>() / 4);
     let mut layout_buf = CudaStorage::<u32>::new(size_u32);
-    let slice = unsafe {
-        std::slice::from_raw_parts(layouts_gpu.as_ptr() as *const u32, size_u32)
-    };
+    let slice = unsafe { std::slice::from_raw_parts(layouts_gpu.as_ptr() as *const u32, size_u32) };
     CudaBackend::new().copy_to_device(slice, &mut layout_buf);
 
     // 5. Generate C++ CUDA kernel source code
@@ -236,7 +243,9 @@ extern "C" __global__ void fused_kernel(
 
     // 6. Get or create kernel module
     let key = format!("fused_{}_{}", expr_str, cuda_type);
-    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "fused_kernel") else { return false; };
+    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "fused_kernel") else {
+        return false;
+    };
 
     // 7. Marshal arguments and launch
     let mut out_ptr = output.cu_deviceptr();
@@ -262,8 +271,12 @@ extern "C" __global__ void fused_kernel(
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32, 1, 1,
-            block_size as u32, 1, 1,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),

@@ -1,12 +1,13 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::{Scalar, Shape};
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::{Scalar, Shape};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct CatNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
     pub inputs: Vec<Var<T, B>>,
@@ -17,16 +18,23 @@ where
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for CatNode<T, B>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     #[inline]
-    fn op_name(&self) -> &'static str { "cat" }
+    fn op_name(&self) -> &'static str {
+        "cat"
+    }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> { &self.output_grad }
+    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+        &self.output_grad
+    }
 
     #[inline]
-    fn inputs(&self) -> &[Var<T, B>] { &self.inputs }
+    fn inputs(&self) -> &[Var<T, B>] {
+        &self.inputs
+    }
 
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
         let backend = B::default();
@@ -41,14 +49,21 @@ where
             };
 
             let ranges: Vec<(usize, usize)> = (0..ndim)
-                .map(|d| if d == dim { (offset, offset + sz) } else { (0, self.out_shape[d]) })
+                .map(|d| {
+                    if d == dim {
+                        (offset, offset + sz)
+                    } else {
+                        (0, self.out_shape[d])
+                    }
+                })
                 .collect();
 
             let mut lock = g.lock().unwrap();
             let (g_storage, g_layout) = lock.storage_mut_and_layout();
             let sliced_out_layout = grad_out.layout().slice(&ranges);
 
-            let g_storage_imm: &B::DeviceBuffer<T> = unsafe { &*(g_storage as *const B::DeviceBuffer<T>) };
+            let g_storage_imm: &B::DeviceBuffer<T> =
+                unsafe { &*(g_storage as *const B::DeviceBuffer<T>) };
             backend.elementwise_binary(
                 coeus_ops::BinaryOp::Add,
                 g_storage_imm,
@@ -68,7 +83,8 @@ pub fn cat<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     dim: usize,
 ) -> Var<T, B>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     assert!(!inputs.is_empty(), "cat: inputs must be non-empty");
     let backend = B::default();
@@ -95,5 +111,9 @@ where
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var { tensor: out_tensor, grad, creator }
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
 }

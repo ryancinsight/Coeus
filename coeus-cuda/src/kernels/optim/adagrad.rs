@@ -1,7 +1,7 @@
-use coeus_core::Layout;
-use crate::storage::CudaStorage;
-use crate::driver::{CudaDriver, get_cuda_context};
+use crate::driver::{get_cuda_context, CudaDriver};
 use crate::kernels::GpuLayoutInfo;
+use crate::storage::CudaStorage;
+use coeus_core::Layout;
 
 pub fn launch_adagrad_step(
     param: &mut CudaStorage<f32>,
@@ -13,8 +13,12 @@ pub fn launch_adagrad_step(
     lr: f32,
     eps: f32,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(_ctx) = get_cuda_context() else { return false; };
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
 
     let n = param_layout.numel();
     let is_contiguous = param_layout.is_contiguous()
@@ -43,7 +47,11 @@ extern "C" __global__ void adagrad_contiguous_kernel(
     param[idx] -= lr * g / (sqrtf(h) + eps);
 }
 "#;
-        let Some(kernel) = crate::kernels::fuse::get_or_create_kernel("adagrad_contiguous", cuda_src, "adagrad_contiguous_kernel") else {
+        let Some(kernel) = crate::kernels::fuse::get_or_create_kernel(
+            "adagrad_contiguous",
+            cuda_src,
+            "adagrad_contiguous_kernel",
+        ) else {
             return false;
         };
 
@@ -66,8 +74,12 @@ extern "C" __global__ void adagrad_contiguous_kernel(
         unsafe {
             let res = (drv.cu_launch_kernel)(
                 kernel.func,
-                grid_size as u32, 1, 1,
-                block_size as u32, 1, 1,
+                grid_size as u32,
+                1,
+                1,
+                block_size as u32,
+                1,
+                1,
                 0,
                 std::ptr::null_mut(),
                 args.as_mut_ptr(),
@@ -136,7 +148,11 @@ extern "C" __global__ void adagrad_strided_kernel(
     param[off_p] -= lr * g / (sqrtf(h) + eps);
 }
 "#;
-        let Some(kernel) = crate::kernels::fuse::get_or_create_kernel("adagrad_strided", cuda_src, "adagrad_strided_kernel") else {
+        let Some(kernel) = crate::kernels::fuse::get_or_create_kernel(
+            "adagrad_strided",
+            cuda_src,
+            "adagrad_strided_kernel",
+        ) else {
             return false;
         };
 
@@ -166,8 +182,12 @@ extern "C" __global__ void adagrad_strided_kernel(
         unsafe {
             let res = (drv.cu_launch_kernel)(
                 kernel.func,
-                grid_size as u32, 1, 1,
-                block_size as u32, 1, 1,
+                grid_size as u32,
+                1,
+                1,
+                block_size as u32,
+                1,
+                1,
                 0,
                 std::ptr::null_mut(),
                 args.as_mut_ptr(),

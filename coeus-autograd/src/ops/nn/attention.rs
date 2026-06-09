@@ -4,11 +4,11 @@
 // `M: AttentionMask` is a ZST; the causal branch is selected at compile time
 // by DCE on `M::IS_CAUSAL`.
 
-use std::sync::{Arc, Mutex};
-use coeus_core::{Float, Scalar};
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::{Float, Scalar};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 /// ZST marker trait for attention mask strategies.
 ///
@@ -39,17 +39,21 @@ impl AttentionMask for NullMask {
 ///
 /// Stores the forward inputs and the post-softmax attention weights needed for
 /// computing gradients w.r.t. Q, K, and V.
-pub struct ScaledDotProductAttnNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> {
-    pub output_grad:  Arc<Mutex<Tensor<T, B>>>,
+pub struct ScaledDotProductAttnNode<
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+    M: AttentionMask,
+> {
+    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
     /// [Q_var, K_var, V_var]
-    pub inputs:       Vec<Var<T, B>>,
-    pub q_clone:      Tensor<T, B>,
-    pub k_clone:      Tensor<T, B>,
-    pub v_clone:      Tensor<T, B>,
+    pub inputs: Vec<Var<T, B>>,
+    pub q_clone: Tensor<T, B>,
+    pub k_clone: Tensor<T, B>,
+    pub v_clone: Tensor<T, B>,
     /// Post-softmax attention weight matrix `[batch, seq_q, seq_k]`.
     pub attn_weights: Tensor<T, B>,
-    pub scale:        T,
-    pub _mask:        std::marker::PhantomData<M>,
+    pub scale: T,
+    pub _mask: std::marker::PhantomData<M>,
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> BackwardNode<T, B>
@@ -126,7 +130,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
 /// as an intermediate).
 pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask>(
     query: &Var<T, B>,
-    key:   &Var<T, B>,
+    key: &Var<T, B>,
     value: &Var<T, B>,
     key_padding_mask: Option<&Var<T, B>>,
     scale: T,
@@ -143,14 +147,19 @@ pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: Attenti
         &backend,
     );
 
-    let requires_grad = query.grad.is_some() || key.grad.is_some() || value.grad.is_some()
+    let requires_grad = query.grad.is_some()
+        || key.grad.is_some()
+        || value.grad.is_some()
         || key_padding_mask.is_some_and(|m| m.grad.is_some());
 
     if !requires_grad {
         return (Var::new(out_tensor, false), attn_weights);
     }
 
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend)));
+    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+        out_tensor.shape_cloned(),
+        &backend,
+    )));
     let grad = Some(output_grad.clone());
 
     let mut inputs = vec![query.clone(), key.clone(), value.clone()];
@@ -170,6 +179,10 @@ pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: Attenti
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    let out_var = Var { tensor: out_tensor, grad, creator };
+    let out_var = Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    };
     (out_var, attn_weights)
 }

@@ -1,5 +1,5 @@
-use coeus_core::{Scalar, Layout, Backend, CpuAddressableStorage, CpuAddressableStorageMut};
-use crate::ptr::{Ptr, MutPtr};
+use crate::ptr::{MutPtr, Ptr};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
 #[inline]
 pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
@@ -54,7 +54,8 @@ pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
                 for ikw in 0..k_size {
                     let w_in = ow as isize * stride_s + ikw as isize * dil_s - pad_s;
                     if w_in >= 0 && (w_in as usize) < w {
-                        let input_idx = input_layout.physical_index(&[ni, ci, h_in as usize, w_in as usize]);
+                        let input_idx =
+                            input_layout.physical_index(&[ni, ci, h_in as usize, w_in as usize]);
                         let val = unsafe { input_ptr.read(input_idx) };
                         sum = sum + val;
                         count += 1;
@@ -134,10 +135,13 @@ pub(crate) fn avg_pool2d_backward<T: Scalar, B: Backend>(
                             if ow < w_out {
                                 let mut count = 0usize;
                                 for jkh in 0..k_size {
-                                    let h_in = oh as isize * stride_s + jkh as isize * dil_s - pad_s;
+                                    let h_in =
+                                        oh as isize * stride_s + jkh as isize * dil_s - pad_s;
                                     if h_in >= 0 && (h_in as usize) < h {
                                         for jkw in 0..k_size {
-                                            let w_in = ow as isize * stride_s + jkw as isize * dil_s - pad_s;
+                                            let w_in = ow as isize * stride_s
+                                                + jkw as isize * dil_s
+                                                - pad_s;
                                             if w_in >= 0 && (w_in as usize) < w {
                                                 count += 1;
                                             }
@@ -216,11 +220,18 @@ pub(crate) fn max_pool2d<T: Scalar, B: Backend>(
                 for ikw in 0..k_size {
                     let w_in = ow as isize * stride_s + ikw as isize * dil_s - pad_s;
                     if w_in >= 0 && (w_in as usize) < w {
-                        let input_idx = input_layout.physical_index(&[ni, ci, h_in as usize, w_in as usize]);
+                        let input_idx =
+                            input_layout.physical_index(&[ni, ci, h_in as usize, w_in as usize]);
                         let val = unsafe { input_ptr.read(input_idx) };
                         max_val = Some(match max_val {
                             None => val,
-                            Some(m) => if val > m { val } else { m },
+                            Some(m) => {
+                                if val > m {
+                                    val
+                                } else {
+                                    m
+                                }
+                            }
                         });
                     }
                 }
@@ -303,12 +314,20 @@ pub(crate) fn max_pool2d_backward<T: Scalar, B: Backend>(
                                 let mut max_w: usize = 0;
 
                                 for jkh in 0..k_size {
-                                    let h_in = oh as isize * stride_s + jkh as isize * dil_s - pad_s;
+                                    let h_in =
+                                        oh as isize * stride_s + jkh as isize * dil_s - pad_s;
                                     if h_in >= 0 && (h_in as usize) < h {
                                         for jkw in 0..k_size {
-                                            let w_in = ow as isize * stride_s + jkw as isize * dil_s - pad_s;
+                                            let w_in = ow as isize * stride_s
+                                                + jkw as isize * dil_s
+                                                - pad_s;
                                             if w_in >= 0 && (w_in as usize) < w {
-                                                let input_idx = inp_layout.physical_index(&[ni, ci, h_in as usize, w_in as usize]);
+                                                let input_idx = inp_layout.physical_index(&[
+                                                    ni,
+                                                    ci,
+                                                    h_in as usize,
+                                                    w_in as usize,
+                                                ]);
                                                 let val = unsafe { inp_ptr.read(input_idx) };
                                                 let is_new_max = match max_val {
                                                     None => true,
@@ -324,7 +343,11 @@ pub(crate) fn max_pool2d_backward<T: Scalar, B: Backend>(
                                     }
                                 }
 
-                                if max_val.is_some() && max_h == hi && max_w == wi && my_val == max_val.unwrap() {
+                                if max_val.is_some()
+                                    && max_h == hi
+                                    && max_w == wi
+                                    && my_val == max_val.unwrap()
+                                {
                                     let go_idx = go_layout.physical_index(&[ni, ci, oh, ow]);
                                     let gval = unsafe { go_ptr.read(go_idx) };
                                     sum = sum + gval;
@@ -501,14 +524,21 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
                                         if ow < w_out {
                                             let mut count = 0usize;
                                             for jkd in 0..k_size {
-                                                let d_in = od as isize * stride_s + jkd as isize * dil_s - pad_s;
+                                                let d_in = od as isize * stride_s
+                                                    + jkd as isize * dil_s
+                                                    - pad_s;
                                                 if d_in >= 0 && (d_in as usize) < d {
                                                     for jkh in 0..k_size {
-                                                        let h_in = oh as isize * stride_s + jkh as isize * dil_s - pad_s;
+                                                        let h_in = oh as isize * stride_s
+                                                            + jkh as isize * dil_s
+                                                            - pad_s;
                                                         if h_in >= 0 && (h_in as usize) < h {
                                                             for jkw in 0..k_size {
-                                                                let w_in = ow as isize * stride_s + jkw as isize * dil_s - pad_s;
-                                                                if w_in >= 0 && (w_in as usize) < w {
+                                                                let w_in = ow as isize * stride_s
+                                                                    + jkw as isize * dil_s
+                                                                    - pad_s;
+                                                                if w_in >= 0 && (w_in as usize) < w
+                                                                {
                                                                     count += 1;
                                                                 }
                                                             }
@@ -517,7 +547,8 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
                                                 }
                                             }
                                             if count > 0 {
-                                                let go_idx = go_layout.physical_index(&[ni, ci, od, oh, ow]);
+                                                let go_idx =
+                                                    go_layout.physical_index(&[ni, ci, od, oh, ow]);
                                                 let gval = unsafe { go_ptr.read(go_idx) };
                                                 sum = sum + gval / T::from_f64(count as f64);
                                             }
@@ -608,7 +639,13 @@ pub(crate) fn max_pool3d<T: Scalar, B: Backend>(
                                 let val = unsafe { input_ptr.read(input_idx) };
                                 max_val = Some(match max_val {
                                     None => val,
-                                    Some(m) => if val > m { val } else { m },
+                                    Some(m) => {
+                                        if val > m {
+                                            val
+                                        } else {
+                                            m
+                                        }
+                                    }
                                 });
                             }
                         }
@@ -703,22 +740,32 @@ pub(crate) fn max_pool3d_backward<T: Scalar, B: Backend>(
                                             let mut max_w: usize = 0;
 
                                             for jkd in 0..k_size {
-                                                let d_in = od as isize * stride_s + jkd as isize * dil_s - pad_s;
+                                                let d_in = od as isize * stride_s
+                                                    + jkd as isize * dil_s
+                                                    - pad_s;
                                                 if d_in >= 0 && (d_in as usize) < d {
                                                     for jkh in 0..k_size {
-                                                        let h_in = oh as isize * stride_s + jkh as isize * dil_s - pad_s;
+                                                        let h_in = oh as isize * stride_s
+                                                            + jkh as isize * dil_s
+                                                            - pad_s;
                                                         if h_in >= 0 && (h_in as usize) < h {
                                                             for jkw in 0..k_size {
-                                                                let w_in = ow as isize * stride_s + jkw as isize * dil_s - pad_s;
-                                                                if w_in >= 0 && (w_in as usize) < w {
-                                                                    let input_idx = inp_layout.physical_index(&[
-                                                                        ni,
-                                                                        ci,
-                                                                        d_in as usize,
-                                                                        h_in as usize,
-                                                                        w_in as usize,
-                                                                    ]);
-                                                                    let val = unsafe { inp_ptr.read(input_idx) };
+                                                                let w_in = ow as isize * stride_s
+                                                                    + jkw as isize * dil_s
+                                                                    - pad_s;
+                                                                if w_in >= 0 && (w_in as usize) < w
+                                                                {
+                                                                    let input_idx = inp_layout
+                                                                        .physical_index(&[
+                                                                            ni,
+                                                                            ci,
+                                                                            d_in as usize,
+                                                                            h_in as usize,
+                                                                            w_in as usize,
+                                                                        ]);
+                                                                    let val = unsafe {
+                                                                        inp_ptr.read(input_idx)
+                                                                    };
                                                                     let is_new_max = match max_val {
                                                                         None => true,
                                                                         Some(m) => val > m,
@@ -742,7 +789,8 @@ pub(crate) fn max_pool3d_backward<T: Scalar, B: Backend>(
                                                 && max_w == wi
                                                 && my_val == max_val.unwrap()
                                             {
-                                                let go_idx = go_layout.physical_index(&[ni, ci, od, oh, ow]);
+                                                let go_idx =
+                                                    go_layout.physical_index(&[ni, ci, od, oh, ow]);
                                                 let gval = unsafe { go_ptr.read(go_idx) };
                                                 sum = sum + gval;
                                             }
@@ -763,4 +811,3 @@ pub(crate) fn max_pool3d_backward<T: Scalar, B: Backend>(
         }
     });
 }
-

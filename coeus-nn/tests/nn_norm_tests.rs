@@ -1,11 +1,9 @@
-use coeus_tensor::Tensor;
 use coeus_autograd::Var;
 use coeus_nn::{
-    Module, LayerNorm, RMSNorm, Dropout,
-    BatchNorm1d,
-    softmax, Softmax, BatchNorm2d,
-    init, AvgPool2d, MaxPool2d,
+    init, softmax, AvgPool2d, BatchNorm1d, BatchNorm2d, Dropout, LayerNorm, MaxPool2d, Module,
+    RMSNorm, Softmax,
 };
+use coeus_tensor::Tensor;
 
 #[test]
 fn test_layernorm() {
@@ -13,10 +11,10 @@ fn test_layernorm() {
     init::constant(&mut ln.weight, 1.0);
     init::constant(&mut ln.bias, 0.0);
 
-    let input = Var::new(Tensor::from_slice(vec![2, 4], &[
-        1.0f64, 2.0, 3.0, 4.0,
-        10.0, 20.0, 30.0, 40.0,
-    ]), true);
+    let input = Var::new(
+        Tensor::from_slice(vec![2, 4], &[1.0f64, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0]),
+        true,
+    );
 
     let output = ln.forward(&input);
     assert_eq!(output.tensor.shape(), &[2, 4]);
@@ -97,12 +95,15 @@ fn test_batchnorm1d_forward_shape() {
 #[test]
 fn test_batchnorm1d_backward_gradients_exist() {
     let bn = BatchNorm1d::<f64>::new(2, 1e-5, 0.1);
-    let input = Var::new(Tensor::from_slice(vec![2, 2, 3], &[
-        1.0, 2.0, 3.0,
-        4.0, 5.0, 6.0,
-        7.0, 8.0, 9.0,
-        10.0, 11.0, 12.0,
-    ]), true);
+    let input = Var::new(
+        Tensor::from_slice(
+            vec![2, 2, 3],
+            &[
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+            ],
+        ),
+        true,
+    );
 
     let output = bn.forward(&input);
     output.backward();
@@ -116,10 +117,10 @@ fn test_batchnorm1d_backward_gradients_exist() {
 fn test_batchnorm1d_running_stats_update() {
     let bn = BatchNorm1d::<f64>::new(2, 1e-5, 0.1);
 
-    let input = Var::new(Tensor::from_slice(vec![1, 2, 4], &[
-        1.0, 2.0, 3.0, 4.0,
-        5.0, 6.0, 7.0, 8.0,
-    ]), false);
+    let input = Var::new(
+        Tensor::from_slice(vec![1, 2, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        false,
+    );
 
     let rm_before = bn.running_mean.borrow().clone();
     assert_eq!(rm_before.as_slice()[0], 0.0);
@@ -147,10 +148,10 @@ fn test_batchnorm2d_forward_shape() {
 #[test]
 fn test_batchnorm2d_backward_gradients_exist() {
     let bn = BatchNorm2d::<f64>::new(2, 1e-5, 0.1);
-    let input = Var::new(Tensor::from_slice(vec![1, 2, 2, 2], &[
-        1.0, 2.0, 3.0, 4.0,
-        5.0, 6.0, 7.0, 8.0,
-    ]), true);
+    let input = Var::new(
+        Tensor::from_slice(vec![1, 2, 2, 2], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        true,
+    );
 
     let output = bn.forward(&input);
     output.backward();
@@ -164,10 +165,10 @@ fn test_batchnorm2d_backward_gradients_exist() {
 fn test_batchnorm2d_running_stats_update() {
     let bn = BatchNorm2d::<f64>::new(2, 1e-5, 0.1);
 
-    let input = Var::new(Tensor::from_slice(vec![1, 2, 2, 2], &[
-        1.0, 2.0, 3.0, 4.0,
-        5.0, 6.0, 7.0, 8.0,
-    ]), false);
+    let input = Var::new(
+        Tensor::from_slice(vec![1, 2, 2, 2], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        false,
+    );
 
     let rm_before = bn.running_mean.borrow().clone();
     assert_eq!(rm_before.as_slice()[0], 0.0);
@@ -186,10 +187,10 @@ fn test_batchnorm2d_multi_channel_forward() {
     init::constant(&mut bn.weight, 1.0);
     init::constant(&mut bn.bias, 0.0);
 
-    let input = Var::new(Tensor::from_slice(vec![1, 2, 2, 2], &[
-        1.0, 2.0, 3.0, 4.0,
-        5.0, 6.0, 7.0, 8.0,
-    ]), true);
+    let input = Var::new(
+        Tensor::from_slice(vec![1, 2, 2, 2], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        true,
+    );
 
     let output = bn.forward(&input);
     assert_eq!(output.tensor.shape(), &[1, 2, 2, 2]);
@@ -206,10 +207,10 @@ fn test_batchnorm2d_multi_channel_forward() {
 
 #[test]
 fn test_softmax_forward_shapes() {
-    let input: Var<f64> = Var::new(Tensor::from_slice(vec![2, 3], &[
-        1.0, 2.0, 3.0,
-        4.0, 5.0, 6.0,
-    ]), true);
+    let input: Var<f64> = Var::new(
+        Tensor::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        true,
+    );
 
     let output = softmax(&input, -1);
     assert_eq!(output.tensor.shape(), &[2, 3]);
@@ -271,10 +272,10 @@ fn test_softmax_backward_nonuniform_seed() {
 #[test]
 fn test_softmax_module() {
     let sm = Softmax::new(-1);
-    let input: Var<f64> = Var::new(Tensor::from_slice(vec![2, 4], &[
-        1.0, 2.0, 3.0, 4.0,
-        1.0, 1.0, 1.0, 1.0,
-    ]), true);
+    let input: Var<f64> = Var::new(
+        Tensor::from_slice(vec![2, 4], &[1.0, 2.0, 3.0, 4.0, 1.0, 1.0, 1.0, 1.0]),
+        true,
+    );
 
     let output = sm.forward(&input);
     assert_eq!(output.tensor.shape(), &[2, 4]);
@@ -290,9 +291,7 @@ fn test_softmax_module() {
 #[test]
 fn test_softmax_stability() {
     let sm = Softmax::new(-1);
-    let input: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[
-        800.0, 801.0, 802.0
-    ]), true);
+    let input: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[800.0, 801.0, 802.0]), true);
 
     let output = sm.forward(&input);
     let s = output.tensor.as_slice();
@@ -398,7 +397,7 @@ fn test_max_pool2d_forward_backward() {
     let grad = input.grad().unwrap();
     assert_eq!(grad.shape(), &[1, 1, 4, 4]);
     let grad_slice = grad.as_slice();
-    
+
     #[allow(clippy::needless_range_loop)]
     for i in 0..16 {
         if i == 5 || i == 7 || i == 13 || i == 15 {

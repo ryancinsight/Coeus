@@ -1,6 +1,6 @@
-use coeus_core::{Layout, ComputeBackend, Storage};
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::storage::CudaStorage;
+use coeus_core::{ComputeBackend, Layout, Storage};
 
 impl CudaBackend {
     pub(crate) fn fallback_binary<T: CudaScalar>(
@@ -26,14 +26,7 @@ impl CudaBackend {
         let mut seq_c = coeus_core::CpuStorage::from_slice(&host_c);
 
         coeus_ops::BackendOps::elementwise_binary(
-            &seq,
-            op,
-            &seq_a,
-            a_layout,
-            &seq_b,
-            b_layout,
-            &mut seq_c,
-            c_layout,
+            &seq, op, &seq_a, a_layout, &seq_b, b_layout, &mut seq_c, c_layout,
         );
 
         use coeus_core::CpuAddressableStorage;
@@ -57,14 +50,7 @@ impl CudaBackend {
         let seq_a = coeus_core::CpuStorage::from_slice(&host_a);
         let mut seq_c = coeus_core::CpuStorage::from_slice(&host_c);
 
-        coeus_ops::BackendOps::elementwise_unary(
-            &seq,
-            op,
-            &seq_a,
-            a_layout,
-            &mut seq_c,
-            c_layout,
-        );
+        coeus_ops::BackendOps::elementwise_unary(&seq, op, &seq_a, a_layout, &mut seq_c, c_layout);
 
         use coeus_core::CpuAddressableStorage;
         self.copy_to_device(seq_c.as_slice(), c);
@@ -92,13 +78,7 @@ impl CudaBackend {
         let mut seq_c = coeus_core::CpuStorage::from_slice(&host_c);
 
         coeus_ops::BackendOps::matmul(
-            &seq,
-            &seq_a,
-            a_layout,
-            &seq_b,
-            b_layout,
-            &mut seq_c,
-            c_layout,
+            &seq, &seq_a, a_layout, &seq_b, b_layout, &mut seq_c, c_layout,
         );
 
         use coeus_core::CpuAddressableStorage;
@@ -123,15 +103,7 @@ impl CudaBackend {
         let seq_a = coeus_core::CpuStorage::from_slice(&host_a);
         let mut seq_c = coeus_core::CpuStorage::from_slice(&host_c);
 
-        coeus_ops::BackendOps::reduce(
-            &seq,
-            op,
-            &seq_a,
-            a_layout,
-            axis,
-            &mut seq_c,
-            c_layout,
-        );
+        coeus_ops::BackendOps::reduce(&seq, op, &seq_a, a_layout, axis, &mut seq_c, c_layout);
 
         use coeus_core::CpuAddressableStorage;
         self.copy_to_device(seq_c.as_slice(), c);

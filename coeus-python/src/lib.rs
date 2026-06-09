@@ -1,8 +1,8 @@
 // ── Coeus Python bindings entry point ──
 
-use pyo3::prelude::*;
-use coeus_dist::Communicator;
 use crate::tensor::PyTensor;
+use coeus_dist::Communicator;
+use pyo3::prelude::*;
 
 /// Mnemosyne is the ecosystem allocation SSOT. Registering it as the extension's
 /// global allocator routes *all* Rust-side allocations (tensor buffers already go
@@ -13,10 +13,9 @@ use crate::tensor::PyTensor;
 #[global_allocator]
 static GLOBAL: mnemosyne::Mnemosyne = mnemosyne::Mnemosyne;
 
-pub mod tensor;
 pub mod nn;
 pub mod optim;
-
+pub mod tensor;
 
 /// Element-wise ReLU activation.
 #[pyfunction]
@@ -89,7 +88,6 @@ fn leaky_relu(input: &PyTensor, negative_slope: f64, py: Python<'_>) -> PyTensor
     PyTensor { inner }
 }
 
-
 /// Mean Squared Error loss.
 #[pyfunction]
 fn mse_loss(pred: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
@@ -108,7 +106,8 @@ fn cross_entropy_loss(logits: &PyTensor, targets: Vec<usize>, py: Python<'_>) ->
 #[pyfunction]
 #[pyo3(signature = (pred, target, eps = 1e-7))]
 fn binary_cross_entropy(pred: &PyTensor, target: &PyTensor, eps: f64, py: Python<'_>) -> PyTensor {
-    let inner = py.allow_threads(|| coeus_nn::loss::binary_cross_entropy(&pred.inner, &target.inner, eps));
+    let inner =
+        py.allow_threads(|| coeus_nn::loss::binary_cross_entropy(&pred.inner, &target.inner, eps));
     PyTensor { inner }
 }
 
@@ -130,11 +129,17 @@ fn huber_loss(pred: &PyTensor, target: &PyTensor, delta: f64, py: Python<'_>) ->
 /// Cosine Embedding Loss.
 #[pyfunction]
 #[pyo3(signature = (x1, x2, y, margin = 0.0))]
-fn cosine_embedding_loss(x1: &PyTensor, x2: &PyTensor, y: Vec<f64>, margin: f64, py: Python<'_>) -> PyTensor {
-    let inner = py.allow_threads(|| coeus_nn::loss::cosine_embedding_loss(&x1.inner, &x2.inner, &y, margin));
+fn cosine_embedding_loss(
+    x1: &PyTensor,
+    x2: &PyTensor,
+    y: Vec<f64>,
+    margin: f64,
+    py: Python<'_>,
+) -> PyTensor {
+    let inner = py
+        .allow_threads(|| coeus_nn::loss::cosine_embedding_loss(&x1.inner, &x2.inner, &y, margin));
     PyTensor { inner }
 }
-
 
 /// Element-wise exponential.
 #[pyfunction]
@@ -205,10 +210,11 @@ fn cat(inputs: Vec<Py<PyTensor>>, dim: usize, py: Python<'_>) -> PyTensor {
 /// Split a tensor into chunks of `chunk_size` along the specified dimension.
 #[pyfunction]
 fn split(input: &PyTensor, chunk_size: usize, dim: usize, py: Python<'_>) -> Vec<PyTensor> {
-    let inner_chunks = py.allow_threads(|| {
-        coeus_autograd::split(&input.inner, chunk_size, dim)
-    });
-    inner_chunks.into_iter().map(|inner| PyTensor { inner }).collect()
+    let inner_chunks = py.allow_threads(|| coeus_autograd::split(&input.inner, chunk_size, dim));
+    inner_chunks
+        .into_iter()
+        .map(|inner| PyTensor { inner })
+        .collect()
 }
 
 /// Python-exposed MockCommunicator.
@@ -270,7 +276,12 @@ impl PyMockCommunicator {
     }
 
     /// Gather tensors from all processes into a list of output tensors (releasing GIL).
-    fn all_gather(&self, tensor: &PyTensor, output: Vec<Py<PyTensor>>, py: Python<'_>) -> PyResult<()> {
+    fn all_gather(
+        &self,
+        tensor: &PyTensor,
+        output: Vec<Py<PyTensor>>,
+        py: Python<'_>,
+    ) -> PyResult<()> {
         let comm = self.inner.clone();
         let size = comm.size();
         if output.len() != size {
@@ -317,7 +328,13 @@ impl PyMockCommunicator {
     }
 
     /// Gather tensors from all processes into a single slice on the root process (releasing GIL).
-    fn gather(&self, tensor: &PyTensor, output: Vec<Py<PyTensor>>, root: usize, py: Python<'_>) -> PyResult<()> {
+    fn gather(
+        &self,
+        tensor: &PyTensor,
+        output: Vec<Py<PyTensor>>,
+        root: usize,
+        py: Python<'_>,
+    ) -> PyResult<()> {
         let comm = self.inner.clone();
         let size = comm.size();
         let rank = comm.rank();
@@ -352,7 +369,13 @@ impl PyMockCommunicator {
     }
 
     /// Scatter a slice of tensors from the root process to all processes in-place (releasing GIL).
-    fn scatter(&self, tensor: &Bound<'_, PyTensor>, input: Vec<Py<PyTensor>>, root: usize, py: Python<'_>) -> PyResult<()> {
+    fn scatter(
+        &self,
+        tensor: &Bound<'_, PyTensor>,
+        input: Vec<Py<PyTensor>>,
+        root: usize,
+        py: Python<'_>,
+    ) -> PyResult<()> {
         let mut t_borrow = tensor.try_borrow_mut()?;
         let comm = self.inner.clone();
         let size = comm.size();
@@ -426,7 +449,11 @@ impl PyTcpMesh {
     fn new(rank: usize, size: usize, addresses: Vec<String>, py: Python<'_>) -> PyResult<Self> {
         let addrs: Vec<std::net::SocketAddr> = addresses
             .iter()
-            .map(|s| s.parse().map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("Invalid SocketAddr: {e}"))))
+            .map(|s| {
+                s.parse().map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("Invalid SocketAddr: {e}"))
+                })
+            })
             .collect::<Result<_, _>>()?;
 
         let inner = py.allow_threads(move || coeus_dist::TcpMesh::new(rank, size, &addrs));
@@ -452,7 +479,9 @@ impl PyTcpCommunicator {
             pyo3::exceptions::PyRuntimeError::new_err(format!("Mutex poisoned: {e}"))
         })?;
         let raw_mesh = guard.take().ok_or_else(|| {
-            pyo3::exceptions::PyValueError::new_err("TcpMesh has already been used to construct a Communicator")
+            pyo3::exceptions::PyValueError::new_err(
+                "TcpMesh has already been used to construct a Communicator",
+            )
         })?;
         Ok(Self {
             inner: std::sync::Arc::new(coeus_dist::TcpCommunicator::new(raw_mesh)),
@@ -509,7 +538,12 @@ impl PyTcpCommunicator {
     }
 
     /// Gather tensors from all processes into a list of output tensors (releasing GIL).
-    fn all_gather(&self, tensor: &PyTensor, output: Vec<Py<PyTensor>>, py: Python<'_>) -> PyResult<()> {
+    fn all_gather(
+        &self,
+        tensor: &PyTensor,
+        output: Vec<Py<PyTensor>>,
+        py: Python<'_>,
+    ) -> PyResult<()> {
         let comm = self.inner.clone();
         let size = comm.size();
         if output.len() != size {
@@ -556,7 +590,13 @@ impl PyTcpCommunicator {
     }
 
     /// Gather tensors from all processes into a single slice on the root process (releasing GIL).
-    fn gather(&self, tensor: &PyTensor, output: Vec<Py<PyTensor>>, root: usize, py: Python<'_>) -> PyResult<()> {
+    fn gather(
+        &self,
+        tensor: &PyTensor,
+        output: Vec<Py<PyTensor>>,
+        root: usize,
+        py: Python<'_>,
+    ) -> PyResult<()> {
         let comm = self.inner.clone();
         let size = comm.size();
         let rank = comm.rank();
@@ -591,7 +631,13 @@ impl PyTcpCommunicator {
     }
 
     /// Scatter a slice of tensors from the root process to all processes in-place (releasing GIL).
-    fn scatter(&self, tensor: &Bound<'_, PyTensor>, input: Vec<Py<PyTensor>>, root: usize, py: Python<'_>) -> PyResult<()> {
+    fn scatter(
+        &self,
+        tensor: &Bound<'_, PyTensor>,
+        input: Vec<Py<PyTensor>>,
+        root: usize,
+        py: Python<'_>,
+    ) -> PyResult<()> {
         let mut t_borrow = tensor.try_borrow_mut()?;
         let comm = self.inner.clone();
         let size = comm.size();

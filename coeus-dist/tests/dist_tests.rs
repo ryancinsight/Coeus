@@ -1,8 +1,10 @@
-use std::thread;
-use coeus_core::SequentialBackend;
-use coeus_tensor::Tensor;
 use coeus_autograd::Var;
-use coeus_dist::{MockCommunicator, TcpMesh, TcpCommunicator, Communicator, Sum, synchronize_gradients};
+use coeus_core::SequentialBackend;
+use coeus_dist::{
+    synchronize_gradients, Communicator, MockCommunicator, Sum, TcpCommunicator, TcpMesh,
+};
+use coeus_tensor::Tensor;
+use std::thread;
 
 #[test]
 fn test_mock_all_reduce() {
@@ -15,7 +17,7 @@ fn test_mock_all_reduce() {
             let backend = SequentialBackend::new();
             let rank = comm.rank() as f32;
             let mut tensor = Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-            
+
             comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
 
             let data = tensor.as_slice();
@@ -132,7 +134,7 @@ fn test_mock_reduce() {
             let backend = SequentialBackend::new();
             let rank = comm.rank() as f32;
             let mut tensor = Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-            
+
             comm.reduce::<f32, _, Sum>(&mut tensor, 1, &backend);
 
             if comm.rank() == 1 {
@@ -231,7 +233,7 @@ fn test_mock_all_reduce_sliced() {
         let handle = thread::spawn(move || {
             let backend = SequentialBackend::new();
             let rank = comm.rank() as f32;
-            
+
             let parent = Tensor::from_slice_on([4], &[0.0, rank + 1.0, rank + 2.0, 0.0], &backend);
             let mut slice = parent.slice(&[(1, 3)]);
             comm.all_reduce::<f32, _, Sum>(&mut slice, &backend);
@@ -258,7 +260,7 @@ fn test_mock_broadcast_sliced() {
         let handle = thread::spawn(move || {
             let backend = SequentialBackend::new();
             let rank = comm.rank();
-            
+
             let parent = if rank == 0 {
                 Tensor::from_slice_on([2, 2], &[1.0f32, 2.0, 3.0, 4.0], &backend)
             } else {
@@ -310,8 +312,9 @@ fn test_tcp_all_reduce() {
             let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
-            
-            let mut tensor = Tensor::from_slice_on([2], &[(rank + 1) as f32, (rank + 2) as f32], &backend);
+
+            let mut tensor =
+                Tensor::from_slice_on([2], &[(rank + 1) as f32, (rank + 2) as f32], &backend);
             comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
 
             let data = tensor.as_slice();
@@ -339,7 +342,7 @@ fn test_tcp_broadcast() {
             let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
-            
+
             let mut tensor = if rank == 0 {
                 Tensor::from_slice_on([2], &[10.0f32, 20.0], &backend)
             } else {
@@ -373,7 +376,7 @@ fn test_tcp_all_gather() {
             let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
-            
+
             let tensor = Tensor::from_slice_on([1], &[(rank * 100) as f32], &backend);
             let mut output = vec![
                 Tensor::zeros_on([1], &backend),
@@ -405,7 +408,7 @@ fn test_tcp_barrier() {
         let handle = thread::spawn(move || {
             let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
-            
+
             comm.barrier();
         });
         handles.push(handle);
@@ -415,4 +418,3 @@ fn test_tcp_barrier() {
         h.join().unwrap();
     }
 }
-

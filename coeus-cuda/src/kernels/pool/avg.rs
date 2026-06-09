@@ -1,11 +1,11 @@
 #![allow(clippy::too_many_arguments)]
 
-use coeus_core::Layout;
-use crate::storage::CudaStorage;
-use crate::driver::{CudaDriver, CUdeviceptr, get_cuda_context};
-use crate::backend::CudaScalar;
-use crate::kernels::fuse::get_or_create_kernel;
 use super::POOL_COMMON_SRC;
+use crate::backend::CudaScalar;
+use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
+use crate::kernels::fuse::get_or_create_kernel;
+use crate::storage::CudaStorage;
+use coeus_core::Layout;
 
 pub fn dispatch_avg_pool2d<T: CudaScalar>(
     input: &CudaStorage<T>,
@@ -17,8 +17,12 @@ pub fn dispatch_avg_pool2d<T: CudaScalar>(
     output: &mut CudaStorage<T>,
     output_layout: &Layout,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(_ctx) = get_cuda_context() else { return false; };
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
 
     let cuda_type = T::CUDA_TYPE;
 
@@ -87,7 +91,9 @@ extern "C" __global__ void avg_pool2d_kernel(
     );
 
     let key = format!("avg_pool2d_{}", cuda_type);
-    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "avg_pool2d_kernel") else { return false; };
+    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "avg_pool2d_kernel") else {
+        return false;
+    };
 
     let gpu_input_layout = crate::kernels::GpuLayoutInfo::from_layout(input_layout);
     let gpu_output_layout = crate::kernels::GpuLayoutInfo::from_layout(output_layout);
@@ -119,8 +125,12 @@ extern "C" __global__ void avg_pool2d_kernel(
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32, 1, 1,
-            block_size as u32, 1, 1,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),
@@ -140,8 +150,12 @@ pub fn dispatch_avg_pool2d_backward<T: CudaScalar>(
     grad_input: &mut CudaStorage<T>,
     grad_input_layout: &Layout,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(_ctx) = get_cuda_context() else { return false; };
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
 
     let cuda_type = T::CUDA_TYPE;
 
@@ -227,7 +241,9 @@ extern "C" __global__ void avg_pool2d_backward_kernel(
     );
 
     let key = format!("avg_pool2d_backward_{}", cuda_type);
-    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "avg_pool2d_backward_kernel") else { return false; };
+    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "avg_pool2d_backward_kernel") else {
+        return false;
+    };
 
     let gpu_go_layout = crate::kernels::GpuLayoutInfo::from_layout(grad_out_layout);
     let gpu_gi_layout = crate::kernels::GpuLayoutInfo::from_layout(grad_input_layout);
@@ -259,8 +275,12 @@ extern "C" __global__ void avg_pool2d_backward_kernel(
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32, 1, 1,
-            block_size as u32, 1, 1,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),

@@ -1,8 +1,8 @@
-use std::cell::RefCell;
+use crate::module::Module;
+use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
-use coeus_autograd::Var;
-use crate::module::Module;
+use std::cell::RefCell;
 
 /// 3D Batch Normalization for [N, C, D, H, W] inputs.
 ///
@@ -119,14 +119,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
                     (cached_m_const.clone(), cached_corr_t.clone())
                 } else {
                     let m_const = Tensor::full_on([1], T::from_f64(m as f64), &backend);
-                    let correction = if m > 1 { m as f64 / (m - 1) as f64 } else { 1.0 };
+                    let correction = if m > 1 {
+                        m as f64 / (m - 1) as f64
+                    } else {
+                        1.0
+                    };
                     let corr_t = Tensor::full_on([1], T::from_f64(correction), &backend);
                     *cache = Some((m, m_const.clone(), corr_t.clone()));
                     (m_const, corr_t)
                 }
             } else {
                 let m_const = Tensor::full_on([1], T::from_f64(m as f64), &backend);
-                let correction = if m > 1 { m as f64 / (m - 1) as f64 } else { 1.0 };
+                let correction = if m > 1 {
+                    m as f64 / (m - 1) as f64
+                } else {
+                    1.0
+                };
                 let corr_t = Tensor::full_on([1], T::from_f64(correction), &backend);
                 *cache = Some((m, m_const.clone(), corr_t.clone()));
                 (m_const, corr_t)
@@ -134,7 +142,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
         };
 
         // ── View as [M, C] via NCDHW → NDHWC → [M, C] ──
-        let ndhwc = input.tensor.permute(&[0, 2, 3, 4, 1]).to_contiguous_on(&backend); // [N, D, H, W, C]
+        let ndhwc = input
+            .tensor
+            .permute(&[0, 2, 3, 4, 1])
+            .to_contiguous_on(&backend); // [N, D, H, W, C]
         let flat = ndhwc.reshape([m, c]); // [M, C]
 
         // ── Per-channel mean [1, C] ──
@@ -169,9 +180,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
         let out_tensor = y_ndhwc.permute(&[0, 4, 1, 2, 3]).to_contiguous_on(&backend);
 
         // ── Update running stats (exponential moving average) ──
-        if let (Ok(mut rm), Ok(mut rv)) =
-            (self.running_mean.try_borrow_mut(), self.running_var.try_borrow_mut())
-        {
+        if let (Ok(mut rm), Ok(mut rv)) = (
+            self.running_mean.try_borrow_mut(),
+            self.running_var.try_borrow_mut(),
+        ) {
             let mean_c = mean_t.reshape([c]);
             let var_c = var_t.reshape([c]);
 
@@ -189,19 +201,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
             input,
             &self.weight,
             &self.bias,
-            out_tensor,
-            x_hat,
-            xmu,
-            istdev,
-            m_const,
-            self.minus_half.clone(),
-            self.two_const.clone(),
-            n,
-            c,
-            d,
-            h,
-            w,
-            m,
+            coeus_autograd::BatchNorm3dArgs {
+                out_tensor,
+                x_hat,
+                xmu,
+                istdev,
+                m_const,
+                minus_half: self.minus_half.clone(),
+                two_const: self.two_const.clone(),
+                n,
+                c,
+                d,
+                h,
+                w,
+                m,
+            },
         )
     }
 }

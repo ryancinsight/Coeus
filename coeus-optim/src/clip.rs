@@ -3,8 +3,8 @@
 // Global L2 gradient norm clipping across all parameter variables.
 // Uses zero-copy CpuAddressable storage reads (Cow-safe: no unnecessary allocation).
 
-use coeus_core::{Float, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_autograd::Var;
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
 
 /// Clip the global L2 gradient norm across `params` to `max_norm`.
 ///
@@ -30,7 +30,9 @@ where
     // Pass 1: sum of squared gradient elements (native T precision).
     let mut total_sq = T::zero();
     for param in params {
-        let Some(ref grad_arc) = param.grad else { continue; };
+        let Some(ref grad_arc) = param.grad else {
+            continue;
+        };
         let grad = grad_arc.lock().unwrap();
         // grad tensors are always contiguous (constructed via zeros_on).
         let slice: &[T] = grad.as_slice();
@@ -47,7 +49,9 @@ where
         let clip_coef = max_norm / total_norm;
         let backend = B::default();
         for param in params {
-            let Some(ref grad_arc) = param.grad else { continue; };
+            let Some(ref grad_arc) = param.grad else {
+                continue;
+            };
             let mut grad = grad_arc.lock().unwrap();
             let slice: &mut [T] = grad.as_mut_slice();
             for v in slice {

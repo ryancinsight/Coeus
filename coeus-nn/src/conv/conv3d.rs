@@ -1,7 +1,7 @@
-use coeus_core::{Scalar, Float, MoiraiBackend};
-use coeus_tensor::Tensor;
-use coeus_autograd::Var;
 use crate::module::Module;
+use coeus_autograd::Var;
+use coeus_core::{Float, MoiraiBackend, Scalar};
+use coeus_tensor::Tensor;
 
 #[derive(Clone)]
 pub struct Conv3d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
@@ -21,21 +21,48 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Conv3d<T, B> {
     }
 
     pub fn with_params(
-        in_channels: usize, out_channels: usize, kernel_size: usize,
-        stride: usize, padding: usize, dilation: usize, bias: bool,
+        in_channels: usize,
+        out_channels: usize,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        bias: bool,
     ) -> Self {
-        assert!(stride >= 1 && dilation >= 1, "stride and dilation must be >= 1");
+        assert!(
+            stride >= 1 && dilation >= 1,
+            "stride and dilation must be >= 1"
+        );
         let backend = B::default();
-        let w_shape = [out_channels, in_channels, kernel_size, kernel_size, kernel_size];
+        let w_shape = [
+            out_channels,
+            in_channels,
+            kernel_size,
+            kernel_size,
+            kernel_size,
+        ];
         let weight = Var::new(Tensor::ones_on(w_shape, &backend), true);
         let bias_var = if bias {
             Some(Var::new(Tensor::zeros_on([out_channels], &backend), true))
-        } else { None };
-        Self { weight, bias: bias_var, in_channels, out_channels, kernel_size, stride, padding, dilation }
+        } else {
+            None
+        };
+        Self {
+            weight,
+            bias: bias_var,
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        }
     }
 
     #[inline]
-    fn k_eff(&self) -> usize { self.dilation * (self.kernel_size - 1) + 1 }
+    fn k_eff(&self) -> usize {
+        self.dilation * (self.kernel_size - 1) + 1
+    }
 
     #[inline]
     fn out_dim(&self, input_dim: usize) -> usize {
@@ -50,7 +77,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Conv3d<T, B> {
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Conv3d<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = vec![self.weight.clone()];
-        if let Some(ref b) = self.bias { p.push(b.clone()); }
+        if let Some(ref b) = self.bias {
+            p.push(b.clone());
+        }
         p
     }
 
@@ -62,9 +91,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Conv3d<T,
         let d_out = self.out_dim(d);
         let h_out = self.out_dim(h);
         let w_out = self.out_dim(w);
-        assert!(d_out > 0 && h_out > 0 && w_out > 0, "Conv3d: kernel does not fit input shape");
+        assert!(
+            d_out > 0 && h_out > 0 && w_out > 0,
+            "Conv3d: kernel does not fit input shape"
+        );
 
-        let shape = [input.tensor.shape()[0], self.out_channels, d_out, h_out, w_out];
+        let shape = [
+            input.tensor.shape()[0],
+            self.out_channels,
+            d_out,
+            h_out,
+            w_out,
+        ];
         let mut out_tensor = Tensor::zeros_on(shape, &backend);
 
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();

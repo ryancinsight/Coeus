@@ -1,7 +1,7 @@
-use coeus_core::{Scalar, Layout, Backend, Storage, StorageMut};
-use coeus_tensor::Tensor;
+use crate::fuse::expr_node::{CachedTensor, ExprNode, CPU_EVAL_CACHE};
 use crate::ptr::MutPtr;
-use crate::fuse::expr_node::{ExprNode, CachedTensor, CPU_EVAL_CACHE};
+use coeus_core::{Backend, Layout, Scalar, Storage, StorageMut};
+use coeus_tensor::Tensor;
 
 #[inline(always)]
 fn logical_to_coords(mut temp: usize, ndim: usize, out_strides: &[usize], coords: &mut [usize]) {
@@ -49,10 +49,12 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
     expr: &E,
     backend: &B,
 ) -> Tensor<T, B> {
-    let out_shape = expr.shape().expect("Fused expression must have at least one tensor input to determine shape");
+    let out_shape = expr
+        .shape()
+        .expect("Fused expression must have at least one tensor input to determine shape");
     let out_layout = Layout::new(out_shape.clone());
     let mut out = Tensor::zeros_on(out_shape, backend);
-    
+
     let out_numel = out.numel();
     let ndim = out_layout.ndim();
     let out_strides = out_layout.strides_cloned();
@@ -60,7 +62,7 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
     // 1. Collect inputs and download non-CPU-addressable tensors
     let mut inputs = Vec::new();
     expr.collect_inputs(&mut inputs);
-    
+
     let mut cached_addresses = Vec::new();
     for &input_ptr in &inputs {
         unsafe {
@@ -82,7 +84,7 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
             }
         }
     }
-    
+
     // 2. Perform parallel evaluation
     let contiguous_fast_path = expr.is_contiguous_and_same_shape(out_layout.shape());
     let slice_result = out.storage_mut().try_as_mut_slice();
@@ -91,11 +93,9 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
         let out_ptr = MutPtr(slice.as_mut_ptr());
         let expr_val = *expr;
         if contiguous_fast_path {
-            backend.parallel_for(0, out_numel, move |idx| {
-                unsafe {
-                    let val = expr_val.eval_cpu_flat(idx);
-                    out_ptr.write(idx, val);
-                }
+            backend.parallel_for(0, out_numel, move |idx| unsafe {
+                let val = expr_val.eval_cpu_flat(idx);
+                out_ptr.write(idx, val);
             });
         } else {
             backend.parallel_for(0, out_numel, move |idx| {
@@ -122,11 +122,9 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
         let out_ptr = MutPtr(host_out.as_mut_ptr());
         let expr_val = *expr;
         if contiguous_fast_path {
-            backend.parallel_for(0, out_numel, move |idx| {
-                unsafe {
-                    let val = expr_val.eval_cpu_flat(idx);
-                    out_ptr.write(idx, val);
-                }
+            backend.parallel_for(0, out_numel, move |idx| unsafe {
+                let val = expr_val.eval_cpu_flat(idx);
+                out_ptr.write(idx, val);
             });
         } else {
             backend.parallel_for(0, out_numel, move |idx| {
@@ -156,7 +154,7 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
             cache.borrow_mut().remove(&addr);
         });
     }
-    
+
     out
 }
 
@@ -166,14 +164,19 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
     axis: usize,
     backend: &B,
 ) -> Tensor<T, B> {
-    let expr_shape = expr.shape().expect("Fused expression must have at least one tensor input to determine shape");
-    assert!(axis < expr_shape.len(), "Axis out of bounds in evaluate_fused_reduce_cpu");
+    let expr_shape = expr
+        .shape()
+        .expect("Fused expression must have at least one tensor input to determine shape");
+    assert!(
+        axis < expr_shape.len(),
+        "Axis out of bounds in evaluate_fused_reduce_cpu"
+    );
 
     let mut out_shape = expr_shape.clone();
     out_shape[axis] = 1;
     let out_layout = Layout::new(out_shape.clone());
     let mut out = Tensor::zeros_on(out_shape, backend);
-    
+
     let out_numel = out.numel();
     let ndim = expr_shape.len();
     let out_strides = out_layout.strides_cloned();
@@ -182,7 +185,7 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
     // 1. Collect inputs and download non-CPU-addressable tensors
     let mut inputs = Vec::new();
     expr.collect_inputs(&mut inputs);
-    
+
     let mut cached_addresses = Vec::new();
     for &input_ptr in &inputs {
         unsafe {
@@ -244,8 +247,20 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                         let val = expr_val.eval_cpu(&coords[..ndim]);
                         acc = match op {
                             crate::ReductionOp::Sum => acc + val,
-                            crate::ReductionOp::Max => if val > acc { val } else { acc },
-                            crate::ReductionOp::Min => if val < acc { val } else { acc },
+                            crate::ReductionOp::Max => {
+                                if val > acc {
+                                    val
+                                } else {
+                                    acc
+                                }
+                            }
+                            crate::ReductionOp::Min => {
+                                if val < acc {
+                                    val
+                                } else {
+                                    acc
+                                }
+                            }
                         };
                     }
                 }
@@ -266,8 +281,20 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                         let val = expr_val.eval_cpu(&coords);
                         acc = match op {
                             crate::ReductionOp::Sum => acc + val,
-                            crate::ReductionOp::Max => if val > acc { val } else { acc },
-                            crate::ReductionOp::Min => if val < acc { val } else { acc },
+                            crate::ReductionOp::Max => {
+                                if val > acc {
+                                    val
+                                } else {
+                                    acc
+                                }
+                            }
+                            crate::ReductionOp::Min => {
+                                if val < acc {
+                                    val
+                                } else {
+                                    acc
+                                }
+                            }
                         };
                     }
                 }
@@ -296,8 +323,20 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                         let val = expr_val.eval_cpu(&coords[..ndim]);
                         acc = match op {
                             crate::ReductionOp::Sum => acc + val,
-                            crate::ReductionOp::Max => if val > acc { val } else { acc },
-                            crate::ReductionOp::Min => if val < acc { val } else { acc },
+                            crate::ReductionOp::Max => {
+                                if val > acc {
+                                    val
+                                } else {
+                                    acc
+                                }
+                            }
+                            crate::ReductionOp::Min => {
+                                if val < acc {
+                                    val
+                                } else {
+                                    acc
+                                }
+                            }
                         };
                     }
                 }
@@ -318,8 +357,20 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                         let val = expr_val.eval_cpu(&coords);
                         acc = match op {
                             crate::ReductionOp::Sum => acc + val,
-                            crate::ReductionOp::Max => if val > acc { val } else { acc },
-                            crate::ReductionOp::Min => if val < acc { val } else { acc },
+                            crate::ReductionOp::Max => {
+                                if val > acc {
+                                    val
+                                } else {
+                                    acc
+                                }
+                            }
+                            crate::ReductionOp::Min => {
+                                if val < acc {
+                                    val
+                                } else {
+                                    acc
+                                }
+                            }
                         };
                     }
                 }
@@ -338,6 +389,6 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
             cache.borrow_mut().remove(&addr);
         });
     }
-    
+
     out
 }

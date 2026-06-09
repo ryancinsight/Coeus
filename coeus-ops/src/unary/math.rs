@@ -1,9 +1,9 @@
 // ── Unary math ops ──
 
-use coeus_core::{Scalar, Float};
-use coeus_tensor::Tensor;
-use crate::backend_ops::{BackendOps, UnaryOp};
 use super::kernel::{elementwise_unary, elementwise_unary_assign};
+use crate::backend_ops::{BackendOps, UnaryOp};
+use coeus_core::{Float, Scalar};
+use coeus_tensor::Tensor;
 
 /// Element-wise sine.
 #[inline]

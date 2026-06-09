@@ -1,6 +1,6 @@
 // ── Cumulative sum ──
 
-use coeus_core::{Scalar, ComputeBackend, Layout, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 use coeus_tensor::Tensor;
 
 /// Compute the inclusive cumulative sum of `x` along `dim`.
@@ -10,15 +10,15 @@ use coeus_tensor::Tensor;
 /// # Panics
 /// - `dim` is out of range.
 #[inline]
-pub fn cumsum<T: Scalar, B: ComputeBackend + Default>(
-    x: &Tensor<T, B>,
-    dim: usize,
-) -> Tensor<T, B>
+pub fn cumsum<T: Scalar, B: ComputeBackend + Default>(x: &Tensor<T, B>, dim: usize) -> Tensor<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let ndim = x.ndim();
-    assert!(dim < ndim, "cumsum: dim {dim} out of range for {ndim}D tensor");
+    assert!(
+        dim < ndim,
+        "cumsum: dim {dim} out of range for {ndim}D tensor"
+    );
 
     let backend = B::default();
     let shape = x.shape_cloned();
@@ -47,9 +47,11 @@ where
         }
 
         // Compute the base flat index for this slice.
-        let base: usize = coords.iter().enumerate().map(|(d, &c)| {
-            if d != dim { c * strides[d] } else { 0 }
-        }).sum();
+        let base: usize = coords
+            .iter()
+            .enumerate()
+            .map(|(d, &c)| if d != dim { c * strides[d] } else { 0 })
+            .sum();
 
         let mut acc = T::zero();
         for k in 0..dim_size {
@@ -77,7 +79,10 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let ndim = x.ndim();
-    assert!(dim < ndim, "suffix_sum: dim {dim} out of range for {ndim}D tensor");
+    assert!(
+        dim < ndim,
+        "suffix_sum: dim {dim} out of range for {ndim}D tensor"
+    );
 
     let backend = B::default();
     let shape = x.shape_cloned();
@@ -102,9 +107,11 @@ where
             rem /= shape[d];
         }
 
-        let base: usize = coords.iter().enumerate().map(|(d, &c)| {
-            if d != dim { c * strides[d] } else { 0 }
-        }).sum();
+        let base: usize = coords
+            .iter()
+            .enumerate()
+            .map(|(d, &c)| if d != dim { c * strides[d] } else { 0 })
+            .sum();
 
         let mut acc = T::zero();
         for k in (0..dim_size).rev() {
@@ -116,4 +123,3 @@ where
 
     Tensor::from_slice_on(shape, &out_data, &backend)
 }
-

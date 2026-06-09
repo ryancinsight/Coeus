@@ -1,4 +1,4 @@
-use coeus_core::{Scalar, Shape, ComputeBackend, MoiraiBackend};
+use coeus_core::{ComputeBackend, MoiraiBackend, Scalar, Shape};
 use coeus_tensor::Tensor;
 
 /// N-Dimensional Sparse Tensor in Coordinate List (COO) format.
@@ -14,10 +14,22 @@ impl<T: Scalar, B: ComputeBackend> CooTensor<T, B> {
     #[inline]
     pub fn new(shape: Shape, indices: Tensor<i64, B>, values: Tensor<T, B>) -> Self {
         let rank = shape.len();
-        assert_eq!(indices.shape().len(), 2, "Indices tensor must be 2D [rank, nnz]");
-        assert_eq!(indices.shape()[0], rank, "Indices row count must match tensor rank");
+        assert_eq!(
+            indices.shape().len(),
+            2,
+            "Indices tensor must be 2D [rank, nnz]"
+        );
+        assert_eq!(
+            indices.shape()[0],
+            rank,
+            "Indices row count must match tensor rank"
+        );
         let nnz = values.numel();
-        assert_eq!(indices.shape()[1], nnz, "Indices col count must match number of values");
+        assert_eq!(
+            indices.shape()[1],
+            nnz,
+            "Indices col count must match number of values"
+        );
         Self {
             shape,
             indices,
@@ -53,7 +65,7 @@ impl<T: Scalar, B: ComputeBackend> CooTensor<T, B> {
 /// 2D Sparse Matrix in Compressed Sparse Row (CSR) format.
 #[derive(Clone)]
 pub struct CsrTensor<T: Scalar, B: ComputeBackend = MoiraiBackend> {
-    shape: Shape,             // Must be exactly 2D: [rows, cols]
+    shape: Shape,                // Must be exactly 2D: [rows, cols]
     values: Tensor<T, B>,        // Shape [nnz]
     col_indices: Tensor<i64, B>, // Shape [nnz]
     row_offsets: Tensor<i64, B>, // Shape [rows + 1]
@@ -71,8 +83,16 @@ impl<T: Scalar, B: ComputeBackend> CsrTensor<T, B> {
         assert_eq!(shape.len(), 2, "CSR format is restricted to 2D matrices");
         let rows = shape[0];
         let nnz = values.numel();
-        assert_eq!(col_indices.numel(), nnz, "col_indices length must match values count");
-        assert_eq!(row_offsets.numel(), rows + 1, "row_offsets length must equal rows + 1");
+        assert_eq!(
+            col_indices.numel(),
+            nnz,
+            "col_indices length must match values count"
+        );
+        assert_eq!(
+            row_offsets.numel(),
+            rows + 1,
+            "row_offsets length must equal rows + 1"
+        );
         Self {
             shape,
             values,

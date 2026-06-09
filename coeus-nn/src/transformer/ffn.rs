@@ -1,11 +1,11 @@
 // ── Feed-Forward Network sub-layer ──
 
-use std::marker::PhantomData;
-use coeus_core::{Float, MoiraiBackend};
-use coeus_autograd::Var;
-use crate::module::Module;
-use crate::linear::Linear;
 use crate::dropout::Dropout;
+use crate::linear::Linear;
+use crate::module::Module;
+use coeus_autograd::Var;
+use coeus_core::{Float, MoiraiBackend};
+use std::marker::PhantomData;
 
 /// Two-layer feed-forward sub-layer.
 ///
@@ -15,10 +15,8 @@ use crate::dropout::Dropout;
 /// transformer shape `[batch, seq, d_model]`, via the batched matmul support
 /// in `coeus_autograd::matmul`.
 #[derive(Clone)]
-pub struct FeedForward<
-    T: coeus_core::Scalar,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
-> {
+pub struct FeedForward<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend>
+{
     pub linear1: Linear<T, B>,
     pub linear2: Linear<T, B>,
     pub dropout: Dropout,
@@ -42,8 +40,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> FeedForward<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeedForward<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeedForward<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = self.linear1.parameters();
         p.extend(self.linear2.parameters());
@@ -61,4 +58,3 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeedForwa
         self.linear2.forward(&x)
     }
 }
-

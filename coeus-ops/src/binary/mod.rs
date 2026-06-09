@@ -1,7 +1,7 @@
 // ── Binary ops module ──
 
-mod kernel;
 mod arithmetic;
+mod kernel;
 
+pub use arithmetic::{add, add_assign, div, div_assign, mul, mul_assign, sub, sub_assign};
 pub use kernel::{elementwise_binary, elementwise_binary_to};
-pub use arithmetic::{add, sub, mul, div, add_assign, sub_assign, mul_assign, div_assign};

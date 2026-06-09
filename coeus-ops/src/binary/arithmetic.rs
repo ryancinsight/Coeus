@@ -1,9 +1,9 @@
 // ── Binary arithmetic ops ──
 
+use super::kernel::elementwise_binary;
+use crate::backend_ops::{BackendOps, BinaryOp};
 use coeus_core::Scalar;
 use coeus_tensor::Tensor;
-use crate::backend_ops::{BackendOps, BinaryOp};
-use super::kernel::elementwise_binary;
 
 macro_rules! binary_op {
     ($name:ident, $op:expr, $doc:expr) => {
@@ -37,7 +37,11 @@ macro_rules! binary_assign_op {
             if a.shape() != b.shape() {
                 let out_shape = broadcast_shapes(a.shape(), b.shape())
                     .expect("Incompatible shapes for in-place operation");
-                assert_eq!(&out_shape[..], a.shape(), "In-place operation cannot expand the shape of the target tensor");
+                assert_eq!(
+                    &out_shape[..],
+                    a.shape(),
+                    "In-place operation cannot expand the shape of the target tensor"
+                );
             }
             let (a_dest, a_layout) = a.storage_mut_and_layout();
             // SAFETY: We cast the mutable reference `a_dest` to an immutable reference `a_src`
@@ -60,6 +64,14 @@ macro_rules! binary_assign_op {
 }
 
 binary_assign_op!(add_assign, BinaryOp::Add, "In-place element-wise addition.");
-binary_assign_op!(sub_assign, BinaryOp::Sub, "In-place element-wise subtraction.");
-binary_assign_op!(mul_assign, BinaryOp::Mul, "In-place element-wise multiplication.");
+binary_assign_op!(
+    sub_assign,
+    BinaryOp::Sub,
+    "In-place element-wise subtraction."
+);
+binary_assign_op!(
+    mul_assign,
+    BinaryOp::Mul,
+    "In-place element-wise multiplication."
+);
 binary_assign_op!(div_assign, BinaryOp::Div, "In-place element-wise division.");

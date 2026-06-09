@@ -22,9 +22,12 @@ pub fn dispatch_matmul<T: WgpuScalar>(
     let b_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let c_layout_buf = crate::backend::PooledMetadataBuffer::new();
 
-    ctx.queue.write_buffer(&a_layout_buf, 0, bytemuck::bytes_of(&a_layout_gpu));
-    ctx.queue.write_buffer(&b_layout_buf, 0, bytemuck::bytes_of(&b_layout_gpu));
-    ctx.queue.write_buffer(&c_layout_buf, 0, bytemuck::bytes_of(&c_layout_gpu));
+    ctx.queue
+        .write_buffer(&a_layout_buf, 0, bytemuck::bytes_of(&a_layout_gpu));
+    ctx.queue
+        .write_buffer(&b_layout_buf, 0, bytemuck::bytes_of(&b_layout_gpu));
+    ctx.queue
+        .write_buffer(&c_layout_buf, 0, bytemuck::bytes_of(&c_layout_gpu));
 
     let shader_src = format!(
         r#"
@@ -117,18 +120,38 @@ pub fn dispatch_matmul<T: WgpuScalar>(
         label: Some("matmul-bind-group"),
         layout: &bind_group_layout,
         entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: a.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 1, resource: b.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 2, resource: c.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 3, resource: a_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 4, resource: b_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 5, resource: c_layout_buf.as_entire_binding() },
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: a.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: b.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: c.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: a_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: b_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 5,
+                resource: c_layout_buf.as_entire_binding(),
+            },
         ],
     });
 
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("matmul-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("matmul-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -137,7 +160,7 @@ pub fn dispatch_matmul<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        
+
         let m = a_layout.shape()[0];
         let n = b_layout.shape()[1];
         let workgroups_x = n.div_ceil(16);
@@ -147,4 +170,3 @@ pub fn dispatch_matmul<T: WgpuScalar>(
 
     ctx.queue.submit(Some(encoder.finish()));
 }
-

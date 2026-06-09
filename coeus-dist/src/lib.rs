@@ -1,17 +1,17 @@
-pub mod ops;
 pub mod communicator;
-pub mod mock;
-pub mod tcp;
 pub(crate) mod helpers;
+pub mod mock;
+pub mod ops;
+pub mod tcp;
 
-pub use ops::{ReduceOpTag, Sum, Max, Min, Product};
 pub use communicator::Communicator;
 pub use mock::MockCommunicator;
-pub use tcp::{TcpMesh, TcpCommunicator};
+pub use ops::{Max, Min, Product, ReduceOpTag, Sum};
+pub use tcp::{TcpCommunicator, TcpMesh};
 
-use coeus_core::{Scalar, ComputeBackend};
-use coeus_tensor::Tensor;
 use coeus_autograd::Var;
+use coeus_core::{ComputeBackend, Scalar};
+use coeus_tensor::Tensor;
 
 /// Synchronize and average gradients across all ranks in a process group.
 ///
@@ -36,7 +36,7 @@ pub fn synchronize_gradients<
     for param in params {
         if let Some(ref g) = param.grad {
             let mut grad_tensor = g.lock().unwrap();
-            
+
             // All-reduce (sum) across processes
             comm.all_reduce::<T, B, Sum>(&mut grad_tensor, &backend);
 

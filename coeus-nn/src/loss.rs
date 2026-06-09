@@ -1,7 +1,7 @@
 // ── Loss functions ──
 
-use coeus_core::{Float, Storage};
 use coeus_autograd::Var;
+use coeus_core::{Float, Storage};
 use coeus_tensor::Tensor;
 
 /// Mean Squared Error loss.
@@ -9,7 +9,10 @@ use coeus_tensor::Tensor;
 /// Computes mean squared error between pred and target.
 /// Returns a scalar Var (shape [1]).
 #[inline]
-pub fn mse_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(pred: &Var<T, B>, target: &Var<T, B>) -> Var<T, B> {
+pub fn mse_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    pred: &Var<T, B>,
+    target: &Var<T, B>,
+) -> Var<T, B> {
     let diff = coeus_autograd::sub(pred, target);
     let sq = coeus_autograd::mul(&diff, &diff);
     coeus_autograd::mean(&sq)
@@ -25,7 +28,11 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     targets: &[usize],
 ) -> Var<T, B> {
     let shape = logits.tensor.shape();
-    assert_eq!(shape.len(), 2, "logits must be 2D matrix [batch_size, num_classes]");
+    assert_eq!(
+        shape.len(),
+        2,
+        "logits must be 2D matrix [batch_size, num_classes]"
+    );
     let n = shape[0];
     let c = shape[1];
     assert_eq!(targets.len(), n, "targets length must match batch size");
@@ -39,7 +46,7 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         temp_logits = logits.tensor.to_contiguous_on(&backend);
         &temp_logits
     };
-    
+
     let host_data = if let Some(slice) = logits_cont.storage().try_as_slice() {
         std::borrow::Cow::Borrowed(&slice[..logits_cont.numel()])
     } else {
@@ -88,14 +95,7 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     loss_val = loss_val / T::from_f64(n as f64);
     let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
 
-    coeus_autograd::cross_entropy_loss(
-        logits,
-        targets.to_vec(),
-        out_tensor,
-        probs,
-        n,
-        c,
-    )
+    coeus_autograd::cross_entropy_loss(logits, targets.to_vec(), out_tensor, probs, n, c)
 }
 
 /// Binary Cross-Entropy Loss.
@@ -142,4 +142,3 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Var<T, B> {
     coeus_autograd::cosine_embedding_loss(x1, x2, y, margin)
 }
-

@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::Scalar;
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::Scalar;
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct SqueezeNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -60,7 +60,10 @@ pub fn squeeze<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     }
 
     let backend = B::default();
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend)));
+    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+        out_tensor.shape_cloned(),
+        &backend,
+    )));
     let grad = Some(output_grad.clone());
 
     let node = SqueezeNode {
@@ -124,7 +127,10 @@ pub fn unsqueeze<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     }
 
     let backend = B::default();
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend)));
+    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+        out_tensor.shape_cloned(),
+        &backend,
+    )));
     let grad = Some(output_grad.clone());
 
     let node = UnsqueezeNode {

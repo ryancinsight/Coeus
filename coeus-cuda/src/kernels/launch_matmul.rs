@@ -1,7 +1,7 @@
-use coeus_core::Layout;
-use crate::storage::CudaStorage;
-use crate::driver::{CudaDriver, get_cuda_context};
 use super::GpuLayoutInfo;
+use crate::driver::{get_cuda_context, CudaDriver};
+use crate::storage::CudaStorage;
+use coeus_core::Layout;
 
 pub fn launch_matmul_tiled(
     a: &CudaStorage<f32>,
@@ -11,8 +11,12 @@ pub fn launch_matmul_tiled(
     b_layout: &Layout,
     c_layout: &Layout,
 ) -> bool {
-    let Some(drv) = CudaDriver::get() else { return false; };
-    let Some(_ctx) = get_cuda_context() else { return false; };
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
 
     let cuda_src = r#"
 struct GpuLayoutInfo {
@@ -122,8 +126,12 @@ extern "C" __global__ void matmul_kernel(
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_x as u32, grid_y as u32, 1,
-            16, 16, 1,
+            grid_x as u32,
+            grid_y as u32,
+            1,
+            16,
+            16,
+            1,
             0,
             std::ptr::null_mut(),
             args.as_mut_ptr(),

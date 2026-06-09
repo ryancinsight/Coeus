@@ -2,9 +2,9 @@
 // Concatenation, splitting, and padding of tensors.
 
 mod concat;
-mod split;
 mod pad;
+mod split;
 
 pub use concat::cat;
-pub use split::split;
 pub use pad::pad;
+pub use split::split;

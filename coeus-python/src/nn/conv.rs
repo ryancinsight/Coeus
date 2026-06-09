@@ -1,5 +1,5 @@
+use crate::tensor::{PyStateDict, PyTensor};
 use pyo3::prelude::*;
-use crate::tensor::{PyTensor, PyStateDict};
 
 /// Python-exposed 1D Convolution layer.
 #[pyclass(name = "Conv1d")]
@@ -47,7 +47,12 @@ impl PyConv1d {
             bias,
         );
 
-        let weight = Py::new(py, PyTensor { inner: rust_conv.weight })?;
+        let weight = Py::new(
+            py,
+            PyTensor {
+                inner: rust_conv.weight,
+            },
+        )?;
         let bias = if let Some(b) = rust_conv.bias {
             Some(Py::new(py, PyTensor { inner: b })?)
         } else {
@@ -70,7 +75,10 @@ impl PyConv1d {
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let w_var = self.weight.bind(py).borrow().inner.clone();
-        let b_var = self.bias.as_ref().map(|b| b.bind(py).borrow().inner.clone());
+        let b_var = self
+            .bias
+            .as_ref()
+            .map(|b| b.bind(py).borrow().inner.clone());
         let input_var = input.inner.clone();
 
         let rust_conv = coeus_nn::conv::Conv1d {
@@ -156,7 +164,12 @@ impl PyConv2d {
             bias,
         );
 
-        let weight = Py::new(py, PyTensor { inner: rust_conv.weight })?;
+        let weight = Py::new(
+            py,
+            PyTensor {
+                inner: rust_conv.weight,
+            },
+        )?;
         let bias = if let Some(b) = rust_conv.bias {
             Some(Py::new(py, PyTensor { inner: b })?)
         } else {
@@ -179,7 +192,10 @@ impl PyConv2d {
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let w_var = self.weight.bind(py).borrow().inner.clone();
-        let b_var = self.bias.as_ref().map(|b| b.bind(py).borrow().inner.clone());
+        let b_var = self
+            .bias
+            .as_ref()
+            .map(|b| b.bind(py).borrow().inner.clone());
         let input_var = input.inner.clone();
 
         let rust_conv = coeus_nn::conv::Conv2d {
@@ -265,7 +281,12 @@ impl PyConv3d {
             bias,
         );
 
-        let weight = Py::new(py, PyTensor { inner: rust_conv.weight })?;
+        let weight = Py::new(
+            py,
+            PyTensor {
+                inner: rust_conv.weight,
+            },
+        )?;
         let bias = if let Some(b) = rust_conv.bias {
             Some(Py::new(py, PyTensor { inner: b })?)
         } else {
@@ -288,7 +309,10 @@ impl PyConv3d {
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let w_var = self.weight.bind(py).borrow().inner.clone();
-        let b_var = self.bias.as_ref().map(|b| b.bind(py).borrow().inner.clone());
+        let b_var = self
+            .bias
+            .as_ref()
+            .map(|b| b.bind(py).borrow().inner.clone());
         let input_var = input.inner.clone();
 
         let rust_conv = coeus_nn::conv::Conv3d {

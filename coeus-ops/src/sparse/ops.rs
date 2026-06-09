@@ -1,7 +1,7 @@
-use coeus_core::{Scalar, Backend, CpuAddressableStorage, CpuAddressableStorageMut};
-use coeus_tensor::Tensor;
+use crate::ptr::{MutPtr, Ptr};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_sparse::CsrTensor;
-use crate::ptr::{Ptr, MutPtr};
+use coeus_tensor::Tensor;
 
 /// Sparse Matrix-Vector multiplication (SpMV): y = A x
 ///
@@ -20,7 +20,11 @@ where
     let rows = a.shape()[0];
     let cols = a.shape()[1];
     assert_eq!(x.ndim(), 1, "x must be 1D vector");
-    assert_eq!(x.shape()[0], cols, "dimension mismatch: x shape must match CSR column count");
+    assert_eq!(
+        x.shape()[0],
+        cols,
+        "dimension mismatch: x shape must match CSR column count"
+    );
 
     let mut y = Tensor::<T, B>::zeros_on([rows], backend);
 
@@ -38,19 +42,17 @@ where
     let x_stride = x.layout().strides()[0];
     let x_offset = x.layout().offset();
 
-    backend.parallel_for(0, rows, move |r| {
-        unsafe {
-            let start = row_ptr.read(r) as usize;
-            let end = row_ptr.read(r + 1) as usize;
-            let mut sum = T::zero();
-            for i in start..end {
-                let col = col_ptr.read(i) as usize;
-                let val = val_ptr.read(i);
-                let xv = x_ptr.read(x_offset + col * x_stride);
-                sum = sum + val * xv;
-            }
-            y_ptr.write(r, sum);
+    backend.parallel_for(0, rows, move |r| unsafe {
+        let start = row_ptr.read(r) as usize;
+        let end = row_ptr.read(r + 1) as usize;
+        let mut sum = T::zero();
+        for i in start..end {
+            let col = col_ptr.read(i) as usize;
+            let val = val_ptr.read(i);
+            let xv = x_ptr.read(x_offset + col * x_stride);
+            sum = sum + val * xv;
         }
+        y_ptr.write(r, sum);
     });
 
     y
@@ -75,7 +77,10 @@ where
     let k = a.shape()[1];
     let k2 = b.shape()[0];
     let n = b.shape()[1];
-    assert_eq!(k, k2, "dimension mismatch: CSR column count must match dense row count");
+    assert_eq!(
+        k, k2,
+        "dimension mismatch: CSR column count must match dense row count"
+    );
 
     let mut c = Tensor::<T, B>::zeros_on([m, n], backend);
 
@@ -98,23 +103,24 @@ where
     let c_stride_col = c.layout().strides()[1];
     let c_offset = c.layout().offset();
 
-    backend.parallel_for(0, m, move |r| {
-        unsafe {
-            let start = row_ptr.read(r) as usize;
-            let end = row_ptr.read(r + 1) as usize;
-            let mut row_accumulator = smallvec::SmallVec::<[T; 256]>::from_elem(T::zero(), n);
-            for i in start..end {
-                let col = col_ptr.read(i) as usize;
-                let val = val_ptr.read(i);
-                let b_col_offset = b_offset + col * b_stride_row;
-                for j in 0..n {
-                    let bv = b_ptr.read(b_col_offset + j * b_stride_col);
-                    row_accumulator[j] = row_accumulator[j] + val * bv;
-                }
-            }
+    backend.parallel_for(0, m, move |r| unsafe {
+        let start = row_ptr.read(r) as usize;
+        let end = row_ptr.read(r + 1) as usize;
+        let mut row_accumulator = smallvec::SmallVec::<[T; 256]>::from_elem(T::zero(), n);
+        for i in start..end {
+            let col = col_ptr.read(i) as usize;
+            let val = val_ptr.read(i);
+            let b_col_offset = b_offset + col * b_stride_row;
             for j in 0..n {
-                c_ptr.write(c_offset + r * c_stride_row + j * c_stride_col, row_accumulator[j]);
+                let bv = b_ptr.read(b_col_offset + j * b_stride_col);
+                row_accumulator[j] = row_accumulator[j] + val * bv;
             }
+        }
+        for j in 0..n {
+            c_ptr.write(
+                c_offset + r * c_stride_row + j * c_stride_col,
+                row_accumulator[j],
+            );
         }
     });
 

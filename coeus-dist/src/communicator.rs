@@ -1,6 +1,6 @@
-use coeus_core::{Scalar, ComputeBackend};
-use coeus_tensor::Tensor;
 use crate::ops::ReduceOpTag;
+use coeus_core::{ComputeBackend, Scalar};
+use coeus_tensor::Tensor;
 
 /// Abstract interface for distributed process communication.
 ///

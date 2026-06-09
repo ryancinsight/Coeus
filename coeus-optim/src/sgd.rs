@@ -1,7 +1,7 @@
-use coeus_core::{Float, MoiraiBackend};
-use coeus_autograd::Var;
-use coeus_tensor::Tensor;
 use crate::traits::Optimizer;
+use coeus_autograd::Var;
+use coeus_core::{Float, MoiraiBackend};
+use coeus_tensor::Tensor;
 
 /// SGD with optional momentum.
 pub struct SGD<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
@@ -19,7 +19,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SGD<T, B> {
     /// Create SGD optimizer.
     pub fn new(params: Vec<Var<T, B>>, lr: T, momentum: T) -> Self {
         let backend = B::default();
-        let velocity = params.iter()
+        let velocity = params
+            .iter()
             .map(|p| Tensor::zeros_on(p.tensor.shape(), &backend))
             .collect();
         Self {
@@ -69,7 +70,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for SGD<T,
 
     fn clip_grad_norm(&mut self, max_norm: T) -> T
     where
-        B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+        B::DeviceBuffer<T>:
+            coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
     {
         crate::clip::clip_grad_norm(&self.params, max_norm)
     }

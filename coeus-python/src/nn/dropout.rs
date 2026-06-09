@@ -1,5 +1,5 @@
+use crate::tensor::{PyStateDict, PyTensor};
 use pyo3::prelude::*;
-use crate::tensor::{PyTensor, PyStateDict};
 
 /// Python-exposed Dropout layer.
 #[pyclass(name = "Dropout")]
@@ -39,14 +39,14 @@ impl PyDropout {
             seed: self.seed,
         };
 
-        let inner = py.allow_threads(move || {
-            rust_dropout.forward(&input_var)
-        });
+        let inner = py.allow_threads(move || rust_dropout.forward(&input_var));
         Ok(PyTensor { inner })
     }
 
     fn state_dict(&self) -> PyStateDict {
-        PyStateDict { inner: coeus_tensor::checkpoint::StateDict::new() }
+        PyStateDict {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
     }
 
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {

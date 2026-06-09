@@ -1,11 +1,13 @@
 #![allow(clippy::too_many_arguments)]
 
-use coeus_core::{Float, Backend, Layout, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Layout};
 
 /// Sealed helper — compute a single row's max for numerically stable softmax.
 #[inline(always)]
 fn row_max<T: Float>(row: &[T]) -> T {
-    row.iter().copied().fold(T::NEG_INFINITY, |a, b| if b > a { b } else { a })
+    row.iter()
+        .copied()
+        .fold(T::NEG_INFINITY, |a, b| if b > a { b } else { a })
 }
 
 /// Forward: scaled dot-product attention.
@@ -40,7 +42,7 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
     let q_shape = query_layout.shape();
     let batch = q_shape[0];
     let seq_q = q_shape[1];
-    let d_k   = q_shape[2];
+    let d_k = q_shape[2];
 
     let k_shape = key_layout.shape();
     let seq_k = k_shape[1];
@@ -90,8 +92,8 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
                 }
                 let mut dot = T::zero();
                 for dk in 0..d_k {
-                    dot = dot + q_slice[idx3(b, i, dk, seq_q, d_k)]
-                              * k_slice[idx3(b, j, dk, seq_k, d_k)];
+                    dot = dot
+                        + q_slice[idx3(b, i, dk, seq_q, d_k)] * k_slice[idx3(b, j, dk, seq_k, d_k)];
                 }
                 aw_slice[idx3(b, i, j, seq_q, seq_k)] = dot * scale;
             }
@@ -113,7 +115,8 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
             // normalize
             let inv_sum = T::one() / sum_exp;
             for j in 0..seq_k {
-                aw_slice[idx3(b, i, j, seq_q, seq_k)] = aw_slice[idx3(b, i, j, seq_q, seq_k)] * inv_sum;
+                aw_slice[idx3(b, i, j, seq_q, seq_k)] =
+                    aw_slice[idx3(b, i, j, seq_q, seq_k)] * inv_sum;
             }
         }
 
@@ -122,8 +125,9 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
             for l in 0..d_v {
                 let mut acc = T::zero();
                 for j in 0..seq_k {
-                    acc = acc + aw_slice[idx3(b, i, j, seq_q, seq_k)]
-                              * v_slice[idx3(b, j, l, seq_k, d_v)];
+                    acc = acc
+                        + aw_slice[idx3(b, i, j, seq_q, seq_k)]
+                            * v_slice[idx3(b, j, l, seq_k, d_v)];
                 }
                 out_slice[idx3(b, i, l, seq_q, d_v)] = acc;
             }
@@ -164,7 +168,7 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
     let q_shape = query_layout.shape();
     let batch = q_shape[0];
     let seq_q = q_shape[1];
-    let d_k   = q_shape[2];
+    let d_k = q_shape[2];
 
     let k_shape = key_layout.shape();
     let seq_k = k_shape[1];
@@ -192,8 +196,7 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
                 for l in 0..d_v {
                     let mut acc = T::zero();
                     for i in 0..seq_q {
-                        acc = acc + aw[idx3(b, i, j, seq_q, seq_k)]
-                                  * go[idx3(b, i, l, seq_q, d_v)];
+                        acc = acc + aw[idx3(b, i, j, seq_q, seq_k)] * go[idx3(b, i, l, seq_q, d_v)];
                     }
                     gv_sl[idx3(b, j, l, seq_k, d_v)] = gv_sl[idx3(b, j, l, seq_k, d_v)] + acc;
                 }
@@ -206,8 +209,7 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
             for j in 0..seq_k {
                 let mut acc = T::zero();
                 for l in 0..d_v {
-                    acc = acc + go[idx3(b, i, l, seq_q, d_v)]
-                              * v_sl[idx3(b, j, l, seq_k, d_v)];
+                    acc = acc + go[idx3(b, i, l, seq_q, d_v)] * v_sl[idx3(b, j, l, seq_k, d_v)];
                 }
                 d_attn[i * seq_k + j] = acc;
             }
@@ -222,8 +224,8 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
                 rs = rs + aw[idx3(b, i, j, seq_q, seq_k)] * d_attn[i * seq_k + j];
             }
             for j in 0..seq_k {
-                d_scores[i * seq_k + j] = aw[idx3(b, i, j, seq_q, seq_k)]
-                    * (d_attn[i * seq_k + j] - rs);
+                d_scores[i * seq_k + j] =
+                    aw[idx3(b, i, j, seq_q, seq_k)] * (d_attn[i * seq_k + j] - rs);
             }
         }
 
@@ -236,7 +238,8 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
                     for j in 0..seq_k {
                         acc = acc + d_scores[i * seq_k + j] * k_sl[idx3(b, j, dk, seq_k, d_k)];
                     }
-                    gq_sl[idx3(b, i, dk, seq_q, d_k)] = gq_sl[idx3(b, i, dk, seq_q, d_k)] + acc * scale;
+                    gq_sl[idx3(b, i, dk, seq_q, d_k)] =
+                        gq_sl[idx3(b, i, dk, seq_q, d_k)] + acc * scale;
                 }
             }
         }
@@ -250,7 +253,8 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
                     for i in 0..seq_q {
                         acc = acc + d_scores[i * seq_k + j] * q_sl[idx3(b, i, dk, seq_q, d_k)];
                     }
-                    gk_sl[idx3(b, j, dk, seq_k, d_k)] = gk_sl[idx3(b, j, dk, seq_k, d_k)] + acc * scale;
+                    gk_sl[idx3(b, j, dk, seq_k, d_k)] =
+                        gk_sl[idx3(b, j, dk, seq_k, d_k)] + acc * scale;
                 }
             }
         }

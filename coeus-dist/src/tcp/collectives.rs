@@ -1,12 +1,12 @@
-use coeus_core::{Scalar, ComputeBackend};
-use coeus_tensor::Tensor;
-use crate::communicator::Communicator;
-use crate::ops::ReduceOpTag;
-use crate::helpers::{
-    get_tensor_host_data, copy_host_slice_to_tensor, with_tensor_host_bytes,
-    recv_tensor_data, recv_slice_data,
-};
 use super::mesh::TcpMesh;
+use crate::communicator::Communicator;
+use crate::helpers::{
+    copy_host_slice_to_tensor, get_tensor_host_data, recv_slice_data, recv_tensor_data,
+    with_tensor_host_bytes,
+};
+use crate::ops::ReduceOpTag;
+use coeus_core::{ComputeBackend, Scalar};
+use coeus_tensor::Tensor;
 
 /// A socket-based communicator for distributed training.
 pub struct TcpCommunicator {
@@ -113,7 +113,7 @@ impl Communicator for TcpCommunicator {
                 }
                 if rank < other {
                     self.mesh.send(other, send_raw_slice);
-                    
+
                     recv_tensor_data(out_tensor, backend, |slice| {
                         self.mesh.recv(other, slice);
                     });
@@ -228,4 +228,3 @@ impl Communicator for TcpCommunicator {
         }
     }
 }
-

@@ -1,8 +1,8 @@
 // ── Float implementations ──
 // Scalar + Float for f32, f64, half::f16, half::bf16.
 
-use super::traits::{private, Scalar, Float, FloatOps};
-use half::{f16, bf16};
+use super::traits::{private, Float, FloatOps, Scalar};
+use half::{bf16, f16};
 
 // ── Helper macros ──
 
@@ -11,53 +11,91 @@ macro_rules! impl_scalar_float_native {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn to_f64(self) -> f64 { self as f64 }
+            fn to_f64(self) -> f64 {
+                self as f64
+            }
             #[inline(always)]
-            fn from_f64(v: f64) -> Self { v as Self }
+            fn from_f64(v: f64) -> Self {
+                v as Self
+            }
             #[inline(always)]
-            fn sqrt_val(self) -> Self { self.sqrt() }
+            fn sqrt_val(self) -> Self {
+                self.sqrt()
+            }
             #[inline(always)]
-            fn abs_val(self) -> Self { self.abs() }
+            fn abs_val(self) -> Self {
+                self.abs()
+            }
             #[inline]
             fn add_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
                 // Delegate to the SIMD-effect SSOT. Lengths are equal by the
                 // caller's contract; on a length mismatch fall back to scalar.
                 if hermes_simd::elementwise_add::<$t>(a, b, out).is_err() {
-                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) { *o = x + y; }
+                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
+                        *o = x + y;
+                    }
                 }
             }
             #[inline]
             fn sub_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
                 if hermes_simd::elementwise_sub::<$t>(a, b, out).is_err() {
-                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) { *o = x - y; }
+                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
+                        *o = x - y;
+                    }
                 }
             }
             #[inline]
             fn mul_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
                 if hermes_simd::elementwise_mul::<$t>(a, b, out).is_err() {
-                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) { *o = x * y; }
+                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
+                        *o = x * y;
+                    }
                 }
             }
             #[inline]
             fn div_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
                 if hermes_simd::elementwise_div::<$t>(a, b, out).is_err() {
-                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) { *o = x / y; }
+                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
+                        *o = x / y;
+                    }
                 }
             }
             #[inline]
-            fn sum_slice(s: &[Self]) -> Self { hermes_simd::sum::<$t>(s) }
+            fn sum_slice(s: &[Self]) -> Self {
+                hermes_simd::sum::<$t>(s)
+            }
             #[inline]
-            fn min_slice(s: &[Self]) -> Self { hermes_simd::min::<$t>(s) }
+            fn min_slice(s: &[Self]) -> Self {
+                hermes_simd::min::<$t>(s)
+            }
             #[inline]
-            fn max_slice(s: &[Self]) -> Self { hermes_simd::max::<$t>(s) }
+            fn max_slice(s: &[Self]) -> Self {
+                hermes_simd::max::<$t>(s)
+            }
         }
         impl FloatOps for $t {
-            #[inline(always)] fn exp_op(self) -> Self { self.exp() }
-            #[inline(always)] fn log_op(self) -> Self { self.ln() }
-            #[inline(always)] fn tanh_op(self) -> Self { self.tanh() }
-            #[inline(always)] fn sin_op(self) -> Self { self.sin() }
-            #[inline(always)] fn cos_op(self) -> Self { self.cos() }
-            #[inline(always)] fn gelu_op(self) -> Self {
+            #[inline(always)]
+            fn exp_op(self) -> Self {
+                self.exp()
+            }
+            #[inline(always)]
+            fn log_op(self) -> Self {
+                self.ln()
+            }
+            #[inline(always)]
+            fn tanh_op(self) -> Self {
+                self.tanh()
+            }
+            #[inline(always)]
+            fn sin_op(self) -> Self {
+                self.sin()
+            }
+            #[inline(always)]
+            fn cos_op(self) -> Self {
+                self.cos()
+            }
+            #[inline(always)]
+            fn gelu_op(self) -> Self {
                 let x_f = self;
                 let c1 = Self::from_f64(0.5);
                 let c2 = Self::from_f64(1.0);
@@ -65,7 +103,10 @@ macro_rules! impl_scalar_float_native {
                 let c4 = Self::from_f64(0.044_715);
                 c1 * x_f * (c2 + (c3 * (x_f + c4 * x_f.powi(3))).tanh())
             }
-            #[inline(always)] fn sigmoid_op(self) -> Self { 1.0 / (1.0 + (-self).exp()) }
+            #[inline(always)]
+            fn sigmoid_op(self) -> Self {
+                1.0 / (1.0 + (-self).exp())
+            }
         }
         impl Float for $t {
             const MAX: Self = <$t>::MAX;
@@ -73,32 +114,110 @@ macro_rules! impl_scalar_float_native {
             const NAN: Self = <$t>::NAN;
             const NEG_INFINITY: Self = <$t>::NEG_INFINITY;
             const INFINITY: Self = <$t>::INFINITY;
-            #[inline(always)] fn floor(self) -> Self { self.floor() }
-            #[inline(always)] fn ceil(self) -> Self { self.ceil() }
-            #[inline(always)] fn round(self) -> Self { self.round() }
-            #[inline(always)] fn trunc(self) -> Self { self.trunc() }
-            #[inline(always)] fn fract(self) -> Self { self.fract() }
-            #[inline(always)] fn abs(self) -> Self { self.abs() }
-            #[inline(always)] fn signum(self) -> Self { self.signum() }
-            #[inline(always)] fn sqrt(self) -> Self { self.sqrt() }
-            #[inline(always)] fn exp(self) -> Self { self.exp() }
-            #[inline(always)] fn exp2(self) -> Self { self.exp2() }
-            #[inline(always)] fn ln(self) -> Self { self.ln() }
-            #[inline(always)] fn log2(self) -> Self { self.log2() }
-            #[inline(always)] fn log10(self) -> Self { self.log10() }
-            #[inline(always)] fn sin(self) -> Self { self.sin() }
-            #[inline(always)] fn cos(self) -> Self { self.cos() }
-            #[inline(always)] fn tan(self) -> Self { self.tan() }
-            #[inline(always)] fn asin(self) -> Self { self.asin() }
-            #[inline(always)] fn acos(self) -> Self { self.acos() }
-            #[inline(always)] fn atan(self) -> Self { self.atan() }
-            #[inline(always)] fn sinh(self) -> Self { self.sinh() }
-            #[inline(always)] fn cosh(self) -> Self { self.cosh() }
-            #[inline(always)] fn tanh(self) -> Self { self.tanh() }
-            #[inline(always)] fn powf(self, n: Self) -> Self { self.powf(n) }
-            #[inline(always)] fn is_nan(self) -> bool { self.is_nan() }
-            #[inline(always)] fn is_infinite(self) -> bool { self.is_infinite() }
-            #[inline(always)] fn is_finite(self) -> bool { self.is_finite() }
+            #[inline(always)]
+            fn floor(self) -> Self {
+                self.floor()
+            }
+            #[inline(always)]
+            fn ceil(self) -> Self {
+                self.ceil()
+            }
+            #[inline(always)]
+            fn round(self) -> Self {
+                self.round()
+            }
+            #[inline(always)]
+            fn trunc(self) -> Self {
+                self.trunc()
+            }
+            #[inline(always)]
+            fn fract(self) -> Self {
+                self.fract()
+            }
+            #[inline(always)]
+            fn abs(self) -> Self {
+                self.abs()
+            }
+            #[inline(always)]
+            fn signum(self) -> Self {
+                self.signum()
+            }
+            #[inline(always)]
+            fn sqrt(self) -> Self {
+                self.sqrt()
+            }
+            #[inline(always)]
+            fn exp(self) -> Self {
+                self.exp()
+            }
+            #[inline(always)]
+            fn exp2(self) -> Self {
+                self.exp2()
+            }
+            #[inline(always)]
+            fn ln(self) -> Self {
+                self.ln()
+            }
+            #[inline(always)]
+            fn log2(self) -> Self {
+                self.log2()
+            }
+            #[inline(always)]
+            fn log10(self) -> Self {
+                self.log10()
+            }
+            #[inline(always)]
+            fn sin(self) -> Self {
+                self.sin()
+            }
+            #[inline(always)]
+            fn cos(self) -> Self {
+                self.cos()
+            }
+            #[inline(always)]
+            fn tan(self) -> Self {
+                self.tan()
+            }
+            #[inline(always)]
+            fn asin(self) -> Self {
+                self.asin()
+            }
+            #[inline(always)]
+            fn acos(self) -> Self {
+                self.acos()
+            }
+            #[inline(always)]
+            fn atan(self) -> Self {
+                self.atan()
+            }
+            #[inline(always)]
+            fn sinh(self) -> Self {
+                self.sinh()
+            }
+            #[inline(always)]
+            fn cosh(self) -> Self {
+                self.cosh()
+            }
+            #[inline(always)]
+            fn tanh(self) -> Self {
+                self.tanh()
+            }
+            #[inline(always)]
+            fn powf(self, n: Self) -> Self {
+                self.powf(n)
+            }
+            #[inline(always)]
+            fn is_nan(self) -> bool {
+                self.is_nan()
+            }
+            #[inline(always)]
+            fn is_infinite(self) -> bool {
+                self.is_infinite()
+            }
+            #[inline(always)]
+            fn is_finite(self) -> bool {
+                self.is_finite()
+            }
         }
     };
 }
@@ -116,26 +235,52 @@ macro_rules! impl_scalar_float_half {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn to_f64(self) -> f64 { self.to_f64() }
+            fn to_f64(self) -> f64 {
+                self.to_f64()
+            }
             #[inline(always)]
-            fn from_f64(v: f64) -> Self { Self::from_f64(v) }
+            fn from_f64(v: f64) -> Self {
+                Self::from_f64(v)
+            }
             #[inline(always)]
-            fn sqrt_val(self) -> Self { Self::from_f64(self.to_f64().sqrt()) }
+            fn sqrt_val(self) -> Self {
+                Self::from_f64(self.to_f64().sqrt())
+            }
             #[inline(always)]
-            fn abs_val(self) -> Self { Self::from_f64(self.to_f64().abs()) }
+            fn abs_val(self) -> Self {
+                Self::from_f64(self.to_f64().abs())
+            }
         }
         impl FloatOps for $t {
-            #[inline(always)] fn exp_op(self) -> Self { Self::from_f64(self.to_f64().exp()) }
-            #[inline(always)] fn log_op(self) -> Self { Self::from_f64(self.to_f64().ln()) }
-            #[inline(always)] fn tanh_op(self) -> Self { Self::from_f64(self.to_f64().tanh()) }
-            #[inline(always)] fn sin_op(self) -> Self { Self::from_f64(self.to_f64().sin()) }
-            #[inline(always)] fn cos_op(self) -> Self { Self::from_f64(self.to_f64().cos()) }
-            #[inline(always)] fn gelu_op(self) -> Self {
+            #[inline(always)]
+            fn exp_op(self) -> Self {
+                Self::from_f64(self.to_f64().exp())
+            }
+            #[inline(always)]
+            fn log_op(self) -> Self {
+                Self::from_f64(self.to_f64().ln())
+            }
+            #[inline(always)]
+            fn tanh_op(self) -> Self {
+                Self::from_f64(self.to_f64().tanh())
+            }
+            #[inline(always)]
+            fn sin_op(self) -> Self {
+                Self::from_f64(self.to_f64().sin())
+            }
+            #[inline(always)]
+            fn cos_op(self) -> Self {
+                Self::from_f64(self.to_f64().cos())
+            }
+            #[inline(always)]
+            fn gelu_op(self) -> Self {
                 let x_f = self.to_f64();
-                let res = 0.5 * x_f * (1.0 + (0.7978845608 * (x_f + 0.044715 * x_f.powi(3))).tanh());
+                let res =
+                    0.5 * x_f * (1.0 + (0.7978845608 * (x_f + 0.044715 * x_f.powi(3))).tanh());
                 Self::from_f64(res)
             }
-            #[inline(always)] fn sigmoid_op(self) -> Self {
+            #[inline(always)]
+            fn sigmoid_op(self) -> Self {
                 let x_f = self.to_f64();
                 let res = 1.0 / (1.0 + (-x_f).exp());
                 Self::from_f64(res)
@@ -147,32 +292,110 @@ macro_rules! impl_scalar_float_half {
             const NAN: Self = Self::NAN;
             const NEG_INFINITY: Self = Self::NEG_INFINITY;
             const INFINITY: Self = Self::INFINITY;
-            #[inline(always)] fn floor(self) -> Self { Self::from_f64(self.to_f64().floor()) }
-            #[inline(always)] fn ceil(self) -> Self { Self::from_f64(self.to_f64().ceil()) }
-            #[inline(always)] fn round(self) -> Self { Self::from_f64(self.to_f64().round()) }
-            #[inline(always)] fn trunc(self) -> Self { Self::from_f64(self.to_f64().trunc()) }
-            #[inline(always)] fn fract(self) -> Self { Self::from_f64(self.to_f64().fract()) }
-            #[inline(always)] fn abs(self) -> Self { Self::from_f64(self.to_f64().abs()) }
-            #[inline(always)] fn signum(self) -> Self { Self::from_f64(self.to_f64().signum()) }
-            #[inline(always)] fn sqrt(self) -> Self { Self::from_f64(self.to_f64().sqrt()) }
-            #[inline(always)] fn exp(self) -> Self { Self::from_f64(self.to_f64().exp()) }
-            #[inline(always)] fn exp2(self) -> Self { Self::from_f64(self.to_f64().exp2()) }
-            #[inline(always)] fn ln(self) -> Self { Self::from_f64(self.to_f64().ln()) }
-            #[inline(always)] fn log2(self) -> Self { Self::from_f64(self.to_f64().log2()) }
-            #[inline(always)] fn log10(self) -> Self { Self::from_f64(self.to_f64().log10()) }
-            #[inline(always)] fn sin(self) -> Self { Self::from_f64(self.to_f64().sin()) }
-            #[inline(always)] fn cos(self) -> Self { Self::from_f64(self.to_f64().cos()) }
-            #[inline(always)] fn tan(self) -> Self { Self::from_f64(self.to_f64().tan()) }
-            #[inline(always)] fn asin(self) -> Self { Self::from_f64(self.to_f64().asin()) }
-            #[inline(always)] fn acos(self) -> Self { Self::from_f64(self.to_f64().acos()) }
-            #[inline(always)] fn atan(self) -> Self { Self::from_f64(self.to_f64().atan()) }
-            #[inline(always)] fn sinh(self) -> Self { Self::from_f64(self.to_f64().sinh()) }
-            #[inline(always)] fn cosh(self) -> Self { Self::from_f64(self.to_f64().cosh()) }
-            #[inline(always)] fn tanh(self) -> Self { Self::from_f64(self.to_f64().tanh()) }
-            #[inline(always)] fn powf(self, n: Self) -> Self { Self::from_f64(self.to_f64().powf(n.to_f64())) }
-            #[inline(always)] fn is_nan(self) -> bool { self.to_f64().is_nan() }
-            #[inline(always)] fn is_infinite(self) -> bool { self.to_f64().is_infinite() }
-            #[inline(always)] fn is_finite(self) -> bool { self.to_f64().is_finite() }
+            #[inline(always)]
+            fn floor(self) -> Self {
+                Self::from_f64(self.to_f64().floor())
+            }
+            #[inline(always)]
+            fn ceil(self) -> Self {
+                Self::from_f64(self.to_f64().ceil())
+            }
+            #[inline(always)]
+            fn round(self) -> Self {
+                Self::from_f64(self.to_f64().round())
+            }
+            #[inline(always)]
+            fn trunc(self) -> Self {
+                Self::from_f64(self.to_f64().trunc())
+            }
+            #[inline(always)]
+            fn fract(self) -> Self {
+                Self::from_f64(self.to_f64().fract())
+            }
+            #[inline(always)]
+            fn abs(self) -> Self {
+                Self::from_f64(self.to_f64().abs())
+            }
+            #[inline(always)]
+            fn signum(self) -> Self {
+                Self::from_f64(self.to_f64().signum())
+            }
+            #[inline(always)]
+            fn sqrt(self) -> Self {
+                Self::from_f64(self.to_f64().sqrt())
+            }
+            #[inline(always)]
+            fn exp(self) -> Self {
+                Self::from_f64(self.to_f64().exp())
+            }
+            #[inline(always)]
+            fn exp2(self) -> Self {
+                Self::from_f64(self.to_f64().exp2())
+            }
+            #[inline(always)]
+            fn ln(self) -> Self {
+                Self::from_f64(self.to_f64().ln())
+            }
+            #[inline(always)]
+            fn log2(self) -> Self {
+                Self::from_f64(self.to_f64().log2())
+            }
+            #[inline(always)]
+            fn log10(self) -> Self {
+                Self::from_f64(self.to_f64().log10())
+            }
+            #[inline(always)]
+            fn sin(self) -> Self {
+                Self::from_f64(self.to_f64().sin())
+            }
+            #[inline(always)]
+            fn cos(self) -> Self {
+                Self::from_f64(self.to_f64().cos())
+            }
+            #[inline(always)]
+            fn tan(self) -> Self {
+                Self::from_f64(self.to_f64().tan())
+            }
+            #[inline(always)]
+            fn asin(self) -> Self {
+                Self::from_f64(self.to_f64().asin())
+            }
+            #[inline(always)]
+            fn acos(self) -> Self {
+                Self::from_f64(self.to_f64().acos())
+            }
+            #[inline(always)]
+            fn atan(self) -> Self {
+                Self::from_f64(self.to_f64().atan())
+            }
+            #[inline(always)]
+            fn sinh(self) -> Self {
+                Self::from_f64(self.to_f64().sinh())
+            }
+            #[inline(always)]
+            fn cosh(self) -> Self {
+                Self::from_f64(self.to_f64().cosh())
+            }
+            #[inline(always)]
+            fn tanh(self) -> Self {
+                Self::from_f64(self.to_f64().tanh())
+            }
+            #[inline(always)]
+            fn powf(self, n: Self) -> Self {
+                Self::from_f64(self.to_f64().powf(n.to_f64()))
+            }
+            #[inline(always)]
+            fn is_nan(self) -> bool {
+                self.to_f64().is_nan()
+            }
+            #[inline(always)]
+            fn is_infinite(self) -> bool {
+                self.to_f64().is_infinite()
+            }
+            #[inline(always)]
+            fn is_finite(self) -> bool {
+                self.to_f64().is_finite()
+            }
         }
     };
 }
@@ -181,3 +404,127 @@ impl_scalar_float_native!(f32);
 impl_scalar_float_native!(f64);
 impl_scalar_float_half!(f16);
 impl_scalar_float_half!(bf16);
+
+macro_rules! impl_cpu_unary_dispatch_float {
+    ($t:ty) => {
+        impl $crate::dtype::CpuUnaryDispatch for $t {
+            #[inline]
+            fn eval_unary(op: $crate::dtype::CpuUnaryOp, x: Self) -> Self {
+                use num_traits::{One, Zero};
+                use $crate::dtype::{CpuUnaryOp, FloatOps, Scalar};
+                match op {
+                    CpuUnaryOp::Relu => {
+                        if x > Self::zero() {
+                            x
+                        } else {
+                            Self::zero()
+                        }
+                    }
+                    CpuUnaryOp::ReluGrad => {
+                        if x > Self::zero() {
+                            Self::one()
+                        } else {
+                            Self::zero()
+                        }
+                    }
+                    CpuUnaryOp::Sigmoid => x.sigmoid_op(),
+                    CpuUnaryOp::SigmoidGrad => x * (Self::one() - x),
+                    CpuUnaryOp::Tanh => x.tanh_op(),
+                    CpuUnaryOp::TanhGrad => Self::one() - x * x,
+                    CpuUnaryOp::Gelu => x.gelu_op(),
+                    CpuUnaryOp::GeluGrad => {
+                        let half = Self::from_f64(0.5);
+                        let one = Self::one();
+                        let c1 = Self::from_f64(0.7978845608);
+                        let c2 = Self::from_f64(0.044715);
+                        let c3 = Self::from_f64(0.134145);
+
+                        let x2 = x * x;
+                        let v = c1 * (x + c2 * x * x2);
+                        let t = v.tanh_op();
+                        let dy = c1 * (one + c3 * x2);
+                        half * (one + t) + half * x * (one - t * t) * dy
+                    }
+                    CpuUnaryOp::Sin => x.sin_op(),
+                    CpuUnaryOp::Cos => x.cos_op(),
+                    CpuUnaryOp::Exp => x.exp_op(),
+                    CpuUnaryOp::Log => x.log_op(),
+                    CpuUnaryOp::Neg => Self::zero() - x,
+                    CpuUnaryOp::Abs => x.abs_val(),
+                    CpuUnaryOp::Sqrt => x.sqrt_val(),
+                    CpuUnaryOp::Silu => x * x.sigmoid_op(),
+                    CpuUnaryOp::SiluGrad => {
+                        let s = x.sigmoid_op();
+                        s * (Self::one() + x * (Self::one() - s))
+                    }
+                    CpuUnaryOp::Mish => {
+                        let sp = (Self::one() + x.exp_op()).log_op();
+                        x * sp.tanh_op()
+                    }
+                    CpuUnaryOp::MishGrad => {
+                        let sp = (Self::one() + x.exp_op()).log_op();
+                        let w = sp.tanh_op();
+                        let sig = x.sigmoid_op();
+                        w + x * (Self::one() - w * w) * sig
+                    }
+                    CpuUnaryOp::Elu => {
+                        if x >= Self::zero() {
+                            x
+                        } else {
+                            x.exp_op() - Self::one()
+                        }
+                    }
+                    CpuUnaryOp::EluGrad => {
+                        if x >= Self::zero() {
+                            Self::one()
+                        } else {
+                            x.exp_op()
+                        }
+                    }
+                    CpuUnaryOp::Softplus => (Self::one() + x.exp_op()).log_op(),
+                    CpuUnaryOp::SoftplusGrad => x.sigmoid_op(),
+                    CpuUnaryOp::GeluTanh => {
+                        let c1 = Self::from_f64(0.7978845608);
+                        let c2 = Self::from_f64(0.044715);
+                        let half = Self::from_f64(0.5);
+                        let one = Self::one();
+                        let v = c1 * (x + c2 * x * x * x);
+                        half * x * (one + v.tanh_op())
+                    }
+                    CpuUnaryOp::GeluTanhGrad => {
+                        let c1 = Self::from_f64(0.7978845608);
+                        let c2 = Self::from_f64(0.044715);
+                        let c3 = Self::from_f64(0.134145);
+                        let half = Self::from_f64(0.5);
+                        let one = Self::one();
+                        let v = c1 * (x + c2 * x * x * x);
+                        let t = v.tanh_op();
+                        let dt = c1 * (one + c3 * x * x);
+                        half * (one + t) + half * x * (one - t * t) * dt
+                    }
+                    CpuUnaryOp::LeakyRelu(slope_bits) => {
+                        let slope = Self::from_f64(f64::from_bits(slope_bits));
+                        if x >= Self::zero() {
+                            x
+                        } else {
+                            slope * x
+                        }
+                    }
+                    CpuUnaryOp::LeakyReluGrad(slope_bits) => {
+                        let slope = Self::from_f64(f64::from_bits(slope_bits));
+                        if x >= Self::zero() {
+                            Self::one()
+                        } else {
+                            slope
+                        }
+                    }
+                }
+            }
+        }
+    };
+}
+
+impl_cpu_unary_dispatch_float!(f32);
+impl_cpu_unary_dispatch_float!(f64);
+impl_cpu_unary_dispatch_float!(f16);
+impl_cpu_unary_dispatch_float!(bf16);

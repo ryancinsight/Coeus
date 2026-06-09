@@ -1,10 +1,10 @@
 // ── Dtype module ──
 // Scalar, Float, and Int trait hierarchies with impls for all numeric types.
 
-mod traits;
+mod complex;
 mod float;
 mod int;
-mod complex;
+mod traits;
 
-pub use traits::{Scalar, Float, Int};
 pub use complex::Complex;
+pub use traits::{CpuUnaryDispatch, CpuUnaryOp, Float, FloatOps, Int, Scalar};

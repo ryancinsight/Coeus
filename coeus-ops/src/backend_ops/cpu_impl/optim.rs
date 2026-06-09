@@ -1,5 +1,6 @@
-use coeus_core::{Scalar, Layout, Backend, CpuAddressableStorage, CpuAddressableStorageMut};
-use crate::ptr::{Ptr, MutPtr};
+use crate::ptr::{MutPtr, Ptr};
+use coeus_core::FloatOps;
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
 pub fn sgd_step<T: Scalar, B: Backend>(
     backend: &B,
@@ -63,9 +64,15 @@ pub fn sgd_step<T: Scalar, B: Backend>(
             let mut vi = v_off;
 
             for d in 0..ndim {
-                if d < p_shape.len() && p_shape[d] > 1 { pi += coords[d] * p_strides[d]; }
-                if d < g_shape.len() && g_shape[d] > 1 { gi += coords[d] * g_strides[d]; }
-                if d < v_shape.len() && v_shape[d] > 1 { vi += coords[d] * v_strides[d]; }
+                if d < p_shape.len() && p_shape[d] > 1 {
+                    pi += coords[d] * p_strides[d];
+                }
+                if d < g_shape.len() && g_shape[d] > 1 {
+                    gi += coords[d] * g_strides[d];
+                }
+                if d < v_shape.len() && v_shape[d] > 1 {
+                    vi += coords[d] * v_strides[d];
+                }
             }
 
             unsafe {
@@ -78,7 +85,7 @@ pub fn sgd_step<T: Scalar, B: Backend>(
     }
 }
 
-pub fn adam_step<T: Scalar, B: Backend>(
+pub fn adam_step<T: Scalar + FloatOps, B: Backend>(
     backend: &B,
     param: &mut B::DeviceBuffer<T>,
     param_layout: &Layout,
@@ -163,10 +170,18 @@ pub fn adam_step<T: Scalar, B: Backend>(
             let mut vi = v_off;
 
             for d in 0..ndim {
-                if d < p_shape.len() && p_shape[d] > 1 { pi += coords[d] * p_strides[d]; }
-                if d < g_shape.len() && g_shape[d] > 1 { gi += coords[d] * g_strides[d]; }
-                if d < m_shape.len() && m_shape[d] > 1 { mi += coords[d] * m_strides[d]; }
-                if d < v_shape.len() && v_shape[d] > 1 { vi += coords[d] * v_strides[d]; }
+                if d < p_shape.len() && p_shape[d] > 1 {
+                    pi += coords[d] * p_strides[d];
+                }
+                if d < g_shape.len() && g_shape[d] > 1 {
+                    gi += coords[d] * g_strides[d];
+                }
+                if d < m_shape.len() && m_shape[d] > 1 {
+                    mi += coords[d] * m_strides[d];
+                }
+                if d < v_shape.len() && v_shape[d] > 1 {
+                    vi += coords[d] * v_strides[d];
+                }
             }
 
             unsafe {
@@ -216,9 +231,8 @@ pub fn rmsprop_step<T: Scalar, B: Backend>(
     let g_off = grad_layout.offset();
     let v_off = v_layout.offset();
 
-    let is_contiguous = param_layout.is_contiguous()
-        && grad_layout.is_contiguous()
-        && v_layout.is_contiguous();
+    let is_contiguous =
+        param_layout.is_contiguous() && grad_layout.is_contiguous() && v_layout.is_contiguous();
 
     if is_contiguous {
         backend.parallel_for(0, numel, move |i| unsafe {
@@ -251,9 +265,15 @@ pub fn rmsprop_step<T: Scalar, B: Backend>(
             let mut vi = v_off;
 
             for d in 0..ndim {
-                if d < p_shape.len() && p_shape[d] > 1 { pi += coords[d] * p_strides[d]; }
-                if d < g_shape.len() && g_shape[d] > 1 { gi += coords[d] * g_strides[d]; }
-                if d < v_shape.len() && v_shape[d] > 1 { vi += coords[d] * v_strides[d]; }
+                if d < p_shape.len() && p_shape[d] > 1 {
+                    pi += coords[d] * p_strides[d];
+                }
+                if d < g_shape.len() && g_shape[d] > 1 {
+                    gi += coords[d] * g_strides[d];
+                }
+                if d < v_shape.len() && v_shape[d] > 1 {
+                    vi += coords[d] * v_strides[d];
+                }
             }
 
             unsafe {
@@ -276,7 +296,7 @@ pub fn rmsprop_step<T: Scalar, B: Backend>(
 /// 3. m̂ = m / (1 − β₁ᵗ),  v̂ = v / (1 − β₂ᵗ)
 /// 4. p = p − lr·(m̂/(√v̂+ε) + λ·p)      [decoupled weight-decay λ]
 #[allow(clippy::too_many_arguments)]
-pub fn adamw_step<T: Scalar, B: Backend>(
+pub fn adamw_step<T: Scalar + FloatOps, B: Backend>(
     backend: &B,
     param: &mut B::DeviceBuffer<T>,
     param_layout: &Layout,
@@ -336,18 +356,18 @@ pub fn adamw_step<T: Scalar, B: Backend>(
             let m_hat = m_val / bias_correction1;
             let v_hat = v_val / bias_correction2;
             let adam_update = lr * m_hat / (v_hat.sqrt_val() + eps);
-            let wd_update   = lr * weight_decay * p_ptr.read(p_off + i);
+            let wd_update = lr * weight_decay * p_ptr.read(p_off + i);
             p_ptr.write(p_off + i, p_ptr.read(p_off + i) - adam_update - wd_update);
         });
     } else {
         let ndim = param_layout.ndim();
-        let p_shape   = param_layout.shape_cloned();
+        let p_shape = param_layout.shape_cloned();
         let p_strides = param_layout.strides_cloned();
-        let g_shape   = grad_layout.shape_cloned();
+        let g_shape = grad_layout.shape_cloned();
         let g_strides = grad_layout.strides_cloned();
-        let m_shape   = m_layout.shape_cloned();
+        let m_shape = m_layout.shape_cloned();
         let m_strides = m_layout.strides_cloned();
-        let v_shape   = v_layout.shape_cloned();
+        let v_shape = v_layout.shape_cloned();
         let v_strides = v_layout.strides_cloned();
 
         backend.parallel_for(0, numel, move |i| {
@@ -364,10 +384,18 @@ pub fn adamw_step<T: Scalar, B: Backend>(
             let mut vi = v_off;
 
             for d in 0..ndim {
-                if d < p_shape.len() && p_shape[d] > 1 { pi += coords[d] * p_strides[d]; }
-                if d < g_shape.len() && g_shape[d] > 1 { gi += coords[d] * g_strides[d]; }
-                if d < m_shape.len() && m_shape[d] > 1 { mi += coords[d] * m_strides[d]; }
-                if d < v_shape.len() && v_shape[d] > 1 { vi += coords[d] * v_strides[d]; }
+                if d < p_shape.len() && p_shape[d] > 1 {
+                    pi += coords[d] * p_strides[d];
+                }
+                if d < g_shape.len() && g_shape[d] > 1 {
+                    gi += coords[d] * g_strides[d];
+                }
+                if d < m_shape.len() && m_shape[d] > 1 {
+                    mi += coords[d] * m_strides[d];
+                }
+                if d < v_shape.len() && v_shape[d] > 1 {
+                    vi += coords[d] * v_strides[d];
+                }
             }
 
             unsafe {
@@ -380,7 +408,7 @@ pub fn adamw_step<T: Scalar, B: Backend>(
                 let m_hat = m_val / bias_correction1;
                 let v_hat = v_val / bias_correction2;
                 let adam_update = lr * m_hat / (v_hat.sqrt_val() + eps);
-                let wd_update   = lr * weight_decay * p_ptr.read(pi);
+                let wd_update = lr * weight_decay * p_ptr.read(pi);
                 p_ptr.write(pi, p_ptr.read(pi) - adam_update - wd_update);
             }
         });
@@ -425,7 +453,10 @@ pub fn adagrad_step<T: Scalar, B: Backend>(
             let g = g_ptr.read(g_off + i);
             let h = h_ptr.read(h_off + i) + g * g;
             h_ptr.write(h_off + i, h);
-            p_ptr.write(p_off + i, p_ptr.read(p_off + i) - lr * g / (h.sqrt_val() + eps));
+            p_ptr.write(
+                p_off + i,
+                p_ptr.read(p_off + i) - lr * g / (h.sqrt_val() + eps),
+            );
         });
     } else {
         let ndim = param_layout.ndim();
@@ -449,9 +480,15 @@ pub fn adagrad_step<T: Scalar, B: Backend>(
             let mut hi = h_off;
 
             for d in 0..ndim {
-                if d < p_shape.len() && p_shape[d] > 1 { pi += coords[d] * p_strides[d]; }
-                if d < g_shape.len() && g_shape[d] > 1 { gi += coords[d] * g_strides[d]; }
-                if d < h_shape.len() && h_shape[d] > 1 { hi += coords[d] * h_strides[d]; }
+                if d < p_shape.len() && p_shape[d] > 1 {
+                    pi += coords[d] * p_strides[d];
+                }
+                if d < g_shape.len() && g_shape[d] > 1 {
+                    gi += coords[d] * g_strides[d];
+                }
+                if d < h_shape.len() && h_shape[d] > 1 {
+                    hi += coords[d] * h_strides[d];
+                }
             }
 
             unsafe {
@@ -463,4 +500,3 @@ pub fn adagrad_step<T: Scalar, B: Backend>(
         });
     }
 }
-

@@ -1,4 +1,4 @@
-use coeus_core::{SequentialBackend, MoiraiBackend};
+use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::{Tensor, Transpose};
 
 /// Self-contained row-major matmul reference: `c[m,n] = a[m,k] · b[k,n]`.
@@ -21,7 +21,7 @@ fn matmul_ref(a: &[f32], m: usize, k: usize, b: &[f32], n: usize) -> Vec<f32> {
 fn test_elementwise_add_parity() {
     let backend = SequentialBackend::new();
     let shape = vec![3, 4];
-    
+
     // Coeus tensors
     let mut a = Tensor::<f32, SequentialBackend>::zeros(shape.clone());
     let mut b = Tensor::<f32, SequentialBackend>::zeros(shape.clone());
@@ -61,7 +61,7 @@ fn test_relu_parity() {
 
     let b = coeus_ops::relu(&a, &backend);
     let slice = b.as_slice();
-    
+
     assert_eq!(slice[0], 0.0);
     assert_eq!(slice[1], 2.0);
     assert_eq!(slice[2], 0.0);
@@ -73,11 +73,11 @@ fn test_relu_parity() {
 #[test]
 fn test_non_contiguous_matmul_parity() {
     let backend = SequentialBackend::new();
-    
+
     // 2x3 matrix (row-major)
     let a_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     let a = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a_data);
-    
+
     // 3x2 matrix (row-major)
     let b_data = vec![7.0f32, 8.0, 9.0, 10.0, 11.0, 12.0];
     let b = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 2], &b_data);
@@ -144,38 +144,39 @@ fn test_fft_1d_parity() {
     // 1D signal (8 elements)
     let data = vec![1.0f64, 2.0, 1.0, -1.0, 1.5, 3.0, 2.2, 0.5];
     let signal = Tensor::<f64, MoiraiBackend>::from_vec(data.clone());
-    
+
     // Forward FFT
     let spectrum = coeus_ops::fft_1d(&signal);
     assert_eq!(spectrum.shape(), &[8]);
 
     // Inverse FFT
     let reconstructed = coeus_ops::ifft_1d(&spectrum);
-    
+
     // Assert reconstruction parity (original signal is recovered)
     let original = signal.as_slice();
     let recon = reconstructed.as_slice();
     for i in 0..8 {
         let diff = (original[i] - recon[i]).abs();
-        assert!(diff < 1e-7, "Reconstruction mismatch at index {i}: original={}, reconstructed={}", original[i], recon[i]);
+        assert!(
+            diff < 1e-7,
+            "Reconstruction mismatch at index {i}: original={}, reconstructed={}",
+            original[i],
+            recon[i]
+        );
     }
 }
 
 #[test]
 fn test_sparse_spmv_spmm_parity() {
     let backend = SequentialBackend::new();
-    
+
     // Dense 3x3 matrix with some zeros
     // A = [ 0.0  2.0  0.0 ]
     //     [ 1.0  0.0  3.0 ]
     //     [ 0.0  4.0  5.0 ]
-    let dense_data = vec![
-        0.0f32, 2.0, 0.0,
-        1.0, 0.0, 3.0,
-        0.0, 4.0, 5.0
-    ];
+    let dense_data = vec![0.0f32, 2.0, 0.0, 1.0, 0.0, 3.0, 0.0, 4.0, 5.0];
     let a = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 3], &dense_data);
-    
+
     // Convert to CSR
     let csr = coeus_ops::dense_to_csr(&a, &backend);
     assert_eq!(csr.nnz(), 5);
@@ -183,26 +184,22 @@ fn test_sparse_spmv_spmm_parity() {
     // 1. SpMV parity test: y = A x
     let x_data = vec![2.0f32, 1.0, 3.0];
     let x = Tensor::<f32, SequentialBackend>::from_vec(x_data.clone());
-    
+
     let y_sparse = coeus_ops::spmv(&csr, &x, &backend);
-    
+
     // Dense equivalent matmul: requires 2D column vector
     let x_dense = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 1], &x_data);
     let y_dense = coeus_ops::matmul(&a, &x_dense, &backend);
-    
+
     assert_eq!(y_sparse.as_slice(), y_dense.as_slice());
 
     // 2. SpMM parity test: C = A B
-    let b_data = vec![
-        1.0f32, 2.0,
-        3.0, 4.0,
-        5.0, 6.0
-    ];
+    let b_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     let b = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 2], &b_data);
-    
+
     let c_sparse = coeus_ops::spmm(&csr, &b, &backend);
     let c_dense = coeus_ops::matmul(&a, &b, &backend);
-    
+
     assert_eq!(c_sparse.as_slice(), c_dense.as_slice());
 }
 
@@ -232,7 +229,7 @@ fn test_to_backend_transfers() {
     // The transferred tensor is contiguous on the new backend
     assert_eq!(a_t_moirai.shape(), &[3, 2]);
     assert!(a_t_moirai.is_contiguous());
-    
+
     // Elements should match transposed layout: [1, 4, 2, 5, 3, 6]
     let expected_t = vec![1.0f32, 4.0, 2.0, 5.0, 3.0, 6.0];
     assert_eq!(a_t_moirai.as_slice(), &expected_t);
@@ -241,12 +238,10 @@ fn test_to_backend_transfers() {
 #[test]
 fn test_sliced_tensor_offset_ops() {
     let backend = MoiraiBackend::new();
-    
+
     // Contiguous tensor [3, 4]
     let data = vec![
-        1.0f32,  2.0,  3.0,  4.0,
-        5.0,  6.0,  7.0,  8.0,
-        9.0, 10.0, 11.0, 12.0,
+        1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
     ];
     let a = Tensor::<f32, MoiraiBackend>::from_slice(vec![3, 4], &data);
 
@@ -263,7 +258,7 @@ fn test_sliced_tensor_offset_ops() {
     assert!(slice_a_1d.is_contiguous());
 
     let b_1d = Tensor::<f32, MoiraiBackend>::from_slice(vec![4], &[2.0, 3.0, 4.0, 5.0]);
-    
+
     // Test binary addition: contiguous fast path with non-zero offset on input A
     let sum_1d = coeus_ops::add(&slice_a_1d, &b_1d, &backend);
     assert_eq!(sum_1d.as_slice(), &[7.0, 9.0, 11.0, 13.0]);
@@ -272,7 +267,7 @@ fn test_sliced_tensor_offset_ops() {
     let target_1d = Tensor::<f32, MoiraiBackend>::zeros_on(vec![8], &backend);
     let mut slice_target = target_1d.slice(&[(2, 6)]); // shape [4], offset 2
     assert!(slice_target.is_contiguous());
-    
+
     coeus_ops::add_assign(&mut slice_target, &b_1d, &backend);
     // Value semantics / COW: mutating slice_target triggers COW and detaches from target_1d
     assert_eq!(slice_target.as_slice(), &[2.0, 3.0, 4.0, 5.0]);
@@ -341,4 +336,3 @@ fn test_sliced_tensor_reshape_and_reduction() {
     let sum_val = coeus_ops::sum(&slice_a, &backend);
     assert_eq!(sum_val, 18.0); // 3 + 4 + 5 + 6 = 18
 }
-

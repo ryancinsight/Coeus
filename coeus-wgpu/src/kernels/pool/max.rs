@@ -1,9 +1,9 @@
 #![allow(clippy::too_many_arguments)]
 
+use super::PoolParams;
+use crate::backend::WgpuScalar;
 use crate::kernels::cache::PIPELINE_CACHE;
 use crate::kernels::layout::GpuLayoutInfo;
-use crate::backend::WgpuScalar;
-use super::PoolParams;
 
 pub fn dispatch_max_pool2d<T: WgpuScalar>(
     input: &wgpu::Buffer,
@@ -32,9 +32,12 @@ pub fn dispatch_max_pool2d<T: WgpuScalar>(
     let out_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let params_buf = crate::backend::PooledMetadataBuffer::new();
 
-    ctx.queue.write_buffer(&in_layout_buf, 0, bytemuck::bytes_of(&in_layout_gpu));
-    ctx.queue.write_buffer(&out_layout_buf, 0, bytemuck::bytes_of(&out_layout_gpu));
-    ctx.queue.write_buffer(&params_buf, 0, bytemuck::bytes_of(&params_data));
+    ctx.queue
+        .write_buffer(&in_layout_buf, 0, bytemuck::bytes_of(&in_layout_gpu));
+    ctx.queue
+        .write_buffer(&out_layout_buf, 0, bytemuck::bytes_of(&out_layout_gpu));
+    ctx.queue
+        .write_buffer(&params_buf, 0, bytemuck::bytes_of(&params_data));
 
     let wgsl_type = T::WGSL_TYPE;
     let min_val = match wgsl_type {
@@ -149,17 +152,34 @@ pub fn dispatch_max_pool2d<T: WgpuScalar>(
         label: Some("max_pool2d-bind-group"),
         layout: &bind_group_layout,
         entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: input.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 1, resource: output.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 2, resource: in_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 3, resource: out_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 4, resource: params_buf.as_entire_binding() },
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: input.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: output.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: in_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: out_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: params_buf.as_entire_binding(),
+            },
         ],
     });
 
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("max_pool2d-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("max_pool2d-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -206,10 +226,14 @@ pub fn dispatch_max_pool2d_backward<T: WgpuScalar>(
     let gi_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let params_buf = crate::backend::PooledMetadataBuffer::new();
 
-    ctx.queue.write_buffer(&go_layout_buf, 0, bytemuck::bytes_of(&go_layout_gpu));
-    ctx.queue.write_buffer(&in_layout_buf, 0, bytemuck::bytes_of(&in_layout_gpu));
-    ctx.queue.write_buffer(&gi_layout_buf, 0, bytemuck::bytes_of(&gi_layout_gpu));
-    ctx.queue.write_buffer(&params_buf, 0, bytemuck::bytes_of(&params_data));
+    ctx.queue
+        .write_buffer(&go_layout_buf, 0, bytemuck::bytes_of(&go_layout_gpu));
+    ctx.queue
+        .write_buffer(&in_layout_buf, 0, bytemuck::bytes_of(&in_layout_gpu));
+    ctx.queue
+        .write_buffer(&gi_layout_buf, 0, bytemuck::bytes_of(&gi_layout_gpu));
+    ctx.queue
+        .write_buffer(&params_buf, 0, bytemuck::bytes_of(&params_data));
 
     let wgsl_type = T::WGSL_TYPE;
     let min_val = match wgsl_type {
@@ -350,19 +374,42 @@ pub fn dispatch_max_pool2d_backward<T: WgpuScalar>(
         label: Some("max_pool2d_backward-bind-group"),
         layout: &bind_group_layout,
         entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: grad_out.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 1, resource: input.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 2, resource: grad_input.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 3, resource: go_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 4, resource: in_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 5, resource: gi_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 6, resource: params_buf.as_entire_binding() },
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: grad_out.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: input.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: grad_input.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: go_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: in_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 5,
+                resource: gi_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 6,
+                resource: params_buf.as_entire_binding(),
+            },
         ],
     });
 
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("max_pool2d_backward-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("max_pool2d_backward-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {

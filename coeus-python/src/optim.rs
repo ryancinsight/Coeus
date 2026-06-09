@@ -1,6 +1,6 @@
-use pyo3::prelude::*;
 use crate::tensor::PyTensor;
 use coeus_autograd::Var;
+use pyo3::prelude::*;
 
 /// Python-exposed SGD optimizer.
 #[pyclass(name = "SGD")]
@@ -14,10 +14,8 @@ impl PySGD {
     #[new]
     #[pyo3(signature = (params, lr, momentum = 0.0))]
     pub fn new(py: Python<'_>, params: Vec<Py<PyTensor>>, lr: f64, momentum: f64) -> Self {
-        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> = params
-            .iter()
-            .map(|p| p.borrow(py).inner.clone())
-            .collect();
+        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
+            params.iter().map(|p| p.borrow(py).inner.clone()).collect();
         Self {
             params,
             inner: coeus_optim::SGD::new(vars, lr, momentum),
@@ -66,10 +64,8 @@ impl PyAdam {
         beta2: f64,
         eps: f64,
     ) -> Self {
-        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> = params
-            .iter()
-            .map(|p| p.borrow(py).inner.clone())
-            .collect();
+        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
+            params.iter().map(|p| p.borrow(py).inner.clone()).collect();
         Self {
             params,
             inner: coeus_optim::Adam::new(vars, lr, beta1, beta2, eps),
@@ -110,17 +106,9 @@ pub struct PyRMSProp {
 impl PyRMSProp {
     #[new]
     #[pyo3(signature = (params, lr = 1e-2, alpha = 0.99, eps = 1e-8))]
-    pub fn new(
-        py: Python<'_>,
-        params: Vec<Py<PyTensor>>,
-        lr: f64,
-        alpha: f64,
-        eps: f64,
-    ) -> Self {
-        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> = params
-            .iter()
-            .map(|p| p.borrow(py).inner.clone())
-            .collect();
+    pub fn new(py: Python<'_>, params: Vec<Py<PyTensor>>, lr: f64, alpha: f64, eps: f64) -> Self {
+        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
+            params.iter().map(|p| p.borrow(py).inner.clone()).collect();
         Self {
             params,
             inner: coeus_optim::RMSProp::new(vars, lr, alpha, eps),
@@ -161,16 +149,9 @@ pub struct PyAdaGrad {
 impl PyAdaGrad {
     #[new]
     #[pyo3(signature = (params, lr = 1e-2, eps = 1e-10))]
-    pub fn new(
-        py: Python<'_>,
-        params: Vec<Py<PyTensor>>,
-        lr: f64,
-        eps: f64,
-    ) -> Self {
-        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> = params
-            .iter()
-            .map(|p| p.borrow(py).inner.clone())
-            .collect();
+    pub fn new(py: Python<'_>, params: Vec<Py<PyTensor>>, lr: f64, eps: f64) -> Self {
+        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
+            params.iter().map(|p| p.borrow(py).inner.clone()).collect();
         Self {
             params,
             inner: coeus_optim::AdaGrad::new(vars, lr, eps),
@@ -220,10 +201,8 @@ impl PyAdamW {
         eps: f64,
         weight_decay: f64,
     ) -> Self {
-        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> = params
-            .iter()
-            .map(|p| p.borrow(py).inner.clone())
-            .collect();
+        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
+            params.iter().map(|p| p.borrow(py).inner.clone()).collect();
         Self {
             params,
             inner: coeus_optim::AdamW::new(vars, lr, beta1, beta2, eps, weight_decay),
@@ -285,7 +264,10 @@ impl PyLrScheduler {
     #[staticmethod]
     pub fn cosine_anneal(optimizer: PyObject, base_lr: f64, t_max: usize, eta_min: f64) -> Self {
         Self {
-            strategy: PySchedulerStrategy::CosineAnneal(coeus_optim::CosineAnneal { t_max, eta_min }),
+            strategy: PySchedulerStrategy::CosineAnneal(coeus_optim::CosineAnneal {
+                t_max,
+                eta_min,
+            }),
             optimizer,
             base_lr,
             step: 0,
@@ -303,9 +285,19 @@ impl PyLrScheduler {
     }
 
     #[staticmethod]
-    pub fn warmup_cosine(optimizer: PyObject, base_lr: f64, warmup_steps: usize, t_max: usize, eta_min: f64) -> Self {
+    pub fn warmup_cosine(
+        optimizer: PyObject,
+        base_lr: f64,
+        warmup_steps: usize,
+        t_max: usize,
+        eta_min: f64,
+    ) -> Self {
         Self {
-            strategy: PySchedulerStrategy::WarmupCosine(coeus_optim::WarmupCosine { warmup_steps, t_max, eta_min }),
+            strategy: PySchedulerStrategy::WarmupCosine(coeus_optim::WarmupCosine {
+                warmup_steps,
+                t_max,
+                eta_min,
+            }),
             optimizer,
             base_lr,
             step: 0,
@@ -359,7 +351,9 @@ impl PyLrScheduler {
             adagrad.inner.set_lr(new_lr);
             adagrad.step(py);
         } else {
-            return Err(pyo3::exceptions::PyTypeError::new_err("Unsupported optimizer type"));
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "Unsupported optimizer type",
+            ));
         }
 
         self.step += 1;

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Mutex, LazyLock, Arc};
+use std::sync::{Arc, LazyLock, Mutex};
 
 /// Pipeline cache to avoid recompiling compute shaders.
 pub struct PipelineCache {
@@ -8,7 +8,13 @@ pub struct PipelineCache {
 
 impl PipelineCache {
     /// Retrieve a compute pipeline from cache or compile it.
-    pub fn get_or_create(&self, key: &str, device: &wgpu::Device, source: &str, entry_point: &str) -> Arc<wgpu::ComputePipeline> {
+    pub fn get_or_create(
+        &self,
+        key: &str,
+        device: &wgpu::Device,
+        source: &str,
+        entry_point: &str,
+    ) -> Arc<wgpu::ComputePipeline> {
         let mut cache = self.pipelines.lock().unwrap();
         if let Some(pipeline) = cache.get(key) {
             return pipeline.clone();

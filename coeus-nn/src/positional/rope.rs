@@ -7,20 +7,17 @@
 //
 // where rotate_half([x1, x2]) = [-x2, x1].
 
+use crate::module::Module;
+use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
-use coeus_autograd::Var;
-use crate::module::Module;
 
 /// Rotary Positional Embedding (RoPE) layer.
 ///
 /// Precomputes `cos` and `sin` tables of shape `[max_len, d_head]`,
 /// and applies them to query/key tensors of shape `[batch, seq_len, num_heads, d_head]`.
 #[derive(Clone)]
-pub struct RotaryEmbedding<
-    T: Scalar,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
-> {
+pub struct RotaryEmbedding<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Precomputed cos table: `[max_len, d_head]`.
     pub cos: Tensor<T, B>,
     /// Precomputed sin table: `[max_len, d_head]`.
@@ -36,7 +33,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
     /// - `d_head`: dimension per attention head (must be even).
     /// - `base`: base value for theta (typically 10000.0).
     pub fn new(max_len: usize, d_head: usize, base: f64) -> Self {
-        assert!(d_head.is_multiple_of(2), "RotaryEmbedding: d_head must be even, got {d_head}");
+        assert!(
+            d_head.is_multiple_of(2),
+            "RotaryEmbedding: d_head must be even, got {d_head}"
+        );
         let backend = B::default();
 
         let mut cos_table = Tensor::zeros_on([max_len, d_head], &backend);
@@ -44,9 +44,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
 
         {
             use coeus_core::StorageMut;
-            let cos_slice = cos_table.storage_mut().try_as_mut_slice()
+            let cos_slice = cos_table
+                .storage_mut()
+                .try_as_mut_slice()
                 .expect("RotaryEmbedding: backend must be CPU-addressable at construction");
-            let sin_slice = sin_table.storage_mut().try_as_mut_slice()
+            let sin_slice = sin_table
+                .storage_mut()
+                .try_as_mut_slice()
                 .expect("RotaryEmbedding: backend must be CPU-addressable at construction");
 
             let half_dim = d_head / 2;
@@ -81,15 +85,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
     /// where dimension 1 is `seq_len` and the last dimension is `d_head`.
     pub fn forward(&self, x: &Var<T, B>) -> Var<T, B>
     where
-        B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+        B::DeviceBuffer<T>:
+            coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
     {
         let backend = B::default();
         let shape = x.tensor.shape();
         let ndim = shape.len();
-        assert!(ndim >= 2, "RotaryEmbedding: input must have at least 2 dimensions");
+        assert!(
+            ndim >= 2,
+            "RotaryEmbedding: input must have at least 2 dimensions"
+        );
         let seq_len = shape[1];
         let d_head = shape[ndim - 1];
-        assert_eq!(d_head, self.d_head, "RotaryEmbedding: input last dimension must match d_head");
+        assert_eq!(
+            d_head, self.d_head,
+            "RotaryEmbedding: input last dimension must match d_head"
+        );
 
         // Extract the top `seq_len` rows from the PE tables.
         let cos_slice = extract_pe_slice(&self.cos, seq_len, self.d_head, &backend);
@@ -112,10 +123,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for RotaryEmbedding<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RotaryEmbedding<T, B>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
@@ -154,11 +165,10 @@ fn extract_pe_slice<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Helper to compute rotate_half(x).
 ///
 /// rotate_half([x1, x2]) = [-x2, x1]
-fn rotate_half<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
-    x: &Var<T, B>,
-) -> Var<T, B>
+fn rotate_half<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(x: &Var<T, B>) -> Var<T, B>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let shape = x.tensor.shape();
     let ndim = shape.len();
@@ -167,7 +177,11 @@ where
 
     // Split along the last dimension.
     let chunks = coeus_autograd::split(x, half, ndim - 1);
-    assert_eq!(chunks.len(), 2, "rotate_half: split should yield exactly 2 chunks");
+    assert_eq!(
+        chunks.len(),
+        2,
+        "rotate_half: split should yield exactly 2 chunks"
+    );
 
     let x1 = &chunks[0];
     let x2 = &chunks[1];

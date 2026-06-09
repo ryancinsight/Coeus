@@ -1,9 +1,9 @@
 // ── Weight initialization ──
 
-use std::cell::RefCell;
-use coeus_core::{Float, MoiraiBackend};
 use coeus_autograd::Var;
+use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
+use std::cell::RefCell;
 
 /// A simple, fast, deterministic pseudo-random number generator (Xorshift64).
 pub struct Xorshift64 {
@@ -65,7 +65,11 @@ pub fn uniform_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Initialize weights with values from a uniform distribution U(a, b) using default seed.
-pub fn uniform<T: Float, B: coeus_ops::BackendOps<T> + Default>(weight: &mut Var<T, B>, a: f64, b: f64) {
+pub fn uniform<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    weight: &mut Var<T, B>,
+    a: f64,
+    b: f64,
+) {
     uniform_with_seed(weight, a, b, 42);
 }
 
@@ -88,7 +92,11 @@ pub fn normal_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Initialize weights with values from a normal distribution N(mean, std_dev) using default seed.
-pub fn normal<T: Float, B: coeus_ops::BackendOps<T> + Default>(weight: &mut Var<T, B>, mean: f64, std_dev: f64) {
+pub fn normal<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    weight: &mut Var<T, B>,
+    mean: f64,
+    std_dev: f64,
+) {
     normal_with_seed(weight, mean, std_dev, 42);
 }
 
@@ -161,7 +169,10 @@ pub fn kaiming_uniform_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default
 }
 
 /// Kaiming (He) uniform initialization.
-pub fn kaiming_uniform<T: Float, B: coeus_ops::BackendOps<T> + Default>(weight: &mut Var<T, B>, fan_in: usize) {
+pub fn kaiming_uniform<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    weight: &mut Var<T, B>,
+    fan_in: usize,
+) {
     kaiming_uniform_with_seed(weight, fan_in, 42);
 }
 
@@ -176,6 +187,9 @@ pub fn kaiming_normal_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>
 }
 
 /// Kaiming (He) normal initialization.
-pub fn kaiming_normal<T: Float, B: coeus_ops::BackendOps<T> + Default>(weight: &mut Var<T, B>, fan_in: usize) {
+pub fn kaiming_normal<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    weight: &mut Var<T, B>,
+    fan_in: usize,
+) {
     kaiming_normal_with_seed(weight, fan_in, 42);
 }

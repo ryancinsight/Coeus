@@ -1,8 +1,8 @@
 // ── Tensor iterators ──
 // Simple element-wise iteration via adaptor methods on contiguous tensors.
 
-use coeus_core::{Scalar, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut};
 use crate::tensor::Tensor;
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B>
 where

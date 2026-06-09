@@ -1,8 +1,8 @@
-use coeus_core::{Scalar, Layout, Backend, CpuAddressableStorageMut};
-use super::{BackendOps, BinaryOp, UnaryOp, ReductionOp};
+use super::{BackendOps, BinaryOp, ReductionOp, UnaryOp};
+use coeus_core::{Backend, CpuAddressableStorageMut, Layout, Scalar};
 
-mod binary;
 mod attention;
+mod binary;
 mod conv;
 mod matmul;
 mod optim;
@@ -289,7 +289,17 @@ where
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        pool::max_pool2d(self, input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+        pool::max_pool2d(
+            self,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -306,7 +316,19 @@ where
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        pool::max_pool2d_backward(self, grad_out, grad_out_layout, input, input_layout, kernel_size, stride, padding, dilation, grad_input, grad_input_layout);
+        pool::max_pool2d_backward(
+            self,
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        );
     }
 
     #[inline]
@@ -321,7 +343,17 @@ where
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        pool::avg_pool2d(self, input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+        pool::avg_pool2d(
+            self,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -336,7 +368,17 @@ where
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        pool::avg_pool2d_backward(self, grad_out, grad_out_layout, kernel_size, stride, padding, dilation, grad_input, grad_input_layout);
+        pool::avg_pool2d_backward(
+            self,
+            grad_out,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        );
     }
 
     #[inline]
@@ -351,7 +393,17 @@ where
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        pool::max_pool3d(self, input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+        pool::max_pool3d(
+            self,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -368,7 +420,19 @@ where
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        pool::max_pool3d_backward(self, grad_out, grad_out_layout, input, input_layout, kernel_size, stride, padding, dilation, grad_input, grad_input_layout);
+        pool::max_pool3d_backward(
+            self,
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        );
     }
 
     #[inline]
@@ -383,7 +447,17 @@ where
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        pool::avg_pool3d(self, input, input_layout, kernel_size, stride, padding, dilation, output, output_layout);
+        pool::avg_pool3d(
+            self,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -398,7 +472,17 @@ where
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        pool::avg_pool3d_backward(self, grad_out, grad_out_layout, kernel_size, stride, padding, dilation, grad_input, grad_input_layout);
+        pool::avg_pool3d_backward(
+            self,
+            grad_out,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        );
     }
 
     #[inline]
@@ -413,7 +497,17 @@ where
         lr: T,
         momentum: T,
     ) {
-        optim::sgd_step(self, param, param_layout, grad, grad_layout, velocity, velocity_layout, lr, momentum);
+        optim::sgd_step(
+            self,
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            velocity,
+            velocity_layout,
+            lr,
+            momentum,
+        );
     }
 
     #[inline]
@@ -432,8 +526,25 @@ where
         beta2: T,
         eps: T,
         t: usize,
-    ) {
-        optim::adam_step(self, param, param_layout, grad, grad_layout, m, m_layout, v, v_layout, lr, beta1, beta2, eps, t);
+    ) where
+        T: coeus_core::Float,
+    {
+        optim::adam_step(
+            self,
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            m,
+            m_layout,
+            v,
+            v_layout,
+            lr,
+            beta1,
+            beta2,
+            eps,
+            t,
+        );
     }
 
     #[inline]
@@ -449,7 +560,18 @@ where
         alpha: T,
         eps: T,
     ) {
-        optim::rmsprop_step(self, param, param_layout, grad, grad_layout, v, v_layout, lr, alpha, eps);
+        optim::rmsprop_step(
+            self,
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            v,
+            v_layout,
+            lr,
+            alpha,
+            eps,
+        );
     }
 
     #[inline]
@@ -469,8 +591,26 @@ where
         eps: T,
         weight_decay: T,
         t: usize,
-    ) {
-        optim::adamw_step(self, param, param_layout, grad, grad_layout, m, m_layout, v, v_layout, lr, beta1, beta2, eps, weight_decay, t);
+    ) where
+        T: coeus_core::Float,
+    {
+        optim::adamw_step(
+            self,
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            m,
+            m_layout,
+            v,
+            v_layout,
+            lr,
+            beta1,
+            beta2,
+            eps,
+            weight_decay,
+            t,
+        );
     }
 
     #[inline]
@@ -484,8 +624,20 @@ where
         history_layout: &Layout,
         lr: T,
         eps: T,
-    ) where T: coeus_core::Float {
-        optim::adagrad_step(self, param, param_layout, grad, grad_layout, history, history_layout, lr, eps);
+    ) where
+        T: coeus_core::Float,
+    {
+        optim::adagrad_step(
+            self,
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            history,
+            history_layout,
+            lr,
+            eps,
+        );
     }
 
     fn sdp_attention(
@@ -504,8 +656,26 @@ where
         output_layout: &Layout,
         attn_weights: &mut Self::DeviceBuffer<T>,
         attn_weights_layout: &Layout,
-    ) where T: coeus_core::Float {
-        attention::sdp_attention(self, query, query_layout, key, key_layout, value, value_layout, key_padding_mask, key_padding_mask_layout, is_causal, scale, output, output_layout, attn_weights, attn_weights_layout);
+    ) where
+        T: coeus_core::Float,
+    {
+        attention::sdp_attention(
+            self,
+            query,
+            query_layout,
+            key,
+            key_layout,
+            value,
+            value_layout,
+            key_padding_mask,
+            key_padding_mask_layout,
+            is_causal,
+            scale,
+            output,
+            output_layout,
+            attn_weights,
+            attn_weights_layout,
+        );
     }
 
     #[inline]
@@ -525,7 +695,25 @@ where
         grad_q: Option<&mut Self::DeviceBuffer<T>>,
         grad_k: Option<&mut Self::DeviceBuffer<T>>,
         grad_v: Option<&mut Self::DeviceBuffer<T>>,
-    ) where T: coeus_core::Float {
-        attention::sdp_attention_backward(self, grad_out, grad_out_layout, query, query_layout, key, key_layout, value, value_layout, attn_weights, attn_weights_layout, scale, grad_q, grad_k, grad_v);
+    ) where
+        T: coeus_core::Float,
+    {
+        attention::sdp_attention_backward(
+            self,
+            grad_out,
+            grad_out_layout,
+            query,
+            query_layout,
+            key,
+            key_layout,
+            value,
+            value_layout,
+            attn_weights,
+            attn_weights_layout,
+            scale,
+            grad_q,
+            grad_k,
+            grad_v,
+        );
     }
 }

@@ -1,7 +1,7 @@
 // ── Split ──
 // Splits a tensor into multiple tensors along a given dimension.
 
-use coeus_core::{Scalar, ComputeBackend, Layout, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 use coeus_tensor::Tensor;
 
 /// Split `x` into chunks of size `chunk_size` along `dim`.
@@ -22,7 +22,10 @@ where
 {
     assert!(chunk_size > 0, "split: chunk_size must be > 0");
     let ndim = x.ndim();
-    assert!(dim < ndim, "split: dim {dim} out of range for {ndim}D tensor");
+    assert!(
+        dim < ndim,
+        "split: dim {dim} out of range for {ndim}D tensor"
+    );
 
     let backend = B::default();
     let dim_size = x.shape()[dim];

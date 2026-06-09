@@ -1,8 +1,8 @@
 use super::cache::PIPELINE_CACHE;
 use super::layout::GpuLayoutInfo;
-use coeus_ops::fuse::ExprNode;
 use crate::backend::{WgpuBackend, WgpuScalar};
 use crate::storage::WgpuStorage;
+use coeus_ops::fuse::ExprNode;
 use coeus_tensor::Tensor;
 use std::collections::HashMap;
 
@@ -26,9 +26,12 @@ pub fn dispatch_reduce<T: WgpuScalar>(
     let c_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let axis_buf = crate::backend::PooledMetadataBuffer::new();
 
-    ctx.queue.write_buffer(&a_layout_buf, 0, bytemuck::bytes_of(&a_layout_gpu));
-    ctx.queue.write_buffer(&c_layout_buf, 0, bytemuck::bytes_of(&c_layout_gpu));
-    ctx.queue.write_buffer(&axis_buf, 0, bytemuck::bytes_of(&axis_gpu));
+    ctx.queue
+        .write_buffer(&a_layout_buf, 0, bytemuck::bytes_of(&a_layout_gpu));
+    ctx.queue
+        .write_buffer(&c_layout_buf, 0, bytemuck::bytes_of(&c_layout_gpu));
+    ctx.queue
+        .write_buffer(&axis_buf, 0, bytemuck::bytes_of(&axis_gpu));
 
     let (init_expr, loop_start, update_expr) = match op {
         coeus_ops::ReductionOp::Sum => ("0.0", "0u", "acc = acc + val;"),
@@ -95,17 +98,34 @@ pub fn dispatch_reduce<T: WgpuScalar>(
         label: Some("reduce-bind-group"),
         layout: &bind_group_layout,
         entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: a.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 1, resource: c.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 2, resource: a_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 3, resource: c_layout_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 4, resource: axis_buf.as_entire_binding() },
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: a.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: c.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: a_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: c_layout_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: axis_buf.as_entire_binding(),
+            },
         ],
     });
 
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("reduce-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("reduce-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -114,7 +134,7 @@ pub fn dispatch_reduce<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        
+
         let out_numel = c_layout.shape().iter().product::<usize>();
         let workgroups = out_numel.div_ceil(256);
         compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
@@ -134,7 +154,9 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     let ctx = crate::backend::get_wgpu_context();
     let wgsl_type = T::WGSL_TYPE;
 
-    let expr_shape = expr.shape().expect("Fused expression must have at least one tensor input");
+    let expr_shape = expr
+        .shape()
+        .expect("Fused expression must have at least one tensor input");
     let expr_ndim = expr_shape.len() as u32;
     let axis_len_gpu = expr_shape[axis] as u32;
     let axis_gpu = axis as u32;
@@ -144,10 +166,7 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     expr.collect_inputs(&mut input_ptrs);
     let num_inputs = input_ptrs.len();
 
-    let inputs: Vec<&Tensor<T, WgpuBackend>> = input_ptrs
-        .iter()
-        .map(|&p| unsafe { &*p })
-        .collect();
+    let inputs: Vec<&Tensor<T, WgpuBackend>> = input_ptrs.iter().map(|&p| unsafe { &*p }).collect();
 
     // 2. Build input pointer to index map
     let mut input_map = HashMap::new();
@@ -167,11 +186,13 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     layouts_gpu.push(GpuLayoutInfo::from_layout(c_layout));
 
     let layout_buf = crate::backend::PooledMetadataBuffer::new();
-    ctx.queue.write_buffer(&layout_buf, 0, bytemuck::cast_slice(&layouts_gpu));
+    ctx.queue
+        .write_buffer(&layout_buf, 0, bytemuck::cast_slice(&layouts_gpu));
 
     let axis_info = [axis_gpu, axis_len_gpu];
     let axis_buf = crate::backend::PooledMetadataBuffer::new();
-    ctx.queue.write_buffer(&axis_buf, 0, bytemuck::cast_slice(&axis_info));
+    ctx.queue
+        .write_buffer(&axis_buf, 0, bytemuck::cast_slice(&axis_info));
 
     // 5. Generate the WGSL code
     let mut inputs_decl = String::new();
@@ -298,9 +319,11 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     });
 
     // 8. Dispatch
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("fused-reduce-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("fused-reduce-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -309,7 +332,7 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        
+
         let out_numel = c_layout.shape().iter().product::<usize>();
         let workgroups = out_numel.div_ceil(256);
         compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
@@ -317,5 +340,3 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 
     ctx.queue.submit(Some(encoder.finish()));
 }
-
-

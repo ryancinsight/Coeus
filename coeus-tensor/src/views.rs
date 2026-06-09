@@ -4,8 +4,8 @@
 
 use std::marker::PhantomData;
 
-use coeus_core::{Scalar, Layout, ComputeBackend, Shape, Strides};
 use crate::tensor::Tensor;
+use coeus_core::{ComputeBackend, Layout, Scalar, Shape, Strides};
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// Zero-copy slice. Returns a view sharing the same storage.
@@ -32,11 +32,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         assert_eq!(self.ndim(), 2, "transpose requires 2D tensor");
         let shape: Shape = [self.shape()[1], self.shape()[0]].into();
         let strides: Strides = Strides::from_slice(&[self.strides()[1], self.strides()[0]]);
-        let layout = Layout::from_shape_strides(
-            shape,
-            strides,
-            self.layout.offset(),
-        );
+        let layout = Layout::from_shape_strides(shape, strides, self.layout.offset());
         Self {
             storage: self.storage.clone(),
             layout,
@@ -88,11 +84,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         assert_eq!(self.numel(), new_numel, "reshape element count mismatch");
         assert!(self.is_contiguous(), "reshape requires contiguous tensor");
         let strides = Layout::new(new_shape.clone()).strides_cloned();
-        let layout = Layout::from_shape_strides(
-            new_shape,
-            strides,
-            self.layout.offset(),
-        );
+        let layout = Layout::from_shape_strides(new_shape, strides, self.layout.offset());
         Self {
             storage: self.storage.clone(),
             layout,
@@ -112,11 +104,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
             new_shape.push(self.shape()[d]);
             new_strides.push(self.strides()[d]);
         }
-        let layout = Layout::from_shape_strides(
-            new_shape,
-            new_strides,
-            self.layout.offset(),
-        );
+        let layout = Layout::from_shape_strides(new_shape, new_strides, self.layout.offset());
         Self {
             storage: self.storage.clone(),
             layout,
@@ -131,7 +119,10 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     #[inline]
     pub fn broadcast<S: Into<Shape>>(&self, target_shape: S) -> Self {
         let target_shape = target_shape.into();
-        assert!(self.ndim() <= target_shape.len(), "broadcast target rank too small");
+        assert!(
+            self.ndim() <= target_shape.len(),
+            "broadcast target rank too small"
+        );
 
         let mut shape = Shape::with_capacity(target_shape.len());
         let mut strides = Strides::with_capacity(target_shape.len());
@@ -155,15 +146,15 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
             } else if source_dim == 1 {
                 final_strides.push(0);
             } else {
-                panic!("Incompatible shapes for broadcast: {:?} -> {:?}", self.shape(), target_shape);
+                panic!(
+                    "Incompatible shapes for broadcast: {:?} -> {:?}",
+                    self.shape(),
+                    target_shape
+                );
             }
         }
 
-        let layout = Layout::from_shape_strides(
-            target_shape,
-            final_strides,
-            self.layout.offset(),
-        );
+        let layout = Layout::from_shape_strides(target_shape, final_strides, self.layout.offset());
 
         Self {
             storage: self.storage.clone(),
@@ -202,8 +193,6 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         }
     }
 }
-
-
 
 /// Transpose marker trait (used in matmul autograd).
 pub trait Transpose {

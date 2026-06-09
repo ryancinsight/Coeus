@@ -1,7 +1,9 @@
-use coeus_core::{Scalar, Layout, Backend, CpuAddressableStorage, CpuAddressableStorageMut};
-use crate::ptr::{Ptr, MutPtr};
-use crate::backend_ops::{BinaryOp, UnaryOp};
 use crate::backend_ops::{compute_broadcast_offsets, compute_unary_offset};
+use crate::backend_ops::{BinaryOp, UnaryOp};
+use crate::ptr::{MutPtr, Ptr};
+use coeus_core::{
+    Backend, CpuAddressableStorage, CpuAddressableStorageMut, CpuUnaryOp, Layout, Scalar,
+};
 
 // ── Binary operations monomorphization traits ──
 
@@ -23,25 +25,35 @@ pub trait BinaryKernelOp<T: Scalar> {
 pub struct AddOp;
 impl<T: Scalar> BinaryKernelOp<T> for AddOp {
     #[inline(always)]
-    fn apply(x: T, y: T) -> T { x + y }
+    fn apply(x: T, y: T) -> T {
+        x + y
+    }
 
     #[inline]
-    fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) { T::add_slice(a, b, out); }
+    fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) {
+        T::add_slice(a, b, out);
+    }
 }
 
 pub struct SubOp;
 impl<T: Scalar> BinaryKernelOp<T> for SubOp {
     #[inline(always)]
-    fn apply(x: T, y: T) -> T { x - y }
+    fn apply(x: T, y: T) -> T {
+        x - y
+    }
 
     #[inline]
-    fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) { T::sub_slice(a, b, out); }
+    fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) {
+        T::sub_slice(a, b, out);
+    }
 }
 
 pub struct MulOp;
 impl<T: Scalar> BinaryKernelOp<T> for MulOp {
     #[inline(always)]
-    fn apply(x: T, y: T) -> T { x * y }
+    fn apply(x: T, y: T) -> T {
+        x * y
+    }
 
     #[inline]
     fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) {
@@ -53,10 +65,14 @@ impl<T: Scalar> BinaryKernelOp<T> for MulOp {
 pub struct DivOp;
 impl<T: Scalar> BinaryKernelOp<T> for DivOp {
     #[inline(always)]
-    fn apply(x: T, y: T) -> T { x / y }
+    fn apply(x: T, y: T) -> T {
+        x / y
+    }
 
     #[inline]
-    fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) { T::div_slice(a, b, out); }
+    fn apply_contiguous(a: &[T], b: &[T], out: &mut [T]) {
+        T::div_slice(a, b, out);
+    }
 }
 
 // ── Unary operations monomorphization traits ──
@@ -69,7 +85,7 @@ pub struct ReluOp;
 impl<T: Scalar> UnaryKernelOp<T> for ReluOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        if x > T::zero() { x } else { T::zero() }
+        T::eval_unary(CpuUnaryOp::Relu, x)
     }
 }
 
@@ -77,7 +93,7 @@ pub struct ReluGradOp;
 impl<T: Scalar> UnaryKernelOp<T> for ReluGradOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        if x > T::zero() { T::one() } else { T::zero() }
+        T::eval_unary(CpuUnaryOp::ReluGrad, x)
     }
 }
 
@@ -85,15 +101,15 @@ pub struct SigmoidOp;
 impl<T: Scalar> UnaryKernelOp<T> for SigmoidOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.sigmoid_op()
+        T::eval_unary(CpuUnaryOp::Sigmoid, x)
     }
 }
 
 pub struct SigmoidGradOp;
 impl<T: Scalar> UnaryKernelOp<T> for SigmoidGradOp {
     #[inline(always)]
-    fn apply(y: T) -> T {
-        y * (T::one() - y)
+    fn apply(x: T) -> T {
+        T::eval_unary(CpuUnaryOp::SigmoidGrad, x)
     }
 }
 
@@ -101,15 +117,15 @@ pub struct TanhOp;
 impl<T: Scalar> UnaryKernelOp<T> for TanhOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.tanh_op()
+        T::eval_unary(CpuUnaryOp::Tanh, x)
     }
 }
 
 pub struct TanhGradOp;
 impl<T: Scalar> UnaryKernelOp<T> for TanhGradOp {
     #[inline(always)]
-    fn apply(y: T) -> T {
-        T::one() - y * y
+    fn apply(x: T) -> T {
+        T::eval_unary(CpuUnaryOp::TanhGrad, x)
     }
 }
 
@@ -117,7 +133,7 @@ pub struct GeluOp;
 impl<T: Scalar> UnaryKernelOp<T> for GeluOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.gelu_op()
+        T::eval_unary(CpuUnaryOp::Gelu, x)
     }
 }
 
@@ -125,17 +141,7 @@ pub struct GeluGradOp;
 impl<T: Scalar> UnaryKernelOp<T> for GeluGradOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        let half = T::from_f64(0.5);
-        let one = T::one();
-        let c1 = T::from_f64(0.7978845608);
-        let c2 = T::from_f64(0.044715);
-        let c3 = T::from_f64(0.134145);
-
-        let x2 = x * x;
-        let v = c1 * (x + c2 * x * x2);
-        let t = v.tanh_op();
-        let dy = c1 * (one + c3 * x2);
-        half * (one + t) + half * x * (one - t * t) * dy
+        T::eval_unary(CpuUnaryOp::GeluGrad, x)
     }
 }
 
@@ -143,7 +149,7 @@ pub struct SinOp;
 impl<T: Scalar> UnaryKernelOp<T> for SinOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.sin_op()
+        T::eval_unary(CpuUnaryOp::Sin, x)
     }
 }
 
@@ -151,7 +157,7 @@ pub struct CosOp;
 impl<T: Scalar> UnaryKernelOp<T> for CosOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.cos_op()
+        T::eval_unary(CpuUnaryOp::Cos, x)
     }
 }
 
@@ -159,7 +165,7 @@ pub struct ExpOp;
 impl<T: Scalar> UnaryKernelOp<T> for ExpOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.exp_op()
+        T::eval_unary(CpuUnaryOp::Exp, x)
     }
 }
 
@@ -167,7 +173,7 @@ pub struct LogOp;
 impl<T: Scalar> UnaryKernelOp<T> for LogOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.log_op()
+        T::eval_unary(CpuUnaryOp::Log, x)
     }
 }
 
@@ -175,7 +181,7 @@ pub struct NegOp;
 impl<T: Scalar> UnaryKernelOp<T> for NegOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        T::zero() - x
+        T::eval_unary(CpuUnaryOp::Neg, x)
     }
 }
 
@@ -183,7 +189,7 @@ pub struct AbsOp;
 impl<T: Scalar> UnaryKernelOp<T> for AbsOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.abs_val()
+        T::eval_unary(CpuUnaryOp::Abs, x)
     }
 }
 
@@ -191,7 +197,7 @@ pub struct SqrtOp;
 impl<T: Scalar> UnaryKernelOp<T> for SqrtOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.sqrt_val()
+        T::eval_unary(CpuUnaryOp::Sqrt, x)
     }
 }
 
@@ -199,7 +205,7 @@ pub struct SiluOp;
 impl<T: Scalar> UnaryKernelOp<T> for SiluOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        x * x.sigmoid_op()
+        T::eval_unary(CpuUnaryOp::Silu, x)
     }
 }
 
@@ -207,8 +213,7 @@ pub struct SiluGradOp;
 impl<T: Scalar> UnaryKernelOp<T> for SiluGradOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        let s = x.sigmoid_op();
-        s * (T::one() + x * (T::one() - s))
+        T::eval_unary(CpuUnaryOp::SiluGrad, x)
     }
 }
 
@@ -216,8 +221,7 @@ pub struct MishOp;
 impl<T: Scalar> UnaryKernelOp<T> for MishOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        let sp = (T::one() + x.exp_op()).log_op();
-        x * sp.tanh_op()
+        T::eval_unary(CpuUnaryOp::Mish, x)
     }
 }
 
@@ -225,10 +229,7 @@ pub struct MishGradOp;
 impl<T: Scalar> UnaryKernelOp<T> for MishGradOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        let sp = (T::one() + x.exp_op()).log_op();
-        let w = sp.tanh_op();
-        let sig = x.sigmoid_op();
-        w + x * (T::one() - w * w) * sig
+        T::eval_unary(CpuUnaryOp::MishGrad, x)
     }
 }
 
@@ -236,7 +237,7 @@ pub struct EluOp;
 impl<T: Scalar> UnaryKernelOp<T> for EluOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        if x >= T::zero() { x } else { x.exp_op() - T::one() }
+        T::eval_unary(CpuUnaryOp::Elu, x)
     }
 }
 
@@ -244,8 +245,7 @@ pub struct EluGradOp;
 impl<T: Scalar> UnaryKernelOp<T> for EluGradOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        // Input x is the original input value (not ELU output)
-        if x >= T::zero() { T::one() } else { x.exp_op() }
+        T::eval_unary(CpuUnaryOp::EluGrad, x)
     }
 }
 
@@ -253,7 +253,7 @@ pub struct SoftplusOp;
 impl<T: Scalar> UnaryKernelOp<T> for SoftplusOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        (T::one() + x.exp_op()).log_op()
+        T::eval_unary(CpuUnaryOp::Softplus, x)
     }
 }
 
@@ -261,7 +261,7 @@ pub struct SoftplusGradOp;
 impl<T: Scalar> UnaryKernelOp<T> for SoftplusGradOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.sigmoid_op()
+        T::eval_unary(CpuUnaryOp::SoftplusGrad, x)
     }
 }
 
@@ -269,13 +269,7 @@ pub struct GeluTanhOp;
 impl<T: Scalar> UnaryKernelOp<T> for GeluTanhOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        // 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
-        let c1 = T::from_f64(0.7978845608); // sqrt(2/pi)
-        let c2 = T::from_f64(0.044715);
-        let half = T::from_f64(0.5);
-        let one = T::one();
-        let v = c1 * (x + c2 * x * x * x);
-        half * x * (one + v.tanh_op())
+        T::eval_unary(CpuUnaryOp::GeluTanh, x)
     }
 }
 
@@ -283,18 +277,9 @@ pub struct GeluTanhGradOp;
 impl<T: Scalar> UnaryKernelOp<T> for GeluTanhGradOp {
     #[inline(always)]
     fn apply(x: T) -> T {
-        let c1 = T::from_f64(0.7978845608);
-        let c2 = T::from_f64(0.044715);
-        let c3 = T::from_f64(0.134145); // 3 * 0.044715
-        let half = T::from_f64(0.5);
-        let one = T::one();
-        let v = c1 * (x + c2 * x * x * x);
-        let t = v.tanh_op();
-        let dt = c1 * (one + c3 * x * x); // d/dx of the argument to tanh
-        half * (one + t) + half * x * (one - t * t) * dt
+        T::eval_unary(CpuUnaryOp::GeluTanhGrad, x)
     }
 }
-
 
 // ── Optimized generic execution runners ──
 
@@ -399,13 +384,7 @@ fn run_binary_op<T: Scalar, B: Backend, O: BinaryKernelOp<T>>(
                 &b_strides_v,
                 b_off,
             );
-            let off_c = compute_unary_offset(
-                i,
-                &out_strides,
-                &out_shape_vec,
-                &c_strides_v,
-                c_off,
-            );
+            let off_c = compute_unary_offset(i, &out_strides, &out_shape_vec, &c_strides_v, c_off);
 
             unsafe {
                 c_ptr.write(off_c, O::apply(a_ptr.read(off_a), b_ptr.read(off_b)));
@@ -450,13 +429,8 @@ fn run_unary_op<T: Scalar, B: Backend, O: UnaryKernelOp<T>>(
 
         if c_layout.is_contiguous() {
             backend.parallel_for(0, out_numel, move |i| {
-                let physical_index = compute_unary_offset(
-                    i,
-                    &out_strides,
-                    &in_shape,
-                    &in_strides,
-                    a_off,
-                );
+                let physical_index =
+                    compute_unary_offset(i, &out_strides, &in_shape, &in_strides, a_off);
                 unsafe {
                     let val = a_ptr.read(physical_index);
                     c_ptr.write(c_off + i, O::apply(val));
@@ -466,20 +440,10 @@ fn run_unary_op<T: Scalar, B: Backend, O: UnaryKernelOp<T>>(
             let c_strides_v = c_layout.strides_cloned();
             let out_shape_vec = c_layout.shape_cloned();
             backend.parallel_for(0, out_numel, move |i| {
-                let physical_index = compute_unary_offset(
-                    i,
-                    &out_strides,
-                    &in_shape,
-                    &in_strides,
-                    a_off,
-                );
-                let physical_out = compute_unary_offset(
-                    i,
-                    &out_strides,
-                    &out_shape_vec,
-                    &c_strides_v,
-                    c_off,
-                );
+                let physical_index =
+                    compute_unary_offset(i, &out_strides, &in_shape, &in_strides, a_off);
+                let physical_out =
+                    compute_unary_offset(i, &out_strides, &out_shape_vec, &c_strides_v, c_off);
                 unsafe {
                     let val = a_ptr.read(physical_index);
                     c_ptr.write(physical_out, O::apply(val));
@@ -505,10 +469,18 @@ pub(crate) fn elementwise_binary<T: Scalar, B: Backend>(
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     match op {
-        BinaryOp::Add => run_binary_op::<T, B, AddOp>(backend, a, a_layout, b, b_layout, c, c_layout),
-        BinaryOp::Sub => run_binary_op::<T, B, SubOp>(backend, a, a_layout, b, b_layout, c, c_layout),
-        BinaryOp::Mul => run_binary_op::<T, B, MulOp>(backend, a, a_layout, b, b_layout, c, c_layout),
-        BinaryOp::Div => run_binary_op::<T, B, DivOp>(backend, a, a_layout, b, b_layout, c, c_layout),
+        BinaryOp::Add => {
+            run_binary_op::<T, B, AddOp>(backend, a, a_layout, b, b_layout, c, c_layout)
+        }
+        BinaryOp::Sub => {
+            run_binary_op::<T, B, SubOp>(backend, a, a_layout, b, b_layout, c, c_layout)
+        }
+        BinaryOp::Mul => {
+            run_binary_op::<T, B, MulOp>(backend, a, a_layout, b, b_layout, c, c_layout)
+        }
+        BinaryOp::Div => {
+            run_binary_op::<T, B, DivOp>(backend, a, a_layout, b, b_layout, c, c_layout)
+        }
     }
 }
 
@@ -527,7 +499,9 @@ pub(crate) fn elementwise_unary<T: Scalar, B: Backend>(
         UnaryOp::Relu => run_unary_op::<T, B, ReluOp>(backend, a, a_layout, c, c_layout),
         UnaryOp::ReluGrad => run_unary_op::<T, B, ReluGradOp>(backend, a, a_layout, c, c_layout),
         UnaryOp::Sigmoid => run_unary_op::<T, B, SigmoidOp>(backend, a, a_layout, c, c_layout),
-        UnaryOp::SigmoidGrad => run_unary_op::<T, B, SigmoidGradOp>(backend, a, a_layout, c, c_layout),
+        UnaryOp::SigmoidGrad => {
+            run_unary_op::<T, B, SigmoidGradOp>(backend, a, a_layout, c, c_layout)
+        }
         UnaryOp::Tanh => run_unary_op::<T, B, TanhOp>(backend, a, a_layout, c, c_layout),
         UnaryOp::TanhGrad => run_unary_op::<T, B, TanhGradOp>(backend, a, a_layout, c, c_layout),
         UnaryOp::Gelu => run_unary_op::<T, B, GeluOp>(backend, a, a_layout, c, c_layout),
@@ -546,9 +520,13 @@ pub(crate) fn elementwise_unary<T: Scalar, B: Backend>(
         UnaryOp::Elu => run_unary_op::<T, B, EluOp>(backend, a, a_layout, c, c_layout),
         UnaryOp::EluGrad => run_unary_op::<T, B, EluGradOp>(backend, a, a_layout, c, c_layout),
         UnaryOp::Softplus => run_unary_op::<T, B, SoftplusOp>(backend, a, a_layout, c, c_layout),
-        UnaryOp::SoftplusGrad => run_unary_op::<T, B, SoftplusGradOp>(backend, a, a_layout, c, c_layout),
+        UnaryOp::SoftplusGrad => {
+            run_unary_op::<T, B, SoftplusGradOp>(backend, a, a_layout, c, c_layout)
+        }
         UnaryOp::GeluTanh => run_unary_op::<T, B, GeluTanhOp>(backend, a, a_layout, c, c_layout),
-        UnaryOp::GeluTanhGrad => run_unary_op::<T, B, GeluTanhGradOp>(backend, a, a_layout, c, c_layout),
+        UnaryOp::GeluTanhGrad => {
+            run_unary_op::<T, B, GeluTanhGradOp>(backend, a, a_layout, c, c_layout)
+        }
         UnaryOp::LeakyRelu(slope_bits) => {
             let slope = T::from_f64(f64::from_bits(slope_bits));
             let a_slice = a.as_slice();
@@ -570,8 +548,10 @@ pub(crate) fn elementwise_unary<T: Scalar, B: Backend>(
                 let out_strides = c_layout.strides_cloned();
                 let out_shape = c_layout.shape_cloned();
                 backend.parallel_for(0, numel, move |i| {
-                    let physical_in = compute_unary_offset(i, &out_strides, &in_shape, &in_strides, a_off);
-                    let physical_out = compute_unary_offset(i, &out_strides, &out_shape, &out_strides, c_off);
+                    let physical_in =
+                        compute_unary_offset(i, &out_strides, &in_shape, &in_strides, a_off);
+                    let physical_out =
+                        compute_unary_offset(i, &out_strides, &out_shape, &out_strides, c_off);
                     unsafe {
                         let x = a_ptr.read(physical_in);
                         let y = if x >= T::zero() { x } else { slope * x };
@@ -579,7 +559,7 @@ pub(crate) fn elementwise_unary<T: Scalar, B: Backend>(
                     }
                 });
             }
-        },
+        }
         UnaryOp::LeakyReluGrad(slope_bits) => {
             let slope = T::from_f64(f64::from_bits(slope_bits));
             let a_slice = a.as_slice();
@@ -601,8 +581,10 @@ pub(crate) fn elementwise_unary<T: Scalar, B: Backend>(
                 let out_strides = c_layout.strides_cloned();
                 let out_shape = c_layout.shape_cloned();
                 backend.parallel_for(0, numel, move |i| {
-                    let physical_in = compute_unary_offset(i, &out_strides, &in_shape, &in_strides, a_off);
-                    let physical_out = compute_unary_offset(i, &out_strides, &out_shape, &out_strides, c_off);
+                    let physical_in =
+                        compute_unary_offset(i, &out_strides, &in_shape, &in_strides, a_off);
+                    let physical_out =
+                        compute_unary_offset(i, &out_strides, &out_shape, &out_strides, c_off);
                     unsafe {
                         let x = a_ptr.read(physical_in);
                         let y = if x >= T::zero() { T::one() } else { slope };
@@ -610,6 +592,6 @@ pub(crate) fn elementwise_unary<T: Scalar, B: Backend>(
                     }
                 });
             }
-        },
+        }
     }
 }

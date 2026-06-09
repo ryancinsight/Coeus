@@ -1,7 +1,7 @@
-use coeus_core::{Scalar, Float, MoiraiBackend};
-use coeus_tensor::Tensor;
-use coeus_autograd::Var;
 use crate::module::Module;
+use coeus_autograd::Var;
+use coeus_core::{Float, MoiraiBackend, Scalar};
+use coeus_tensor::Tensor;
 
 /// 1D convolution layer with padding, stride, and dilation.
 #[derive(Clone)]
@@ -30,7 +30,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Conv1d<T, B> {
         dilation: usize,
         bias: bool,
     ) -> Self {
-        assert!(stride >= 1 && dilation >= 1, "stride and dilation must be >= 1");
+        assert!(
+            stride >= 1 && dilation >= 1,
+            "stride and dilation must be >= 1"
+        );
         let backend = B::default();
         let w_shape = [out_channels, in_channels, kernel_size];
         let w_tensor = Tensor::ones_on(w_shape, &backend);
@@ -40,11 +43,22 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Conv1d<T, B> {
         } else {
             None
         };
-        Self { weight, bias: bias_var, in_channels, out_channels, kernel_size, stride, padding, dilation }
+        Self {
+            weight,
+            bias: bias_var,
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        }
     }
 
     #[inline]
-    fn k_eff(&self) -> usize { self.dilation * (self.kernel_size - 1) + 1 }
+    fn k_eff(&self) -> usize {
+        self.dilation * (self.kernel_size - 1) + 1
+    }
 
     #[inline]
     fn out_dim(&self, input_len: usize) -> usize {
@@ -59,7 +73,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Conv1d<T, B> {
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Conv1d<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = vec![self.weight.clone()];
-        if let Some(ref b) = self.bias { p.push(b.clone()); }
+        if let Some(ref b) = self.bias {
+            p.push(b.clone());
+        }
         p
     }
 

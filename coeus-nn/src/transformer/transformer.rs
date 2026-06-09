@@ -1,10 +1,10 @@
 // ── Transformer Seq2Seq Model ──
 
-use coeus_core::{Float, MoiraiBackend};
-use coeus_autograd::{Var, AttentionMask, CausalMask, NullMask};
-use crate::module::Module;
-use super::encoder::TransformerEncoder;
 use super::decoder::TransformerDecoder;
+use super::encoder::TransformerEncoder;
+use crate::module::Module;
+use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
+use coeus_core::{Float, MoiraiBackend};
 
 /// Full Sequence-to-Sequence Transformer model.
 ///
@@ -24,15 +24,15 @@ pub struct Transformer<
 }
 
 impl<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
-    const H: usize,
-    const NUM_ENC: usize,
-    const NUM_DEC: usize,
-    EncM: AttentionMask,
-    DecSelfM: AttentionMask,
-    DecCrossM: AttentionMask,
-> Transformer<T, B, H, NUM_ENC, NUM_DEC, EncM, DecSelfM, DecCrossM>
+        T: Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const H: usize,
+        const NUM_ENC: usize,
+        const NUM_DEC: usize,
+        EncM: AttentionMask,
+        DecSelfM: AttentionMask,
+        DecCrossM: AttentionMask,
+    > Transformer<T, B, H, NUM_ENC, NUM_DEC, EncM, DecSelfM, DecCrossM>
 where
     TransformerEncoder<T, B, H, NUM_ENC, EncM>: Clone,
     TransformerDecoder<T, B, H, NUM_DEC, DecSelfM, DecCrossM>: Clone,
@@ -58,15 +58,15 @@ where
 }
 
 impl<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
-    const H: usize,
-    const NUM_ENC: usize,
-    const NUM_DEC: usize,
-    EncM: AttentionMask,
-    DecSelfM: AttentionMask,
-    DecCrossM: AttentionMask,
-> Module<T, B> for Transformer<T, B, H, NUM_ENC, NUM_DEC, EncM, DecSelfM, DecCrossM>
+        T: Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const H: usize,
+        const NUM_ENC: usize,
+        const NUM_DEC: usize,
+        EncM: AttentionMask,
+        DecSelfM: AttentionMask,
+        DecCrossM: AttentionMask,
+    > Module<T, B> for Transformer<T, B, H, NUM_ENC, NUM_DEC, EncM, DecSelfM, DecCrossM>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = self.encoder.parameters();
@@ -87,15 +87,15 @@ impl<
 
 /// Manual Clone impl.
 impl<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
-    const H: usize,
-    const NUM_ENC: usize,
-    const NUM_DEC: usize,
-    EncM: AttentionMask,
-    DecSelfM: AttentionMask,
-    DecCrossM: AttentionMask,
-> Clone for Transformer<T, B, H, NUM_ENC, NUM_DEC, EncM, DecSelfM, DecCrossM>
+        T: Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const H: usize,
+        const NUM_ENC: usize,
+        const NUM_DEC: usize,
+        EncM: AttentionMask,
+        DecSelfM: AttentionMask,
+        DecCrossM: AttentionMask,
+    > Clone for Transformer<T, B, H, NUM_ENC, NUM_DEC, EncM, DecSelfM, DecCrossM>
 where
     TransformerEncoder<T, B, H, NUM_ENC, EncM>: Clone,
     TransformerDecoder<T, B, H, NUM_DEC, DecSelfM, DecCrossM>: Clone,

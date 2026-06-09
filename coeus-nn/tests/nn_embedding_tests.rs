@@ -1,6 +1,6 @@
-use coeus_tensor::{Tensor, Transpose};
 use coeus_autograd::Var;
-use coeus_nn::{Embedding, Module, init};
+use coeus_nn::{init, Embedding, Module};
+use coeus_tensor::{Tensor, Transpose};
 
 #[test]
 fn test_embedding_forward_backward_indices() {
@@ -16,7 +16,7 @@ fn test_embedding_forward_backward_indices() {
 
     // Expected output shape: [2, 2, 3]
     assert_eq!(output.tensor.shape(), &[2, 2, 3]);
-    
+
     // Since weights are all 2.0, output should be all 2.0
     for &val in output.tensor.as_slice() {
         assert_eq!(val, 2.0);
@@ -96,10 +96,7 @@ fn test_embedding_module_forward() {
 #[test]
 fn test_embedding_non_contiguous() {
     let mut layer = Embedding::<f64>::new(3, 2);
-    let w_raw = Tensor::from_slice(vec![2, 3], &[
-        1.0, 2.0, 3.0,
-        4.0, 5.0, 6.0,
-    ]);
+    let w_raw = Tensor::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     let w_t = w_raw.transpose(); // shape [3, 2], non-contiguous
     assert!(!w_t.is_contiguous());
     layer.weight.tensor = w_t;
@@ -128,12 +125,7 @@ fn test_embedding_non_contiguous() {
     assert_eq!(&out_slice[6..8], &[1.0, 4.0]);
 
     // Backward pass
-    let grad_out = Tensor::from_slice(vec![2, 2, 2], &[
-        1.0, 1.0,
-        2.0, 2.0,
-        3.0, 3.0,
-        4.0, 4.0,
-    ]);
+    let grad_out = Tensor::from_slice(vec![2, 2, 2], &[1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]);
     output.backward_with_seed(grad_out);
 
     let weight_grad = layer.weight.grad().unwrap();

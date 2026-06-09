@@ -2,9 +2,9 @@
 // 1-D FFT/IFFT using the Apollo library via its slice/Vec API (no ndarray here;
 // coeus's array stack is self-contained — ndarray lives only inside apollo).
 
-use coeus_core::{Float, Complex, ComputeBackend, Storage};
-use coeus_tensor::Tensor;
 use apollo_fft::{Complex32, Complex64};
+use coeus_core::{Complex, ComputeBackend, Float, Storage};
+use coeus_tensor::Tensor;
 
 /// Sealed trait for compile-time monomorphized FFT dispatch.
 pub trait FftScalar: Float {
@@ -31,7 +31,10 @@ impl FftScalar for f64 {
 
     #[inline]
     fn ifft_1d_impl(spectrum: &[Complex<Self>]) -> Vec<Self> {
-        let spec: Vec<Complex64> = spectrum.iter().map(|c| Complex64::new(c.re, c.im)).collect();
+        let spec: Vec<Complex64> = spectrum
+            .iter()
+            .map(|c| Complex64::new(c.re, c.im))
+            .collect();
         apollo_fft::ifft_1d_slice_typed::<f64>(&spec)
     }
 }
@@ -49,7 +52,10 @@ impl FftScalar for f32 {
 
     #[inline]
     fn ifft_1d_impl(spectrum: &[Complex<Self>]) -> Vec<Self> {
-        let spec: Vec<Complex32> = spectrum.iter().map(|c| Complex32::new(c.re, c.im)).collect();
+        let spec: Vec<Complex32> = spectrum
+            .iter()
+            .map(|c| Complex32::new(c.re, c.im))
+            .collect();
         apollo_fft::ifft_1d_slice_typed::<f32>(&spec)
     }
 }
@@ -102,7 +108,9 @@ impl FftScalar for half::bf16 {
 
 /// 1-D forward FFT. Returns a Complex tensor.
 #[inline]
-pub fn fft_1d<T: FftScalar, B: ComputeBackend + Default>(signal: &Tensor<T, B>) -> Tensor<Complex<T>, B> {
+pub fn fft_1d<T: FftScalar, B: ComputeBackend + Default>(
+    signal: &Tensor<T, B>,
+) -> Tensor<Complex<T>, B> {
     assert_eq!(signal.ndim(), 1, "fft_1d requires 1D input");
     let input = signal.to_contiguous();
     let numel = input.numel();
@@ -120,7 +128,9 @@ pub fn fft_1d<T: FftScalar, B: ComputeBackend + Default>(signal: &Tensor<T, B>) 
 
 /// 1-D inverse FFT from Complex component.
 #[inline]
-pub fn ifft_1d<T: FftScalar, B: ComputeBackend + Default>(spectrum: &Tensor<Complex<T>, B>) -> Tensor<T, B> {
+pub fn ifft_1d<T: FftScalar, B: ComputeBackend + Default>(
+    spectrum: &Tensor<Complex<T>, B>,
+) -> Tensor<T, B> {
     assert_eq!(spectrum.ndim(), 1, "ifft_1d requires 1D input");
     let spectrum_cont = spectrum.to_contiguous();
     let numel = spectrum_cont.numel();

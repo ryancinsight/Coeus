@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
-use coeus_core::Layout;
 use crate::backend::WgpuScalar;
+use coeus_core::Layout;
 
 use crate::kernels::cache::PIPELINE_CACHE;
 use crate::kernels::layout::GpuLayoutInfo;
@@ -63,8 +63,10 @@ pub fn dispatch_adamw_step<T: WgpuScalar + coeus_core::Float>(
     let layouts_buf = crate::backend::PooledMetadataBuffer::new();
     let params_buf = crate::backend::PooledMetadataBuffer::new();
 
-    ctx.queue.write_buffer(&layouts_buf, 0, bytemuck::cast_slice(&layouts_data));
-    ctx.queue.write_buffer(&params_buf, 0, bytemuck::bytes_of(&params_data));
+    ctx.queue
+        .write_buffer(&layouts_buf, 0, bytemuck::cast_slice(&layouts_data));
+    ctx.queue
+        .write_buffer(&params_buf, 0, bytemuck::bytes_of(&params_data));
 
     let wgsl_type = T::WGSL_TYPE;
 
@@ -168,18 +170,38 @@ pub fn dispatch_adamw_step<T: WgpuScalar + coeus_core::Float>(
         label: Some("adamw-bind-group"),
         layout: &bind_group_layout,
         entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: param.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 1, resource: grad.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 2, resource: m.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 3, resource: v.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 4, resource: layouts_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 5, resource: params_buf.as_entire_binding() },
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: param.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: grad.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: m.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: v.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: layouts_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 5,
+                resource: params_buf.as_entire_binding(),
+            },
         ],
     });
 
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("adamw-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("adamw-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {

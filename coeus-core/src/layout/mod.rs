@@ -1,11 +1,11 @@
 // ── Layout module ──
 // Shape, strides, and multi-dimensional layout descriptors.
 
-mod shape;
-mod strides;
 #[allow(clippy::module_inception)]
 mod layout;
+mod shape;
+mod strides;
 
-pub use shape::{Shape, ConstShape};
+pub use layout::{ConstLayout, Layout};
+pub use shape::{ConstShape, Shape};
 pub use strides::Strides;
-pub use layout::{Layout, ConstLayout};

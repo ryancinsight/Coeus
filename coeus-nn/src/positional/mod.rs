@@ -1,8 +1,7 @@
 // ── Positional encoding module root ──
 
-pub mod sinusoidal;
 pub mod rope;
+pub mod sinusoidal;
 
-pub use sinusoidal::SinusoidalEncoding;
 pub use rope::RotaryEmbedding;
-
+pub use sinusoidal::SinusoidalEncoding;

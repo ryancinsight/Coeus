@@ -1,9 +1,9 @@
 // ── Unary kernel ──
 // Generic element-wise unary operation kernel.
 
+use crate::backend_ops::{BackendOps, UnaryOp};
 use coeus_core::Scalar;
 use coeus_tensor::Tensor;
-use crate::backend_ops::{BackendOps, UnaryOp};
 
 /// Apply element-wise unary operation to `input`, returning a new tensor.
 #[inline]
@@ -13,15 +13,9 @@ pub fn elementwise_unary<T: Scalar, B: BackendOps<T>>(
     op: UnaryOp,
 ) -> Tensor<T, B> {
     let mut out = Tensor::zeros_on(input.shape_cloned(), backend);
-    
+
     let (out_storage, out_layout) = out.storage_mut_and_layout();
-    backend.elementwise_unary(
-        op,
-        input.storage(),
-        input.layout(),
-        out_storage,
-        out_layout,
-    );
+    backend.elementwise_unary(op, input.storage(), input.layout(), out_storage, out_layout);
 
     out
 }
@@ -40,13 +34,7 @@ pub fn elementwise_unary_assign<T: Scalar, B: BackendOps<T>>(
     // 2. The backend supports in-place / overlapping reads and writes to the same device buffer.
     // 3. We avoid cloning the device buffer (Arc clone), preventing copy-on-write reallocation.
     let a: &B::DeviceBuffer<T> = unsafe { &*(c as *const B::DeviceBuffer<T>) };
-    backend.elementwise_unary(
-        op,
-        a,
-        layout,
-        c,
-        layout,
-    );
+    backend.elementwise_unary(op, a, layout, c, layout);
 }
 
 /// Apply element-wise unary operation to `input`, writing result to `out`.
@@ -58,12 +46,5 @@ pub fn elementwise_unary_to<T: Scalar, B: BackendOps<T>>(
     op: UnaryOp,
 ) {
     let (out_storage, out_layout) = out.storage_mut_and_layout();
-    backend.elementwise_unary(
-        op,
-        input.storage(),
-        input.layout(),
-        out_storage,
-        out_layout,
-    );
+    backend.elementwise_unary(op, input.storage(), input.layout(), out_storage, out_layout);
 }
-

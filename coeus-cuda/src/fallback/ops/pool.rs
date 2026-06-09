@@ -1,6 +1,6 @@
-use coeus_core::{Layout, ComputeBackend, Storage};
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::storage::CudaStorage;
+use coeus_core::{ComputeBackend, Layout, Storage};
 
 impl CudaBackend {
     pub(crate) fn fallback_max_pool2d<T: CudaScalar>(

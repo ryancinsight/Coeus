@@ -1,8 +1,8 @@
 // ── Activation functions (NN wrappers and modules) ──
 
-use coeus_core::{Scalar, Float};
-use coeus_autograd::Var;
 use crate::module::Module;
+use coeus_autograd::Var;
+use coeus_core::{Float, Scalar};
 
 /// Functional ReLU activation.
 #[inline]
@@ -136,7 +136,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Mish {
     }
 }
 
-
 // ── Phase 7 New Activations ──
 
 /// Functional ELU activation.
@@ -151,9 +150,13 @@ pub struct ELU;
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for ELU {
     #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> { vec![] }
+    fn parameters(&self) -> Vec<Var<T, B>> {
+        vec![]
+    }
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> { elu(input) }
+    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+        elu(input)
+    }
 }
 
 /// Functional Softplus activation.
@@ -168,9 +171,13 @@ pub struct Softplus;
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softplus {
     #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> { vec![] }
+    fn parameters(&self) -> Vec<Var<T, B>> {
+        vec![]
+    }
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> { softplus(input) }
+    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+        softplus(input)
+    }
 }
 
 /// Functional GELU tanh approximation.
@@ -185,9 +192,13 @@ pub struct GeLUTanh;
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GeLUTanh {
     #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> { vec![] }
+    fn parameters(&self) -> Vec<Var<T, B>> {
+        vec![]
+    }
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> { gelu_tanh(input) }
+    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+        gelu_tanh(input)
+    }
 }
 
 /// Functional LeakyReLU activation.
@@ -215,13 +226,19 @@ impl LeakyReLU {
 
 impl Default for LeakyReLU {
     fn default() -> Self {
-        Self { negative_slope: 0.01 }
+        Self {
+            negative_slope: 0.01,
+        }
     }
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LeakyReLU {
     #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> { vec![] }
+    fn parameters(&self) -> Vec<Var<T, B>> {
+        vec![]
+    }
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> { leaky_relu(input, self.negative_slope) }
+    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+        leaky_relu(input, self.negative_slope)
+    }
 }

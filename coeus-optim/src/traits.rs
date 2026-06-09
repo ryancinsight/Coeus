@@ -1,6 +1,6 @@
 // ── Optimizer trait ──
 
-use coeus_core::{Scalar, MoiraiBackend};
+use coeus_core::{MoiraiBackend, Scalar};
 
 /// Trait for parameter optimizers.
 pub trait Optimizer<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
@@ -18,5 +18,6 @@ pub trait Optimizer<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBac
     /// Returns the pre-clip total L2 norm.
     fn clip_grad_norm(&mut self, max_norm: T) -> T
     where
-        B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>;
+        B::DeviceBuffer<T>:
+            coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>;
 }

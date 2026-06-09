@@ -1,222 +1,10 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::{Scalar, Float};
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::{Float, Scalar};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
-pub struct LayerNormNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
-    pub inputs: Vec<Var<T, B>>,
-    pub d: usize,
-    pub w_reshaped_captured: Tensor<T, B>,
-    pub x_hat_clone: Tensor<T, B>,
-    pub istdev_clone: Tensor<T, B>,
-    pub d_const: Tensor<T, B>,
-}
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for LayerNormNode<T, B> {
-    #[inline]
-    fn op_name(&self) -> &'static str {
-        "layernorm"
-    }
-
-    #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
-        &self.output_grad
-    }
-
-    #[inline]
-    fn inputs(&self) -> &[Var<T, B>] {
-        &self.inputs
-    }
-
-    #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
-        let backend = B::default();
-        let dy = grad_out; // [N, D]
-        let mut dy_w = coeus_ops::mul(dy, &self.w_reshaped_captured, &backend);
-        if let Some(Some(ref gw)) = input_grads.get(1) {
-            let dg_t = coeus_ops::sum_axis(&coeus_ops::mul(dy, &self.x_hat_clone, &backend), 0, &backend);
-            let dg = dg_t.reshape([self.d]);
-            let mut gl = gw.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &dg, &backend);
-        }
-
-        // ── dL/dbeta = sum(dy, dim=0) [D] ──
-        if let Some(Some(ref gb)) = input_grads.get(2) {
-            let db_t = coeus_ops::sum_axis(dy, 0, &backend);
-            let db = db_t.reshape([self.d]);
-            let mut gl = gb.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &db, &backend);
-        }
-
-        // ── dL/dx ──
-        if let Some(Some(ref gx)) = input_grads.get(0) {
-            let sum_dy_w = coeus_ops::sum_axis(&dy_w, 1, &backend); // [N, 1]
-            let dy_w_xhat = coeus_ops::mul(&dy_w, &self.x_hat_clone, &backend); // [N, D]
-            let sum_dy_w_xhat = coeus_ops::sum_axis(&dy_w_xhat, 1, &backend); // [N, 1]
-
-            // term2 = x_hat * sum_dy_w_xhat + sum_dy_w
-            let mut term2 = coeus_ops::mul(&self.x_hat_clone, &sum_dy_w_xhat, &backend); // [N, D]
-            coeus_ops::add_assign(&mut term2, &sum_dy_w, &backend);
-
-            // dy_w = dy_w * d_const
-            coeus_ops::mul_assign(&mut dy_w, &self.d_const, &backend);
-
-            // term = dy_w - term2
-            coeus_ops::sub_assign(&mut dy_w, &term2, &backend);
-            let mut term = dy_w;
-
-            // dx = term * istdev_clone / d_const
-            coeus_ops::mul_assign(&mut term, &self.istdev_clone, &backend);
-            coeus_ops::div_assign(&mut term, &self.d_const, &backend);
-            let dx = term;
-
-            let mut gl = gx.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &dx, &backend);
-        }
-    }
-}
-
-/// Tracked Layer Normalization.
-pub fn layernorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    input: &Var<T, B>,
-    weight: &Var<T, B>,
-    bias: &Var<T, B>,
-    out_tensor: Tensor<T, B>,
-    x_hat: Tensor<T, B>,
-    istdev: Tensor<T, B>,
-    d_const: Tensor<T, B>,
-) -> Var<T, B> {
-    let backend = B::default();
-    let requires_grad = input.grad.is_some() || weight.grad.is_some() || bias.grad.is_some();
-    let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
-    } else {
-        None
-    };
-
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
-        let inputs = vec![input.clone(), weight.clone(), bias.clone()];
-        let d = weight.tensor.shape()[0];
-        let w_reshaped_captured = weight.tensor.reshape([1, d]);
-        let x_hat_clone = x_hat.clone();
-        let istdev_clone = istdev.clone();
-        let d_const = d_const.clone();
-
-        let node = LayerNormNode {
-            output_grad,
-            inputs,
-            d,
-            w_reshaped_captured,
-            x_hat_clone,
-            istdev_clone,
-            d_const,
-        };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-
-    Var { tensor: out_tensor, grad, creator }
-}
-
-pub struct RMSNormNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
-    pub inputs: Vec<Var<T, B>>,
-    pub d: usize,
-    pub w_reshaped_captured: Tensor<T, B>,
-    pub x_hat_clone: Tensor<T, B>,
-    pub rms_clone: Tensor<T, B>,
-}
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for RMSNormNode<T, B> {
-    #[inline]
-    fn op_name(&self) -> &'static str {
-        "rmsnorm"
-    }
-
-    #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
-        &self.output_grad
-    }
-
-    #[inline]
-    fn inputs(&self) -> &[Var<T, B>] {
-        &self.inputs
-    }
-
-    #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
-        let backend = B::default();
-        let dy = grad_out; // [N, D]
-
-        // ── dL/dgamma = sum(dy * x_hat, dim=0) [D] ──
-        if let Some(Some(ref gw)) = input_grads.get(1) {
-            let dg_t = coeus_ops::sum_axis(&coeus_ops::mul(dy, &self.x_hat_clone, &backend), 0, &backend);
-            let dg = dg_t.reshape([self.d]);
-            let mut gl = gw.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &dg, &backend);
-        }
-
-        // ── dL/dx ──
-        if let Some(Some(ref gx)) = input_grads.get(0) {
-            let mut dy_w = coeus_ops::mul(dy, &self.w_reshaped_captured, &backend); // [N, D]
-            let dy_w_xhat = coeus_ops::mul(&dy_w, &self.x_hat_clone, &backend); // [N, D]
-            let scaled_sum = coeus_ops::mean_axis(&dy_w_xhat, 1, &backend); // [N, 1]
-
-            let term_prod = coeus_ops::mul(&self.x_hat_clone, &scaled_sum, &backend); // [N, D]
-            coeus_ops::sub_assign(&mut dy_w, &term_prod, &backend); // [N, D]
-
-            let mut dx = dy_w;
-            coeus_ops::div_assign(&mut dx, &self.rms_clone, &backend); // [N, D]
-
-            let mut gl = gx.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &dx, &backend);
-        }
-    }
-}
-
-/// Tracked RMS Normalization.
-pub fn rmsnorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    input: &Var<T, B>,
-    weight: &Var<T, B>,
-    out_tensor: Tensor<T, B>,
-    x_hat: Tensor<T, B>,
-    rms: Tensor<T, B>,
-) -> Var<T, B> {
-    let backend = B::default();
-    let requires_grad = input.grad.is_some() || weight.grad.is_some();
-    let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
-    } else {
-        None
-    };
-
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
-        let inputs = vec![input.clone(), weight.clone()];
-        let d = weight.tensor.shape()[0];
-        let w_reshaped_captured = weight.tensor.reshape([1, d]);
-        let x_hat_clone = x_hat.clone();
-        let rms_clone = rms.clone();
-
-        let node = RMSNormNode {
-            output_grad,
-            inputs,
-            d,
-            w_reshaped_captured,
-            x_hat_clone,
-            rms_clone,
-        };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-
-    Var { tensor: out_tensor, grad, creator }
-}
+// ── BatchNorm1d ─────────────────────────────────────────────────────────────
 
 pub struct BatchNorm1dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -310,28 +98,50 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
     }
 }
 
+/// Pre-computed intermediates and spatial dimensions for [`batchnorm1d`].
+///
+/// Groups the tensor results produced during the forward pass (needed for backward)
+/// together with the shape scalars `n`, `c`, `l`, `m` so that `batchnorm1d` accepts
+/// a single typed descriptor instead of fourteen positional arguments.
+pub struct BatchNorm1dArgs<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Forward-pass output tensor `[N, C, L]`.
+    pub out_tensor: Tensor<T, B>,
+    /// Normalised input `x_hat = (x - mu) / sqrt(var + eps)`, shape `[M, C]`.
+    pub x_hat: Tensor<T, B>,
+    /// Centred input `x - mu`, shape `[M, C]`.
+    pub xmu: Tensor<T, B>,
+    /// Inverse standard deviation `1 / sqrt(var + eps)`, shape `[1, C]`.
+    pub istdev: Tensor<T, B>,
+    /// Scalar tensor holding the batch count `M = N * L`, shape `[1]`.
+    pub m_const: Tensor<T, B>,
+    /// Constant tensor holding `-0.5`, shape `[1]`.
+    pub minus_half: Tensor<T, B>,
+    /// Constant tensor holding `2.0`, shape `[1]`.
+    pub two_const: Tensor<T, B>,
+    /// Batch size.
+    pub n: usize,
+    /// Channel count.
+    pub c: usize,
+    /// Sequence length.
+    pub l: usize,
+    /// Spatial batch size `N * L`.
+    pub m: usize,
+}
+
 /// Tracked 1D Batch Normalization.
-#[allow(clippy::too_many_arguments)]
 pub fn batchnorm1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
     bias: &Var<T, B>,
-    out_tensor: Tensor<T, B>,
-    x_hat: Tensor<T, B>,
-    xmu: Tensor<T, B>,
-    istdev: Tensor<T, B>,
-    m_const: Tensor<T, B>,
-    minus_half: Tensor<T, B>,
-    two_const: Tensor<T, B>,
-    n: usize,
-    c: usize,
-    l: usize,
-    m: usize,
+    args: BatchNorm1dArgs<T, B>,
 ) -> Var<T, B> {
     let backend = B::default();
     let requires_grad = input.grad.is_some() || weight.grad.is_some() || bias.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            args.out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -339,28 +149,22 @@ pub fn batchnorm1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let creator = if requires_grad {
         let output_grad = grad.as_ref().unwrap().clone();
         let inputs = vec![input.clone(), weight.clone(), bias.clone()];
-        let w_reshaped_captured = weight.tensor.reshape([1, c]);
-        let x_hat_clone = x_hat.clone();
-        let xmu_clone = xmu.clone();
-        let istdev_clone = istdev.clone();
-        let minus_half = minus_half.clone();
-        let m_const_captured = m_const.clone();
-        let two_const = two_const.clone();
+        let w_reshaped_captured = weight.tensor.reshape([1, args.c]);
 
         let node = BatchNorm1dNode {
             output_grad,
             inputs,
             w_reshaped_captured,
-            x_hat_clone,
-            xmu_clone,
-            istdev_clone,
-            minus_half,
-            m_const_captured,
-            two_const,
-            n,
-            c,
-            l,
-            m,
+            x_hat_clone: args.x_hat,
+            xmu_clone: args.xmu,
+            istdev_clone: args.istdev,
+            minus_half: args.minus_half,
+            m_const_captured: args.m_const,
+            two_const: args.two_const,
+            n: args.n,
+            c: args.c,
+            l: args.l,
+            m: args.m,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
     } else {
@@ -368,11 +172,13 @@ pub fn batchnorm1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     };
 
     Var {
-        tensor: out_tensor,
+        tensor: args.out_tensor,
         grad,
         creator,
     }
 }
+
+// ── BatchNorm2d ─────────────────────────────────────────────────────────────
 
 pub struct BatchNorm2dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -467,29 +273,52 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
     }
 }
 
+/// Pre-computed intermediates and spatial dimensions for [`batchnorm2d`].
+///
+/// Groups the tensor results produced during the forward pass (needed for backward)
+/// together with the shape scalars `n`, `c`, `h`, `w`, `m` so that `batchnorm2d`
+/// accepts a single typed descriptor instead of fifteen positional arguments.
+pub struct BatchNorm2dArgs<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Forward-pass output tensor `[N, C, H, W]`.
+    pub out_tensor: Tensor<T, B>,
+    /// Normalised input `x_hat = (x - mu) / sqrt(var + eps)`, shape `[M, C]`.
+    pub x_hat: Tensor<T, B>,
+    /// Centred input `x - mu`, shape `[M, C]`.
+    pub xmu: Tensor<T, B>,
+    /// Inverse standard deviation `1 / sqrt(var + eps)`, shape `[1, C]`.
+    pub istdev: Tensor<T, B>,
+    /// Scalar tensor holding the batch count `M = N * H * W`, shape `[1]`.
+    pub m_const: Tensor<T, B>,
+    /// Constant tensor holding `-0.5`, shape `[1]`.
+    pub minus_half: Tensor<T, B>,
+    /// Constant tensor holding `2.0`, shape `[1]`.
+    pub two_const: Tensor<T, B>,
+    /// Batch size.
+    pub n: usize,
+    /// Channel count.
+    pub c: usize,
+    /// Spatial height.
+    pub h: usize,
+    /// Spatial width.
+    pub w: usize,
+    /// Spatial batch size `N * H * W`.
+    pub m: usize,
+}
+
 /// Tracked 2D Batch Normalization.
-#[allow(clippy::too_many_arguments)]
 pub fn batchnorm2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
     bias: &Var<T, B>,
-    out_tensor: Tensor<T, B>,
-    x_hat: Tensor<T, B>,
-    xmu: Tensor<T, B>,
-    istdev: Tensor<T, B>,
-    m_const: Tensor<T, B>,
-    minus_half: Tensor<T, B>,
-    two_const: Tensor<T, B>,
-    n: usize,
-    c: usize,
-    h: usize,
-    w: usize,
-    m: usize,
+    args: BatchNorm2dArgs<T, B>,
 ) -> Var<T, B> {
     let backend = B::default();
     let requires_grad = input.grad.is_some() || weight.grad.is_some() || bias.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            args.out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -497,29 +326,23 @@ pub fn batchnorm2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let creator = if requires_grad {
         let output_grad = grad.as_ref().unwrap().clone();
         let inputs = vec![input.clone(), weight.clone(), bias.clone()];
-        let w_reshaped_captured = weight.tensor.reshape([1, c]);
-        let x_hat_clone = x_hat.clone();
-        let xmu_clone = xmu.clone();
-        let istdev_clone = istdev.clone();
-        let minus_half = minus_half.clone();
-        let m_const_captured = m_const.clone();
-        let two_const = two_const.clone();
+        let w_reshaped_captured = weight.tensor.reshape([1, args.c]);
 
         let node = BatchNorm2dNode {
             output_grad,
             inputs,
             w_reshaped_captured,
-            x_hat_clone,
-            xmu_clone,
-            istdev_clone,
-            minus_half,
-            m_const_captured,
-            two_const,
-            n,
-            c,
-            h,
-            w,
-            m,
+            x_hat_clone: args.x_hat,
+            xmu_clone: args.xmu,
+            istdev_clone: args.istdev,
+            minus_half: args.minus_half,
+            m_const_captured: args.m_const,
+            two_const: args.two_const,
+            n: args.n,
+            c: args.c,
+            h: args.h,
+            w: args.w,
+            m: args.m,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
     } else {
@@ -527,11 +350,13 @@ pub fn batchnorm2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     };
 
     Var {
-        tensor: out_tensor,
+        tensor: args.out_tensor,
         grad,
         creator,
     }
 }
+
+// ── BatchNorm3d ─────────────────────────────────────────────────────────────
 
 pub struct BatchNorm3dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -571,7 +396,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
         let backend = B::default();
 
-        let go_ndhwc = grad_out.permute(&[0, 2, 3, 4, 1]).to_contiguous_on(&backend); // [N, D, H, W, C]
+        let go_ndhwc = grad_out
+            .permute(&[0, 2, 3, 4, 1])
+            .to_contiguous_on(&backend); // [N, D, H, W, C]
         let go_flat = go_ndhwc.reshape([self.m, self.c]); // [M, C]
 
         // ── dL/dbeta = sum(dy, dim=0) [C] ──
@@ -619,7 +446,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
             let dx_flat = term1; // [M, C]
 
             let dx_ndhwc = dx_flat.reshape([self.n, self.d, self.h, self.w, self.c]);
-            let dx_ncdhw = dx_ndhwc.permute(&[0, 4, 1, 2, 3]).to_contiguous_on(&backend);
+            let dx_ncdhw = dx_ndhwc
+                .permute(&[0, 4, 1, 2, 3])
+                .to_contiguous_on(&backend);
 
             let mut gl = gx.lock().unwrap();
             coeus_ops::add_assign(&mut *gl, &dx_ncdhw, &backend);
@@ -627,30 +456,54 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
     }
 }
 
+/// Pre-computed intermediates and spatial dimensions for [`batchnorm3d`].
+///
+/// Groups the tensor results produced during the forward pass (needed for backward)
+/// together with the shape scalars `n`, `c`, `d`, `h`, `w`, `m` so that `batchnorm3d`
+/// accepts a single typed descriptor instead of sixteen positional arguments.
+pub struct BatchNorm3dArgs<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Forward-pass output tensor `[N, C, D, H, W]`.
+    pub out_tensor: Tensor<T, B>,
+    /// Normalised input `x_hat = (x - mu) / sqrt(var + eps)`, shape `[M, C]`.
+    pub x_hat: Tensor<T, B>,
+    /// Centred input `x - mu`, shape `[M, C]`.
+    pub xmu: Tensor<T, B>,
+    /// Inverse standard deviation `1 / sqrt(var + eps)`, shape `[1, C]`.
+    pub istdev: Tensor<T, B>,
+    /// Scalar tensor holding the batch count `M = N * D * H * W`, shape `[1]`.
+    pub m_const: Tensor<T, B>,
+    /// Constant tensor holding `-0.5`, shape `[1]`.
+    pub minus_half: Tensor<T, B>,
+    /// Constant tensor holding `2.0`, shape `[1]`.
+    pub two_const: Tensor<T, B>,
+    /// Batch size.
+    pub n: usize,
+    /// Channel count.
+    pub c: usize,
+    /// Depth.
+    pub d: usize,
+    /// Spatial height.
+    pub h: usize,
+    /// Spatial width.
+    pub w: usize,
+    /// Spatial batch size `N * D * H * W`.
+    pub m: usize,
+}
+
 /// Tracked 3D Batch Normalization.
-#[allow(clippy::too_many_arguments)]
 pub fn batchnorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
     bias: &Var<T, B>,
-    out_tensor: Tensor<T, B>,
-    x_hat: Tensor<T, B>,
-    xmu: Tensor<T, B>,
-    istdev: Tensor<T, B>,
-    m_const: Tensor<T, B>,
-    minus_half: Tensor<T, B>,
-    two_const: Tensor<T, B>,
-    n: usize,
-    c: usize,
-    d: usize,
-    h: usize,
-    w: usize,
-    m: usize,
+    args: BatchNorm3dArgs<T, B>,
 ) -> Var<T, B> {
     let backend = B::default();
     let requires_grad = input.grad.is_some() || weight.grad.is_some() || bias.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            args.out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -658,30 +511,24 @@ pub fn batchnorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let creator = if requires_grad {
         let output_grad = grad.as_ref().unwrap().clone();
         let inputs = vec![input.clone(), weight.clone(), bias.clone()];
-        let w_reshaped_captured = weight.tensor.reshape([1, c]);
-        let x_hat_clone = x_hat.clone();
-        let xmu_clone = xmu.clone();
-        let istdev_clone = istdev.clone();
-        let minus_half = minus_half.clone();
-        let m_const_captured = m_const.clone();
-        let two_const = two_const.clone();
+        let w_reshaped_captured = weight.tensor.reshape([1, args.c]);
 
         let node = BatchNorm3dNode {
             output_grad,
             inputs,
             w_reshaped_captured,
-            x_hat_clone,
-            xmu_clone,
-            istdev_clone,
-            minus_half,
-            m_const_captured,
-            two_const,
-            n,
-            c,
-            d,
-            h,
-            w,
-            m,
+            x_hat_clone: args.x_hat,
+            xmu_clone: args.xmu,
+            istdev_clone: args.istdev,
+            minus_half: args.minus_half,
+            m_const_captured: args.m_const,
+            two_const: args.two_const,
+            n: args.n,
+            c: args.c,
+            d: args.d,
+            h: args.h,
+            w: args.w,
+            m: args.m,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
     } else {
@@ -689,7 +536,7 @@ pub fn batchnorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     };
 
     Var {
-        tensor: out_tensor,
+        tensor: args.out_tensor,
         grad,
         creator,
     }

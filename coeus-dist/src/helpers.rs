@@ -1,6 +1,6 @@
-use std::borrow::Cow;
-use coeus_core::{Scalar, ComputeBackend, Storage, StorageMut};
+use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut};
 use coeus_tensor::Tensor;
+use std::borrow::Cow;
 
 /// Retrieve a tensor's data as a host slice (using Cow to avoid heap allocation if the storage is already CPU-addressable and contiguous).
 pub(crate) fn get_tensor_host_data<'a, T: Scalar, B: ComputeBackend>(
@@ -136,10 +136,8 @@ pub(crate) fn recv_tensor_data<T: Scalar, B: ComputeBackend, F>(
 }
 
 /// Helper to read raw bytes from a source into a mutable host slice.
-pub(crate) fn recv_slice_data<T: Scalar, F>(
-    data: &mut [T],
-    recv_fn: F,
-) where
+pub(crate) fn recv_slice_data<T: Scalar, F>(data: &mut [T], recv_fn: F)
+where
     F: FnOnce(&mut [u8]),
 {
     if data.is_empty() {
@@ -150,4 +148,3 @@ pub(crate) fn recv_slice_data<T: Scalar, F>(
     let raw_slice = unsafe { std::slice::from_raw_parts_mut(raw_ptr, bytes_len) };
     recv_fn(raw_slice);
 }
-

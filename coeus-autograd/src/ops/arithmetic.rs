@@ -1,9 +1,9 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::{Scalar, Shape};
-use coeus_tensor::Tensor;
-use crate::var::Var;
 use crate::backward::reduce_broadcast;
 use crate::node::BackwardNode;
+use crate::var::Var;
+use coeus_core::{Scalar, Shape};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 /// Abstract interface for compile-time specialized binary autograd operations.
 pub trait BinaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Send + Sync {
@@ -25,7 +25,8 @@ pub trait BinaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Se
     );
 }
 
-pub struct BinaryNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B>> {
+pub struct BinaryNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B>>
+{
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
     pub inputs: Vec<Var<T, B>>,
     pub a_tensor: Tensor<T, B>,
@@ -35,7 +36,9 @@ pub struct BinaryNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: Bina
     pub _phantom: std::marker::PhantomData<Op>,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B>> BackwardNode<T, B> for BinaryNode<T, B, Op> {
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B>>
+    BackwardNode<T, B> for BinaryNode<T, B, Op>
+{
     #[inline]
     fn op_name(&self) -> &'static str {
         Op::OP_NAME
@@ -54,13 +57,25 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B
     #[inline]
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
         let backend = B::default();
-        Op::backward(grad_out, &self.a_tensor, &self.b_tensor, &self.a_shape, &self.b_shape, input_grads, &backend);
+        Op::backward(
+            grad_out,
+            &self.a_tensor,
+            &self.b_tensor,
+            &self.a_shape,
+            &self.b_shape,
+            input_grads,
+            &backend,
+        );
     }
 }
 
 /// Generic, monomorphized binary wrapper that builds the autograd node.
 #[inline]
-pub fn binary_op<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B> + 'static>(
+pub fn binary_op<
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+    Op: BinaryAutogradOp<T, B> + 'static,
+>(
     a: &Var<T, B>,
     b: &Var<T, B>,
 ) -> Var<T, B> {
@@ -68,7 +83,10 @@ pub fn binary_op<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAut
     let out_tensor = Op::forward(&a.tensor, &b.tensor, &backend);
     let requires_grad = a.grad.is_some() || b.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -94,11 +112,17 @@ pub fn binary_op<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAut
         None
     };
 
-    Var { tensor: out_tensor, grad, creator }
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
 }
 
 /// Abstract interface for compile-time specialized reduction autograd operations.
-pub trait ReductionAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Send + Sync {
+pub trait ReductionAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>:
+    Send + Sync
+{
     /// Human-readable operation name for tracking.
     const OP_NAME: &'static str;
 
@@ -109,7 +133,11 @@ pub trait ReductionAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>:
     fn scaler(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Option<Tensor<T, B>>;
 }
 
-pub struct ReductionNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T, B>> {
+pub struct ReductionNode<
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+    Op: ReductionAutogradOp<T, B>,
+> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
     pub inputs: Vec<Var<T, B>>,
     pub a_shape: Shape,
@@ -117,7 +145,9 @@ pub struct ReductionNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: R
     pub _phantom: std::marker::PhantomData<Op>,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T, B>> BackwardNode<T, B> for ReductionNode<T, B, Op> {
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T, B>>
+    BackwardNode<T, B> for ReductionNode<T, B, Op>
+{
     #[inline]
     fn op_name(&self) -> &'static str {
         Op::OP_NAME
@@ -151,7 +181,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T
 
 /// Generic, monomorphized reduction wrapper that builds the autograd node.
 #[inline]
-pub fn reduction_op<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T, B> + 'static>(
+pub fn reduction_op<
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+    Op: ReductionAutogradOp<T, B> + 'static,
+>(
     a: &Var<T, B>,
     param: Option<usize>,
 ) -> Var<T, B> {
@@ -159,7 +193,10 @@ pub fn reduction_op<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: Reduct
     let out_tensor = Op::forward(&a.tensor, param, &backend);
     let requires_grad = a.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -181,7 +218,11 @@ pub fn reduction_op<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: Reduct
         None
     };
 
-    Var { tensor: out_tensor, grad, creator }
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
 }
 
 // ── ZST Operation Tags for Binary Ops ──
@@ -421,50 +462,76 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
 // ── Public Tracked Arithmetic and Reduction Functions ──
 
 /// Tracked element-wise addition.
+#[must_use]
 #[inline]
-pub fn add<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, b: &Var<T, B>) -> Var<T, B> {
+pub fn add<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
     binary_op::<T, B, AddOp>(a, b)
 }
 
 /// Tracked element-wise subtraction.
+#[must_use]
 #[inline]
-pub fn sub<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, b: &Var<T, B>) -> Var<T, B> {
+pub fn sub<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
     binary_op::<T, B, SubOp>(a, b)
 }
 
 /// Tracked element-wise multiplication.
+#[must_use]
 #[inline]
-pub fn mul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, b: &Var<T, B>) -> Var<T, B> {
+pub fn mul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
     binary_op::<T, B, MulOp>(a, b)
 }
 
 /// Tracked element-wise division.
+#[must_use]
 #[inline]
-pub fn div<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, b: &Var<T, B>) -> Var<T, B> {
+pub fn div<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
     binary_op::<T, B, DivOp>(a, b)
 }
 
 /// Tracked sum reduction of all elements.
+#[must_use]
 #[inline]
 pub fn sum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
     reduction_op::<T, B, SumOp>(a, None)
 }
 
 /// Tracked mean reduction of all elements.
+#[must_use]
 #[inline]
 pub fn mean<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
     reduction_op::<T, B, MeanOp>(a, None)
 }
 
 /// Tracked sum reduction along an axis.
+#[must_use]
 #[inline]
-pub fn sum_axis<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, axis: usize) -> Var<T, B> {
+pub fn sum_axis<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    axis: usize,
+) -> Var<T, B> {
     reduction_op::<T, B, SumAxisOp>(a, Some(axis))
 }
 
 /// Tracked mean reduction along an axis.
+#[must_use]
 #[inline]
-pub fn mean_axis<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, axis: usize) -> Var<T, B> {
+pub fn mean_axis<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    axis: usize,
+) -> Var<T, B> {
     reduction_op::<T, B, MeanAxisOp>(a, Some(axis))
 }
 
@@ -485,6 +552,7 @@ pub fn mean_axis<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>
 ///
 /// Equivalent to `mul(x, Var::new(Tensor::full_on([1], s), false))` but
 /// expressed without the call-site boilerplate.
+#[must_use]
 #[inline]
 pub fn scalar_mul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
@@ -500,6 +568,7 @@ pub fn scalar_mul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 ///
 /// Equivalent to `add(x, Var::new(Tensor::full_on([1], s), false))` but
 /// expressed without the call-site boilerplate.
+#[must_use]
 #[inline]
 pub fn scalar_add<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
@@ -512,6 +581,7 @@ pub fn scalar_add<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Tracked element-wise subtraction by a scalar (x - s).
+#[must_use]
 #[inline]
 pub fn scalar_sub<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
@@ -524,6 +594,7 @@ pub fn scalar_sub<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Tracked element-wise division by a scalar (x / s).
+#[must_use]
 #[inline]
 pub fn scalar_div<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
@@ -534,4 +605,3 @@ pub fn scalar_div<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     let scalar_var = Var::new(scalar_tensor, false);
     binary_op::<T, B, DivOp>(x, &scalar_var)
 }
-

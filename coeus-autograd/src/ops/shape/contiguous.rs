@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::Scalar;
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::Scalar;
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct ContiguousNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -37,9 +37,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Co
 
 /// Tracked contiguous operation. Forces a copy to contiguous layout.
 #[inline]
-pub fn contiguous<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
-    x: &Var<T, B>,
-) -> Var<T, B> {
+pub fn contiguous<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(x: &Var<T, B>) -> Var<T, B> {
     if x.tensor.is_contiguous() {
         return x.clone();
     }
@@ -51,7 +49,10 @@ pub fn contiguous<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         return Var::new(out_tensor, false);
     }
 
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend)));
+    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+        out_tensor.shape_cloned(),
+        &backend,
+    )));
     let grad = Some(output_grad.clone());
 
     let node = ContiguousNode {

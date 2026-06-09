@@ -1,6 +1,6 @@
-use std::sync::OnceLock;
-use coeus_core::{Storage, ComputeBackend, Scalar};
 use crate::storage::WgpuStorage;
+use coeus_core::{ComputeBackend, Scalar, Storage};
+use std::sync::OnceLock;
 
 pub mod ops;
 
@@ -70,7 +70,9 @@ impl PooledMetadataBuffer {
     pub fn new() -> Self {
         let ctx = get_wgpu_context();
         let buffer = ctx.get_metadata_buffer();
-        Self { buffer: Some(buffer) }
+        Self {
+            buffer: Some(buffer),
+        }
     }
 }
 
@@ -205,9 +207,11 @@ impl ComputeBackend for WgpuBackend {
             }
         };
 
-        let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("coeus-wgpu-read-encoder"),
-        });
+        let mut encoder = ctx
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("coeus-wgpu-read-encoder"),
+            });
         encoder.copy_buffer_to_buffer(&src.buffer, 0, &staging_buffer, 0, size_in_bytes);
         ctx.queue.submit(Some(encoder.finish()));
 
@@ -218,7 +222,9 @@ impl ComputeBackend for WgpuBackend {
         });
 
         ctx.device.poll(wgpu::Maintain::Wait);
-        rx.recv().unwrap().expect("Failed to map staging buffer for read");
+        rx.recv()
+            .unwrap()
+            .expect("Failed to map staging buffer for read");
 
         let data = buffer_slice.get_mapped_range();
         let dst_bytes = bytemuck::cast_slice_mut(dst);

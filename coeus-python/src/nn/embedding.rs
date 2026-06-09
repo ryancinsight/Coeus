@@ -1,5 +1,5 @@
+use crate::tensor::{PyStateDict, PyTensor};
 use pyo3::prelude::*;
-use crate::tensor::{PyTensor, PyStateDict};
 
 /// Python-exposed Embedding layer.
 #[pyclass(name = "Embedding")]
@@ -16,8 +16,16 @@ pub struct PyEmbedding {
 impl PyEmbedding {
     #[new]
     pub fn new(py: Python<'_>, num_embeddings: usize, embedding_dim: usize) -> PyResult<Self> {
-        let rust_emb = coeus_nn::Embedding::<f64, coeus_core::MoiraiBackend>::new(num_embeddings, embedding_dim);
-        let weight = Py::new(py, PyTensor { inner: rust_emb.weight })?;
+        let rust_emb = coeus_nn::Embedding::<f64, coeus_core::MoiraiBackend>::new(
+            num_embeddings,
+            embedding_dim,
+        );
+        let weight = Py::new(
+            py,
+            PyTensor {
+                inner: rust_emb.weight,
+            },
+        )?;
         Ok(Self {
             weight,
             num_embeddings,

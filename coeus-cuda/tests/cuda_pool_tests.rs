@@ -1,6 +1,6 @@
 use coeus_core::SequentialBackend;
-use coeus_tensor::Tensor;
 use coeus_cuda::CudaBackend;
+use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_max_pool2d() {
@@ -48,7 +48,8 @@ fn test_cuda_max_pool2d() {
 
     // Now test backward
     let grad_out_data = vec![1.0f32, 2.0, 3.0, 4.0];
-    let grad_out_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data);
+    let grad_out_seq =
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data);
     let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
 
     let mut grad_in_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 4, 4]);
@@ -137,7 +138,8 @@ fn test_cuda_avg_pool2d() {
 
     // Now test backward
     let grad_out_data = vec![1.0f32, 2.0, 3.0, 4.0];
-    let grad_out_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data);
+    let grad_out_seq =
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data);
     let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
 
     let mut grad_in_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 4, 4]);

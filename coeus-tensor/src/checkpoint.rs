@@ -3,10 +3,10 @@
 // Fast binary serialization and deserialization of model parameters.
 // Uses bytemuck for zero-copy byte transmutation on CPU-addressable storage.
 
-use std::collections::HashMap;
-use std::io::{Read, Write, Result, Error, ErrorKind};
-use coeus_core::{Scalar, ComputeBackend, Storage};
 use crate::Tensor;
+use coeus_core::{ComputeBackend, Scalar, Storage};
+use std::collections::HashMap;
+use std::io::{Error, ErrorKind, Read, Result, Write};
 
 /// A dictionary mapping parameter names to their weight/bias tensors.
 #[derive(Clone)]
@@ -17,7 +17,9 @@ pub struct StateDict<T: Scalar, B: ComputeBackend + Default> {
 impl<T: Scalar, B: ComputeBackend + Default> Default for StateDict<T, B> {
     #[inline]
     fn default() -> Self {
-        Self { tensors: HashMap::new() }
+        Self {
+            tensors: HashMap::new(),
+        }
     }
 }
 
@@ -125,7 +127,10 @@ impl<T: Scalar, B: ComputeBackend + Default> StateDict<T, B> {
         reader.read_exact(&mut version_bytes)?;
         let version = u32::from_le_bytes(version_bytes);
         if version != 1 {
-            return Err(Error::new(ErrorKind::InvalidData, format!("Unsupported version: {version}")));
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("Unsupported version: {version}"),
+            ));
         }
 
         // 3. Read number of tensors
@@ -142,8 +147,8 @@ impl<T: Scalar, B: ComputeBackend + Default> StateDict<T, B> {
             let name_len = u32::from_le_bytes(name_len_bytes) as usize;
             let mut name_bytes = vec![0u8; name_len];
             reader.read_exact(&mut name_bytes)?;
-            let name = String::from_utf8(name_bytes)
-                .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+            let name =
+                String::from_utf8(name_bytes).map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
 
             // Shape
             let mut ndim_bytes = [0u8; 4];
@@ -166,7 +171,9 @@ impl<T: Scalar, B: ComputeBackend + Default> StateDict<T, B> {
             if data_len_bytes != expected_bytes {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
-                    format!("Data size mismatch: expected {expected_bytes} bytes, got {data_len_bytes}")
+                    format!(
+                        "Data size mismatch: expected {expected_bytes} bytes, got {data_len_bytes}"
+                    ),
                 ));
             }
 

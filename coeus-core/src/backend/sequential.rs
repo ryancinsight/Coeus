@@ -2,8 +2,8 @@
 // Zero-sized type for single-threaded execution.
 
 use crate::backend::{Backend, ComputeBackend};
-use crate::storage::{Storage, CpuStorage};
 use crate::dtype::Scalar;
+use crate::storage::{CpuStorage, Storage};
 
 /// Sequential (single-threaded) backend.
 ///

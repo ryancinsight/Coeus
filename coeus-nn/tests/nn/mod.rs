@@ -1,0 +1,8 @@
+mod attention;
+mod conv1d;
+mod conv2d;
+mod conv3d_pool3d;
+mod linear_activation_loss;
+mod log_softmax_cat_split;
+mod normalization;
+mod rope_and_transpose;

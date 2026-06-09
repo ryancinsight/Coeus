@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::{Scalar, Float};
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::{Float, Scalar};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct Conv1dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -47,11 +47,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
             None
         };
 
-        let mut grad_bias = if self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some() {
-            Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend))
-        } else {
-            None
-        };
+        let mut grad_bias =
+            if self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some() {
+                Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend))
+            } else {
+                None
+            };
 
         let dummy_layout = grad_out.layout();
 
@@ -116,11 +117,15 @@ pub fn conv1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     dilation: usize,
 ) -> Var<T, B> {
     let backend = B::default();
-    let requires_grad = input.grad.is_some() || weight.grad.is_some()
+    let requires_grad = input.grad.is_some()
+        || weight.grad.is_some()
         || bias.as_ref().map(|b| b.grad.is_some()).unwrap_or(false);
 
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -129,7 +134,9 @@ pub fn conv1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let output_grad = grad.as_ref().unwrap().clone();
         let inputs = {
             let mut v = vec![input.clone(), weight.clone()];
-            if let Some(ref b) = bias { v.push(b.clone()); }
+            if let Some(ref b) = bias {
+                v.push(b.clone());
+            }
             v
         };
         let w_clone = weight.tensor.clone();
@@ -201,11 +208,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
             None
         };
 
-        let mut grad_bias = if self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some() {
-            Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend))
-        } else {
-            None
-        };
+        let mut grad_bias =
+            if self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some() {
+                Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend))
+            } else {
+                None
+            };
 
         let dummy_layout = grad_out.layout();
 
@@ -270,11 +278,15 @@ pub fn conv2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     dilation: usize,
 ) -> Var<T, B> {
     let backend = B::default();
-    let requires_grad = input.grad.is_some() || weight.grad.is_some()
+    let requires_grad = input.grad.is_some()
+        || weight.grad.is_some()
         || bias.as_ref().map(|b| b.grad.is_some()).unwrap_or(false);
 
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -283,7 +295,9 @@ pub fn conv2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let output_grad = grad.as_ref().unwrap().clone();
         let inputs = {
             let mut v = vec![input.clone(), weight.clone()];
-            if let Some(ref b) = bias { v.push(b.clone()); }
+            if let Some(ref b) = bias {
+                v.push(b.clone());
+            }
             v
         };
         let w_clone = weight.tensor.clone();
@@ -355,11 +369,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
             None
         };
 
-        let mut grad_bias = if self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some() {
-            Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend))
-        } else {
-            None
-        };
+        let mut grad_bias =
+            if self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some() {
+                Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend))
+            } else {
+                None
+            };
 
         let dummy_layout = grad_out.layout();
 
@@ -424,11 +439,15 @@ pub fn conv3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     dilation: usize,
 ) -> Var<T, B> {
     let backend = B::default();
-    let requires_grad = input.grad.is_some() || weight.grad.is_some()
+    let requires_grad = input.grad.is_some()
+        || weight.grad.is_some()
         || bias.as_ref().map(|b| b.grad.is_some()).unwrap_or(false);
 
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend))))
+        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
     } else {
         None
     };
@@ -437,7 +456,9 @@ pub fn conv3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let output_grad = grad.as_ref().unwrap().clone();
         let inputs = {
             let mut v = vec![input.clone(), weight.clone()];
-            if let Some(ref b) = bias { v.push(b.clone()); }
+            if let Some(ref b) = bias {
+                v.push(b.clone());
+            }
             v
         };
         let w_clone = weight.tensor.clone();

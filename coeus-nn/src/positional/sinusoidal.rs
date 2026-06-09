@@ -7,10 +7,10 @@
 // `forward` adds a non-owning slice view (zero-copy for CPU-addressable
 // storage) to the input embedding tensor.
 
+use crate::module::Module;
+use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
-use coeus_autograd::Var;
-use crate::module::Module;
 
 /// Sinusoidal (non-learnable) positional encoding layer.
 ///
@@ -32,29 +32,36 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SinusoidalEncoding<T, B> {
     /// - `max_len`: maximum sequence length supported.
     /// - `d_model`: embedding dimension (must be even).
     pub fn new(max_len: usize, d_model: usize) -> Self {
-        assert!(d_model.is_multiple_of(2), "SinusoidalEncoding: d_model must be even, got {d_model}");
+        assert!(
+            d_model.is_multiple_of(2),
+            "SinusoidalEncoding: d_model must be even, got {d_model}"
+        );
         let backend = B::default();
         let mut table = Tensor::zeros_on([max_len, d_model], &backend);
         {
             use coeus_core::StorageMut;
-            let data = table.storage_mut().try_as_mut_slice()
+            let data = table
+                .storage_mut()
+                .try_as_mut_slice()
                 .expect("SinusoidalEncoding: backend must be CPU-addressable at construction");
             for pos in 0..max_len {
                 for i in 0..(d_model / 2) {
                     let denom = 10_000.0_f64.powf(2.0 * i as f64 / d_model as f64);
                     let angle = pos as f64 / denom;
-                    data[pos * d_model + 2 * i]     = T::from_f64(angle.sin());
+                    data[pos * d_model + 2 * i] = T::from_f64(angle.sin());
                     data[pos * d_model + 2 * i + 1] = T::from_f64(angle.cos());
                 }
             }
         }
-        Self { table, max_len, d_model }
+        Self {
+            table,
+            max_len,
+            d_model,
+        }
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for SinusoidalEncoding<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for SinusoidalEncoding<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![] // non-learnable
     }

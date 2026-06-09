@@ -1,5 +1,5 @@
+use crate::tensor::{PyStateDict, PyTensor};
 use pyo3::prelude::*;
-use crate::tensor::{PyTensor, PyStateDict};
 
 /// Python-exposed 2D Average Pooling layer.
 #[pyclass(name = "AvgPool2d")]
@@ -20,7 +20,12 @@ impl PyAvgPool2d {
     #[pyo3(signature = (kernel_size, stride = None, padding = 0, dilation = 1))]
     pub fn new(kernel_size: usize, stride: Option<usize>, padding: usize, dilation: usize) -> Self {
         let stride = stride.unwrap_or(kernel_size);
-        Self { kernel_size, stride, padding, dilation }
+        Self {
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        }
     }
 
     /// Forward pass through the AvgPool2d layer.
@@ -39,7 +44,9 @@ impl PyAvgPool2d {
     }
 
     fn state_dict(&self) -> PyStateDict {
-        PyStateDict { inner: coeus_tensor::checkpoint::StateDict::new() }
+        PyStateDict {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
     }
 
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {
@@ -66,7 +73,12 @@ impl PyMaxPool2d {
     #[pyo3(signature = (kernel_size, stride = None, padding = 0, dilation = 1))]
     pub fn new(kernel_size: usize, stride: Option<usize>, padding: usize, dilation: usize) -> Self {
         let stride = stride.unwrap_or(kernel_size);
-        Self { kernel_size, stride, padding, dilation }
+        Self {
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        }
     }
 
     /// Forward pass through the MaxPool2d layer.
@@ -85,7 +97,9 @@ impl PyMaxPool2d {
     }
 
     fn state_dict(&self) -> PyStateDict {
-        PyStateDict { inner: coeus_tensor::checkpoint::StateDict::new() }
+        PyStateDict {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
     }
 
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {
@@ -112,7 +126,12 @@ impl PyAvgPool3d {
     #[pyo3(signature = (kernel_size, stride = None, padding = 0, dilation = 1))]
     pub fn new(kernel_size: usize, stride: Option<usize>, padding: usize, dilation: usize) -> Self {
         let stride = stride.unwrap_or(kernel_size);
-        Self { kernel_size, stride, padding, dilation }
+        Self {
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        }
     }
 
     /// Forward pass through the AvgPool3d layer.
@@ -131,7 +150,9 @@ impl PyAvgPool3d {
     }
 
     fn state_dict(&self) -> PyStateDict {
-        PyStateDict { inner: coeus_tensor::checkpoint::StateDict::new() }
+        PyStateDict {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
     }
 
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {
@@ -158,7 +179,12 @@ impl PyMaxPool3d {
     #[pyo3(signature = (kernel_size, stride = None, padding = 0, dilation = 1))]
     pub fn new(kernel_size: usize, stride: Option<usize>, padding: usize, dilation: usize) -> Self {
         let stride = stride.unwrap_or(kernel_size);
-        Self { kernel_size, stride, padding, dilation }
+        Self {
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        }
     }
 
     /// Forward pass through the MaxPool3d layer.
@@ -177,7 +203,9 @@ impl PyMaxPool3d {
     }
 
     fn state_dict(&self) -> PyStateDict {
-        PyStateDict { inner: coeus_tensor::checkpoint::StateDict::new() }
+        PyStateDict {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
     }
 
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {

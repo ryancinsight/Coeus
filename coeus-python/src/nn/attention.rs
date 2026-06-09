@@ -1,5 +1,5 @@
+use crate::tensor::{PyStateDict, PyTensor};
 use pyo3::prelude::*;
-use crate::tensor::{PyTensor, PyStateDict};
 
 /// Python-exposed Multi-Head Attention layer.
 ///
@@ -74,7 +74,12 @@ impl PyMultiHeadAttention {
     ///
     /// Input shape: `[batch, seq, d_model]`. Returns same shape.
     #[pyo3(signature = (input, key_padding_mask = None))]
-    pub fn forward(&self, input: &PyTensor, key_padding_mask: Option<&PyTensor>, py: Python<'_>) -> PyResult<PyTensor> {
+    pub fn forward(
+        &self,
+        input: &PyTensor,
+        key_padding_mask: Option<&PyTensor>,
+        py: Python<'_>,
+    ) -> PyResult<PyTensor> {
         let wq = self.w_q.bind(py).borrow().inner.clone();
         let bq = self.b_q.as_ref().map(|b| b.bind(py).borrow().inner.clone());
         let wk = self.w_k.bind(py).borrow().inner.clone();
@@ -85,7 +90,7 @@ impl PyMultiHeadAttention {
         let bo = self.b_o.as_ref().map(|b| b.bind(py).borrow().inner.clone());
         let input_var = input.inner.clone();
         let mask_var = key_padding_mask.map(|m| m.inner.clone());
-        let d_model   = self.d_model;
+        let d_model = self.d_model;
         let num_heads = self.num_heads;
 
         let inner = py.allow_threads(move || {
@@ -128,7 +133,7 @@ impl PyMultiHeadAttention {
     pub fn forward_cross(
         &self,
         query: &PyTensor,
-        key:   &PyTensor,
+        key: &PyTensor,
         value: &PyTensor,
         key_padding_mask: Option<&PyTensor>,
         py: Python<'_>,
@@ -145,7 +150,7 @@ impl PyMultiHeadAttention {
         let k_var = key.inner.clone();
         let v_var = value.inner.clone();
         let mask_var = key_padding_mask.map(|m| m.inner.clone());
-        let d_model   = self.d_model;
+        let d_model = self.d_model;
         let num_heads = self.num_heads;
 
         let inner = py.allow_threads(move || {
@@ -266,14 +271,14 @@ impl PyRotaryEmbedding {
         let input_var = input.inner.clone();
         let rope = self.inner.clone();
 
-        let inner = py.allow_threads(move || {
-            rope.forward(&input_var)
-        });
+        let inner = py.allow_threads(move || rope.forward(&input_var));
         Ok(PyTensor { inner })
     }
 
     fn state_dict(&self) -> PyStateDict {
-        PyStateDict { inner: coeus_tensor::checkpoint::StateDict::new() }
+        PyStateDict {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
     }
 
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {

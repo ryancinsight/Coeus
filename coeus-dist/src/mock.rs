@@ -1,9 +1,9 @@
-use std::sync::{Arc, Barrier, Mutex};
-use coeus_core::{Scalar, ComputeBackend};
-use coeus_tensor::Tensor;
 use crate::communicator::Communicator;
+use crate::helpers::{copy_host_slice_to_tensor, get_tensor_host_data};
 use crate::ops::ReduceOpTag;
-use crate::helpers::{get_tensor_host_data, copy_host_slice_to_tensor};
+use coeus_core::{ComputeBackend, Scalar};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Barrier, Mutex};
 
 /// Shared state for thread-based rank cluster simulation.
 pub struct MockClusterShared {
@@ -112,7 +112,10 @@ impl Communicator for MockCommunicator {
         root: usize,
         backend: &B,
     ) {
-        assert!(root < self.size, "MockCommunicator broadcast root out of bounds");
+        assert!(
+            root < self.size,
+            "MockCommunicator broadcast root out of bounds"
+        );
         let numel = tensor.numel();
         if numel == 0 {
             return;
@@ -129,7 +132,11 @@ impl Communicator for MockCommunicator {
         let mut broadcasted = vec![T::zero(); numel];
         if self.rank != root {
             let bufs = self.shared.buffers.lock().unwrap();
-            let root_data = bufs[root].as_ref().unwrap().downcast_ref::<Vec<T>>().unwrap();
+            let root_data = bufs[root]
+                .as_ref()
+                .unwrap()
+                .downcast_ref::<Vec<T>>()
+                .unwrap();
             broadcasted.copy_from_slice(root_data);
         }
 
@@ -153,7 +160,11 @@ impl Communicator for MockCommunicator {
         output: &mut [Tensor<T, B>],
         backend: &B,
     ) {
-        assert_eq!(output.len(), self.size, "MockCommunicator all_gather output length mismatch");
+        assert_eq!(
+            output.len(),
+            self.size,
+            "MockCommunicator all_gather output length mismatch"
+        );
         let numel = tensor.numel();
         if numel == 0 {
             return;
@@ -194,7 +205,10 @@ impl Communicator for MockCommunicator {
         root: usize,
         backend: &B,
     ) {
-        assert!(root < self.size, "MockCommunicator reduce root out of bounds");
+        assert!(
+            root < self.size,
+            "MockCommunicator reduce root out of bounds"
+        );
         let numel = tensor.numel();
         if numel == 0 {
             return;
@@ -253,9 +267,16 @@ impl Communicator for MockCommunicator {
         root: usize,
         backend: &B,
     ) {
-        assert!(root < self.size, "MockCommunicator gather root out of bounds");
+        assert!(
+            root < self.size,
+            "MockCommunicator gather root out of bounds"
+        );
         if self.rank == root {
-            assert_eq!(output.len(), self.size, "MockCommunicator gather output length mismatch on root");
+            assert_eq!(
+                output.len(),
+                self.size,
+                "MockCommunicator gather output length mismatch on root"
+            );
         }
         let numel = tensor.numel();
         if numel == 0 {
@@ -298,9 +319,16 @@ impl Communicator for MockCommunicator {
         root: usize,
         backend: &B,
     ) {
-        assert!(root < self.size, "MockCommunicator scatter root out of bounds");
+        assert!(
+            root < self.size,
+            "MockCommunicator scatter root out of bounds"
+        );
         if self.rank == root {
-            assert_eq!(input.len(), self.size, "MockCommunicator scatter input length mismatch on root");
+            assert_eq!(
+                input.len(),
+                self.size,
+                "MockCommunicator scatter input length mismatch on root"
+            );
         }
         let numel = tensor.numel();
         if numel == 0 {
@@ -320,7 +348,11 @@ impl Communicator for MockCommunicator {
         let mut scattered = vec![T::zero(); numel];
         {
             let bufs = self.shared.buffers.lock().unwrap();
-            let rank_data = bufs[self.rank].as_ref().unwrap().downcast_ref::<Vec<T>>().unwrap();
+            let rank_data = bufs[self.rank]
+                .as_ref()
+                .unwrap()
+                .downcast_ref::<Vec<T>>()
+                .unwrap();
             scattered.copy_from_slice(rank_data);
         }
 

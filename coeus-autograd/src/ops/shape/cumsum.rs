@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::Scalar;
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::Scalar;
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct CumSumNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
@@ -12,7 +12,8 @@ pub struct CumSumNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for CumSumNode<T, B>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -46,7 +47,8 @@ pub fn cumsum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     dim: usize,
 ) -> Var<T, B>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
     let out_tensor = coeus_ops::cumsum(&x.tensor, dim);
@@ -56,7 +58,10 @@ where
         return Var::new(out_tensor, false);
     }
 
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(out_tensor.shape_cloned(), &backend)));
+    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+        out_tensor.shape_cloned(),
+        &backend,
+    )));
     let grad = Some(output_grad.clone());
 
     let node = CumSumNode {

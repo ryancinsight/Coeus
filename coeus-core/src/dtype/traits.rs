@@ -8,20 +8,21 @@
 // - All traits are sealed (private Sealed supertrait) for monomorphization
 // - bytemuck::Pod guarantees safe transmutation to/from [u8]
 
-use std::fmt::Debug;
-use num_traits::{Num, Zero, One};
 use bytemuck::Pod;
+use num_traits::{Num, One, Zero};
+use std::fmt::Debug;
 
 // ── Sealed pattern ──
 pub(crate) mod private {
     pub trait Sealed {}
 }
 
-/// Helper trait for native-precision floating-point operations.
+/// Native-precision floating-point transcendental operations.
 ///
-/// Implemented natively for floating point types.
-/// For integer types, it is not mathematically supported and will panic.
-pub trait FloatOps {
+/// Sealed to `Float` implementors only. Integer types do **not** implement
+/// this trait — calling `exp_op`, `log_op`, etc. on an integer type is a
+/// compile error, not a runtime panic.
+pub trait FloatOps: private::Sealed {
     fn exp_op(self) -> Self;
     fn log_op(self) -> Self;
     fn tanh_op(self) -> Self;
@@ -29,6 +30,41 @@ pub trait FloatOps {
     fn cos_op(self) -> Self;
     fn gelu_op(self) -> Self;
     fn sigmoid_op(self) -> Self;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CpuUnaryOp {
+    Relu,
+    ReluGrad,
+    Sigmoid,
+    SigmoidGrad,
+    Tanh,
+    TanhGrad,
+    Gelu,
+    GeluGrad,
+    Sin,
+    Cos,
+    Exp,
+    Log,
+    Neg,
+    Abs,
+    Sqrt,
+    Silu,
+    SiluGrad,
+    Mish,
+    MishGrad,
+    Elu,
+    EluGrad,
+    Softplus,
+    SoftplusGrad,
+    GeluTanh,
+    GeluTanhGrad,
+    LeakyRelu(u64),
+    LeakyReluGrad(u64),
+}
+
+pub trait CpuUnaryDispatch: private::Sealed {
+    fn eval_unary(op: CpuUnaryOp, x: Self) -> Self;
 }
 
 /// Base numeric trait for all tensor element types.
@@ -49,7 +85,7 @@ pub trait Scalar:
     + Zero
     + One
     + PartialOrd
-    + FloatOps
+    + CpuUnaryDispatch
     + 'static
 {
     /// Convert to f64 (for mixed-precision checkpoints).
@@ -155,8 +191,9 @@ pub trait Scalar:
 /// Floating-point extension trait.
 ///
 /// Provides transcendental functions, rounding, and float-specific checks.
-/// Implemented for f16, bf16, f32, f64.
-pub trait Float: Scalar {
+/// Implemented for f16, bf16, f32, f64. Extends `Scalar + FloatOps`, so
+/// any bound `T: Float` automatically implies `T: Scalar` and `T: FloatOps`.
+pub trait Float: Scalar + FloatOps {
     /// Largest finite value.
     const MAX: Self;
     /// Smallest positive normal value.

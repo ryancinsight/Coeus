@@ -1,6 +1,6 @@
-use coeus_core::Float;
-use coeus_autograd::Var;
 use crate::module::Module;
+use coeus_autograd::Var;
+use coeus_core::Float;
 
 /// Dropout layer.
 ///
@@ -20,7 +20,10 @@ pub struct Dropout {
 impl Dropout {
     /// Create a new Dropout layer.
     pub fn new(p: f64) -> Self {
-        assert!(p >= 0.0 && p < 1.0, "Dropout probability must be in [0.0, 1.0)");
+        assert!(
+            p >= 0.0 && p < 1.0,
+            "Dropout probability must be in [0.0, 1.0)"
+        );
         Self {
             p,
             is_training: true,

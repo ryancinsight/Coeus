@@ -1,12 +1,13 @@
-use std::sync::{Arc, Mutex};
-use coeus_core::{Scalar, Shape};
-use coeus_tensor::Tensor;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use coeus_core::{Scalar, Shape};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
 
 pub struct SplitNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
     pub inputs: Vec<Var<T, B>>,
@@ -18,26 +19,39 @@ where
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for SplitNode<T, B>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     #[inline]
-    fn op_name(&self) -> &'static str { "split" }
+    fn op_name(&self) -> &'static str {
+        "split"
+    }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> { &self.output_grad }
+    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+        &self.output_grad
+    }
 
     #[inline]
-    fn inputs(&self) -> &[Var<T, B>] { &self.inputs }
+    fn inputs(&self) -> &[Var<T, B>] {
+        &self.inputs
+    }
 
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
         let backend = B::default();
-        let Some(Some(ref acc)) = input_grads.first() else { return; };
+        let Some(Some(ref acc)) = input_grads.first() else {
+            return;
+        };
 
         let ndim = self.input_shape.len();
         let dim = self.dim;
         let ranges: Vec<(usize, usize)> = (0..ndim)
             .map(|d| {
-                if d == dim { (self.offset, self.offset + self.size) } else { (0, self.input_shape[d]) }
+                if d == dim {
+                    (self.offset, self.offset + self.size)
+                } else {
+                    (0, self.input_shape[d])
+                }
             })
             .collect();
 
@@ -45,7 +59,8 @@ where
         let (parent_storage, parent_layout) = lock.storage_mut_and_layout();
         let sliced_layout = parent_layout.slice(&ranges);
 
-        let parent_storage_imm: &B::DeviceBuffer<T> = unsafe { &*(parent_storage as *const B::DeviceBuffer<T>) };
+        let parent_storage_imm: &B::DeviceBuffer<T> =
+            unsafe { &*(parent_storage as *const B::DeviceBuffer<T>) };
         backend.elementwise_binary(
             coeus_ops::BinaryOp::Add,
             parent_storage_imm,
@@ -64,7 +79,8 @@ pub fn split<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     dim: usize,
 ) -> Vec<Var<T, B>>
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     assert!(chunk_size > 0, "split: chunk_size must be > 0");
     let backend = B::default();
@@ -85,7 +101,10 @@ where
             continue;
         }
 
-        let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(chunk_tensor.shape_cloned(), &backend)));
+        let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+            chunk_tensor.shape_cloned(),
+            &backend,
+        )));
         let grad = Some(output_grad.clone());
 
         let node = SplitNode {
@@ -98,7 +117,11 @@ where
         };
         let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-        results.push(Var { tensor: chunk_tensor, grad, creator });
+        results.push(Var {
+            tensor: chunk_tensor,
+            grad,
+            creator,
+        });
         offset += this_size;
     }
     results

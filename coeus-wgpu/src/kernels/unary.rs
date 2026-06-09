@@ -20,8 +20,10 @@ pub fn dispatch_unary<T: WgpuScalar>(
     let a_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let c_layout_buf = crate::backend::PooledMetadataBuffer::new();
 
-    ctx.queue.write_buffer(&a_layout_buf, 0, bytemuck::bytes_of(&a_layout_gpu));
-    ctx.queue.write_buffer(&c_layout_buf, 0, bytemuck::bytes_of(&c_layout_gpu));
+    ctx.queue
+        .write_buffer(&a_layout_buf, 0, bytemuck::bytes_of(&a_layout_gpu));
+    ctx.queue
+        .write_buffer(&c_layout_buf, 0, bytemuck::bytes_of(&c_layout_gpu));
 
     let expr: String = match op {
         coeus_ops::UnaryOp::Relu => "max(val, 0.0)".to_string(),
@@ -157,9 +159,18 @@ pub fn dispatch_unary<T: WgpuScalar>(
             label: Some("unary-bind-group-inplace"),
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: c.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: a_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: c_layout_buf.as_entire_binding() },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: c.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: a_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: c_layout_buf.as_entire_binding(),
+                },
             ],
         })
     } else {
@@ -167,17 +178,31 @@ pub fn dispatch_unary<T: WgpuScalar>(
             label: Some("unary-bind-group"),
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: a.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: c.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: a_layout_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 3, resource: c_layout_buf.as_entire_binding() },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: a.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: c.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: a_layout_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: c_layout_buf.as_entire_binding(),
+                },
             ],
         })
     };
 
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("unary-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("unary-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -240,7 +265,10 @@ pub fn dispatch_contiguous_unary<T: WgpuScalar>(
     };
 
     let is_inplace = std::ptr::eq(a, c);
-    let key = format!("contiguous_unary_{:?}_{}_inplace_{}", op, wgsl_type, is_inplace);
+    let key = format!(
+        "contiguous_unary_{:?}_{}_inplace_{}",
+        op, wgsl_type, is_inplace
+    );
 
     let shader_src = if is_inplace {
         format!(
@@ -286,24 +314,33 @@ pub fn dispatch_contiguous_unary<T: WgpuScalar>(
         ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("unary-bind-group-inplace"),
             layout: &bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: c.as_entire_binding() },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: c.as_entire_binding(),
+            }],
         })
     } else {
         ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("unary-bind-group"),
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: a.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: c.as_entire_binding() },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: a.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: c.as_entire_binding(),
+                },
             ],
         })
     };
 
-    let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("unary-encoder"),
-    });
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("unary-encoder"),
+        });
 
     {
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {

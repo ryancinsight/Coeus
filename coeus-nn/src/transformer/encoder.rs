@@ -5,10 +5,10 @@
 // no heap overhead for the container. Monomorphization emits one specialization
 // per `(T, B, H, N, M)`.
 
-use coeus_core::{Float, MoiraiBackend};
-use coeus_autograd::{Var, AttentionMask};
-use crate::module::Module;
 use super::encoder_layer::TransformerEncoderLayer;
+use crate::module::Module;
+use coeus_autograd::{AttentionMask, Var};
+use coeus_core::{Float, MoiraiBackend};
 
 /// Stack of N `TransformerEncoderLayer`s.
 ///
@@ -28,8 +28,13 @@ pub struct TransformerEncoder<
     pub layers: [TransformerEncoderLayer<T, B, H, M>; N],
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, const N: usize, M: AttentionMask>
-    TransformerEncoder<T, B, H, N, M>
+impl<
+        T: Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const H: usize,
+        const N: usize,
+        M: AttentionMask,
+    > TransformerEncoder<T, B, H, N, M>
 where
     TransformerEncoderLayer<T, B, H, M>: Clone,
 {
@@ -48,8 +53,13 @@ where
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, const N: usize, M: AttentionMask>
-    Module<T, B> for TransformerEncoder<T, B, H, N, M>
+impl<
+        T: Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const H: usize,
+        const N: usize,
+        M: AttentionMask,
+    > Module<T, B> for TransformerEncoder<T, B, H, N, M>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         self.layers.iter().flat_map(|l| l.parameters()).collect()
@@ -59,6 +69,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, const N: u
     ///
     /// Input/output shape: `[batch, seq, d_model]`.
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        self.layers.iter().fold(input.clone(), |x, layer| layer.forward(&x))
+        self.layers
+            .iter()
+            .fold(input.clone(), |x, layer| layer.forward(&x))
     }
 }
