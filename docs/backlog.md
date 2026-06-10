@@ -20,21 +20,22 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
 
-### Stage D — GPU backend program (wgpu + cuda-oxide)
-- [ ] [arch] ADR: CUDA binding choice — migrate `coeus-cuda` from cutile to
-  **cuda-oxide** (directive), preserving the dynamic-load / no-toolkit-to-compile
-  property; define `CudaBackend` ops on cuda-oxide. Record build-portability and
-  op-coverage trade-offs.
-- [ ] [minor] coeus-cuda op parity on cuda-oxide: elementwise, matmul, reductions,
-  conv/pool, attention, fused optimizer steps, with differential checks vs the CPU
-  (leto) reference.
-- [ ] [minor] coeus-wgpu: finish remaining op parity + fused-kernel coverage;
-  pipeline-cache audit.
-- [ ] [minor] Device memory: consume mnemosyne device pools / pinned-host staging
-  (Stage D1 in mnemosyne) instead of ad-hoc `wgpu::Buffer`/CUdeviceptr allocation;
-  use melinoe tokens for device-buffer ownership-transfer proofs.
-- [ ] [arch] Evaluate a shared low-level GPU device/buffer abstraction (wgpu +
-  cuda-oxide) co-owned with apollo to avoid duplicated device plumbing; ADR.
+### Stage D — GPU backend program over `hephaestus` (atlas ADR 0001)
+Decision recorded in atlas `docs/adr/0001-gpu-accelerator-substrate.md`: the shared
+GPU device/buffer/dispatch substrate is a new standalone infra repo, `hephaestus`
+(sibling of leto/moirai/hermes/mnemosyne), so apollo and coeus share one device layer
+with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* hephaestus;
+`Tensor<T,B>` and the backend seam are unchanged; autodiff stays in coeus.
+- [ ] [arch] Re-base `coeus-wgpu` and `coeus-cuda` onto `hephaestus` once it is
+  scaffolded; coeus keeps autograd/nn/optim/sparse and the `ComputeBackend`/`BackendOps`
+  seam. The CUDA backend **composes cuda-oxide + cutile** (cuda-oxide = driver/runtime/
+  memory/streams; cutile = tile/PTX kernels) — not a migration; both coexist.
+- [ ] [minor] GPU op parity audit on the hephaestus backends (elementwise, matmul,
+  reductions, conv/pool, attention, fused optimizer steps) with differential checks vs
+  the CPU (leto) reference.
+- [ ] [minor] Device memory via mnemosyne device pools / pinned-host staging (mnemosyne
+  Stage D1) and melinoe device-buffer ownership-transfer tokens, instead of ad-hoc
+  `wgpu::Buffer`/`CUdeviceptr` allocation.
 
 ### Stage B2 — parallelism SSOT
 - [ ] [patch] Audit that no rayon/tokio enters coeus (incl. transitive via
