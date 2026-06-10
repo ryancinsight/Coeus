@@ -1,5 +1,50 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-60+: Atlas burn-replacement & GPU roadmap [arch]
+
+Coeus is the burn replacement. CPU arrays come from leto (via coeus-leto), parallelism
+from moirai, SIMD from hermes, allocation from mnemosyne, FFT from apollo. GPU is a
+two-backend program behind the existing `ComputeBackend` seam: wgpu (portable) and
+cuda-oxide (NVIDIA). The high-level `Tensor<T, B>` and `ComputeBackend`/`BackendOps`
+seam stay; only backend *implementations* change. coeus-leto is the CPU backend's
+kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
+
+### Stage A2 — CPU backend consolidation onto leto (MS-59 follow-on)
+- [ ] [arch] Route `MoiraiBackend`/`SequentialBackend` `BackendOps<T>` CPU kernels
+  through `coeus-leto`: elementwise unary (compose the 17 activation/grad variants
+  in coeus from leto `RealScalar` ops), broadcast binary, reductions (sum/mean/min/
+  max/argmax/argmin/cumsum), matmul + batched matmul, reshape/permute/to_contiguous,
+  concat/stack/pad/split, seeded init (uniform/normal). Extend coeus-leto dispatch
+  per op behind `MAX_DISPATCH_RANK`.
+- [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
+  and coeus-tensor zip/broadcast once per-op parity is proven against the current
+  CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
+
+### Stage D — GPU backend program (wgpu + cuda-oxide)
+- [ ] [arch] ADR: CUDA binding choice — migrate `coeus-cuda` from cutile to
+  **cuda-oxide** (directive), preserving the dynamic-load / no-toolkit-to-compile
+  property; define `CudaBackend` ops on cuda-oxide. Record build-portability and
+  op-coverage trade-offs.
+- [ ] [minor] coeus-cuda op parity on cuda-oxide: elementwise, matmul, reductions,
+  conv/pool, attention, fused optimizer steps, with differential checks vs the CPU
+  (leto) reference.
+- [ ] [minor] coeus-wgpu: finish remaining op parity + fused-kernel coverage;
+  pipeline-cache audit.
+- [ ] [minor] Device memory: consume mnemosyne device pools / pinned-host staging
+  (Stage D1 in mnemosyne) instead of ad-hoc `wgpu::Buffer`/CUdeviceptr allocation;
+  use melinoe tokens for device-buffer ownership-transfer proofs.
+- [ ] [arch] Evaluate a shared low-level GPU device/buffer abstraction (wgpu +
+  cuda-oxide) co-owned with apollo to avoid duplicated device plumbing; ADR.
+
+### Stage B2 — parallelism SSOT
+- [ ] [patch] Audit that no rayon/tokio enters coeus (incl. transitive via
+  apollo-fft); route or isolate. moirai is the parallel+async SSOT.
+
+### Stage E — burn elimination end-to-end
+- [ ] [minor] Per-op differential parity of nn/autograd/optim vs a burn reference
+  (dev-only) for target models; remove any residual burn references.
+- [ ] [arch] Downstream integrator (CFDrs) swaps burn→coeus once parity holds.
+
 ## Sprint MS-59: leto as the CPU array-kernel substrate [arch]
 
 leto (https://github.com/ryancinsight/leto) is the ecosystem's shared
@@ -17,11 +62,12 @@ const-rank, and the new `coeus-leto` crate bridges them.
   pinned at rev 9d5a2bf (0.7.0). 6 cross-repo contract tests green.
 
 ### Next (tracked, [arch]):
-- Route `coeus-ops` CPU `BackendOps` (elementwise unary/binary, reductions,
-  matmul) through `coeus-leto` and delete the duplicated `coeus-tensor`
-  traversal layer once parity is proven, consolidating per the structural-
-  duplication rule. Keep `ComputeBackend`, autograd, NN kernels, sparse,
-  optimizers, and GPU backends in coeus.
+- Route the **CPU backend's** `BackendOps` impl (`MoiraiBackend`/`SequentialBackend`)
+  through `coeus-leto` and delete the duplicated CPU traversal in `coeus-ops`
+  (binary/matmul/reduction) and `coeus-tensor` zip/broadcast once parity is proven,
+  per the structural-duplication rule. `coeus-tensor`'s generic `Tensor<T, B>` (the
+  burn-tensor analogue) and the `ComputeBackend`/`BackendOps` seam stay; the wgpu
+  and cuda backends are siblings and are untouched. Detailed staging in MS-60+.
 - Extend the shim to reductions, reshape/permute, concat/stack, batched matmul,
   and seeded init (all now available in leto 0.7.0).
 

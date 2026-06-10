@@ -5,6 +5,13 @@
 ### Current Sprint: Sprint MS-55 (Heterogeneous GPU Backends) [PLANNED]
 **Objective**: Overhaul the backend trait with associated types, implement `coeus-wgpu` and `coeus-cuda` workspace crates, and resolve remaining CPU operation compilation blockers.
 
+> **Roadmap (docs/backlog.md MS-60+)**: the Atlas burn-replacement program now stages
+> (A2) routing the CPU backend's `BackendOps` through `coeus-leto` and deleting the
+> duplicated CPU traversal — keeping `Tensor<T,B>` and the `ComputeBackend` seam; and
+> (D) the GPU program: ADR to migrate `coeus-cuda` from cutile to **cuda-oxide**, finish
+> wgpu op parity, consume mnemosyne device pools / melinoe device-buffer ownership.
+> burn is eliminated end-to-end in Stage E.
+
 ---
 
 ### Workspace Crate Status Matrix
