@@ -1,0 +1,12 @@
+[package]
+name = "coeus-leto"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Const-rank dispatch shim adapting coeus dynamic-rank layouts onto leto array kernels (leto ADR 0002)."
+
+[dependencies]
+coeus-core = { path = "../coeus-core" }
+leto = { workspace = true }
+leto-ops = { workspace = true }

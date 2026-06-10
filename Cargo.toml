@@ -13,6 +13,7 @@ members = [
     "coeus-wgpu",
     "coeus-cuda",
     "coeus-dist",
+    "coeus-leto",
 ]
 
 [workspace.package]
@@ -31,6 +32,12 @@ mnemosyne  = { git = "https://github.com/ryancinsight/Mnemosyne.git" }
 apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", package = "apollo-fft" }
 # SIMD-effect SSOT. Tracks hermes `main`; advance with `cargo update -p hermes-simd`.
 hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", package = "hermes-simd" }
+# Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
+# coeus-leto adapts coeus's dynamic-rank layout onto leto's const-rank kernels;
+# the const-rank dispatch shim is consumer-owned here per leto ADR 0002.
+# Advance with `cargo update -p leto -p leto-ops`.
+leto     = { git = "https://github.com/ryancinsight/leto.git", rev = "9d5a2bf6f01425d454085b954300c76e9b5d3354", default-features = false, features = ["std"] }
+leto-ops = { git = "https://github.com/ryancinsight/leto.git", rev = "9d5a2bf6f01425d454085b954300c76e9b5d3354", default-features = false, features = ["std"] }
 
 # ── Numerical ──
 num-traits = "0.2"
