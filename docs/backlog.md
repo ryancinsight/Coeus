@@ -1,5 +1,30 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-59: leto as the CPU array-kernel substrate [arch]
+
+leto (https://github.com/ryancinsight/leto) is the ecosystem's shared
+non-differentiable array substrate (layout/storage/views/CPU kernels), the
+counterpart to mnemosyne=allocation, hermes=SIMD, moirai=parallel, apollo=FFT.
+Per leto ADR 0002 the const-rank vs dynamic-rank boundary is resolved by a
+consumer-owned dispatch shim: coeus keeps its dynamic-rank `Layout`, leto stays
+const-rank, and the new `coeus-leto` crate bridges them.
+
+### Completed:
+- **Added `coeus-leto`** (`coeus-leto/`): converts coeus dynamic-rank
+  `Layout`/`CpuStorage` to leto `Layout<N>` views and dispatches CPU array ops
+  (elementwise add with broadcast, 2D matmul) to monomorphized leto kernels via
+  a bounded runtime-rank match (`MAX_DISPATCH_RANK = 4`). Provider: leto/leto-ops
+  pinned at rev 9d5a2bf (0.7.0). 6 cross-repo contract tests green.
+
+### Next (tracked, [arch]):
+- Route `coeus-ops` CPU `BackendOps` (elementwise unary/binary, reductions,
+  matmul) through `coeus-leto` and delete the duplicated `coeus-tensor`
+  traversal layer once parity is proven, consolidating per the structural-
+  duplication rule. Keep `ComputeBackend`, autograd, NN kernels, sparse,
+  optimizers, and GPU backends in coeus.
+- Extend the shim to reductions, reshape/permute, concat/stack, batched matmul,
+  and seeded init (all now available in leto 0.7.0).
+
 ## Sprint MS-58: mnemosyne as the allocation SSOT [minor]
 
 mnemosyne is the ecosystem allocation SSOT (alongside hermes=SIMD, moirai=parallel,
