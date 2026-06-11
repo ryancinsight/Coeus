@@ -141,19 +141,55 @@ fn test_cuda_evaluate_fused_reduce() {
 }
 
 #[test]
-fn test_print_nvrtc_ptx() {
-    let src = r#"
-        extern "C" __global__ void dummy_kernel(float* x) {
-            int tid = blockIdx.x * blockDim.x + threadIdx.x;
-            x[tid] = 1.0f;
-        }
-    "#;
-    match coeus_cuda::kernels::fuse::compile_cuda_to_ptx(src) {
-        Ok(ptx) => {
-            panic!("--- PTX HEADER START ---\n{}\n--- PTX HEADER END ---", ptx);
-        }
-        Err(e) => {
-            panic!("Compilation failed: {}", e);
-        }
-    }
+fn test_diagnose_ptx_loading() {
+    let _cuda_b = coeus_cuda::CudaBackend::new();
+    let _drv = coeus_cuda::CudaDriver::get().expect("driver");
+    let _ctx = coeus_cuda::get_cuda_context().expect("context");
+    
+    let ptx_src = format!("{}\0", coeus_cuda::kernels::PTX_SOURCE);
+    
+    let mut err_log = vec![0u8; 4096];
+    let mut info_log = vec![0u8; 4096];
+    
+    let mut options = vec![
+        cuda_core::sys::CUjit_option_enum_CU_JIT_ERROR_LOG_BUFFER,
+        cuda_core::sys::CUjit_option_enum_CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES,
+        cuda_core::sys::CUjit_option_enum_CU_JIT_INFO_LOG_BUFFER,
+        cuda_core::sys::CUjit_option_enum_CU_JIT_INFO_LOG_BUFFER_SIZE_BYTES,
+        cuda_core::sys::CUjit_option_enum_CU_JIT_LOG_VERBOSE,
+    ];
+    
+    let mut err_log_size = err_log.len() as u32;
+    let mut info_log_size = info_log.len() as u32;
+    let verbose = 1u32;
+    
+    let mut option_values = vec![
+        err_log.as_mut_ptr() as *mut std::ffi::c_void,
+        &mut err_log_size as *mut u32 as *mut std::ffi::c_void,
+        info_log.as_mut_ptr() as *mut std::ffi::c_void,
+        &mut info_log_size as *mut u32 as *mut std::ffi::c_void,
+        &verbose as *const u32 as *mut std::ffi::c_void,
+    ];
+    
+    let mut module: cuda_core::sys::CUmodule = std::ptr::null_mut();
+    
+    let res = unsafe {
+        cuda_core::sys::cuModuleLoadDataEx(
+            &mut module,
+            ptx_src.as_ptr() as *const std::ffi::c_void,
+            options.len() as u32,
+            options.as_mut_ptr(),
+            option_values.as_mut_ptr(),
+        )
+    };
+    
+    let err_str = String::from_utf8_lossy(&err_log);
+    let info_str = String::from_utf8_lossy(&info_log);
+    
+    println!("cuModuleLoadDataEx result: {}", res);
+    println!("Error log:\n{}", err_str);
+    println!("Info log:\n{}", info_str);
+    
+    panic!("Diagnosing static PTX load");
 }
+

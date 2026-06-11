@@ -324,7 +324,7 @@ fn find_nvrtc_library() -> Option<Library> {
                     if path.is_file() {
                         if let Some(filename) = path.file_name().and_then(|s| s.to_str()) {
                             let matches = if cfg!(windows) {
-                                filename.starts_with("nvrtc") && filename.ends_with(".dll")
+                                filename.starts_with("nvrtc") && !filename.contains("builtins") && filename.ends_with(".dll")
                             } else {
                                 filename.starts_with("libnvrtc")
                                     && (filename.ends_with(".so") || filename.contains(".so."))

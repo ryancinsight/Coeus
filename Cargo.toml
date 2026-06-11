@@ -35,8 +35,8 @@ hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", package = "h
 # coeus-leto adapts coeus's dynamic-rank layout onto leto's const-rank kernels;
 # the const-rank dispatch shim is consumer-owned here per leto ADR 0002.
 # Advance with `cargo update -p leto -p leto-ops`.
-leto     = { git = "https://github.com/ryancinsight/leto.git", rev = "051757e4e1af0e26607cf144e7596bddeeb7145b" }
-leto-ops = { git = "https://github.com/ryancinsight/leto.git", rev = "051757e4e1af0e26607cf144e7596bddeeb7145b" }
+leto     = { git = "https://github.com/ryancinsight/leto.git", rev = "d8d34c617da453360931e50358e645743918962f" }
+leto-ops = { git = "https://github.com/ryancinsight/leto.git", rev = "d8d34c617da453360931e50358e645743918962f" }
 
 # ── Numerical ──
 num-traits = "0.2"
