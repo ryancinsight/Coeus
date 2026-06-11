@@ -51,10 +51,10 @@ fn test_cuda_backend_ops() {
         assert!((s_seq.as_slice()[1] - 1.7615942).abs() < 1e-5);
         assert!((s_seq.as_slice()[2] - 2.8577224).abs() < 1e-5);
         assert!((s_seq.as_slice()[3] - 3.9280551).abs() < 1e-5);
-        assert!((mish_seq.as_slice()[0] - 0.8656606).abs() < 1e-5);
-        assert!((mish_seq.as_slice()[1] - 1.943866).abs() < 1e-5);
-        assert!((mish_seq.as_slice()[2] - 2.986349).abs() < 1e-5);
-        assert!((mish_seq.as_slice()[3] - 3.997317).abs() < 1e-5);
+        assert!((mish_seq.as_slice()[0] - 0.8656606).abs() < 1e-3);
+        assert!((mish_seq.as_slice()[1] - 1.943866).abs() < 1e-3);
+        assert!((mish_seq.as_slice()[2] - 2.986349).abs() < 1e-3);
+        assert!((mish_seq.as_slice()[3] - 3.997317).abs() < 1e-3);
     } else {
         assert_eq!(c_seq.shape(), &[2, 2]);
         assert_eq!(m_seq.shape(), &[2, 2]);

@@ -13,7 +13,9 @@
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -39,7 +41,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -65,7 +69,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -91,7 +97,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -116,7 +124,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -140,7 +150,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -164,7 +176,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -191,7 +205,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -221,7 +237,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -259,7 +277,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -282,7 +302,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -305,7 +327,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -329,7 +353,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -353,7 +379,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -376,7 +404,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -399,7 +429,9 @@ L_exit:
     ld.param.u32 %r1, [n];
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %r4, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %r4, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %r4, %r1;
     @%p1 bra L_exit;
     mul.wide.s32 %rd4, %r4, 4;
@@ -420,6 +452,7 @@ L_exit:
     .param .u64 b_layout,
     .param .u64 c_layout
 ) {
+    .reg .pred %p_acc, %p_c_col, %p_c_row, %p_loop;
     .reg .u64 %sh_A, %sh_B;
     .shared .align 4 .f32 A_shared[256];
     .shared .align 4 .f32 B_shared[256];
@@ -468,8 +501,9 @@ L_exit:
     mov.u64 %sh_B, B_shared;
     
     .reg .u64 %local_idx;
-    mad.lo.s32 %local_idx, %ty, 16, %tx;
-    mul.wide.s32 %local_idx, %local_idx, 4;
+    .reg .u32 %local_idx_32;
+    mad.lo.s32 %local_idx_32, %ty, 16, %tx;
+    mul.wide.s32 %local_idx, %local_idx_32, 4;
     
 LOOP_START:
     setp.ge.u32 %p_loop, %tile_idx, %num_tiles;
@@ -541,12 +575,14 @@ ACC_LOOP:
     @%p_acc bra ACC_END;
     
     .reg .u64 %off_sh_a, %off_sh_b;
-    mad.lo.s32 %off_sh_a, %ty, 16, %i;
-    mul.wide.s32 %off_sh_a, %off_sh_a, 4;
+    .reg .u32 %off_sh_a_32;
+    mad.lo.s32 %off_sh_a_32, %ty, 16, %i;
+    mul.wide.s32 %off_sh_a, %off_sh_a_32, 4;
     add.u64 %off_sh_a, %sh_A, %off_sh_a;
     
-    mad.lo.s32 %off_sh_b, %i, 16, %tx;
-    mul.wide.s32 %off_sh_b, %off_sh_b, 4;
+    .reg .u32 %off_sh_b_32;
+    mad.lo.s32 %off_sh_b_32, %i, 16, %tx;
+    mul.wide.s32 %off_sh_b, %off_sh_b_32, 4;
     add.u64 %off_sh_b, %sh_B, %off_sh_b;
     
     .reg .f32 %fa, %fb, %fprod;
@@ -595,11 +631,14 @@ EXIT:
     .param .u32 axis,
     .param .u32 out_numel
 ) {
+    .reg .pred %p_ax, %p_d, %p_k;
     .reg .pred %p1;
     .reg .s32 %idx, %r2, %r3;
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     
     .reg .u32 %out_n;
     ld.param.u32 %out_n, [out_numel];
@@ -714,11 +753,14 @@ L_exit:
     .param .u32 dilation,
     .param .u32 out_numel
 ) {
+    .reg .pred %p_ge, %p_ic, %p_ik, %p_lt;
     .reg .pred %p1;
     .reg .s32 %idx, %r2, %r3;
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     
     .reg .u32 %out_n;
     ld.param.u32 %out_n, [out_numel];
@@ -768,7 +810,8 @@ IK_LOOP:
     @%p_ik bra IK_END;
     
     .reg .s32 %l_in;
-    mad.lo.s32 %l_in, %ol, %stride_s, -%pad_s;
+    mul.lo.s32 %l_in, %ol, %stride_s;
+    sub.s32 %l_in, %l_in, %pad_s;
     mad.lo.s32 %l_in, %ik, %dil_s, %l_in;
     
     .reg .pred %p_in_bounds;
@@ -859,11 +902,14 @@ L_exit:
     .param .u32 dilation,
     .param .u32 out_numel
 ) {
+    .reg .pred %p_h_ge, %p_h_lt, %p_ic, %p_ikh, %p_ikw, %p_w_ge, %p_w_lt;
     .reg .pred %p1;
     .reg .s32 %idx, %r2, %r3;
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     
     .reg .u32 %out_n;
     ld.param.u32 %out_n, [out_numel];
@@ -918,7 +964,8 @@ IKH_LOOP:
     @%p_ikh bra IKH_END;
     
     .reg .s32 %h_in;
-    mad.lo.s32 %h_in, %oh, %stride_s, -%pad_s;
+    mul.lo.s32 %h_in, %oh, %stride_s;
+    sub.s32 %h_in, %h_in, %pad_s;
     mad.lo.s32 %h_in, %ikh, %dil_s, %h_in;
     
     .reg .pred %p_h_bounds;
@@ -933,7 +980,8 @@ IKW_LOOP:
     @%p_ikw bra IKW_END;
     
     .reg .s32 %w_in;
-    mad.lo.s32 %w_in, %ow, %stride_s, -%pad_s;
+    mul.lo.s32 %w_in, %ow, %stride_s;
+    sub.s32 %w_in, %w_in, %pad_s;
     mad.lo.s32 %w_in, %ikw, %dil_s, %w_in;
     
     .reg .pred %p_w_bounds;
@@ -1034,6 +1082,8 @@ L_exit:
     .param .u32 dilation,
     .param .u32 numel_in
 ) {
+    .reg .pred %p_ik, %p_oc;
+    .reg .s32 %rem_val;
     .reg .pred %p1, %p_ge, %p_rem, %p_lt;
     .reg .f32 %sum, %goval, %wval, %prod, %old_gi, %new_gi;
     .reg .s32 %idx, %r2, %r3, %num_in, %li, %temp, %ic, %ni, %numer, %ik_dil, %ol, %oc, %ik;
@@ -1046,7 +1096,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     
     ld.param.u32 %num_in, [numel_in];
     setp.ge.u32 %p1, %idx, %num_in;
@@ -1166,6 +1218,7 @@ L_exit:
     .param .u32 dilation,
     .param .u32 numel_w
 ) {
+    .reg .pred %p_ni, %p_ol;
     .reg .pred %p1, %p_ge, %p_lt, %p_bounds;
     .reg .f32 %sum, %goval, %ival, %prod, %old_gw, %new_gw;
     .reg .s32 %idx, %r2, %r3, %num_w, %ik, %temp, %ic, %oc, %l_in, %ik_dil;
@@ -1178,7 +1231,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     
     ld.param.u32 %num_w, [numel_w];
     setp.ge.u32 %p1, %idx, %num_w;
@@ -1287,6 +1342,7 @@ L_exit:
     .param .u64 go_layout,
     .param .u32 c_out
 ) {
+    .reg .pred %p_ni, %p_ol;
     .reg .pred %p1;
     .reg .f32 %sum, %goval, %old_gb, %new_gb;
     .reg .s32 %oc, %r2, %r3, %channels;
@@ -1296,7 +1352,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %oc, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %oc, %r2, %r3, %t_x;
     
     ld.param.u32 %channels, [c_out];
     setp.ge.u32 %p1, %oc, %channels;
@@ -1364,6 +1422,8 @@ L_exit:
     .param .u32 dilation,
     .param .u32 numel_in
 ) {
+    .reg .pred %p_ikh, %p_ikw, %p_oc;
+    .reg .s32 %rem_h, %rem_w;
     .reg .pred %p1, %p_h_ge, %p_h_rem, %p_h_lt, %p_w_ge, %p_w_rem, %p_w_lt;
     .reg .f32 %sum, %goval, %wval, %prod, %old_gi, %new_gi;
     .reg .s32 %idx, %r2, %r3, %num_in, %wi, %temp1, %hi, %temp2, %ic, %ni, %numer_h, %ikh_dil, %oh, %numer_w, %ikw_dil, %ow, %oc, %ikh, %ikw;
@@ -1376,7 +1436,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     
     ld.param.u32 %num_in, [numel_in];
     setp.ge.u32 %p1, %idx, %num_in;
@@ -1531,6 +1593,7 @@ L_exit:
     .param .u32 dilation,
     .param .u32 numel_w
 ) {
+    .reg .pred %p_ni, %p_oh, %p_ow;
     .reg .pred %p1, %p_h_ge, %p_h_lt, %p_h_bounds, %p_w_ge, %p_w_lt, %p_w_bounds;
     .reg .f32 %sum, %goval, %ival, %prod, %old_gw, %new_gw;
     .reg .s32 %idx, %r2, %r3, %num_w, %ikw, %temp1, %ikh, %temp2, %ic, %oc, %h_in, %ikh_dil, %w_in, %ikw_dil;
@@ -1543,7 +1606,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     
     ld.param.u32 %num_w, [numel_w];
     setp.ge.u32 %p1, %idx, %num_w;
@@ -1682,6 +1747,7 @@ L_exit:
     .param .u64 go_layout,
     .param .u32 c_out
 ) {
+    .reg .pred %p_ni, %p_oh, %p_ow;
     .reg .pred %p1;
     .reg .f32 %sum, %goval, %old_gb, %new_gb;
     .reg .s32 %oc, %r2, %r3, %channels;
@@ -1691,7 +1757,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %oc, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %oc, %r2, %r3, %t_x;
     
     ld.param.u32 %channels, [c_out];
     setp.ge.u32 %p1, %oc, %channels;
@@ -1775,7 +1843,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -1880,7 +1950,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -1985,7 +2057,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2090,7 +2164,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2193,7 +2269,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2270,7 +2348,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2347,7 +2427,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2427,7 +2509,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2510,7 +2594,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2601,7 +2687,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2677,7 +2765,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2753,7 +2843,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2830,7 +2922,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2907,7 +3001,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -2983,7 +3079,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
@@ -3059,7 +3157,9 @@ L_exit:
 
     mov.u32 %r2, %ctaid.x;
     mov.u32 %r3, %ntid.x;
-    mad.lo.s32 %idx, %r2, %r3, %tid.x;
+    .reg .s32 %t_x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
     setp.ge.s32 %p1, %idx, %r1;
     @%p1 bra L_exit;
 
