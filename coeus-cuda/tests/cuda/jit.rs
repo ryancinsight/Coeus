@@ -146,7 +146,7 @@ fn test_diagnose_ptx_loading() {
     let _drv = coeus_cuda::CudaDriver::get().expect("driver");
     let _ctx = coeus_cuda::get_cuda_context().expect("context");
     
-    let ptx_src = format!("{}\0", coeus_cuda::kernels::PTX_SOURCE);
+    let ptx_src = format!("{}\0", coeus_cuda::kernels::ptx::PTX_SOURCE);
     
     let mut err_log = vec![0u8; 4096];
     let mut info_log = vec![0u8; 4096];
