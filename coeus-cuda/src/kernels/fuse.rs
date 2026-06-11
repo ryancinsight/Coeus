@@ -30,7 +30,7 @@ impl Drop for SafeCachedKernel {
 
 static KERNEL_CACHE: OnceLock<Mutex<HashMap<String, Arc<SafeCachedKernel>>>> = OnceLock::new();
 
-pub(crate) fn compile_cuda_to_ptx(src: &str) -> Result<String, String> {
+pub fn compile_cuda_to_ptx(src: &str) -> Result<String, String> {
     let nvrtc = NvrtcDriver::get().ok_or_else(|| "NVRTC driver not available".to_string())?;
 
     let src_c = std::ffi::CString::new(src).map_err(|e| e.to_string())?;

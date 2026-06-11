@@ -69,22 +69,23 @@ impl ComputeBackend for CudaBackend {
 
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
         if dst.cu_deviceptr() == 0 {
-            return;
+            panic!("copy_to_device: dst.cu_deviceptr() is 0!");
         }
         if let Some(stream) = crate::driver::get_borrowed_stream() {
             unsafe {
                 let _ = stream.synchronize();
             }
         }
-        if let Some(drv) = CudaDriver::get() {
-            if get_cuda_context().is_some() {
-                let bytesize = std::mem::size_of_val(src);
-                unsafe {
-                    let _res = (drv.cu_memcpy_htod)(
-                        dst.cu_deviceptr(),
-                        src.as_ptr() as *const std::ffi::c_void,
-                        bytesize,
-                    );
+        if get_cuda_context().is_some() {
+            let bytesize = std::mem::size_of_val(src);
+            unsafe {
+                let res = cuda_core::sys::cuMemcpyHtoD_v2(
+                    dst.cu_deviceptr() as cuda_core::sys::CUdeviceptr,
+                    src.as_ptr() as *const std::ffi::c_void,
+                    bytesize,
+                );
+                if res != 0 {
+                    panic!("cuMemcpyHtoD_v2 failed with error code: {}", res);
                 }
             }
         }
@@ -92,22 +93,23 @@ impl ComputeBackend for CudaBackend {
 
     fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
         if src.cu_deviceptr() == 0 {
-            return;
+            panic!("copy_to_host: src.cu_deviceptr() is 0!");
         }
         if let Some(stream) = crate::driver::get_borrowed_stream() {
             unsafe {
                 let _ = stream.synchronize();
             }
         }
-        if let Some(drv) = CudaDriver::get() {
-            if get_cuda_context().is_some() {
-                let bytesize = std::mem::size_of_val(dst);
-                unsafe {
-                    let _res = (drv.cu_memcpy_dtoh)(
-                        dst.as_mut_ptr() as *mut std::ffi::c_void,
-                        src.cu_deviceptr(),
-                        bytesize,
-                    );
+        if get_cuda_context().is_some() {
+            let bytesize = std::mem::size_of_val(dst);
+            unsafe {
+                let res = cuda_core::sys::cuMemcpyDtoH_v2(
+                    dst.as_mut_ptr() as *mut std::ffi::c_void,
+                    src.cu_deviceptr() as cuda_core::sys::CUdeviceptr,
+                    bytesize,
+                );
+                if res != 0 {
+                    panic!("cuMemcpyDtoH_v2 failed with error code: {}", res);
                 }
             }
         }

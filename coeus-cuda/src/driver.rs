@@ -66,6 +66,88 @@ unsafe impl Sync for CUcontextWrapper {}
 static DRIVER: OnceLock<Option<CudaDriver>> = OnceLock::new();
 static CONTEXT: OnceLock<Option<CUcontextWrapper>> = OnceLock::new();
 
+unsafe extern "C" fn local_cu_init(flags: u32) -> CUresult {
+    cuda_core::sys::cuInit(flags) as CUresult
+}
+
+unsafe extern "C" fn local_cu_device_get(device: *mut CUdevice, ordinal: i32) -> CUresult {
+    let mut dev = 0;
+    let res = cuda_core::sys::cuDeviceGet(&mut dev, ordinal);
+    if res == 0 {
+        *device = dev;
+    }
+    res as CUresult
+}
+
+unsafe extern "C" fn local_cu_ctx_create(pctx: *mut CUcontext, flags: u32, dev: CUdevice) -> CUresult {
+    cuda_core::sys::cuCtxCreate_v4(
+        pctx as *mut *mut _,
+        std::ptr::null_mut(),
+        flags,
+        dev,
+    ) as CUresult
+}
+
+unsafe extern "C" fn local_cu_mem_alloc(dptr: *mut CUdeviceptr, bytesize: usize) -> CUresult {
+    cuda_core::sys::cuMemAlloc_v2(dptr as *mut _, bytesize) as CUresult
+}
+
+unsafe extern "C" fn local_cu_mem_free(dptr: CUdeviceptr) -> CUresult {
+    cuda_core::sys::cuMemFree_v2(dptr) as CUresult
+}
+
+unsafe extern "C" fn local_cu_memcpy_htod(dst: CUdeviceptr, src: *const std::ffi::c_void, bytesize: usize) -> CUresult {
+    cuda_core::sys::cuMemcpyHtoD_v2(dst, src, bytesize) as CUresult
+}
+
+unsafe extern "C" fn local_cu_memcpy_dtoh(dst: *mut std::ffi::c_void, src: CUdeviceptr, bytesize: usize) -> CUresult {
+    cuda_core::sys::cuMemcpyDtoH_v2(dst, src, bytesize) as CUresult
+}
+
+unsafe extern "C" fn local_cu_memcpy_dtod(dst: CUdeviceptr, src: CUdeviceptr, bytesize: usize) -> CUresult {
+    cuda_core::sys::cuMemcpyDtoD_v2(dst, src, bytesize) as CUresult
+}
+
+unsafe extern "C" fn local_cu_module_load_data(module: *mut CUmodule, image: *const std::ffi::c_void) -> CUresult {
+    cuda_core::sys::cuModuleLoadData(module as *mut *mut _, image) as CUresult
+}
+
+unsafe extern "C" fn local_cu_module_get_function(hfunc: *mut CUfunction, hmod: CUmodule, name: *const std::ffi::c_char) -> CUresult {
+    cuda_core::sys::cuModuleGetFunction(hfunc as *mut *mut _, hmod as *mut _, name) as CUresult
+}
+
+unsafe extern "C" fn local_cu_module_unload(hmod: CUmodule) -> CUresult {
+    cuda_core::sys::cuModuleUnload(hmod as *mut _) as CUresult
+}
+
+unsafe extern "C" fn local_cu_launch_kernel(
+    f: CUfunction,
+    gridDimX: u32,
+    gridDimY: u32,
+    gridDimZ: u32,
+    blockDimX: u32,
+    blockDimY: u32,
+    blockDimZ: u32,
+    sharedMemBytes: u32,
+    hStream: CUstream,
+    kernelParams: *mut *mut std::ffi::c_void,
+    extra: *mut *mut std::ffi::c_void,
+) -> CUresult {
+    cuda_core::sys::cuLaunchKernel(
+        f as *mut _,
+        gridDimX,
+        gridDimY,
+        gridDimZ,
+        blockDimX,
+        blockDimY,
+        blockDimZ,
+        sharedMemBytes,
+        hStream as *mut _,
+        kernelParams as *mut *mut _,
+        extra as *mut *mut _,
+    ) as CUresult
+}
+
 impl CudaDriver {
     /// Retrieve a reference to the dynamically loaded driver if available.
     pub fn get() -> Option<&'static Self> {
@@ -78,33 +160,20 @@ impl CudaDriver {
                 };
                 let lib = Library::new(lib_name).ok()?;
 
-                let cu_init = *lib.get(b"cuInit\0").ok()?;
-                let cu_device_get = *lib.get(b"cuDeviceGet\0").ok()?;
-                let cu_ctx_create = *lib.get(b"cuCtxCreate\0").ok()?;
-                let cu_mem_alloc = *lib.get(b"cuMemAlloc\0").ok()?;
-                let cu_mem_free = *lib.get(b"cuMemFree\0").ok()?;
-                let cu_memcpy_htod = *lib.get(b"cuMemcpyHtoD\0").ok()?;
-                let cu_memcpy_dtoh = *lib.get(b"cuMemcpyDtoH\0").ok()?;
-                let cu_memcpy_dtod = *lib.get(b"cuMemcpyDtoD\0").ok()?;
-                let cu_module_load_data = *lib.get(b"cuModuleLoadData\0").ok()?;
-                let cu_module_get_function = *lib.get(b"cuModuleGetFunction\0").ok()?;
-                let cu_module_unload = *lib.get(b"cuModuleUnload\0").ok()?;
-                let cu_launch_kernel = *lib.get(b"cuLaunchKernel\0").ok()?;
-
                 Some(Self {
                     _lib: lib,
-                    cu_init,
-                    cu_device_get,
-                    cu_ctx_create,
-                    cu_mem_alloc,
-                    cu_mem_free,
-                    cu_memcpy_htod,
-                    cu_memcpy_dtoh,
-                    cu_memcpy_dtod,
-                    cu_module_load_data,
-                    cu_module_get_function,
-                    cu_module_unload,
-                    cu_launch_kernel,
+                    cu_init: local_cu_init,
+                    cu_device_get: local_cu_device_get,
+                    cu_ctx_create: local_cu_ctx_create,
+                    cu_mem_alloc: local_cu_mem_alloc,
+                    cu_mem_free: local_cu_mem_free,
+                    cu_memcpy_htod: local_cu_memcpy_htod,
+                    cu_memcpy_dtoh: local_cu_memcpy_dtoh,
+                    cu_memcpy_dtod: local_cu_memcpy_dtod,
+                    cu_module_load_data: local_cu_module_load_data,
+                    cu_module_get_function: local_cu_module_get_function,
+                    cu_module_unload: local_cu_module_unload,
+                    cu_launch_kernel: local_cu_launch_kernel,
                 })
             })
             .as_ref()
@@ -113,14 +182,27 @@ impl CudaDriver {
 
 /// Retrieve a reference to the active CUDA driver context.
 pub fn get_cuda_context() -> Option<CUcontext> {
-    CONTEXT
+    let ctx = CONTEXT
         .get_or_init(|| {
             cuda_async::device_context::with_device(0, |device| {
                 CUcontextWrapper(device.cu_ctx() as CUcontext)
             })
             .ok()
         })
-        .map(|w| w.0)
+        .as_ref()?
+        .0;
+
+    if let Some(device) = get_borrowed_device() {
+        let cu_ctx = device.cu_ctx();
+        if cu_ctx.is_null() {
+            panic!("device.cu_ctx() is NULL!");
+        }
+        if let Err(e) = device.bind_to_thread() {
+            panic!("device.bind_to_thread() failed: {:?}", e);
+        }
+    }
+
+    Some(ctx)
 }
 
 static BORROWED_DEVICE: OnceLock<Option<Arc<cuda_core::Device>>> = OnceLock::new();

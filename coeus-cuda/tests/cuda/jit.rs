@@ -139,3 +139,21 @@ fn test_cuda_evaluate_fused_reduce() {
         assert_eq!(min_seq.as_slice(), &[0.0, 0.0]);
     }
 }
+
+#[test]
+fn test_print_nvrtc_ptx() {
+    let src = r#"
+        extern "C" __global__ void dummy_kernel(float* x) {
+            int tid = blockIdx.x * blockDim.x + threadIdx.x;
+            x[tid] = 1.0f;
+        }
+    "#;
+    match coeus_cuda::kernels::fuse::compile_cuda_to_ptx(src) {
+        Ok(ptx) => {
+            panic!("--- PTX HEADER START ---\n{}\n--- PTX HEADER END ---", ptx);
+        }
+        Err(e) => {
+            panic!("Compilation failed: {}", e);
+        }
+    }
+}

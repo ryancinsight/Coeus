@@ -78,6 +78,10 @@ impl<T: Scalar> CudaStorage<T> {
         let size_in_bytes = (len * std::mem::size_of::<T>()).max(4);
         let mut ptr: CUdeviceptr = 0;
 
+        if let Some(device) = crate::driver::get_borrowed_device() {
+            let _ = device.bind_to_thread();
+        }
+
         if let Some(stream) = crate::driver::get_borrowed_stream() {
             unsafe {
                 ptr = cuda_core::malloc_async(size_in_bytes, &stream);
@@ -86,7 +90,7 @@ impl<T: Scalar> CudaStorage<T> {
 
         let alloc = Arc::new(CudaAllocation { ptr });
         let buffer = if ptr == 0 {
-            CudaBuffer::Null(alloc)
+            panic!("CudaStorage::new failed: allocated ptr is 0!");
         } else {
             let type_id = std::any::TypeId::of::<T>();
             if type_id == std::any::TypeId::of::<f32>() {
@@ -223,6 +227,9 @@ impl<T: Scalar> StorageMut<T> for CudaStorage<T> {
         if is_shared {
             let size_in_bytes = (self.len * std::mem::size_of::<T>()).max(4);
             let mut new_ptr: CUdeviceptr = 0;
+            if let Some(device) = crate::driver::get_borrowed_device() {
+                let _ = device.bind_to_thread();
+            }
             if let Some(stream) = crate::driver::get_borrowed_stream() {
                 unsafe {
                     new_ptr = cuda_core::malloc_async(size_in_bytes, &stream);
