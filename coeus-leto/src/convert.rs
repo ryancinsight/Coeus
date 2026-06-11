@@ -9,22 +9,27 @@ use leto::{ArrayView, ArrayViewMut, Layout, LetoError, Result};
 pub fn to_leto_layout<const N: usize>(layout: &CoeusLayout) -> Result<Layout<N>> {
     let shape = layout.shape();
     let strides = layout.strides();
-    if shape.len() != N {
+    if shape.len() > N {
         return Err(LetoError::StorageError {
             reason: format!(
-                "coeus rank {} does not match leto const rank {N}",
+                "coeus rank {} exceeds leto const rank {N}",
                 shape.len()
             ),
         });
     }
 
-    let mut shape_arr = [0usize; N];
+    let mut shape_arr = [1usize; N];
     let mut stride_arr = [0isize; N];
-    for i in 0..N {
-        shape_arr[i] = shape[i];
-        stride_arr[i] = isize::try_from(strides[i]).map_err(|_| LetoError::Overflow {
-            reason: "coeus stride exceeds isize range",
-        })?;
+    let pad_len = N - shape.len();
+    for i in 0..shape.len() {
+        shape_arr[pad_len + i] = shape[i];
+        stride_arr[pad_len + i] = if shape[i] == 1 {
+            0
+        } else {
+            isize::try_from(strides[i]).map_err(|_| LetoError::Overflow {
+                reason: "coeus stride exceeds isize range",
+            })?
+        };
     }
 
     Ok(Layout::new(shape_arr, stride_arr, layout.offset()))

@@ -33,6 +33,21 @@ pub trait FloatOps: private::Sealed {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReductionOp {
+    Sum,
+    Max,
+    Min,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CpuUnaryOp {
     Relu,
     ReluGrad,

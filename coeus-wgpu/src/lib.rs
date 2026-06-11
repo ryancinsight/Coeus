@@ -21,9 +21,9 @@ pub fn add<T: WgpuScalar>(
 
     kernels::dispatch_contiguous_binary::<T>(
         coeus_ops::BinaryOp::Add,
-        &a.storage().buffer,
-        &b.storage().buffer,
-        &c_storage.buffer,
+        a.storage().buffer.raw(),
+        b.storage().buffer.raw(),
+        c_storage.buffer.raw(),
         len,
     );
 
@@ -47,11 +47,11 @@ pub fn matmul<T: WgpuScalar>(
     let c_layout = Layout::new([m, n].into());
 
     kernels::dispatch_matmul::<T>(
-        &a.storage().buffer,
+        a.storage().buffer.raw(),
         a.layout(),
-        &b.storage().buffer,
+        b.storage().buffer.raw(),
         b.layout(),
-        &c_storage.buffer,
+        c_storage.buffer.raw(),
         &c_layout,
     );
 

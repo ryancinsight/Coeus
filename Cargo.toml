@@ -24,10 +24,9 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 # ── Remote System Dependencies ──
-# Parallelization/async SSOT. default-features=false so moirai does NOT impose its
-# own mnemosyne #[global_allocator] on coeus (coeus allocates explicitly via
-# mnemosyne in coeus-core::storage); we consume only the data-parallel surface.
-moirai     = { git = "https://github.com/ryancinsight/Moirai.git", default-features = false, features = ["parallel"] }
+# Parallelization/async SSOT. Moirai defaults carry parallel execution,
+# Mnemosyne-backed allocation surfaces, and Mellinoe branding.
+moirai     = { git = "https://github.com/ryancinsight/Moirai.git" }
 mnemosyne  = { git = "https://github.com/ryancinsight/Mnemosyne.git" }
 apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", package = "apollo-fft" }
 # SIMD-effect SSOT. Tracks hermes `main`; advance with `cargo update -p hermes-simd`.
@@ -36,8 +35,8 @@ hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", package = "h
 # coeus-leto adapts coeus's dynamic-rank layout onto leto's const-rank kernels;
 # the const-rank dispatch shim is consumer-owned here per leto ADR 0002.
 # Advance with `cargo update -p leto -p leto-ops`.
-leto     = { git = "https://github.com/ryancinsight/leto.git", rev = "9d5a2bf6f01425d454085b954300c76e9b5d3354", default-features = false, features = ["std"] }
-leto-ops = { git = "https://github.com/ryancinsight/leto.git", rev = "9d5a2bf6f01425d454085b954300c76e9b5d3354", default-features = false, features = ["std"] }
+leto     = { git = "https://github.com/ryancinsight/leto.git", rev = "051757e4e1af0e26607cf144e7596bddeeb7145b" }
+leto-ops = { git = "https://github.com/ryancinsight/leto.git", rev = "051757e4e1af0e26607cf144e7596bddeeb7145b" }
 
 # ── Numerical ──
 num-traits = "0.2"
@@ -47,8 +46,10 @@ half       = { version = "2.7", features = ["num-traits", "bytemuck"] }
 # (coeus-tensor). It may still appear transitively inside apollo-fft (an
 # ndarray-based FFT crate), but coeus's own code does not depend on it.
 smallvec   = "1.13"
-wgpu       = "23.0"
+wgpu       = { version = "26.0", features = ["wgsl"] }
 pollster   = "0.3"
+hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", package = "hephaestus-wgpu" }
+hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", package = "hephaestus-core" }
 
 # ── Error ──
 thiserror = "2"
@@ -65,3 +66,30 @@ coeus-nn       = { path = "coeus-nn" }
 coeus-optim    = { path = "coeus-optim" }
 coeus-sparse   = { path = "coeus-sparse" }
 coeus-dist     = { path = "coeus-dist" }
+
+[patch."https://github.com/ryancinsight/Mnemosyne.git"]
+mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
+mnemosyne-core = { path = "../mnemosyne/crates/mnemosyne-core" }
+mnemosyne-arena = { path = "../mnemosyne/crates/mnemosyne-arena" }
+mnemosyne-local = { path = "../mnemosyne/crates/mnemosyne-local" }
+mnemosyne-heap = { path = "../mnemosyne/crates/mnemosyne-heap" }
+
+[patch."https://github.com/ryancinsight/Moirai.git"]
+moirai = { path = "../moirai/moirai" }
+moirai-core = { path = "../moirai/moirai-core" }
+moirai-scheduler = { path = "../moirai/moirai-scheduler" }
+moirai-parallel = { path = "../moirai/moirai-parallel" }
+
+[patch."https://github.com/ryancinsight/leto.git"]
+leto = { path = "../leto/crates/leto" }
+leto-ops = { path = "../leto/crates/leto-ops" }
+
+[patch."https://github.com/ryancinsight/hephaestus.git"]
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core" }
+
+[patch."https://github.com/ryancinsight/hermes.git"]
+hermes-simd = { path = "../hermes/crates/hermes-simd" }
+
+[patch."https://github.com/ryancinsight/melinoe.git"]
+melinoe = { path = "../melinoe" }

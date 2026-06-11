@@ -296,12 +296,12 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     for (i, input) in inputs.iter().enumerate() {
         entries.push(wgpu::BindGroupEntry {
             binding: i as u32,
-            resource: input.storage().buffer.as_entire_binding(),
+            resource: input.storage().buffer.raw().as_entire_binding(),
         });
     }
     entries.push(wgpu::BindGroupEntry {
         binding: num_inputs as u32,
-        resource: c.buffer.as_entire_binding(),
+        resource: c.buffer.raw().as_entire_binding(),
     });
     entries.push(wgpu::BindGroupEntry {
         binding: (num_inputs + 1) as u32,

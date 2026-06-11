@@ -115,27 +115,10 @@ impl CudaDriver {
 pub fn get_cuda_context() -> Option<CUcontext> {
     CONTEXT
         .get_or_init(|| {
-            let drv = CudaDriver::get()?;
-            unsafe {
-                let res = (drv.cu_init)(0);
-                if res != 0 {
-                    return None;
-                }
-
-                let mut dev: CUdevice = 0;
-                let res = (drv.cu_device_get)(&mut dev, 0);
-                if res != 0 {
-                    return None;
-                }
-
-                let mut ctx: CUcontext = std::ptr::null_mut();
-                let res = (drv.cu_ctx_create)(&mut ctx, 0, dev);
-                if res != 0 {
-                    return None;
-                }
-
-                Some(CUcontextWrapper(ctx))
-            }
+            cuda_async::device_context::with_device(0, |device| {
+                CUcontextWrapper(device.cu_ctx() as CUcontext)
+            })
+            .ok()
         })
         .map(|w| w.0)
 }
@@ -147,13 +130,10 @@ static BORROWED_STREAM: OnceLock<Option<Arc<cuda_core::Stream>>> = OnceLock::new
 pub fn get_borrowed_device() -> Option<Arc<cuda_core::Device>> {
     BORROWED_DEVICE
         .get_or_init(|| {
-            let ctx = get_cuda_context()?;
-            unsafe {
-                Some(cuda_core::Device::borrow_raw(
-                    ctx, 0, // Device 0
-                    0, // Ordinal 0
-                ))
-            }
+            cuda_async::device_context::with_device(0, |device| {
+                device.clone()
+            })
+            .ok()
         })
         .clone()
 }
@@ -162,13 +142,11 @@ pub fn get_borrowed_device() -> Option<Arc<cuda_core::Device>> {
 pub fn get_borrowed_stream() -> Option<Arc<cuda_core::Stream>> {
     BORROWED_STREAM
         .get_or_init(|| {
-            let device = get_borrowed_device()?;
-            unsafe {
-                Some(cuda_core::Stream::borrow_raw(
-                    std::ptr::null_mut(), // Default stream (null_mut() is Stream 0 in CUDA)
-                    &device,
-                ))
-            }
+            cuda_async::device_context::with_default_device_policy(|policy| {
+                policy.next_stream().ok()
+            })
+            .ok()
+            .flatten()
         })
         .clone()
 }

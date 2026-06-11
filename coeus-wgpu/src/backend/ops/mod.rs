@@ -2,7 +2,9 @@ use crate::backend::{WgpuBackend, WgpuScalar};
 use crate::kernels;
 use coeus_core::{Layout, Storage};
 
-impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
+mod attention;
+
+impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend {
     #[inline]
     fn elementwise_binary(
         &self,
@@ -38,6 +40,7 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         }
     }
 
+    #[inline]
     fn elementwise_unary(
         &self,
         op: coeus_ops::UnaryOp,
@@ -104,7 +107,7 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         kernels::dispatch_conv1d::<T>(
             &input.buffer,
             &weight.buffer,
-            bias.map(|b| b.buffer.as_ref()),
+            bias.map(|b| b.buffer.raw()),
             &output.buffer,
             input_layout,
             weight_layout,
@@ -141,11 +144,11 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
             input_layout,
             &weight.buffer,
             weight_layout,
-            grad_input.map(|gi| gi.buffer.as_ref()),
+            grad_input.map(|gi| gi.buffer.raw()),
             grad_input_layout,
-            grad_weight.map(|gw| gw.buffer.as_ref()),
+            grad_weight.map(|gw| gw.buffer.raw()),
             grad_weight_layout,
-            grad_bias.map(|gb| gb.buffer.as_ref()),
+            grad_bias.map(|gb| gb.buffer.raw()),
             stride,
             padding,
             dilation,
@@ -170,7 +173,7 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
         kernels::dispatch_conv2d::<T>(
             &input.buffer,
             &weight.buffer,
-            bias.map(|b| b.buffer.as_ref()),
+            bias.map(|b| b.buffer.raw()),
             &output.buffer,
             input_layout,
             weight_layout,
@@ -207,11 +210,76 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
             input_layout,
             &weight.buffer,
             weight_layout,
-            grad_input.map(|gi| gi.buffer.as_ref()),
+            grad_input.map(|gi| gi.buffer.raw()),
             grad_input_layout,
-            grad_weight.map(|gw| gw.buffer.as_ref()),
+            grad_weight.map(|gw| gw.buffer.raw()),
             grad_weight_layout,
-            grad_bias.map(|gb| gb.buffer.as_ref()),
+            grad_bias.map(|gb| gb.buffer.raw()),
+            stride,
+            padding,
+            dilation,
+        );
+    }
+
+    #[inline]
+    fn conv3d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        kernels::dispatch_conv3d::<T>(
+            &input.buffer,
+            &weight.buffer,
+            bias.map(|b| b.buffer.raw()),
+            &output.buffer,
+            input_layout,
+            weight_layout,
+            output_layout,
+            stride,
+            padding,
+            dilation,
+            output.len(),
+        );
+    }
+
+    #[inline]
+    fn conv3d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        grad_input: Option<&mut Self::DeviceBuffer<T>>,
+        grad_input_layout: &Layout,
+        grad_weight: Option<&mut Self::DeviceBuffer<T>>,
+        grad_weight_layout: &Layout,
+        grad_bias: Option<&mut Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+    ) {
+        kernels::dispatch_conv3d_backward::<T>(
+            &grad_out.buffer,
+            grad_out_layout,
+            &input.buffer,
+            input_layout,
+            &weight.buffer,
+            weight_layout,
+            grad_input.map(|gi| gi.buffer.raw()),
+            grad_input_layout,
+            grad_weight.map(|gw| gw.buffer.raw()),
+            grad_weight_layout,
+            grad_bias.map(|gb| gb.buffer.raw()),
             stride,
             padding,
             dilation,
@@ -323,6 +391,189 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
     }
 
     #[inline]
+    fn max_pool3d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        kernels::dispatch_max_pool3d::<T>(
+            &input.buffer,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            &output.buffer,
+            output_layout,
+            output.len(),
+        );
+    }
+
+    #[inline]
+    fn max_pool3d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        grad_input: &mut Self::DeviceBuffer<T>,
+        grad_input_layout: &Layout,
+    ) {
+        kernels::dispatch_max_pool3d_backward::<T>(
+            &grad_out.buffer,
+            grad_out_layout,
+            &input.buffer,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            &grad_input.buffer,
+            grad_input_layout,
+            grad_input.len(),
+        );
+    }
+
+    #[inline]
+    fn avg_pool3d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        kernels::dispatch_avg_pool3d::<T>(
+            &input.buffer,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            &output.buffer,
+            output_layout,
+            output.len(),
+        );
+    }
+
+    #[inline]
+    fn avg_pool3d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        grad_input: &mut Self::DeviceBuffer<T>,
+        grad_input_layout: &Layout,
+    ) {
+        kernels::dispatch_avg_pool3d_backward::<T>(
+            &grad_out.buffer,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            &grad_input.buffer,
+            grad_input_layout,
+            grad_input.len(),
+        );
+    }
+
+    #[inline]
+    fn sdp_attention(
+        &self,
+        query: &Self::DeviceBuffer<T>,
+        query_layout: &Layout,
+        key: &Self::DeviceBuffer<T>,
+        key_layout: &Layout,
+        value: &Self::DeviceBuffer<T>,
+        value_layout: &Layout,
+        key_padding_mask: Option<&Self::DeviceBuffer<T>>,
+        key_padding_mask_layout: Option<&Layout>,
+        is_causal: bool,
+        scale: T,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+        attn_weights: &mut Self::DeviceBuffer<T>,
+        attn_weights_layout: &Layout,
+    ) where
+        T: coeus_core::Float,
+    {
+        attention::sdp_attention(
+            self,
+            query,
+            query_layout,
+            key,
+            key_layout,
+            value,
+            value_layout,
+            key_padding_mask,
+            key_padding_mask_layout,
+            is_causal,
+            scale,
+            output,
+            output_layout,
+            attn_weights,
+            attn_weights_layout,
+        );
+    }
+
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    fn sdp_attention_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        query: &Self::DeviceBuffer<T>,
+        query_layout: &Layout,
+        key: &Self::DeviceBuffer<T>,
+        key_layout: &Layout,
+        value: &Self::DeviceBuffer<T>,
+        value_layout: &Layout,
+        attn_weights: &Self::DeviceBuffer<T>,
+        attn_weights_layout: &Layout,
+        scale: T,
+        grad_q: Option<&mut Self::DeviceBuffer<T>>,
+        grad_k: Option<&mut Self::DeviceBuffer<T>>,
+        grad_v: Option<&mut Self::DeviceBuffer<T>>,
+    ) where
+        T: coeus_core::Float,
+    {
+        attention::sdp_attention_backward(
+            self,
+            grad_out,
+            grad_out_layout,
+            query,
+            query_layout,
+            key,
+            key_layout,
+            value,
+            value_layout,
+            attn_weights,
+            attn_weights_layout,
+            scale,
+            grad_q,
+            grad_k,
+            grad_v,
+        );
+    }
+
+    #[inline]
     fn sgd_step(
         &self,
         param: &mut Self::DeviceBuffer<T>,
@@ -389,6 +640,36 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
     }
 
     #[inline]
+    fn rmsprop_step(
+        &self,
+        param: &mut Self::DeviceBuffer<T>,
+        param_layout: &Layout,
+        grad: &Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+        v: &mut Self::DeviceBuffer<T>,
+        v_layout: &Layout,
+        lr: T,
+        alpha: T,
+        eps: T,
+    ) where
+        T: coeus_core::Float,
+    {
+        let len = param_layout.shape().iter().product::<usize>();
+        kernels::dispatch_rmsprop_step::<T>(
+            &param.buffer,
+            param_layout,
+            &grad.buffer,
+            grad_layout,
+            &v.buffer,
+            v_layout,
+            lr,
+            alpha,
+            eps,
+            len,
+        );
+    }
+
+    #[inline]
     fn adamw_step(
         &self,
         param: &mut Self::DeviceBuffer<T>,
@@ -429,36 +710,6 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
     }
 
     #[inline]
-    fn rmsprop_step(
-        &self,
-        param: &mut Self::DeviceBuffer<T>,
-        param_layout: &Layout,
-        grad: &Self::DeviceBuffer<T>,
-        grad_layout: &Layout,
-        v: &mut Self::DeviceBuffer<T>,
-        v_layout: &Layout,
-        lr: T,
-        alpha: T,
-        eps: T,
-    ) where
-        T: coeus_core::Float,
-    {
-        let len = param_layout.shape().iter().product::<usize>();
-        kernels::dispatch_rmsprop_step::<T>(
-            &param.buffer,
-            param_layout,
-            &grad.buffer,
-            grad_layout,
-            &v.buffer,
-            v_layout,
-            lr,
-            alpha,
-            eps,
-            len,
-        );
-    }
-
-    #[inline]
     fn adagrad_step(
         &self,
         param: &mut Self::DeviceBuffer<T>,
@@ -484,317 +735,5 @@ impl<T: WgpuScalar> coeus_ops::BackendOps<T> for WgpuBackend {
             eps,
             len,
         );
-    }
-
-    fn conv3d(
-        &self,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        weight: &Self::DeviceBuffer<T>,
-        weight_layout: &Layout,
-        bias: Option<&Self::DeviceBuffer<T>>,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        output: &mut Self::DeviceBuffer<T>,
-        output_layout: &Layout,
-    ) {
-        kernels::dispatch_conv3d::<T>(
-            &input.buffer,
-            &weight.buffer,
-            bias.map(|b| b.buffer.as_ref()),
-            &output.buffer,
-            input_layout,
-            weight_layout,
-            output_layout,
-            stride,
-            padding,
-            dilation,
-            output.len(),
-        );
-    }
-
-    fn conv3d_backward(
-        &self,
-        grad_out: &Self::DeviceBuffer<T>,
-        grad_out_layout: &Layout,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        weight: &Self::DeviceBuffer<T>,
-        weight_layout: &Layout,
-        grad_input: Option<&mut Self::DeviceBuffer<T>>,
-        grad_input_layout: &Layout,
-        grad_weight: Option<&mut Self::DeviceBuffer<T>>,
-        grad_weight_layout: &Layout,
-        grad_bias: Option<&mut Self::DeviceBuffer<T>>,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-    ) {
-        kernels::dispatch_conv3d_backward::<T>(
-            &grad_out.buffer,
-            grad_out_layout,
-            &input.buffer,
-            input_layout,
-            &weight.buffer,
-            weight_layout,
-            grad_input.map(|gi| gi.buffer.as_ref()),
-            grad_input_layout,
-            grad_weight.map(|gw| gw.buffer.as_ref()),
-            grad_weight_layout,
-            grad_bias.map(|gb| gb.buffer.as_ref()),
-            stride,
-            padding,
-            dilation,
-        );
-    }
-
-    fn max_pool3d(
-        &self,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        output: &mut Self::DeviceBuffer<T>,
-        output_layout: &Layout,
-    ) {
-        kernels::dispatch_max_pool3d::<T>(
-            &input.buffer,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            &output.buffer,
-            output_layout,
-            output.len(),
-        );
-    }
-
-    fn max_pool3d_backward(
-        &self,
-        grad_out: &Self::DeviceBuffer<T>,
-        grad_out_layout: &Layout,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        grad_input: &mut Self::DeviceBuffer<T>,
-        grad_input_layout: &Layout,
-    ) {
-        kernels::dispatch_max_pool3d_backward::<T>(
-            &grad_out.buffer,
-            grad_out_layout,
-            &input.buffer,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            &grad_input.buffer,
-            grad_input_layout,
-            grad_input.len(),
-        );
-    }
-
-    fn avg_pool3d(
-        &self,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        output: &mut Self::DeviceBuffer<T>,
-        output_layout: &Layout,
-    ) {
-        kernels::dispatch_avg_pool3d::<T>(
-            &input.buffer,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            &output.buffer,
-            output_layout,
-            output.len(),
-        );
-    }
-
-    fn avg_pool3d_backward(
-        &self,
-        grad_out: &Self::DeviceBuffer<T>,
-        grad_out_layout: &Layout,
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        grad_input: &mut Self::DeviceBuffer<T>,
-        grad_input_layout: &Layout,
-    ) {
-        kernels::dispatch_avg_pool3d_backward::<T>(
-            &grad_out.buffer,
-            grad_out_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            &grad_input.buffer,
-            grad_input_layout,
-            grad_input.len(),
-        );
-    }
-
-    fn sdp_attention(
-        &self,
-        query: &Self::DeviceBuffer<T>,
-        query_layout: &Layout,
-        key: &Self::DeviceBuffer<T>,
-        key_layout: &Layout,
-        value: &Self::DeviceBuffer<T>,
-        value_layout: &Layout,
-        key_padding_mask: Option<&Self::DeviceBuffer<T>>,
-        key_padding_mask_layout: Option<&Layout>,
-        is_causal: bool,
-        scale: T,
-        output: &mut Self::DeviceBuffer<T>,
-        output_layout: &Layout,
-        attn_weights: &mut Self::DeviceBuffer<T>,
-        attn_weights_layout: &Layout,
-    ) where
-        T: coeus_core::Float,
-    {
-        use coeus_core::{
-            ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, SequentialBackend,
-        };
-        // Stage: GPU → CPU
-        let seq = SequentialBackend::new();
-        let q_len = query.len();
-        let k_len = key.len();
-        let v_len = value.len();
-        let out_len = output.len();
-        let aw_len = attn_weights.len();
-        let mut q_cpu = seq.allocate::<T>(q_len);
-        let mut k_cpu = seq.allocate::<T>(k_len);
-        let mut v_cpu = seq.allocate::<T>(v_len);
-        let mut out_cpu = seq.allocate::<T>(out_len);
-        let mut aw_cpu = seq.allocate::<T>(aw_len);
-        self.copy_to_host(query, q_cpu.as_mut_slice());
-        self.copy_to_host(key, k_cpu.as_mut_slice());
-        self.copy_to_host(value, v_cpu.as_mut_slice());
-
-        let mask_cpu = key_padding_mask.map(|mask| {
-            let mut buf = seq.allocate::<T>(mask.len());
-            self.copy_to_host(mask, buf.as_mut_slice());
-            buf
-        });
-
-        // Execute on CPU
-        seq.sdp_attention(
-            &q_cpu,
-            query_layout,
-            &k_cpu,
-            key_layout,
-            &v_cpu,
-            value_layout,
-            mask_cpu.as_ref(),
-            key_padding_mask_layout,
-            is_causal,
-            scale,
-            &mut out_cpu,
-            output_layout,
-            &mut aw_cpu,
-            attn_weights_layout,
-        );
-        // Stage back: CPU → GPU
-        self.copy_to_device(out_cpu.as_slice(), output);
-        self.copy_to_device(aw_cpu.as_slice(), attn_weights);
-    }
-
-    fn sdp_attention_backward(
-        &self,
-        grad_out: &Self::DeviceBuffer<T>,
-        grad_out_layout: &Layout,
-        query: &Self::DeviceBuffer<T>,
-        query_layout: &Layout,
-        key: &Self::DeviceBuffer<T>,
-        key_layout: &Layout,
-        value: &Self::DeviceBuffer<T>,
-        value_layout: &Layout,
-        attn_weights: &Self::DeviceBuffer<T>,
-        attn_weights_layout: &Layout,
-        scale: T,
-        grad_q: Option<&mut Self::DeviceBuffer<T>>,
-        grad_k: Option<&mut Self::DeviceBuffer<T>>,
-        grad_v: Option<&mut Self::DeviceBuffer<T>>,
-    ) where
-        T: coeus_core::Float,
-    {
-        use coeus_core::{
-            ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, SequentialBackend,
-        };
-        let seq = SequentialBackend::new();
-        // Stage inputs to CPU
-        let go_len = grad_out.len();
-        let q_len = query.len();
-        let k_len = key.len();
-        let v_len = value.len();
-        let aw_len = attn_weights.len();
-        let mut go_cpu = seq.allocate::<T>(go_len);
-        let mut q_cpu = seq.allocate::<T>(q_len);
-        let mut k_cpu = seq.allocate::<T>(k_len);
-        let mut v_cpu = seq.allocate::<T>(v_len);
-        let mut aw_cpu = seq.allocate::<T>(aw_len);
-        self.copy_to_host(grad_out, go_cpu.as_mut_slice());
-        self.copy_to_host(query, q_cpu.as_mut_slice());
-        self.copy_to_host(key, k_cpu.as_mut_slice());
-        self.copy_to_host(value, v_cpu.as_mut_slice());
-        self.copy_to_host(attn_weights, aw_cpu.as_mut_slice());
-        // Prepare CPU gradient buffers
-        let mut gq_cpu = grad_q.as_ref().map(|g| {
-            let mut s = seq.allocate::<T>(g.len());
-            self.copy_to_host(*g, s.as_mut_slice());
-            s
-        });
-        let mut gk_cpu = grad_k.as_ref().map(|g| {
-            let mut s = seq.allocate::<T>(g.len());
-            self.copy_to_host(*g, s.as_mut_slice());
-            s
-        });
-        let mut gv_cpu = grad_v.as_ref().map(|g| {
-            let mut s = seq.allocate::<T>(g.len());
-            self.copy_to_host(*g, s.as_mut_slice());
-            s
-        });
-        seq.sdp_attention_backward(
-            &go_cpu,
-            grad_out_layout,
-            &q_cpu,
-            query_layout,
-            &k_cpu,
-            key_layout,
-            &v_cpu,
-            value_layout,
-            &aw_cpu,
-            attn_weights_layout,
-            scale,
-            gq_cpu.as_mut(),
-            gk_cpu.as_mut(),
-            gv_cpu.as_mut(),
-        );
-        // Stage back
-        if let (Some(gq_gpu), Some(ref gq_c)) = (grad_q, &gq_cpu) {
-            self.copy_to_device(gq_c.as_slice(), gq_gpu);
-        }
-        if let (Some(gk_gpu), Some(ref gk_c)) = (grad_k, &gk_cpu) {
-            self.copy_to_device(gk_c.as_slice(), gk_gpu);
-        }
-        if let (Some(gv_gpu), Some(ref gv_c)) = (grad_v, &gv_cpu) {
-            self.copy_to_device(gv_c.as_slice(), gv_gpu);
-        }
     }
 }

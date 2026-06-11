@@ -1,0 +1,211 @@
+use super::traits::{binary_op, BinaryAutogradOp};
+use crate::backward::reduce_broadcast;
+use crate::var::Var;
+use coeus_core::{Scalar, Shape};
+use coeus_tensor::Tensor;
+use std::sync::{Arc, Mutex};
+
+pub struct AddOp;
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for AddOp {
+    const OP_NAME: &'static str = "add";
+
+    #[inline(always)]
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::add(a, b, backend)
+    }
+
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        _a: &Tensor<T, B>,
+        _b: &Tensor<T, B>,
+        a_shape: &Shape,
+        b_shape: &Shape,
+        input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>],
+        backend: &B,
+    ) {
+        if let Some(Some(ref g)) = input_grads.get(0) {
+            let mut gl = g.lock().unwrap();
+            if grad_out.shape() == &a_shape[..] {
+                coeus_ops::add_assign(&mut gl, grad_out, backend);
+            } else {
+                let reduced = reduce_broadcast(grad_out.clone(), a_shape);
+                coeus_ops::add_assign(&mut gl, &reduced, backend);
+            }
+        }
+        if let Some(Some(ref g)) = input_grads.get(1) {
+            let mut gl = g.lock().unwrap();
+            if grad_out.shape() == &b_shape[..] {
+                coeus_ops::add_assign(&mut gl, grad_out, backend);
+            } else {
+                let reduced = reduce_broadcast(grad_out.clone(), b_shape);
+                coeus_ops::add_assign(&mut gl, &reduced, backend);
+            }
+        }
+    }
+}
+
+pub struct SubOp;
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for SubOp {
+    const OP_NAME: &'static str = "sub";
+
+    #[inline(always)]
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::sub(a, b, backend)
+    }
+
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        _a: &Tensor<T, B>,
+        _b: &Tensor<T, B>,
+        a_shape: &Shape,
+        b_shape: &Shape,
+        input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>],
+        backend: &B,
+    ) {
+        if let Some(Some(ref g)) = input_grads.get(0) {
+            let mut gl = g.lock().unwrap();
+            if grad_out.shape() == &a_shape[..] {
+                coeus_ops::add_assign(&mut gl, grad_out, backend);
+            } else {
+                let reduced = reduce_broadcast(grad_out.clone(), a_shape);
+                coeus_ops::add_assign(&mut gl, &reduced, backend);
+            }
+        }
+        if let Some(Some(ref g)) = input_grads.get(1) {
+            let mut gl = g.lock().unwrap();
+            if grad_out.shape() == &b_shape[..] {
+                coeus_ops::sub_assign(&mut gl, grad_out, backend);
+            } else {
+                let reduced = reduce_broadcast(grad_out.clone(), b_shape);
+                coeus_ops::sub_assign(&mut gl, &reduced, backend);
+            }
+        }
+    }
+}
+
+pub struct MulOp;
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for MulOp {
+    const OP_NAME: &'static str = "mul";
+
+    #[inline(always)]
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::mul(a, b, backend)
+    }
+
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        a: &Tensor<T, B>,
+        b: &Tensor<T, B>,
+        _a_shape: &Shape,
+        _b_shape: &Shape,
+        input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>],
+        backend: &B,
+    ) {
+        if let Some(Some(ref g)) = input_grads.get(0) {
+            let prod = coeus_ops::mul(grad_out, b, backend);
+            let mut gl = g.lock().unwrap();
+            if prod.shape() == a.shape() {
+                coeus_ops::add_assign(&mut gl, &prod, backend);
+            } else {
+                let reduced = reduce_broadcast(prod, a.shape());
+                coeus_ops::add_assign(&mut gl, &reduced, backend);
+            }
+        }
+        if let Some(Some(ref g)) = input_grads.get(1) {
+            let prod = coeus_ops::mul(grad_out, a, backend);
+            let mut gl = g.lock().unwrap();
+            if prod.shape() == b.shape() {
+                coeus_ops::add_assign(&mut gl, &prod, backend);
+            } else {
+                let reduced = reduce_broadcast(prod, b.shape());
+                coeus_ops::add_assign(&mut gl, &reduced, backend);
+            }
+        }
+    }
+}
+
+pub struct DivOp;
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for DivOp {
+    const OP_NAME: &'static str = "div";
+
+    #[inline(always)]
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::div(a, b, backend)
+    }
+
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        a: &Tensor<T, B>,
+        b: &Tensor<T, B>,
+        _a_shape: &Shape,
+        _b_shape: &Shape,
+        input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>],
+        backend: &B,
+    ) {
+        if let Some(Some(ref g)) = input_grads.get(0) {
+            let grad_a = coeus_ops::div(grad_out, b, backend);
+            let mut gl = g.lock().unwrap();
+            if grad_a.shape() == a.shape() {
+                coeus_ops::add_assign(&mut gl, &grad_a, backend);
+            } else {
+                let reduced = reduce_broadcast(grad_a, a.shape());
+                coeus_ops::add_assign(&mut gl, &reduced, backend);
+            }
+        }
+        if let Some(Some(ref g)) = input_grads.get(1) {
+            let b_sq = coeus_ops::mul(b, b, backend);
+            let grad_b_pos = coeus_ops::div(&coeus_ops::mul(grad_out, a, backend), &b_sq, backend);
+            let mut gl = g.lock().unwrap();
+            if grad_b_pos.shape() == b.shape() {
+                coeus_ops::sub_assign(&mut gl, &grad_b_pos, backend);
+            } else {
+                let reduced = reduce_broadcast(grad_b_pos, b.shape());
+                coeus_ops::sub_assign(&mut gl, &reduced, backend);
+            }
+        }
+    }
+}
+
+/// Tracked element-wise addition.
+#[must_use]
+#[inline]
+pub fn add<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
+    binary_op::<T, B, AddOp>(a, b)
+}
+
+/// Tracked element-wise subtraction.
+#[must_use]
+#[inline]
+pub fn sub<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
+    binary_op::<T, B, SubOp>(a, b)
+}
+
+/// Tracked element-wise multiplication.
+#[must_use]
+#[inline]
+pub fn mul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
+    binary_op::<T, B, MulOp>(a, b)
+}
+
+/// Tracked element-wise division.
+#[must_use]
+#[inline]
+pub fn div<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
+    binary_op::<T, B, DivOp>(a, b)
+}

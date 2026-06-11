@@ -87,7 +87,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> Neg for &Var<T
 // If a generic-backend scalar form is required, the extension-trait pattern
 // (a sealed trait re-exporting these impls) is the correct path.
 
-impl<T: Scalar> Mul<T> for &Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar> Mul<T> for &Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -96,7 +96,7 @@ impl<T: Scalar> Mul<T> for &Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar> Add<T> for &Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar> Add<T> for &Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -105,7 +105,7 @@ impl<T: Scalar> Add<T> for &Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar> Sub<T> for &Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar> Sub<T> for &Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -114,7 +114,7 @@ impl<T: Scalar> Sub<T> for &Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar> Div<T> for &Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar> Div<T> for &Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -214,7 +214,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<Var<T, B>> for Var<T,
 
 // ── Scalar rhs for owned Var (MoiraiBackend) ─────────────────────────────
 
-impl<T: Scalar> Mul<T> for Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar> Mul<T> for Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -223,7 +223,7 @@ impl<T: Scalar> Mul<T> for Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar> Add<T> for Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar> Add<T> for Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -232,7 +232,7 @@ impl<T: Scalar> Add<T> for Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar> Sub<T> for Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar> Sub<T> for Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -241,7 +241,7 @@ impl<T: Scalar> Sub<T> for Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar> Div<T> for Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar> Div<T> for Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]

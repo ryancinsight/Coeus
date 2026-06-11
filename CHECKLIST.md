@@ -6,6 +6,11 @@ This document tracks the high-level roadmap and feature validation checklist for
 
 ---
 
+## Default Parallel Memory Features [patch]
+- [x] Restored Moirai default features for workspace consumers so parallel execution, Mnemosyne-backed memory surfaces, and Mellinoe branding are active by default.
+- [x] Restored Leto and Leto Ops defaults so Coeus consumes Mnemosyne-backed Leto storage and default parallel ops without local feature suppression.
+- [ ] Verification: pending.
+
 ## 🟩 Phase 1: CPU Workspace Stabilization (100% Complete)
 Established a clean, warning-free compiler baseline and resolved lifetime and borrow checker conflicts across all workspace crates.
 

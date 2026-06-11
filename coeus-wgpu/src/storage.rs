@@ -1,23 +1,20 @@
 use crate::backend::get_wgpu_context;
 use coeus_core::{Scalar, Storage, StorageMut};
-use std::marker::PhantomData;
+use hephaestus_wgpu::{ComputeDevice, DeviceBuffer};
 use std::sync::Arc;
 
-/// GPU-allocated buffer managed by wgpu.
+/// GPU-allocated buffer managed by hephaestus-wgpu.
 pub struct WgpuStorage<T> {
-    pub buffer: Arc<wgpu::Buffer>,
-    pub len: usize,
-    pub(crate) _marker: PhantomData<T>,
+    pub buffer: Arc<hephaestus_wgpu::WgpuBuffer<T>>,
 }
 
 impl<T> coeus_core::storage::private::Sealed for WgpuStorage<T> {}
 
 impl<T> Clone for WgpuStorage<T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             buffer: self.buffer.clone(),
-            len: self.len,
-            _marker: PhantomData,
         }
     }
 }
@@ -29,21 +26,9 @@ impl<T: Scalar> WgpuStorage<T> {
     /// Allocate a new GPU buffer for `len` elements.
     pub fn new(len: usize) -> Self {
         let ctx = get_wgpu_context();
-        let size_in_bytes = (len * std::mem::size_of::<T>()).max(4) as u64; // wgpu requires min 4 bytes
-
-        let buffer = ctx.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("coeus-wgpu-buffer"),
-            size: size_in_bytes,
-            usage: wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::COPY_SRC
-                | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
+        let buffer = ctx.hephaestus_device.alloc_zeroed::<T>(len).expect("Failed to allocate GPU buffer");
         Self {
             buffer: Arc::new(buffer),
-            len,
-            _marker: PhantomData,
         }
     }
 }
@@ -51,7 +36,7 @@ impl<T: Scalar> WgpuStorage<T> {
 impl<T: Scalar> Storage<T> for WgpuStorage<T> {
     #[inline]
     fn len(&self) -> usize {
-        self.len
+        self.buffer.len()
     }
 
     #[inline]
@@ -74,23 +59,17 @@ impl<T: Scalar> StorageMut<T> for WgpuStorage<T> {
     fn make_unique(&mut self) {
         if Arc::strong_count(&self.buffer) > 1 {
             let ctx = get_wgpu_context();
-            let size_in_bytes = (self.len * std::mem::size_of::<T>()).max(4) as u64;
+            let len = self.buffer.len();
+            let new_buffer = ctx.hephaestus_device.alloc_zeroed::<T>(len).expect("Failed to allocate CoW buffer");
 
-            let new_buffer = ctx.device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("coeus-wgpu-cow-buffer"),
-                size: size_in_bytes,
-                usage: wgpu::BufferUsages::STORAGE
-                    | wgpu::BufferUsages::COPY_SRC
-                    | wgpu::BufferUsages::COPY_DST,
-                mapped_at_creation: false,
-            });
+            let size_in_bytes = (len * std::mem::size_of::<T>()).max(4) as u64;
 
             let mut encoder = ctx
                 .device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("coeus-wgpu-cow-copy"),
                 });
-            encoder.copy_buffer_to_buffer(&self.buffer, 0, &new_buffer, 0, size_in_bytes);
+            encoder.copy_buffer_to_buffer(self.buffer.raw(), 0, new_buffer.raw(), 0, size_in_bytes);
             ctx.queue.submit(std::iter::once(encoder.finish()));
 
             self.buffer = Arc::new(new_buffer);

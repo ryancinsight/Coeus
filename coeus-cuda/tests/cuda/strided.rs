@@ -12,7 +12,7 @@ fn test_cuda_strided_ops() {
         let b_data = vec![10.0f32, 20.0, 30.0];
 
         let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a_data);
-        let b_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![3], &b_data);
+        let b_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 1], &b_data);
 
         let a_seq_t = a_seq.transpose();
 
@@ -20,7 +20,7 @@ fn test_cuda_strided_ops() {
         let b_cuda = b_seq.to_backend_on(&seq, &cuda_b);
 
         assert_eq!(a_cuda_t.shape(), &[3, 2]);
-        assert_eq!(b_cuda.shape(), &[3]);
+        assert_eq!(b_cuda.shape(), &[3, 1]);
 
         let c_cuda = coeus_ops::add(&a_cuda_t, &b_cuda, &cuda_b);
         let c_seq = c_cuda.to_backend_on(&cuda_b, &seq);

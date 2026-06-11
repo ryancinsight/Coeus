@@ -4,7 +4,7 @@ use coeus_core::{Backend, ComputeBackend, Scalar, Storage};
 
 pub mod ops;
 
-pub trait CudaScalar: Scalar {
+pub trait CudaScalar: Scalar + leto_ops::Scalar {
     const CUDA_TYPE: &'static str;
 }
 
@@ -71,6 +71,11 @@ impl ComputeBackend for CudaBackend {
         if dst.cu_deviceptr() == 0 {
             return;
         }
+        if let Some(stream) = crate::driver::get_borrowed_stream() {
+            unsafe {
+                let _ = stream.synchronize();
+            }
+        }
         if let Some(drv) = CudaDriver::get() {
             if get_cuda_context().is_some() {
                 let bytesize = std::mem::size_of_val(src);
@@ -88,6 +93,11 @@ impl ComputeBackend for CudaBackend {
     fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
         if src.cu_deviceptr() == 0 {
             return;
+        }
+        if let Some(stream) = crate::driver::get_borrowed_stream() {
+            unsafe {
+                let _ = stream.synchronize();
+            }
         }
         if let Some(drv) = CudaDriver::get() {
             if get_cuda_context().is_some() {

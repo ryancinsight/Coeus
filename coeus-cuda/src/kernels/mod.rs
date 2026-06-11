@@ -107,7 +107,7 @@ pub fn get_cuda_module() -> Option<CUmodule> {
                 if res == 0 {
                     Some(CudaModuleWrapper { module })
                 } else {
-                    None
+                    panic!("cu_module_load_data failed with error code: {}", res);
                 }
             }
         })

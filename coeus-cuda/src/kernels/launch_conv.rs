@@ -220,7 +220,7 @@ pub fn launch_conv1d_backward(
                 std::ptr::null_mut(),
             );
             if res != 0 {
-                return false;
+                panic!("cu_launch_kernel failed with error code: {}", res);
             }
         }
     }

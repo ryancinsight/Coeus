@@ -9,6 +9,7 @@ license.workspace = true
 coeus-core   = { workspace = true }
 coeus-tensor = { workspace = true }
 coeus-ops    = { workspace = true }
+leto-ops     = { workspace = true }
 libloading   = "0.8"
 bytemuck     = { workspace = true }
 thiserror    = { workspace = true }

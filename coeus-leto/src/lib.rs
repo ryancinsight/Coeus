@@ -22,4 +22,7 @@ pub mod convert;
 pub mod dispatch;
 
 pub use convert::{to_leto_layout, to_leto_view, to_leto_view_mut};
-pub use dispatch::{elementwise_add_into, matmul_into, MAX_DISPATCH_RANK};
+pub use dispatch::{
+    elementwise_add_into, elementwise_binary_into, elementwise_unary_into, matmul_into,
+    reduce_into, MAX_DISPATCH_RANK,
+};

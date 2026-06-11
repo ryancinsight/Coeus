@@ -14,13 +14,8 @@ unsafe impl Sync for CudaAllocation {}
 
 impl Drop for CudaAllocation {
     fn drop(&mut self) {
-        if self.ptr != 0 {
-            if let Some(drv) = CudaDriver::get() {
-                unsafe {
-                    let _res = (drv.cu_mem_free)(self.ptr);
-                }
-            }
-        }
+        // Memory deallocation is managed asynchronously by cutile::tensor::Tensor
+        // and cuda_async::device_buffer::DeviceBuffer when they are dropped.
     }
 }
 
@@ -83,14 +78,9 @@ impl<T: Scalar> CudaStorage<T> {
         let size_in_bytes = (len * std::mem::size_of::<T>()).max(4);
         let mut ptr: CUdeviceptr = 0;
 
-        if let Some(drv) = CudaDriver::get() {
-            if get_cuda_context().is_some() {
-                unsafe {
-                    let res = (drv.cu_mem_alloc)(&mut ptr, size_in_bytes);
-                    if res != 0 {
-                        ptr = 0;
-                    }
-                }
+        if let Some(stream) = crate::driver::get_borrowed_stream() {
+            unsafe {
+                ptr = cuda_core::malloc_async(size_in_bytes, &stream);
             }
         }
 
@@ -233,15 +223,18 @@ impl<T: Scalar> StorageMut<T> for CudaStorage<T> {
         if is_shared {
             let size_in_bytes = (self.len * std::mem::size_of::<T>()).max(4);
             let mut new_ptr: CUdeviceptr = 0;
-            if let Some(drv) = CudaDriver::get() {
-                if get_cuda_context().is_some() {
-                    unsafe {
-                        let res = (drv.cu_mem_alloc)(&mut new_ptr, size_in_bytes);
-                        if res == 0 && new_ptr != 0 {
+            if let Some(stream) = crate::driver::get_borrowed_stream() {
+                unsafe {
+                    new_ptr = cuda_core::malloc_async(size_in_bytes, &stream);
+                }
+            }
+
+            if new_ptr != 0 {
+                if let Some(drv) = CudaDriver::get() {
+                    if get_cuda_context().is_some() {
+                        unsafe {
                             let old_ptr = self.cu_deviceptr();
                             let _copy_res = (drv.cu_memcpy_dtod)(new_ptr, old_ptr, size_in_bytes);
-                        } else {
-                            new_ptr = 0;
                         }
                     }
                 }

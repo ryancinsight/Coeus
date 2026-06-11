@@ -31,9 +31,9 @@ impl WgpuScalar for u32 {
 
 /// Context holding the active wgpu connection.
 pub struct WgpuContext {
+    pub hephaestus_device: hephaestus_wgpu::WgpuDevice,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
-    pub staging_pool: std::sync::Mutex<Vec<wgpu::Buffer>>,
     pub metadata_pool: std::sync::Mutex<Vec<wgpu::Buffer>>,
 }
 
@@ -98,37 +98,19 @@ static WGPU_CONTEXT: OnceLock<WgpuContext> = OnceLock::new();
 /// Retrieve a reference to the global lazily-initialized wgpu context.
 pub fn get_wgpu_context() -> &'static WgpuContext {
     WGPU_CONTEXT.get_or_init(|| {
-        pollster::block_on(async {
-            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
-            let adapter = instance
-                .request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference: wgpu::PowerPreference::HighPerformance,
-                    compatible_surface: None,
-                    force_fallback_adapter: false,
-                })
-                .await
-                .expect("Failed to find a wgpu adapter");
-
-            let (device, queue) = adapter
-                .request_device(
-                    &wgpu::DeviceDescriptor {
-                        label: Some("coeus-wgpu-device"),
-                        required_features: wgpu::Features::empty(),
-                        required_limits: wgpu::Limits::default(),
-                        memory_hints: wgpu::MemoryHints::default(),
-                    },
-                    None,
-                )
-                .await
-                .expect("Failed to create wgpu device");
-
-            WgpuContext {
-                device,
-                queue,
-                staging_pool: std::sync::Mutex::new(Vec::new()),
-                metadata_pool: std::sync::Mutex::new(Vec::new()),
-            }
-        })
+        let hephaestus_device = hephaestus_wgpu::WgpuDevice::try_default_with_limits(
+            "coeus-wgpu-device",
+            wgpu::Limits::default(),
+        )
+        .expect("Failed to initialize hephaestus-wgpu device");
+        let device = (**hephaestus_device.device()).clone();
+        let queue = (**hephaestus_device.queue()).clone();
+        WgpuContext {
+            hephaestus_device,
+            device,
+            queue,
+            metadata_pool: std::sync::Mutex::new(Vec::new()),
+        }
     })
 }
 
@@ -179,40 +161,19 @@ impl ComputeBackend for WgpuBackend {
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
         let ctx = get_wgpu_context();
         let bytes = bytemuck::cast_slice(src);
-        ctx.queue.write_buffer(&dst.buffer, 0, bytes);
+        ctx.queue.write_buffer(dst.buffer.raw(), 0, bytes);
     }
 
     fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
         let ctx = get_wgpu_context();
-        let size_in_bytes = (src.len * std::mem::size_of::<T>()).max(4) as u64;
+        let size_in_bytes = (src.len() * std::mem::size_of::<T>()).max(4) as u64;
 
-        let staging_buffer = {
-            let mut pool = ctx.staging_pool.lock().unwrap();
-            let mut found_idx = None;
-            for (idx, buf) in pool.iter().enumerate() {
-                if buf.size() >= size_in_bytes {
-                    found_idx = Some(idx);
-                    break;
-                }
-            }
-            if let Some(idx) = found_idx {
-                pool.remove(idx)
-            } else {
-                ctx.device.create_buffer(&wgpu::BufferDescriptor {
-                    label: Some("coeus-wgpu-staging-read"),
-                    size: size_in_bytes,
-                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                    mapped_at_creation: false,
-                })
-            }
-        };
+        let staging_buffer = ctx.hephaestus_device.get_staging_buffer(size_in_bytes);
 
-        let mut encoder = ctx
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("coeus-wgpu-read-encoder"),
-            });
-        encoder.copy_buffer_to_buffer(&src.buffer, 0, &staging_buffer, 0, size_in_bytes);
+        let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("coeus-wgpu-read-encoder"),
+        });
+        encoder.copy_buffer_to_buffer(src.buffer.raw(), 0, &staging_buffer, 0, size_in_bytes);
         ctx.queue.submit(Some(encoder.finish()));
 
         let buffer_slice = staging_buffer.slice(..size_in_bytes);
@@ -221,7 +182,7 @@ impl ComputeBackend for WgpuBackend {
             let _ = tx.send(result);
         });
 
-        ctx.device.poll(wgpu::Maintain::Wait);
+        let _ = ctx.device.poll(wgpu::PollType::Wait);
         rx.recv()
             .unwrap()
             .expect("Failed to map staging buffer for read");
@@ -233,8 +194,6 @@ impl ComputeBackend for WgpuBackend {
         drop(data);
         staging_buffer.unmap();
 
-        // Recycle the buffer back to the pool
-        let mut pool = ctx.staging_pool.lock().unwrap();
-        pool.push(staging_buffer);
+        ctx.hephaestus_device.recycle_staging_buffer(staging_buffer);
     }
 }
