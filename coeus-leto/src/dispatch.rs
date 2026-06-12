@@ -4,7 +4,7 @@ use coeus_core::{
 };
 use leto::{Array, LetoError, PadWidth, RankMarker, RemoveAxis, Result, SliceStorage, Storage};
 use leto_ops::{
-    CumSumOp, MaxAxis, MeanAxis, MinAxis, Scalar as LetoScalar, ScanDirection, SumAxis,
+    CumSumOp, MaxAxis, MeanAxis, MinAxis, RealScalar, Scalar as LetoScalar, ScanDirection, SumAxis,
 };
 
 /// Largest dynamic rank the const-rank dispatch resolves. Coeus activations and
@@ -487,6 +487,75 @@ pub fn split_values<T: Clone>(
         3 => split_values_n::<T, 3>(a_layout, a, axis, sizes),
         4 => split_values_n::<T, 4>(a_layout, a, axis, sizes),
         5 => split_values_n::<T, 5>(a_layout, a, axis, sizes),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
+fn shape_n<const N: usize>(shape: &[usize]) -> Result<[usize; N]> {
+    shape.try_into().map_err(
+        |_: std::array::TryFromSliceError| LetoError::ShapeMismatch {
+            lhs: vec![N],
+            rhs: vec![shape.len()],
+        },
+    )
+}
+
+fn uniform_values_n<T: RealScalar, const N: usize>(
+    shape: &[usize],
+    low: T,
+    high: T,
+    seed: u64,
+) -> Result<Vec<T>> {
+    let values = leto_ops::uniform_with_seed(shape_n::<N>(shape)?, low, high, seed)?;
+    Ok(values.storage().as_slice().to_vec())
+}
+
+/// Deterministic uniform initialization values for a coeus dynamic-rank shape,
+/// dispatched to the matching monomorphized leto random constructor.
+pub fn uniform_values<T: RealScalar>(
+    shape: &[usize],
+    low: T,
+    high: T,
+    seed: u64,
+) -> Result<Vec<T>> {
+    match shape.len() {
+        1 => uniform_values_n::<T, 1>(shape, low, high, seed),
+        2 => uniform_values_n::<T, 2>(shape, low, high, seed),
+        3 => uniform_values_n::<T, 3>(shape, low, high, seed),
+        4 => uniform_values_n::<T, 4>(shape, low, high, seed),
+        5 => uniform_values_n::<T, 5>(shape, low, high, seed),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
+fn normal_values_n<T: RealScalar, const N: usize>(
+    shape: &[usize],
+    mean: T,
+    std_dev: T,
+    seed: u64,
+) -> Result<Vec<T>> {
+    let values = leto_ops::normal_with_seed(shape_n::<N>(shape)?, mean, std_dev, seed)?;
+    Ok(values.storage().as_slice().to_vec())
+}
+
+/// Deterministic normal initialization values for a coeus dynamic-rank shape,
+/// dispatched to the matching monomorphized leto random constructor.
+pub fn normal_values<T: RealScalar>(
+    shape: &[usize],
+    mean: T,
+    std_dev: T,
+    seed: u64,
+) -> Result<Vec<T>> {
+    match shape.len() {
+        1 => normal_values_n::<T, 1>(shape, mean, std_dev, seed),
+        2 => normal_values_n::<T, 2>(shape, mean, std_dev, seed),
+        3 => normal_values_n::<T, 3>(shape, mean, std_dev, seed),
+        4 => normal_values_n::<T, 4>(shape, mean, std_dev, seed),
+        5 => normal_values_n::<T, 5>(shape, mean, std_dev, seed),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),

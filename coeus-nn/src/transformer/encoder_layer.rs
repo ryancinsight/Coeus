@@ -33,7 +33,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
     TransformerEncoderLayer<T, B, H, M>
 {
     /// Construct an encoder layer.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self {
+    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    where
+        T: coeus_leto::RandomScalar,
+    {
         Self {
             norm1: LayerNorm::new(d_model, 1e-5),
             self_attn: MultiHeadAttention::new(d_model, true),

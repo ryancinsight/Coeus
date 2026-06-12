@@ -42,7 +42,10 @@ where
     ///
     /// # Panics
     /// Panics if `N == 0`.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self {
+    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    where
+        T: coeus_leto::RandomScalar,
+    {
         assert!(N > 0, "TransformerEncoder: N must be > 0");
         // `core::array::from_fn` calls the closure N times with indices 0..N.
         // Each call independently constructs a new layer with fresh parameters.

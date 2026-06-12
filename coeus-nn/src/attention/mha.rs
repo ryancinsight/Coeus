@@ -52,7 +52,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
     ///
     /// # Panics
     /// Panics if `d_model % H != 0`.
-    pub fn new(d_model: usize, bias: bool) -> Self {
+    pub fn new(d_model: usize, bias: bool) -> Self
+    where
+        T: coeus_leto::RandomScalar,
+    {
         assert!(
             H > 0 && d_model.is_multiple_of(H),
             "MultiHeadAttention: d_model ({d_model}) must be divisible by H ({H})"
@@ -100,7 +103,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         key_padding_mask: Option<&Var<T, B>>,
     ) -> Var<T, B> {
         let d_head = self.d_model / H;
-        let scale = T::one() / T::from_f64((d_head as f64).sqrt());
+        let scale = T::one() / <T as Scalar>::from_f64((d_head as f64).sqrt());
 
         let q_shape = query.tensor.shape_cloned();
         let batch = q_shape[0];

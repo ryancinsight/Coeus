@@ -1,71 +1,32 @@
 // ── Weight initialization ──
 
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
-use std::cell::RefCell;
-
-/// A simple, fast, deterministic pseudo-random number generator (Xorshift64).
-pub struct Xorshift64 {
-    state: u64,
-}
-
-impl Xorshift64 {
-    /// Create a new generator with a seed. Seed must be non-zero.
-    #[inline]
-    pub fn new(seed: u64) -> Self {
-        Self {
-            state: if seed == 0 { 1337 } else { seed },
-        }
-    }
-
-    /// Draw next u64 value.
-    #[inline]
-    pub fn next_u64(&mut self) -> u64 {
-        let mut x = self.state;
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        self.state = x;
-        x
-    }
-
-    /// Draw a float in [0.0, 1.0).
-    #[inline]
-    pub fn next_f64(&mut self) -> f64 {
-        (self.next_u64() as f64) / (u64::MAX as f64)
-    }
-
-    /// Draw a float from a normal distribution N(mean, std_dev).
-    #[inline]
-    pub fn next_normal(&mut self, mean: f64, std_dev: f64) -> f64 {
-        let u1 = self.next_f64().max(1e-15); // Avoid ln(0)
-        let u2 = self.next_f64();
-        let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
-        mean + std_dev * z
-    }
-}
 
 /// Initialize weights with values from a uniform distribution U(a, b).
-pub fn uniform_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn uniform_with_seed<
+    T: Float + coeus_leto::RandomScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     weight: &mut Var<T, B>,
     a: f64,
     b: f64,
     seed: u64,
 ) {
-    let rng = RefCell::new(Xorshift64::new(seed));
     let shape = weight.tensor.shape_cloned();
-    let cpu_backend = MoiraiBackend::new();
-    let new_tensor_cpu = Tensor::<T, MoiraiBackend>::from_fn_on(shape, &cpu_backend, |_| {
-        let val = rng.borrow_mut().next_f64() * (b - a) + a;
-        T::from_f64(val)
-    });
-    let new_tensor = new_tensor_cpu.to_backend_on(&cpu_backend, &B::default());
-    weight.tensor = new_tensor;
+    let values = coeus_leto::uniform_values(
+        &shape,
+        <T as Scalar>::from_f64(a),
+        <T as Scalar>::from_f64(b),
+        seed,
+    )
+    .expect("coeus-leto uniform initialization failed");
+    weight.tensor = Tensor::from_slice_on(shape, &values, &B::default());
 }
 
 /// Initialize weights with values from a uniform distribution U(a, b) using default seed.
-pub fn uniform<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn uniform<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>(
     weight: &mut Var<T, B>,
     a: f64,
     b: f64,
@@ -74,25 +35,28 @@ pub fn uniform<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Initialize weights with values from a normal distribution N(mean, std_dev).
-pub fn normal_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn normal_with_seed<
+    T: Float + coeus_leto::RandomScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     weight: &mut Var<T, B>,
     mean: f64,
     std_dev: f64,
     seed: u64,
 ) {
-    let rng = RefCell::new(Xorshift64::new(seed));
     let shape = weight.tensor.shape_cloned();
-    let cpu_backend = MoiraiBackend::new();
-    let new_tensor_cpu = Tensor::<T, MoiraiBackend>::from_fn_on(shape, &cpu_backend, |_| {
-        let val = rng.borrow_mut().next_normal(mean, std_dev);
-        T::from_f64(val)
-    });
-    let new_tensor = new_tensor_cpu.to_backend_on(&cpu_backend, &B::default());
-    weight.tensor = new_tensor;
+    let values = coeus_leto::normal_values(
+        &shape,
+        <T as Scalar>::from_f64(mean),
+        <T as Scalar>::from_f64(std_dev),
+        seed,
+    )
+    .expect("coeus-leto normal initialization failed");
+    weight.tensor = Tensor::from_slice_on(shape, &values, &B::default());
 }
 
 /// Initialize weights with values from a normal distribution N(mean, std_dev) using default seed.
-pub fn normal<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn normal<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>(
     weight: &mut Var<T, B>,
     mean: f64,
     std_dev: f64,
@@ -119,7 +83,10 @@ pub fn ones<T: Float, B: coeus_ops::BackendOps<T> + Default>(weight: &mut Var<T,
 }
 
 /// Xavier (Glorot) uniform initialization with custom seed.
-pub fn xavier_uniform_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn xavier_uniform_with_seed<
+    T: Float + coeus_leto::RandomScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     weight: &mut Var<T, B>,
     fan_in: usize,
     fan_out: usize,
@@ -130,7 +97,10 @@ pub fn xavier_uniform_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>
 }
 
 /// Xavier (Glorot) uniform initialization.
-pub fn xavier_uniform<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn xavier_uniform<
+    T: Float + coeus_leto::RandomScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     weight: &mut Var<T, B>,
     fan_in: usize,
     fan_out: usize,
@@ -139,7 +109,10 @@ pub fn xavier_uniform<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Xavier (Glorot) normal initialization with custom seed.
-pub fn xavier_normal_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn xavier_normal_with_seed<
+    T: Float + coeus_leto::RandomScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     weight: &mut Var<T, B>,
     fan_in: usize,
     fan_out: usize,
@@ -150,7 +123,7 @@ pub fn xavier_normal_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Xavier (Glorot) normal initialization.
-pub fn xavier_normal<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn xavier_normal<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>(
     weight: &mut Var<T, B>,
     fan_in: usize,
     fan_out: usize,
@@ -159,7 +132,10 @@ pub fn xavier_normal<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Kaiming (He) uniform initialization with custom seed.
-pub fn kaiming_uniform_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn kaiming_uniform_with_seed<
+    T: Float + coeus_leto::RandomScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     weight: &mut Var<T, B>,
     fan_in: usize,
     seed: u64,
@@ -169,7 +145,10 @@ pub fn kaiming_uniform_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default
 }
 
 /// Kaiming (He) uniform initialization.
-pub fn kaiming_uniform<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn kaiming_uniform<
+    T: Float + coeus_leto::RandomScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     weight: &mut Var<T, B>,
     fan_in: usize,
 ) {
@@ -177,7 +156,10 @@ pub fn kaiming_uniform<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Kaiming (He) normal initialization with custom seed.
-pub fn kaiming_normal_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn kaiming_normal_with_seed<
+    T: Float + coeus_leto::RandomScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     weight: &mut Var<T, B>,
     fan_in: usize,
     seed: u64,
@@ -187,7 +169,10 @@ pub fn kaiming_normal_with_seed<T: Float, B: coeus_ops::BackendOps<T> + Default>
 }
 
 /// Kaiming (He) normal initialization.
-pub fn kaiming_normal<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn kaiming_normal<
+    T: Float + coeus_leto::RandomScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     weight: &mut Var<T, B>,
     fan_in: usize,
 ) {

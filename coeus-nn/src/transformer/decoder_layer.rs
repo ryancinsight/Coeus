@@ -43,7 +43,10 @@ impl<
     > TransformerDecoderLayer<T, B, H, SelfM, CrossM>
 {
     /// Construct a decoder layer.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self {
+    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    where
+        T: coeus_leto::RandomScalar,
+    {
         Self {
             norm1: LayerNorm::new(d_model, 1e-5),
             self_attn: MultiHeadAttention::new(d_model, true),

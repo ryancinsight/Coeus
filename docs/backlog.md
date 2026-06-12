@@ -72,6 +72,13 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     public split path. Evidence: `cargo test -p coeus-leto
     split_dispatch_covers_strided_input_view` and `cargo test -p coeus-ops
     --test split_leto_diff` pass.
+  - [x] [patch] Routed `coeus_nn::init::{uniform_with_seed, normal_with_seed}`
+    through dynamic-rank `coeus-leto` seeded random dispatch, removing the
+    duplicated local Xorshift initializer implementation. Constructor-only
+    `RandomScalar` bounds carry the real-valued initialization contract without
+    constraining pure forward/module paths. Evidence: `cargo test -p coeus-leto
+    random_dispatch_matches_leto_seeded_constructors` and `cargo test -p
+    coeus-nn --test init_leto_diff` pass.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
@@ -120,10 +127,10 @@ const-rank, and the new `coeus-leto` crate bridges them.
 - **Added `coeus-leto`** (`coeus-leto/`): converts coeus dynamic-rank
   `Layout`/`CpuStorage` to leto `Layout<N>` views and dispatches CPU array ops
   (elementwise binary, unary mapping, keep-dim axis reductions including mean,
-  argmax/argmin, cumsum/suffix scans, 2D matmul, structural pad/concat/split) to
-  monomorphized leto kernels via a bounded runtime-rank match
-  (`MAX_DISPATCH_RANK = 5`). Provider: leto/leto-ops pinned at rev d8d34c6.
-  14 cross-repo contract tests green.
+  argmax/argmin, cumsum/suffix scans, 2D matmul, structural pad/concat/split,
+  seeded uniform/normal random constructors) to monomorphized leto kernels via a
+  bounded runtime-rank match (`MAX_DISPATCH_RANK = 5`). Provider: leto/leto-ops
+  pinned at rev d8d34c6. 15 cross-repo contract tests green.
 
 ### Next (tracked, [arch]):
 - Route the **CPU backend's** `BackendOps` impl (`MoiraiBackend`/`SequentialBackend`)

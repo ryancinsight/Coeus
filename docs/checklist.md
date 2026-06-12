@@ -94,9 +94,15 @@
   coverage for `SequentialBackend` and `MoiraiBackend`. Evidence:
   `cargo test -p coeus-leto split_dispatch_covers_strided_input_view` and
   `cargo test -p coeus-ops --test split_leto_diff` pass.
-- [x] [patch] Current full gate after split dispatch: `cargo fmt --check`,
+- [x] [patch] Routed `coeus_nn::init::{uniform_with_seed, normal_with_seed}`
+  through `coeus-leto` seeded random dispatch, deleting the local Xorshift
+  initializer implementation. Constructor-only `RandomScalar` bounds preserve
+  forward/module surfaces for existing `Float` APIs. Evidence: `cargo test -p
+  coeus-leto random_dispatch_matches_leto_seeded_constructors` and `cargo test
+  -p coeus-nn --test init_leto_diff` pass.
+- [x] [patch] Current full gate after initializer dispatch: `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (255 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (258 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

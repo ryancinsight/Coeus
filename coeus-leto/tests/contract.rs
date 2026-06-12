@@ -6,9 +6,10 @@ use coeus_core::{
 };
 use coeus_leto::{
     argmax_into, argmin_into, concat_values, cumsum_into, elementwise_add_into,
-    elementwise_binary_into, elementwise_unary_into, matmul_into, pad_values, reduce_into,
-    split_values, suffix_sum_into, to_leto_view,
+    elementwise_binary_into, elementwise_unary_into, matmul_into, normal_values, pad_values,
+    reduce_into, split_values, suffix_sum_into, to_leto_view, uniform_values,
 };
+use leto::Storage;
 
 fn layout(shape: &[usize]) -> Layout {
     Layout::new(Shape::from(shape.to_vec()))
@@ -257,6 +258,17 @@ fn split_dispatch_covers_strided_input_view() {
     assert_eq!(chunks.len(), 2);
     assert_eq!(chunks[0], vec![1.0, 2.0, 4.0, 5.0]);
     assert_eq!(chunks[1], vec![3.0, 6.0]);
+}
+
+#[test]
+fn random_dispatch_matches_leto_seeded_constructors() {
+    let uniform = uniform_values(&[2usize, 3], -2.0f64, 5.0, 42).unwrap();
+    let direct_uniform = leto_ops::uniform_with_seed([2usize, 3], -2.0f64, 5.0, 42).unwrap();
+    assert_eq!(uniform, direct_uniform.storage().as_slice());
+
+    let normal = normal_values(&[2usize, 3], 1.0f64, 2.0, 11).unwrap();
+    let direct_normal = leto_ops::normal_with_seed([2usize, 3], 1.0f64, 2.0, 11).unwrap();
+    assert_eq!(normal, direct_normal.storage().as_slice());
 }
 
 #[test]

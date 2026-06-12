@@ -38,7 +38,10 @@ where
     TransformerDecoder<T, B, H, NUM_DEC, DecSelfM, DecCrossM>: Clone,
 {
     /// Construct a new Seq2Seq Transformer model.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self {
+    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    where
+        T: coeus_leto::RandomScalar,
+    {
         Self {
             encoder: TransformerEncoder::new(d_model, d_ff, dropout_p),
             decoder: TransformerDecoder::new(d_model, d_ff, dropout_p),
