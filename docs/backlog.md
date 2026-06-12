@@ -305,6 +305,9 @@ removed from hermes upstream; coeus owns those.
   contiguous Q/K row dot products plus softmax row scaling through them. Verified:
   `cargo test -p coeus-core --test scalar_dot_scale` and
   `cargo test -p coeus-nn --test nn_attention_tests`.
+- **Backward attention dot products:** routed CPU attention backward's contiguous
+  `dO @ V^T` rows and softmax row products through `Scalar::dot_slice`. Verified:
+  `cargo test -p coeus-ops --test attention_backward_hermes_diff`.
 
 ### Decisions:
 - **matmul stays in coeus** (not routed to `hermes tiled_gemm`): coeus's matmul is
@@ -315,8 +318,9 @@ removed from hermes upstream; coeus owns those.
   density policy that selects dense GEMM (→ hermes) vs the sparse-aware path.
 
 ### Remaining (follow-on):
-- Audit remaining dot/scalar-scale-like loops in conv/backward attention and route
-  only contiguous runs through `Scalar::{dot_slice,scale_slice}`.
+- Audit remaining dot/scalar-scale-like loops in convolution and output-gradient
+  accumulation paths; route only contiguous runs through
+  `Scalar::{dot_slice,scale_slice}`.
 - Tune the contiguous CHUNK (currently 8192) against Criterion benchmarks.
 
 ---

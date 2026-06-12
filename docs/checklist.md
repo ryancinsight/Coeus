@@ -162,10 +162,13 @@
   scaling through them. Evidence: `cargo test -p coeus-core --test
   scalar_dot_scale` and `cargo test -p coeus-nn --test nn_attention_tests`
   pass.
-- [x] [patch] Current full gate after Hermes dot/scale attention dispatch:
+- [x] [patch] Routed CPU attention backward contiguous `dO @ V^T` rows and
+  softmax row products through `Scalar::dot_slice`. Evidence: `cargo test -p
+  coeus-ops --test attention_backward_hermes_diff` passes.
+- [x] [patch] Current full gate after Hermes backward-attention dot dispatch:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (293 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (295 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

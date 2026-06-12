@@ -205,11 +205,12 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
         let mut d_attn = vec![T::zero(); seq_q * seq_k];
         for i in 0..seq_q {
             for j in 0..seq_k {
-                let mut acc = T::zero();
-                for l in 0..d_v {
-                    acc = acc + go[idx3(b, i, l, seq_q, d_v)] * v_sl[idx3(b, j, l, seq_k, d_v)];
-                }
-                d_attn[i * seq_k + j] = acc;
+                let go_start = idx3(b, i, 0, seq_q, d_v);
+                let value_start = idx3(b, j, 0, seq_k, d_v);
+                d_attn[i * seq_k + j] = T::dot_slice(
+                    &go[go_start..go_start + d_v],
+                    &v_sl[value_start..value_start + d_v],
+                );
             }
         }
 
@@ -217,10 +218,11 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
         let mut d_scores = vec![T::zero(); seq_q * seq_k];
         for i in 0..seq_q {
             // rowsum(A[i,:] ⊙ dA[i,:])
-            let mut rs = T::zero();
-            for j in 0..seq_k {
-                rs = rs + aw[idx3(b, i, j, seq_q, seq_k)] * d_attn[i * seq_k + j];
-            }
+            let aw_start = idx3(b, i, 0, seq_q, seq_k);
+            let rs = T::dot_slice(
+                &aw[aw_start..aw_start + seq_k],
+                &d_attn[i * seq_k..(i + 1) * seq_k],
+            );
             for j in 0..seq_k {
                 d_scores[i * seq_k + j] =
                     aw[idx3(b, i, j, seq_q, seq_k)] * (d_attn[i * seq_k + j] - rs);

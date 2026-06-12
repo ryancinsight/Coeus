@@ -22,6 +22,8 @@
 - Routed public scalar `coeus_ops::mean` through backend `ReductionOp::Mean`.
 - Routed contiguous CPU attention row dot products and softmax row scaling
   through new `Scalar::{dot_slice, scale_slice}` Hermes SIMD seams.
+- Routed CPU attention backward contiguous `dO @ V^T` rows and softmax row
+  products through `Scalar::dot_slice`.
 - Routed `Tensor::eye_on` identity generation through `coeus-leto` coordinate
   dispatch.
 - Routed `Tensor::arange_on` through `coeus-leto` coordinate dispatch using
