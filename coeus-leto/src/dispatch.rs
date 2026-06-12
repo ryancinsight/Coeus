@@ -516,6 +516,80 @@ pub fn contiguous_values<T: Clone>(a_layout: &CoeusLayout, a: &[T]) -> Result<Ve
     }
 }
 
+fn from_leto_layout<const N: usize>(layout: leto::Layout<N>) -> Result<CoeusLayout> {
+    let strides = layout
+        .strides
+        .iter()
+        .map(|&stride| {
+            usize::try_from(stride).map_err(|_| LetoError::StorageError {
+                reason: format!("coeus layout cannot represent negative stride {stride}"),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(CoeusLayout::from_shape_strides(
+        layout.shape.to_vec().into(),
+        strides.as_slice().into(),
+        layout.offset,
+    ))
+}
+
+fn reshape_layout_n_m<const N: usize, const M: usize>(
+    layout: &CoeusLayout,
+    shape: &[usize],
+) -> Result<CoeusLayout> {
+    let reshaped = to_leto_layout::<N>(layout)?.reshape::<M>(shape_n::<M>(shape)?)?;
+    from_leto_layout(reshaped)
+}
+
+fn reshape_layout_n<const N: usize>(layout: &CoeusLayout, shape: &[usize]) -> Result<CoeusLayout> {
+    match shape.len() {
+        1 => reshape_layout_n_m::<N, 1>(layout, shape),
+        2 => reshape_layout_n_m::<N, 2>(layout, shape),
+        3 => reshape_layout_n_m::<N, 3>(layout, shape),
+        4 => reshape_layout_n_m::<N, 4>(layout, shape),
+        5 => reshape_layout_n_m::<N, 5>(layout, shape),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
+/// Zero-copy reshape of coeus layout metadata, dispatched to Leto's const-rank
+/// layout validator. This preserves the storage offset and returns a dynamic
+/// coeus layout for the requested shape.
+pub fn reshape_layout(layout: &CoeusLayout, shape: &[usize]) -> Result<CoeusLayout> {
+    match layout.ndim() {
+        1 => reshape_layout_n::<1>(layout, shape),
+        2 => reshape_layout_n::<2>(layout, shape),
+        3 => reshape_layout_n::<3>(layout, shape),
+        4 => reshape_layout_n::<4>(layout, shape),
+        5 => reshape_layout_n::<5>(layout, shape),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
+fn permute_layout_n<const N: usize>(layout: &CoeusLayout, axes: &[usize]) -> Result<CoeusLayout> {
+    let permuted = to_leto_layout::<N>(layout)?.transpose(shape_n::<N>(axes)?)?;
+    from_leto_layout(permuted)
+}
+
+/// Zero-copy permutation of coeus layout metadata, dispatched to Leto's
+/// const-rank layout validator.
+pub fn permute_layout(layout: &CoeusLayout, axes: &[usize]) -> Result<CoeusLayout> {
+    match layout.ndim() {
+        1 => permute_layout_n::<1>(layout, axes),
+        2 => permute_layout_n::<2>(layout, axes),
+        3 => permute_layout_n::<3>(layout, axes),
+        4 => permute_layout_n::<4>(layout, axes),
+        5 => permute_layout_n::<5>(layout, axes),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
 fn shape_n<const N: usize>(shape: &[usize]) -> Result<[usize; N]> {
     shape.try_into().map_err(
         |_: std::array::TryFromSliceError| LetoError::ShapeMismatch {

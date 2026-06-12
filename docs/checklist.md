@@ -105,10 +105,15 @@
   materialization loop from that path. Evidence: `cargo test -p coeus-leto
   contiguous_dispatch_matches_leto_view_materialization` and `cargo test -p
   coeus-tensor --test contiguous_leto_diff` pass.
-- [x] [patch] Current full gate after contiguous materialization dispatch:
+- [x] [patch] Routed `Tensor::{reshape, permute}` plus `t`/`t_nd` through
+  `coeus-leto` layout validation, preserving zero-copy storage sharing while
+  deleting the local reshape/permute metadata duplication from the public tensor
+  path. Evidence: `cargo test -p coeus-leto layout_dispatch` and `cargo test -p
+  coeus-tensor --test shape_view_leto_diff` pass.
+- [x] [patch] Current full gate after shape-view dispatch:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (261 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (265 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

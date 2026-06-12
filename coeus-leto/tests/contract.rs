@@ -7,7 +7,8 @@ use coeus_core::{
 use coeus_leto::{
     argmax_into, argmin_into, concat_values, contiguous_values, cumsum_into, elementwise_add_into,
     elementwise_binary_into, elementwise_unary_into, matmul_into, normal_values, pad_values,
-    reduce_into, split_values, suffix_sum_into, to_leto_view, uniform_values,
+    permute_layout, reduce_into, reshape_layout, split_values, suffix_sum_into, to_leto_view,
+    uniform_values,
 };
 use leto::Storage;
 
@@ -289,6 +290,39 @@ fn contiguous_dispatch_matches_leto_view_materialization() {
 
     assert_eq!(values, direct.storage().as_slice());
     assert_eq!(values, vec![1, 5, 9, 2, 6, 10, 3, 7, 11]);
+}
+
+#[test]
+fn reshape_layout_dispatch_matches_leto_validation() {
+    let sliced = layout(&[8]).slice(&[(2, 6)]);
+    let reshaped = reshape_layout(&sliced, &[2, 2]).unwrap();
+    let direct = coeus_leto::to_leto_layout::<1>(&sliced)
+        .unwrap()
+        .reshape::<2>([2, 2])
+        .unwrap();
+
+    assert_eq!(reshaped.shape(), direct.shape);
+    assert_eq!(reshaped.strides(), &[2, 1]);
+    assert_eq!(reshaped.offset(), 2);
+
+    let transposed =
+        Layout::from_shape_strides(Shape::from(vec![3, 2]), Strides::from_slice(&[1, 3]), 0);
+    assert!(reshape_layout(&transposed, &[6]).is_err());
+}
+
+#[test]
+fn permute_layout_dispatch_matches_leto_validation() {
+    let source = layout(&[2, 3, 4]);
+    let permuted = permute_layout(&source, &[2, 0, 1]).unwrap();
+    let direct = coeus_leto::to_leto_layout::<3>(&source)
+        .unwrap()
+        .transpose([2, 0, 1])
+        .unwrap();
+
+    assert_eq!(permuted.shape(), direct.shape);
+    assert_eq!(permuted.strides(), &[1, 12, 4]);
+    assert_eq!(permuted.offset(), 0);
+    assert!(permute_layout(&source, &[0, 0, 1]).is_err());
 }
 
 #[test]

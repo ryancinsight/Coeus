@@ -30,14 +30,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     #[inline]
     pub fn t(&self) -> Self {
         assert_eq!(self.ndim(), 2, "transpose requires 2D tensor");
-        let shape: Shape = [self.shape()[1], self.shape()[0]].into();
-        let strides: Strides = Strides::from_slice(&[self.strides()[1], self.strides()[0]]);
-        let layout = Layout::from_shape_strides(shape, strides, self.layout.offset());
-        Self {
-            storage: self.storage.clone(),
-            layout,
-            _backend: PhantomData,
-        }
+        self.permute(&[1, 0])
     }
 
     /// Zero-copy transpose of the last two dimensions (batched transpose).
@@ -51,26 +44,9 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     pub fn t_nd(&self) -> Self {
         let nd = self.ndim();
         assert!(nd >= 2, "t_nd requires at least a 2-D tensor, got {nd}-D");
-        let shape_slice = self.shape();
-        let stride_slice = self.strides();
-
-        let mut new_shape: Shape = shape_slice.to_vec().into();
-        let mut new_strides = stride_slice.to_vec();
-
-        // Swap the last two dimensions via DerefMut.
-        new_shape.swap(nd - 2, nd - 1);
-        new_strides.swap(nd - 2, nd - 1);
-
-        let layout = Layout::from_shape_strides(
-            new_shape,
-            Strides::from_slice(&new_strides),
-            self.layout.offset(),
-        );
-        Self {
-            storage: self.storage.clone(),
-            layout,
-            _backend: PhantomData,
-        }
+        let mut dims = (0..nd).collect::<Vec<_>>();
+        dims.swap(nd - 2, nd - 1);
+        self.permute(&dims)
     }
 
     /// Zero-copy reshape (requires contiguous).
@@ -80,11 +56,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     #[inline]
     pub fn reshape<S: Into<Shape>>(&self, new_shape: S) -> Self {
         let new_shape = new_shape.into();
-        let new_numel: usize = new_shape.iter().product();
-        assert_eq!(self.numel(), new_numel, "reshape element count mismatch");
-        assert!(self.is_contiguous(), "reshape requires contiguous tensor");
-        let strides = Layout::new(new_shape.clone()).strides_cloned();
-        let layout = Layout::from_shape_strides(new_shape, strides, self.layout.offset());
+        let layout = coeus_leto::reshape_layout(&self.layout, &new_shape)
+            .expect("coeus-leto reshape validation failed");
         Self {
             storage: self.storage.clone(),
             layout,
@@ -97,14 +70,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// `dims` specifies the new order of dimensions.
     #[inline]
     pub fn permute(&self, dims: &[usize]) -> Self {
-        assert_eq!(dims.len(), self.ndim(), "permute dims count mismatch");
-        let mut new_shape = Shape::with_capacity(dims.len());
-        let mut new_strides = Strides::with_capacity(dims.len());
-        for &d in dims {
-            new_shape.push(self.shape()[d]);
-            new_strides.push(self.strides()[d]);
-        }
-        let layout = Layout::from_shape_strides(new_shape, new_strides, self.layout.offset());
+        let layout = coeus_leto::permute_layout(&self.layout, dims)
+            .expect("coeus-leto permute validation failed");
         Self {
             storage: self.storage.clone(),
             layout,
