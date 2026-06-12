@@ -6,10 +6,10 @@ use pyo3::prelude::*;
 /// Input shape: `[N, C]` or `[N, C, L]`.
 #[pyclass(name = "InstanceNorm1d")]
 pub struct PyInstanceNorm1d {
-    /// Trainable scale (gamma), shape [num_features].
+    /// Trainable scale (gamma), shape `[num_features]`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
-    /// Trainable shift (beta), shape [num_features].
+    /// Trainable shift (beta), shape `[num_features]`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
     #[pyo3(get)]
@@ -81,10 +81,10 @@ impl PyInstanceNorm1d {
 /// Input shape: `[N, C, H, W]`.
 #[pyclass(name = "InstanceNorm2d")]
 pub struct PyInstanceNorm2d {
-    /// Trainable scale (gamma), shape [num_features].
+    /// Trainable scale (gamma), shape `[num_features]`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
-    /// Trainable shift (beta), shape [num_features].
+    /// Trainable shift (beta), shape `[num_features]`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
     #[pyo3(get)]

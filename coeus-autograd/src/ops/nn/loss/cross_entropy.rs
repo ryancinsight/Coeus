@@ -8,7 +8,7 @@ pub struct CrossEntropyLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
     pub inputs: Vec<Var<T, B>>,
     pub targets: Vec<usize>,
-    /// Softmax probabilities stored as Vec<T> — no f64 widening.
+    /// Softmax probabilities stored as `Vec<T>` — no f64 widening.
     pub probs: Vec<T>,
     pub n: usize,
     pub c: usize,
@@ -69,7 +69,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 
 /// Tracked Cross-Entropy Loss.
 /// Called from coeus-nn/src/loss.rs after host-side log-sum-exp computation.
-/// `probs` must be Vec<T>, computed in T precision.
+/// `probs` must be `Vec<T>`, computed in T precision.
 pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     logits: &Var<T, B>,
     targets: Vec<usize>,

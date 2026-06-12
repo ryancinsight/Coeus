@@ -3,7 +3,7 @@
 //! # Key types
 //! - [`Var<T, B>`](var::Var) — a tracked tensor carrying an optional gradient accumulator and
 //!   an optional `Arc<dyn BackwardNode<T, B>>` creator link.
-//! - [`BackwardNode`](node::BackwardNode) — trait implemented by per-op nodes; each node stores
+//! - [`BackwardNode`] — trait implemented by per-op nodes; each node stores
 //!   saved tensors and accumulates gradients into its inputs during the reverse pass.
 //! - [`Var::backward`](var::Var::backward) — triggers topological traversal of the computation
 //!   graph seeded with a ones tensor, propagating gradients to all `requires_grad` leaves.

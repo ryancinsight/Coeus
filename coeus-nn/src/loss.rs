@@ -7,7 +7,7 @@ use coeus_tensor::Tensor;
 /// Mean Squared Error loss.
 ///
 /// Computes mean squared error between pred and target.
-/// Returns a scalar Var (shape [1]).
+/// Returns a scalar Var (shape `[1]`).
 #[inline]
 pub fn mse_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
@@ -20,9 +20,9 @@ pub fn mse_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
 /// Cross-entropy loss (for classification with logits).
 ///
-/// Logits shape: [N, C] where N is batch size, C is number of classes.
-/// Targets: slice of N target indices in [0, C).
-/// Returns a scalar Var (shape [1]).
+/// Logits shape: `[N, C]` where N is batch size, C is number of classes.
+/// Targets: slice of N target indices in `[0, C)`.
+/// Returns a scalar Var (shape `[1]`).
 pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     logits: &Var<T, B>,
     targets: &[usize],
@@ -99,7 +99,7 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Binary Cross-Entropy Loss.
-/// pred: [N] probabilities, target: [N] float targets (0.0 or 1.0).
+/// pred: `[N]` probabilities, target: `[N]` float targets (0.0 or 1.0).
 /// eps: clamp for numerical stability (e.g., 1e-7 as T).
 #[inline]
 pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
@@ -111,7 +111,7 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Negative Log-Likelihood Loss.
-/// log_probs: [N, C] log-probabilities, targets: [N] class indices.
+/// log_probs: `[N, C]` log-probabilities, targets: `[N]` class indices.
 #[inline]
 pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     log_probs: &Var<T, B>,
@@ -121,7 +121,7 @@ pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Huber (Smooth L1) Loss.
-/// pred: [N], target: [N], delta: huber threshold.
+/// pred: `[N]`, target: `[N]`, delta: huber threshold.
 #[inline]
 pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
@@ -132,7 +132,7 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Cosine Embedding Loss.
-/// x1: [N, D], x2: [N, D], y: [N], margin: threshold.
+/// x1: `[N, D]`, x2: `[N, D]`, y: `[N]`, margin: threshold.
 #[inline]
 pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x1: &Var<T, B>,

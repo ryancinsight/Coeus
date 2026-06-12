@@ -6,20 +6,20 @@ use std::cell::RefCell;
 
 /// Layer Normalization module.
 ///
-/// Applies Layer Normalization over the last dimension of a 2D tensor [N, D].
+/// Applies Layer Normalization over the last dimension of a 2D tensor `[N, D]`.
 #[derive(Clone)]
 pub struct LayerNorm<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
-    /// Trainable scale parameter gamma: [D].
+    /// Trainable scale parameter gamma: `[D]`.
     pub weight: Var<T, B>,
-    /// Trainable shift parameter beta: [D].
+    /// Trainable shift parameter beta: `[D]`.
     pub bias: Var<T, B>,
     /// Small value for numerical stability.
     pub eps: f64,
-    /// Cached epsilon tensor: [1].
+    /// Cached epsilon tensor: `[1]`.
     eps_t: Tensor<T, B>,
-    /// Cached dimension constant: [1].
+    /// Cached dimension constant: `[1]`.
     d_const: Tensor<T, B>,
-    /// Cached ones tensor of shape [N, 1]: (N, ones_tensor)
+    /// Cached ones tensor of shape `[N, 1]`: (N, ones_tensor).
     ones_cache: RefCell<Option<(usize, Tensor<T, B>)>>,
 }
 

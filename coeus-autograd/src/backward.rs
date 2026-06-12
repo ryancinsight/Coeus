@@ -3,8 +3,8 @@ use coeus_tensor::Tensor;
 
 /// Reduce a broadcast gradient to match the original (smaller) input shape.
 ///
-/// When an op broadcasts (e.g., [3,1] + [1,4] → [3,4]), the gradient
-/// flowing back has shape [3,4] but the input's gradient should be [3,1].
+/// When an op broadcasts (e.g., `[3,1] + [1,4] → [3,4]`), the gradient
+/// flowing back has shape `[3,4]` but the input's gradient should be `[3,1]`.
 /// This function sums over the broadcast dimensions.
 pub fn reduce_broadcast<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     grad: Tensor<T, B>,

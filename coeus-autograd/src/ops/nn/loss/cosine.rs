@@ -119,7 +119,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 }
 
 /// Tracked Cosine Embedding Loss.
-/// x1: [N, D], x2: [N, D], y: [N] (elements 1 or -1).
+/// x1: `[N, D]`, x2: `[N, D]`, y: `[N]` (elements 1 or -1).
 pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x1: &Var<T, B>,
     x2: &Var<T, B>,

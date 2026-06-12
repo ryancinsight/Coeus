@@ -5,14 +5,14 @@ use coeus_tensor::Tensor;
 
 /// Root Mean Square Normalization (RMSNorm) module.
 ///
-/// Applies RMSNorm over the last dimension of a 2D tensor [N, D].
+/// Applies RMSNorm over the last dimension of a 2D tensor `[N, D]`.
 #[derive(Clone)]
 pub struct RMSNorm<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
-    /// Trainable scale parameter gamma: [D].
+    /// Trainable scale parameter gamma: `[D]`.
     pub weight: Var<T, B>,
     /// Small value for numerical stability.
     pub eps: f64,
-    /// Cached epsilon tensor: [1].
+    /// Cached epsilon tensor: `[1]`.
     eps_t: Tensor<T, B>,
 }
 

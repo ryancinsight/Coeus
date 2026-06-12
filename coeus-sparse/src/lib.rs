@@ -43,13 +43,13 @@ impl<T: Scalar, B: ComputeBackend> CooTensor<T, B> {
         &self.shape
     }
 
-    /// Access the coordinate indices [rank, nnz].
+    /// Access the coordinate indices `[rank, nnz]`.
     #[inline]
     pub fn indices(&self) -> &Tensor<i64, B> {
         &self.indices
     }
 
-    /// Access the non-zero values [nnz].
+    /// Access the non-zero values `[nnz]`.
     #[inline]
     pub fn values(&self) -> &Tensor<T, B> {
         &self.values
@@ -101,25 +101,25 @@ impl<T: Scalar, B: ComputeBackend> CsrTensor<T, B> {
         }
     }
 
-    /// Access the shape [rows, cols].
+    /// Access the shape `[rows, cols]`.
     #[inline]
     pub fn shape(&self) -> &Shape {
         &self.shape
     }
 
-    /// Access the non-zero values [nnz].
+    /// Access the non-zero values `[nnz]`.
     #[inline]
     pub fn values(&self) -> &Tensor<T, B> {
         &self.values
     }
 
-    /// Access the column indices for each non-zero element [nnz].
+    /// Access the column indices for each non-zero element `[nnz]`.
     #[inline]
     pub fn col_indices(&self) -> &Tensor<i64, B> {
         &self.col_indices
     }
 
-    /// Access the row offsets marking start and end of rows [rows + 1].
+    /// Access the row offsets marking start and end of rows `[rows + 1]`.
     #[inline]
     pub fn row_offsets(&self) -> &Tensor<i64, B> {
         &self.row_offsets

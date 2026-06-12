@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 pub struct HuberLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
     pub inputs: Vec<Var<T, B>>,
-    /// Element-wise differences pred[i] - target[i], stored for backward.
+    /// Element-wise differences `pred[i] - target[i]`, stored for backward.
     pub diffs: Vec<T>,
     pub delta: T,
     pub n: usize,
@@ -65,7 +65,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
 }
 
 /// Tracked Huber (Smooth L1) Loss.
-/// pred: [N], target: [N], delta: threshold.
+/// pred: `[N]`, target: `[N]`, delta: threshold.
 pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,

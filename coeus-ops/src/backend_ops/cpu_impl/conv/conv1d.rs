@@ -204,31 +204,69 @@ pub(crate) fn conv1d_backward<T: Scalar, B: Backend>(
         let input_layout = input_layout.clone();
 
         let numel_w = c_out * c_in * k;
-        backend.parallel_for(0, numel_w, move |i| {
-            let ik = i % k;
-            let temp = i / k;
-            let ic = temp % c_in;
-            let oc = temp / c_in;
+        let can_dot_grad_weight = padding == 0
+            && stride == 1
+            && dilation == 1
+            && k <= l
+            && l_out == l - k + 1
+            && go_layout.is_contiguous()
+            && input_layout.is_contiguous()
+            && gw_layout.is_contiguous();
 
-            let mut sum = T::zero();
-            for ni in 0..n {
-                for ol in 0..l_out {
-                    let l_in = ol as isize * stride_s + ik as isize * dil_s - pad_s;
-                    if l_in >= 0 && (l_in as usize) < l {
-                        let go_idx = go_layout.physical_index(&[ni, oc, ol]);
-                        let input_idx = input_layout.physical_index(&[ni, ic, l_in as usize]);
-                        let gval = unsafe { go_ptr.read(go_idx) };
-                        let ival = unsafe { input_ptr.read(input_idx) };
-                        sum = sum + gval * ival;
+        if can_dot_grad_weight {
+            let go_offset = go_layout.offset();
+            let input_offset = input_layout.offset();
+            let gw_offset = gw_layout.offset();
+            backend.parallel_for(0, numel_w, move |i| {
+                let ik = i % k;
+                let temp = i / k;
+                let ic = temp % c_in;
+                let oc = temp / c_in;
+
+                let mut sum = T::zero();
+                for ni in 0..n {
+                    let go_start = go_offset + (ni * c_out + oc) * l_out;
+                    let input_start = input_offset + (ni * c_in + ic) * l + ik;
+                    // SAFETY: the contiguous guard proves canonical NCL row-major
+                    // layouts, `k <= l`, and `l_out == l - k + 1`, so both
+                    // windows have length `l_out` and remain inside storage.
+                    let go_window = unsafe { go_ptr.slice(go_start, l_out) };
+                    let input_window = unsafe { input_ptr.slice(input_start, l_out) };
+                    sum = sum + T::dot_slice(go_window, input_window);
+                }
+                let gw_idx = gw_offset + (oc * c_in + ic) * k + ik;
+                unsafe {
+                    let old = gw_ptr.read(gw_idx);
+                    gw_ptr.write(gw_idx, old + sum);
+                }
+            });
+        } else {
+            backend.parallel_for(0, numel_w, move |i| {
+                let ik = i % k;
+                let temp = i / k;
+                let ic = temp % c_in;
+                let oc = temp / c_in;
+
+                let mut sum = T::zero();
+                for ni in 0..n {
+                    for ol in 0..l_out {
+                        let l_in = ol as isize * stride_s + ik as isize * dil_s - pad_s;
+                        if l_in >= 0 && (l_in as usize) < l {
+                            let go_idx = go_layout.physical_index(&[ni, oc, ol]);
+                            let input_idx = input_layout.physical_index(&[ni, ic, l_in as usize]);
+                            let gval = unsafe { go_ptr.read(go_idx) };
+                            let ival = unsafe { input_ptr.read(input_idx) };
+                            sum = sum + gval * ival;
+                        }
                     }
                 }
-            }
-            let gw_idx = gw_layout.physical_index(&[oc, ic, ik]);
-            unsafe {
-                let old = gw_ptr.read(gw_idx);
-                gw_ptr.write(gw_idx, old + sum);
-            }
-        });
+                let gw_idx = gw_layout.physical_index(&[oc, ic, ik]);
+                unsafe {
+                    let old = gw_ptr.read(gw_idx);
+                    gw_ptr.write(gw_idx, old + sum);
+                }
+            });
+        }
     }
 
     if let Some(gb) = grad_bias {

@@ -52,7 +52,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
 }
 
 /// Tracked Negative Log-Likelihood Loss.
-/// log_probs: [N, C] (already log-probabilities), targets: [N] class indices.
+/// log_probs: `[N, C]` (already log-probabilities), targets: `[N]` class indices.
 pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     log_probs: &Var<T, B>,
     targets: &[usize],

@@ -6,9 +6,9 @@ use coeus_tensor::Tensor;
 /// Fully-connected linear layer.
 #[derive(Clone)]
 pub struct Linear<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
-    /// Weight matrix: [out_features × in_features].
+    /// Weight matrix: `[out_features × in_features]`.
     pub weight: Var<T, B>,
-    /// Bias vector: [out_features].
+    /// Bias vector: `[out_features]`.
     pub bias: Option<Var<T, B>>,
 }
 

@@ -187,11 +187,20 @@
   kernel rows through `Scalar::dot_slice`, preserving the indexed path for
   padded, dilated, or non-contiguous layouts. Evidence: `cargo test -p
   coeus-ops --test conv3d_hermes_diff` passes.
-- [x] [patch] Current full gate after CPU `conv3d` Hermes dot routing:
+- [x] [patch] Routed contiguous unpadded unit-stride/unit-dilation CPU `conv1d`
+  backward weight-gradient rows through `Scalar::dot_slice`, preserving the
+  indexed path for padded, strided, dilated, or non-contiguous layouts.
+  Evidence: `cargo test -p coeus-ops --test conv1d_backward_hermes_diff`
+  passes.
+- [x] [patch] Fixed rustdoc shape/type annotations that were parsed as links or
+  HTML, making workspace docs warning-clean. Evidence: `cargo doc --workspace
+  --no-deps` passes.
+- [x] [patch] Current full gate after CPU `conv1d` backward Hermes dot routing:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (301 passed,
-  0 skipped), and `cargo test --doc --workspace` pass.
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (303 passed,
+  0 skipped), `cargo test --doc --workspace`, and `cargo doc --workspace
+  --no-deps` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice
   elementwise add alongside Coeus Sequential and Moirai.

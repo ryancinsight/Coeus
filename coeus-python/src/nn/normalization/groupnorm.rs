@@ -7,10 +7,10 @@ use pyo3::prelude::*;
 /// `num_features` must be divisible by `num_groups`.
 #[pyclass(name = "GroupNorm")]
 pub struct PyGroupNorm {
-    /// Trainable scale (gamma), shape [num_features].
+    /// Trainable scale (gamma), shape `[num_features]`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
-    /// Trainable shift (beta), shape [num_features].
+    /// Trainable shift (beta), shape `[num_features]`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
     #[pyo3(get)]

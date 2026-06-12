@@ -7,28 +7,28 @@ use pyo3::prelude::*;
 /// `d_model` must be divisible by `num_heads`.
 #[pyclass(name = "MultiHeadAttention")]
 pub struct PyMultiHeadAttention {
-    /// Query projection weight, shape [d_model, d_model].
+    /// Query projection weight, shape `[d_model, d_model]`.
     #[pyo3(get)]
     pub w_q: Py<PyTensor>,
-    /// Query projection bias, shape [d_model].
+    /// Query projection bias, shape `[d_model]`.
     #[pyo3(get)]
     pub b_q: Option<Py<PyTensor>>,
-    /// Key projection weight, shape [d_model, d_model].
+    /// Key projection weight, shape `[d_model, d_model]`.
     #[pyo3(get)]
     pub w_k: Py<PyTensor>,
-    /// Key projection bias, shape [d_model].
+    /// Key projection bias, shape `[d_model]`.
     #[pyo3(get)]
     pub b_k: Option<Py<PyTensor>>,
-    /// Value projection weight, shape [d_model, d_model].
+    /// Value projection weight, shape `[d_model, d_model]`.
     #[pyo3(get)]
     pub w_v: Py<PyTensor>,
-    /// Value projection bias, shape [d_model].
+    /// Value projection bias, shape `[d_model]`.
     #[pyo3(get)]
     pub b_v: Option<Py<PyTensor>>,
-    /// Output projection weight, shape [d_model, d_model].
+    /// Output projection weight, shape `[d_model, d_model]`.
     #[pyo3(get)]
     pub w_o: Py<PyTensor>,
-    /// Output projection bias, shape [d_model].
+    /// Output projection bias, shape `[d_model]`.
     #[pyo3(get)]
     pub b_o: Option<Py<PyTensor>>,
     #[pyo3(get)]

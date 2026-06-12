@@ -4,7 +4,7 @@ use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 
-/// 3D Batch Normalization for [N, C, D, H, W] inputs.
+/// 3D Batch Normalization for `[N, C, D, H, W]` inputs.
 ///
 /// Normalizes over the N, D, H, W dimensions (per-channel mean/variance).
 /// Running stats are updated during each forward call.
@@ -15,19 +15,19 @@ pub struct BatchNorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiB
     pub bias: Var<T, B>,
     pub eps: f64,
     pub momentum: f64,
-    /// Running mean [C]
+    /// Running mean `[C]`.
     pub running_mean: RefCell<Tensor<T, B>>,
-    /// Running variance [C]
+    /// Running variance `[C]`.
     pub running_var: RefCell<Tensor<T, B>>,
-    /// Cached epsilon tensor: [1].
+    /// Cached epsilon tensor: `[1]`.
     eps_t: Tensor<T, B>,
-    /// Cached momentum tensor: [1].
+    /// Cached momentum tensor: `[1]`.
     mom_t: Tensor<T, B>,
-    /// Cached 1 - momentum tensor: [1].
+    /// Cached 1 - momentum tensor: `[1]`.
     one_minus_mom_t: Tensor<T, B>,
-    /// Cached -0.5 constant tensor: [1].
+    /// Cached -0.5 constant tensor: `[1]`.
     minus_half: Tensor<T, B>,
-    /// Cached 2.0 constant tensor: [1].
+    /// Cached 2.0 constant tensor: `[1]`.
     two_const: Tensor<T, B>,
     /// Cached ones tensor of shape [1, C]
     ones_c: Tensor<T, B>,

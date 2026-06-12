@@ -7,9 +7,9 @@ use std::sync::{Arc, Mutex};
 pub struct BinaryCrossEntropyNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<Mutex<Tensor<T, B>>>,
     pub inputs: Vec<Var<T, B>>,
-    /// Clamped prediction values in [eps, 1-eps], stored as Vec<T>.
+    /// Clamped prediction values in `[eps, 1-eps]`, stored as `Vec<T>`.
     pub probs: Vec<T>,
-    /// Target values (0.0 or 1.0) stored as Vec<T>.
+    /// Target values (0.0 or 1.0) stored as `Vec<T>`.
     pub targets: Vec<T>,
     pub n: usize,
 }
@@ -60,7 +60,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 }
 
 /// Tracked Binary Cross-Entropy Loss.
-/// pred: [N] probabilities (will be clamped internally), target: [N] float targets (0.0 or 1.0).
+/// pred: `[N]` probabilities (will be clamped internally), target: `[N]` float targets (0.0 or 1.0).
 /// eps: numerical stability clamp (e.g., T::from_f64(1e-7)).
 pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,

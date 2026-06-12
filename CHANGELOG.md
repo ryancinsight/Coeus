@@ -33,6 +33,9 @@
 - Routed contiguous unpadded unit-dilation CPU `conv3d` forward kernel rows
   through `Scalar::dot_slice`, preserving the indexed path for padded, dilated,
   or non-contiguous layouts.
+- Routed contiguous unpadded unit-stride/unit-dilation CPU `conv1d` backward
+  weight-gradient rows through `Scalar::dot_slice`, preserving the indexed path
+  for padded, strided, dilated, or non-contiguous layouts.
 - Removed Coeus' direct `pollster` dependency from `coeus-wgpu` and extended the
   dependency policy to keep Coeus production code on the Moirai async SSOT.
 - Extended the dependency policy to keep direct replacement-library usage
@@ -50,3 +53,5 @@
 
 - Fixed zero-length `CpuStorage` so empty tensors expose valid non-null aligned
   Rust slices.
+- Fixed rustdoc shape/type annotations that were parsed as intra-doc links or
+  HTML so `cargo doc --workspace --no-deps` is warning-clean.
