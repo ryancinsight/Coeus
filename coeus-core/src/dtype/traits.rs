@@ -162,6 +162,36 @@ pub trait Scalar:
         }
     }
 
+    /// Dot product of two equal-length contiguous slices.
+    ///
+    /// This is the per-type seam onto the SIMD-effect SSOT for vector products.
+    /// The default is a native-precision scalar fold; `f32`/`f64` override to
+    /// `hermes_simd::dot`. Floating-point SIMD may reassociate the summation,
+    /// so callers that compare against a sequential fold must use an
+    /// analytically derived epsilon bound.
+    #[inline]
+    fn dot_slice(a: &[Self], b: &[Self]) -> Self {
+        assert_eq!(a.len(), b.len(), "dot_slice: length mismatch");
+
+        let mut acc = Self::zero();
+        for (&x, &y) in a.iter().zip(b.iter()) {
+            acc = acc + x * y;
+        }
+        acc
+    }
+
+    /// In-place multiplication of every contiguous slice element by `scalar`.
+    ///
+    /// This is the per-type seam onto the SIMD-effect SSOT for scalar scaling.
+    /// The operation is lane-independent, so native-float SIMD overrides remain
+    /// bitwise-identical to the scalar default for ordinary IEEE operands.
+    #[inline]
+    fn scale_slice(data: &mut [Self], scalar: Self) {
+        for value in data {
+            *value = *value * scalar;
+        }
+    }
+
     /// Sum of a contiguous slice — per-type seam onto the SIMD-effect SSOT.
     ///
     /// Default is a sequential left fold; `f32`/`f64` override to

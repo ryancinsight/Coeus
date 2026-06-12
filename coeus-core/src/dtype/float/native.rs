@@ -57,6 +57,24 @@ macro_rules! impl_scalar_float_native {
                 }
             }
             #[inline]
+            fn dot_slice(a: &[Self], b: &[Self]) -> Self {
+                assert_eq!(a.len(), b.len(), "dot_slice: length mismatch");
+                match hermes_simd::dot::<$t>(a, b) {
+                    Ok(value) => value,
+                    Err(_) => {
+                        let mut acc = 0.0 as Self;
+                        for (&x, &y) in a.iter().zip(b.iter()) {
+                            acc += x * y;
+                        }
+                        acc
+                    }
+                }
+            }
+            #[inline]
+            fn scale_slice(data: &mut [Self], scalar: Self) {
+                hermes_simd::scale::<$t>(data, scalar);
+            }
+            #[inline]
             fn sum_slice(s: &[Self]) -> Self {
                 hermes_simd::sum::<$t>(s)
             }

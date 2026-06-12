@@ -300,6 +300,11 @@ removed from hermes upstream; coeus owns those.
   reduce kernel route each output's contiguous run to the SSOT; strided axes keep
   the gather fold. Verified: `reduction_simd_diff.rs` — sum within reassociation
   epsilon, min/max bitwise, both backends.
+- **Dot/scale:** added `Scalar::{dot_slice,scale_slice}` seams (scalar default;
+  `f32`/`f64` → `hermes_simd::{dot,scale}`) and routed CPU forward attention's
+  contiguous Q/K row dot products plus softmax row scaling through them. Verified:
+  `cargo test -p coeus-core --test scalar_dot_scale` and
+  `cargo test -p coeus-nn --test nn_attention_tests`.
 
 ### Decisions:
 - **matmul stays in coeus** (not routed to `hermes tiled_gemm`): coeus's matmul is
@@ -310,7 +315,8 @@ removed from hermes upstream; coeus owns those.
   density policy that selects dense GEMM (→ hermes) vs the sparse-aware path.
 
 ### Remaining (follow-on):
-- Route `dot` / scalar-`scale` through hermes where coeus exposes them.
+- Audit remaining dot/scalar-scale-like loops in conv/backward attention and route
+  only contiguous runs through `Scalar::{dot_slice,scale_slice}`.
 - Tune the contiguous CHUNK (currently 8192) against Criterion benchmarks.
 
 ---

@@ -157,10 +157,15 @@
   batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo test -p coeus-ops
   --test batched_matmul_leto_diff`, and `cargo test -p coeus-wgpu
   wgpu::transfers_and_matmul::test_wgpu_backend_ops_unified` pass.
-- [x] [patch] Current full gate after scalar mean reduction dispatch:
+- [x] [patch] Added `Scalar::{dot_slice, scale_slice}` Hermes SIMD seams and
+  routed CPU forward attention contiguous Q/K row dot products plus softmax row
+  scaling through them. Evidence: `cargo test -p coeus-core --test
+  scalar_dot_scale` and `cargo test -p coeus-nn --test nn_attention_tests`
+  pass.
+- [x] [patch] Current full gate after Hermes dot/scale attention dispatch:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (291 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (293 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

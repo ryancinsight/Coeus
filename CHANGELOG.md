@@ -20,6 +20,8 @@
   CPU backends override the seam with `coeus-leto` batched dispatch while GPU
   backends retain the generic default.
 - Routed public scalar `coeus_ops::mean` through backend `ReductionOp::Mean`.
+- Routed contiguous CPU attention row dot products and softmax row scaling
+  through new `Scalar::{dot_slice, scale_slice}` Hermes SIMD seams.
 - Routed `Tensor::eye_on` identity generation through `coeus-leto` coordinate
   dispatch.
 - Routed `Tensor::arange_on` through `coeus-leto` coordinate dispatch using

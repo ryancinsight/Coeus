@@ -90,11 +90,12 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
                         continue;
                     }
                 }
-                let mut dot = T::zero();
-                for dk in 0..d_k {
-                    dot = dot
-                        + q_slice[idx3(b, i, dk, seq_q, d_k)] * k_slice[idx3(b, j, dk, seq_k, d_k)];
-                }
+                let q_start = idx3(b, i, 0, seq_q, d_k);
+                let k_start = idx3(b, j, 0, seq_k, d_k);
+                let dot = T::dot_slice(
+                    &q_slice[q_start..q_start + d_k],
+                    &k_slice[k_start..k_start + d_k],
+                );
                 aw_slice[idx3(b, i, j, seq_q, seq_k)] = dot * scale;
             }
         }
@@ -114,10 +115,7 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
             }
             // normalize
             let inv_sum = T::one() / sum_exp;
-            for j in 0..seq_k {
-                aw_slice[idx3(b, i, j, seq_q, seq_k)] =
-                    aw_slice[idx3(b, i, j, seq_q, seq_k)] * inv_sum;
-            }
+            T::scale_slice(&mut aw_slice[row_start..row_start + seq_k], inv_sum);
         }
 
         // 3. output[b, i, l] = sum_j attn[b, i, j] * V[b, j, l]
