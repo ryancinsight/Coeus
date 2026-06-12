@@ -2,7 +2,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const FORBIDDEN_PRODUCTION_CRATES: [&str; 2] = ["rayon", "tokio"];
+const FORBIDDEN_PRODUCTION_CRATES: [&str; 3] = ["pollster", "rayon", "tokio"];
 
 #[test]
 fn production_sources_do_not_import_non_ssot_parallel_runtimes() {

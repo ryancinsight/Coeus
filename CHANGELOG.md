@@ -24,6 +24,8 @@
   through new `Scalar::{dot_slice, scale_slice}` Hermes SIMD seams.
 - Routed CPU attention backward contiguous `dO @ V^T` rows and softmax row
   products through `Scalar::dot_slice`.
+- Removed Coeus' direct `pollster` dependency from `coeus-wgpu` and extended the
+  dependency policy to keep Coeus production code on the Moirai async SSOT.
 - Routed `Tensor::eye_on` identity generation through `coeus-leto` coordinate
   dispatch.
 - Routed `Tensor::arange_on` through `coeus-leto` coordinate dispatch using

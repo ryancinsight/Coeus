@@ -47,7 +47,6 @@ half       = { version = "2.7", features = ["num-traits", "bytemuck"] }
 # ndarray-based FFT crate), but coeus's own code does not depend on it.
 smallvec   = "1.13"
 wgpu       = { version = "26.0", features = ["wgsl"] }
-pollster   = "0.3"
 hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", package = "hephaestus-wgpu" }
 hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", package = "hephaestus-core" }
 

@@ -42,6 +42,12 @@
   dependency sections may not import or depend on `rayon` or `tokio`. Evidence:
   `cargo test -p coeus-core --test dependency_policy` passes; normal dependency
   tree checks show no production `rayon` edge and no resolved `tokio` package.
+- [x] [patch] Removed Coeus' direct `pollster` dependency from `coeus-wgpu` and
+  extended `coeus-core/tests/dependency_policy.rs` to reject Coeus production
+  `pollster` imports/dependencies. Evidence: `cargo test -p coeus-core --test
+  dependency_policy` and `cargo tree -p coeus-wgpu --edges normal -i pollster`
+  pass; the remaining resolved `pollster` edge is isolated inside
+  `hephaestus-wgpu`.
 - [x] [patch] Expanded `coeus-leto` contract coverage for the CPU consolidation
   seam: binary dispatch covers `Sub`/`Mul`/`Div`, unary dispatch covers
   `Relu`/`Abs`/`Neg`, and keep-dim reductions cover `Sum`/`Max`/`Min`. Evidence:
@@ -165,7 +171,7 @@
 - [x] [patch] Routed CPU attention backward contiguous `dO @ V^T` rows and
   softmax row products through `Scalar::dot_slice`. Evidence: `cargo test -p
   coeus-ops --test attention_backward_hermes_diff` passes.
-- [x] [patch] Current full gate after Hermes backward-attention dot dispatch:
+- [x] [patch] Current full gate after Coeus direct `pollster` removal:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
   --all-targets -- -D warnings`, `cargo nextest run --workspace` (295 passed,

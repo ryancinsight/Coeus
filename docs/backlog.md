@@ -168,6 +168,12 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
   rayon` prints nothing; `cargo tree --workspace --edges normal -i tokio`
   reports no package; `cargo test -p coeus-core --test dependency_policy`
   passes. Benchmark/dev alternatives remain isolated in bench/dev scopes.
+- [x] [patch] Removed Coeus' direct `pollster` dependency from `coeus-wgpu` and
+  extended `coeus-core/tests/dependency_policy.rs` so Coeus production sources
+  and manifests cannot reintroduce `pollster` outside the Moirai async SSOT.
+  Evidence: `cargo test -p coeus-core --test dependency_policy` and
+  `cargo tree -p coeus-wgpu --edges normal -i pollster` pass; the remaining
+  `pollster` edge is isolated inside the patched `hephaestus-wgpu` substrate.
 
 ### Stage E — burn elimination end-to-end
 - [ ] [minor] Per-op differential parity of nn/autograd/optim vs a burn reference
@@ -272,9 +278,10 @@ within a core) and neither depends on the other — coeus composes them
 - **apollo-fft uses ndarray's internal rayon** (`Zip::par_for_each`) — pulls rayon
   into every FFT consumer's tree via feature unification. Eliminating it requires
   migrating apollo's ndarray-par sites to moirai (apollo-scoped, ~separate effort).
-- **coeus-wgpu `pollster::block_on`** drives one-time wgpu context init outside
-  moirai. Route through moirai-async `block_on` for async SSOT (needs a wgpu build
-  env to verify).
+- **hephaestus-wgpu `pollster::block_on`** drives one-time wgpu context init
+  inside the shared GPU substrate. Coeus no longer depends on `pollster`
+  directly; routing Hephaestus device acquisition through Moirai async remains an
+  upstream Hephaestus item.
 - **coeus-dist** uses raw `std::thread`/std TCP rather than moirai-transport/async.
 
 ---
