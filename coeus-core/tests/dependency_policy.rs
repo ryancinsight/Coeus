@@ -2,10 +2,53 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const FORBIDDEN_PRODUCTION_CRATES: [&str; 3] = ["pollster", "rayon", "tokio"];
+#[derive(Clone, Copy)]
+struct ForbiddenProductionCrate {
+    manifest_name: &'static str,
+    import_name: &'static str,
+    owner: &'static str,
+}
+
+const FORBIDDEN_PRODUCTION_CRATES: [ForbiddenProductionCrate; 7] = [
+    ForbiddenProductionCrate {
+        manifest_name: "pollster",
+        import_name: "pollster",
+        owner: "Moirai async SSOT",
+    },
+    ForbiddenProductionCrate {
+        manifest_name: "rayon",
+        import_name: "rayon",
+        owner: "Moirai parallel SSOT",
+    },
+    ForbiddenProductionCrate {
+        manifest_name: "tokio",
+        import_name: "tokio",
+        owner: "Moirai async SSOT",
+    },
+    ForbiddenProductionCrate {
+        manifest_name: "burn",
+        import_name: "burn",
+        owner: "Coeus runtime tensor/autograd stack",
+    },
+    ForbiddenProductionCrate {
+        manifest_name: "nalgebra",
+        import_name: "nalgebra",
+        owner: "Coeus/Leto tensor kernel stack",
+    },
+    ForbiddenProductionCrate {
+        manifest_name: "ndarray",
+        import_name: "ndarray",
+        owner: "Coeus/Leto tensor kernel stack",
+    },
+    ForbiddenProductionCrate {
+        manifest_name: "tch",
+        import_name: "tch",
+        owner: "Coeus runtime tensor/autograd stack",
+    },
+];
 
 #[test]
-fn production_sources_do_not_import_non_ssot_parallel_runtimes() {
+fn production_sources_do_not_import_non_ssot_runtime_or_replacement_crates() {
     let root = workspace_root();
     let mut violations = Vec::new();
 
@@ -20,17 +63,16 @@ fn production_sources_do_not_import_non_ssot_parallel_runtimes() {
                 .unwrap_or_else(|error| panic!("failed to read {}: {error}", file.display()));
             for (line_index, line) in contents.lines().enumerate() {
                 let code = line.split_once("//").map_or(line, |(code, _)| code);
-                for crate_name in FORBIDDEN_PRODUCTION_CRATES {
-                    let module_prefix = format!("{crate_name}::");
-                    let import_prefix = format!("use {crate_name}");
-                    if code.contains(&module_prefix)
-                        || code.trim_start().starts_with(&import_prefix)
+                for forbidden_crate in FORBIDDEN_PRODUCTION_CRATES {
+                    if contains_crate_path(code, forbidden_crate.import_name)
+                        || imports_crate(code, forbidden_crate.import_name)
                     {
                         violations.push(format!(
-                            "{}:{} imports `{}` outside the Moirai SSOT",
+                            "{}:{} imports `{}` outside {}",
                             file.display(),
                             line_index + 1,
-                            crate_name
+                            forbidden_crate.import_name,
+                            forbidden_crate.owner
                         ));
                     }
                 }
@@ -42,7 +84,7 @@ fn production_sources_do_not_import_non_ssot_parallel_runtimes() {
 }
 
 #[test]
-fn production_manifests_do_not_depend_on_non_ssot_parallel_runtimes() {
+fn production_manifests_do_not_depend_on_non_ssot_runtime_or_replacement_crates() {
     let root = workspace_root();
     let mut violations = Vec::new();
 
@@ -67,13 +109,14 @@ fn production_manifests_do_not_depend_on_non_ssot_parallel_runtimes() {
                 .split_once('#')
                 .map_or(trimmed, |(code, _)| code)
                 .trim();
-            for crate_name in FORBIDDEN_PRODUCTION_CRATES {
-                if dependency_line_names_crate(code, crate_name) {
+            for forbidden_crate in FORBIDDEN_PRODUCTION_CRATES {
+                if dependency_line_names_crate(code, forbidden_crate.manifest_name) {
                     violations.push(format!(
-                        "{}:{} declares production dependency `{}` outside the Moirai SSOT",
+                        "{}:{} declares production dependency `{}` outside {}",
                         manifest.display(),
                         line_index + 1,
-                        crate_name
+                        forbidden_crate.manifest_name,
+                        forbidden_crate.owner
                     ));
                 }
             }
@@ -145,4 +188,45 @@ fn dependency_line_names_crate(line: &str, crate_name: &str) -> bool {
     line.strip_prefix(crate_name)
         .or_else(|| line.strip_prefix(&format!("\"{crate_name}\"")))
         .is_some_and(|rest| rest.trim_start().starts_with('='))
+        || line.contains(&format!("package = \"{crate_name}\""))
+}
+
+fn contains_crate_path(code: &str, crate_name: &str) -> bool {
+    let path_prefix = format!("{crate_name}::");
+    let mut search_start = 0;
+
+    while let Some(relative_index) = code[search_start..].find(&path_prefix) {
+        let index = search_start + relative_index;
+        let has_identifier_prefix = code[..index]
+            .chars()
+            .next_back()
+            .is_some_and(is_rust_identifier_char);
+
+        if !has_identifier_prefix {
+            return true;
+        }
+
+        search_start = index + path_prefix.len();
+    }
+
+    false
+}
+
+fn imports_crate(code: &str, crate_name: &str) -> bool {
+    let trimmed = code.trim_start();
+    let import_body = trimmed
+        .strip_prefix("use ")
+        .or_else(|| trimmed.strip_prefix("pub use "));
+
+    import_body.is_some_and(|body| {
+        body.strip_prefix(crate_name).is_some_and(|rest| {
+            rest.chars()
+                .next()
+                .is_some_and(|next| !is_rust_identifier_char(next))
+        })
+    })
+}
+
+fn is_rust_identifier_char(character: char) -> bool {
+    character == '_' || character.is_ascii_alphanumeric()
 }

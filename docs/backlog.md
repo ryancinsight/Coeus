@@ -174,6 +174,11 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
   Evidence: `cargo test -p coeus-core --test dependency_policy` and
   `cargo tree -p coeus-wgpu --edges normal -i pollster` pass; the remaining
   `pollster` edge is isolated inside the patched `hephaestus-wgpu` substrate.
+- [x] [patch] Extended `coeus-core/tests/dependency_policy.rs` so Coeus
+  production sources and production manifest sections cannot directly import or
+  depend on replacement libraries (`burn`, `nalgebra`, `ndarray`, `tch`).
+  Benchmark and dev-only comparisons remain allowed. Evidence: `cargo test -p
+  coeus-core --test dependency_policy` passes.
 
 ### Stage E — burn elimination end-to-end
 - [ ] [minor] Per-op differential parity of nn/autograd/optim vs a burn reference

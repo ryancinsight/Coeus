@@ -48,6 +48,10 @@
   dependency_policy` and `cargo tree -p coeus-wgpu --edges normal -i pollster`
   pass; the remaining resolved `pollster` edge is isolated inside
   `hephaestus-wgpu`.
+- [x] [patch] Extended the dependency policy to reject direct production imports
+  and direct production manifest dependencies on replacement libraries (`burn`,
+  `nalgebra`, `ndarray`, `tch`) while preserving benchmark/dev-only comparisons.
+  Evidence: `cargo test -p coeus-core --test dependency_policy` passes.
 - [x] [patch] Expanded `coeus-leto` contract coverage for the CPU consolidation
   seam: binary dispatch covers `Sub`/`Mul`/`Div`, unary dispatch covers
   `Relu`/`Abs`/`Neg`, and keep-dim reductions cover `Sum`/`Max`/`Min`. Evidence:

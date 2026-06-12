@@ -26,6 +26,10 @@
   products through `Scalar::dot_slice`.
 - Removed Coeus' direct `pollster` dependency from `coeus-wgpu` and extended the
   dependency policy to keep Coeus production code on the Moirai async SSOT.
+- Extended the dependency policy to keep direct replacement-library usage
+  (`burn`, `nalgebra`, `ndarray`, `tch`) out of production Coeus sources and
+  production manifest dependency sections while preserving benchmark/dev-only
+  comparisons.
 - Routed `Tensor::eye_on` identity generation through `coeus-leto` coordinate
   dispatch.
 - Routed `Tensor::arange_on` through `coeus-leto` coordinate dispatch using
