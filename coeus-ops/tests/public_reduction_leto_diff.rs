@@ -1,9 +1,8 @@
 //! Differential verification of public CPU reduction APIs.
 //!
-//! The CPU `BackendOps::reduce` path delegates sum/min/max reductions through
-//! `coeus-leto::reduce_into`; `mean_axis` composes that reduction with a public
-//! binary division. Inputs use exactly representable values, so bitwise equality
-//! is the correct oracle for both scalar widths.
+//! The CPU `BackendOps::reduce` path delegates sum/mean/min/max reductions
+//! through `coeus-leto::reduce_into`. Inputs use exactly representable values,
+//! so bitwise equality is the correct oracle for both scalar widths.
 
 use coeus_core::{
     ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, Scalar,
@@ -83,6 +82,12 @@ where
     );
 
     let transposed = tensor.transpose();
+    let transposed_mean_scalar = coeus_ops::mean(&transposed, backend);
+    assert_eq!(
+        transposed_mean_scalar.to_f64().to_bits(),
+        T::from_f64(3.5).to_f64().to_bits()
+    );
+
     let transposed_sum = coeus_ops::sum_axis(&transposed, 1, backend);
     assert_eq!(transposed_sum.shape(), &[3, 1]);
     assert_same_bits(
@@ -100,11 +105,21 @@ where
     );
 }
 
+fn check_empty_mean<B>(backend: &B)
+where
+    B: BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    let empty = Tensor::<f32, B>::zeros_on([0usize], backend);
+    assert!(coeus_ops::mean(&empty, backend).is_nan());
+}
+
 #[test]
 fn sequential_public_reductions_match_reference() {
     let backend = SequentialBackend;
     check_reductions::<f32, _>(&backend);
     check_reductions::<f64, _>(&backend);
+    check_empty_mean(&backend);
 }
 
 #[test]
@@ -112,4 +127,5 @@ fn moirai_public_reductions_match_reference() {
     let backend = MoiraiBackend;
     check_reductions::<f32, _>(&backend);
     check_reductions::<f64, _>(&backend);
+    check_empty_mean(&backend);
 }

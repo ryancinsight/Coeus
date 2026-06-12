@@ -7,9 +7,19 @@ use coeus_tensor::Tensor;
 /// Mean of all elements.
 #[inline]
 pub fn mean<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
-    let total = super::sum::sum(a, backend);
-    let count = T::from_f64(a.numel() as f64);
-    total / count
+    if a.numel() == 0 {
+        return T::zero() / T::from_f64(0.0);
+    }
+    let reshaped = if a.is_contiguous() && a.layout().offset() == 0 {
+        a.reshape([a.numel()])
+    } else {
+        let contiguous = a.to_contiguous_on(backend);
+        contiguous.reshape([a.numel()])
+    };
+    let reduced = mean_axis(&reshaped, 0, backend);
+    let mut host_scalar = [T::zero()];
+    backend.copy_to_host(reduced.storage(), &mut host_scalar);
+    host_scalar[0]
 }
 
 /// Mean along a specific axis.

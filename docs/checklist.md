@@ -69,6 +69,10 @@
   `SequentialBackend` and `MoiraiBackend`, including transposed input views.
   Evidence: `cargo test -p coeus-ops --test public_reduction_leto_diff`
   passes.
+- [x] [patch] Routed public scalar `mean` through backend
+  `ReductionOp::Mean`, so CPU scalar mean now uses the `coeus-leto` mean
+  reducer instead of local `sum / count` division. Evidence: `cargo test -p
+  coeus-ops --test public_reduction_leto_diff` passes.
 - [x] [patch] Promoted mean to `ReductionOp::Mean` and routed public
   `mean_axis` through backend reduction dispatch. CPU dispatch uses Leto
   `MeanAxis`; WGPU/CUDA generated reducers and CPU fused reductions cover the
@@ -153,7 +157,7 @@
   batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo test -p coeus-ops
   --test batched_matmul_leto_diff`, and `cargo test -p coeus-wgpu
   wgpu::transfers_and_matmul::test_wgpu_backend_ops_unified` pass.
-- [x] [patch] Current full gate after linspace constructor dispatch:
+- [x] [patch] Current full gate after scalar mean reduction dispatch:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
   --all-targets -- -D warnings`, `cargo nextest run --workspace` (291 passed,

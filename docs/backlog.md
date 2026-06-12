@@ -45,6 +45,10 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     `SequentialBackend` and `MoiraiBackend`, including transposed input views.
     Evidence: `cargo test -p coeus-ops --test public_reduction_leto_diff`
     passes.
+  - [x] [patch] Routed public scalar `mean` through backend
+    `ReductionOp::Mean`, so CPU scalar mean now uses the dynamic-rank
+    `coeus-leto` mean reducer instead of local `sum / count` division. Evidence:
+    `cargo test -p coeus-ops --test public_reduction_leto_diff` passes.
   - [x] [patch] Promoted mean to a first-class `ReductionOp::Mean` and routed
     public `mean_axis` through backend reduction dispatch. CPU uses Leto
     `MeanAxis`; WGPU/CUDA generated reducers and CPU fused reductions handle
