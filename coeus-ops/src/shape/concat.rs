@@ -2,7 +2,7 @@
 // Concatenates a list of tensors along a given dimension.
 // Zero-copy when a single input is given (returns a clone of the storage view).
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_tensor::Tensor;
 
 /// Concatenate `tensors` along `dim`.
@@ -51,52 +51,12 @@ where
         .sum::<usize>();
     out_shape[dim] = out_dim_size;
 
-    let mut out = Tensor::zeros_on(out_shape.clone(), &backend);
-
-    // Copy each tensor slice into the output.
-    let mut offset = 0usize;
-    for t in tensors {
-        let t_dim_size = t.shape()[dim];
-        // Build slice ranges: full range for all dims except cat dim.
-        let ranges: Vec<(usize, usize)> = out_shape
-            .iter()
-            .enumerate()
-            .map(|(d, &s)| {
-                if d == dim {
-                    (offset, offset + t_dim_size)
-                } else {
-                    (0, s)
-                }
-            })
-            .collect();
-        // Write into slice view of output.
-        let src = t.to_contiguous_on(&backend);
-        let src_slice = src.as_slice();
-        {
-            // We need mutable access to the output storage; collect destination indices.
-            let numel_src = src_slice.len();
-            let dst_numel = numel_src;
-            // Compute destination physical offsets using the output layout.
-            let out_strides = Layout::new(out_shape.clone()).strides_cloned();
-            let out_raw = out.as_mut_slice();
-            // Iterate over logical indices of the source tensor and write to output.
-            let src_shape: Vec<usize> = (0..ndim)
-                .map(|d| if d == dim { t_dim_size } else { out_shape[d] })
-                .collect();
-            let _ = (dst_numel, ranges.as_slice()); // suppress unused warnings
-            for flat in 0..numel_src {
-                let mut rem = flat;
-                let mut dst_phys = 0usize;
-                for d in (0..ndim).rev() {
-                    let coord = rem % src_shape[d];
-                    rem /= src_shape[d];
-                    let out_coord = if d == dim { coord + offset } else { coord };
-                    dst_phys += out_coord * out_strides[d];
-                }
-                out_raw[dst_phys] = src_slice[flat];
-            }
-        }
-        offset += t_dim_size;
-    }
-    out
+    let layouts: Vec<_> = tensors.iter().map(|tensor| tensor.layout()).collect();
+    let inputs: Vec<_> = tensors
+        .iter()
+        .map(|tensor| tensor.storage().as_slice())
+        .collect();
+    let values =
+        coeus_leto::concat_values(&layouts, &inputs, dim).expect("coeus-leto concat failed");
+    Tensor::from_slice_on(out_shape, &values, &backend)
 }

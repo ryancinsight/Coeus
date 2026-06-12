@@ -5,8 +5,9 @@ use coeus_core::{
     BinaryOp, CpuAddressableStorage, CpuStorage, CpuUnaryOp, Layout, ReductionOp, Shape, Strides,
 };
 use coeus_leto::{
-    argmax_into, argmin_into, cumsum_into, elementwise_add_into, elementwise_binary_into,
-    elementwise_unary_into, matmul_into, pad_values, reduce_into, suffix_sum_into, to_leto_view,
+    argmax_into, argmin_into, concat_values, cumsum_into, elementwise_add_into,
+    elementwise_binary_into, elementwise_unary_into, matmul_into, pad_values, reduce_into,
+    suffix_sum_into, to_leto_view,
 };
 
 fn layout(shape: &[usize]) -> Layout {
@@ -216,6 +217,29 @@ fn pad_dispatch_covers_strided_input_view() {
     assert_eq!(
         padded,
         vec![-1.0, -1.0, -1.0, -1.0, 1.0, 2.0, 3.0, -1.0, 4.0, 5.0, 6.0, -1.0]
+    );
+}
+
+#[test]
+fn concat_dispatch_covers_strided_input_views() {
+    let first_storage = vec![1.0f64, 4.0, 2.0, 5.0, 3.0, 6.0];
+    let second_storage = vec![7.0f64, 10.0, 8.0, 11.0, 9.0, 12.0];
+    let transposed = Layout::from_shape_strides(
+        Shape::from(vec![2usize, 3]),
+        Strides::from_slice(&[1usize, 2]),
+        0,
+    );
+
+    let concatenated = concat_values(
+        &[&transposed, &transposed],
+        &[&first_storage, &second_storage],
+        0,
+    )
+    .unwrap();
+
+    assert_eq!(
+        concatenated,
+        vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
     );
 }
 

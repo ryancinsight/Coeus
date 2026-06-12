@@ -408,3 +408,52 @@ pub fn pad_values<T: Clone>(
         }),
     }
 }
+
+fn concat_values_n<T: Clone, const N: usize>(
+    layouts: &[&CoeusLayout],
+    inputs: &[&[T]],
+    axis: usize,
+) -> Result<Vec<T>> {
+    if layouts.len() != inputs.len() {
+        return Err(LetoError::StorageError {
+            reason: format!(
+                "concat received {} layouts for {} inputs",
+                layouts.len(),
+                inputs.len()
+            ),
+        });
+    }
+
+    let mut views = Vec::with_capacity(inputs.len());
+    for (&layout, &input) in layouts.iter().zip(inputs) {
+        views.push(to_leto_view::<T, N>(layout, input)?);
+    }
+
+    let concatenated = leto::application::concat(&views, axis)?;
+    Ok(concatenated.storage().as_slice().to_vec())
+}
+
+/// Concatenate coeus CPU tensor values along `axis`, dispatched from dynamic
+/// rank to the matching monomorphized leto structural kernel. The returned
+/// values are C-contiguous in row-major output order.
+pub fn concat_values<T: Clone>(
+    layouts: &[&CoeusLayout],
+    inputs: &[&[T]],
+    axis: usize,
+) -> Result<Vec<T>> {
+    let Some(first) = layouts.first() else {
+        return Err(LetoError::StorageError {
+            reason: "concat requires at least one input".to_string(),
+        });
+    };
+    match first.ndim() {
+        1 => concat_values_n::<T, 1>(layouts, inputs, axis),
+        2 => concat_values_n::<T, 2>(layouts, inputs, axis),
+        3 => concat_values_n::<T, 3>(layouts, inputs, axis),
+        4 => concat_values_n::<T, 4>(layouts, inputs, axis),
+        5 => concat_values_n::<T, 5>(layouts, inputs, axis),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
