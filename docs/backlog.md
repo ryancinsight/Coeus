@@ -30,6 +30,10 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     transposed input layouts. The oracle is an independent row-major triple
     loop over exactly representable integer-valued floats. Evidence:
     `cargo test -p coeus-ops --test matmul_leto_diff` passes.
+  - [x] [patch] Added public `coeus_ops::matmul` batched differential coverage
+    for `SequentialBackend` and `MoiraiBackend`, including equal batch counts
+    and RHS 2-D broadcast across batches. Evidence: `cargo test -p coeus-ops
+    --test batched_matmul_leto_diff` passes.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
