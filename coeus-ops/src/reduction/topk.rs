@@ -103,28 +103,56 @@ where
 
 /// Argmax along `dim`: returns indices of maximum values, shape `x.shape()[dim] = 1`.
 #[inline]
-pub fn argmax<T: Scalar, B: ComputeBackend + Default>(
+pub fn argmax<T: Scalar + leto_ops::Scalar, B: ComputeBackend + Default>(
     x: &Tensor<T, B>,
     dim: usize,
 ) -> Tensor<i64, B>
 where
-    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
-    let (_, idx) = topk(x, 1, dim, true);
-    idx
+    assert!(dim < x.ndim(), "argmax: dim {dim} out of range");
+
+    let backend = B::default();
+    let mut out_shape = x.shape_cloned();
+    out_shape[dim] = 1;
+    let mut out = Tensor::zeros_on(out_shape, &backend);
+    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    coeus_leto::argmax_into(
+        x.layout(),
+        x.storage().as_slice(),
+        dim,
+        out_layout,
+        out_storage.as_mut_slice(),
+    )
+    .expect("coeus-leto argmax failed");
+    out
 }
 
 /// Argmin along `dim`: returns indices of minimum values, shape `x.shape()[dim] = 1`.
 #[inline]
-pub fn argmin<T: Scalar, B: ComputeBackend + Default>(
+pub fn argmin<T: Scalar + leto_ops::Scalar, B: ComputeBackend + Default>(
     x: &Tensor<T, B>,
     dim: usize,
 ) -> Tensor<i64, B>
 where
-    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
-    let (_, idx) = topk(x, 1, dim, false);
-    idx
+    assert!(dim < x.ndim(), "argmin: dim {dim} out of range");
+
+    let backend = B::default();
+    let mut out_shape = x.shape_cloned();
+    out_shape[dim] = 1;
+    let mut out = Tensor::zeros_on(out_shape, &backend);
+    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    coeus_leto::argmin_into(
+        x.layout(),
+        x.storage().as_slice(),
+        dim,
+        out_layout,
+        out_storage.as_mut_slice(),
+    )
+    .expect("coeus-leto argmin failed");
+    out
 }
