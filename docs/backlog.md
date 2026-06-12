@@ -20,6 +20,11 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     `coeus-leto` binary dispatch (`Sub`/`Mul`/`Div`), unary mapping
     (`Relu`/`Abs`/`Neg`), and keep-dim axis reductions (`Sum`/`Max`/`Min`).
     Evidence: `cargo test -p coeus-leto` passes with 9 contract tests.
+  - [x] [patch] Added CPU `BackendOps::elementwise_unary` differential coverage
+    for `SequentialBackend` and `MoiraiBackend` across the full `CpuUnaryOp`
+    surface. The oracle is direct `CpuUnaryDispatch::eval_unary`, so assertions
+    are exact value-semantic checks. Evidence: `cargo test -p coeus-ops --test
+    unary_leto_diff` passes.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
