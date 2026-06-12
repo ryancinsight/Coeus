@@ -16,6 +16,10 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
   max/argmax/argmin/cumsum), matmul + batched matmul, reshape/permute/to_contiguous,
   concat/stack/pad/split, seeded init (uniform/normal). Extend coeus-leto dispatch
   per op behind `MAX_DISPATCH_RANK`.
+  - [x] [patch] Added cross-repo value-semantic contract coverage for
+    `coeus-leto` binary dispatch (`Sub`/`Mul`/`Div`), unary mapping
+    (`Relu`/`Abs`/`Neg`), and keep-dim axis reductions (`Sum`/`Max`/`Min`).
+    Evidence: `cargo test -p coeus-leto` passes with 9 contract tests.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
@@ -63,9 +67,10 @@ const-rank, and the new `coeus-leto` crate bridges them.
 ### Completed:
 - **Added `coeus-leto`** (`coeus-leto/`): converts coeus dynamic-rank
   `Layout`/`CpuStorage` to leto `Layout<N>` views and dispatches CPU array ops
-  (elementwise add with broadcast, 2D matmul) to monomorphized leto kernels via
-  a bounded runtime-rank match (`MAX_DISPATCH_RANK = 4`). Provider: leto/leto-ops
-  pinned at rev 9d5a2bf (0.7.0). 6 cross-repo contract tests green.
+  (elementwise binary, unary mapping, keep-dim axis reductions, 2D matmul) to
+  monomorphized leto kernels via
+  a bounded runtime-rank match (`MAX_DISPATCH_RANK = 5`). Provider: leto/leto-ops
+  pinned at rev d8d34c6. 9 cross-repo contract tests green.
 
 ### Next (tracked, [arch]):
 - Route the **CPU backend's** `BackendOps` impl (`MoiraiBackend`/`SequentialBackend`)

@@ -1,8 +1,13 @@
 //! Cross-repo contract tests: pin coeus's assumptions about the leto kernels it
 //! delegates to. A failure here is a leto regression from coeus's perspective.
 
-use coeus_core::{CpuAddressableStorage, CpuStorage, Layout, Shape, Strides};
-use coeus_leto::{elementwise_add_into, matmul_into, to_leto_view};
+use coeus_core::{
+    BinaryOp, CpuAddressableStorage, CpuStorage, CpuUnaryOp, Layout, ReductionOp, Shape, Strides,
+};
+use coeus_leto::{
+    elementwise_add_into, elementwise_binary_into, elementwise_unary_into, matmul_into,
+    reduce_into, to_leto_view,
+};
 
 fn layout(shape: &[usize]) -> Layout {
     Layout::new(Shape::from(shape.to_vec()))
@@ -38,6 +43,80 @@ fn add_broadcasts_rowvec_into_matrix() {
     .unwrap();
     // rows: [1+10, 1+20], [2+10, 2+20]
     assert_eq!(out, vec![11.0, 21.0, 12.0, 22.0]);
+}
+
+#[test]
+fn binary_dispatch_covers_arithmetic_ops() {
+    let la = layout(&[2, 2]);
+    let a = vec![8.0f64, 9.0, 10.0, 12.0];
+    let b = vec![2.0f64, 3.0, 5.0, 6.0];
+    let mut out = vec![0.0f64; 4];
+
+    elementwise_binary_into(BinaryOp::Sub, &la, &a, &la, &b, &la, &mut out).unwrap();
+    assert_eq!(out, vec![6.0, 6.0, 5.0, 6.0]);
+
+    elementwise_binary_into(BinaryOp::Mul, &la, &a, &la, &b, &la, &mut out).unwrap();
+    assert_eq!(out, vec![16.0, 27.0, 50.0, 72.0]);
+
+    elementwise_binary_into(BinaryOp::Div, &la, &a, &la, &b, &la, &mut out).unwrap();
+    assert_eq!(out, vec![4.0, 3.0, 2.0, 2.0]);
+}
+
+#[test]
+fn unary_dispatch_covers_scalar_mapping() {
+    let input = vec![-4.0f64, -1.0, 0.0, 9.0];
+    let mut out = vec![0.0f64; 4];
+    let la = layout(&[2, 2]);
+
+    elementwise_unary_into(CpuUnaryOp::Relu, &la, &input, &la, &mut out).unwrap();
+    assert_eq!(out, vec![0.0, 0.0, 0.0, 9.0]);
+
+    elementwise_unary_into(CpuUnaryOp::Abs, &la, &input, &la, &mut out).unwrap();
+    assert_eq!(out, vec![4.0, 1.0, 0.0, 9.0]);
+
+    elementwise_unary_into(CpuUnaryOp::Neg, &la, &input, &la, &mut out).unwrap();
+    assert_eq!(out, vec![4.0, 1.0, -0.0, -9.0]);
+}
+
+#[test]
+fn reduction_dispatch_covers_keepdim_axis_ops() {
+    let input = vec![1.0f64, 4.0, -2.0, 5.0, 3.0, 6.0];
+    let input_layout = layout(&[2, 3]);
+    let output_layout = layout(&[2, 1]);
+    let mut out = vec![0.0f64; 2];
+
+    reduce_into(
+        ReductionOp::Sum,
+        &input_layout,
+        &input,
+        1,
+        &output_layout,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, vec![3.0, 14.0]);
+
+    reduce_into(
+        ReductionOp::Max,
+        &input_layout,
+        &input,
+        1,
+        &output_layout,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, vec![4.0, 6.0]);
+
+    reduce_into(
+        ReductionOp::Min,
+        &input_layout,
+        &input,
+        1,
+        &output_layout,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, vec![-2.0, 3.0]);
 }
 
 #[test]
