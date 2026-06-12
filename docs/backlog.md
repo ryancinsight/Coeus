@@ -34,6 +34,11 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     for `SequentialBackend` and `MoiraiBackend`, including equal batch counts
     and RHS 2-D broadcast across batches. Evidence: `cargo test -p coeus-ops
     --test batched_matmul_leto_diff` passes.
+  - [x] [patch] Routed public `coeus_ops::cumsum` and `suffix_sum` through
+    dynamic-rank `coeus-leto` scan dispatch, replacing the duplicated local
+    traversal. Evidence: `cargo test -p coeus-leto
+    scan_dispatch_covers_forward_and_reverse_axis_ops` and `cargo test -p
+    coeus-ops --test scan_leto_diff` pass.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
@@ -81,10 +86,10 @@ const-rank, and the new `coeus-leto` crate bridges them.
 ### Completed:
 - **Added `coeus-leto`** (`coeus-leto/`): converts coeus dynamic-rank
   `Layout`/`CpuStorage` to leto `Layout<N>` views and dispatches CPU array ops
-  (elementwise binary, unary mapping, keep-dim axis reductions, 2D matmul) to
-  monomorphized leto kernels via
+  (elementwise binary, unary mapping, keep-dim axis reductions, cumsum/suffix
+  scans, 2D matmul) to monomorphized leto kernels via
   a bounded runtime-rank match (`MAX_DISPATCH_RANK = 5`). Provider: leto/leto-ops
-  pinned at rev d8d34c6. 9 cross-repo contract tests green.
+  pinned at rev d8d34c6. 10 cross-repo contract tests green.
 
 ### Next (tracked, [arch]):
 - Route the **CPU backend's** `BackendOps` impl (`MoiraiBackend`/`SequentialBackend`)

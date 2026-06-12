@@ -5,8 +5,8 @@ use coeus_core::{
     BinaryOp, CpuAddressableStorage, CpuStorage, CpuUnaryOp, Layout, ReductionOp, Shape, Strides,
 };
 use coeus_leto::{
-    elementwise_add_into, elementwise_binary_into, elementwise_unary_into, matmul_into,
-    reduce_into, to_leto_view,
+    cumsum_into, elementwise_add_into, elementwise_binary_into, elementwise_unary_into,
+    matmul_into, reduce_into, suffix_sum_into, to_leto_view,
 };
 
 fn layout(shape: &[usize]) -> Layout {
@@ -117,6 +117,19 @@ fn reduction_dispatch_covers_keepdim_axis_ops() {
     )
     .unwrap();
     assert_eq!(out, vec![-2.0, 3.0]);
+}
+
+#[test]
+fn scan_dispatch_covers_forward_and_reverse_axis_ops() {
+    let input = vec![1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let input_layout = layout(&[2, 3]);
+    let mut out = vec![0.0f64; 6];
+
+    cumsum_into(&input_layout, &input, 1, &input_layout, &mut out).unwrap();
+    assert_eq!(out, vec![1.0, 3.0, 6.0, 4.0, 9.0, 15.0]);
+
+    suffix_sum_into(&input_layout, &input, 1, &input_layout, &mut out).unwrap();
+    assert_eq!(out, vec![6.0, 5.0, 3.0, 15.0, 11.0, 6.0]);
 }
 
 #[test]
