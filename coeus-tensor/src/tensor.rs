@@ -320,24 +320,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
             if self.is_contiguous() {
                 dst_backend.copy_to_device(&host_slice[start..start + numel], &mut dst_storage);
             } else {
-                let mut host_data = vec![T::zero(); numel];
-                let ndim = self.ndim();
-                let shape = self.shape();
-                let strides = self.strides();
-                let mut offset = self.layout.offset();
-                let mut index = smallvec::SmallVec::<[usize; 4]>::from_elem(0, ndim);
-                for val in &mut host_data {
-                    *val = host_slice[offset];
-                    for d in (0..ndim).rev() {
-                        index[d] += 1;
-                        if index[d] < shape[d] {
-                            offset += strides[d];
-                            break;
-                        }
-                        offset -= (shape[d] - 1) * strides[d];
-                        index[d] = 0;
-                    }
-                }
+                let host_data = coeus_leto::contiguous_values(&self.layout, host_slice)
+                    .expect("coeus-leto backend transfer materialization failed");
                 dst_backend.copy_to_device(&host_data, &mut dst_storage);
             }
         } else {
@@ -350,24 +334,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
                 dst_backend
                     .copy_to_device(&full_host_storage[start..start + numel], &mut dst_storage);
             } else {
-                let mut host_data = vec![T::zero(); numel];
-                let ndim = self.ndim();
-                let shape = self.shape();
-                let strides = self.strides();
-                let mut offset = self.layout.offset();
-                let mut index = smallvec::SmallVec::<[usize; 4]>::from_elem(0, ndim);
-                for val in &mut host_data {
-                    *val = full_host_storage[offset];
-                    for d in (0..ndim).rev() {
-                        index[d] += 1;
-                        if index[d] < shape[d] {
-                            offset += strides[d];
-                            break;
-                        }
-                        offset -= (shape[d] - 1) * strides[d];
-                        index[d] = 0;
-                    }
-                }
+                let host_data = coeus_leto::contiguous_values(&self.layout, &full_host_storage)
+                    .expect("coeus-leto backend transfer materialization failed");
                 dst_backend.copy_to_device(&host_data, &mut dst_storage);
             }
         }

@@ -110,10 +110,14 @@
   deleting the local reshape/permute metadata duplication from the public tensor
   path. Evidence: `cargo test -p coeus-leto layout_dispatch` and `cargo test -p
   coeus-tensor --test shape_view_leto_diff` pass.
-- [x] [patch] Current full gate after shape-view dispatch:
+- [x] [patch] Routed non-contiguous cross-backend `Tensor::to_backend_on`
+  materialization through `coeus-leto`, deleting the remaining local strided
+  transfer loops from the public tensor transfer path. Evidence: `cargo test -p
+  coeus-tensor --test backend_transfer_leto_diff` passes.
+- [x] [patch] Current full gate after backend-transfer materialization dispatch:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (265 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (267 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

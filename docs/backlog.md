@@ -90,6 +90,10 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     preserving zero-copy storage sharing. Evidence: `cargo test -p coeus-leto
     layout_dispatch` and `cargo test -p coeus-tensor --test shape_view_leto_diff`
     pass.
+  - [x] [patch] Routed non-contiguous cross-backend `Tensor::to_backend_on`
+    materialization through dynamic-rank `coeus-leto`, removing the remaining
+    local strided transfer loops from that public tensor transfer path. Evidence:
+    `cargo test -p coeus-tensor --test backend_transfer_leto_diff` passes.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
