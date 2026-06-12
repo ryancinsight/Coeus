@@ -38,8 +38,13 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
   `wgpu::Buffer`/`CUdeviceptr` allocation.
 
 ### Stage B2 — parallelism SSOT
-- [ ] [patch] Audit that no rayon/tokio enters coeus (incl. transitive via
-  apollo-fft); route or isolate. moirai is the parallel+async SSOT.
+- [x] [patch] Audit that no production `rayon`/`tokio` enters coeus. Added
+  `coeus-core/tests/dependency_policy.rs`, which fails the default gate if a
+  production source imports `rayon`/`tokio` or a production manifest section
+  declares either crate. Evidence: `cargo tree --workspace --edges normal -i
+  rayon` prints nothing; `cargo tree --workspace --edges normal -i tokio`
+  reports no package; `cargo test -p coeus-core --test dependency_policy`
+  passes. Benchmark/dev alternatives remain isolated in bench/dev scopes.
 
 ### Stage E — burn elimination end-to-end
 - [ ] [minor] Per-op differential parity of nn/autograd/optim vs a burn reference

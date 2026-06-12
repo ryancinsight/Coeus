@@ -31,11 +31,16 @@
 - [x] [patch] `cargo check --workspace` passes without excluding `coeus-cuda`.
 - [x] [patch] `cargo clippy --workspace --all-targets -- -D warnings` passes
   without excluding `coeus-cuda`.
-- [x] [patch] `cargo nextest run --workspace` passes: 227 tests passed, 0
+- [x] [patch] `cargo nextest run --workspace` passes: 229 tests passed, 0
   skipped. CUDA integration tests are feature-gated under `cuda` because they
   require `CUDA_TOOLKIT_PATH` and a working CUDA driver.
 - [x] [patch] `cargo test --doc --workspace` passes; four doctests are
   intentionally ignored.
+- [x] [patch] Added `coeus-core/tests/dependency_policy.rs` to enforce the
+  Moirai parallel/async SSOT: production sources and production manifest
+  dependency sections may not import or depend on `rayon` or `tokio`. Evidence:
+  `cargo test -p coeus-core --test dependency_policy` passes; normal dependency
+  tree checks show no production `rayon` edge and no resolved `tokio` package.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice
   elementwise add alongside Coeus Sequential and Moirai.
