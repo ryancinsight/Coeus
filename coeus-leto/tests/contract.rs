@@ -8,7 +8,7 @@ use coeus_leto::{
     argmax_into, argmin_into, broadcast_layout, broadcast_shape, concat_values, contiguous_values,
     cumsum_into, elementwise_add_into, elementwise_binary_into, elementwise_unary_into,
     from_shape_fn_values, matmul_into, normal_values, pad_values, permute_layout, reduce_into,
-    reshape_layout, split_values, suffix_sum_into, to_leto_view, uniform_values,
+    reshape_layout, split_values, stack_values, suffix_sum_into, to_leto_view, uniform_values,
 };
 use leto::Storage;
 
@@ -259,6 +259,33 @@ fn split_dispatch_covers_strided_input_view() {
     assert_eq!(chunks.len(), 2);
     assert_eq!(chunks[0], vec![1.0, 2.0, 4.0, 5.0]);
     assert_eq!(chunks[1], vec![3.0, 6.0]);
+}
+
+#[test]
+fn stack_dispatch_covers_strided_input_views() {
+    let first_storage = vec![1.0f64, 4.0, 2.0, 5.0, 3.0, 6.0];
+    let second_storage = vec![7.0f64, 10.0, 8.0, 11.0, 9.0, 12.0];
+    let transposed = Layout::from_shape_strides(
+        Shape::from(vec![2usize, 3]),
+        Strides::from_slice(&[1usize, 2]),
+        0,
+    );
+
+    let stacked = stack_values(
+        &[&transposed, &transposed],
+        &[&first_storage, &second_storage],
+        1,
+    )
+    .unwrap();
+    let first_view = to_leto_view::<f64, 2>(&transposed, &first_storage).unwrap();
+    let second_view = to_leto_view::<f64, 2>(&transposed, &second_storage).unwrap();
+    let direct = leto::application::stack::<f64, 2, 3>(&[first_view, second_view], 1).unwrap();
+
+    assert_eq!(stacked, direct.storage().as_slice());
+    assert_eq!(
+        stacked,
+        vec![1.0, 2.0, 3.0, 7.0, 8.0, 9.0, 4.0, 5.0, 6.0, 10.0, 11.0, 12.0]
+    );
 }
 
 #[test]

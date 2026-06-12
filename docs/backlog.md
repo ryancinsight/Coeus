@@ -105,6 +105,11 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     scalar rank-0 broadcasts. Evidence: `cargo test -p coeus-leto
     broadcast_layout_dispatch_matches_leto_validation` and `cargo test -p
     coeus-tensor --test broadcast_leto_diff` pass.
+  - [x] [minor] Added public `coeus_ops::stack` through dynamic-rank
+    `coeus-leto` stack dispatch, covering equal-shaped strided input views on
+    `SequentialBackend` and `MoiraiBackend`. Evidence: `cargo test -p
+    coeus-leto stack_dispatch_covers_strided_input_views` and `cargo test -p
+    coeus-ops --test stack_leto_diff` pass.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
@@ -154,11 +159,11 @@ const-rank, and the new `coeus-leto` crate bridges them.
   `Layout`/`CpuStorage` to leto `Layout<N>` views and dispatches CPU array ops
   (elementwise binary, unary mapping, keep-dim axis reductions including mean,
   argmax/argmin, cumsum/suffix scans, 2D matmul, structural pad/concat/split,
-  seeded uniform/normal random constructors, and view-to-contiguous
+  stack, seeded uniform/normal random constructors, and view-to-contiguous
   materialization plus reshape/permute/broadcast layout validation and
   shape-function coordinate generation) to monomorphized leto kernels via a
   bounded runtime-rank match (`MAX_DISPATCH_RANK = 5`). Provider: leto/leto-ops
-  pinned at rev d8d34c6. 20 cross-repo contract tests green.
+  pinned at rev d8d34c6. 21 cross-repo contract tests green.
 
 ### Next (tracked, [arch]):
 - Route the **CPU backend's** `BackendOps` impl (`MoiraiBackend`/`SequentialBackend`)
@@ -167,8 +172,8 @@ const-rank, and the new `coeus-leto` crate bridges them.
   per the structural-duplication rule. `coeus-tensor`'s generic `Tensor<T, B>` (the
   burn-tensor analogue) and the `ComputeBackend`/`BackendOps` seam stay; the wgpu
   and cuda backends are siblings and are untouched. Detailed staging in MS-60+.
-- Extend the shim to reductions, reshape/permute, concat/stack, batched matmul,
-  and seeded init (all now available in leto 0.7.0).
+- Extend remaining fused/binary traversal cleanup after the current reductions,
+  reshape/permute, concat/stack, seeded init, and view-materialization routes.
 
 ## Sprint MS-58: mnemosyne as the allocation SSOT [minor]
 

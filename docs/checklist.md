@@ -4,6 +4,7 @@
 
 ### Current Sprint: Sprint MS-55 (Heterogeneous GPU Backends) [PLANNED]
 **Objective**: Overhaul the backend trait with associated types, implement `coeus-wgpu` and `coeus-cuda` workspace crates, and resolve remaining CPU operation compilation blockers.
+**Target version**: 0.2.0.
 
 > **Roadmap (docs/backlog.md MS-60+)**: the Atlas burn-replacement program now stages
 > (A2) routing the CPU backend's `BackendOps` through `coeus-leto` and deleting the
@@ -125,10 +126,15 @@
   broadcasts. Evidence: `cargo test -p coeus-leto
   broadcast_layout_dispatch_matches_leto_validation` and `cargo test -p
   coeus-tensor --test broadcast_leto_diff` pass.
-- [x] [patch] Current full gate after broadcast layout dispatch:
+- [x] [minor] Added public `coeus_ops::stack` through dynamic-rank
+  `coeus-leto` stack dispatch, covering equal-shaped strided input views on
+  `SequentialBackend` and `MoiraiBackend`. Evidence: `cargo test -p coeus-leto
+  stack_dispatch_covers_strided_input_views` and `cargo test -p coeus-ops
+  --test stack_leto_diff` pass.
+- [x] [patch] Current full gate after stack dispatch:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (277 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (280 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

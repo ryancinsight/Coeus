@@ -493,6 +493,61 @@ pub fn split_values<T: Clone>(
     }
 }
 
+fn stack_values_n_m<T: Clone, const N: usize, const M: usize>(
+    layouts: &[&CoeusLayout],
+    inputs: &[&[T]],
+    axis: usize,
+) -> Result<Vec<T>>
+where
+    leto::RankMarker<N>: leto::InsertAxis<N, LargerShape = [usize; M]>,
+{
+    if layouts.len() != inputs.len() {
+        return Err(LetoError::StorageError {
+            reason: format!(
+                "stack received {} layouts for {} inputs",
+                layouts.len(),
+                inputs.len()
+            ),
+        });
+    }
+
+    let mut views = Vec::with_capacity(inputs.len());
+    for (&layout, &input) in layouts.iter().zip(inputs) {
+        views.push(to_leto_view::<T, N>(layout, input)?);
+    }
+
+    let stacked = leto::application::stack::<T, N, M>(&views, axis)?;
+    Ok(stacked.storage().as_slice().to_vec())
+}
+
+/// Stack equal-shaped coeus CPU tensor values along a new `axis`, dispatched
+/// from dynamic rank to Leto's rank-increasing structural kernel. The returned
+/// values are C-contiguous in row-major output order.
+pub fn stack_values<T: Clone>(
+    layouts: &[&CoeusLayout],
+    inputs: &[&[T]],
+    axis: usize,
+) -> Result<Vec<T>> {
+    let Some(first) = layouts.first() else {
+        return Err(LetoError::StorageError {
+            reason: "stack requires at least one input".to_string(),
+        });
+    };
+    match first.ndim() {
+        0 => stack_values_n_m::<T, 0, 1>(layouts, inputs, axis),
+        1 => stack_values_n_m::<T, 1, 2>(layouts, inputs, axis),
+        2 => stack_values_n_m::<T, 2, 3>(layouts, inputs, axis),
+        3 => stack_values_n_m::<T, 3, 4>(layouts, inputs, axis),
+        4 => stack_values_n_m::<T, 4, 5>(layouts, inputs, axis),
+        n => Err(LetoError::StorageError {
+            reason: format!(
+                "coeus-leto stack dispatch supports input rank 0..{}, got {n}",
+                MAX_DISPATCH_RANK - 1
+            ),
+        }),
+    }
+}
+
 fn contiguous_values_n<T: Clone, const N: usize>(
     a_layout: &CoeusLayout,
     a: &[T],
