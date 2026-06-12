@@ -119,10 +119,16 @@
   the public tensor constructor path. Evidence: `cargo test -p coeus-leto
   shape_function_dispatch_matches_leto_coordinate_order` and `cargo test -p
   coeus-tensor --test from_fn_leto_diff` pass.
-- [x] [patch] Current full gate after constructor coordinate generation dispatch:
+- [x] [patch] Routed tensor broadcast shape and zero-copy broadcast layout
+  validation through `coeus-leto`, deleting local dynamic broadcast metadata
+  construction from `Tensor::broadcast` while preserving scalar rank-0
+  broadcasts. Evidence: `cargo test -p coeus-leto
+  broadcast_layout_dispatch_matches_leto_validation` and `cargo test -p
+  coeus-tensor --test broadcast_leto_diff` pass.
+- [x] [patch] Current full gate after broadcast layout dispatch:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (270 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (277 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

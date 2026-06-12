@@ -13,26 +13,7 @@ use coeus_core::Shape;
 /// 3. The output dim is max(a_dim, b_dim).
 #[inline]
 pub fn broadcast_shapes(a: &[usize], b: &[usize]) -> Option<Shape> {
-    let max_len = a.len().max(b.len());
-    let mut out = Shape::new();
-    out.0.resize(max_len, 0);
-
-    for i in 0..max_len {
-        let dim_a = if i < a.len() { a[a.len() - 1 - i] } else { 1 };
-        let dim_b = if i < b.len() { b[b.len() - 1 - i] } else { 1 };
-
-        if dim_a == dim_b {
-            out.0[max_len - 1 - i] = dim_a;
-        } else if dim_a == 1 {
-            out.0[max_len - 1 - i] = dim_b;
-        } else if dim_b == 1 {
-            out.0[max_len - 1 - i] = dim_a;
-        } else {
-            return None;
-        }
-    }
-
-    Some(out)
+    coeus_leto::broadcast_shape(a, b).ok().map(Shape::from)
 }
 
 #[cfg(test)]

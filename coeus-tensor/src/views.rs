@@ -5,7 +5,7 @@
 use std::marker::PhantomData;
 
 use crate::tensor::Tensor;
-use coeus_core::{ComputeBackend, Layout, Scalar, Shape, Strides};
+use coeus_core::{ComputeBackend, Scalar, Shape};
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// Zero-copy slice. Returns a view sharing the same storage.
@@ -86,42 +86,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     #[inline]
     pub fn broadcast<S: Into<Shape>>(&self, target_shape: S) -> Self {
         let target_shape = target_shape.into();
-        assert!(
-            self.ndim() <= target_shape.len(),
-            "broadcast target rank too small"
-        );
-
-        let mut shape = Shape::with_capacity(target_shape.len());
-        let mut strides = Strides::with_capacity(target_shape.len());
-
-        let pad = target_shape.len() - self.ndim();
-        for _ in 0..pad {
-            shape.push(1);
-            strides.push(0);
-        }
-        for (i, &dim) in self.shape().iter().enumerate() {
-            shape.push(dim);
-            strides.push(self.strides()[i]);
-        }
-
-        let mut final_strides = Strides::with_capacity(target_shape.len());
-        for i in 0..target_shape.len() {
-            let target_dim = target_shape[i];
-            let source_dim = shape[i];
-            if source_dim == target_dim {
-                final_strides.push(strides[i]);
-            } else if source_dim == 1 {
-                final_strides.push(0);
-            } else {
-                panic!(
-                    "Incompatible shapes for broadcast: {:?} -> {:?}",
-                    self.shape(),
-                    target_shape
-                );
-            }
-        }
-
-        let layout = Layout::from_shape_strides(target_shape, final_strides, self.layout.offset());
+        let layout = coeus_leto::broadcast_layout(&self.layout, &target_shape)
+            .expect("coeus-leto broadcast validation failed");
 
         Self {
             storage: self.storage.clone(),

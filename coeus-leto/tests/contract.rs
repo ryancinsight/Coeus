@@ -5,10 +5,10 @@ use coeus_core::{
     BinaryOp, CpuAddressableStorage, CpuStorage, CpuUnaryOp, Layout, ReductionOp, Shape, Strides,
 };
 use coeus_leto::{
-    argmax_into, argmin_into, concat_values, contiguous_values, cumsum_into, elementwise_add_into,
-    elementwise_binary_into, elementwise_unary_into, from_shape_fn_values, matmul_into,
-    normal_values, pad_values, permute_layout, reduce_into, reshape_layout, split_values,
-    suffix_sum_into, to_leto_view, uniform_values,
+    argmax_into, argmin_into, broadcast_layout, broadcast_shape, concat_values, contiguous_values,
+    cumsum_into, elementwise_add_into, elementwise_binary_into, elementwise_unary_into,
+    from_shape_fn_values, matmul_into, normal_values, pad_values, permute_layout, reduce_into,
+    reshape_layout, split_values, suffix_sum_into, to_leto_view, uniform_values,
 };
 use leto::Storage;
 
@@ -323,6 +323,22 @@ fn permute_layout_dispatch_matches_leto_validation() {
     assert_eq!(permuted.strides(), &[1, 12, 4]);
     assert_eq!(permuted.offset(), 0);
     assert!(permute_layout(&source, &[0, 0, 1]).is_err());
+}
+
+#[test]
+fn broadcast_layout_dispatch_matches_leto_validation() {
+    let row = layout(&[1, 3]);
+    let broadcasted = broadcast_layout(&row, &[2, 3]).unwrap();
+    let direct = coeus_leto::to_leto_layout::<2>(&row)
+        .unwrap()
+        .broadcast::<2>([2, 3])
+        .unwrap();
+
+    assert_eq!(broadcasted.shape(), direct.shape);
+    assert_eq!(broadcasted.strides(), &[0, 1]);
+    assert_eq!(broadcasted.offset(), 0);
+    assert_eq!(broadcast_shape(&[2, 1], &[1, 3]).unwrap(), vec![2, 3]);
+    assert!(broadcast_shape(&[2, 2], &[3, 2]).is_err());
 }
 
 #[test]

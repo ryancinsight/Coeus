@@ -590,6 +590,91 @@ pub fn permute_layout(layout: &CoeusLayout, axes: &[usize]) -> Result<CoeusLayou
     }
 }
 
+fn broadcast_layout_n_m<const N: usize, const M: usize>(
+    layout: &CoeusLayout,
+    target_shape: &[usize],
+) -> Result<CoeusLayout> {
+    let broadcasted = to_leto_layout::<N>(layout)?.broadcast::<M>(shape_n::<M>(target_shape)?)?;
+    from_leto_layout(broadcasted)
+}
+
+fn broadcast_layout_n<const N: usize>(
+    layout: &CoeusLayout,
+    target_shape: &[usize],
+) -> Result<CoeusLayout> {
+    match target_shape.len() {
+        0 => broadcast_layout_n_m::<N, 0>(layout, target_shape),
+        1 => broadcast_layout_n_m::<N, 1>(layout, target_shape),
+        2 => broadcast_layout_n_m::<N, 2>(layout, target_shape),
+        3 => broadcast_layout_n_m::<N, 3>(layout, target_shape),
+        4 => broadcast_layout_n_m::<N, 4>(layout, target_shape),
+        5 => broadcast_layout_n_m::<N, 5>(layout, target_shape),
+        n => Err(LetoError::StorageError {
+            reason: format!(
+                "coeus-leto broadcast dispatch supports rank 0..={MAX_DISPATCH_RANK}, got {n}"
+            ),
+        }),
+    }
+}
+
+/// Zero-copy broadcast of coeus layout metadata to `target_shape`, dispatched to
+/// Leto's const-rank layout validator.
+pub fn broadcast_layout(layout: &CoeusLayout, target_shape: &[usize]) -> Result<CoeusLayout> {
+    match layout.ndim() {
+        0 => broadcast_layout_n::<0>(layout, target_shape),
+        1 => broadcast_layout_n::<1>(layout, target_shape),
+        2 => broadcast_layout_n::<2>(layout, target_shape),
+        3 => broadcast_layout_n::<3>(layout, target_shape),
+        4 => broadcast_layout_n::<4>(layout, target_shape),
+        5 => broadcast_layout_n::<5>(layout, target_shape),
+        n => Err(LetoError::StorageError {
+            reason: format!(
+                "coeus-leto broadcast dispatch supports rank 0..={MAX_DISPATCH_RANK}, got {n}"
+            ),
+        }),
+    }
+}
+
+/// Compute the NumPy/PyTorch-style broadcast shape for two dynamic-rank coeus
+/// shapes. The result is the target shape accepted by [`broadcast_layout`] for
+/// both inputs.
+pub fn broadcast_shape(lhs: &[usize], rhs: &[usize]) -> Result<Vec<usize>> {
+    let rank = lhs.len().max(rhs.len());
+    if rank > MAX_DISPATCH_RANK {
+        return Err(LetoError::StorageError {
+            reason: format!(
+                "coeus-leto broadcast dispatch supports rank 0..={MAX_DISPATCH_RANK}, got {rank}"
+            ),
+        });
+    }
+
+    let mut out = vec![0; rank];
+    for index in 0..rank {
+        let lhs_dim = lhs
+            .len()
+            .checked_sub(index + 1)
+            .map_or(1, |position| lhs[position]);
+        let rhs_dim = rhs
+            .len()
+            .checked_sub(index + 1)
+            .map_or(1, |position| rhs[position]);
+        out[rank - 1 - index] = if lhs_dim == rhs_dim {
+            lhs_dim
+        } else if lhs_dim == 1 {
+            rhs_dim
+        } else if rhs_dim == 1 {
+            lhs_dim
+        } else {
+            return Err(LetoError::IncompatibleBroadcast {
+                from: lhs.to_vec(),
+                to: rhs.to_vec(),
+            });
+        };
+    }
+
+    Ok(out)
+}
+
 fn from_shape_fn_values_n<T: Clone, F, const N: usize>(shape: &[usize], f: &F) -> Result<Vec<T>>
 where
     F: Fn(&[usize]) -> T,
