@@ -30,6 +30,9 @@
 - Routed contiguous unpadded unit-dilation CPU `conv2d` forward kernel rows
   through `Scalar::dot_slice`, preserving the indexed path for padded, dilated,
   or non-contiguous layouts.
+- Routed contiguous unpadded unit-dilation CPU `conv3d` forward kernel rows
+  through `Scalar::dot_slice`, preserving the indexed path for padded, dilated,
+  or non-contiguous layouts.
 - Removed Coeus' direct `pollster` dependency from `coeus-wgpu` and extended the
   dependency policy to keep Coeus production code on the Moirai async SSOT.
 - Extended the dependency policy to keep direct replacement-library usage

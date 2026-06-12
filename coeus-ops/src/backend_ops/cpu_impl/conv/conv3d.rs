@@ -50,6 +50,69 @@ pub(crate) fn conv3d<T: Scalar, B: Backend>(
     let stride_s = stride as isize;
     let dil_s = dilation as isize;
 
+    let has_canonical_contiguous_output = kd <= d
+        && kh <= h
+        && kw <= w
+        && stride > 0
+        && d_out == (d - kd) / stride + 1
+        && h_out == (h - kh) / stride + 1
+        && w_out == (w - kw) / stride + 1;
+
+    if has_canonical_contiguous_output
+        && padding == 0
+        && dilation == 1
+        && input_layout.is_contiguous()
+        && weight_layout.is_contiguous()
+        && output_layout.is_contiguous()
+    {
+        let input_offset = input_layout.offset();
+        let weight_offset = weight_layout.offset();
+        let output_offset = output_layout.offset();
+
+        backend.parallel_for(0, out_numel, move |i| {
+            let ow = i % w_out;
+            let temp1 = i / w_out;
+            let oh = temp1 % h_out;
+            let temp2 = temp1 / h_out;
+            let od = temp2 % d_out;
+            let temp3 = temp2 / d_out;
+            let oc = temp3 % c_out;
+            let ni = temp3 / c_out;
+
+            let mut sum = T::zero();
+            for ic in 0..c_in {
+                for ikd in 0..kd {
+                    let d_in = od * stride + ikd;
+                    for ikh in 0..kh {
+                        let h_in = oh * stride + ikh;
+                        let input_plane_start =
+                            input_offset + (((ni * c_in + ic) * d + d_in) * h + h_in) * w;
+                        let weight_plane_start =
+                            weight_offset + (((oc * c_in + ic) * kd + ikd) * kh + ikh) * kw;
+                        let input_start = input_plane_start + ow * stride;
+                        // SAFETY: the contiguous fast path is active only for
+                        // row-major input/weight layouts with zero padding and
+                        // unit dilation. `output_layout.shape()` constrains
+                        // `ow * stride + kw <= w`, so both ranges are in bounds.
+                        let input_window = unsafe { input_ptr.slice(input_start, kw) };
+                        // SAFETY: row-major weight layout stores each kernel
+                        // row as a contiguous `kw`-element run.
+                        let weight_window = unsafe { weight_ptr.slice(weight_plane_start, kw) };
+                        sum = sum + T::dot_slice(input_window, weight_window);
+                    }
+                }
+            }
+            if let Some(ref bp) = bias_ptr {
+                let bias_idx = bias_layout.as_ref().unwrap().physical_index(&[oc]);
+                sum = sum + unsafe { bp.read(bias_idx) };
+            }
+            unsafe {
+                output_ptr.write(output_offset + i, sum);
+            }
+        });
+        return;
+    }
+
     backend.parallel_for(0, out_numel, move |i| {
         let ow = i % w_out;
         let temp1 = i / w_out;

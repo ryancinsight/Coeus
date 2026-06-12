@@ -183,10 +183,14 @@
   kernel rows through `Scalar::dot_slice`, preserving the indexed path for
   padded, dilated, or non-contiguous layouts. Evidence: `cargo test -p
   coeus-ops --test conv2d_hermes_diff` passes.
-- [x] [patch] Current full gate after CPU `conv2d` Hermes dot routing:
+- [x] [patch] Routed contiguous unpadded unit-dilation CPU `conv3d` forward
+  kernel rows through `Scalar::dot_slice`, preserving the indexed path for
+  padded, dilated, or non-contiguous layouts. Evidence: `cargo test -p
+  coeus-ops --test conv3d_hermes_diff` passes.
+- [x] [patch] Current full gate after CPU `conv3d` Hermes dot routing:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (299 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (301 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice
