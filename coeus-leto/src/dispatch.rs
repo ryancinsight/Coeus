@@ -2,7 +2,7 @@ use crate::convert::{to_leto_layout, to_leto_view, to_leto_view_mut};
 use coeus_core::{
     BinaryOp, CpuUnaryOp as UnaryOp, Layout as CoeusLayout, ReductionOp, Scalar as CoeusScalar,
 };
-use leto::{Array, LetoError, RankMarker, RemoveAxis, Result, SliceStorage, Storage};
+use leto::{Array, LetoError, PadWidth, RankMarker, RemoveAxis, Result, SliceStorage, Storage};
 use leto_ops::{
     CumSumOp, MaxAxis, MeanAxis, MinAxis, Scalar as LetoScalar, ScanDirection, SumAxis,
 };
@@ -364,6 +364,45 @@ pub fn argmin_into<T: LetoScalar>(
         3 => arg_reduce_n::<T, 3, 2>(a_layout, a, axis, out_layout, out, false),
         4 => arg_reduce_n::<T, 4, 3>(a_layout, a, axis, out_layout, out, false),
         5 => arg_reduce_n::<T, 5, 4>(a_layout, a, axis, out_layout, out, false),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
+fn pad_values_n<T: Clone, const N: usize>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    widths: &[(usize, usize)],
+    fill: T,
+) -> Result<Vec<T>> {
+    let input = to_leto_view::<T, N>(a_layout, a)?;
+    let width: PadWidth<N> =
+        widths.try_into().map_err(
+            |_: std::array::TryFromSliceError| LetoError::ShapeMismatch {
+                lhs: vec![N],
+                rhs: vec![widths.len()],
+            },
+        )?;
+    let padded = leto::application::pad(&input, width, fill)?;
+    Ok(padded.storage().as_slice().to_vec())
+}
+
+/// Constant padding of a coeus CPU tensor, dispatched from dynamic rank to the
+/// matching monomorphized leto structural kernel. The returned values are
+/// C-contiguous in row-major output order.
+pub fn pad_values<T: Clone>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    widths: &[(usize, usize)],
+    fill: T,
+) -> Result<Vec<T>> {
+    match a_layout.ndim() {
+        1 => pad_values_n::<T, 1>(a_layout, a, widths, fill),
+        2 => pad_values_n::<T, 2>(a_layout, a, widths, fill),
+        3 => pad_values_n::<T, 3>(a_layout, a, widths, fill),
+        4 => pad_values_n::<T, 4>(a_layout, a, widths, fill),
+        5 => pad_values_n::<T, 5>(a_layout, a, widths, fill),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),

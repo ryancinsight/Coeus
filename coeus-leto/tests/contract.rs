@@ -6,7 +6,7 @@ use coeus_core::{
 };
 use coeus_leto::{
     argmax_into, argmin_into, cumsum_into, elementwise_add_into, elementwise_binary_into,
-    elementwise_unary_into, matmul_into, reduce_into, suffix_sum_into, to_leto_view,
+    elementwise_unary_into, matmul_into, pad_values, reduce_into, suffix_sum_into, to_leto_view,
 };
 
 fn layout(shape: &[usize]) -> Layout {
@@ -200,6 +200,23 @@ fn matmul_handles_transposed_input_view() {
     .unwrap();
     // transposed a is [[1,2,3],[4,5,6]] -> same product as the contiguous case.
     assert_eq!(out, vec![58.0, 64.0, 139.0, 154.0]);
+}
+
+#[test]
+fn pad_dispatch_covers_strided_input_view() {
+    let storage = vec![1.0f64, 4.0, 2.0, 5.0, 3.0, 6.0];
+    let transposed = Layout::from_shape_strides(
+        Shape::from(vec![2usize, 3]),
+        Strides::from_slice(&[1usize, 2]),
+        0,
+    );
+
+    let padded = pad_values(&transposed, &storage, &[(1, 0), (0, 1)], -1.0).unwrap();
+
+    assert_eq!(
+        padded,
+        vec![-1.0, -1.0, -1.0, -1.0, 1.0, 2.0, 3.0, -1.0, 4.0, 5.0, 6.0, -1.0]
+    );
 }
 
 #[test]

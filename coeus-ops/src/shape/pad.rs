@@ -1,7 +1,7 @@
 // ── Constant padding ──
 // Pads a tensor with a constant value along each dimension.
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_tensor::Tensor;
 
 /// Pad `x` with `value` along each dimension.
@@ -34,29 +34,7 @@ where
         out_shape[d] += pads[d].0 + pads[d].1;
     }
 
-    let mut out = Tensor::full_on(out_shape.clone(), value, &backend);
-    let out_strides = Layout::new(out_shape.clone()).strides_cloned();
-
-    let x_cont = x.to_contiguous_on(&backend);
-    let x_slice = x_cont.as_slice();
-    let x_shape = x_cont.shape();
-    let x_strides = Layout::new(x_cont.shape_cloned()).strides_cloned();
-
-    let numel_x = x_cont.numel();
-    let out_data = out.as_mut_slice();
-
-    for flat_in in 0..numel_x {
-        let mut rem = flat_in;
-        let src_phys = flat_in; // source is contiguous
-        let mut dst_phys = 0usize;
-        for d in (0..ndim).rev() {
-            let coord = rem % x_shape[d];
-            rem /= x_shape[d];
-            let dst_coord = coord + pads[d].0;
-            dst_phys += dst_coord * out_strides[d];
-        }
-        let _ = (src_phys, x_strides[0]); // suppress unused
-        out_data[dst_phys] = x_slice[flat_in];
-    }
-    out
+    let values = coeus_leto::pad_values(x.layout(), x.storage().as_slice(), pads, value)
+        .expect("coeus-leto pad failed");
+    Tensor::from_slice_on(out_shape, &values, &backend)
 }
