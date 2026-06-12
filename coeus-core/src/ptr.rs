@@ -29,6 +29,19 @@ impl<T: Copy> SendPtr<T> {
         // SAFETY: The caller guarantees that index `i` is within the allocated bounds of the pointer.
         *self.0.add(i)
     }
+
+    /// Borrow a contiguous range at element offset `start`.
+    ///
+    /// # Safety
+    /// Caller must ensure `start..start + len` is within the allocated bounds
+    /// of the pointer and that the returned range is not mutably aliased for
+    /// the returned lifetime.
+    #[inline]
+    pub unsafe fn slice<'a>(&self, start: usize, len: usize) -> &'a [T] {
+        // SAFETY: The caller guarantees that the requested range is in bounds
+        // and not mutably aliased for the returned lifetime.
+        std::slice::from_raw_parts(self.0.add(start), len)
+    }
 }
 
 /// Mutable pointer wrapper: `Send + Sync`.

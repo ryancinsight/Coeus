@@ -44,6 +44,46 @@ pub(crate) fn conv1d<T: Scalar, B: Backend>(
     let stride_s = stride as isize;
     let dil_s = dilation as isize;
 
+    if padding == 0
+        && dilation == 1
+        && input_layout.is_contiguous()
+        && weight_layout.is_contiguous()
+        && output_layout.is_contiguous()
+    {
+        let input_offset = input_layout.offset();
+        let weight_offset = weight_layout.offset();
+        let output_offset = output_layout.offset();
+
+        backend.parallel_for(0, out_numel, move |i| {
+            let ol = i % l_out;
+            let temp = i / l_out;
+            let oc = temp % c_out;
+            let ni = temp / c_out;
+
+            let mut sum = T::zero();
+            for ic in 0..c_in {
+                let input_start = input_offset + (ni * c_in + ic) * l + ol * stride;
+                let weight_start = weight_offset + (oc * c_in + ic) * k;
+                // SAFETY: the contiguous fast path is active only for row-major
+                // input/weight layouts. `output_layout.shape()` constrains
+                // `ol * stride + k <= l`, so both ranges stay within storage.
+                let input_window = unsafe { input_ptr.slice(input_start, k) };
+                // SAFETY: row-major weight layout stores each kernel row as a
+                // contiguous `k`-element run.
+                let weight_window = unsafe { weight_ptr.slice(weight_start, k) };
+                sum = sum + T::dot_slice(input_window, weight_window);
+            }
+            if let Some(ref bp) = bias_ptr {
+                let bias_idx = bias_layout.as_ref().unwrap().physical_index(&[oc]);
+                sum = sum + unsafe { bp.read(bias_idx) };
+            }
+            unsafe {
+                output_ptr.write(output_offset + i, sum);
+            }
+        });
+        return;
+    }
+
     backend.parallel_for(0, out_numel, move |i| {
         let ol = i % l_out;
         let temp = i / l_out;

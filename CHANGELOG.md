@@ -24,6 +24,9 @@
   through new `Scalar::{dot_slice, scale_slice}` Hermes SIMD seams.
 - Routed CPU attention backward contiguous `dO @ V^T` rows and softmax row
   products through `Scalar::dot_slice`.
+- Routed contiguous unpadded unit-dilation CPU `conv1d` forward kernel rows
+  through `Scalar::dot_slice`, preserving the indexed path for padded, dilated,
+  or non-contiguous layouts.
 - Removed Coeus' direct `pollster` dependency from `coeus-wgpu` and extended the
   dependency policy to keep Coeus production code on the Moirai async SSOT.
 - Extended the dependency policy to keep direct replacement-library usage
