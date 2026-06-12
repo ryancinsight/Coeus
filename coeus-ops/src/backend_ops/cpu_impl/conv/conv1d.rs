@@ -44,7 +44,10 @@ pub(crate) fn conv1d<T: Scalar, B: Backend>(
     let stride_s = stride as isize;
     let dil_s = dilation as isize;
 
-    if padding == 0
+    let has_canonical_contiguous_output = k <= l && stride > 0 && l_out == (l - k) / stride + 1;
+
+    if has_canonical_contiguous_output
+        && padding == 0
         && dilation == 1
         && input_layout.is_contiguous()
         && weight_layout.is_contiguous()
