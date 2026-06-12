@@ -47,23 +47,9 @@ where
         F: Fn(&[usize]) -> T,
     {
         let shape = shape.into();
-        let ndim = shape.len();
-        let numel: usize = shape.iter().product();
-        let shape_clone = shape.clone();
-        let mut t = Self::zeros_on(shape, backend);
-        let slice = t.as_mut_slice();
-        let mut index = smallvec::SmallVec::<[usize; 4]>::from_elem(0, ndim);
-        for i in 0..numel {
-            slice[i] = f(&index);
-            for d in (0..ndim).rev() {
-                index[d] += 1;
-                if index[d] < shape_clone[d] {
-                    break;
-                }
-                index[d] = 0;
-            }
-        }
-        t
+        let values = coeus_leto::from_shape_fn_values(&shape, f)
+            .expect("coeus-leto shape function generation failed");
+        Self::from_slice_on(shape, &values, backend)
     }
 
     /// Identity matrix of size n×n on the given backend.

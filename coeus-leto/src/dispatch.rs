@@ -590,6 +590,32 @@ pub fn permute_layout(layout: &CoeusLayout, axes: &[usize]) -> Result<CoeusLayou
     }
 }
 
+fn from_shape_fn_values_n<T: Clone, F, const N: usize>(shape: &[usize], f: &F) -> Result<Vec<T>>
+where
+    F: Fn(&[usize]) -> T,
+{
+    let values = Array::<T, _, N>::from_shape_fn(shape_n::<N>(shape)?, |index| f(&index));
+    Ok(values.storage().as_slice().to_vec())
+}
+
+/// Generate C-contiguous row-major values for a coeus dynamic-rank shape,
+/// dispatched to Leto's const-rank coordinate generator.
+pub fn from_shape_fn_values<T: Clone, F>(shape: &[usize], f: F) -> Result<Vec<T>>
+where
+    F: Fn(&[usize]) -> T,
+{
+    match shape.len() {
+        1 => from_shape_fn_values_n::<T, F, 1>(shape, &f),
+        2 => from_shape_fn_values_n::<T, F, 2>(shape, &f),
+        3 => from_shape_fn_values_n::<T, F, 3>(shape, &f),
+        4 => from_shape_fn_values_n::<T, F, 4>(shape, &f),
+        5 => from_shape_fn_values_n::<T, F, 5>(shape, &f),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
 fn shape_n<const N: usize>(shape: &[usize]) -> Result<[usize; N]> {
     shape.try_into().map_err(
         |_: std::array::TryFromSliceError| LetoError::ShapeMismatch {

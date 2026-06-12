@@ -114,10 +114,15 @@
   materialization through `coeus-leto`, deleting the remaining local strided
   transfer loops from the public tensor transfer path. Evidence: `cargo test -p
   coeus-tensor --test backend_transfer_leto_diff` passes.
-- [x] [patch] Current full gate after backend-transfer materialization dispatch:
+- [x] [patch] Routed `Tensor::from_fn_on` coordinate generation through
+  `coeus-leto`, deleting the local row-major dynamic-index generation loop from
+  the public tensor constructor path. Evidence: `cargo test -p coeus-leto
+  shape_function_dispatch_matches_leto_coordinate_order` and `cargo test -p
+  coeus-tensor --test from_fn_leto_diff` pass.
+- [x] [patch] Current full gate after constructor coordinate generation dispatch:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (267 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (270 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

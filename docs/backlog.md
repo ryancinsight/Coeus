@@ -94,6 +94,11 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     materialization through dynamic-rank `coeus-leto`, removing the remaining
     local strided transfer loops from that public tensor transfer path. Evidence:
     `cargo test -p coeus-tensor --test backend_transfer_leto_diff` passes.
+  - [x] [patch] Routed `Tensor::from_fn_on` coordinate generation through
+    dynamic-rank `coeus-leto`, removing the local row-major dynamic-index
+    generation loop from that public tensor constructor path. Evidence: `cargo
+    test -p coeus-leto shape_function_dispatch_matches_leto_coordinate_order`
+    and `cargo test -p coeus-tensor --test from_fn_leto_diff` pass.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
@@ -144,9 +149,10 @@ const-rank, and the new `coeus-leto` crate bridges them.
   (elementwise binary, unary mapping, keep-dim axis reductions including mean,
   argmax/argmin, cumsum/suffix scans, 2D matmul, structural pad/concat/split,
   seeded uniform/normal random constructors, and view-to-contiguous
-  materialization plus reshape/permute layout validation) to monomorphized leto
-  kernels via a bounded runtime-rank match (`MAX_DISPATCH_RANK = 5`). Provider:
-  leto/leto-ops pinned at rev d8d34c6. 18 cross-repo contract tests green.
+  materialization plus reshape/permute layout validation and shape-function
+  coordinate generation) to monomorphized leto kernels via a bounded runtime-rank
+  match (`MAX_DISPATCH_RANK = 5`). Provider: leto/leto-ops pinned at rev d8d34c6.
+  19 cross-repo contract tests green.
 
 ### Next (tracked, [arch]):
 - Route the **CPU backend's** `BackendOps` impl (`MoiraiBackend`/`SequentialBackend`)

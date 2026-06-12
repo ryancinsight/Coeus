@@ -6,9 +6,9 @@ use coeus_core::{
 };
 use coeus_leto::{
     argmax_into, argmin_into, concat_values, contiguous_values, cumsum_into, elementwise_add_into,
-    elementwise_binary_into, elementwise_unary_into, matmul_into, normal_values, pad_values,
-    permute_layout, reduce_into, reshape_layout, split_values, suffix_sum_into, to_leto_view,
-    uniform_values,
+    elementwise_binary_into, elementwise_unary_into, from_shape_fn_values, matmul_into,
+    normal_values, pad_values, permute_layout, reduce_into, reshape_layout, split_values,
+    suffix_sum_into, to_leto_view, uniform_values,
 };
 use leto::Storage;
 
@@ -323,6 +323,23 @@ fn permute_layout_dispatch_matches_leto_validation() {
     assert_eq!(permuted.strides(), &[1, 12, 4]);
     assert_eq!(permuted.offset(), 0);
     assert!(permute_layout(&source, &[0, 0, 1]).is_err());
+}
+
+#[test]
+fn shape_function_dispatch_matches_leto_coordinate_order() {
+    let values = from_shape_fn_values(&[2usize, 3, 2], |index| {
+        i32::try_from(index[0] * 100 + index[1] * 10 + index[2]).unwrap()
+    })
+    .unwrap();
+    let direct = leto::Array::<i32, _, 3>::from_shape_fn([2, 3, 2], |index| {
+        i32::try_from(index[0] * 100 + index[1] * 10 + index[2]).unwrap()
+    });
+
+    assert_eq!(values, direct.storage().as_slice());
+    assert_eq!(
+        values,
+        vec![0, 1, 10, 11, 20, 21, 100, 101, 110, 111, 120, 121]
+    );
 }
 
 #[test]
