@@ -31,7 +31,7 @@
 - [x] [patch] `cargo check --workspace` passes without excluding `coeus-cuda`.
 - [x] [patch] `cargo clippy --workspace --all-targets -- -D warnings` passes
   without excluding `coeus-cuda`.
-- [x] [patch] `cargo nextest run --workspace` passes: 252 tests passed, 0
+- [x] [patch] `cargo nextest run --workspace` passes: 255 tests passed, 0
   skipped. CUDA integration tests are feature-gated under `cuda` because they
   require `CUDA_TOOLKIT_PATH` and a working CUDA driver.
 - [x] [patch] `cargo test --doc --workspace` passes; four doctests are
@@ -44,7 +44,7 @@
 - [x] [patch] Expanded `coeus-leto` contract coverage for the CPU consolidation
   seam: binary dispatch covers `Sub`/`Mul`/`Div`, unary dispatch covers
   `Relu`/`Abs`/`Neg`, and keep-dim reductions cover `Sum`/`Max`/`Min`. Evidence:
-  `cargo test -p coeus-leto` passes; the current contract suite contains 13 tests.
+  `cargo test -p coeus-leto` passes; the current contract suite contains 14 tests.
 - [x] [patch] Added `coeus-ops/tests/unary_leto_diff.rs` to prove
   `SequentialBackend` and `MoiraiBackend` unary `BackendOps` dispatch matches
   direct scalar `CpuUnaryDispatch::eval_unary` for the full `CpuUnaryOp` surface.
@@ -89,9 +89,14 @@
   coverage for `SequentialBackend` and `MoiraiBackend`. Evidence:
   `cargo test -p coeus-leto concat_dispatch_covers_strided_input_views` and
   `cargo test -p coeus-ops --test concat_leto_diff` pass.
-- [x] [patch] Current full gate after concat dispatch: `cargo fmt --check`,
+- [x] [patch] Routed public `coeus_ops::split` through `coeus-leto` structural
+  split dispatch for CPU-addressable tensors and added strided/transposed-view
+  coverage for `SequentialBackend` and `MoiraiBackend`. Evidence:
+  `cargo test -p coeus-leto split_dispatch_covers_strided_input_view` and
+  `cargo test -p coeus-ops --test split_leto_diff` pass.
+- [x] [patch] Current full gate after split dispatch: `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (252 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (255 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

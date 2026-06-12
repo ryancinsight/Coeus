@@ -457,3 +457,38 @@ pub fn concat_values<T: Clone>(
         }),
     }
 }
+
+fn split_values_n<T: Clone, const N: usize>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    axis: usize,
+    sizes: &[usize],
+) -> Result<Vec<Vec<T>>> {
+    let input = to_leto_view::<T, N>(a_layout, a)?;
+    let views = leto::application::split(&input, axis, sizes)?;
+    Ok(views
+        .iter()
+        .map(|view| view.to_contiguous().storage().as_slice().to_vec())
+        .collect())
+}
+
+/// Split coeus CPU tensor values along `axis`, dispatched from dynamic rank to
+/// the matching monomorphized leto structural kernel. Each returned chunk is
+/// C-contiguous in row-major output order.
+pub fn split_values<T: Clone>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    axis: usize,
+    sizes: &[usize],
+) -> Result<Vec<Vec<T>>> {
+    match a_layout.ndim() {
+        1 => split_values_n::<T, 1>(a_layout, a, axis, sizes),
+        2 => split_values_n::<T, 2>(a_layout, a, axis, sizes),
+        3 => split_values_n::<T, 3>(a_layout, a, axis, sizes),
+        4 => split_values_n::<T, 4>(a_layout, a, axis, sizes),
+        5 => split_values_n::<T, 5>(a_layout, a, axis, sizes),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}

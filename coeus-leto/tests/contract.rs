@@ -7,7 +7,7 @@ use coeus_core::{
 use coeus_leto::{
     argmax_into, argmin_into, concat_values, cumsum_into, elementwise_add_into,
     elementwise_binary_into, elementwise_unary_into, matmul_into, pad_values, reduce_into,
-    suffix_sum_into, to_leto_view,
+    split_values, suffix_sum_into, to_leto_view,
 };
 
 fn layout(shape: &[usize]) -> Layout {
@@ -241,6 +241,22 @@ fn concat_dispatch_covers_strided_input_views() {
         concatenated,
         vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
     );
+}
+
+#[test]
+fn split_dispatch_covers_strided_input_view() {
+    let storage = vec![1.0f64, 4.0, 2.0, 5.0, 3.0, 6.0];
+    let transposed = Layout::from_shape_strides(
+        Shape::from(vec![2usize, 3]),
+        Strides::from_slice(&[1usize, 2]),
+        0,
+    );
+
+    let chunks = split_values(&transposed, &storage, 1, &[2, 1]).unwrap();
+
+    assert_eq!(chunks.len(), 2);
+    assert_eq!(chunks[0], vec![1.0, 2.0, 4.0, 5.0]);
+    assert_eq!(chunks[1], vec![3.0, 6.0]);
 }
 
 #[test]
