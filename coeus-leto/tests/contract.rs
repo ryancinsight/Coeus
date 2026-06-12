@@ -5,10 +5,11 @@ use coeus_core::{
     BinaryOp, CpuAddressableStorage, CpuStorage, CpuUnaryOp, Layout, ReductionOp, Shape, Strides,
 };
 use coeus_leto::{
-    argmax_into, argmin_into, broadcast_layout, broadcast_shape, concat_values, contiguous_values,
-    cumsum_into, elementwise_add_into, elementwise_binary_into, elementwise_unary_into,
-    from_shape_fn_values, matmul_into, normal_values, pad_values, permute_layout, reduce_into,
-    reshape_layout, split_values, stack_values, suffix_sum_into, to_leto_view, uniform_values,
+    argmax_into, argmin_into, batched_matmul_into, broadcast_layout, broadcast_shape,
+    concat_values, contiguous_values, cumsum_into, elementwise_add_into, elementwise_binary_into,
+    elementwise_unary_into, from_shape_fn_values, matmul_into, normal_values, pad_values,
+    permute_layout, reduce_into, reshape_layout, split_values, stack_values, suffix_sum_into,
+    to_leto_view, uniform_values,
 };
 use leto::Storage;
 
@@ -203,6 +204,26 @@ fn matmul_handles_transposed_input_view() {
     .unwrap();
     // transposed a is [[1,2,3],[4,5,6]] -> same product as the contiguous case.
     assert_eq!(out, vec![58.0, 64.0, 139.0, 154.0]);
+}
+
+#[test]
+fn batched_matmul_dispatch_covers_rhs_batch_broadcast() {
+    let lhs = vec![
+        1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, //
+        7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+    ];
+    let rhs = vec![2.0f64, 3.0, 5.0, 7.0, 11.0, 13.0];
+    let mut out = vec![0.0f64; 8];
+    let lhs_layout = layout(&[2, 2, 3]);
+    let rhs_layout = layout(&[1, 3, 2]);
+    let out_layout = layout(&[2, 2, 2]);
+
+    batched_matmul_into(&lhs_layout, &lhs, &rhs_layout, &rhs, &out_layout, &mut out).unwrap();
+
+    assert_eq!(
+        out,
+        vec![45.0, 56.0, 99.0, 125.0, 153.0, 194.0, 207.0, 263.0]
+    );
 }
 
 #[test]

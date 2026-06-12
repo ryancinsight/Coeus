@@ -78,6 +78,27 @@ where
     }
 
     #[inline]
+    fn batched_matmul(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        b: &Self::DeviceBuffer<T>,
+        b_layout: &Layout,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) {
+        coeus_leto::batched_matmul_into(
+            a_layout,
+            a.as_slice(),
+            b_layout,
+            b.as_slice(),
+            c_layout,
+            c.as_mut_slice(),
+        )
+        .expect("coeus-leto batched matmul failed");
+    }
+
+    #[inline]
     fn reduce(
         &self,
         op: ReductionOp,

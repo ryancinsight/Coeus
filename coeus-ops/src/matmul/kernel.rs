@@ -77,40 +77,41 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
     let out_shape = [batch_size, m, n];
     let mut out = Tensor::zeros_on(out_shape.as_slice(), backend);
 
-    let a_mk = m * k;
-    let b_kn = k * n;
-    let c_mn = m * n;
-
-    // Row-major strides for 2-D sub-layouts
-    let a_strides = Strides::from([k, 1].as_slice());
-    let b_strides = Strides::from([n, 1].as_slice());
-    let c_strides = Strides::from([n, 1].as_slice());
-    let a_shape_2d = Shape::from([m, k].as_slice());
-    let b_shape_2d = Shape::from([k, n].as_slice());
-    let c_shape_2d = Shape::from([m, n].as_slice());
-
     let a_storage = a.storage();
     let b_storage = b.storage();
-    let (out_storage, _) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out.storage_mut_and_layout();
 
-    for bi in 0..batch_size {
-        let a_off = (bi % a_slices) * a_mk;
-        let b_off = (bi % b_slices) * b_kn;
-        let c_off = bi * c_mn;
+    let a_layout = batch_layout(a.layout(), a_slices, m, k, a_ndim == 2);
+    let b_layout = batch_layout(b.layout(), b_slices, k, n, b_ndim == 2);
+    let c_layout = Layout::from_shape_strides(
+        Shape::from([batch_size, m, n].as_slice()),
+        Strides::from([m * n, n, 1].as_slice()),
+        out_layout.offset(),
+    );
 
-        let a_layout_2d = Layout::from_shape_strides(a_shape_2d.clone(), a_strides.clone(), a_off);
-        let b_layout_2d = Layout::from_shape_strides(b_shape_2d.clone(), b_strides.clone(), b_off);
-        let c_layout_2d = Layout::from_shape_strides(c_shape_2d.clone(), c_strides.clone(), c_off);
-
-        backend.matmul(
-            a_storage,
-            &a_layout_2d,
-            b_storage,
-            &b_layout_2d,
-            out_storage,
-            &c_layout_2d,
-        );
-    }
+    backend.batched_matmul(
+        a_storage,
+        &a_layout,
+        b_storage,
+        &b_layout,
+        out_storage,
+        &c_layout,
+    );
 
     out
+}
+
+fn batch_layout(
+    layout: &Layout,
+    batches: usize,
+    rows: usize,
+    cols: usize,
+    is_rank2: bool,
+) -> Layout {
+    let batch_stride = if is_rank2 { 0 } else { rows * cols };
+    Layout::from_shape_strides(
+        Shape::from([batches, rows, cols].as_slice()),
+        Strides::from([batch_stride, cols, 1].as_slice()),
+        layout.offset(),
+    )
 }

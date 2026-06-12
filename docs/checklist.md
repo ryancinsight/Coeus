@@ -131,10 +131,17 @@
   `SequentialBackend` and `MoiraiBackend`. Evidence: `cargo test -p coeus-leto
   stack_dispatch_covers_strided_input_views` and `cargo test -p coeus-ops
   --test stack_leto_diff` pass.
-- [x] [patch] Current full gate after stack dispatch:
+- [x] [minor] Added `BackendOps::batched_matmul` as the batched matmul seam,
+  routed public batched `coeus_ops::matmul` through it, and overrode the CPU
+  `SequentialBackend`/`MoiraiBackend` path with `coeus-leto` rank-3 batched
+  dispatch. Evidence: `cargo test -p coeus-leto
+  batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo test -p coeus-ops
+  --test batched_matmul_leto_diff`, and `cargo test -p coeus-wgpu
+  wgpu::transfers_and_matmul::test_wgpu_backend_ops_unified` pass.
+- [x] [patch] Current full gate after batched matmul dispatch:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (280 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (281 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

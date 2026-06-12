@@ -110,6 +110,15 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     `SequentialBackend` and `MoiraiBackend`. Evidence: `cargo test -p
     coeus-leto stack_dispatch_covers_strided_input_views` and `cargo test -p
     coeus-ops --test stack_leto_diff` pass.
+  - [x] [minor] Added `BackendOps::batched_matmul` as the backend seam for
+    rank-3 batched matrix multiplication, routed public batched
+    `coeus_ops::matmul` through it, and overrode the CPU
+    `SequentialBackend`/`MoiraiBackend` path with dynamic-rank `coeus-leto`
+    batched dispatch. GPU/CUDA backends retain the generic default method.
+    Evidence: `cargo test -p coeus-leto
+    batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo test -p
+    coeus-ops --test batched_matmul_leto_diff`, and `cargo test -p coeus-wgpu
+    wgpu::transfers_and_matmul::test_wgpu_backend_ops_unified` pass.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
@@ -158,12 +167,12 @@ const-rank, and the new `coeus-leto` crate bridges them.
 - **Added `coeus-leto`** (`coeus-leto/`): converts coeus dynamic-rank
   `Layout`/`CpuStorage` to leto `Layout<N>` views and dispatches CPU array ops
   (elementwise binary, unary mapping, keep-dim axis reductions including mean,
-  argmax/argmin, cumsum/suffix scans, 2D matmul, structural pad/concat/split,
-  stack, seeded uniform/normal random constructors, and view-to-contiguous
+  argmax/argmin, cumsum/suffix scans, 2D and rank-3 batched matmul, structural
+  pad/concat/split/stack, seeded uniform/normal random constructors, and view-to-contiguous
   materialization plus reshape/permute/broadcast layout validation and
   shape-function coordinate generation) to monomorphized leto kernels via a
   bounded runtime-rank match (`MAX_DISPATCH_RANK = 5`). Provider: leto/leto-ops
-  pinned at rev d8d34c6. 21 cross-repo contract tests green.
+  pinned at rev d8d34c6. 22 cross-repo contract tests green.
 
 ### Next (tracked, [arch]):
 - Route the **CPU backend's** `BackendOps` impl (`MoiraiBackend`/`SequentialBackend`)

@@ -67,6 +67,23 @@ pub fn matmul_into<T: LetoScalar>(
     leto_ops::matmul(&a_view, &b_view, &mut out_view)
 }
 
+/// Rank-3 batched matrix multiplication of coeus CPU tensors into caller-owned
+/// output. The batch dimension of either input may be one and is broadcast by
+/// Leto at zero stride.
+pub fn batched_matmul_into<T: LetoScalar>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    b_layout: &CoeusLayout,
+    b: &[T],
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()> {
+    let a_view = to_leto_view::<T, 3>(a_layout, a)?;
+    let b_view = to_leto_view::<T, 3>(b_layout, b)?;
+    let mut out_view = to_leto_view_mut::<T, 3>(out_layout, out)?;
+    leto_ops::batched_matmul(&a_view, &b_view, &mut out_view)
+}
+
 fn binary_n<T: LetoScalar, const N: usize>(
     op: BinaryOp,
     a_layout: &CoeusLayout,
