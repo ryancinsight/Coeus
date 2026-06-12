@@ -12,6 +12,50 @@
 > wgpu op parity, consume mnemosyne device pools / melinoe device-buffer ownership.
 > burn is eliminated end-to-end in Stage E.
 
+### Current Verification Note (2026-06-12)
+
+- [x] [patch] Added committed nextest timeout config at `.config/nextest.toml`.
+- [x] [patch] Synced README verification commands to `cargo nextest run`,
+  doctests, and clippy with `-D warnings`.
+- [x] [patch] `coeus-cuda` now defaults to a CPU-backed no-CUDA provider so the
+  full workspace can check on hosts without `CUDA_TOOLKIT_PATH`; real cutile
+  CUDA integration is retained behind the explicit `cuda` feature.
+- [x] [patch] The default no-CUDA `CudaBackend` implements the full
+  `BackendOps` surface by delegating to the existing CPU fallback path, with
+  value-semantic coverage in `coeus-cuda/tests/no_cuda_fallback.rs`.
+- [x] [patch] Replaced high-arity `coeus-wgpu` attention and convolution helper
+  calls with typed request structs; verified by clippy and wgpu nextest.
+- [x] [patch] `cargo clippy --workspace --exclude coeus-cuda --all-targets
+  -- -D warnings` passes after the `coeus-wgpu` request-struct refactor.
+- [x] [patch] `cargo fmt --check` passes after workspace formatting.
+- [x] [patch] `cargo check --workspace` passes without excluding `coeus-cuda`.
+- [x] [patch] `cargo clippy --workspace --all-targets -- -D warnings` passes
+  without excluding `coeus-cuda`.
+- [x] [patch] `cargo nextest run --workspace` passes: 227 tests passed, 0
+  skipped. CUDA integration tests are feature-gated under `cuda` because they
+  require `CUDA_TOOLKIT_PATH` and a working CUDA driver.
+- [x] [patch] `cargo test --doc --workspace` passes; four doctests are
+  intentionally ignored.
+- [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
+  for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice
+  elementwise add alongside Coeus Sequential and Moirai.
+- [x] [patch] Added `[profile.bench]` thin LTO with one codegen unit so
+  cross-crate generic kernels are benchmarked after production-grade
+  monomorphization. Evidence tier: empirical Criterion measurement.
+- [x] [minor] Ran a short empirical benchmark pass:
+  `cargo bench -p coeus-tensor --bench tensor_bench -- --warm-up-time 1
+  --measurement-time 2 --sample-size 10`. Evidence tier: empirical Criterion
+  measurement. Median estimates before the bench-profile fix: 1024x1024 add,
+  Coeus Sequential 1.2061 ms, Coeus Moirai 1.2963 ms, ndarray 1.0895 ms,
+  nalgebra 954.33 us, Rayon slice 1.0532 ms; 256x256 matmul, Coeus Sequential
+  6.8640 ms, Coeus Moirai 6.8874 ms, ndarray 595.62 us, nalgebra 585.70 us.
+  Focused post-profile 256x256 matmul measurement: Coeus Sequential 1.0006 ms,
+  Coeus Moirai 1.1146 ms, direct Leto 1.1012 ms, Coeus-Leto dispatch 1.0905 ms,
+  ndarray 557.02 us, nalgebra 557.99 us. Rejected upstream Hermes tiled-GEMM
+  route: Leto 256x256 f64 regressed to 3.6848 ms and Coeus f32 direct Leto
+  regressed to 8.7577 ms; source change was removed. Dense matmul remains a
+  measured optimization target with an approximate 2x gap to ndarray/nalgebra.
+
 ---
 
 ### Workspace Crate Status Matrix

@@ -18,7 +18,12 @@ pub fn cross_entropy_loss(logits: &PyTensor, targets: Vec<usize>, py: Python<'_>
 /// Binary Cross-Entropy Loss.
 #[pyfunction]
 #[pyo3(signature = (pred, target, eps = 1e-7))]
-pub fn binary_cross_entropy(pred: &PyTensor, target: &PyTensor, eps: f64, py: Python<'_>) -> PyTensor {
+pub fn binary_cross_entropy(
+    pred: &PyTensor,
+    target: &PyTensor,
+    eps: f64,
+    py: Python<'_>,
+) -> PyTensor {
     let inner =
         py.allow_threads(|| coeus_nn::loss::binary_cross_entropy(&pred.inner, &target.inner, eps));
     PyTensor { inner }

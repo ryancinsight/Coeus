@@ -1,10 +1,98 @@
-use crate::backend::{WgpuBackend, WgpuScalar};
-use crate::kernels;
-use coeus_core::{Layout, Storage};
+use crate::storage::CudaStorage;
+use coeus_core::{Backend, ComputeBackend, Layout, Scalar, Storage, StorageMut};
 
-mod attention;
+pub trait CudaScalar: Scalar + leto_ops::Scalar {
+    const CUDA_TYPE: &'static str;
+}
 
-impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend {
+impl CudaScalar for f32 {
+    const CUDA_TYPE: &'static str = "float";
+}
+
+impl CudaScalar for f64 {
+    const CUDA_TYPE: &'static str = "double";
+}
+
+impl CudaScalar for half::f16 {
+    const CUDA_TYPE: &'static str = "__half";
+}
+
+impl CudaScalar for half::bf16 {
+    const CUDA_TYPE: &'static str = "__nv_bfloat16";
+}
+
+impl CudaScalar for i32 {
+    const CUDA_TYPE: &'static str = "int";
+}
+
+/// CUDA backend compiled without CUDA provider support.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CudaBackend;
+
+impl coeus_core::backend::private::Sealed for CudaBackend {}
+
+impl CudaBackend {
+    #[inline]
+    pub const fn new() -> Self {
+        Self
+    }
+}
+
+impl ComputeBackend for CudaBackend {
+    type DeviceBuffer<T: Scalar> = CudaStorage<T>;
+    type KernelDescriptor = ();
+    type DispatchFuture<T: Scalar> = std::future::Ready<T>;
+
+    #[inline]
+    fn name(&self) -> &'static str {
+        "cuda-cpu-fallback"
+    }
+
+    #[inline]
+    fn num_threads(&self) -> usize {
+        1
+    }
+
+    #[inline]
+    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+        CudaStorage::new(len)
+    }
+
+    #[inline]
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
+        if let Some(slice) = dst.try_as_mut_slice() {
+            slice.fill(val);
+        }
+    }
+
+    #[inline]
+    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
+        let dst_slice = dst
+            .try_as_mut_slice()
+            .expect("invariant: no-CUDA CudaStorage is CPU-addressable");
+        dst_slice.copy_from_slice(src);
+    }
+
+    #[inline]
+    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
+        let src_slice = src
+            .try_as_slice()
+            .expect("invariant: no-CUDA CudaStorage is CPU-addressable");
+        dst.copy_from_slice(src_slice);
+    }
+}
+
+impl Backend for CudaBackend {
+    #[inline]
+    fn parallel_for<F>(&self, start: usize, end: usize, f: F)
+    where
+        F: Fn(usize) + Send + Sync + 'static,
+    {
+        coeus_core::SequentialBackend::new().parallel_for(start, end, f);
+    }
+}
+
+impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
     #[inline]
     fn elementwise_binary(
         &self,
@@ -16,28 +104,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        if a.len() == c.len()
-            && b.len() == c.len()
-            && a_layout.is_contiguous()
-            && a_layout.offset() == 0
-            && b_layout.is_contiguous()
-            && b_layout.offset() == 0
-            && c_layout.is_contiguous()
-            && c_layout.offset() == 0
-        {
-            kernels::dispatch_contiguous_binary::<T>(op, &a.buffer, &b.buffer, &c.buffer, c.len());
-        } else {
-            kernels::dispatch_binary::<T>(
-                op,
-                &a.buffer,
-                a_layout,
-                &b.buffer,
-                b_layout,
-                &c.buffer,
-                c_layout,
-                c.len(),
-            );
-        }
+        self.fallback_binary(op, a, a_layout, b, b_layout, c, c_layout);
     }
 
     #[inline]
@@ -49,16 +116,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        if a.len() == c.len()
-            && a_layout.is_contiguous()
-            && a_layout.offset() == 0
-            && c_layout.is_contiguous()
-            && c_layout.offset() == 0
-        {
-            kernels::dispatch_contiguous_unary::<T>(op, &a.buffer, &c.buffer, c.len());
-        } else {
-            kernels::dispatch_unary::<T>(op, &a.buffer, a_layout, &c.buffer, c_layout, c.len());
-        }
+        self.fallback_unary(op, a, a_layout, c, c_layout);
     }
 
     #[inline]
@@ -71,9 +129,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        kernels::dispatch_matmul::<T>(
-            &a.buffer, a_layout, &b.buffer, b_layout, &c.buffer, c_layout,
-        );
+        self.fallback_matmul(a, a_layout, b, b_layout, c, c_layout);
     }
 
     #[inline]
@@ -86,7 +142,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        kernels::dispatch_reduce::<T>(op, &a.buffer, a_layout, axis, &c.buffer, c_layout);
+        self.fallback_reduce(op, a, a_layout, axis, c, c_layout);
     }
 
     #[inline]
@@ -103,20 +159,18 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        let out_numel = output_layout.shape().iter().product::<usize>();
-        kernels::dispatch_conv1d::<T>(kernels::Conv1dDispatch {
-            input: &input.buffer,
-            weight: &weight.buffer,
-            bias: bias.map(|b| b.buffer.raw()),
-            output: &output.buffer,
+        self.fallback_conv1d(
+            input,
             input_layout,
+            weight,
             weight_layout,
-            output_layout,
+            bias,
             stride,
             padding,
             dilation,
-            out_numel,
-        });
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -137,22 +191,22 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         padding: usize,
         dilation: usize,
     ) {
-        kernels::dispatch_conv1d_backward::<T>(kernels::Conv1dBackwardDispatch {
-            grad_out: &grad_out.buffer,
+        self.fallback_conv1d_backward(
+            grad_out,
             grad_out_layout,
-            input: &input.buffer,
+            input,
             input_layout,
-            weight: &weight.buffer,
+            weight,
             weight_layout,
-            grad_input: grad_input.map(|gi| gi.buffer.raw()),
+            grad_input,
             grad_input_layout,
-            grad_weight: grad_weight.map(|gw| gw.buffer.raw()),
+            grad_weight,
             grad_weight_layout,
-            grad_bias: grad_bias.map(|gb| gb.buffer.raw()),
+            grad_bias,
             stride,
             padding,
             dilation,
-        });
+        );
     }
 
     #[inline]
@@ -169,20 +223,18 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        let out_numel = output_layout.shape().iter().product::<usize>();
-        kernels::dispatch_conv2d::<T>(kernels::Conv2dDispatch {
-            input: &input.buffer,
-            weight: &weight.buffer,
-            bias: bias.map(|b| b.buffer.raw()),
-            output: &output.buffer,
+        self.fallback_conv2d(
+            input,
             input_layout,
+            weight,
             weight_layout,
-            output_layout,
+            bias,
             stride,
             padding,
             dilation,
-            out_numel,
-        });
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -203,22 +255,22 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         padding: usize,
         dilation: usize,
     ) {
-        kernels::dispatch_conv2d_backward::<T>(kernels::Conv2dBackwardDispatch {
-            grad_out: &grad_out.buffer,
+        self.fallback_conv2d_backward(
+            grad_out,
             grad_out_layout,
-            input: &input.buffer,
+            input,
             input_layout,
-            weight: &weight.buffer,
+            weight,
             weight_layout,
-            grad_input: grad_input.map(|gi| gi.buffer.raw()),
+            grad_input,
             grad_input_layout,
-            grad_weight: grad_weight.map(|gw| gw.buffer.raw()),
+            grad_weight,
             grad_weight_layout,
-            grad_bias: grad_bias.map(|gb| gb.buffer.raw()),
+            grad_bias,
             stride,
             padding,
             dilation,
-        });
+        );
     }
 
     #[inline]
@@ -235,19 +287,18 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        kernels::dispatch_conv3d::<T>(kernels::Conv3dDispatch {
-            input: &input.buffer,
-            weight: &weight.buffer,
-            bias: bias.map(|b| b.buffer.raw()),
-            output: &output.buffer,
+        self.fallback_conv3d(
+            input,
             input_layout,
+            weight,
             weight_layout,
-            output_layout,
+            bias,
             stride,
             padding,
             dilation,
-            out_numel: output.len(),
-        });
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -268,22 +319,22 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         padding: usize,
         dilation: usize,
     ) {
-        kernels::dispatch_conv3d_backward::<T>(kernels::Conv3dBackwardDispatch {
-            grad_out: &grad_out.buffer,
+        self.fallback_conv3d_backward(
+            grad_out,
             grad_out_layout,
-            input: &input.buffer,
+            input,
             input_layout,
-            weight: &weight.buffer,
+            weight,
             weight_layout,
-            grad_input: grad_input.map(|gi| gi.buffer.raw()),
+            grad_input,
             grad_input_layout,
-            grad_weight: grad_weight.map(|gw| gw.buffer.raw()),
+            grad_weight,
             grad_weight_layout,
-            grad_bias: grad_bias.map(|gb| gb.buffer.raw()),
+            grad_bias,
             stride,
             padding,
             dilation,
-        });
+        );
     }
 
     #[inline]
@@ -298,16 +349,15 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        kernels::dispatch_max_pool2d::<T>(
-            &input.buffer,
+        self.fallback_max_pool2d(
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &output.buffer,
+            output,
             output_layout,
-            output.len(),
         );
     }
 
@@ -325,18 +375,17 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        kernels::dispatch_max_pool2d_backward::<T>(
-            &grad_out.buffer,
+        self.fallback_max_pool2d_backward(
+            grad_out,
             grad_out_layout,
-            &input.buffer,
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &grad_input.buffer,
+            grad_input,
             grad_input_layout,
-            grad_input.len(),
         );
     }
 
@@ -352,16 +401,15 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        kernels::dispatch_avg_pool2d::<T>(
-            &input.buffer,
+        self.fallback_avg_pool2d(
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &output.buffer,
+            output,
             output_layout,
-            output.len(),
         );
     }
 
@@ -377,16 +425,15 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        kernels::dispatch_avg_pool2d_backward::<T>(
-            &grad_out.buffer,
+        self.fallback_avg_pool2d_backward(
+            grad_out,
             grad_out_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &grad_input.buffer,
+            grad_input,
             grad_input_layout,
-            grad_input.len(),
         );
     }
 
@@ -402,16 +449,15 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        kernels::dispatch_max_pool3d::<T>(
-            &input.buffer,
+        self.fallback_max_pool3d(
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &output.buffer,
+            output,
             output_layout,
-            output.len(),
         );
     }
 
@@ -429,18 +475,17 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        kernels::dispatch_max_pool3d_backward::<T>(
-            &grad_out.buffer,
+        self.fallback_max_pool3d_backward(
+            grad_out,
             grad_out_layout,
-            &input.buffer,
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &grad_input.buffer,
+            grad_input,
             grad_input_layout,
-            grad_input.len(),
         );
     }
 
@@ -456,16 +501,15 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        kernels::dispatch_avg_pool3d::<T>(
-            &input.buffer,
+        self.fallback_avg_pool3d(
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &output.buffer,
+            output,
             output_layout,
-            output.len(),
         );
     }
 
@@ -481,16 +525,15 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        kernels::dispatch_avg_pool3d_backward::<T>(
-            &grad_out.buffer,
+        self.fallback_avg_pool3d_backward(
+            grad_out,
             grad_out_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &grad_input.buffer,
+            grad_input,
             grad_input_layout,
-            grad_input.len(),
         );
     }
 
@@ -514,8 +557,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
     ) where
         T: coeus_core::Float,
     {
-        attention::sdp_attention(attention::AttentionForward {
-            backend: self,
+        self.fallback_sdp_attention(
             query,
             query_layout,
             key,
@@ -530,11 +572,10 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
             output_layout,
             attn_weights,
             attn_weights_layout,
-        });
+        );
     }
 
     #[inline]
-    #[allow(clippy::too_many_arguments)]
     fn sdp_attention_backward(
         &self,
         grad_out: &Self::DeviceBuffer<T>,
@@ -554,8 +595,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
     ) where
         T: coeus_core::Float,
     {
-        attention::sdp_attention_backward(attention::AttentionBackward {
-            backend: self,
+        self.fallback_sdp_attention_backward(
             grad_out,
             grad_out_layout,
             query,
@@ -570,7 +610,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
             grad_q,
             grad_k,
             grad_v,
-        });
+        );
     }
 
     #[inline]
@@ -587,17 +627,15 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
     ) where
         T: coeus_core::Float,
     {
-        let len = param_layout.shape().iter().product::<usize>();
-        kernels::dispatch_sgd_step::<T>(
-            &param.buffer,
+        self.fallback_sgd_step(
+            param,
             param_layout,
-            &grad.buffer,
+            grad,
             grad_layout,
-            &velocity.buffer,
+            velocity,
             velocity_layout,
             lr,
             momentum,
-            len,
         );
     }
 
@@ -620,22 +658,20 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
     ) where
         T: coeus_core::Float,
     {
-        let len = param_layout.shape().iter().product::<usize>();
-        kernels::dispatch_adam_step::<T>(
-            &param.buffer,
+        self.fallback_adam_step(
+            param,
             param_layout,
-            &grad.buffer,
+            grad,
             grad_layout,
-            &m.buffer,
+            m,
             m_layout,
-            &v.buffer,
+            v,
             v_layout,
             lr,
             beta1,
             beta2,
             eps,
             t,
-            len,
         );
     }
 
@@ -654,18 +690,16 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
     ) where
         T: coeus_core::Float,
     {
-        let len = param_layout.shape().iter().product::<usize>();
-        kernels::dispatch_rmsprop_step::<T>(
-            &param.buffer,
+        self.fallback_rmsprop_step(
+            param,
             param_layout,
-            &grad.buffer,
+            grad,
             grad_layout,
-            &v.buffer,
+            v,
             v_layout,
             lr,
             alpha,
             eps,
-            len,
         );
     }
 
@@ -689,15 +723,14 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
     ) where
         T: coeus_core::Float,
     {
-        let len = param_layout.shape().iter().product::<usize>();
-        kernels::dispatch_adamw_step::<T>(
-            &param.buffer,
+        self.fallback_adamw_step(
+            param,
             param_layout,
-            &grad.buffer,
+            grad,
             grad_layout,
-            &m.buffer,
+            m,
             m_layout,
-            &v.buffer,
+            v,
             v_layout,
             lr,
             beta1,
@@ -705,7 +738,6 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
             eps,
             weight_decay,
             t,
-            len,
         );
     }
 
@@ -723,17 +755,15 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
     ) where
         T: coeus_core::Float,
     {
-        let len = param_layout.shape().iter().product::<usize>();
-        kernels::dispatch_adagrad_step::<T>(
-            &param.buffer,
+        self.fallback_adagrad_step(
+            param,
             param_layout,
-            &grad.buffer,
+            grad,
             grad_layout,
-            &history.buffer,
+            history,
             history_layout,
             lr,
             eps,
-            len,
         );
     }
 }

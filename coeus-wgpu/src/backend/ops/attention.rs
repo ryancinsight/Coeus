@@ -1,27 +1,66 @@
 use crate::backend::WgpuBackend;
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Layout, SequentialBackend,
-    Storage,
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Layout,
+    SequentialBackend, Storage,
 };
 use coeus_ops::BackendOps;
 
-pub fn sdp_attention<T: Float + leto_ops::Scalar>(
-    backend: &WgpuBackend,
-    query: &<WgpuBackend as ComputeBackend>::DeviceBuffer<T>,
-    query_layout: &Layout,
-    key: &<WgpuBackend as ComputeBackend>::DeviceBuffer<T>,
-    key_layout: &Layout,
-    value: &<WgpuBackend as ComputeBackend>::DeviceBuffer<T>,
-    value_layout: &Layout,
-    key_padding_mask: Option<&<WgpuBackend as ComputeBackend>::DeviceBuffer<T>>,
-    key_padding_mask_layout: Option<&Layout>,
-    is_causal: bool,
-    scale: T,
-    output: &mut <WgpuBackend as ComputeBackend>::DeviceBuffer<T>,
-    output_layout: &Layout,
-    attn_weights: &mut <WgpuBackend as ComputeBackend>::DeviceBuffer<T>,
-    attn_weights_layout: &Layout,
-) {
+type WgpuBuffer<T> = <WgpuBackend as ComputeBackend>::DeviceBuffer<T>;
+
+pub struct AttentionForward<'a, T: Float> {
+    pub backend: &'a WgpuBackend,
+    pub query: &'a WgpuBuffer<T>,
+    pub query_layout: &'a Layout,
+    pub key: &'a WgpuBuffer<T>,
+    pub key_layout: &'a Layout,
+    pub value: &'a WgpuBuffer<T>,
+    pub value_layout: &'a Layout,
+    pub key_padding_mask: Option<&'a WgpuBuffer<T>>,
+    pub key_padding_mask_layout: Option<&'a Layout>,
+    pub is_causal: bool,
+    pub scale: T,
+    pub output: &'a mut WgpuBuffer<T>,
+    pub output_layout: &'a Layout,
+    pub attn_weights: &'a mut WgpuBuffer<T>,
+    pub attn_weights_layout: &'a Layout,
+}
+
+pub struct AttentionBackward<'a, T: Float> {
+    pub backend: &'a WgpuBackend,
+    pub grad_out: &'a WgpuBuffer<T>,
+    pub grad_out_layout: &'a Layout,
+    pub query: &'a WgpuBuffer<T>,
+    pub query_layout: &'a Layout,
+    pub key: &'a WgpuBuffer<T>,
+    pub key_layout: &'a Layout,
+    pub value: &'a WgpuBuffer<T>,
+    pub value_layout: &'a Layout,
+    pub attn_weights: &'a WgpuBuffer<T>,
+    pub attn_weights_layout: &'a Layout,
+    pub scale: T,
+    pub grad_q: Option<&'a mut WgpuBuffer<T>>,
+    pub grad_k: Option<&'a mut WgpuBuffer<T>>,
+    pub grad_v: Option<&'a mut WgpuBuffer<T>>,
+}
+
+pub fn sdp_attention<T: Float + leto_ops::Scalar>(request: AttentionForward<'_, T>) {
+    let AttentionForward {
+        backend,
+        query,
+        query_layout,
+        key,
+        key_layout,
+        value,
+        value_layout,
+        key_padding_mask,
+        key_padding_mask_layout,
+        is_causal,
+        scale,
+        output,
+        output_layout,
+        attn_weights,
+        attn_weights_layout,
+    } = request;
     let seq = SequentialBackend::new();
     let q_len = query.len();
     let k_len = key.len();
@@ -64,24 +103,24 @@ pub fn sdp_attention<T: Float + leto_ops::Scalar>(
     backend.copy_to_device(aw_cpu.as_slice(), attn_weights);
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn sdp_attention_backward<T: Float + leto_ops::Scalar>(
-    backend: &WgpuBackend,
-    grad_out: &<WgpuBackend as ComputeBackend>::DeviceBuffer<T>,
-    grad_out_layout: &Layout,
-    query: &<WgpuBackend as ComputeBackend>::DeviceBuffer<T>,
-    query_layout: &Layout,
-    key: &<WgpuBackend as ComputeBackend>::DeviceBuffer<T>,
-    key_layout: &Layout,
-    value: &<WgpuBackend as ComputeBackend>::DeviceBuffer<T>,
-    value_layout: &Layout,
-    attn_weights: &<WgpuBackend as ComputeBackend>::DeviceBuffer<T>,
-    attn_weights_layout: &Layout,
-    scale: T,
-    grad_q: Option<&mut <WgpuBackend as ComputeBackend>::DeviceBuffer<T>>,
-    grad_k: Option<&mut <WgpuBackend as ComputeBackend>::DeviceBuffer<T>>,
-    grad_v: Option<&mut <WgpuBackend as ComputeBackend>::DeviceBuffer<T>>,
-) {
+pub fn sdp_attention_backward<T: Float + leto_ops::Scalar>(request: AttentionBackward<'_, T>) {
+    let AttentionBackward {
+        backend,
+        grad_out,
+        grad_out_layout,
+        query,
+        query_layout,
+        key,
+        key_layout,
+        value,
+        value_layout,
+        attn_weights,
+        attn_weights_layout,
+        scale,
+        grad_q,
+        grad_k,
+        grad_v,
+    } = request;
     let seq = SequentialBackend::new();
     let go_len = grad_out.len();
     let q_len = query.len();

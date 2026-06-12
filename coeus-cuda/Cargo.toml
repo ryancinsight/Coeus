@@ -14,7 +14,11 @@ libloading   = "0.8"
 bytemuck     = { workspace = true }
 thiserror    = { workspace = true }
 half         = { workspace = true }
-cutile       = { git = "https://github.com/NVlabs/cutile-rs" }
-cuda-core    = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-core" }
-cuda-async   = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-async" }
+cutile       = { git = "https://github.com/NVlabs/cutile-rs", optional = true }
+cuda-core    = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-core", optional = true }
+cuda-async   = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-async", optional = true }
+
+[features]
+default = []
+cuda = ["dep:cutile", "dep:cuda-core", "dep:cuda-async"]
 

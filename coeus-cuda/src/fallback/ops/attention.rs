@@ -1,3 +1,9 @@
+#![allow(
+    clippy::multiple_bound_locations,
+    clippy::too_many_arguments,
+    reason = "fallback methods mirror the BackendOps device boundary signatures"
+)]
+
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::storage::CudaStorage;
 use coeus_core::{ComputeBackend, Layout, Storage};

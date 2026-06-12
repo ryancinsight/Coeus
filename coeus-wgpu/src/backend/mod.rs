@@ -170,9 +170,11 @@ impl ComputeBackend for WgpuBackend {
 
         let staging_buffer = ctx.hephaestus_device.get_staging_buffer(size_in_bytes);
 
-        let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("coeus-wgpu-read-encoder"),
-        });
+        let mut encoder = ctx
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("coeus-wgpu-read-encoder"),
+            });
         encoder.copy_buffer_to_buffer(src.buffer.raw(), 0, &staging_buffer, 0, size_in_bytes);
         ctx.queue.submit(Some(encoder.finish()));
 

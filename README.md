@@ -55,10 +55,33 @@ cargo build --workspace
 ### Run Test Suite
 Runs all numerical validation, sparse format, autograd, and FFT parity tests:
 ```bash
-cargo test --workspace
+cargo nextest run --workspace
+```
+
+Run doctests separately because nextest does not execute them:
+```bash
+cargo test --doc --workspace
 ```
 
 ### Run Clippy Lints
 ```bash
-cargo clippy --all-targets
+cargo clippy --all-targets --all-features -- -D warnings
+```
+
+The default `coeus-cuda` build compiles a CPU-backed fallback provider so the
+full workspace can be checked on hosts without CUDA. Real cutile-backed CUDA
+integration is explicit:
+```bash
+cargo test -p coeus-cuda --features cuda
+```
+That CUDA feature requires `CUDA_TOOLKIT_PATH` and a working CUDA driver.
+
+### Run Benchmarks
+`coeus-tensor` contains Criterion baselines for Coeus Sequential, Coeus Moirai,
+direct Leto, the Coeus-Leto dispatch shim, `ndarray`, `nalgebra`, and a Rayon
+slice elementwise baseline. The workspace bench profile uses thin LTO and one
+codegen unit so generic cross-crate kernels are measured with production-grade
+monomorphization:
+```bash
+cargo bench -p coeus-tensor --bench tensor_bench
 ```

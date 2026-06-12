@@ -139,5 +139,3 @@ fn test_cuda_evaluate_fused_reduce() {
         assert_eq!(min_seq.as_slice(), &[0.0, 0.0]);
     }
 }
-
-

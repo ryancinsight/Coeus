@@ -11,10 +11,7 @@ pub fn to_leto_layout<const N: usize>(layout: &CoeusLayout) -> Result<Layout<N>>
     let strides = layout.strides();
     if shape.len() > N {
         return Err(LetoError::StorageError {
-            reason: format!(
-                "coeus rank {} exceeds leto const rank {N}",
-                shape.len()
-            ),
+            reason: format!("coeus rank {} exceeds leto const rank {N}", shape.len()),
         });
     }
 

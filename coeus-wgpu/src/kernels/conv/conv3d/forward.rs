@@ -2,19 +2,34 @@ use crate::backend::WgpuScalar;
 use crate::kernels::cache::PIPELINE_CACHE;
 use crate::kernels::layout::GpuLayoutInfo;
 
-pub fn dispatch_conv3d<T: WgpuScalar>(
-    input: &wgpu::Buffer,
-    weight: &wgpu::Buffer,
-    bias: Option<&wgpu::Buffer>,
-    output: &wgpu::Buffer,
-    input_layout: &coeus_core::Layout,
-    weight_layout: &coeus_core::Layout,
-    output_layout: &coeus_core::Layout,
-    stride: usize,
-    padding: usize,
-    dilation: usize,
-    out_numel: usize,
-) {
+pub struct Conv3dDispatch<'a> {
+    pub input: &'a wgpu::Buffer,
+    pub weight: &'a wgpu::Buffer,
+    pub bias: Option<&'a wgpu::Buffer>,
+    pub output: &'a wgpu::Buffer,
+    pub input_layout: &'a coeus_core::Layout,
+    pub weight_layout: &'a coeus_core::Layout,
+    pub output_layout: &'a coeus_core::Layout,
+    pub stride: usize,
+    pub padding: usize,
+    pub dilation: usize,
+    pub out_numel: usize,
+}
+
+pub fn dispatch_conv3d<T: WgpuScalar>(request: Conv3dDispatch<'_>) {
+    let Conv3dDispatch {
+        input,
+        weight,
+        bias,
+        output,
+        input_layout,
+        weight_layout,
+        output_layout,
+        stride,
+        padding,
+        dilation,
+        out_numel,
+    } = request;
     let ctx = crate::backend::get_wgpu_context();
 
     let in_layout_gpu = GpuLayoutInfo::from_layout(input_layout);

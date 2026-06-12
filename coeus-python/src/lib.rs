@@ -10,12 +10,12 @@ pub mod activations;
 pub mod dist;
 pub mod losses;
 pub mod nn;
-pub mod optim;
 pub mod ops;
+pub mod optim;
 pub mod tensor;
 
+use dist::{PyMockCommunicator, PyTcpCommunicator, PyTcpMesh};
 use tensor::PyTensor;
-use dist::{PyMockCommunicator, PyTcpMesh, PyTcpCommunicator};
 
 /// PyCoeus extension module definition.
 #[pymodule]

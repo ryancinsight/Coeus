@@ -1,6 +1,4 @@
-use coeus_autograd::{
-    cumsum, log_sum_exp, max_axis, mean_axis, min_axis, sum_axis, Var,
-};
+use coeus_autograd::{cumsum, log_sum_exp, max_axis, mean_axis, min_axis, sum_axis, Var};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
@@ -61,8 +59,16 @@ fn test_max_axis_autograd() {
 
     let y = max_axis(&x, 1);
     let y_slice = y.tensor.as_slice();
-    assert!((y_slice[0] - 3.0).abs() < 1e-10, "max row 0: {}", y_slice[0]);
-    assert!((y_slice[1] - 5.0).abs() < 1e-10, "max row 1: {}", y_slice[1]);
+    assert!(
+        (y_slice[0] - 3.0).abs() < 1e-10,
+        "max row 0: {}",
+        y_slice[0]
+    );
+    assert!(
+        (y_slice[1] - 5.0).abs() < 1e-10,
+        "max row 1: {}",
+        y_slice[1]
+    );
     assert_eq!(y.tensor.shape(), &[2, 1]);
 
     let seed = Tensor::from_slice_on(vec![2, 1], &[1.0f64, 1.0], &backend);
@@ -127,7 +133,12 @@ fn test_log_sum_exp_autograd() {
     let e2 = 2.0f64.exp();
     let e3 = 3.0f64.exp();
     let expected_lse = (e1 + e2 + e3).ln();
-    assert!((lse_val - expected_lse).abs() < 1e-9, "lse value: {} vs {}", lse_val, expected_lse);
+    assert!(
+        (lse_val - expected_lse).abs() < 1e-9,
+        "lse value: {} vs {}",
+        lse_val,
+        expected_lse
+    );
 
     let seed = Tensor::from_slice_on(vec![1], &[1.0f64], &backend);
     lse.backward_with_seed(seed);
@@ -137,11 +148,30 @@ fn test_log_sum_exp_autograd() {
     let sm0 = e1 / sum_exp;
     let sm1 = e2 / sum_exp;
     let sm2 = e3 / sum_exp;
-    assert!((gx_s[0] - sm0).abs() < 1e-9, "lse grad[0]: {} vs {}", gx_s[0], sm0);
-    assert!((gx_s[1] - sm1).abs() < 1e-9, "lse grad[1]: {} vs {}", gx_s[1], sm1);
-    assert!((gx_s[2] - sm2).abs() < 1e-9, "lse grad[2]: {} vs {}", gx_s[2], sm2);
+    assert!(
+        (gx_s[0] - sm0).abs() < 1e-9,
+        "lse grad[0]: {} vs {}",
+        gx_s[0],
+        sm0
+    );
+    assert!(
+        (gx_s[1] - sm1).abs() < 1e-9,
+        "lse grad[1]: {} vs {}",
+        gx_s[1],
+        sm1
+    );
+    assert!(
+        (gx_s[2] - sm2).abs() < 1e-9,
+        "lse grad[2]: {} vs {}",
+        gx_s[2],
+        sm2
+    );
     let grad_sum = gx_s[0] + gx_s[1] + gx_s[2];
-    assert!((grad_sum - 1.0).abs() < 1e-9, "softmax sums to {}", grad_sum);
+    assert!(
+        (grad_sum - 1.0).abs() < 1e-9,
+        "softmax sums to {}",
+        grad_sum
+    );
 }
 
 #[test]
@@ -161,7 +191,11 @@ fn test_cumsum_autograd() {
     y.backward_with_seed(seed);
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
-    assert!((gx_s[0] - 10.0).abs() < 1e-10, "cumsum grad[0]: {}", gx_s[0]);
+    assert!(
+        (gx_s[0] - 10.0).abs() < 1e-10,
+        "cumsum grad[0]: {}",
+        gx_s[0]
+    );
     assert!((gx_s[1] - 9.0).abs() < 1e-10, "cumsum grad[1]: {}", gx_s[1]);
     assert!((gx_s[2] - 7.0).abs() < 1e-10, "cumsum grad[2]: {}", gx_s[2]);
     assert!((gx_s[3] - 4.0).abs() < 1e-10, "cumsum grad[3]: {}", gx_s[3]);

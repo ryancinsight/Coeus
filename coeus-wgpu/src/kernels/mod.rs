@@ -12,7 +12,8 @@ pub mod unary;
 pub use binary::{dispatch_binary, dispatch_contiguous_binary};
 pub use conv::{
     dispatch_conv1d, dispatch_conv1d_backward, dispatch_conv2d, dispatch_conv2d_backward,
-    dispatch_conv3d, dispatch_conv3d_backward,
+    dispatch_conv3d, dispatch_conv3d_backward, Conv1dBackwardDispatch, Conv1dDispatch,
+    Conv2dBackwardDispatch, Conv2dDispatch, Conv3dBackwardDispatch, Conv3dDispatch,
 };
 pub use fuse::dispatch_fused;
 pub use matmul::dispatch_matmul;

@@ -20,7 +20,9 @@ pub mod storage;
 
 // Re-export the most commonly used items
 pub use backend::{Backend, ComputeBackend, MoiraiBackend, SequentialBackend};
-pub use dtype::{BinaryOp, Complex, CpuUnaryDispatch, CpuUnaryOp, Float, FloatOps, Int, ReductionOp, Scalar};
+pub use dtype::{
+    BinaryOp, Complex, CpuUnaryDispatch, CpuUnaryOp, Float, FloatOps, Int, ReductionOp, Scalar,
+};
 pub use layout::{ConstLayout, ConstShape, Layout, Shape, Strides};
 pub use ptr::{SendPtr, SendPtrMut};
 pub use storage::{

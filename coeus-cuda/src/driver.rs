@@ -79,13 +79,13 @@ unsafe extern "C" fn local_cu_device_get(device: *mut CUdevice, ordinal: i32) ->
     res as CUresult
 }
 
-unsafe extern "C" fn local_cu_ctx_create(pctx: *mut CUcontext, flags: u32, dev: CUdevice) -> CUresult {
-    cuda_core::sys::cuCtxCreate_v4(
-        pctx as *mut *mut _,
-        std::ptr::null_mut(),
-        flags,
-        dev,
-    ) as CUresult
+unsafe extern "C" fn local_cu_ctx_create(
+    pctx: *mut CUcontext,
+    flags: u32,
+    dev: CUdevice,
+) -> CUresult {
+    cuda_core::sys::cuCtxCreate_v4(pctx as *mut *mut _, std::ptr::null_mut(), flags, dev)
+        as CUresult
 }
 
 unsafe extern "C" fn local_cu_mem_alloc(dptr: *mut CUdeviceptr, bytesize: usize) -> CUresult {
@@ -96,23 +96,42 @@ unsafe extern "C" fn local_cu_mem_free(dptr: CUdeviceptr) -> CUresult {
     cuda_core::sys::cuMemFree_v2(dptr) as CUresult
 }
 
-unsafe extern "C" fn local_cu_memcpy_htod(dst: CUdeviceptr, src: *const std::ffi::c_void, bytesize: usize) -> CUresult {
+unsafe extern "C" fn local_cu_memcpy_htod(
+    dst: CUdeviceptr,
+    src: *const std::ffi::c_void,
+    bytesize: usize,
+) -> CUresult {
     cuda_core::sys::cuMemcpyHtoD_v2(dst, src, bytesize) as CUresult
 }
 
-unsafe extern "C" fn local_cu_memcpy_dtoh(dst: *mut std::ffi::c_void, src: CUdeviceptr, bytesize: usize) -> CUresult {
+unsafe extern "C" fn local_cu_memcpy_dtoh(
+    dst: *mut std::ffi::c_void,
+    src: CUdeviceptr,
+    bytesize: usize,
+) -> CUresult {
     cuda_core::sys::cuMemcpyDtoH_v2(dst, src, bytesize) as CUresult
 }
 
-unsafe extern "C" fn local_cu_memcpy_dtod(dst: CUdeviceptr, src: CUdeviceptr, bytesize: usize) -> CUresult {
+unsafe extern "C" fn local_cu_memcpy_dtod(
+    dst: CUdeviceptr,
+    src: CUdeviceptr,
+    bytesize: usize,
+) -> CUresult {
     cuda_core::sys::cuMemcpyDtoD_v2(dst, src, bytesize) as CUresult
 }
 
-unsafe extern "C" fn local_cu_module_load_data(module: *mut CUmodule, image: *const std::ffi::c_void) -> CUresult {
+unsafe extern "C" fn local_cu_module_load_data(
+    module: *mut CUmodule,
+    image: *const std::ffi::c_void,
+) -> CUresult {
     cuda_core::sys::cuModuleLoadData(module as *mut *mut _, image) as CUresult
 }
 
-unsafe extern "C" fn local_cu_module_get_function(hfunc: *mut CUfunction, hmod: CUmodule, name: *const std::ffi::c_char) -> CUresult {
+unsafe extern "C" fn local_cu_module_get_function(
+    hfunc: *mut CUfunction,
+    hmod: CUmodule,
+    name: *const std::ffi::c_char,
+) -> CUresult {
     cuda_core::sys::cuModuleGetFunction(hfunc as *mut *mut _, hmod as *mut _, name) as CUresult
 }
 
@@ -211,12 +230,7 @@ static BORROWED_STREAM: OnceLock<Option<Arc<cuda_core::Stream>>> = OnceLock::new
 /// Retrieve the borrowed cutile Device wrapper.
 pub fn get_borrowed_device() -> Option<Arc<cuda_core::Device>> {
     BORROWED_DEVICE
-        .get_or_init(|| {
-            cuda_async::device_context::with_device(0, |device| {
-                device.clone()
-            })
-            .ok()
-        })
+        .get_or_init(|| cuda_async::device_context::with_device(0, |device| device.clone()).ok())
         .clone()
 }
 
@@ -324,7 +338,9 @@ fn find_nvrtc_library() -> Option<Library> {
                     if path.is_file() {
                         if let Some(filename) = path.file_name().and_then(|s| s.to_str()) {
                             let matches = if cfg!(windows) {
-                                filename.starts_with("nvrtc") && !filename.contains("builtins") && filename.ends_with(".dll")
+                                filename.starts_with("nvrtc")
+                                    && !filename.contains("builtins")
+                                    && filename.ends_with(".dll")
                             } else {
                                 filename.starts_with("libnvrtc")
                                     && (filename.ends_with(".so") || filename.contains(".so."))

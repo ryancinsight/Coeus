@@ -1,5 +1,5 @@
 use coeus_autograd::Var;
-use coeus_nn::{init, Conv3d, BatchNorm3d, MaxPool3d, AvgPool3d, Module};
+use coeus_nn::{init, AvgPool3d, BatchNorm3d, Conv3d, MaxPool3d, Module};
 use coeus_tensor::Tensor;
 
 #[test]

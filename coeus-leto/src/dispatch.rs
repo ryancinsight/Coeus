@@ -1,5 +1,7 @@
 use crate::convert::{to_leto_view, to_leto_view_mut};
-use coeus_core::{BinaryOp, CpuUnaryOp as UnaryOp, Layout as CoeusLayout, ReductionOp, Scalar as CoeusScalar};
+use coeus_core::{
+    BinaryOp, CpuUnaryOp as UnaryOp, Layout as CoeusLayout, ReductionOp, Scalar as CoeusScalar,
+};
 use leto::{LetoError, Result};
 use leto_ops::{MaxAxis, MinAxis, Scalar as LetoScalar, SumAxis};
 
@@ -150,9 +152,15 @@ fn reduce_n<T: LetoScalar, const N: usize>(
     let a_view = to_leto_view::<T, N>(a_layout, a)?;
     let mut out_view = to_leto_view_mut::<T, N>(out_layout, out)?;
     match op {
-        ReductionOp::Sum => leto_ops::reduce_axis_into::<SumAxis, T, N>(&a_view, axis, &mut out_view),
-        ReductionOp::Max => leto_ops::reduce_axis_into::<MaxAxis, T, N>(&a_view, axis, &mut out_view),
-        ReductionOp::Min => leto_ops::reduce_axis_into::<MinAxis, T, N>(&a_view, axis, &mut out_view),
+        ReductionOp::Sum => {
+            leto_ops::reduce_axis_into::<SumAxis, T, N>(&a_view, axis, &mut out_view)
+        }
+        ReductionOp::Max => {
+            leto_ops::reduce_axis_into::<MaxAxis, T, N>(&a_view, axis, &mut out_view)
+        }
+        ReductionOp::Min => {
+            leto_ops::reduce_axis_into::<MinAxis, T, N>(&a_view, axis, &mut out_view)
+        }
     }
 }
 

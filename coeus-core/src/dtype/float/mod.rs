@@ -1,3 +1,3 @@
-mod native;
-mod half;
 mod cpu_unary;
+mod half;
+mod native;

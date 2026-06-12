@@ -126,8 +126,7 @@ fn test_wgpu_avg_pool2d() {
     let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
 
     let expected_gi = vec![
-        0.25f32, 0.25, 0.5, 0.5, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1.0, 1.0, 0.75, 0.75, 1.0,
-        1.0,
+        0.25f32, 0.25, 0.5, 0.5, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1.0, 1.0, 0.75, 0.75, 1.0, 1.0,
     ];
     assert_eq!(gi_wgpu_cpu.as_slice(), &expected_gi);
 }

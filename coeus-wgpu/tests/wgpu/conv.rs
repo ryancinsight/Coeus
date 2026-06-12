@@ -71,8 +71,7 @@ fn test_wgpu_conv() {
 
     // 2D Convolution
     let input_2d_data = vec![
-        1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
-        16.0,
+        1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
     ];
     let weight_2d_data = vec![1.0f32, 0.0, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0, -1.0];
     let input_2d_seq =
@@ -147,8 +146,7 @@ fn test_wgpu_conv_backward() {
     let input_data = vec![1.0f32, 1.0, 1.0, 1.0, 1.0, 1.0];
     let weight_data = vec![1.0f32, 2.0, 3.0, 4.0];
 
-    let grad_out_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &grad_out_data);
+    let grad_out_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &grad_out_data);
     let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &input_data);
     let weight_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2, 1], &weight_data);
 

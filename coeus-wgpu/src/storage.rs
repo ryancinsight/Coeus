@@ -26,7 +26,10 @@ impl<T: Scalar> WgpuStorage<T> {
     /// Allocate a new GPU buffer for `len` elements.
     pub fn new(len: usize) -> Self {
         let ctx = get_wgpu_context();
-        let buffer = ctx.hephaestus_device.alloc_zeroed::<T>(len).expect("Failed to allocate GPU buffer");
+        let buffer = ctx
+            .hephaestus_device
+            .alloc_zeroed::<T>(len)
+            .expect("Failed to allocate GPU buffer");
         Self {
             buffer: Arc::new(buffer),
         }
@@ -60,7 +63,10 @@ impl<T: Scalar> StorageMut<T> for WgpuStorage<T> {
         if Arc::strong_count(&self.buffer) > 1 {
             let ctx = get_wgpu_context();
             let len = self.buffer.len();
-            let new_buffer = ctx.hephaestus_device.alloc_zeroed::<T>(len).expect("Failed to allocate CoW buffer");
+            let new_buffer = ctx
+                .hephaestus_device
+                .alloc_zeroed::<T>(len)
+                .expect("Failed to allocate CoW buffer");
 
             let size_in_bytes = (len * std::mem::size_of::<T>()).max(4) as u64;
 

@@ -2,22 +2,40 @@ use crate::backend::WgpuScalar;
 use crate::kernels::cache::PIPELINE_CACHE;
 use crate::kernels::layout::GpuLayoutInfo;
 
-pub fn dispatch_conv2d_backward<T: WgpuScalar>(
-    grad_out: &wgpu::Buffer,
-    grad_out_layout: &coeus_core::Layout,
-    input: &wgpu::Buffer,
-    input_layout: &coeus_core::Layout,
-    weight: &wgpu::Buffer,
-    weight_layout: &coeus_core::Layout,
-    grad_input: Option<&wgpu::Buffer>,
-    grad_input_layout: &coeus_core::Layout,
-    grad_weight: Option<&wgpu::Buffer>,
-    grad_weight_layout: &coeus_core::Layout,
-    grad_bias: Option<&wgpu::Buffer>,
-    stride: usize,
-    padding: usize,
-    dilation: usize,
-) {
+pub struct Conv2dBackwardDispatch<'a> {
+    pub grad_out: &'a wgpu::Buffer,
+    pub grad_out_layout: &'a coeus_core::Layout,
+    pub input: &'a wgpu::Buffer,
+    pub input_layout: &'a coeus_core::Layout,
+    pub weight: &'a wgpu::Buffer,
+    pub weight_layout: &'a coeus_core::Layout,
+    pub grad_input: Option<&'a wgpu::Buffer>,
+    pub grad_input_layout: &'a coeus_core::Layout,
+    pub grad_weight: Option<&'a wgpu::Buffer>,
+    pub grad_weight_layout: &'a coeus_core::Layout,
+    pub grad_bias: Option<&'a wgpu::Buffer>,
+    pub stride: usize,
+    pub padding: usize,
+    pub dilation: usize,
+}
+
+pub fn dispatch_conv2d_backward<T: WgpuScalar>(request: Conv2dBackwardDispatch<'_>) {
+    let Conv2dBackwardDispatch {
+        grad_out,
+        grad_out_layout,
+        input,
+        input_layout,
+        weight,
+        weight_layout,
+        grad_input,
+        grad_input_layout,
+        grad_weight,
+        grad_weight_layout,
+        grad_bias,
+        stride,
+        padding,
+        dilation,
+    } = request;
     let ctx = crate::backend::get_wgpu_context();
 
     let go_layout_gpu = GpuLayoutInfo::from_layout(grad_out_layout);

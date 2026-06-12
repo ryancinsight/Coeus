@@ -40,9 +40,21 @@ fn test_abs_autograd() {
     y.backward_with_seed(seed);
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
-    assert!((gx_s[0] - 1.0).abs() < 1e-10, "expected +1 for x>0, got {}", gx_s[0]);
-    assert!((gx_s[1] - (-1.0)).abs() < 1e-10, "expected -1 for x<0, got {}", gx_s[1]);
-    assert!((gx_s[2] - 1.0).abs() < 1e-10, "expected +1 for x>0, got {}", gx_s[2]);
+    assert!(
+        (gx_s[0] - 1.0).abs() < 1e-10,
+        "expected +1 for x>0, got {}",
+        gx_s[0]
+    );
+    assert!(
+        (gx_s[1] - (-1.0)).abs() < 1e-10,
+        "expected -1 for x<0, got {}",
+        gx_s[1]
+    );
+    assert!(
+        (gx_s[2] - 1.0).abs() < 1e-10,
+        "expected +1 for x>0, got {}",
+        gx_s[2]
+    );
 }
 
 #[test]
@@ -61,9 +73,21 @@ fn test_sqrt_autograd() {
     y.backward_with_seed(seed);
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
-    assert!((gx_s[0] - 0.25).abs() < 1e-9, "sqrt backward at 4: {}", gx_s[0]);
-    assert!((gx_s[1] - (1.0 / 6.0)).abs() < 1e-9, "sqrt backward at 9: {}", gx_s[1]);
-    assert!((gx_s[2] - 0.125).abs() < 1e-9, "sqrt backward at 16: {}", gx_s[2]);
+    assert!(
+        (gx_s[0] - 0.25).abs() < 1e-9,
+        "sqrt backward at 4: {}",
+        gx_s[0]
+    );
+    assert!(
+        (gx_s[1] - (1.0 / 6.0)).abs() < 1e-9,
+        "sqrt backward at 9: {}",
+        gx_s[1]
+    );
+    assert!(
+        (gx_s[2] - 0.125).abs() < 1e-9,
+        "sqrt backward at 16: {}",
+        gx_s[2]
+    );
 }
 
 #[test]
@@ -95,19 +119,51 @@ fn test_clamp_autograd() {
 
     let y = coeus_autograd::clamp(&x, 0.0f64, 2.0f64);
     let y_slice = y.tensor.as_slice();
-    assert!((y_slice[0] - 0.0).abs() < 1e-10, "clamp(-1) = {}", y_slice[0]);
-    assert!((y_slice[1] - 0.5).abs() < 1e-10, "clamp(0.5) = {}", y_slice[1]);
-    assert!((y_slice[2] - 1.5).abs() < 1e-10, "clamp(1.5) = {}", y_slice[2]);
-    assert!((y_slice[3] - 2.0).abs() < 1e-10, "clamp(2.5) = {}", y_slice[3]);
+    assert!(
+        (y_slice[0] - 0.0).abs() < 1e-10,
+        "clamp(-1) = {}",
+        y_slice[0]
+    );
+    assert!(
+        (y_slice[1] - 0.5).abs() < 1e-10,
+        "clamp(0.5) = {}",
+        y_slice[1]
+    );
+    assert!(
+        (y_slice[2] - 1.5).abs() < 1e-10,
+        "clamp(1.5) = {}",
+        y_slice[2]
+    );
+    assert!(
+        (y_slice[3] - 2.0).abs() < 1e-10,
+        "clamp(2.5) = {}",
+        y_slice[3]
+    );
 
     let seed = Tensor::from_slice_on(vec![4], &[1.0f64, 1.0, 1.0, 1.0], &backend);
     y.backward_with_seed(seed);
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
-    assert!((gx_s[0] - 0.0).abs() < 1e-10, "clamp grad at -1: {}", gx_s[0]);
-    assert!((gx_s[1] - 1.0).abs() < 1e-10, "clamp grad at 0.5: {}", gx_s[1]);
-    assert!((gx_s[2] - 1.0).abs() < 1e-10, "clamp grad at 1.5: {}", gx_s[2]);
-    assert!((gx_s[3] - 0.0).abs() < 1e-10, "clamp grad at 2.5: {}", gx_s[3]);
+    assert!(
+        (gx_s[0] - 0.0).abs() < 1e-10,
+        "clamp grad at -1: {}",
+        gx_s[0]
+    );
+    assert!(
+        (gx_s[1] - 1.0).abs() < 1e-10,
+        "clamp grad at 0.5: {}",
+        gx_s[1]
+    );
+    assert!(
+        (gx_s[2] - 1.0).abs() < 1e-10,
+        "clamp grad at 1.5: {}",
+        gx_s[2]
+    );
+    assert!(
+        (gx_s[3] - 0.0).abs() < 1e-10,
+        "clamp grad at 2.5: {}",
+        gx_s[3]
+    );
 }
 
 #[test]

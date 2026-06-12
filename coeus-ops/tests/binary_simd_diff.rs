@@ -27,7 +27,12 @@ fn reference<T: Scalar>(op: BinaryOp, x: T, y: T) -> T {
 }
 
 /// Drive the public CPU kernel for one (backend, op, length) and return the host result.
-fn device_binary<T: Scalar + leto_ops::Scalar, B: CpuBackend>(backend: &B, op: BinaryOp, a: &[T], b: &[T]) -> Vec<T>
+fn device_binary<T: Scalar + leto_ops::Scalar, B: CpuBackend>(
+    backend: &B,
+    op: BinaryOp,
+    a: &[T],
+    b: &[T],
+) -> Vec<T>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

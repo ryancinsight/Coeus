@@ -57,10 +57,17 @@ where
         let sum = reduce_last_axis(backend, ReductionOp::Sum, rows, cols, &data);
         for (r, &got) in sum.iter().enumerate() {
             let expected: f32 = rowof(r).iter().copied().sum();
-            let tol = 1e-4 * (1.0 + expected.abs()); // reassociation epsilon
+            // IEEE-754 forward error bound for summing n terms:
+            // gamma_n = n*eps / (1 - n*eps), applied to sum(abs(x_i)).
+            // This admits legal reassociation without hiding input-sensitive errors.
+            let n = cols as f32;
+            let eps = f32::EPSILON;
+            let gamma = (n * eps) / (1.0 - n * eps);
+            let magnitude: f32 = rowof(r).iter().map(|x| x.abs()).sum();
+            let tol = gamma * magnitude;
             assert!(
                 (got - expected).abs() <= tol,
-                "sum row {r} ({rows}x{cols}): got {got}, expected {expected}",
+                "sum row {r} ({rows}x{cols}): got {got}, expected {expected}, tol {tol}",
             );
         }
 

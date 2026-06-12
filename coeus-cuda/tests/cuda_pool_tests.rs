@@ -1,3 +1,5 @@
+#![cfg(feature = "cuda")]
+
 use coeus_core::SequentialBackend;
 use coeus_cuda::CudaBackend;
 use coeus_tensor::Tensor;

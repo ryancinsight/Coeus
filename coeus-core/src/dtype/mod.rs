@@ -7,4 +7,6 @@ mod int;
 mod traits;
 
 pub use complex::Complex;
-pub use traits::{BinaryOp, CpuUnaryDispatch, CpuUnaryOp, Float, FloatOps, Int, ReductionOp, Scalar};
+pub use traits::{
+    BinaryOp, CpuUnaryDispatch, CpuUnaryOp, Float, FloatOps, Int, ReductionOp, Scalar,
+};

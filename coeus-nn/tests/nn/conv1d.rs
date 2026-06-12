@@ -170,7 +170,9 @@ fn test_sliced_offset_cross_entropy() {
     use coeus_nn::cross_entropy_loss;
     let logits_raw = Tensor::<f64, coeus_core::MoiraiBackend>::from_slice(
         vec![4, 3],
-        &[99.0, 99.0, 99.0, 1.0, 2.0, 0.0, 0.0, 2.0, 1.0, 99.0, 99.0, 99.0],
+        &[
+            99.0, 99.0, 99.0, 1.0, 2.0, 0.0, 0.0, 2.0, 1.0, 99.0, 99.0, 99.0,
+        ],
     );
 
     let logits_sliced = logits_raw.slice(&[(1, 3), (0, 3)]);

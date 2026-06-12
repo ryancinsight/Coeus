@@ -21,8 +21,7 @@ fn test_log_softmax_probabilities() {
 fn test_log_softmax_backward() {
     let input: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[1.0f64, 2.0, 3.0]), true);
     let log_probs = coeus_autograd::log_softmax(&input, 1);
-    let target: Var<f64> =
-        Var::new(Tensor::from_slice(vec![1, 3], &[0.0f64, 1.0, 0.0]), false);
+    let target: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[0.0f64, 1.0, 0.0]), false);
     let loss = coeus_nn::loss::mse_loss(&log_probs, &target);
     loss.backward();
     assert!(input.grad().is_some());
