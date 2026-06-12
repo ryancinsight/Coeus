@@ -39,6 +39,11 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     traversal. Evidence: `cargo test -p coeus-leto
     scan_dispatch_covers_forward_and_reverse_axis_ops` and `cargo test -p
     coeus-ops --test scan_leto_diff` pass.
+  - [x] [patch] Added public CPU reduction differential coverage for
+    `sum`/`mean`/`sum_axis`/`mean_axis`/`max_axis`/`min_axis` on
+    `SequentialBackend` and `MoiraiBackend`, including transposed input views.
+    Evidence: `cargo test -p coeus-ops --test public_reduction_leto_diff`
+    passes.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.

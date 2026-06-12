@@ -31,7 +31,7 @@
 - [x] [patch] `cargo check --workspace` passes without excluding `coeus-cuda`.
 - [x] [patch] `cargo clippy --workspace --all-targets -- -D warnings` passes
   without excluding `coeus-cuda`.
-- [x] [patch] `cargo nextest run --workspace` passes: 241 tests passed, 0
+- [x] [patch] `cargo nextest run --workspace` passes: 243 tests passed, 0
   skipped. CUDA integration tests are feature-gated under `cuda` because they
   require `CUDA_TOOLKIT_PATH` and a working CUDA driver.
 - [x] [patch] `cargo test --doc --workspace` passes; four doctests are
@@ -63,6 +63,11 @@
   `coeus-leto` scan dispatch and added value-semantic coverage in
   `coeus-leto/tests/contract.rs` plus `coeus-ops/tests/scan_leto_diff.rs`.
   Evidence: focused scan tests pass.
+- [x] [patch] Added public CPU reduction differential coverage for
+  `sum`/`mean`/`sum_axis`/`mean_axis`/`max_axis`/`min_axis` on
+  `SequentialBackend` and `MoiraiBackend`, including transposed input views.
+  Evidence: `cargo test -p coeus-ops --test public_reduction_leto_diff`
+  passes.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice
   elementwise add alongside Coeus Sequential and Moirai.
