@@ -23,7 +23,7 @@ pub mod dispatch;
 
 pub use convert::{to_leto_layout, to_leto_view, to_leto_view_mut};
 pub use dispatch::{
-    argmax_into, argmin_into, concat_values, cumsum_into, elementwise_add_into,
+    argmax_into, argmin_into, concat_values, contiguous_values, cumsum_into, elementwise_add_into,
     elementwise_binary_into, elementwise_unary_into, matmul_into, normal_values, pad_values,
     reduce_into, split_values, suffix_sum_into, uniform_values, MAX_DISPATCH_RANK,
 };

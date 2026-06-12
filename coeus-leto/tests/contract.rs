@@ -5,7 +5,7 @@ use coeus_core::{
     BinaryOp, CpuAddressableStorage, CpuStorage, CpuUnaryOp, Layout, ReductionOp, Shape, Strides,
 };
 use coeus_leto::{
-    argmax_into, argmin_into, concat_values, cumsum_into, elementwise_add_into,
+    argmax_into, argmin_into, concat_values, contiguous_values, cumsum_into, elementwise_add_into,
     elementwise_binary_into, elementwise_unary_into, matmul_into, normal_values, pad_values,
     reduce_into, split_values, suffix_sum_into, to_leto_view, uniform_values,
 };
@@ -269,6 +269,26 @@ fn random_dispatch_matches_leto_seeded_constructors() {
     let normal = normal_values(&[2usize, 3], 1.0f64, 2.0, 11).unwrap();
     let direct_normal = leto_ops::normal_with_seed([2usize, 3], 1.0f64, 2.0, 11).unwrap();
     assert_eq!(normal, direct_normal.storage().as_slice());
+}
+
+#[test]
+fn contiguous_dispatch_matches_leto_view_materialization() {
+    let data = (0..12).collect::<Vec<i32>>();
+    let source = CpuStorage::from_slice(&data);
+    let sliced = layout(&[3, 4]).slice(&[(0, 3), (1, 4)]);
+    let view = Layout::from_shape_strides(
+        Shape::from(vec![3, 3]),
+        Strides::from_slice(&[sliced.strides()[1], sliced.strides()[0]]),
+        sliced.offset(),
+    );
+
+    let values = contiguous_values(&view, source.as_slice()).unwrap();
+    let direct = to_leto_view::<i32, 2>(&view, source.as_slice())
+        .unwrap()
+        .to_contiguous();
+
+    assert_eq!(values, direct.storage().as_slice());
+    assert_eq!(values, vec![1, 5, 9, 2, 6, 10, 3, 7, 11]);
 }
 
 #[test]

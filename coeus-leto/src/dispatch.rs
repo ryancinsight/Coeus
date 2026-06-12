@@ -493,6 +493,29 @@ pub fn split_values<T: Clone>(
     }
 }
 
+fn contiguous_values_n<T: Clone, const N: usize>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+) -> Result<Vec<T>> {
+    let input = to_leto_view::<T, N>(a_layout, a)?;
+    Ok(input.to_contiguous().storage().as_slice().to_vec())
+}
+
+/// Materialize a coeus CPU tensor view into C-contiguous row-major values,
+/// dispatched from dynamic rank to Leto's const-rank view materializer.
+pub fn contiguous_values<T: Clone>(a_layout: &CoeusLayout, a: &[T]) -> Result<Vec<T>> {
+    match a_layout.ndim() {
+        1 => contiguous_values_n::<T, 1>(a_layout, a),
+        2 => contiguous_values_n::<T, 2>(a_layout, a),
+        3 => contiguous_values_n::<T, 3>(a_layout, a),
+        4 => contiguous_values_n::<T, 4>(a_layout, a),
+        5 => contiguous_values_n::<T, 5>(a_layout, a),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
 fn shape_n<const N: usize>(shape: &[usize]) -> Result<[usize; N]> {
     shape.try_into().map_err(
         |_: std::array::TryFromSliceError| LetoError::ShapeMismatch {

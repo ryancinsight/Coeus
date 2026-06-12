@@ -182,28 +182,9 @@ impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B> {
         }
         // Direct compaction for CPU-addressable storage to avoid recursion and host-to-device transfers
         if let Some(src_slice) = self.storage.try_as_slice() {
-            let mut dst = Self::zeros_on(self.shape_cloned(), backend);
-            if let Some(dst_slice) = dst.storage.try_as_mut_slice() {
-                let ndim = self.ndim();
-                let numel = self.numel();
-                let shape = self.shape();
-                let strides = self.strides();
-                let mut offset = self.layout.offset();
-                let mut index = smallvec::SmallVec::<[usize; 4]>::from_elem(0, ndim);
-                for i in 0..numel {
-                    dst_slice[i] = src_slice[offset];
-                    for d in (0..ndim).rev() {
-                        index[d] += 1;
-                        if index[d] < shape[d] {
-                            offset += strides[d];
-                            break;
-                        }
-                        offset -= (shape[d] - 1) * strides[d];
-                        index[d] = 0;
-                    }
-                }
-                return dst;
-            }
+            let values = coeus_leto::contiguous_values(&self.layout, src_slice)
+                .expect("coeus-leto contiguous materialization failed");
+            return Self::from_slice_on(self.shape_cloned(), &values, backend);
         }
         let host_backend = MoiraiBackend::new();
         let host_tensor = self.to_backend_on(backend, &host_backend);

@@ -100,9 +100,15 @@
   forward/module surfaces for existing `Float` APIs. Evidence: `cargo test -p
   coeus-leto random_dispatch_matches_leto_seeded_constructors` and `cargo test
   -p coeus-nn --test init_leto_diff` pass.
-- [x] [patch] Current full gate after initializer dispatch: `cargo fmt --check`,
+- [x] [patch] Routed `Tensor::to_contiguous_on` for CPU-addressable storage
+  through `coeus-leto` view materialization, deleting the local strided
+  materialization loop from that path. Evidence: `cargo test -p coeus-leto
+  contiguous_dispatch_matches_leto_view_materialization` and `cargo test -p
+  coeus-tensor --test contiguous_leto_diff` pass.
+- [x] [patch] Current full gate after contiguous materialization dispatch:
+  `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (258 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (261 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

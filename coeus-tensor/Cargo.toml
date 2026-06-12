@@ -9,12 +9,12 @@ path = "src/lib.rs"
 
 [dependencies]
 coeus-core  = { workspace = true }
+coeus-leto  = { path = "../coeus-leto" }
 smallvec    = { workspace = true }
 thiserror   = { workspace = true }
 bytemuck    = { workspace = true }
 
 [dev-dependencies]
-coeus-leto = { path = "../coeus-leto" }
 criterion = "0.5"
 coeus-ops = { workspace = true }
 leto = { workspace = true }
