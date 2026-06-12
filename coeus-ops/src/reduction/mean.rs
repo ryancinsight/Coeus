@@ -1,6 +1,6 @@
 // ── Mean reduction ──
 
-use crate::backend_ops::BackendOps;
+use crate::backend_ops::{BackendOps, ReductionOp};
 use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 
@@ -19,10 +19,22 @@ pub fn mean_axis<T: Scalar, B: BackendOps<T> + Default>(
     axis: usize,
     backend: &B,
 ) -> Tensor<T, B> {
-    let mut summed = super::sum::sum_axis(a, axis, backend);
-    let axis_len = a.shape()[axis];
-    let count = T::from_f64(axis_len as f64);
-    let counts = Tensor::from_slice_on([1], &[count], backend);
-    crate::binary::div_assign(&mut summed, &counts, backend);
-    summed
+    assert!(axis < a.ndim(), "mean_axis: axis {axis} out of bounds");
+
+    let mut out_shape = a.shape_cloned();
+    out_shape[axis] = 1;
+
+    let mut out = Tensor::zeros_on(out_shape, backend);
+
+    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    backend.reduce(
+        ReductionOp::Mean,
+        a.storage(),
+        a.layout(),
+        axis,
+        out_storage,
+        out_layout,
+    );
+
+    out
 }

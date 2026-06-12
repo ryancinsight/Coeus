@@ -35,6 +35,9 @@ fn fallback_backend_ops_match_sequential_values() {
 
     let reduced = coeus_ops::sum_axis(&a_cuda, 1, &cuda).to_backend_on(&cuda, &seq);
     assert_eq!(reduced.as_slice(), &[6.0, 15.0]);
+
+    let mean = coeus_ops::mean_axis(&a_cuda, 1, &cuda).to_backend_on(&cuda, &seq);
+    assert_eq!(mean.as_slice(), &[2.0, 5.0]);
 }
 
 #[test]
@@ -55,4 +58,8 @@ fn fallback_fused_ops_match_expression_values() {
     let reduced = coeus_cuda::evaluate_fused_reduce(&reduce_expr, coeus_ops::ReductionOp::Sum, 0)
         .to_backend_on(&cuda, &seq);
     assert_eq!(reduced.as_slice(), &[8.0]);
+
+    let mean = coeus_cuda::evaluate_fused_reduce(&reduce_expr, coeus_ops::ReductionOp::Mean, 0)
+        .to_backend_on(&cuda, &seq);
+    assert_eq!(mean.as_slice(), &[2.0]);
 }

@@ -67,6 +67,7 @@ fn test_wgpu_evaluate_fused_reduce() {
     // Fused expression: (a * 2.0).relu()
     let expr_gpu = (a_gpu.expr() * 2.0).relu();
     let expr_cpu = (a_cpu.expr() * 2.0).relu();
+    let evaluated_cpu = evaluate_fused_cpu(&expr_cpu, &seq);
 
     // Fused sum reduction along axis 1
     let out_sum_gpu = coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Sum, 1);
@@ -75,6 +76,41 @@ fn test_wgpu_evaluate_fused_reduce() {
         coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Sum, 1, &seq);
 
     assert_eq!(out_sum_cpu.as_slice(), expected_sum.as_slice());
+
+    // Fused mean reduction along axis 1
+    let out_mean_gpu =
+        coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Mean, 1);
+    let out_mean_cpu = out_mean_gpu.to_backend_on(&wgpu_b, &seq);
+    let expected_mean = coeus_ops::fuse::evaluate_fused_reduce_cpu(
+        &expr_cpu,
+        coeus_ops::ReductionOp::Mean,
+        1,
+        &seq,
+    );
+
+    let axis_len = shape[1] as f32;
+    let eps = f32::EPSILON;
+    let gamma = (axis_len * eps) / (1.0 - axis_len * eps);
+    for (index, (&actual, &expected)) in out_mean_cpu
+        .as_slice()
+        .iter()
+        .zip(expected_mean.as_slice())
+        .enumerate()
+    {
+        let row_start = index * shape[1];
+        let row_magnitude: f32 = evaluated_cpu.as_slice()[row_start..row_start + shape[1]]
+            .iter()
+            .map(|value| value.abs())
+            .sum();
+        // Forward error for summing n terms, gamma_n = n*eps/(1-n*eps),
+        // then one rounded division by n.
+        let tolerance = (gamma * row_magnitude / axis_len) + eps * expected.abs().max(1.0);
+        let diff = (actual - expected).abs();
+        assert!(
+            diff <= tolerance,
+            "mean mismatch at index {index}: got {actual}, expected {expected}, diff {diff}, tolerance {tolerance}",
+        );
+    }
 
     // Fused max reduction along axis 1
     let out_max_gpu = coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Max, 1);

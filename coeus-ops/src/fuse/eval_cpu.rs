@@ -247,6 +247,7 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                         let val = expr_val.eval_cpu(&coords[..ndim]);
                         acc = match op {
                             crate::ReductionOp::Sum => acc + val,
+                            crate::ReductionOp::Mean => acc + val,
                             crate::ReductionOp::Max => {
                                 if val > acc {
                                     val
@@ -266,6 +267,9 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                 }
 
                 unsafe {
+                    if matches!(op, crate::ReductionOp::Mean) {
+                        acc = acc / T::from_f64(axis_len as f64);
+                    }
                     out_ptr.write(idx, acc);
                 }
             } else {
@@ -281,6 +285,7 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                         let val = expr_val.eval_cpu(&coords);
                         acc = match op {
                             crate::ReductionOp::Sum => acc + val,
+                            crate::ReductionOp::Mean => acc + val,
                             crate::ReductionOp::Max => {
                                 if val > acc {
                                     val
@@ -300,6 +305,9 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                 }
 
                 unsafe {
+                    if matches!(op, crate::ReductionOp::Mean) {
+                        acc = acc / T::from_f64(axis_len as f64);
+                    }
                     out_ptr.write(idx, acc);
                 }
             }
@@ -323,6 +331,7 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                         let val = expr_val.eval_cpu(&coords[..ndim]);
                         acc = match op {
                             crate::ReductionOp::Sum => acc + val,
+                            crate::ReductionOp::Mean => acc + val,
                             crate::ReductionOp::Max => {
                                 if val > acc {
                                     val
@@ -342,6 +351,9 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                 }
 
                 unsafe {
+                    if matches!(op, crate::ReductionOp::Mean) {
+                        acc = acc / T::from_f64(axis_len as f64);
+                    }
                     out_ptr.write(idx, acc);
                 }
             } else {
@@ -357,6 +369,7 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                         let val = expr_val.eval_cpu(&coords);
                         acc = match op {
                             crate::ReductionOp::Sum => acc + val,
+                            crate::ReductionOp::Mean => acc + val,
                             crate::ReductionOp::Max => {
                                 if val > acc {
                                     val
@@ -376,6 +389,9 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
                 }
 
                 unsafe {
+                    if matches!(op, crate::ReductionOp::Mean) {
+                        acc = acc / T::from_f64(axis_len as f64);
+                    }
                     out_ptr.write(idx, acc);
                 }
             }

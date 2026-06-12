@@ -3,7 +3,9 @@ use coeus_core::{
     BinaryOp, CpuUnaryOp as UnaryOp, Layout as CoeusLayout, ReductionOp, Scalar as CoeusScalar,
 };
 use leto::{LetoError, Result};
-use leto_ops::{CumSumOp, MaxAxis, MinAxis, Scalar as LetoScalar, ScanDirection, SumAxis};
+use leto_ops::{
+    CumSumOp, MaxAxis, MeanAxis, MinAxis, Scalar as LetoScalar, ScanDirection, SumAxis,
+};
 
 /// Largest dynamic rank the const-rank dispatch resolves. Coeus activations and
 /// Apollo transforms stay well within this bound; ranks beyond it are a logged
@@ -154,6 +156,9 @@ fn reduce_n<T: LetoScalar, const N: usize>(
     match op {
         ReductionOp::Sum => {
             leto_ops::reduce_axis_into::<SumAxis, T, N>(&a_view, axis, &mut out_view)
+        }
+        ReductionOp::Mean => {
+            leto_ops::reduce_axis_into::<MeanAxis, T, N>(&a_view, axis, &mut out_view)
         }
         ReductionOp::Max => {
             leto_ops::reduce_axis_into::<MaxAxis, T, N>(&a_view, axis, &mut out_view)

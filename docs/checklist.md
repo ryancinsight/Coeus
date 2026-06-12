@@ -68,6 +68,11 @@
   `SequentialBackend` and `MoiraiBackend`, including transposed input views.
   Evidence: `cargo test -p coeus-ops --test public_reduction_leto_diff`
   passes.
+- [x] [patch] Promoted mean to `ReductionOp::Mean` and routed public
+  `mean_axis` through backend reduction dispatch. CPU dispatch uses Leto
+  `MeanAxis`; WGPU/CUDA generated reducers and CPU fused reductions cover the
+  same variant. Evidence: focused CPU, Leto, WGPU fused, and CUDA fallback tests
+  pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice
   elementwise add alongside Coeus Sequential and Moirai.

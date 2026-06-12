@@ -44,6 +44,11 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     `SequentialBackend` and `MoiraiBackend`, including transposed input views.
     Evidence: `cargo test -p coeus-ops --test public_reduction_leto_diff`
     passes.
+  - [x] [patch] Promoted mean to a first-class `ReductionOp::Mean` and routed
+    public `mean_axis` through backend reduction dispatch. CPU uses Leto
+    `MeanAxis`; WGPU/CUDA generated reducers and CPU fused reductions handle
+    the same enum variant. Evidence: focused CPU, Leto, WGPU fused, and CUDA
+    fallback tests pass.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
@@ -91,8 +96,8 @@ const-rank, and the new `coeus-leto` crate bridges them.
 ### Completed:
 - **Added `coeus-leto`** (`coeus-leto/`): converts coeus dynamic-rank
   `Layout`/`CpuStorage` to leto `Layout<N>` views and dispatches CPU array ops
-  (elementwise binary, unary mapping, keep-dim axis reductions, cumsum/suffix
-  scans, 2D matmul) to monomorphized leto kernels via
+  (elementwise binary, unary mapping, keep-dim axis reductions including mean,
+  cumsum/suffix scans, 2D matmul) to monomorphized leto kernels via
   a bounded runtime-rank match (`MAX_DISPATCH_RANK = 5`). Provider: leto/leto-ops
   pinned at rev d8d34c6. 10 cross-repo contract tests green.
 

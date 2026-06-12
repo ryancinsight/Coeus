@@ -35,8 +35,13 @@ pub fn dispatch_reduce<T: WgpuScalar>(
 
     let (init_expr, loop_start, update_expr) = match op {
         coeus_ops::ReductionOp::Sum => ("0.0", "0u", "acc = acc + val;"),
+        coeus_ops::ReductionOp::Mean => ("0.0", "0u", "acc = acc + val;"),
         coeus_ops::ReductionOp::Max => ("a[base_off_a]", "1u", "acc = max(acc, val);"),
         coeus_ops::ReductionOp::Min => ("a[base_off_a]", "1u", "acc = min(acc, val);"),
+    };
+    let final_expr = match op {
+        coeus_ops::ReductionOp::Mean => "acc / f32(axis_len)",
+        _ => "acc",
     };
 
     let shader_src = format!(
@@ -84,10 +89,10 @@ pub fn dispatch_reduce<T: WgpuScalar>(
                 }}
             }}
             
-            c[idx] = acc;
+            c[idx] = {};
         }}
         "#,
-        wgsl_type, wgsl_type, init_expr, loop_start, update_expr
+        wgsl_type, wgsl_type, init_expr, loop_start, update_expr, final_expr
     );
 
     let key = format!("reduce_{:?}_{}", op, wgsl_type);
@@ -220,8 +225,13 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 
     let (init_expr, update_expr) = match op {
         coeus_ops::ReductionOp::Sum => ("0.0", "acc = acc + val;"),
+        coeus_ops::ReductionOp::Mean => ("0.0", "acc = acc + val;"),
         coeus_ops::ReductionOp::Max => ("-3.40282347e+38", "acc = max(acc, val);"),
         coeus_ops::ReductionOp::Min => ("3.40282347e+38", "acc = min(acc, val);"),
+    };
+    let final_expr = match op {
+        coeus_ops::ReductionOp::Mean => "acc / f32(axis_len)",
+        _ => "acc",
     };
 
     let shader_src = format!(
@@ -271,7 +281,7 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
                 }}
             }}
             
-            out[idx] = acc;
+            out[idx] = {final_expr};
         }}
         "#,
         inputs_decl = inputs_decl,
