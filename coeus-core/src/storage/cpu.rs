@@ -21,7 +21,7 @@ impl RawBlock {
         let layout = AllocLayout::from_size_align(size, align).ok()?;
         if size == 0 {
             return Some(Self {
-                ptr: std::ptr::null_mut(),
+                ptr: std::ptr::without_provenance_mut(align),
                 layout,
             });
         }

@@ -1,4 +1,6 @@
-use coeus_core::{CowStorage, CpuAddressableStorage, CpuAddressableStorageMut, CpuStorage};
+use coeus_core::{
+    CowStorage, CpuAddressableStorage, CpuAddressableStorageMut, CpuStorage, Storage,
+};
 
 #[test]
 fn cpu_storage_reports_uniqueness_and_detaches_on_mutation() {
@@ -35,4 +37,13 @@ fn cow_storage_exposes_cpu_uniqueness_without_unwrapping() {
     assert!(shared.is_unique());
     assert_eq!(original.as_slice(), &[5, 6, 7]);
     assert_eq!(shared.as_slice(), &[5, 6, 70]);
+}
+
+#[test]
+fn empty_cpu_storage_exposes_valid_zero_length_slices() {
+    let mut storage = CpuStorage::<u128>::new(0);
+
+    assert_eq!(storage.len(), 0);
+    assert_eq!(storage.as_slice(), &[]);
+    assert_eq!(storage.as_mut_slice(), &mut []);
 }

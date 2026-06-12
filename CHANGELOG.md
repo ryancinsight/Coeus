@@ -17,3 +17,10 @@
 - Routed public batched `coeus_ops::matmul` through `BackendOps::batched_matmul`;
   CPU backends override the seam with `coeus-leto` batched dispatch while GPU
   backends retain the generic default.
+- Routed `Tensor::eye_on` identity generation through `coeus-leto` coordinate
+  dispatch.
+
+### Fixed
+
+- Fixed zero-length `CpuStorage` so empty tensors expose valid non-null aligned
+  Rust slices.

@@ -120,6 +120,12 @@
   the public tensor constructor path. Evidence: `cargo test -p coeus-leto
   shape_function_dispatch_matches_leto_coordinate_order` and `cargo test -p
   coeus-tensor --test from_fn_leto_diff` pass.
+- [x] [patch] Routed `Tensor::eye_on` identity value generation through
+  `coeus-leto`, deleting the local diagonal mutation loop from the public tensor
+  constructor path. Fixed zero-length `CpuStorage` to expose non-null aligned
+  zero-length slices for empty tensors. Evidence: `cargo test -p coeus-core
+  --test cow_storage_tests` and `cargo test -p coeus-tensor --test
+  identity_leto_diff` pass.
 - [x] [patch] Routed tensor broadcast shape and zero-copy broadcast layout
   validation through `coeus-leto`, deleting local dynamic broadcast metadata
   construction from `Tensor::broadcast` while preserving scalar rank-0
@@ -138,10 +144,11 @@
   batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo test -p coeus-ops
   --test batched_matmul_leto_diff`, and `cargo test -p coeus-wgpu
   wgpu::transfers_and_matmul::test_wgpu_backend_ops_unified` pass.
-- [x] [patch] Current full gate after batched matmul dispatch:
+- [x] [patch] Current full gate after identity constructor dispatch and
+  zero-length storage fix:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (281 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (284 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

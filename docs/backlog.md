@@ -99,6 +99,13 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     generation loop from that public tensor constructor path. Evidence: `cargo
     test -p coeus-leto shape_function_dispatch_matches_leto_coordinate_order`
     and `cargo test -p coeus-tensor --test from_fn_leto_diff` pass.
+  - [x] [patch] Routed `Tensor::eye_on` identity value generation through
+    dynamic-rank `coeus-leto`, removing the local diagonal mutation loop from
+    that public tensor constructor path. The change also fixed empty
+    `CpuStorage` to use a non-null aligned zero-length pointer so empty tensors
+    expose valid Rust slices. Evidence: `cargo test -p coeus-core --test
+    cow_storage_tests` and `cargo test -p coeus-tensor --test identity_leto_diff`
+    pass.
   - [x] [patch] Routed tensor broadcast shape and zero-copy broadcast layout
     validation through dynamic-rank `coeus-leto`, removing local dynamic
     broadcast metadata construction from `Tensor::broadcast` while preserving

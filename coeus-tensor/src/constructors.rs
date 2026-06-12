@@ -55,11 +55,15 @@ where
     /// Identity matrix of size n×n on the given backend.
     #[inline]
     pub fn eye_on(n: usize, backend: &B) -> Self {
-        let mut t = Self::zeros_on([n, n], backend);
-        for i in 0..n {
-            t.set(&[i, i], T::one());
-        }
-        t
+        let values = coeus_leto::from_shape_fn_values(&[n, n], |index| {
+            if index[0] == index[1] {
+                T::one()
+            } else {
+                T::zero()
+            }
+        })
+        .expect("coeus-leto identity generation failed");
+        Self::from_slice_on([n, n], &values, backend)
     }
 
     /// Linspace: n evenly spaced values from start to end (inclusive) on the given backend.
