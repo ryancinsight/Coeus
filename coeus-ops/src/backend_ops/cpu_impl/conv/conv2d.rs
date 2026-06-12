@@ -243,43 +243,88 @@ pub(crate) fn conv2d_backward<T: Scalar, B: Backend>(
         let input_layout = input_layout.clone();
 
         let numel_w = c_out * c_in * kh * kw;
-        backend.parallel_for(0, numel_w, move |i| {
-            let ikw = i % kw;
-            let temp1 = i / kw;
-            let ikh = temp1 % kh;
-            let temp2 = temp1 / kh;
-            let ic = temp2 % c_in;
-            let oc = temp2 / c_in;
+        let can_dot_grad_weight = padding == 0
+            && stride == 1
+            && dilation == 1
+            && kh <= h
+            && kw <= w
+            && h_out == h - kh + 1
+            && w_out == w - kw + 1
+            && go_layout.is_contiguous()
+            && input_layout.is_contiguous()
+            && gw_layout.is_contiguous();
 
-            let mut sum = T::zero();
-            for ni in 0..n {
-                for oh in 0..h_out {
-                    let h_in = oh as isize * stride_s + ikh as isize * dil_s - pad_s;
-                    if h_in >= 0 && (h_in as usize) < h {
-                        for ow in 0..w_out {
-                            let w_in = ow as isize * stride_s + ikw as isize * dil_s - pad_s;
-                            if w_in >= 0 && (w_in as usize) < w {
-                                let go_idx = go_layout.physical_index(&[ni, oc, oh, ow]);
-                                let input_idx = input_layout.physical_index(&[
-                                    ni,
-                                    ic,
-                                    h_in as usize,
-                                    w_in as usize,
-                                ]);
-                                let gval = unsafe { go_ptr.read(go_idx) };
-                                let ival = unsafe { input_ptr.read(input_idx) };
-                                sum = sum + gval * ival;
+        if can_dot_grad_weight {
+            let go_offset = go_layout.offset();
+            let input_offset = input_layout.offset();
+            let gw_offset = gw_layout.offset();
+            backend.parallel_for(0, numel_w, move |i| {
+                let ikw = i % kw;
+                let temp1 = i / kw;
+                let ikh = temp1 % kh;
+                let temp2 = temp1 / kh;
+                let ic = temp2 % c_in;
+                let oc = temp2 / c_in;
+
+                let mut sum = T::zero();
+                for ni in 0..n {
+                    for oh in 0..h_out {
+                        let go_start = go_offset + ((ni * c_out + oc) * h_out + oh) * w_out;
+                        let input_start =
+                            input_offset + ((ni * c_in + ic) * h + oh + ikh) * w + ikw;
+                        // SAFETY: the contiguous guard proves canonical NCHW row-major
+                        // layouts, `kw <= w`, and `w_out == w - kw + 1`, so both
+                        // width-row windows have length `w_out` and remain inside storage.
+                        let go_window = unsafe { go_ptr.slice(go_start, w_out) };
+                        let input_window = unsafe { input_ptr.slice(input_start, w_out) };
+                        sum = sum + T::dot_slice(go_window, input_window);
+                    }
+                }
+                let gw_idx = gw_offset + ((oc * c_in + ic) * kh + ikh) * kw + ikw;
+                unsafe {
+                    let old = gw_ptr.read(gw_idx);
+                    gw_ptr.write(gw_idx, old + sum);
+                }
+            });
+        } else {
+            backend.parallel_for(0, numel_w, move |i| {
+                let ikw = i % kw;
+                let temp1 = i / kw;
+                let ikh = temp1 % kh;
+                let temp2 = temp1 / kh;
+                let ic = temp2 % c_in;
+                let oc = temp2 / c_in;
+
+                let mut sum = T::zero();
+                for ni in 0..n {
+                    for oh in 0..h_out {
+                        let h_in = oh as isize * stride_s + ikh as isize * dil_s - pad_s;
+                        if h_in >= 0 && (h_in as usize) < h {
+                            for ow in 0..w_out {
+                                let w_in = ow as isize * stride_s + ikw as isize * dil_s - pad_s;
+                                if w_in >= 0 && (w_in as usize) < w {
+                                    let go_idx = go_layout.physical_index(&[ni, oc, oh, ow]);
+                                    let input_idx = input_layout.physical_index(&[
+                                        ni,
+                                        ic,
+                                        h_in as usize,
+                                        w_in as usize,
+                                    ]);
+                                    let gval = unsafe { go_ptr.read(go_idx) };
+                                    let ival = unsafe { input_ptr.read(input_idx) };
+                                    sum = sum + gval * ival;
+                                }
                             }
                         }
                     }
                 }
-            }
-            let gw_idx = gw_layout.physical_index(&[oc, ic, ikh, ikw]);
-            unsafe {
-                let old = gw_ptr.read(gw_idx);
-                gw_ptr.write(gw_idx, old + sum);
-            }
-        });
+                let gw_idx = gw_layout.physical_index(&[oc, ic, ikh, ikw]);
+                unsafe {
+                    let old = gw_ptr.read(gw_idx);
+                    gw_ptr.write(gw_idx, old + sum);
+                }
+            });
+        }
     }
 
     if let Some(gb) = grad_bias {

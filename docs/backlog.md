@@ -337,6 +337,11 @@ removed from hermes upstream; coeus owns those.
   `Scalar::dot_slice`, preserving the indexed path for padded, strided,
   dilated, or non-contiguous layouts. Verified:
   `cargo test -p coeus-ops --test conv1d_backward_hermes_diff`.
+- **Conv2d backward dot products:** routed contiguous unpadded
+  unit-stride/unit-dilation CPU weight-gradient width rows through
+  `Scalar::dot_slice`, preserving the indexed path for padded, strided,
+  dilated, or non-contiguous layouts. Verified:
+  `cargo test -p coeus-ops --test conv2d_backward_hermes_diff`.
 
 ### Decisions:
 - **matmul stays in coeus** (not routed to `hermes tiled_gemm`): coeus's matmul is
@@ -347,7 +352,7 @@ removed from hermes upstream; coeus owns those.
   density policy that selects dense GEMM (→ hermes) vs the sparse-aware path.
 
 ### Remaining (follow-on):
-- Audit remaining conv2d/conv3d dot/scalar-scale-like loops in output-gradient
+- Audit remaining conv3d dot/scalar-scale-like loops in output-gradient
   accumulation paths; route only contiguous runs through
   `Scalar::{dot_slice,scale_slice}`.
 - Tune the contiguous CHUNK (currently 8192) against Criterion benchmarks.

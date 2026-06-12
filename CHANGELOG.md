@@ -36,6 +36,9 @@
 - Routed contiguous unpadded unit-stride/unit-dilation CPU `conv1d` backward
   weight-gradient rows through `Scalar::dot_slice`, preserving the indexed path
   for padded, strided, dilated, or non-contiguous layouts.
+- Routed contiguous unpadded unit-stride/unit-dilation CPU `conv2d` backward
+  weight-gradient width rows through `Scalar::dot_slice`, preserving the indexed
+  path for padded, strided, dilated, or non-contiguous layouts.
 - Removed Coeus' direct `pollster` dependency from `coeus-wgpu` and extended the
   dependency policy to keep Coeus production code on the Moirai async SSOT.
 - Extended the dependency policy to keep direct replacement-library usage

@@ -192,13 +192,18 @@
   indexed path for padded, strided, dilated, or non-contiguous layouts.
   Evidence: `cargo test -p coeus-ops --test conv1d_backward_hermes_diff`
   passes.
+- [x] [patch] Routed contiguous unpadded unit-stride/unit-dilation CPU `conv2d`
+  backward weight-gradient width rows through `Scalar::dot_slice`, preserving
+  the indexed path for padded, strided, dilated, or non-contiguous layouts.
+  Evidence: `cargo test -p coeus-ops --test conv2d_backward_hermes_diff`
+  passes.
 - [x] [patch] Fixed rustdoc shape/type annotations that were parsed as links or
   HTML, making workspace docs warning-clean. Evidence: `cargo doc --workspace
   --no-deps` passes.
-- [x] [patch] Current full gate after CPU `conv1d` backward Hermes dot routing:
+- [x] [patch] Current full gate after CPU `conv2d` backward Hermes dot routing:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (303 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (305 passed,
   0 skipped), `cargo test --doc --workspace`, and `cargo doc --workspace
   --no-deps` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
