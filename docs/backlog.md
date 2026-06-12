@@ -25,6 +25,11 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     surface. The oracle is direct `CpuUnaryDispatch::eval_unary`, so assertions
     are exact value-semantic checks. Evidence: `cargo test -p coeus-ops --test
     unary_leto_diff` passes.
+  - [x] [patch] Added CPU `BackendOps::matmul` differential coverage for
+    `SequentialBackend` and `MoiraiBackend`, including contiguous and strided
+    transposed input layouts. The oracle is an independent row-major triple
+    loop over exactly representable integer-valued floats. Evidence:
+    `cargo test -p coeus-ops --test matmul_leto_diff` passes.
 - [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.

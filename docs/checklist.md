@@ -31,7 +31,7 @@
 - [x] [patch] `cargo check --workspace` passes without excluding `coeus-cuda`.
 - [x] [patch] `cargo clippy --workspace --all-targets -- -D warnings` passes
   without excluding `coeus-cuda`.
-- [x] [patch] `cargo nextest run --workspace` passes: 234 tests passed, 0
+- [x] [patch] `cargo nextest run --workspace` passes: 236 tests passed, 0
   skipped. CUDA integration tests are feature-gated under `cuda` because they
   require `CUDA_TOOLKIT_PATH` and a working CUDA driver.
 - [x] [patch] `cargo test --doc --workspace` passes; four doctests are
@@ -49,6 +49,11 @@
   `SequentialBackend` and `MoiraiBackend` unary `BackendOps` dispatch matches
   direct scalar `CpuUnaryDispatch::eval_unary` for the full `CpuUnaryOp` surface.
   Evidence: `cargo test -p coeus-ops --test unary_leto_diff` passes.
+- [x] [patch] Added `coeus-ops/tests/matmul_leto_diff.rs` to prove
+  `SequentialBackend` and `MoiraiBackend` `BackendOps::matmul` dispatch matches
+  an independent row-major triple-loop reference for contiguous and strided
+  transposed input layouts. Evidence: `cargo test -p coeus-ops --test
+  matmul_leto_diff` passes.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice
   elementwise add alongside Coeus Sequential and Moirai.
