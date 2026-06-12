@@ -131,6 +131,10 @@
   mutation loop and the constructor's f64 index conversion. Evidence: `cargo
   test -p coeus-core --test scalar_index_conversion` and `cargo test -p
   coeus-tensor --test arange_leto_diff` pass.
+- [x] [patch] Routed `Tensor::linspace_on` coordinate traversal through
+  `coeus-leto`, deleting the local mutable fill loop while preserving the
+  existing `Scalar::from_f64` value contract. Evidence: `cargo test -p
+  coeus-tensor --test linspace_leto_diff` passes.
 - [x] [patch] Routed tensor broadcast shape and zero-copy broadcast layout
   validation through `coeus-leto`, deleting local dynamic broadcast metadata
   construction from `Tensor::broadcast` while preserving scalar rank-0
@@ -149,11 +153,10 @@
   batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo test -p coeus-ops
   --test batched_matmul_leto_diff`, and `cargo test -p coeus-wgpu
   wgpu::transfers_and_matmul::test_wgpu_backend_ops_unified` pass.
-- [x] [patch] Current full gate after arange constructor dispatch and
-  `Scalar::from_usize`:
+- [x] [patch] Current full gate after linspace constructor dispatch:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (289 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (291 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

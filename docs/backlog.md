@@ -111,6 +111,10 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     the local mutation loop and the constructor's f64 index conversion. Evidence:
     `cargo test -p coeus-core --test scalar_index_conversion` and `cargo test
     -p coeus-tensor --test arange_leto_diff` pass.
+  - [x] [patch] Routed `Tensor::linspace_on` coordinate traversal through
+    dynamic-rank `coeus-leto`, removing the local mutable fill loop while
+    preserving the existing `Scalar::from_f64` value contract. Evidence:
+    `cargo test -p coeus-tensor --test linspace_leto_diff` passes.
   - [x] [patch] Routed tensor broadcast shape and zero-copy broadcast layout
     validation through dynamic-rank `coeus-leto`, removing local dynamic
     broadcast metadata construction from `Tensor::broadcast` while preserving

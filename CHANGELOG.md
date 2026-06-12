@@ -23,6 +23,8 @@
   dispatch.
 - Routed `Tensor::arange_on` through `coeus-leto` coordinate dispatch using
   `Scalar::from_usize`.
+- Routed `Tensor::linspace_on` through `coeus-leto` coordinate dispatch while
+  preserving its existing `Scalar::from_f64` value contract.
 
 ### Fixed
 
