@@ -106,6 +106,11 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     expose valid Rust slices. Evidence: `cargo test -p coeus-core --test
     cow_storage_tests` and `cargo test -p coeus-tensor --test identity_leto_diff`
     pass.
+  - [x] [minor] Added `Scalar::from_usize` as the native index-conversion seam
+    and routed `Tensor::arange_on` through dynamic-rank `coeus-leto`, removing
+    the local mutation loop and the constructor's f64 index conversion. Evidence:
+    `cargo test -p coeus-core --test scalar_index_conversion` and `cargo test
+    -p coeus-tensor --test arange_leto_diff` pass.
   - [x] [patch] Routed tensor broadcast shape and zero-copy broadcast layout
     validation through dynamic-rank `coeus-leto`, removing local dynamic
     broadcast metadata construction from `Tensor::broadcast` while preserving

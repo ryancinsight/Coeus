@@ -110,6 +110,13 @@ pub trait Scalar:
     /// Convert from f64 (for initialization, etc.).
     fn from_f64(v: f64) -> Self;
 
+    /// Convert from a structural index or dimension count.
+    ///
+    /// This is the native-precision path for index-derived tensor values such
+    /// as `arange`; it avoids routing exact non-negative integer coordinates
+    /// through `f64`.
+    fn from_usize(v: usize) -> Self;
+
     /// Calculate square root of the value natively.
     fn sqrt_val(self) -> Self;
 

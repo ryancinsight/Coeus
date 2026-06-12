@@ -126,6 +126,11 @@
   zero-length slices for empty tensors. Evidence: `cargo test -p coeus-core
   --test cow_storage_tests` and `cargo test -p coeus-tensor --test
   identity_leto_diff` pass.
+- [x] [minor] Added `Scalar::from_usize` as the native index-conversion seam
+  and routed `Tensor::arange_on` through `coeus-leto`, deleting the local
+  mutation loop and the constructor's f64 index conversion. Evidence: `cargo
+  test -p coeus-core --test scalar_index_conversion` and `cargo test -p
+  coeus-tensor --test arange_leto_diff` pass.
 - [x] [patch] Routed tensor broadcast shape and zero-copy broadcast layout
   validation through `coeus-leto`, deleting local dynamic broadcast metadata
   construction from `Tensor::broadcast` while preserving scalar rank-0
@@ -144,11 +149,11 @@
   batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo test -p coeus-ops
   --test batched_matmul_leto_diff`, and `cargo test -p coeus-wgpu
   wgpu::transfers_and_matmul::test_wgpu_backend_ops_unified` pass.
-- [x] [patch] Current full gate after identity constructor dispatch and
-  zero-length storage fix:
+- [x] [patch] Current full gate after arange constructor dispatch and
+  `Scalar::from_usize`:
   `cargo fmt --check`,
   `git diff --check`, `cargo check --workspace`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --workspace` (284 passed,
+  --all-targets -- -D warnings`, `cargo nextest run --workspace` (289 passed,
   0 skipped), and `cargo test --doc --workspace` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice

@@ -13,6 +13,10 @@ macro_rules! impl_scalar_float_native {
                 v as Self
             }
             #[inline(always)]
+            fn from_usize(v: usize) -> Self {
+                v as Self
+            }
+            #[inline(always)]
             fn sqrt_val(self) -> Self {
                 self.sqrt()
             }

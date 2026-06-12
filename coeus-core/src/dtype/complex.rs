@@ -211,6 +211,14 @@ impl<T: Float> Scalar for Complex<T> {
     }
 
     #[inline(always)]
+    fn from_usize(v: usize) -> Self {
+        Self {
+            re: T::from_usize(v),
+            im: T::zero(),
+        }
+    }
+
+    #[inline(always)]
     fn sqrt_val(self) -> Self {
         let r = (self.re * self.re + self.im * self.im).sqrt();
         let u = ((r + self.re) / T::from_f64(2.0)).sqrt();

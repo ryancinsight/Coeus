@@ -16,6 +16,10 @@ macro_rules! impl_scalar_int_signed {
                 v as Self
             }
             #[inline(always)]
+            fn from_usize(v: usize) -> Self {
+                v as Self
+            }
+            #[inline(always)]
             fn sqrt_val(self) -> Self {
                 (self.to_f64().sqrt()) as Self
             }
@@ -71,6 +75,10 @@ macro_rules! impl_scalar_int_unsigned {
             }
             #[inline(always)]
             fn from_f64(v: f64) -> Self {
+                v as Self
+            }
+            #[inline(always)]
+            fn from_usize(v: usize) -> Self {
                 v as Self
             }
             #[inline(always)]

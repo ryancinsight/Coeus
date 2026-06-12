@@ -14,6 +14,10 @@ macro_rules! impl_scalar_float_half {
                 Self::from_f64(v)
             }
             #[inline(always)]
+            fn from_usize(v: usize) -> Self {
+                Self::from_f64(v as f64)
+            }
+            #[inline(always)]
             fn sqrt_val(self) -> Self {
                 Self::from_f64(self.to_f64().sqrt())
             }

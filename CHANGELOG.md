@@ -9,6 +9,8 @@
   coverage for strided input views.
 - Added `BackendOps::batched_matmul` as the rank-3 batched matrix multiplication
   backend seam.
+- Added `Scalar::from_usize` as the native index-conversion seam for
+  index-derived tensor values.
 
 ### Changed
 
@@ -19,6 +21,8 @@
   backends retain the generic default.
 - Routed `Tensor::eye_on` identity generation through `coeus-leto` coordinate
   dispatch.
+- Routed `Tensor::arange_on` through `coeus-leto` coordinate dispatch using
+  `Scalar::from_usize`.
 
 ### Fixed
 

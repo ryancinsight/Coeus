@@ -87,11 +87,8 @@ where
     /// Arange: values from [0, n) with step 1 on the given backend.
     #[inline]
     pub fn arange_on(n: usize, backend: &B) -> Self {
-        let mut t = Self::zeros_on([n], backend);
-        let slice = t.as_mut_slice();
-        for i in 0..n {
-            slice[i] = T::from_f64(i as f64);
-        }
-        t
+        let values = coeus_leto::from_shape_fn_values(&[n], |index| T::from_usize(index[0]))
+            .expect("coeus-leto arange generation failed");
+        Self::from_slice_on([n], &values, backend)
     }
 }
