@@ -93,6 +93,12 @@ hermes-simd = { path = "../hermes/crates/hermes-simd" }
 [patch."https://github.com/ryancinsight/melinoe.git"]
 melinoe = { path = "../melinoe" }
 
+[patch."https://github.com/ryancinsight/themis"]
+themis = { path = "../themis" }
+
+[patch."https://github.com/ryancinsight/apollo.git"]
+apollo-fft = { path = "../apollo/crates/apollo-fft" }
+
 [profile.bench]
 codegen-units = 1
 lto = "thin"
