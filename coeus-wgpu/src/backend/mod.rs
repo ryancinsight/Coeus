@@ -168,7 +168,10 @@ impl ComputeBackend for WgpuBackend {
         let ctx = get_wgpu_context();
         let size_in_bytes = (src.len() * std::mem::size_of::<T>()).max(4) as u64;
 
-        let staging_buffer = ctx.hephaestus_device.get_staging_buffer(size_in_bytes);
+        let staging_buffer = ctx
+            .hephaestus_device
+            .get_staging_buffer(size_in_bytes)
+            .expect("Failed to allocate or acquire staging buffer from Hephaestus device");
 
         let mut encoder = ctx
             .device
