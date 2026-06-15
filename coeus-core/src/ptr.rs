@@ -79,4 +79,13 @@ impl<T: Copy> SendPtrMut<T> {
         // SAFETY: The caller guarantees that index `i` is within bounds and the pointer is valid.
         *self.0.add(i) = val;
     }
+
+    /// Borrow a contiguous mutable range at element offset `start`.
+    ///
+    /// # Safety
+    /// Caller must ensure `start..start + len` is within the allocated bounds.
+    #[inline]
+    pub unsafe fn slice_mut<'a>(&self, start: usize, len: usize) -> &'a mut [T] {
+        std::slice::from_raw_parts_mut(self.0.add(start), len)
+    }
 }
