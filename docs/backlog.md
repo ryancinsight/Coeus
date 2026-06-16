@@ -149,10 +149,10 @@ GPU device/buffer/dispatch substrate is a new standalone infra repo, `hephaestus
 (sibling of leto/moirai/hermes/mnemosyne), so apollo and coeus share one device layer
 with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* hephaestus;
 `Tensor<T,B>` and the backend seam are unchanged; autodiff stays in coeus.
-- [ ] [arch] Re-base `coeus-wgpu` and `coeus-cuda` onto `hephaestus` once it is
-  scaffolded; coeus keeps autograd/nn/optim/sparse and the `ComputeBackend`/`BackendOps`
-  seam. The CUDA backend **composes cuda-oxide + cutile** (cuda-oxide = driver/runtime/
-  memory/streams; cutile = tile/PTX kernels) — not a migration; both coexist.
+- [/] [arch] Re-base GPU backends onto `hephaestus` once it is scaffolded (atlas ADR 0001):
+  - [x] Re-base `coeus-wgpu` onto `hephaestus-wgpu`.
+  - [ ] Re-base `coeus-cuda` onto `hephaestus-cuda` once `hephaestus-cuda` is delivered.
+  Coeus keeps autograd/nn/optim/sparse and the `ComputeBackend`/`BackendOps` seam. The CUDA backend **composes cuda-oxide + cutile** (cuda-oxide = driver/runtime/memory/streams; cutile = tile/PTX kernels) — not a migration; both coexist.
 - [ ] [minor] GPU op parity audit on the hephaestus backends (elementwise, matmul,
   reductions, conv/pool, attention, fused optimizer steps) with differential checks vs
   the CPU (leto) reference.
