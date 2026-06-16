@@ -81,7 +81,9 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
         for j in 0..seq_k {
             let aw_idx = idx3(b, i, j, seq_q, seq_k);
             if is_causal && j > i {
-                unsafe { aw_ptr.write(aw_idx, T::NEG_INFINITY); }
+                unsafe {
+                    aw_ptr.write(aw_idx, T::NEG_INFINITY);
+                }
                 continue;
             }
             if let Some(ref mp) = mask_ptr {
@@ -98,7 +100,9 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
                     mask_offset + b_mask * mask_strides[0] + j * mask_strides[1]
                 };
                 if unsafe { mp.read(mask_idx) } == T::zero() {
-                    unsafe { aw_ptr.write(aw_idx, T::NEG_INFINITY); }
+                    unsafe {
+                        aw_ptr.write(aw_idx, T::NEG_INFINITY);
+                    }
                     continue;
                 }
             }
@@ -107,7 +111,9 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
             let q_window = unsafe { q_ptr.slice(q_start, d_k) };
             let k_window = unsafe { k_ptr.slice(k_start, d_k) };
             let dot = T::dot_slice(q_window, k_window);
-            unsafe { aw_ptr.write(aw_idx, dot * scale); }
+            unsafe {
+                aw_ptr.write(aw_idx, dot * scale);
+            }
         }
 
         // 2. Row-wise numerically stable softmax over scores
@@ -121,7 +127,9 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
             let aw_idx = idx3(b, i, j, seq_q, seq_k);
             let val = unsafe { aw_ptr.read(aw_idx) };
             let v = (val - mx).exp();
-            unsafe { aw_ptr.write(aw_idx, v); }
+            unsafe {
+                aw_ptr.write(aw_idx, v);
+            }
             sum_exp = sum_exp + v;
         }
 
@@ -140,7 +148,9 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
                 let v_val = unsafe { v_ptr.read(v_idx) };
                 acc = acc + aw_val * v_val;
             }
-            unsafe { out_ptr.write(idx3(b, i, l, seq_q, d_v), acc); }
+            unsafe {
+                out_ptr.write(idx3(b, i, l, seq_q, d_v), acc);
+            }
         }
     });
 }
@@ -197,9 +207,15 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
     let k_ptr = Ptr(k_sl.as_ptr());
     let v_ptr = Ptr(v_sl.as_ptr());
 
-    let gq_ptr = grad_q.as_mut().map(|gq| MutPtr(gq.as_mut_slice().as_mut_ptr()));
-    let gk_ptr = grad_k.as_mut().map(|gk| MutPtr(gk.as_mut_slice().as_mut_ptr()));
-    let gv_ptr = grad_v.as_mut().map(|gv| MutPtr(gv.as_mut_slice().as_mut_ptr()));
+    let gq_ptr = grad_q
+        .as_mut()
+        .map(|gq| MutPtr(gq.as_mut_slice().as_mut_ptr()));
+    let gk_ptr = grad_k
+        .as_mut()
+        .map(|gk| MutPtr(gk.as_mut_slice().as_mut_ptr()));
+    let gv_ptr = grad_v
+        .as_mut()
+        .map(|gv| MutPtr(gv.as_mut_slice().as_mut_ptr()));
 
     #[inline(always)]
     fn idx3(b: usize, i: usize, j: usize, dim1: usize, dim2: usize) -> usize {
@@ -237,7 +253,9 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
             let aw_idx = idx3(b, i, j, seq_q, seq_k);
             let aw_val = unsafe { aw_ptr.read(aw_idx) };
             let val = aw_val * (d_attn_row[j] - rs);
-            unsafe { d_scores_ptr.write(aw_idx, val); }
+            unsafe {
+                d_scores_ptr.write(aw_idx, val);
+            }
         }
 
         // d. Accumulate into dQ if present:
